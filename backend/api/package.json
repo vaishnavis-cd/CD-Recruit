@@ -7,6 +7,10 @@
     "start:dev": "nest start --watch",
     "lint": "eslint src --ext .ts"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@prisma/client": "^5.16.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.16.1"
+  }
 }
