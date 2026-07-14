@@ -1,0 +1,106 @@
+{
+  "_comment": "⚠️  PLACEHOLDER DEFAULTS — Must be verified before Phase 4 (Auth) depends on this config.",
+  "_placeholders": {
+    "frontendPort": "3000 — confirm against actual candidate-web and admin-web Vite/Next dev server ports",
+    "apiPort": "3001 — confirm against actual NestJS API port",
+    "clientSecret": "cd-recruit-api-secret — CHANGE for any non-local environment",
+    "redirectUris": "http://localhost:3000/* covers candidate-web; add admin-web port if different"
+  },
+  "realm": "cd-recruit",
+  "displayName": "CD-Recruit",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "recruiter",
+        "description": "Can view sessions, integrity flags, scores and record decisions",
+        "composite": false
+      },
+      {
+        "name": "admin",
+        "description": "Full access including user management",
+        "composite": false
+      },
+      {
+        "name": "candidate",
+        "description": "Can start/resume/submit their own assessment session",
+        "composite": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "cd-recruit-api",
+      "name": "CD-Recruit NestJS API",
+      "description": "Confidential backend client — used for service-account calls and token introspection",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "cd-recruit-api-secret",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "3600"
+      }
+    },
+    {
+      "clientId": "cd-recruit-frontend",
+      "name": "CD-Recruit Frontend (Public PKCE)",
+      "description": "Public client for candidate-web and admin-web SPAs — uses PKCE, no client secret",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": true,
+      "serviceAccountsEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:3001/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:3001"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "access.token.lifespan": "3600"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "demo-recruiter",
+      "email": "recruiter@cdrecruit.local",
+      "firstName": "Demo",
+      "lastName": "Recruiter",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["recruiter"]
+    },
+    {
+      "username": "demo-admin",
+      "email": "admin@cdrecruit.local",
+      "firstName": "Demo",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["admin", "recruiter"]
+    }
+  ],
+  "requiredActions": [],
+  "browserFlow": "browser",
+  "clientScopeMappings": {}
+}
