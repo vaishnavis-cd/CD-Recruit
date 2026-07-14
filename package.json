@@ -8,13 +8,17 @@
     "backend/api",
     "packages/shared-types"
   ],
+  "prisma": {
+    "seed": "tsx backend/prisma/seed.ts"
+  },
   "scripts": {
     "dev:candidate": "npm --workspace=frontend/candidate-web run dev",
     "dev:admin": "npm --workspace=frontend/admin-web run dev",
     "dev:api": "npm --workspace=backend/api run start:dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:seed": "npx prisma db seed"
   },
   "devDependencies": {
     "husky": "^9.1.7",
