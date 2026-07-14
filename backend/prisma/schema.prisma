@@ -122,6 +122,10 @@ model Session {
   score             Score?
   reviewerDecision  ReviewerDecision?
 
+  @@index([candidateId])
+  @@index([status])
+  @@index([deadlineAt])
+  @@index([lastHeartbeatAt])
   @@map("session")
 }
 
@@ -137,6 +141,7 @@ model ModuleResponse {
   session  Session  @relation(fields: [sessionId], references: [id])
   question Question @relation(fields: [questionId], references: [id])
 
+  @@unique([sessionId, questionId])
   @@map("module_response")
 }
 
