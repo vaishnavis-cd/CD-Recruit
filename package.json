@@ -1,0 +1,40 @@
+{
+  "name": "cd-recruit",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend/candidate-web",
+    "frontend/admin-web",
+    "backend/api",
+    "packages/shared-types"
+  ],
+  "scripts": {
+    "dev:candidate": "npm --workspace=frontend/candidate-web run dev",
+    "dev:admin": "npm --workspace=frontend/admin-web run dev",
+    "dev:api": "npm --workspace=backend/api run start:dev",
+    "build": "npm --workspaces run build",
+    "lint": "npm --workspaces run lint",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.py": [
+      "ruff check --fix",
+      "black"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}
