@@ -21,7 +21,9 @@
     "db:studio": "npm --workspace=backend/api run prisma:studio"
   },
   "devDependencies": {
-    "eslint": "^10.7.0",
+    "eslint": "^9.31.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
     "prettier": "^3.9.5",
