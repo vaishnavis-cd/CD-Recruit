@@ -47,6 +47,26 @@ enum DecisionType {
   REJECT
 }
 
+enum InviteStatus {
+  PENDING
+  REDEEMED
+  EXPIRED
+  REVOKED
+}
+
+enum DriveStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  CLOSED
+}
+
+enum QuestionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 // ---------- Models ----------
 
 model RoleTemplate {
@@ -55,20 +75,59 @@ model RoleTemplate {
   weightingPreset Json     @map("weighting_preset")
   durationMinutes Int      @map("duration_minutes") // drives session.deadlineAt
 
-  questions Question[]
   sessions  Session[]
+  invites   Invite[]
+  drives    Drive[]
 
   @@map("role_template")
 }
 
+model Drive {
+  id             String      @id @default(uuid())
+  name           String
+  roleTemplateId String      @map("role_template_id")
+  moduleConfig   Json        @map("module_config")
+  status         DriveStatus @default(DRAFT)
+  scheduleStart  DateTime?   @map("schedule_start")
+  scheduleEnd    DateTime?   @map("schedule_end")
+  createdById    String      @map("created_by_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  createdBy      Staff        @relation(fields: [createdById], references: [id])
+  sessions       Session[]
+  invites        Invite[]
+  questions      DriveQuestion[]
+
+  @@map("drive")
+}
+
+model DriveQuestion {
+  id         String     @id @default(uuid())
+  driveId    String     @map("drive_id")
+  questionId String     @map("question_id")
+  moduleType ModuleType @map("module_type")
+
+  drive    Drive    @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([driveId, questionId])
+  @@map("drive_question")
+}
+
 model Question {
   id             String     @id @default(uuid())
-  roleTemplateId String     @map("role_template_id")
   moduleType     ModuleType @map("module_type")
   content        Json
+  scoringConfig  Json?      @map("scoring_config")
+  difficulty     String?
+  tags           String[]
+  folderId       String?    @map("folder_id")
+  version        Int        @default(1)
+  status         QuestionStatus @default(PUBLISHED)
 
-  roleTemplate    RoleTemplate     @relation(fields: [roleTemplateId], references: [id])
   moduleResponses ModuleResponse[]
+  driveQuestions  DriveQuestion[]
 
   @@map("question")
 }
@@ -101,6 +160,7 @@ model Session {
   id                 String        @id @default(uuid())
   candidateId        String        @map("candidate_id")
   roleTemplateId     String        @map("role_template_id")
+  driveId            String?       @map("drive_id")
   cvMode             CvMode        @map("cv_mode")
   status             SessionStatus @default(NOT_STARTED)
   baselineSelfieRef  String?       @map("baseline_selfie_ref")
@@ -116,12 +176,14 @@ model Session {
 
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  drive        Drive?       @relation(fields: [driveId], references: [id])
 
   moduleResponses   ModuleResponse[]
   eventLogs         EventLog[]
   integrityFlags    IntegrityFlag[]
   score             Score?
   reviewerDecision  ReviewerDecision?
+  invite            Invite?
 
   @@index([candidateId])
   @@index([status])
@@ -170,6 +232,10 @@ model IntegrityFlag {
   severity   String
   flaggedAt  DateTime @default(now()) @map("flagged_at")
 
+  disposition     String?
+  dispositionAt   DateTime? @map("disposition_at")
+  dispositionById String?   @map("disposition_by_id")
+
   session      Session       @relation(fields: [sessionId], references: [id])
   evidenceClip EvidenceClip?
 
@@ -210,6 +276,9 @@ model Staff {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   reviewerDecisions ReviewerDecision[]
+  invites           Invite[]
+  drives            Drive[]
+  auditLogs         AuditLog[]
 
   @@map("staff")
 }
@@ -220,9 +289,49 @@ model ReviewerDecision {
   staffId    String       @map("staff_id") // renamed from reviewerId to match STAFF table
   decision   DecisionType
   decidedAt  DateTime     @default(now()) @map("decided_at")
+  note       String?
 
   session Session @relation(fields: [sessionId], references: [id])
   staff   Staff   @relation(fields: [staffId], references: [id])
 
   @@map("reviewer_decision")
+}
+
+model Invite {
+  id              String       @id @default(uuid())
+  candidateEmail  String       @map("candidate_email")
+  candidateName   String       @map("candidate_name")
+  roleTemplateId  String       @map("role_template_id")
+  driveId         String?      @map("drive_id")
+  status          InviteStatus @default(PENDING)
+  token           String       @unique
+  createdById     String       @map("created_by_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  expiresAt       DateTime     @map("expires_at")
+  redeemedAt      DateTime?    @map("redeemed_at")
+  revokedAt       DateTime?    @map("revoked_at")
+  sessionId       String?      @unique @map("session_id")
+
+  roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  createdBy    Staff        @relation(fields: [createdById], references: [id])
+  session      Session?     @relation(fields: [sessionId], references: [id])
+  drive        Drive?       @relation(fields: [driveId], references: [id])
+
+  @@index([candidateEmail])
+  @@index([status])
+  @@map("invite")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  staffId    String   @map("staff_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@map("audit_log")
 }

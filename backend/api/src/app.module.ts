@@ -1,27 +1,29 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { PrismaService } from "./common/prisma.service";
-import { SimulationController } from "./simulation/simulation.controller";
-import { SimulationService } from "./simulation/simulation.service";
-import { EventGenerationService } from "./simulation/event-generation.service";
-import { CompetencyEngine } from "./simulation/competency-engine";
-import { SessionLogService } from "./simulation/session-log.service";
+import appConfig from "./config/app.config";
+import { PrismaModule } from "./prisma/prisma.module";
+import { AuthModule } from "./auth/auth.module";
+import { AdminModule } from "./admin/admin.module";
+import { DriveModule } from "./drive/drive.module";
+import { QuestionModule } from "./question/question.module";
+import { SettingsModule } from "./settings/settings.module";
+import { HealthModule } from "./health/health.module";
+import { MinioModule } from "./integrations/minio/minio.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [".env", "../../.env"],
+      load: [appConfig],
     }),
+    PrismaModule,
+    AuthModule,
+    AdminModule,
+    DriveModule,
+    QuestionModule,
+    SettingsModule,
+    HealthModule,
+    MinioModule,
   ],
-  controllers: [SimulationController],
-  providers: [
-    PrismaService,
-    SimulationService,
-    SessionLogService,
-    EventGenerationService,
-    CompetencyEngine,
-  ],
-  exports: [PrismaService],
 })
 export class AppModule {}

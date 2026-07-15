@@ -56,6 +56,31 @@ export enum ReviewDecision {
   REJECT = "REJECT",
 }
 
+export enum InviteStatus {
+  PENDING = "PENDING",
+  REDEEMED = "REDEEMED",
+  EXPIRED = "EXPIRED",
+  REVOKED = "REVOKED",
+}
+
+export enum FlagDisposition {
+  CONFIRMED = "CONFIRMED",
+  FALSE_POSITIVE = "FALSE_POSITIVE",
+}
+
+export enum DriveStatus {
+  DRAFT = "DRAFT",
+  SCHEDULED = "SCHEDULED",
+  ACTIVE = "ACTIVE",
+  CLOSED = "CLOSED",
+}
+
+export enum QuestionStatus {
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  ARCHIVED = "ARCHIVED",
+}
+
 // ---------------------------------------------------------------------------
 // Code Execution (Judge0)
 // ---------------------------------------------------------------------------
