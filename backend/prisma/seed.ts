@@ -1,4 +1,4 @@
-﻿/**
+/**
  * backend/prisma/seed.ts
  *
  * Prisma seed script for the CD-Recruit assessment platform.
@@ -76,9 +76,22 @@ async function main(): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     // ------------------------------------------------------------------
-    // 1. Upsert RoleTemplate
-    //    schema.prisma has no @unique on roleName, so we use findFirst
-    //    and create only when absent — making the operation idempotent.
+    // 1. Upsert Staff (Recruiter)
+    // ------------------------------------------------------------------
+    const staff = await tx.staff.upsert({
+      where: { email: "recruiter@example.com" },
+      update: {},
+      create: {
+        email: "recruiter@example.com",
+        name: "Rachel Brooks",
+        role: "RECRUITER",
+        keycloakUserId: "mock-keycloak-recruiter-id",
+      },
+    });
+    console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);
+
+    // ------------------------------------------------------------------
+    // 2. Upsert RoleTemplate
     // ------------------------------------------------------------------
     let roleTemplate = await tx.roleTemplate.findFirst({
       where: { roleName: ROLE_NAME },
@@ -98,20 +111,14 @@ async function main(): Promise<void> {
     }
 
     // ------------------------------------------------------------------
-    // 2. Seed Questions
-    //    Guard: skip if this template already has questions, so re-running
-    //    the seed does not create duplicates (Question has no natural unique
-    //    constraint in the schema — guard is count-based).
+    // 3. Seed Questions (Independent of RoleTemplate)
     // ------------------------------------------------------------------
-    const existingCount = await tx.question.count({
-      where: { roleTemplateId: roleTemplate.id },
-    });
-
+    const existingCount = await tx.question.count();
     const allQuestions = getAllQuestionSeedData();
 
     if (existingCount > 0) {
       console.log(
-        `  ↩ Found ${existingCount} existing question(s) for "${ROLE_NAME}" — skipping question seed`,
+        `  ↩ Found ${existingCount} existing question(s) — skipping question seed`,
       );
     } else if (allQuestions.length === 0) {
       console.log(
@@ -119,27 +126,58 @@ async function main(): Promise<void> {
           "Populate the arrays in backend/prisma/data/*.ts and re-run the seed.",
       );
     } else {
-      // Create all questions linked to the RoleTemplate in a single batch.
-      const result = await tx.question.createMany({
-        data: allQuestions.map((q) => ({
-          roleTemplateId: roleTemplate.id,
-          moduleType: q.moduleType,
-          content: q.content,
-        })),
-      });
-      console.log(`  ✔ Created ${result.count} question(s) for "${ROLE_NAME}"`);
-
-      // Log per-module breakdown for visibility.
-      const breakdown = allQuestions.reduce<Partial<Record<ModuleType, number>>>(
-        (acc, q) => {
-          acc[q.moduleType] = (acc[q.moduleType] ?? 0) + 1;
-          return acc;
-        },
-        {},
-      );
-      for (const [moduleType, count] of Object.entries(breakdown)) {
-        console.log(`     • ${moduleType}: ${count}`);
+      // Create questions
+      const createdQuestions = [];
+      for (const q of allQuestions) {
+        const created = await tx.question.create({
+          data: {
+            moduleType: q.moduleType,
+            content: q.content as any,
+            difficulty: "medium",
+            tags: [q.moduleType.toLowerCase()],
+            scoringConfig: {},
+            version: 1,
+            status: "PUBLISHED",
+          },
+        });
+        createdQuestions.push(created);
       }
+      console.log(`  ✔ Created ${createdQuestions.length} independent question(s)`);
+
+      // ------------------------------------------------------------------
+      // 4. Create Default Drive
+      // ------------------------------------------------------------------
+      const drive = await tx.drive.create({
+        data: {
+          name: "Software Developer Drive - July 2026",
+          roleTemplateId: roleTemplate.id,
+          moduleConfig: {
+            MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
+            SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
+            CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
+            AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
+            SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+          },
+          status: "ACTIVE",
+          scheduleStart: new Date(),
+          scheduleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          createdById: staff.id,
+        },
+      });
+      console.log(`  ✔ Created Drive "${drive.name}" (id: ${drive.id})`);
+
+      // ------------------------------------------------------------------
+      // 5. Link Questions to the Drive
+      // ------------------------------------------------------------------
+      const driveQuestionsData = createdQuestions.map((q) => ({
+        driveId: drive.id,
+        questionId: q.id,
+        moduleType: q.moduleType,
+      }));
+      await tx.driveQuestion.createMany({
+        data: driveQuestionsData,
+      });
+      console.log(`  ✔ Linked ${driveQuestionsData.length} questions to Drive "${drive.name}"`);
     }
   });
 

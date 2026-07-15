@@ -1,13 +1,23 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ListChecks, Send, FileBarChart, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  ListChecks,
+  Send,
+  FileBarChart,
+  LogOut,
+  HelpCircle,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { SIDEBAR_SPARK } from "../lib/mock-data";
 import type { ReactNode } from "react";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/sessions", label: "Sessions", icon: ListChecks },
+  { to: "/drives", label: "Drives", icon: ListChecks },
   { to: "/invites", label: "Invites", icon: Send },
   { to: "/reports", label: "Reports", icon: FileBarChart },
+  { to: "/questions", label: "Question Bank", icon: HelpCircle },
+  { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
 function SidebarSpark() {

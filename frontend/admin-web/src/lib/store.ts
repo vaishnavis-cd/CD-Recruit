@@ -1,5 +1,13 @@
 import { create } from "zustand";
 import { type Session, type Invite, type RoleTemplate, ROLE_TEMPLATES } from "./mock-data";
+import {
+  type Drive,
+  type DriveDetail,
+  type Question,
+  type ActionQueue,
+  type AuditLog,
+  type DriveStatus,
+} from "./types";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -26,18 +34,73 @@ async function getAuthHeaders() {
 interface Store {
   sessions: Session[];
   invites: Invite[];
+  drives: Drive[];
+  questions: Question[];
+  actionQueue: ActionQueue | null;
   loading: boolean;
   error: string | null;
-  fetchSessions: () => Promise<void>;
-  fetchInvites: () => Promise<void>;
+
+  fetchSessions: (query?: {
+    driveId?: string;
+    needsReview?: boolean;
+    search?: string;
+  }) => Promise<void>;
+  fetchInvites: (query?: { driveId?: string; search?: string; status?: string }) => Promise<void>;
   fetchSessionDetail: (sessionId: string) => Promise<void>;
-  recordDecision: (sessionId: string, outcome: "advance" | "reject") => Promise<void>;
+  recordDecision: (
+    sessionId: string,
+    outcome: "advance" | "reject",
+    note?: string,
+  ) => Promise<void>;
+
   createInvite: (input: {
     candidateName: string;
     candidateEmail: string;
     roleTemplate: RoleTemplate;
+    driveId: string;
   }) => Promise<Invite>;
   revokeInvite: (id: string) => Promise<void>;
+  extendExpiry: (id: string, newExpiresAt: string) => Promise<void>;
+  regenerateToken: (id: string) => Promise<string>;
+  bulkRevoke: (ids: string[]) => Promise<void>;
+  bulkResend: (ids: string[]) => Promise<void>;
+
+  fetchDrives: (query?: { status?: string; search?: string }) => Promise<void>;
+  fetchDriveDetail: (driveId: string) => Promise<DriveDetail>;
+  createDrive: (input: {
+    name: string;
+    roleTemplateId: string;
+    moduleConfig: any;
+    status?: DriveStatus;
+    scheduleStart?: string;
+    scheduleEnd?: string;
+    candidates?: Array<{ name: string; email: string }>;
+  }) => Promise<any>;
+  duplicateDrive: (driveId: string) => Promise<void>;
+  closeDrive: (driveId: string) => Promise<void>;
+
+  fetchQuestions: (query?: {
+    moduleType?: string;
+    difficulty?: string;
+    search?: string;
+    status?: string;
+  }) => Promise<void>;
+  createQuestion: (input: {
+    moduleType: string;
+    content: any;
+    scoringConfig?: any;
+    difficulty?: string;
+    tags?: string[];
+  }) => Promise<void>;
+  archiveQuestion: (id: string) => Promise<void>;
+  bulkUploadQuestions: (moduleType: string, questions: any[]) => Promise<void>;
+
+  fetchActionQueue: () => Promise<void>;
+  fetchAuditLogs: (query?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  }) => Promise<{ items: AuditLog[]; total: number }>;
 }
 
 // Helpers to map backend session states to frontend styles
@@ -130,14 +193,27 @@ function mapBackendInvite(invite: any): Invite {
 export const useStore = create<Store>((set, get) => ({
   sessions: [],
   invites: [],
+  drives: [],
+  questions: [],
+  actionQueue: null,
   loading: false,
   error: null,
 
-  fetchSessions: async () => {
+  fetchSessions: async (query) => {
     set({ loading: true });
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/sessions?page=1&pageSize=100`, { headers });
+      let url = `${API_BASE}/admin/sessions?page=1&pageSize=100`;
+      if (query?.driveId) {
+        url += `&driveId=${query.driveId}`;
+      }
+      if (query?.needsReview !== undefined) {
+        url += `&needsReview=${query.needsReview}`;
+      }
+      if (query?.search) {
+        url += `&search=${encodeURIComponent(query.search)}`;
+      }
+      const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
       const mapped = data.items.map((s: any) => mapBackendSession(s));
@@ -148,11 +224,21 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  fetchInvites: async () => {
+  fetchInvites: async (query) => {
     set({ loading: true });
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/invites?page=1&pageSize=100`, { headers });
+      let url = `${API_BASE}/admin/invites?page=1&pageSize=100`;
+      if (query?.driveId) {
+        url += `&driveId=${query.driveId}`;
+      }
+      if (query?.search) {
+        url += `&search=${encodeURIComponent(query.search)}`;
+      }
+      if (query?.status) {
+        url += `&status=${query.status}`;
+      }
+      const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch invites");
       const data = await res.json();
       const mapped = data.items.map((i: any) => mapBackendInvite(i));
@@ -193,8 +279,11 @@ export const useStore = create<Store>((set, get) => ({
       // Map integrity flags
       const flags = detail.integrityFlags.map((f: any) => ({
         category: f.category,
-        severity: f.severity === "HIGH" ? ("critical" as const) : ("low" as const),
-        timestamp: f.flaggedAt.slice(11, 16),
+        severity:
+          f.severity === "HIGH" || f.severity === "critical"
+            ? ("critical" as const)
+            : ("low" as const),
+        timestamp: f.flaggedAt ? f.flaggedAt.slice(11, 16) : "12:00",
         hasEvidence: !!f.evidenceClipUrl,
       }));
 
@@ -217,7 +306,7 @@ export const useStore = create<Store>((set, get) => ({
         !!detail.score,
         detail.score?.humanReviewed,
         detail.score?.aiConfidence || 1.0,
-        !!detail.reviewerDecision,
+        !!detail.decision,
       );
 
       const mappedDetail: Session = {
@@ -243,11 +332,12 @@ export const useStore = create<Store>((set, get) => ({
         submittedAt: detail.submittedAt
           ? detail.submittedAt.slice(0, 10)
           : new Date().toISOString().slice(0, 10),
-        decision: detail.reviewerDecision
+        decision: detail.decision
           ? {
-              outcome: detail.reviewerDecision.decision.toLowerCase() as "advance" | "reject",
-              decidedAt: detail.reviewerDecision.decidedAt.slice(0, 10),
-              decidedBy: "Reviewer",
+              outcome: detail.decision.outcome.toLowerCase() as "advance" | "reject",
+              decidedAt: detail.decision.decidedAt.slice(0, 10),
+              decidedBy: detail.decision.decidedBy,
+              note: detail.decision.note,
             }
           : undefined,
       };
@@ -260,14 +350,14 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  recordDecision: async (sessionId: string, outcome: "advance" | "reject") => {
+  recordDecision: async (sessionId: string, outcome: "advance" | "reject", note?: string) => {
     try {
       const headers = await getAuthHeaders();
       const decision = outcome.toUpperCase();
       const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}/decision`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ decision, note }),
       });
       if (!res.ok) throw new Error("Failed to record decision");
 
@@ -282,6 +372,7 @@ export const useStore = create<Store>((set, get) => ({
                   outcome,
                   decidedAt: new Date().toISOString().slice(0, 10),
                   decidedBy: "You",
+                  note,
                 },
               }
             : sess,
@@ -301,10 +392,8 @@ export const useStore = create<Store>((set, get) => ({
         body: JSON.stringify({
           candidateEmail: input.candidateEmail,
           candidateName: input.candidateName,
-          roleTemplateId:
-            input.roleTemplate.id === "rt-be-mid"
-              ? "9c2b64b0-70a4-496e-9ba8-ff07b05a31a3" // Software Developer fallback
-              : "9c2b64b0-70a4-496e-9ba8-ff07b05a31a3",
+          roleTemplateId: input.roleTemplate.id,
+          driveId: input.driveId,
         }),
       });
       if (!res.ok) throw new Error("Failed to create invite");
@@ -335,6 +424,235 @@ export const useStore = create<Store>((set, get) => ({
       console.error(err);
     }
   },
+
+  extendExpiry: async (id: string, newExpiresAt: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/invites/${id}/extend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ newExpiresAt }),
+      });
+      if (!res.ok) throw new Error("Failed to extend invite");
+
+      set((s) => ({
+        invites: s.invites.map((inv) =>
+          inv.id === id ? { ...inv, expiresAt: newExpiresAt, status: "PENDING" } : inv,
+        ),
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  regenerateToken: async (id: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/invites/${id}/regenerate`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to regenerate token");
+      const data = await res.json();
+
+      set((s) => ({
+        invites: s.invites.map((inv) => (inv.id === id ? mapBackendInvite(data.invite) : inv)),
+      }));
+      return data.inviteLink;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  bulkRevoke: async (ids: string[]) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/invites/bulk-revoke`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ inviteIds: ids }),
+      });
+      if (!res.ok) throw new Error("Failed to bulk revoke");
+
+      set((s) => ({
+        invites: s.invites.map((inv) =>
+          ids.includes(inv.id) ? { ...inv, status: "REVOKED" } : inv,
+        ),
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  bulkResend: async (ids: string[]) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/invites/bulk-resend`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ inviteIds: ids }),
+      });
+      if (!res.ok) throw new Error("Failed to bulk resend");
+      // Re-fetch invites to get new expiry/link structures
+      get().fetchInvites();
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  fetchDrives: async (query) => {
+    set({ loading: true });
+    try {
+      const headers = await getAuthHeaders();
+      let url = `${API_BASE}/admin/drives?page=1&pageSize=100`;
+      if (query?.status) {
+        url += `&status=${query.status}`;
+      }
+      if (query?.search) {
+        url += `&search=${encodeURIComponent(query.search)}`;
+      }
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Failed to fetch drives");
+      const data = await res.json();
+      set({ drives: data.items, loading: false });
+    } catch (err: any) {
+      console.error(err);
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  fetchDriveDetail: async (driveId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, { headers });
+    if (!res.ok) throw new Error("Failed to fetch drive details");
+    return res.json();
+  },
+
+  createDrive: async (input) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/drives`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error("Failed to create drive");
+    const result = await res.json();
+    get().fetchDrives();
+    return result;
+  },
+
+  duplicateDrive: async (driveId: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/duplicate`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to duplicate drive");
+      get().fetchDrives();
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  closeDrive: async (driveId: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/close`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to close drive");
+      get().fetchDrives();
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  fetchQuestions: async (query) => {
+    try {
+      const headers = await getAuthHeaders();
+      let url = `${API_BASE}/admin/questions?page=1&pageSize=100`;
+      if (query?.moduleType) {
+        url += `&moduleType=${query.moduleType}`;
+      }
+      if (query?.difficulty) {
+        url += `&difficulty=${query.difficulty}`;
+      }
+      if (query?.search) {
+        url += `&search=${encodeURIComponent(query.search)}`;
+      }
+      if (query?.status) {
+        url += `&status=${query.status}`;
+      }
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Failed to fetch questions");
+      const data = await res.json();
+      set({ questions: data.items });
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  createQuestion: async (input) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/questions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error("Failed to create question");
+    get().fetchQuestions();
+  },
+
+  archiveQuestion: async (id: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/questions/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to archive question");
+      get().fetchQuestions();
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  bulkUploadQuestions: async (moduleType, questions) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/questions/bulk-upload`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ moduleType, questions }),
+    });
+    if (!res.ok) throw new Error("Failed bulk uploading questions");
+    get().fetchQuestions();
+  },
+
+  fetchActionQueue: async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/dashboard/action-queue`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch action queue");
+      const data = await res.json();
+      set({ actionQueue: data });
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  fetchAuditLogs: async (query) => {
+    const headers = await getAuthHeaders();
+    let url = `${API_BASE}/admin/settings/audit-log?page=${query?.page || 1}&pageSize=${query?.pageSize || 20}`;
+    if (query?.search) {
+      url += `&search=${encodeURIComponent(query.search)}`;
+    }
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("Failed fetching audit logs");
+    return res.json();
+  },
 }));
 
 // Initialize store in background
@@ -342,5 +660,8 @@ if (typeof window !== "undefined") {
   setTimeout(() => {
     useStore.getState().fetchSessions();
     useStore.getState().fetchInvites();
+    useStore.getState().fetchDrives();
+    useStore.getState().fetchQuestions();
+    useStore.getState().fetchActionQueue();
   }, 100);
 }

@@ -23,6 +23,8 @@ import {
   RecordDecisionDto,
   CreateInviteDto,
   ListInvitesQueryDto,
+  ExtendExpiryDto,
+  BulkInviteActionDto,
 } from "../common/dto/admin.dto";
 
 @Controller("admin")
@@ -36,8 +38,18 @@ export class AdminController {
   ) {}
 
   @Get("dashboard/stats")
-  async getDashboardStats() {
-    return this.dashboardService.getDashboardStats();
+  async getDashboardStats(@Query() query: any) {
+    return this.dashboardService.getDashboardStats(query);
+  }
+
+  @Get("dashboard/action-queue")
+  async getActionQueue() {
+    return this.dashboardService.getActionQueue();
+  }
+
+  @Get("dashboard/export")
+  async exportStats(@Query() query: any) {
+    return this.dashboardService.getDashboardStats(query);
   }
 
   @Get("sessions")
@@ -59,7 +71,7 @@ export class AdminController {
     @Body() dto: RecordDecisionDto,
     @CurrentUser() staff: any,
   ) {
-    return this.adminService.recordDecision(sessionId, dto.decision, staff.id);
+    return this.adminService.recordDecision(sessionId, dto.decision, staff.id, dto.note);
   }
 
   @Get("sessions/:sessionId/events")
@@ -98,5 +110,45 @@ export class AdminController {
     @CurrentUser() staff: any,
   ) {
     return this.inviteService.revokeInvite(inviteId, staff.id);
+  }
+
+  @Post("invites/:inviteId/extend")
+  async extendExpiry(
+    @Param("inviteId", UUIDValidationPipe) inviteId: string,
+    @Body() dto: ExtendExpiryDto,
+    @CurrentUser() staff: any,
+  ) {
+    return this.inviteService.extendExpiry(inviteId, new Date(dto.newExpiresAt), staff.id);
+  }
+
+  @Post("invites/:inviteId/regenerate")
+  async regenerateToken(
+    @Param("inviteId", UUIDValidationPipe) inviteId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.inviteService.regenerateToken(inviteId, staff.id);
+  }
+
+  @Post("invites/bulk-revoke")
+  @HttpCode(HttpStatus.OK)
+  async bulkRevoke(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
+    return this.inviteService.bulkRevoke(dto.inviteIds, staff.id);
+  }
+
+  @Post("invites/bulk-resend")
+  @HttpCode(HttpStatus.OK)
+  async bulkResend(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
+    return this.inviteService.bulkResend(dto.inviteIds, staff.id);
+  }
+
+  @Post("sessions/compare")
+  @HttpCode(HttpStatus.OK)
+  async compareSessions(@Body("sessionIds") sessionIds: string[]) {
+    return this.adminService.compareSessionScores(sessionIds);
+  }
+
+  @Get("drives/:driveId/export")
+  async exportDrive(@Param("driveId", UUIDValidationPipe) driveId: string) {
+    return this.adminService.bulkExportByDrive(driveId);
   }
 }

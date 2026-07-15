@@ -44,6 +44,8 @@ export class AdminService {
       pageSize,
       status,
       roleTemplateId,
+      driveId,
+      needsReview,
       search,
       sortBy,
       sortOrder,
@@ -60,6 +62,18 @@ export class AdminService {
 
     if (roleTemplateId) {
       where.roleTemplateId = roleTemplateId;
+    }
+
+    if (driveId) {
+      where.driveId = driveId;
+    }
+
+    if (needsReview) {
+      where.status = { in: ["SUBMITTED", "AUTO_SUBMITTED"] };
+      where.score = {
+        humanReviewed: false,
+        aiConfidence: { lt: 0.8 },
+      };
     }
 
     if (search) {
@@ -158,6 +172,11 @@ export class AdminService {
           },
         },
         score: true,
+        reviewerDecision: {
+          include: {
+            staff: true,
+          },
+        },
       },
     });
 
@@ -231,6 +250,14 @@ export class AdminService {
             humanReviewed: session.score.humanReviewed,
           }
         : null,
+      decision: session.reviewerDecision
+        ? {
+            outcome: session.reviewerDecision.decision as any,
+            decidedAt: session.reviewerDecision.decidedAt.toISOString(),
+            decidedBy: session.reviewerDecision.staff.name,
+            note: session.reviewerDecision.note || undefined,
+          }
+        : undefined,
     };
   }
 
@@ -238,6 +265,7 @@ export class AdminService {
     sessionId: string,
     decision: ReviewDecision,
     staffId: string,
+    note?: string,
   ): Promise<RecordDecisionResponse> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -278,7 +306,8 @@ export class AdminService {
         data: {
           sessionId,
           staffId,
-          decision: decision,
+          decision: decision as any,
+          note,
         },
       });
 
@@ -288,6 +317,17 @@ export class AdminService {
           data: { humanReviewed: true },
         });
       }
+
+      // Create Audit Log
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "DECISION_RECORDED",
+          entityType: "Session",
+          entityId: sessionId,
+          metadata: { decision, note },
+        },
+      });
 
       return decisionCreated;
     });
@@ -374,5 +414,65 @@ export class AdminService {
       roleName: t.roleName,
       durationMinutes: t.durationMinutes,
     }));
+  }
+
+  async compareSessionScores(sessionIds: string[]) {
+    const sessions = await this.prisma.session.findMany({
+      where: { id: { in: sessionIds } },
+      include: {
+        candidate: true,
+        roleTemplate: true,
+        score: true,
+      },
+    });
+
+    return sessions.map((s) => ({
+      sessionId: s.id,
+      candidateName: s.candidate.name,
+      candidateEmail: s.candidate.email,
+      roleTemplateName: s.roleTemplate.roleName,
+      compositeScore: s.score?.compositeScore ?? null,
+      moduleScores: s.score?.moduleScores ?? null,
+      sayDoConsistencyScore: s.score?.sayDoConsistencyScore ?? null,
+      aiConfidence: s.score?.aiConfidence ?? null,
+    }));
+  }
+
+  async bulkExportByDrive(driveId: string) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+      include: {
+        invites: {
+          include: {
+            session: {
+              include: {
+                score: true,
+                reviewerDecision: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    return drive.invites.map((inv) => {
+      const sess = inv.session;
+      return {
+        candidateName: inv.candidateName,
+        candidateEmail: inv.candidateEmail,
+        inviteStatus: inv.status,
+        sessionStatus: sess?.status ?? "NOT_STARTED",
+        compositeScore: sess?.score?.compositeScore ?? null,
+        sayDoScore: sess?.score?.sayDoConsistencyScore ?? null,
+        humanReviewed: sess?.score?.humanReviewed ?? false,
+        decision: sess?.reviewerDecision?.decision ?? null,
+        decidedAt: sess?.reviewerDecision?.decidedAt ?? null,
+        decisionNote: sess?.reviewerDecision?.note ?? null,
+      };
+    });
   }
 }

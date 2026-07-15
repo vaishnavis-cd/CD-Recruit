@@ -8,6 +8,8 @@ import {
   IsString,
   IsNotEmpty,
   IsEmail,
+  IsDateString,
+  IsArray,
 } from "class-validator";
 import { Type } from "class-transformer";
 import {
@@ -43,6 +45,14 @@ export class ListSessionsQueryDto {
   search?: string;
 
   @IsOptional()
+  @IsUUID()
+  driveId?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  needsReview?: boolean;
+
+  @IsOptional()
   @IsString()
   sortBy?: "startedAt" | "compositeScore" | "candidateName";
 
@@ -54,6 +64,10 @@ export class ListSessionsQueryDto {
 export class RecordDecisionDto {
   @IsEnum(ReviewDecision)
   decision: ReviewDecision;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
 
 export class CreateInviteDto {
@@ -66,6 +80,9 @@ export class CreateInviteDto {
 
   @IsUUID()
   roleTemplateId: string;
+
+  @IsUUID()
+  driveId: string;
 }
 
 export class ListInvitesQueryDto {
@@ -85,4 +102,23 @@ export class ListInvitesQueryDto {
   @IsOptional()
   @IsEnum(InviteStatus)
   status?: InviteStatus;
+
+  @IsOptional()
+  @IsUUID()
+  driveId?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+}
+
+export class ExtendExpiryDto {
+  @IsDateString()
+  newExpiresAt: string;
+}
+
+export class BulkInviteActionDto {
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  inviteIds: string[];
 }

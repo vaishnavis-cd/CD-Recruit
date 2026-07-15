@@ -42,6 +42,7 @@ export function SessionDetailBody({
 }) {
   const session = useStore((s) => s.sessions.find((x) => x.id === sessionId));
   const recordDecision = useStore((s) => s.recordDecision);
+  const [noteText, setNoteText] = useState("");
   const [tab, setTab] = useState<"saydo" | "overview" | "timeline">("saydo");
   const [evidenceOpen, setEvidenceOpen] = useState<{ category: string; timestamp: string } | null>(
     null,
@@ -104,11 +105,10 @@ export function SessionDetailBody({
         )}
         {embedded && (
           <Link
-            to="/sessions/$id"
-            params={{ id: session.id }}
+            to="/reports"
             className="text-[12px] text-[#2F5CFF] flex items-center gap-1 hover:underline"
           >
-            Open full <ExternalLink size={12} />
+            Open reports <ExternalLink size={12} />
           </Link>
         )}
       </div>
@@ -263,42 +263,67 @@ export function SessionDetailBody({
       </div>
 
       {/* Decision panel */}
-      <div className="px-6 py-4 border-t border-[#E6E6EA] bg-white flex items-center gap-3">
+      <div className="px-6 py-4 border-t border-[#E6E6EA] bg-white flex flex-col gap-3">
         {session.decision ? (
-          <div className="flex-1 flex items-center gap-3">
-            <ShieldCheck
-              size={16}
-              className={
-                session.decision.outcome === "advance" ? "text-[#17C964]" : "text-[#E5484D]"
-              }
-            />
-            <div className="font-mono text-[12px] text-[#0B0B0D]">
-              Decision recorded: <span className="uppercase">{session.decision.outcome}</span> ·{" "}
-              {session.decision.decidedAt} · {session.decision.decidedBy}
+          <div className="flex-1 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck
+                size={16}
+                className={
+                  session.decision.outcome === "advance" ? "text-[#17C964]" : "text-[#E5484D]"
+                }
+              />
+              <div className="font-mono text-[12px] text-[#0B0B0D]">
+                Decision recorded: <span className="uppercase">{session.decision.outcome}</span> ·{" "}
+                {session.decision.decidedAt} · {session.decision.decidedBy}
+              </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {criticalCount > 0 && (
-              <div className="flex items-center gap-1.5 text-[11px] text-[#9A2A2E] mr-auto">
-                <AlertTriangle size={13} />
-                {criticalCount} critical flag{criticalCount > 1 ? "s" : ""} — review evidence before
-                deciding
+            {session.decision.note && (
+              <div className="text-[12px] text-[#5B5B64] bg-[#F7F7F9] p-3 border border-[#E6E6EA] rounded-md font-mono italic">
+                Reviewer comment: "{session.decision.note}"
               </div>
             )}
-            <button
-              onClick={() => recordDecision(session.id, "reject")}
-              className="px-4 py-2 text-[13px] font-medium rounded-md border border-[#E6E6EA] text-[#0B0B0D] hover:bg-[#F7F7F9]"
-            >
-              Reject
-            </button>
-            <button
-              onClick={() => recordDecision(session.id, "advance")}
-              className="px-4 py-2 text-[13px] font-medium rounded-md bg-[#2F5CFF] hover:bg-[#2448D9] text-white"
-            >
-              Advance
-            </button>
-          </>
+          </div>
+        ) : (
+          <div className="space-y-3 w-full">
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#5B5B64] mb-1.5">
+                Reviewer Decision Comments (Optional)
+              </label>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Enter justification notes for Accept/Reject outcome..."
+                rows={2}
+                className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md text-[13px] focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              {criticalCount > 0 ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-[#9A2A2E]">
+                  <AlertTriangle size={13} />
+                  {criticalCount} critical flag{criticalCount > 1 ? "s" : ""} — review evidence
+                  before deciding
+                </div>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => recordDecision(session.id, "reject", noteText)}
+                  className="px-4 py-2 text-[13px] font-medium rounded-md border border-[#E6E6EA] text-[#0B0B0D] hover:bg-[#F7F7F9] cursor-pointer"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => recordDecision(session.id, "advance", noteText)}
+                  className="px-4 py-2 text-[13px] font-medium rounded-md bg-[#2F5CFF] hover:bg-[#2448D9] text-white cursor-pointer"
+                >
+                  Advance
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
