@@ -47,6 +47,13 @@ enum DecisionType {
   REJECT
 }
 
+enum InviteStatus {
+  PENDING
+  REDEEMED
+  EXPIRED
+  REVOKED
+}
+
 // ---------- Models ----------
 
 model RoleTemplate {
@@ -57,6 +64,7 @@ model RoleTemplate {
 
   questions Question[]
   sessions  Session[]
+  invites   Invite[]
 
   @@map("role_template")
 }
@@ -122,6 +130,7 @@ model Session {
   integrityFlags    IntegrityFlag[]
   score             Score?
   reviewerDecision  ReviewerDecision?
+  invite            Invite?
 
   @@index([candidateId])
   @@index([status])
@@ -170,6 +179,10 @@ model IntegrityFlag {
   severity   String
   flaggedAt  DateTime @default(now()) @map("flagged_at")
 
+  disposition     String?
+  dispositionAt   DateTime? @map("disposition_at")
+  dispositionById String?   @map("disposition_by_id")
+
   session      Session       @relation(fields: [sessionId], references: [id])
   evidenceClip EvidenceClip?
 
@@ -210,6 +223,7 @@ model Staff {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   reviewerDecisions ReviewerDecision[]
+  invites           Invite[]
 
   @@map("staff")
 }
@@ -225,4 +239,27 @@ model ReviewerDecision {
   staff   Staff   @relation(fields: [staffId], references: [id])
 
   @@map("reviewer_decision")
+}
+
+model Invite {
+  id              String       @id @default(uuid())
+  candidateEmail  String       @map("candidate_email")
+  candidateName   String       @map("candidate_name")
+  roleTemplateId  String       @map("role_template_id")
+  status          InviteStatus @default(PENDING)
+  token           String       @unique
+  createdById     String       @map("created_by_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  expiresAt       DateTime     @map("expires_at")
+  redeemedAt      DateTime?    @map("redeemed_at")
+  revokedAt       DateTime?    @map("revoked_at")
+  sessionId       String?      @unique @map("session_id")
+
+  roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  createdBy    Staff        @relation(fields: [createdById], references: [id])
+  session      Session?     @relation(fields: [sessionId], references: [id])
+
+  @@index([candidateEmail])
+  @@index([status])
+  @@map("invite")
 }
