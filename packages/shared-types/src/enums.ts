@@ -68,6 +68,19 @@ export enum FlagDisposition {
   FALSE_POSITIVE = "FALSE_POSITIVE",
 }
 
+export enum DriveStatus {
+  DRAFT = "DRAFT",
+  SCHEDULED = "SCHEDULED",
+  ACTIVE = "ACTIVE",
+  CLOSED = "CLOSED",
+}
+
+export enum QuestionStatus {
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  ARCHIVED = "ARCHIVED",
+}
+
 // ---------------------------------------------------------------------------
 // Code Execution (Judge0)
 // ---------------------------------------------------------------------------

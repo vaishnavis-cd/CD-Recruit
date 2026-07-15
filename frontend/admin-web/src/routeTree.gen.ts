@@ -9,22 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as QuestionsRouteImport } from './routes/questions'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvitesRouteImport } from './routes/invites'
+import { Route as DrivesRouteImport } from './routes/drives'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SessionsIdRouteImport } from './routes/sessions.$id'
+import { Route as DrivesIdRouteImport } from './routes/drives.$id'
 
-const SessionsRoute = SessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuestionsRoute = QuestionsRouteImport.update({
+  id: '/questions',
+  path: '/questions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -37,6 +44,11 @@ const InvitesRoute = InvitesRouteImport.update({
   path: '/invites',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DrivesRoute = DrivesRouteImport.update({
+  id: '/drives',
+  path: '/drives',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -47,86 +59,100 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SessionsIdRoute = SessionsIdRouteImport.update({
+const DrivesIdRoute = DrivesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => SessionsRoute,
+  getParentRoute: () => DrivesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/drives': typeof DrivesRouteWithChildren
   '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
+  '/questions': typeof QuestionsRoute
   '/reports': typeof ReportsRoute
-  '/sessions': typeof SessionsRouteWithChildren
-  '/sessions/$id': typeof SessionsIdRoute
+  '/settings': typeof SettingsRoute
+  '/drives/$id': typeof DrivesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/drives': typeof DrivesRouteWithChildren
   '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
+  '/questions': typeof QuestionsRoute
   '/reports': typeof ReportsRoute
-  '/sessions': typeof SessionsRouteWithChildren
-  '/sessions/$id': typeof SessionsIdRoute
+  '/settings': typeof SettingsRoute
+  '/drives/$id': typeof DrivesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/drives': typeof DrivesRouteWithChildren
   '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
+  '/questions': typeof QuestionsRoute
   '/reports': typeof ReportsRoute
-  '/sessions': typeof SessionsRouteWithChildren
-  '/sessions/$id': typeof SessionsIdRoute
+  '/settings': typeof SettingsRoute
+  '/drives/$id': typeof DrivesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/drives'
     | '/invites'
     | '/login'
+    | '/questions'
     | '/reports'
-    | '/sessions'
-    | '/sessions/$id'
+    | '/settings'
+    | '/drives/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
+    | '/drives'
     | '/invites'
     | '/login'
+    | '/questions'
     | '/reports'
-    | '/sessions'
-    | '/sessions/$id'
+    | '/settings'
+    | '/drives/$id'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/drives'
     | '/invites'
     | '/login'
+    | '/questions'
     | '/reports'
-    | '/sessions'
-    | '/sessions/$id'
+    | '/settings'
+    | '/drives/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  DrivesRoute: typeof DrivesRouteWithChildren
   InvitesRoute: typeof InvitesRoute
   LoginRoute: typeof LoginRoute
+  QuestionsRoute: typeof QuestionsRoute
   ReportsRoute: typeof ReportsRoute
-  SessionsRoute: typeof SessionsRouteWithChildren
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sessions': {
-      id: '/sessions'
-      path: '/sessions'
-      fullPath: '/sessions'
-      preLoaderRoute: typeof SessionsRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -134,6 +160,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/questions': {
+      id: '/questions'
+      path: '/questions'
+      fullPath: '/questions'
+      preLoaderRoute: typeof QuestionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -150,6 +183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvitesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/drives': {
+      id: '/drives'
+      path: '/drives'
+      fullPath: '/drives'
+      preLoaderRoute: typeof DrivesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -164,35 +204,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sessions/$id': {
-      id: '/sessions/$id'
+    '/drives/$id': {
+      id: '/drives/$id'
       path: '/$id'
-      fullPath: '/sessions/$id'
-      preLoaderRoute: typeof SessionsIdRouteImport
-      parentRoute: typeof SessionsRoute
+      fullPath: '/drives/$id'
+      preLoaderRoute: typeof DrivesIdRouteImport
+      parentRoute: typeof DrivesRoute
     }
   }
 }
 
-interface SessionsRouteChildren {
-  SessionsIdRoute: typeof SessionsIdRoute
+interface DrivesRouteChildren {
+  DrivesIdRoute: typeof DrivesIdRoute
 }
 
-const SessionsRouteChildren: SessionsRouteChildren = {
-  SessionsIdRoute: SessionsIdRoute,
+const DrivesRouteChildren: DrivesRouteChildren = {
+  DrivesIdRoute: DrivesIdRoute,
 }
 
-const SessionsRouteWithChildren = SessionsRoute._addFileChildren(
-  SessionsRouteChildren,
-)
+const DrivesRouteWithChildren =
+  DrivesRoute._addFileChildren(DrivesRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  DrivesRoute: DrivesRouteWithChildren,
   InvitesRoute: InvitesRoute,
   LoginRoute: LoginRoute,
+  QuestionsRoute: QuestionsRoute,
   ReportsRoute: ReportsRoute,
-  SessionsRoute: SessionsRouteWithChildren,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

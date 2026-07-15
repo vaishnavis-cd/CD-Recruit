@@ -6,25 +6,25 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-brand: #2F5CFF;
-  --color-brand-ink: #15308F;
-  --color-signal-green: #17C964;
-  --color-amber: #F5A623;
-  --color-danger: #E5484D;
+  --color-brand: #2f5cff;
+  --color-brand-ink: #15308f;
+  --color-signal-green: #17c964;
+  --color-amber: #f5a623;
+  --color-danger: #e5484d;
 
-  --color-ink: #0B0B0D;
-  --color-ink-2: #5B5B64;
-  --color-ink-3: #9C9CA5;
-  --color-line: #E6E6EA;
-  --color-line-strong: #D6D7DC;
-  --color-bg-soft: #F7F7F9;
-  --color-bg-inset: #EFF0F3;
+  --color-ink: #0b0b0d;
+  --color-ink-2: #5b5b64;
+  --color-ink-3: #9c9ca5;
+  --color-line: #e6e6ea;
+  --color-line-strong: #d6d7dc;
+  --color-bg-soft: #f7f7f9;
+  --color-bg-inset: #eff0f3;
 
-  --color-sbg: #0B0B0D;
-  --color-sbg-hover: #18181C;
+  --color-sbg: #0b0b0d;
+  --color-sbg-hover: #18181c;
   --color-sline: #232327;
-  --color-stext: #EDEDEF;
-  --color-stext-2: #8B8B93;
+  --color-stext: #ededef;
+  --color-stext-2: #8b8b93;
 }
 
 /* shadcn tokens still used by existing ui components */
@@ -57,24 +57,24 @@
 :root {
   --radius: 10px;
   --background: #ffffff;
-  --foreground: #0B0B0D;
+  --foreground: #0b0b0d;
   --card: #ffffff;
-  --card-foreground: #0B0B0D;
+  --card-foreground: #0b0b0d;
   --popover: #ffffff;
-  --popover-foreground: #0B0B0D;
-  --primary: #2F5CFF;
+  --popover-foreground: #0b0b0d;
+  --primary: #2f5cff;
   --primary-foreground: #ffffff;
-  --secondary: #EFF0F3;
-  --secondary-foreground: #0B0B0D;
-  --muted: #F7F7F9;
-  --muted-foreground: #5B5B64;
-  --accent: #EAF0FF;
-  --accent-foreground: #15308F;
-  --destructive: #E5484D;
+  --secondary: #eff0f3;
+  --secondary-foreground: #0b0b0d;
+  --muted: #f7f7f9;
+  --muted-foreground: #5b5b64;
+  --accent: #eaf0ff;
+  --accent-foreground: #15308f;
+  --destructive: #e5484d;
   --destructive-foreground: #ffffff;
-  --border: #E6E6EA;
-  --input: #E6E6EA;
-  --ring: #2F5CFF;
+  --border: #e6e6ea;
+  --input: #e6e6ea;
+  --ring: #2f5cff;
 }
 
 @layer base {
@@ -82,11 +82,15 @@
     border-color: var(--color-border);
   }
   body {
-    background-color: #F7F7F9;
-    color: #0B0B0D;
+    background-color: #f7f7f9;
+    color: #0b0b0d;
     font-family: var(--font-sans);
   }
-  code, kbd, samp, pre, .font-mono {
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
     font-family: var(--font-mono);
   }
 }

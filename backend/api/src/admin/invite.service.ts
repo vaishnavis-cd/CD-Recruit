@@ -22,7 +22,7 @@ export class InviteService {
   ) {}
 
   async createInvite(dto: CreateInviteDto, staffId: string) {
-    const { candidateEmail, candidateName, roleTemplateId } = dto;
+    const { candidateEmail, candidateName, roleTemplateId, driveId } = dto;
 
     const template = await this.prisma.roleTemplate.findUnique({
       where: { id: roleTemplateId },
@@ -31,6 +31,16 @@ export class InviteService {
     if (!template) {
       throw new NotFoundException(
         `Role template not found with ID ${roleTemplateId}`,
+      );
+    }
+
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(
+        `Drive not found with ID ${driveId}`,
       );
     }
 
@@ -44,6 +54,7 @@ export class InviteService {
         candidateEmail,
         candidateName,
         roleTemplateId,
+        driveId,
         createdById: staffId,
         expiresAt,
         token: `temp-${Date.now()}`, // temp placeholder before signing token
@@ -70,6 +81,17 @@ export class InviteService {
 
     const inviteLink = `${process.env.VITE_API_BASE_URL.replace("/api/v1", "")}/start?token=${token}`;
 
+    // Create Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "INVITE_CREATED",
+        entityType: "Invite",
+        entityId: invite.id,
+        metadata: { candidateEmail, candidateName, driveId, roleTemplateId },
+      },
+    });
+
     return {
       invite: this.mapToInviteListItem(updatedInvite),
       inviteLink,
@@ -77,7 +99,7 @@ export class InviteService {
   }
 
   async listInvites(query: ListInvitesQueryDto): Promise<InviteListResponse> {
-    const { page, pageSize, status } = query;
+    const { page, pageSize, status, driveId, search } = query;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
 
@@ -95,6 +117,15 @@ export class InviteService {
     const where: any = {};
     if (status) {
       where.status = status;
+    }
+    if (driveId) {
+      where.driveId = driveId;
+    }
+    if (search) {
+      where.OR = [
+        { candidateName: { contains: search, mode: "insensitive" } },
+        { candidateEmail: { contains: search, mode: "insensitive" } },
+      ];
     }
 
     const [items, total] = await Promise.all([
@@ -149,7 +180,174 @@ export class InviteService {
       },
     });
 
+    // Create Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "INVITE_REVOKED",
+        entityType: "Invite",
+        entityId: inviteId,
+        metadata: {},
+      },
+    });
+
     return this.mapToInviteListItem(updated);
+  }
+
+  async extendExpiry(
+    inviteId: string,
+    newExpiresAt: Date,
+    staffId: string,
+  ): Promise<InviteListItem> {
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: inviteId },
+    });
+
+    if (!invite) {
+      throw new NotFoundException(`Invite not found with ID ${inviteId}`);
+    }
+
+    const oldExpiresAt = invite.expiresAt;
+    const isCurrentlyExpired = invite.status === InviteStatus.EXPIRED;
+    const shouldResetToPending =
+      (invite.status === InviteStatus.PENDING || isCurrentlyExpired) &&
+      newExpiresAt > new Date();
+
+    const updated = await this.prisma.invite.update({
+      where: { id: inviteId },
+      data: {
+        expiresAt: newExpiresAt,
+        status: shouldResetToPending ? InviteStatus.PENDING : invite.status,
+      },
+      include: {
+        roleTemplate: true,
+        createdBy: true,
+      },
+    });
+
+    // Create Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "INVITE_EXPIRY_EXTENDED",
+        entityType: "Invite",
+        entityId: inviteId,
+        metadata: { oldExpiresAt: oldExpiresAt.toISOString(), newExpiresAt: newExpiresAt.toISOString() },
+      },
+    });
+
+    return this.mapToInviteListItem(updated);
+  }
+
+  async regenerateToken(
+    inviteId: string,
+    staffId: string,
+  ): Promise<{ invite: InviteListItem; inviteLink: string }> {
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: inviteId },
+    });
+
+    if (!invite) {
+      throw new NotFoundException(`Invite not found with ID ${inviteId}`);
+    }
+
+    const token = this.authService.generateInviteToken(
+      invite.id,
+      invite.candidateEmail,
+      invite.candidateName,
+      invite.roleTemplateId,
+    );
+
+    const updated = await this.prisma.invite.update({
+      where: { id: inviteId },
+      data: {
+        token,
+        status: InviteStatus.PENDING, // Reset if expired/revoked
+      },
+      include: {
+        roleTemplate: true,
+        createdBy: true,
+      },
+    });
+
+    const inviteLink = `${process.env.VITE_API_BASE_URL.replace("/api/v1", "")}/start?token=${token}`;
+
+    // Create Audit Log
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "INVITE_TOKEN_REGENERATED",
+        entityType: "Invite",
+        entityId: inviteId,
+        metadata: {},
+      },
+    });
+
+    return {
+      invite: this.mapToInviteListItem(updated),
+      inviteLink,
+    };
+  }
+
+  async bulkRevoke(inviteIds: string[], staffId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      for (const id of inviteIds) {
+        const invite = await tx.invite.findUnique({ where: { id } });
+        if (invite && invite.status === InviteStatus.PENDING) {
+          await tx.invite.update({
+            where: { id },
+            data: {
+              status: InviteStatus.REVOKED,
+              revokedAt: new Date(),
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              staffId,
+              action: "INVITE_REVOKED",
+              entityType: "Invite",
+              entityId: id,
+              metadata: { bulk: true },
+            },
+          });
+        }
+      }
+    });
+  }
+
+  async bulkResend(inviteIds: string[], staffId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      for (const id of inviteIds) {
+        const invite = await tx.invite.findUnique({ where: { id } });
+        if (invite) {
+          const token = this.authService.generateInviteToken(
+            invite.id,
+            invite.candidateEmail,
+            invite.candidateName,
+            invite.roleTemplateId,
+          );
+
+          await tx.invite.update({
+            where: { id },
+            data: {
+              token,
+              status: InviteStatus.PENDING,
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              staffId,
+              action: "INVITE_TOKEN_REGENERATED",
+              entityType: "Invite",
+              entityId: id,
+              metadata: { bulk: true },
+            },
+          });
+        }
+      }
+    });
   }
 
   private mapToInviteListItem(invite: any): InviteListItem {

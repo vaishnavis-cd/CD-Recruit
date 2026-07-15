@@ -80,6 +80,12 @@ export interface SessionDetail {
   moduleResponses: ModuleResponseDetail[];
   integrityFlags: IntegrityFlag[];
   score: Score | null;
+  decision?: {
+    outcome: ReviewDecision;
+    decidedAt: string;
+    decidedBy: string;
+    note?: string;
+  };
 }
 
 // ---------------------------------------------------------------------------

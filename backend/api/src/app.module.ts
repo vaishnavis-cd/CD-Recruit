@@ -4,6 +4,9 @@ import appConfig from "./config/app.config";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { AdminModule } from "./admin/admin.module";
+import { DriveModule } from "./drive/drive.module";
+import { QuestionModule } from "./question/question.module";
+import { SettingsModule } from "./settings/settings.module";
 import { HealthModule } from "./health/health.module";
 import { MinioModule } from "./integrations/minio/minio.module";
 
@@ -16,6 +19,9 @@ import { MinioModule } from "./integrations/minio/minio.module";
     PrismaModule,
     AuthModule,
     AdminModule,
+    DriveModule,
+    QuestionModule,
+    SettingsModule,
     HealthModule,
     MinioModule,
   ],

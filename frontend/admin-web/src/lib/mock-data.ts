@@ -31,7 +31,7 @@ export interface Session {
   }[];
   submittedAt: string;
   reviewer?: { initials: string; name: string };
-  decision?: { outcome: "advance" | "reject"; decidedAt: string; decidedBy: string };
+  decision?: { outcome: "advance" | "reject"; decidedAt: string; decidedBy: string; note?: string };
 }
 
 export interface Invite {

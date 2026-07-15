@@ -1,5 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, Fragment } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState, useEffect, Fragment } from "react";
+import {
+  AlertTriangle,
+  Clock,
+  ArrowRight,
+  FileDown,
+  CheckCircle,
+  ShieldAlert,
+  Sparkles,
+  Calendar,
+} from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
 import { useStore } from "../lib/store";
@@ -31,34 +41,227 @@ type Tab = (typeof TABS)[number];
 
 function DashboardPage() {
   const sessions = useStore((s) => s.sessions);
-  const stats = useMemo(() => buildDashboardStats(sessions), [sessions]);
-  const [tab, setTab] = useState<Tab>("Funnel");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const drives = useStore((s) => s.drives);
+  const actionQueue = useStore((s) => s.actionQueue);
+  const fetchActionQueue = useStore((s) => s.fetchActionQueue);
+  const fetchSessions = useStore((s) => s.fetchSessions);
+  const fetchDrives = useStore((s) => s.fetchDrives);
 
-  const activePipeline = sessions.filter(
+  const [tab, setTab] = useState<Tab>("Funnel");
+  const [selectedDrive, setSelectedDrive] = useState<string>("all");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("30");
+
+  useEffect(() => {
+    fetchActionQueue();
+    fetchDrives();
+    fetchSessions();
+  }, []);
+
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      if (selectedRole !== "all" && s.roleTemplate.id !== selectedRole) return false;
+      // We can mock drive filtering if drive relation data is mapped
+      return true;
+    });
+  }, [sessions, selectedRole, selectedDrive]);
+
+  const stats = useMemo(() => buildDashboardStats(filteredSessions), [filteredSessions]);
+
+  const activePipeline = filteredSessions.filter(
     (s) => s.status === "submitted" || s.status === "ai_scored" || s.status === "review",
   ).length;
+
   const flagRate = Math.round(
-    (sessions.filter((s) => s.integrityFlags.some((f) => f.severity === "critical")).length /
-      sessions.length) *
+    (filteredSessions.filter((s) => s.integrityFlags.some((f) => f.severity === "critical"))
+      .length /
+      Math.max(filteredSessions.length, 1)) *
       100,
   );
+
   const medianComposite = (() => {
-    const arr = [...sessions.map((s) => s.compositeScore)].sort((a, b) => a - b);
+    if (filteredSessions.length === 0) return 0;
+    const arr = [...filteredSessions.map((s) => s.compositeScore)].sort((a, b) => a - b);
     return arr[Math.floor(arr.length / 2)];
   })();
 
   const heroTrace = stats.sayDoTrace.map((p, i) => ({ t: i, said: p.said, did: p.did }));
 
   return (
-    <AppShell title="Dashboard">
+    <AppShell
+      title="Dashboard"
+      actions={
+        <div className="flex items-center gap-2">
+          {/* Drive Filter */}
+          <select
+            value={selectedDrive}
+            onChange={(e) => setSelectedDrive(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] focus:outline-none"
+          >
+            <option value="all">All Drives</option>
+            {drives.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Role Filter */}
+          <select
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] focus:outline-none"
+          >
+            <option value="all">All Roles</option>
+            {ROLE_TEMPLATES.map((rt) => (
+              <option key={rt.id} value={rt.id}>
+                {rt.roleName}
+              </option>
+            ))}
+          </select>
+
+          {/* Date Filter */}
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] focus:outline-none"
+          >
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="all">All Time</option>
+          </select>
+
+          {/* Export Button */}
+          <a
+            href="http://localhost:3001/api/v1/admin/dashboard/export?format=csv"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] text-[#5B5B64]"
+          >
+            <FileDown size={14} />
+            Export Data
+          </a>
+        </div>
+      }
+    >
+      {/* Action Queue Widget */}
+      {actionQueue && (
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Pending Reviews */}
+          <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-center gap-1.5 text-[#EF4444] text-[11px] font-semibold uppercase tracking-wider mb-2">
+                <ShieldAlert size={14} />
+                Audit Required ({actionQueue.pendingReviews.length})
+              </div>
+              <p className="text-[12px] text-[#5B5B64] mb-3">
+                Completed runs with low AI confidence requiring recruiter review:
+              </p>
+              <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                {actionQueue.pendingReviews.map((pr) => (
+                  <div
+                    key={pr.sessionId}
+                    className="text-[11px] border-b border-[#EFF0F3] pb-1.5 last:border-b-0 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-semibold text-[#0B0B0D]">{pr.candidateName}</div>
+                      <div className="text-[#8B8B93]">{pr.roleTemplateName}</div>
+                    </div>
+                    <Link
+                      to="/reports"
+                      className="text-[#2F5CFF] hover:underline flex items-center gap-0.5"
+                    >
+                      Audit <ArrowRight size={10} />
+                    </Link>
+                  </div>
+                ))}
+                {actionQueue.pendingReviews.length === 0 && (
+                  <div className="text-[11px] text-[#8B8B93] py-2">No pending manual audits.</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Expiring Invites */}
+          <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-center gap-1.5 text-[#F5A623] text-[11px] font-semibold uppercase tracking-wider mb-2">
+                <Clock size={14} />
+                Invites Expiring ({actionQueue.expiringInvites.length})
+              </div>
+              <p className="text-[12px] text-[#5B5B64] mb-3">
+                Assessment invitations expiring in the next 24 hours:
+              </p>
+              <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                {actionQueue.expiringInvites.map((ei) => (
+                  <div
+                    key={ei.inviteId}
+                    className="text-[11px] border-b border-[#EFF0F3] pb-1.5 last:border-b-0 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-semibold text-[#0B0B0D]">{ei.candidateName}</div>
+                      <div className="text-[#8B8B93]">Expires: {ei.expiresAt.slice(11, 16)}</div>
+                    </div>
+                    <Link
+                      to="/invites"
+                      className="text-[#2F5CFF] hover:underline flex items-center gap-0.5"
+                    >
+                      Extend <ArrowRight size={10} />
+                    </Link>
+                  </div>
+                ))}
+                {actionQueue.expiringInvites.length === 0 && (
+                  <div className="text-[11px] text-[#8B8B93] py-2">No invites expiring soon.</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Closing Drives */}
+          <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-center gap-1.5 text-[#15308F] text-[11px] font-semibold uppercase tracking-wider mb-2">
+                <Calendar size={14} />
+                Drives Closing ({actionQueue.closingDrives.length})
+              </div>
+              <p className="text-[12px] text-[#5B5B64] mb-3">
+                Active recruiting drives ending in the next 24 hours:
+              </p>
+              <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                {actionQueue.closingDrives.map((cd) => (
+                  <div
+                    key={cd.driveId}
+                    className="text-[11px] border-b border-[#EFF0F3] pb-1.5 last:border-b-0 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-semibold text-[#0B0B0D]">{cd.driveName}</div>
+                      <div className="text-[#8B8B93]">{cd.roleTemplateName}</div>
+                    </div>
+                    <Link
+                      to="/drives/$id"
+                      params={{ id: cd.driveId }}
+                      className="text-[#2F5CFF] hover:underline flex items-center gap-0.5"
+                    >
+                      View <ArrowRight size={10} />
+                    </Link>
+                  </div>
+                ))}
+                {actionQueue.closingDrives.length === 0 && (
+                  <div className="text-[11px] text-[#8B8B93] py-2">No drives closing soon.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="grid grid-cols-[1fr_260px] gap-4 mb-6">
         <div>
           <div className="mb-2 flex items-baseline justify-between">
             <div>
               <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#5B5B64]">
-                Aggregate Say-Do · last 30 days
+                Aggregate Say-Do · last {dateRange === "all" ? "30" : dateRange} days
               </div>
               <div className="text-[14px] mt-0.5 text-[#0B0B0D]">
                 What candidates said vs. what they actually did
@@ -85,7 +288,7 @@ function DashboardPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-1.5 text-[12px] rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer ${
               tab === t
                 ? "bg-white text-[#0B0B0D] shadow-sm"
                 : "text-[#5B5B64] hover:text-[#0B0B0D]"
@@ -100,12 +303,12 @@ function DashboardPage() {
         {tab === "Funnel" && <FunnelView data={stats.funnel} />}
         {tab === "Score Distribution" && (
           <ScoreDistView
-            sessions={sessions}
-            roleFilter={roleFilter}
-            setRoleFilter={setRoleFilter}
+            sessions={filteredSessions}
+            roleFilter={selectedRole}
+            setRoleFilter={setSelectedRole}
           />
         )}
-        {tab === "Say-Do" && <SayDoView sessions={sessions} />}
+        {tab === "Say-Do" && <SayDoView sessions={filteredSessions} />}
         {tab === "Time" && <TimeView data={stats.timeByModule} />}
         {tab === "Integrity" && <IntegrityView data={stats.integrityHeatmap} />}
         {tab === "Reviewer" && <ReviewerView data={stats.reviewerAgreement} />}
@@ -143,7 +346,7 @@ function ReadoutTile({
 }
 
 function FunnelView({ data }: { data: { stage: string; count: number }[] }) {
-  const max = Math.max(...data.map((d) => d.count));
+  const max = Math.max(...data.map((d) => d.count), 1);
   return (
     <div>
       <SectionTitle>Pipeline funnel</SectionTitle>
@@ -151,7 +354,9 @@ function FunnelView({ data }: { data: { stage: string; count: number }[] }) {
         {data.map((d, i) => {
           const pct = (d.count / max) * 100;
           const drop =
-            i > 0 ? Math.round(((data[i - 1].count - d.count) / data[i - 1].count) * 100) : 0;
+            i > 0 && data[i - 1].count > 0
+              ? Math.round(((data[i - 1].count - d.count) / data[i - 1].count) * 100)
+              : 0;
           return (
             <div key={d.stage} className="flex items-center gap-3">
               <div className="w-24 text-[12px] text-[#5B5B64]">{d.stage}</div>
@@ -232,7 +437,6 @@ function ScoreDistView({
 }
 
 function SayDoView({ sessions }: { sessions: ReturnType<typeof useStore.getState>["sessions"] }) {
-  // build a distribution histogram
   const buckets = ["0-40", "40-55", "55-70", "70-85", "85-100"];
   const dist = buckets.map((b) => {
     const [lo, hi] = b.split("-").map(Number);
@@ -241,12 +445,16 @@ function SayDoView({ sessions }: { sessions: ReturnType<typeof useStore.getState
       count: sessions.filter((s) => s.sayDoScore >= lo && s.sayDoScore < hi + 0.0001).length,
     };
   });
-  // Also build a trace visualisation: average across sessions per t-index
+
   const n = sessions[0]?.sayDoTrace.length ?? 0;
   const trace: { t: number; said: number; did: number }[] = [];
   for (let i = 0; i < n; i++) {
-    const said = sessions.reduce((a, s) => a + s.sayDoTrace[i].said, 0) / sessions.length;
-    const did = sessions.reduce((a, s) => a + s.sayDoTrace[i].did, 0) / sessions.length;
+    const said = sessions.length
+      ? sessions.reduce((a, s) => a + s.sayDoTrace[i].said, 0) / sessions.length
+      : 0;
+    const did = sessions.length
+      ? sessions.reduce((a, s) => a + s.sayDoTrace[i].did, 0) / sessions.length
+      : 0;
     trace.push({ t: i, said, did });
   }
   const max = Math.max(...dist.map((d) => d.count), 1);
@@ -283,7 +491,7 @@ function TimeView({
 }: {
   data: { module: string; avgSeconds: number; cohortAvgSeconds: number }[];
 }) {
-  const max = Math.max(...data.flatMap((d) => [d.avgSeconds, d.cohortAvgSeconds]));
+  const max = Math.max(...data.flatMap((d) => [d.avgSeconds, d.cohortAvgSeconds]), 1);
   const fmt = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
   return (
     <div>
@@ -329,7 +537,7 @@ function IntegrityView({
 }) {
   const categories = Array.from(new Set(data.map((d) => d.category)));
   const severities = ["low", "medium", "critical"];
-  const max = Math.max(...data.map((d) => d.count));
+  const max = Math.max(...data.map((d) => d.count), 1);
   return (
     <div>
       <SectionTitle>Integrity flags · category × severity</SectionTitle>
@@ -380,7 +588,7 @@ function ReviewerView({
   data: { agreementRate: number; overrides: { direction: "lenient" | "harsh"; count: number }[] };
 }) {
   const angle = data.agreementRate * 180;
-  const total = data.overrides.reduce((a, o) => a + o.count, 0);
+  const total = data.overrides.reduce((a, o) => a + o.count, 0) || 1;
   return (
     <div>
       <SectionTitle>AI vs. human reviewer agreement</SectionTitle>

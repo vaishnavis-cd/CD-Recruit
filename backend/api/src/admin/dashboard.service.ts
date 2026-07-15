@@ -12,8 +12,49 @@ import { DashboardStats } from "@cd-recruit/shared-types";
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDashboardStats(): Promise<DashboardStats> {
+  async getDashboardStats(query: any = {}): Promise<DashboardStats> {
+    const { driveId, roleTemplateId, reviewerStaffId, startDate, endDate } = query;
     const now = new Date();
+
+    const invitesWhere: any = {};
+    if (driveId) invitesWhere.driveId = driveId;
+    if (roleTemplateId) invitesWhere.roleTemplateId = roleTemplateId;
+    if (startDate && endDate) {
+      invitesWhere.createdAt = { gte: new Date(startDate), lte: new Date(endDate) };
+    }
+
+    const sessionsWhere: any = {};
+    if (driveId) sessionsWhere.driveId = driveId;
+    if (roleTemplateId) sessionsWhere.roleTemplateId = roleTemplateId;
+    if (startDate && endDate) {
+      sessionsWhere.startedAt = { gte: new Date(startDate), lte: new Date(endDate) };
+    }
+
+    const scoresWhere: any = { session: {} };
+    if (driveId) scoresWhere.session.driveId = driveId;
+    if (roleTemplateId) scoresWhere.session.roleTemplateId = roleTemplateId;
+    if (startDate && endDate) {
+      scoresWhere.session.startedAt = { gte: new Date(startDate), lte: new Date(endDate) };
+    }
+
+    const flagsWhere: any = { session: {} };
+    if (driveId) flagsWhere.session.driveId = driveId;
+    if (roleTemplateId) flagsWhere.session.roleTemplateId = roleTemplateId;
+
+    const decisionsWhere: any = {};
+    if (reviewerStaffId) decisionsWhere.staffId = reviewerStaffId;
+    if (driveId || roleTemplateId || (startDate && endDate)) {
+      decisionsWhere.session = {};
+      if (driveId) decisionsWhere.session.driveId = driveId;
+      if (roleTemplateId) decisionsWhere.session.roleTemplateId = roleTemplateId;
+      if (startDate && endDate) {
+        decisionsWhere.session.startedAt = { gte: new Date(startDate), lte: new Date(endDate) };
+      }
+    }
+
+    const responsesWhere: any = { session: {} };
+    if (driveId) responsesWhere.session.driveId = driveId;
+    if (roleTemplateId) responsesWhere.session.roleTemplateId = roleTemplateId;
 
     // Fetch baseline metrics
     const [
@@ -26,15 +67,18 @@ export class DashboardService {
       decisions,
       responses,
     ] = await Promise.all([
-      this.prisma.session.count(),
+      this.prisma.session.count({ where: sessionsWhere }),
       this.prisma.candidate.count(),
       this.prisma.invite.findMany({
+        where: invitesWhere,
         include: { roleTemplate: true },
       }),
       this.prisma.session.findMany({
+        where: sessionsWhere,
         include: { roleTemplate: true, score: true },
       }),
       this.prisma.score.findMany({
+        where: scoresWhere,
         include: {
           session: {
             include: {
@@ -44,13 +88,17 @@ export class DashboardService {
         },
       }),
       this.prisma.integrityFlag.findMany({
+        where: flagsWhere,
         include: {
           evidenceClip: true,
           session: true,
         },
       }),
-      this.prisma.reviewerDecision.findMany(),
+      this.prisma.reviewerDecision.findMany({
+        where: decisionsWhere,
+      }),
       this.prisma.moduleResponse.findMany({
+        where: responsesWhere,
         include: { question: true },
       }),
     ]);
@@ -523,6 +571,76 @@ export class DashboardService {
       generatedAt: new Date().toISOString(),
       totalSessions,
       totalCandidates,
+    };
+  }
+
+  async getActionQueue() {
+    const next24h = new Date();
+    next24h.setDate(next24h.getDate() + 1);
+
+    const next7days = new Date();
+    next7days.setDate(next7days.getDate() + 7);
+
+    const [pendingReviews, expiringInvites, closingDrives] = await Promise.all([
+      // Sessions awaiting human review
+      this.prisma.session.findMany({
+        where: {
+          status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
+          score: {
+            humanReviewed: false,
+            aiConfidence: { lt: 0.8 },
+          },
+        },
+        include: { candidate: true, roleTemplate: true, score: true },
+        take: 5,
+        orderBy: { submittedAt: "desc" },
+      }),
+
+      // Invites expiring in the next 24h
+      this.prisma.invite.findMany({
+        where: {
+          status: "PENDING",
+          expiresAt: { gte: new Date(), lte: next24h },
+        },
+        include: { roleTemplate: true },
+        take: 5,
+        orderBy: { expiresAt: "asc" },
+      }),
+
+      // Drives closing this week
+      this.prisma.drive.findMany({
+        where: {
+          status: "ACTIVE",
+          scheduleEnd: { gte: new Date(), lte: next7days },
+        },
+        include: { roleTemplate: true },
+        take: 5,
+        orderBy: { scheduleEnd: "asc" },
+      }),
+    ]);
+
+    return {
+      pendingReviews: pendingReviews.map((r) => ({
+        sessionId: r.id,
+        candidateName: r.candidate.name,
+        candidateEmail: r.candidate.email,
+        roleTemplateName: r.roleTemplate.roleName,
+        submittedAt: r.submittedAt ? r.submittedAt.toISOString() : null,
+        aiConfidence: r.score?.aiConfidence ?? null,
+      })),
+      expiringInvites: expiringInvites.map((i) => ({
+        inviteId: i.id,
+        candidateName: i.candidateName,
+        candidateEmail: i.candidateEmail,
+        roleTemplateName: i.roleTemplate.roleName,
+        expiresAt: i.expiresAt.toISOString(),
+      })),
+      closingDrives: closingDrives.map((d) => ({
+        driveId: d.id,
+        driveName: d.name,
+        roleTemplateName: d.roleTemplate.roleName,
+        scheduleEnd: d.scheduleEnd ? d.scheduleEnd.toISOString() : null,
+      })),
     };
   }
 }
