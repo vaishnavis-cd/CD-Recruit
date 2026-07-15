@@ -8,168 +8,183 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as SessionsRouteImport } from "./routes/sessions";
-import { Route as ReportsRouteImport } from "./routes/reports";
-import { Route as LoginRouteImport } from "./routes/login";
-import { Route as InvitesRouteImport } from "./routes/invites";
-import { Route as DashboardRouteImport } from "./routes/dashboard";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as SessionsIdRouteImport } from "./routes/sessions.$id";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as InvitesRouteImport } from './routes/invites'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as SessionsIdRouteImport } from './routes/sessions.$id'
 
 const SessionsRoute = SessionsRouteImport.update({
-  id: "/sessions",
-  path: "/sessions",
+  id: '/sessions',
+  path: '/sessions',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ReportsRoute = ReportsRouteImport.update({
-  id: "/reports",
-  path: "/reports",
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LoginRoute = LoginRouteImport.update({
-  id: "/login",
-  path: "/login",
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const InvitesRoute = InvitesRouteImport.update({
-  id: "/invites",
-  path: "/invites",
+  id: '/invites',
+  path: '/invites',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
-  id: "/dashboard",
-  path: "/dashboard",
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SessionsIdRoute = SessionsIdRouteImport.update({
-  id: "/$id",
-  path: "/$id",
+  id: '/$id',
+  path: '/$id',
   getParentRoute: () => SessionsRoute,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/dashboard": typeof DashboardRoute;
-  "/invites": typeof InvitesRoute;
-  "/login": typeof LoginRoute;
-  "/reports": typeof ReportsRoute;
-  "/sessions": typeof SessionsRouteWithChildren;
-  "/sessions/$id": typeof SessionsIdRoute;
+  '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/invites': typeof InvitesRoute
+  '/login': typeof LoginRoute
+  '/reports': typeof ReportsRoute
+  '/sessions': typeof SessionsRouteWithChildren
+  '/sessions/$id': typeof SessionsIdRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/dashboard": typeof DashboardRoute;
-  "/invites": typeof InvitesRoute;
-  "/login": typeof LoginRoute;
-  "/reports": typeof ReportsRoute;
-  "/sessions": typeof SessionsRouteWithChildren;
-  "/sessions/$id": typeof SessionsIdRoute;
+  '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/invites': typeof InvitesRoute
+  '/login': typeof LoginRoute
+  '/reports': typeof ReportsRoute
+  '/sessions': typeof SessionsRouteWithChildren
+  '/sessions/$id': typeof SessionsIdRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/dashboard": typeof DashboardRoute;
-  "/invites": typeof InvitesRoute;
-  "/login": typeof LoginRoute;
-  "/reports": typeof ReportsRoute;
-  "/sessions": typeof SessionsRouteWithChildren;
-  "/sessions/$id": typeof SessionsIdRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/invites': typeof InvitesRoute
+  '/login': typeof LoginRoute
+  '/reports': typeof ReportsRoute
+  '/sessions': typeof SessionsRouteWithChildren
+  '/sessions/$id': typeof SessionsIdRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    "/" | "/dashboard" | "/invites" | "/login" | "/reports" | "/sessions" | "/sessions/$id";
-  fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/dashboard" | "/invites" | "/login" | "/reports" | "/sessions" | "/sessions/$id";
+    | '/'
+    | '/dashboard'
+    | '/invites'
+    | '/login'
+    | '/reports'
+    | '/sessions'
+    | '/sessions/$id'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/dashboard'
+    | '/invites'
+    | '/login'
+    | '/reports'
+    | '/sessions'
+    | '/sessions/$id'
   id:
-    | "__root__"
-    | "/"
-    | "/dashboard"
-    | "/invites"
-    | "/login"
-    | "/reports"
-    | "/sessions"
-    | "/sessions/$id";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/invites'
+    | '/login'
+    | '/reports'
+    | '/sessions'
+    | '/sessions/$id'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  DashboardRoute: typeof DashboardRoute;
-  InvitesRoute: typeof InvitesRoute;
-  LoginRoute: typeof LoginRoute;
-  ReportsRoute: typeof ReportsRoute;
-  SessionsRoute: typeof SessionsRouteWithChildren;
+  IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
+  InvitesRoute: typeof InvitesRoute
+  LoginRoute: typeof LoginRoute
+  ReportsRoute: typeof ReportsRoute
+  SessionsRoute: typeof SessionsRouteWithChildren
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/sessions": {
-      id: "/sessions";
-      path: "/sessions";
-      fullPath: "/sessions";
-      preLoaderRoute: typeof SessionsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/reports": {
-      id: "/reports";
-      path: "/reports";
-      fullPath: "/reports";
-      preLoaderRoute: typeof ReportsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/login": {
-      id: "/login";
-      path: "/login";
-      fullPath: "/login";
-      preLoaderRoute: typeof LoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/invites": {
-      id: "/invites";
-      path: "/invites";
-      fullPath: "/invites";
-      preLoaderRoute: typeof InvitesRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/dashboard": {
-      id: "/dashboard";
-      path: "/dashboard";
-      fullPath: "/dashboard";
-      preLoaderRoute: typeof DashboardRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/sessions/$id": {
-      id: "/sessions/$id";
-      path: "/$id";
-      fullPath: "/sessions/$id";
-      preLoaderRoute: typeof SessionsIdRouteImport;
-      parentRoute: typeof SessionsRoute;
-    };
+    '/sessions': {
+      id: '/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invites': {
+      id: '/invites'
+      path: '/invites'
+      fullPath: '/invites'
+      preLoaderRoute: typeof InvitesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/$id': {
+      id: '/sessions/$id'
+      path: '/$id'
+      fullPath: '/sessions/$id'
+      preLoaderRoute: typeof SessionsIdRouteImport
+      parentRoute: typeof SessionsRoute
+    }
   }
 }
 
 interface SessionsRouteChildren {
-  SessionsIdRoute: typeof SessionsIdRoute;
+  SessionsIdRoute: typeof SessionsIdRoute
 }
 
 const SessionsRouteChildren: SessionsRouteChildren = {
   SessionsIdRoute: SessionsIdRoute,
-};
+}
 
-const SessionsRouteWithChildren = SessionsRoute._addFileChildren(SessionsRouteChildren);
+const SessionsRouteWithChildren = SessionsRoute._addFileChildren(
+  SessionsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -178,17 +193,17 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,
   SessionsRoute: SessionsRouteWithChildren,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx";
-import type { startInstance } from "./start.ts";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
