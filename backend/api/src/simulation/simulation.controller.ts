@@ -61,24 +61,32 @@ export class SimulationController {
         });
       }
 
-      // 3. Ensure a SIMULATION question is linked to this role template
-      let simQuestion = await tx.question.findFirst({
-        where: {
-          roleTemplateId: roleTemplate.id,
-          moduleType: "SIMULATION",
-        },
+      // 3. Get or create a Drive for this mock session
+      let drive = await tx.drive.findFirst({
+        where: { roleTemplateId: roleTemplate.id },
       });
-      if (!simQuestion) {
-        // Find if there's any simulation question seeded
-        const seededQuestion = await tx.question.findFirst({
-          where: { moduleType: "SIMULATION" },
+      if (!drive) {
+        drive = await tx.drive.create({
+          data: {
+            name: `Mock Drive for ${roleTemplate.roleName}`,
+            roleTemplateId: roleTemplate.id,
+            moduleConfig: {},
+            createdById: "SYSTEM", // Placeholder ID or real system staff ID
+          },
         });
+      }
 
+      // Find if there's any simulation question seeded
+      const seededQuestion = await tx.question.findFirst({
+        where: { moduleType: "SIMULATION" },
+      });
+
+      let simQuestion = seededQuestion;
+      if (!simQuestion) {
         simQuestion = await tx.question.create({
           data: {
-            roleTemplateId: roleTemplate.id,
             moduleType: "SIMULATION",
-            content: seededQuestion?.content || {
+            content: {
               title: "Default Simulation Outage",
               description: "Workspace simulation outage scenario.",
               triggers: [],
@@ -88,11 +96,31 @@ export class SimulationController {
         });
       }
 
+      // Link Question to Drive if not already linked
+      let driveQuestion = await tx.driveQuestion.findUnique({
+        where: {
+          driveId_questionId: {
+            driveId: drive.id,
+            questionId: simQuestion.id,
+          },
+        },
+      });
+      if (!driveQuestion) {
+        driveQuestion = await tx.driveQuestion.create({
+          data: {
+            driveId: drive.id,
+            questionId: simQuestion.id,
+            moduleType: "SIMULATION",
+          },
+        });
+      }
+
       // 4. Create Session
       const session = await tx.session.create({
         data: {
           candidateId: candidate.id,
           roleTemplateId: roleTemplate.id,
+          driveId: drive.id,
           cvMode: "FULL",
           status: "IN_PROGRESS",
           startedAt: new Date(),
