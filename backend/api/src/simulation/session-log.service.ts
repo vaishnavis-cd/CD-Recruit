@@ -72,10 +72,12 @@ export class SessionLogService
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
-        roleTemplate: {
+        roleTemplate: true,
+        drive: {
           include: {
             questions: {
               where: { moduleType: "SIMULATION" },
+              include: { question: true },
             },
           },
         },
@@ -86,9 +88,11 @@ export class SessionLogService
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    const question = session.roleTemplate.questions[0];
+    const driveQuestion = session.drive?.questions[0];
+    const question = driveQuestion?.question;
+
     if (!question) {
-      // Fallback: If no simulation question is assigned to the template, find any simulation question
+      // Fallback: If no simulation question is assigned to the template/drive, find any simulation question
       const fallbackQuestion = await this.prisma.question.findFirst({
         where: { moduleType: "SIMULATION" },
       });
