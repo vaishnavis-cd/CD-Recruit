@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
 
 export const Route = createFileRoute("/settings")({
@@ -21,7 +21,6 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const getScoringConfig = useStore((s) => s.fetchQuestions); // reuse or load local configs
   const [activeTab, setActiveTab] = useState<"users" | "scoring" | "retention" | "audit">("users");
 
   // Staff state
@@ -45,43 +44,51 @@ function SettingsPage() {
   const loadStaffList = async () => {
     setLoadingStaff(true);
     try {
-      const token = localStorage.getItem("admin_token");
-      const res = await fetch("http://localhost:3001/api/v1/admin/settings/staff", {
-        headers: { Authorization: `Bearer ${token}` },
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/staff`, {
+        headers,
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
-      setStaff(data);
-      setLoadingStaff(false);
+      setStaff(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load staff list:", err);
+      setStaff([]);
+    } finally {
       setLoadingStaff(false);
     }
   };
 
   const loadScoringConfig = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const res = await fetch("http://localhost:3001/api/v1/admin/settings/scoring", {
-        headers: { Authorization: `Bearer ${token}` },
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/scoring`, {
+        headers,
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
-      setAiThreshold(data.aiConfidenceThreshold);
-      setPassThreshold(data.passRateThreshold);
+      if (data) {
+        setAiThreshold(data.aiConfidenceThreshold ?? 0.8);
+        setPassThreshold(data.passRateThreshold ?? 0.7);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load scoring config:", err);
     }
   };
 
   const loadRetentionConfig = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const res = await fetch("http://localhost:3001/api/v1/admin/settings/retention", {
-        headers: { Authorization: `Bearer ${token}` },
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/retention`, {
+        headers,
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
-      setRetentionDays(data.biometricRetentionDays);
+      if (data) {
+        setRetentionDays(data.biometricRetentionDays ?? 30);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load retention config:", err);
     }
   };
 
@@ -89,10 +96,11 @@ function SettingsPage() {
     setLoadingLogs(true);
     try {
       const data = await fetchAuditLogs({ search: logsQuery || undefined });
-      setAuditLogs(data.items);
-      setLoadingLogs(false);
+      setAuditLogs(Array.isArray(data?.items) ? data.items : []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load audit logs:", err);
+      setAuditLogs([]);
+    } finally {
       setLoadingLogs(false);
     }
   };
@@ -106,11 +114,11 @@ function SettingsPage() {
 
   const handleUpdateRole = async (staffId: string, newRole: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const res = await fetch(`http://localhost:3001/api/v1/admin/settings/staff/${staffId}/role`, {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/staff/${staffId}/role`, {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...headers,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ role: newRole }),
@@ -118,6 +126,7 @@ function SettingsPage() {
       if (!res.ok) throw new Error("Failed to update role");
       loadStaffList();
     } catch (err) {
+      console.error(err);
       alert("Error updating role");
     }
   };
@@ -125,11 +134,11 @@ function SettingsPage() {
   const handleSaveScoring = async () => {
     setSavingScoring(true);
     try {
-      const token = localStorage.getItem("admin_token");
-      await fetch("http://localhost:3001/api/v1/admin/settings/scoring", {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/scoring`, {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...headers,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -137,10 +146,12 @@ function SettingsPage() {
           passRateThreshold: passThreshold,
         }),
       });
-      setSavingScoring(false);
+      if (!res.ok) throw new Error("Failed to save scoring config");
       alert("Scoring thresholds saved successfully");
     } catch (err) {
+      console.error(err);
       alert("Error saving config");
+    } finally {
       setSavingScoring(false);
     }
   };
@@ -148,19 +159,21 @@ function SettingsPage() {
   const handleSaveRetention = async () => {
     setSavingRetention(true);
     try {
-      const token = localStorage.getItem("admin_token");
-      await fetch("http://localhost:3001/api/v1/admin/settings/retention", {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/retention`, {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...headers,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ biometricRetentionDays: retentionDays }),
       });
-      setSavingRetention(false);
+      if (!res.ok) throw new Error("Failed to save retention config");
       alert("Retention schedule saved successfully");
     } catch (err) {
+      console.error(err);
       alert("Error saving config");
+    } finally {
       setSavingRetention(false);
     }
   };

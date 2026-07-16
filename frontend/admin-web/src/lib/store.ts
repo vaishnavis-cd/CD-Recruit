@@ -9,9 +9,9 @@ import {
   type DriveStatus,
 } from "./types";
 
-const API_BASE = "http://localhost:3001/api/v1";
+export const API_BASE = "http://localhost:3001/api/v1";
 
-async function getAuthHeaders() {
+export async function getAuthHeaders() {
   let token = localStorage.getItem("admin_token");
   if (!token) {
     try {
@@ -78,6 +78,8 @@ interface Store {
   }) => Promise<any>;
   duplicateDrive: (driveId: string) => Promise<void>;
   closeDrive: (driveId: string) => Promise<void>;
+  deleteDrive: (driveId: string) => Promise<void>;
+
 
   fetchQuestions: (query?: {
     moduleType?: string;
@@ -93,6 +95,17 @@ interface Store {
     tags?: string[];
   }) => Promise<void>;
   archiveQuestion: (id: string) => Promise<void>;
+  updateQuestion: (
+    id: string,
+    input: {
+      moduleType?: string;
+      content?: any;
+      scoringConfig?: any;
+      difficulty?: string;
+      tags?: string[];
+      status?: string;
+    },
+  ) => Promise<void>;
   bulkUploadQuestions: (moduleType: string, questions: any[]) => Promise<void>;
 
   fetchActionQueue: () => Promise<void>;
@@ -570,6 +583,22 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  deleteDrive: async (driveId: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to delete drive");
+      get().fetchDrives();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+
   fetchQuestions: async (query) => {
     try {
       const headers = await getAuthHeaders();
@@ -603,6 +632,17 @@ export const useStore = create<Store>((set, get) => ({
       body: JSON.stringify(input),
     });
     if (!res.ok) throw new Error("Failed to create question");
+    get().fetchQuestions();
+  },
+
+  updateQuestion: async (id, input) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/questions/${id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error("Failed to update question");
     get().fetchQuestions();
   },
 

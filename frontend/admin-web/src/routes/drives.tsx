@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, Outlet, useLocation } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import {
   Search,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   ArrowRight,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -52,17 +53,23 @@ function DrivesPage() {
   const createDrive = useStore((s) => s.createDrive);
   const duplicateDrive = useStore((s) => s.duplicateDrive);
   const closeDrive = useStore((s) => s.closeDrive);
+  const deleteDrive = useStore((s) => s.deleteDrive);
   const questions = useStore((s) => s.questions);
   const loading = useStore((s) => s.loading);
+
+  const location = useLocation();
+  const isExactDrives = location.pathname === "/drives" || location.pathname === "/drives/";
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DriveStatus | "all">("all");
   const [showWizard, setShowWizard] = useState(false);
+  const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
 
   // Wizard State
   const [wizardStep, setWizardStep] = useState(1);
   const [driveName, setDriveName] = useState("");
   const [selectedRole, setSelectedRole] = useState(ROLE_TEMPLATES[0].id);
+  const [customRoleName, setCustomRoleName] = useState("");
   const [moduleConfig, setModuleConfig] = useState<any>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 0.2 },
     SQL: { enabled: true, durationMinutes: 20, weight: 0.2 },
@@ -100,16 +107,20 @@ function DrivesPage() {
 
   const handleLaunch = async () => {
     try {
+      const startIso = scheduleStart
+        ? new Date(scheduleStart).toISOString()
+        : new Date().toISOString();
+      const endIso = scheduleEnd
+        ? new Date(scheduleEnd).toISOString()
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
       const result = await createDrive({
         name: driveName,
-        roleTemplateId:
-          selectedRole === "rt-be-mid"
-            ? "1f2407c1-c096-49ba-9905-b0802104a802"
-            : "1f2407c1-c096-49ba-9905-b0802104a802",
+        roleTemplateId: "1f2407c1-c096-49ba-9905-b0802104a802",
         moduleConfig,
         status: scheduleStart ? "SCHEDULED" : "ACTIVE",
-        scheduleStart: scheduleStart || undefined,
-        scheduleEnd: scheduleEnd || undefined,
+        scheduleStart: startIso,
+        scheduleEnd: endIso,
         candidates: candidatesList.map((c) => ({ name: c.name, candidateEmail: c.email }) as any),
       });
 
@@ -129,12 +140,27 @@ function DrivesPage() {
     setWizardStep(1);
     setDriveName("");
     setSelectedRole(ROLE_TEMPLATES[0].id);
+    setCustomRoleName("");
     setSelectedQuestions([]);
     setScheduleStart("");
     setScheduleEnd("");
     setCandidateInput("");
     setWizardWarning(null);
   };
+
+  const handleDeleteDrive = async () => {
+    if (!confirmDeleteDrive) return;
+    try {
+      await deleteDrive(confirmDeleteDrive.id);
+      setConfirmDeleteDrive(null);
+    } catch (err: any) {
+      alert("Failed to delete drive: " + (err.message || err));
+    }
+  };
+
+  if (!isExactDrives) {
+    return <Outlet />;
+  }
 
   return (
     <AppShell
@@ -172,7 +198,7 @@ function DrivesPage() {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
               statusFilter === s
-                ? "bg-[#0B0B0D] text-white border-[#0B0B0D]"
+                ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
                 : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
             }`}
           >
@@ -182,12 +208,17 @@ function DrivesPage() {
       </div>
 
       {/* Grid of Drives */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((d) => (
-          <div
-            key={d.id}
-            className="bg-white border border-[#E6E6EA] rounded-[10px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
-          >
+      {filtered.length === 0 ? (
+        <div className="flex justify-center w-full py-8">
+          <p className="text-[12px] italic text-[#8B8B93]">No Entries</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((d) => (
+            <div
+              key={d.id}
+              className="bg-white border border-[#E6E6EA] rounded-[10px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+            >
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span
@@ -248,6 +279,13 @@ function DrivesPage() {
               >
                 <Copy size={12} />
               </button>
+              <button
+                onClick={() => setConfirmDeleteDrive(d)}
+                className="p-2 border border-red-100 bg-red-50/50 hover:bg-red-50 text-red-500 rounded-md transition-colors cursor-pointer"
+                title="Delete Drive"
+              >
+                <Trash2 size={12} />
+              </button>
               {d.status === "ACTIVE" && (
                 <button
                   onClick={() => {
@@ -264,6 +302,7 @@ function DrivesPage() {
           </div>
         ))}
       </div>
+    )}
 
       {/* Wizard Modal */}
       {showWizard && (
@@ -313,8 +352,22 @@ function DrivesPage() {
                           {r.roleName} ({r.track})
                         </option>
                       ))}
+                      <option value="rt-custom">Custom Role</option>
                     </select>
                   </div>
+                  {selectedRole === "rt-custom" && (
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                        Custom Role Name
+                      </label>
+                      <input
+                        value={customRoleName}
+                        onChange={(e) => setCustomRoleName(e.target.value)}
+                        placeholder="e.g. Senior iOS Developer / DevOps Engineer"
+                        className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -373,46 +426,53 @@ function DrivesPage() {
               {wizardStep === 3 && (
                 <div className="space-y-4">
                   <p className="text-[12px] text-[#5B5B64]">
-                    Assign specific questions for the enabled modules from the bank:
+                    Assign specific questions for the enabled modules from the bank (Optional):
                   </p>
                   <div className="border border-[#E6E6EA] rounded-md divide-y divide-[#EFF0F3] max-h-[300px] overflow-y-auto">
-                    {questions.length === 0 ? (
-                      <p className="p-4 text-center text-[12px] text-[#8B8B93]">
-                        No questions found in bank.
-                      </p>
-                    ) : (
-                      questions.map((q) => (
-                        <div
-                          key={q.id}
-                          className="p-3 flex items-center justify-between hover:bg-[#F7F7F9]"
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedQuestions.includes(q.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedQuestions([...selectedQuestions, q.id]);
-                                } else {
-                                  setSelectedQuestions(
-                                    selectedQuestions.filter((id) => id !== q.id),
-                                  );
-                                }
-                              }}
-                              className="w-4 h-4 text-[#2F5CFF] border-[#E6E6EA]"
-                            />
-                            <div>
-                              <div className="text-[12px] font-medium text-[#0B0B0D] line-clamp-1">
-                                {q.content?.prompt || q.content?.title || "No Prompt"}
-                              </div>
-                              <div className="text-[10px] text-[#8B8B93] uppercase font-mono mt-0.5">
-                                {q.moduleType} · {q.difficulty}
+                    {(() => {
+                      const enabledMods = Object.entries(moduleConfig)
+                        .filter(([_, conf]: [string, any]) => conf.enabled)
+                        .map(([mod]) => mod);
+                      const filteredQs = questions.filter((q) => enabledMods.includes(q.moduleType));
+
+                      return filteredQs.length === 0 ? (
+                        <p className="p-4 text-center text-[12px] text-[#8B8B93]">
+                          No questions found in bank matching active modules.
+                        </p>
+                      ) : (
+                        filteredQs.map((q) => (
+                          <div
+                            key={q.id}
+                            className="p-3 flex items-center justify-between hover:bg-[#F7F7F9]"
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedQuestions.includes(q.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedQuestions([...selectedQuestions, q.id]);
+                                  } else {
+                                    setSelectedQuestions(
+                                      selectedQuestions.filter((id) => id !== q.id),
+                                    );
+                                  }
+                                }}
+                                className="w-4 h-4 text-[#2F5CFF] border-[#E6E6EA]"
+                              />
+                              <div>
+                                <div className="text-[12px] font-medium text-[#0B0B0D] line-clamp-1">
+                                  {q.content?.prompt || q.content?.title || "No Prompt"}
+                                </div>
+                                <div className="text-[10px] text-[#8B8B93] uppercase font-mono mt-0.5">
+                                  {q.moduleType} · {q.difficulty}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -477,7 +537,9 @@ function DrivesPage() {
                     </div>
                     <div>
                       <span className="text-[#8B8B93] font-medium">Role:</span>{" "}
-                      {ROLE_TEMPLATES.find((r) => r.id === selectedRole)?.roleName}
+                      {selectedRole === "rt-custom"
+                        ? `${customRoleName || "Custom Role"}`
+                        : ROLE_TEMPLATES.find((r) => r.id === selectedRole)?.roleName}
                     </div>
                     <div>
                       <span className="text-[#8B8B93] font-medium">Schedule:</span>{" "}
@@ -516,7 +578,7 @@ function DrivesPage() {
               {wizardStep < 6 ? (
                 <button
                   onClick={() => setWizardStep(wizardStep + 1)}
-                  className="flex items-center gap-1 py-2 px-3.5 text-[13px] font-medium text-white bg-[#0B0B0D] rounded hover:bg-[#232327] transition-colors cursor-pointer"
+                  className="flex items-center gap-1 py-2 px-3.5 text-[13px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#2448D9] transition-colors cursor-pointer"
                 >
                   Next <ArrowRight size={14} />
                 </button>
@@ -528,6 +590,40 @@ function DrivesPage() {
                   <Check size={14} /> Launch Drive
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteDrive && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <AlertTriangle size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Drive?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to delete the assessment drive <span className="font-semibold text-[#0B0B0D]">"{confirmDeleteDrive.name}"</span>?
+              This will permanently revoke all invites and delete all candidate sessions, proctoring/event logs, and scores. This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmDeleteDrive(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteDrive}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete Drive
+              </button>
             </div>
           </div>
         </div>

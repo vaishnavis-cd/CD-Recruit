@@ -110,12 +110,17 @@ function InvitesPage() {
 
   const submit = async () => {
     if (!name || !email || !selectedDriveId) return;
-    const rt = ROLE_TEMPLATES.find((r) => r.id === roleId)!;
+    const drive = drives.find((d) => d.id === selectedDriveId);
+    if (!drive) return;
     try {
       const inv = await createInvite({
         candidateName: name,
         candidateEmail: email,
-        roleTemplate: rt,
+        roleTemplate: {
+          id: drive.roleTemplateId,
+          roleName: drive.roleTemplateName,
+          track: "Mid",
+        },
         driveId: selectedDriveId,
       });
       setCreated(inv);
@@ -345,124 +350,120 @@ function InvitesPage() {
       {/* Create slide-over */}
       {open && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={resetForm} />
-          <div className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-[460px] bg-white shadow-2xl flex flex-col">
-            <div className="px-6 py-5 border-b border-[#E6E6EA] flex items-center justify-between">
-              <div>
-                <div className="text-[16px] font-semibold text-[#0B0B0D]">
-                  {created ? "Invite ready" : "Create invite"}
-                </div>
-                <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mt-0.5">
-                  {created ? "share the link below" : "expires in 48 hours"}
-                </div>
-              </div>
-              <button onClick={resetForm} className="p-1.5 hover:bg-[#EFF0F3] rounded">
-                <X size={16} />
-              </button>
-            </div>
-
-            {!created ? (
-              <div className="p-6 flex-1 overflow-y-auto space-y-4">
+          <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={resetForm} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-[12px] w-full max-w-[480px] shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="px-6 py-5 border-b border-[#E6E6EA] flex items-center justify-between">
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
-                    Target recruiting Drive
-                  </label>
-                  <select
-                    value={selectedDriveId}
-                    onChange={(e) => setSelectedDriveId(e.target.value)}
-                    className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#2F5CFF]"
-                  >
-                    <option value="">Select a Drive...</option>
-                    {drives.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="text-[16px] font-semibold text-[#0B0B0D]">
+                    {created ? "Invite ready" : "Create invite"}
+                  </div>
+                  <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mt-0.5">
+                    {created ? "share the link below" : "expires in 48 hours"}
+                  </div>
                 </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
-                    Candidate name
-                  </label>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#2F5CFF]"
-                    placeholder="Jane Doe"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
-                    Email
-                  </label>
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    type="email"
-                    className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#2F5CFF]"
-                    placeholder="jane@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
-                    Role template
-                  </label>
-                  <select
-                    value={roleId}
-                    onChange={(e) => setRoleId(e.target.value)}
-                    className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#2F5CFF]"
-                  >
-                    {ROLE_TEMPLATES.map((rt) => (
-                      <option key={rt.id} value={rt.id}>
-                        {rt.roleName} · {rt.track}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  onClick={submit}
-                  disabled={!name || !email || !selectedDriveId}
-                  className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#2448D9] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer"
-                >
-                  Generate invite link
+                <button onClick={resetForm} className="p-1.5 hover:bg-[#EFF0F3] rounded">
+                  <X size={16} />
                 </button>
               </div>
-            ) : (
-              <div className="p-6 flex-1 overflow-y-auto">
-                <div className="rounded-[10px] bg-[#0B0B0D] p-4 text-[#EDEDEF]">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#8B8B93] mb-2">
-                    invite link
+
+              {!created ? (
+                <div className="p-6 flex-1 overflow-y-auto space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                      Target recruiting Drive
+                    </label>
+                    <select
+                      value={selectedDriveId}
+                      onChange={(e) => setSelectedDriveId(e.target.value)}
+                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#2F5CFF]"
+                    >
+                      <option value="">Select a Drive...</option>
+                      {drives.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="font-mono text-[12px] break-all text-[#EDEDEF] mb-3">
-                    {created.link}
+
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                      Candidate name
+                    </label>
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                      placeholder="Jane Doe"
+                    />
                   </div>
+
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                      Email
+                    </label>
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      type="email"
+                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                      placeholder="jane@example.com"
+                    />
+                  </div>
+
+                  {selectedDriveId && (
+                    <div>
+                      <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                        Role template (derived from Drive)
+                      </label>
+                      <div className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] bg-[#F7F7F9] text-[#5B5B64]">
+                        {drives.find((d) => d.id === selectedDriveId)?.roleTemplateName}
+                      </div>
+                    </div>
+                  )}
+
                   <button
-                    onClick={() => copy(created.link, created.id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2448D9] text-white text-[12px] rounded cursor-pointer"
+                    onClick={submit}
+                    disabled={!name || !email || !selectedDriveId}
+                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#2448D9] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer"
                   >
-                    {copiedId === created.id ? <Check size={13} /> : <Copy size={13} />}
-                    {copiedId === created.id ? "Copied to clipboard" : "Copy link"}
+                    Generate invite link
                   </button>
                 </div>
-                <div className="mt-4 text-[12px] text-[#5B5B64]">
-                  Invited <span className="text-[#0B0B0D]">{created.candidateName}</span> for{" "}
-                  <span className="text-[#0B0B0D]">
-                    {created.roleTemplate.roleName} · {created.roleTemplate.track}
-                  </span>
-                  . Expires {fmtExpires(created.expiresAt)}.
+              ) : (
+                <div className="p-6 flex-1 overflow-y-auto">
+                  <div className="rounded-[10px] bg-[#0B0B0D] p-4 text-[#EDEDEF]">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#8B8B93] mb-2">
+                      invite link
+                    </div>
+                    <div className="font-mono text-[12px] break-all text-[#EDEDEF] mb-3">
+                      {created.link}
+                    </div>
+                    <button
+                      onClick={() => copy(created.link, created.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2448D9] text-white text-[12px] rounded cursor-pointer"
+                    >
+                      {copiedId === created.id ? <Check size={13} /> : <Copy size={13} />}
+                      {copiedId === created.id ? "Copied to clipboard" : "Copy link"}
+                    </button>
+                  </div>
+                  <div className="mt-4 text-[12px] text-[#5B5B64]">
+                    Invited <span className="text-[#0B0B0D]">{created.candidateName}</span> for{" "}
+                    <span className="text-[#0B0B0D]">
+                      {created.roleTemplate.roleName} · {created.roleTemplate.track}
+                    </span>
+                    . Expires {fmtExpires(created.expiresAt)}.
+                  </div>
+                  <button
+                    onClick={resetForm}
+                    className="mt-6 w-full py-2.5 border border-[#E6E6EA] text-[#0B0B0D] text-[13px] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+                  >
+                    Done
+                  </button>
                 </div>
-                <button
-                  onClick={resetForm}
-                  className="mt-6 w-full py-2.5 border border-[#E6E6EA] text-[#0B0B0D] text-[13px] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
-                >
-                  Done
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </>
       )}
