@@ -16,6 +16,8 @@ import { MinioModule } from "./integrations/minio/minio.module";
 import { CandidateModule } from "./candidate/candidate.module";
 import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
+import { CodingModule } from "./coding/coding.module";
+import { SqlModule } from "./sql/sql.module";
 
 @Module({
   imports: [
@@ -61,6 +63,8 @@ import { QueueModule } from "./queue/queue.module";
     CandidateModule,
     SessionModule,
     QueueModule,
+    CodingModule,
+    SqlModule,
   ],
 })
 export class AppModule {}
