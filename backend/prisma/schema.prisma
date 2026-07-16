@@ -67,6 +67,31 @@ enum QuestionStatus {
   ARCHIVED
 }
 
+enum SubmissionType {
+  RUN
+  SUBMIT
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  TIMEOUT
+  MEMORY_LIMIT
+  FAILED
+}
+
+enum SqlExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  QUERY_ERROR
+  TIMEOUT
+  FAILED
+}
+
 // ---------- Models ----------
 
 model RoleTemplate {
@@ -129,6 +154,8 @@ model Question {
 
   moduleResponses ModuleResponse[]
   driveQuestions  DriveQuestion[]
+  codingExecutions CodingExecution[]
+  sqlExecutions    SQLExecution[]
 
   @@map("question")
 }
@@ -185,6 +212,8 @@ model Session {
   score             Score?
   reviewerDecision  ReviewerDecision?
   invite            Invite?
+  codingExecutions  CodingExecution[]
+  sqlExecutions     SQLExecution[]
 
   @@index([candidateId])
   @@index([status])
@@ -336,4 +365,48 @@ model AuditLog {
   staff Staff @relation(fields: [staffId], references: [id])
 
   @@map("audit_log")
+}
+
+model CodingExecution {
+  id             String          @id @default(uuid())
+  sessionId      String          @map("session_id")
+  questionId     String          @map("question_id")
+  languageId     Int             @map("language_id")
+  submissionType SubmissionType  @map("submission_type")
+  sourceCode     String          @map("source_code")
+  judge0Token    String?         @map("judge0_token")
+  status         ExecutionStatus
+  stdout         String?
+  stderr         String?
+  compileOutput  String?         @map("compile_output")
+  passedTests    Int             @map("passed_tests")
+  totalTests     Int             @map("total_tests")
+  executionTime  Float?          @map("execution_time")
+  memoryUsage    Int?            @map("memory_usage")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  completedAt    DateTime?       @map("completed_at")
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("coding_execution")
+}
+
+model SQLExecution {
+  id             String             @id @default(uuid())
+  sessionId      String             @map("session_id")
+  questionId     String             @map("question_id")
+  submissionType SubmissionType     @map("submission_type")
+  query          String
+  status         SqlExecutionStatus
+  resultJson     Json?              @map("result_json")
+  passed         Boolean
+  executionTime  Int?               @map("execution_time")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  completedAt    DateTime?          @map("completed_at")
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("sql_execution")
 }

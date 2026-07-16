@@ -1,0 +1,4 @@
+export const CODING_DEFAULTS = {
+  TIMEOUT_SECONDS: 5,
+  MEMORY_LIMIT_KB: 512000, // 512MB
+};

@@ -81,19 +81,29 @@ export enum QuestionStatus {
   ARCHIVED = "ARCHIVED",
 }
 
-// ---------------------------------------------------------------------------
-// Code Execution (Judge0)
-// ---------------------------------------------------------------------------
+export enum SubmissionType {
+  RUN = "RUN",
+  SUBMIT = "SUBMIT",
+}
 
-/**
- * Result from the Judge0 code-execution pipeline.
- * Maps to the Correlation Engine scoring status used on ModuleResponse.
- */
 export enum ExecutionStatus {
-  PASS = "PASS",
-  FAIL = "FAIL",
-  ERROR = "ERROR",
-  PENDING = "PENDING", // async poll in-flight (Judge0 timeout-then-poll fallback)
+  PENDING = "PENDING",
+  RUNNING = "RUNNING",
+  COMPLETED = "COMPLETED",
+  COMPILATION_ERROR = "COMPILATION_ERROR",
+  RUNTIME_ERROR = "RUNTIME_ERROR",
+  TIMEOUT = "TIMEOUT",
+  MEMORY_LIMIT = "MEMORY_LIMIT",
+  FAILED = "FAILED",
+}
+
+export enum SqlExecutionStatus {
+  PENDING = "PENDING",
+  RUNNING = "RUNNING",
+  COMPLETED = "COMPLETED",
+  QUERY_ERROR = "QUERY_ERROR",
+  TIMEOUT = "TIMEOUT",
+  FAILED = "FAILED",
 }
 
 // ---------------------------------------------------------------------------
