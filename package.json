@@ -14,11 +14,19 @@
     "dev:api": "npm --workspace=backend/api run start:dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
-    "prepare": "husky"
+    "db:generate": "npm --workspace=backend/api run prisma:generate",
+    "db:migrate": "npm --workspace=backend/api run prisma:migrate",
+    "db:seed": "npm --workspace=backend/api run prisma:seed",
+    "db:studio": "npm --workspace=backend/api run prisma:studio"
   },
   "devDependencies": {
-    "husky": "^9.1.7",
-    "lint-staged": "^15.5.2"
+    "@prisma/engines": "^7.8.0",
+    "@rolldown/binding-win32-x64-msvc": "^1.2.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.7.0",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.9.5",
+    "typescript-eslint": "^8.64.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

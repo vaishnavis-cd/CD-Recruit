@@ -1,0 +1,412 @@
+// CD-Recruit — Prisma Schema (Phase 1 final)
+// Field naming: camelCase in Prisma models (matches packages/shared-types + API contract)
+// mapped via @map to snake_case DB columns (standard Postgres convention).
+// Table names mapped via @@map to snake_case as well.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum ModuleType {
+  MCQ
+  SQL
+  CODING
+  AI_PROMPTING
+  SIMULATION
+}
+
+enum SessionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DISCONNECTED
+  AUTO_SUBMITTED
+  SUBMITTED
+  CLOSED
+  ABANDONED
+}
+
+enum CvMode {
+  FULL
+  REDUCED
+}
+
+enum StaffRole {
+  RECRUITER
+  ADMIN
+}
+
+enum DecisionType {
+  ADVANCE
+  REJECT
+}
+
+enum InviteStatus {
+  PENDING
+  REDEEMED
+  EXPIRED
+  REVOKED
+}
+
+enum DriveStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  CLOSED
+}
+
+enum QuestionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SubmissionType {
+  RUN
+  SUBMIT
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  TIMEOUT
+  MEMORY_LIMIT
+  FAILED
+}
+
+enum SqlExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  QUERY_ERROR
+  TIMEOUT
+  FAILED
+}
+
+// ---------- Models ----------
+
+model RoleTemplate {
+  id              String   @id @default(uuid())
+  roleName        String   @map("role_name")
+  weightingPreset Json     @map("weighting_preset")
+  durationMinutes Int      @map("duration_minutes") // drives session.deadlineAt
+
+  sessions  Session[]
+  invites   Invite[]
+  drives    Drive[]
+
+  @@map("role_template")
+}
+
+model Drive {
+  id             String      @id @default(uuid())
+  name           String
+  roleTemplateId String      @map("role_template_id")
+  moduleConfig   Json        @map("module_config")
+  status         DriveStatus @default(DRAFT)
+  scheduleStart  DateTime?   @map("schedule_start")
+  scheduleEnd    DateTime?   @map("schedule_end")
+  createdById    String      @map("created_by_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  createdBy      Staff        @relation(fields: [createdById], references: [id])
+  sessions       Session[]
+  invites        Invite[]
+  questions      DriveQuestion[]
+
+  @@map("drive")
+}
+
+model DriveQuestion {
+  id         String     @id @default(uuid())
+  driveId    String     @map("drive_id")
+  questionId String     @map("question_id")
+  moduleType ModuleType @map("module_type")
+
+  drive    Drive    @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([driveId, questionId])
+  @@map("drive_question")
+}
+
+model Question {
+  id             String     @id @default(uuid())
+  moduleType     ModuleType @map("module_type")
+  role           String?    @default("General")
+  content        Json
+  scoringConfig  Json?      @map("scoring_config")
+  difficulty     String?
+  tags           String[]
+  folderId       String?    @map("folder_id")
+  version        Int        @default(1)
+  status         QuestionStatus @default(PUBLISHED)
+
+  moduleResponses ModuleResponse[]
+  driveQuestions  DriveQuestion[]
+  codingExecutions CodingExecution[]
+  sqlExecutions    SQLExecution[]
+
+  @@map("question")
+}
+
+model Candidate {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  sessions        Session[]
+  consentRecords  ConsentRecord[]
+
+  @@map("candidate")
+}
+
+model ConsentRecord {
+  id           String   @id @default(uuid())
+  candidateId  String   @map("candidate_id")
+  version      String
+  consentedAt  DateTime @default(now()) @map("consented_at")
+  ipAddress    String   @map("ip_address")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@map("consent_record")
+}
+
+model Session {
+  id                 String        @id @default(uuid())
+  candidateId        String        @map("candidate_id")
+  roleTemplateId     String        @map("role_template_id")
+  driveId            String?       @map("drive_id")
+  cvMode             CvMode        @map("cv_mode")
+  status             SessionStatus @default(NOT_STARTED)
+  baselineSelfieRef  String?       @map("baseline_selfie_ref")
+
+  startedAt        DateTime? @map("started_at")
+  deadlineAt        DateTime? @map("deadline_at")          // startedAt + roleTemplate.durationMinutes
+  submittedAt       DateTime? @map("submitted_at")
+  lastActivityAt    DateTime? @map("last_activity_at")
+  lastHeartbeatAt   DateTime? @map("last_heartbeat_at")     // tab-alive signal, every 15s
+  disconnectedAt    DateTime? @map("disconnected_at")       // set when heartbeat goes stale
+  activeTabId       String?   @map("active_tab_id")         // single-active-session enforcement
+  disconnectCount   Int       @default(0) @map("disconnect_count") // incremented on each DISCONNECTED event; AUTO_SUBMITTED when ≥ 3
+
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+  roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  drive        Drive?       @relation(fields: [driveId], references: [id])
+
+  moduleResponses   ModuleResponse[]
+  eventLogs         EventLog[]
+  integrityFlags    IntegrityFlag[]
+  score             Score?
+  reviewerDecision  ReviewerDecision?
+  invite            Invite?
+  codingExecutions  CodingExecution[]
+  sqlExecutions     SQLExecution[]
+
+  @@index([candidateId])
+  @@index([status])
+  @@index([deadlineAt])
+  @@index([lastHeartbeatAt])
+  @@map("session")
+}
+
+model ModuleResponse {
+  id                String   @id @default(uuid())
+  sessionId         String   @map("session_id")
+  questionId        String   @map("question_id")
+  responsePayload   Json     @map("response_payload")
+  timeSpentSeconds  Int?     @map("time_spent_seconds")
+  isDraft           Boolean  @default(true) @map("is_draft") // true until real submit overwrites it
+  lastAutosavedAt   DateTime? @map("last_autosaved_at")
+
+  session  Session  @relation(fields: [sessionId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([sessionId, questionId])
+  @@map("module_response")
+}
+
+model EventLog {
+  id         String   @id @default(uuid())
+  sessionId  String   @map("session_id")
+  eventType  String   @map("event_type")
+  // Proctoring events (PASTE, TAB_SWITCH, GAZE_DEVIATION, ...) plus session-integrity
+  // events (HEARTBEAT_MISSED, DISCONNECTED, RECONNECTED, GRACE_WINDOW_EXPIRED,
+  // AUTO_SUBMITTED, SECOND_TAB_DETECTED). Kept as string here for flexibility;
+  // valid values are enforced via a shared enum in packages/shared-types.
+  payload    Json
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  session Session @relation(fields: [sessionId], references: [id])
+
+  @@map("event_log")
+}
+
+model IntegrityFlag {
+  id         String   @id @default(uuid())
+  sessionId  String   @map("session_id")
+  category   String
+  confidence Float
+  severity   String
+  flaggedAt  DateTime @default(now()) @map("flagged_at")
+
+  disposition     String?
+  dispositionAt   DateTime? @map("disposition_at")
+  dispositionById String?   @map("disposition_by_id")
+
+  session      Session       @relation(fields: [sessionId], references: [id])
+  evidenceClip EvidenceClip?
+
+  @@map("integrity_flag")
+}
+
+model EvidenceClip {
+  id         String   @id @default(uuid())
+  flagId     String   @unique @map("flag_id")
+  storageRef String   @map("storage_ref")
+  expiresAt  DateTime @map("expires_at")
+
+  flag IntegrityFlag @relation(fields: [flagId], references: [id])
+
+  @@map("evidence_clip")
+}
+
+model Score {
+  id                     String  @id @default(uuid())
+  sessionId              String  @unique @map("session_id")
+  compositeScore         Float   @map("composite_score")
+  moduleScores           Json    @map("module_scores")
+  sayDoConsistencyScore  Float   @map("say_do_consistency_score")
+  aiConfidence           Float   @map("ai_confidence")
+  humanReviewed          Boolean @default(false) @map("human_reviewed")
+
+  session Session @relation(fields: [sessionId], references: [id])
+
+  @@map("score")
+}
+
+model Staff {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String
+  role            StaffRole @default(RECRUITER)
+  keycloakUserId  String    @unique @map("keycloak_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  reviewerDecisions ReviewerDecision[]
+  invites           Invite[]
+  drives            Drive[]
+  auditLogs         AuditLog[]
+
+  @@map("staff")
+}
+
+model ReviewerDecision {
+  id         String       @id @default(uuid())
+  sessionId  String       @unique @map("session_id")
+  staffId    String       @map("staff_id") // renamed from reviewerId to match STAFF table
+  decision   DecisionType
+  decidedAt  DateTime     @default(now()) @map("decided_at")
+  note       String?
+
+  session Session @relation(fields: [sessionId], references: [id])
+  staff   Staff   @relation(fields: [staffId], references: [id])
+
+  @@map("reviewer_decision")
+}
+
+model Invite {
+  id              String       @id @default(uuid())
+  candidateEmail  String       @map("candidate_email")
+  candidateName   String       @map("candidate_name")
+  roleTemplateId  String       @map("role_template_id")
+  driveId         String?      @map("drive_id")
+  status          InviteStatus @default(PENDING)
+  token           String       @unique
+  createdById     String       @map("created_by_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  expiresAt       DateTime     @map("expires_at")
+  redeemedAt      DateTime?    @map("redeemed_at")
+  revokedAt       DateTime?    @map("revoked_at")
+  sessionId       String?      @unique @map("session_id")
+  isGenerated     Boolean      @default(false) @map("is_generated")
+
+  roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  createdBy    Staff        @relation(fields: [createdById], references: [id])
+  session      Session?     @relation(fields: [sessionId], references: [id])
+  drive        Drive?       @relation(fields: [driveId], references: [id])
+
+  @@index([candidateEmail])
+  @@index([status])
+  @@map("invite")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  staffId    String   @map("staff_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@map("audit_log")
+}
+
+model CodingExecution {
+  id             String          @id @default(uuid())
+  sessionId      String          @map("session_id")
+  questionId     String          @map("question_id")
+  languageId     Int             @map("language_id")
+  submissionType SubmissionType  @map("submission_type")
+  sourceCode     String          @map("source_code")
+  judge0Token    String?         @map("judge0_token")
+  status         ExecutionStatus
+  stdout         String?
+  stderr         String?
+  compileOutput  String?         @map("compile_output")
+  passedTests    Int             @map("passed_tests")
+  totalTests     Int             @map("total_tests")
+  executionTime  Float?          @map("execution_time")
+  memoryUsage    Int?            @map("memory_usage")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  completedAt    DateTime?       @map("completed_at")
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("coding_execution")
+}
+
+model SQLExecution {
+  id             String             @id @default(uuid())
+  sessionId      String             @map("session_id")
+  questionId     String             @map("question_id")
+  submissionType SubmissionType     @map("submission_type")
+  query          String
+  status         SqlExecutionStatus
+  resultJson     Json?              @map("result_json")
+  passed         Boolean
+  executionTime  Int?               @map("execution_time")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  completedAt    DateTime?          @map("completed_at")
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("sql_execution")
+}

@@ -1,221 +1,569 @@
-# CD-Recruit — API Contract (v0, Phase 0)
+# CD-Recruit API Contract v1
 
-Covers the full candidate session lifecycle for the two in-scope modules: **Coding/DSA** and **Contextual Simulation**. This is what Dev A (frontend) and Dev B (backend) both build against — it's the interface, not the implementation. Treat any change to this file as something both devs agree on together, not something either side changes unilaterally.
-
-Base path: `/api/v1`
-Auth: Bearer token (Keycloak-issued JWT) on every endpoint except `POST /sessions` (candidate entry via invite link token, not a full login)
+> **Base URL:** `http://localhost:3001/api/v1`  
+> **Auth:** All candidate endpoints require a Bearer JWT (Keycloak-issued or invite-token-derived).  
+> All admin endpoints require a Bearer JWT with `recruiter` or `admin` role.  
+> **Content-Type:** `application/json` on all request bodies.
 
 ---
 
-## 1. Start a session
+## Table of Contents
 
-`POST /sessions`
+1. [Session Lifecycle](#1-session-lifecycle)
+2. [Free Navigation — Questions](#2-free-navigation--questions)
+3. [Response Submission](#3-response-submission)
+4. [Proctoring Events](#4-proctoring-events)
+5. [Admin](#5-admin)
+6. [Judge0 Code Execution](#6-judge0-code-execution-coding-only)
 
-Candidate follows their invite link, which encodes an invite token. This creates the session and returns the first question.
+---
 
-**Request**
-```json
-{
-  "inviteToken": "string"
-}
+## 1. Session Lifecycle
+
+### 1.1 Start Session
+
+```
+POST /sessions/start
 ```
 
-**Response `201`**
+Validates the invite token, creates a Session (NOT_STARTED → IN_PROGRESS), sets `startedAt = now()`, and `deadlineAt = startedAt + roleTemplate.durationMinutes`.
+
+**Request**
+
+```json
+{ "inviteToken": "eyJhbGciOiJ..." }
+```
+
+**Response 201**
+
 ```json
 {
   "sessionId": "uuid",
   "candidateId": "uuid",
-  "roleTemplate": "Software Developer",
-  "cvMode": "FULL | REDUCED",
+  "roleTemplateId": "uuid",
+  "roleTemplateName": "Software Developer",
+  "durationMinutes": 90,
+  "cvMode": "FULL",
   "status": "IN_PROGRESS",
-  "startedAt": "ISO8601"
-}
-```
-
-**Why it's shaped this way:** `cvMode` is decided server-side (based on the pre-flight hardware check result the client reports just before this call, or as part of it — see note below) so the client doesn't get to self-report capability without the server logging what it actually offered. If the pre-flight check needs to happen as its own step, add `POST /sessions/:id/preflight` before this — flag if you find you need that during Phase 1.
-
----
-
-## 2. Get the current question
-
-`GET /sessions/:sessionId/question`
-
-Returns whichever question the session is currently on — server tracks progression, not the client. This keeps a refresh or reconnect from letting a candidate re-pick a question.
-
-**Response `200`**
-```json
-{
-  "questionId": "uuid",
-  "moduleType": "CODING | SIMULATION",
-  "content": {
-    "// CODING shape": "",
-    "prompt": "string",
-    "starterCode": "string",
-    "language": "string",
-    "testCasesVisible": [ { "input": "string", "expectedOutput": "string" } ]
-  }
-}
-```
-
-For `SIMULATION`, `content` instead carries the scenario script (initial Email/Slack/Ticket event payload) — same envelope, different inner shape. Document the SIMULATION content shape once Phase 3 design is locked; don't guess it now.
-
----
-
-## 3. Submit a module response
-
-`POST /sessions/:sessionId/submit`
-
-**Request (CODING)**
-```json
-{
-  "questionId": "uuid",
-  "responsePayload": {
-    "code": "string",
-    "language": "string"
-  },
-  "timeSpentSeconds": 0
-}
-```
-
-**Request (SIMULATION)**
-```json
-{
-  "questionId": "uuid",
-  "responsePayload": {
-    "actionLog": [ { "type": "string", "payload": {}, "timestamp": "ISO8601" } ]
-  },
-  "timeSpentSeconds": 0
-}
-```
-
-**Response `200`**
-```json
-{
-  "moduleResponseId": "uuid",
-  "executionResult": {
-    "status": "PASS | FAIL | ERROR",
-    "stdout": "string",
-    "stderr": "string"
-  },
-  "nextQuestionId": "uuid | null"
-}
-```
-
-`executionResult` is only populated for CODING (comes from the Judge0/Piston call). For SIMULATION it's `null` — simulation responses are graded asynchronously by the Correlation Engine, not synchronously on submit. `nextQuestionId` is `null` when the module — and the session — is complete, telling the client to move to session close.
-
----
-
-## 4. Log a behavioral/integrity event
-
-`POST /sessions/:sessionId/events`
-
-Fire-and-forget from the client — paste, tab-switch, gaze/phone detection results (detection result only, never raw frames, per your architecture doc's edge-security note).
-
-**Request**
-```json
-{
-  "eventType": "string",
-  "payload": {},
-  "occurredAt": "ISO8601"
-}
-```
-
-**Response `202`** — empty body. Client shouldn't block UI on this.
-
----
-
-## 5. Close the session
-
-`POST /sessions/:sessionId/close`
-
-Called once `nextQuestionId` is `null` after the final submit.
-
-**Response `200`**
-```json
-{
-  "sessionId": "uuid",
-  "status": "SUBMITTED",
-  "submittedAt": "ISO8601"
-}
-```
-
-This is what queues the async grading job (BullMQ) server-side — client doesn't call grading directly.
-
----
-
-## 6. Admin: list sessions
-
-`GET /admin/sessions?status=&roleTemplate=`
-
-**Response `200`**
-```json
-{
-  "sessions": [
-    {
-      "sessionId": "uuid",
-      "candidateName": "string",
-      "roleTemplate": "string",
-      "status": "string",
-      "compositeScore": 0.0,
-      "sayDoConsistencyScore": 0.0,
-      "humanReviewRequired": true
-    }
+  "startedAt": "2026-07-14T10:00:00Z",
+  "deadlineAt": "2026-07-14T11:30:00Z",
+  "disconnectCount": 0,
+  "questions": [
+    { "questionId": "uuid", "moduleType": "MCQ", "moduleIndex": 0 },
+    { "questionId": "uuid", "moduleType": "MCQ", "moduleIndex": 1 }
   ]
 }
 ```
 
+**Errors**
+
+| Status | Code                     | Reason                                       |
+| ------ | ------------------------ | -------------------------------------------- |
+| 400    | `INVITE_TOKEN_MISSING`   | Body missing inviteToken                     |
+| 401    | `INVITE_TOKEN_INVALID`   | Token malformed or signature invalid         |
+| 410    | `INVITE_TOKEN_EXPIRED`   | Token past TTL (default 48 h)                |
+| 409    | `SESSION_ALREADY_ACTIVE` | Candidate already has an IN_PROGRESS session |
+
 ---
 
-## 7. Admin: session detail
+### 1.2 Resume Session
 
-`GET /admin/sessions/:sessionId`
+```
+POST /sessions/:sessionId/resume
+```
 
-**Response `200`**
+Resumes a DISCONNECTED session. Allowed only when:
+
+- `Session.status === DISCONNECTED`
+- `Session.disconnectCount < 3` (i.e., fewer than 3 disconnects have occurred)
+- The reconnect window is still open (within 5 minutes of `disconnectedAt`)
+
+On success: sets `status = IN_PROGRESS`, records `RECONNECTED` EventLog entry.  
+On window expired or 3rd disconnect: session has already been AUTO_SUBMITTED by the backend scheduler; this endpoint returns 409.
+
+**Request**
+
+```json
+{ "sessionId": "uuid", "tabId": "browser-tab-uuid" }
+```
+
+**Response 200**
+
 ```json
 {
   "sessionId": "uuid",
-  "candidate": { "name": "string", "email": "string" },
-  "moduleResponses": [ { "moduleType": "string", "responsePayload": {}, "executionResult": {} } ],
-  "integrityFlags": [ { "category": "string", "severity": "string", "confidence": 0.0, "evidenceClipUrl": "string | null" } ],
-  "score": {
-    "compositeScore": 0.0,
-    "moduleScores": {},
-    "sayDoConsistencyScore": 0.0,
-    "aiConfidence": 0.0
+  "status": "IN_PROGRESS",
+  "deadlineAt": "2026-07-14T11:30:00Z",
+  "disconnectCount": 1,
+  "reconnectedAt": "2026-07-14T10:07:00Z",
+  "questions": [{ "questionId": "uuid", "moduleType": "MCQ", "moduleIndex": 0 }]
+}
+```
+
+**Errors**
+
+| Status | Code                       | Reason                                                                 |
+| ------ | -------------------------- | ---------------------------------------------------------------------- |
+| 404    | `SESSION_NOT_FOUND`        | sessionId unknown or not owned by caller                               |
+| 409    | `SESSION_NOT_DISCONNECTED` | Session is not in DISCONNECTED state                                   |
+| 410    | `RESUME_WINDOW_EXPIRED`    | 5-minute reconnect grace period has lapsed; session was AUTO_SUBMITTED |
+| 410    | `MAX_DISCONNECTS_REACHED`  | disconnectCount has reached 3; session is AUTO_SUBMITTED               |
+
+---
+
+### 1.3 Heartbeat
+
+```
+POST /sessions/:sessionId/heartbeat
+```
+
+Must be sent every **15–30 seconds** by the active candidate tab. Backend updates `Session.lastHeartbeatAt`. If no heartbeat for **45–90 seconds** (2–3 missed cycles), backend transitions the session to DISCONNECTED and increments `disconnectCount`.
+
+`tabId` is used to enforce single-active-session: a heartbeat from a second tab while another is active returns 409 `SECOND_TAB_DETECTED` (frontend should surface a blocking modal).
+
+**Request**
+
+```json
+{ "sessionId": "uuid", "tabId": "browser-tab-uuid" }
+```
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "sessionStatus": "IN_PROGRESS",
+  "deadlineAt": "2026-07-14T11:30:00Z"
+}
+```
+
+Client **must** check `sessionStatus` on every heartbeat response — the backend may return `AUTO_SUBMITTED` or `CLOSED` to indicate the session has ended out-of-band (deadline reached, admin forced close).
+
+**Errors**
+
+| Status | Code                      | Reason                                                |
+| ------ | ------------------------- | ----------------------------------------------------- |
+| 409    | `SECOND_TAB_DETECTED`     | A different tabId is already registered as active     |
+| 404    | `SESSION_NOT_FOUND`       | sessionId not found or wrong candidate                |
+| 422    | `SESSION_NOT_IN_PROGRESS` | Session is not IN_PROGRESS (already submitted/closed) |
+
+---
+
+### 1.4 Get Session Progress
+
+```
+GET /sessions/:sessionId/progress
+```
+
+Returns the candidate's current progress across all modules and questions. Used by the free-navigation sidebar to colour-code answered/draft/untouched questions.
+
+**Response 200**
+
+```json
+{
+  "sessionId": "uuid",
+  "items": [
+    {
+      "questionId": "uuid",
+      "moduleType": "CODING",
+      "moduleIndex": 0,
+      "status": "draft",
+      "lastAutosavedAt": "2026-07-14T10:15:00Z"
+    },
+    {
+      "questionId": "uuid",
+      "moduleType": "MCQ",
+      "moduleIndex": 0,
+      "status": "submitted",
+      "lastAutosavedAt": null
+    },
+    {
+      "questionId": "uuid",
+      "moduleType": "SQL",
+      "moduleIndex": 1,
+      "status": "untouched",
+      "lastAutosavedAt": null
+    }
+  ],
+  "answeredCount": 2,
+  "totalCount": 10
+}
+```
+
+---
+
+### 1.5 Close Session (Manual Submit)
+
+```
+POST /sessions/:sessionId/close
+```
+
+Candidate explicitly submits the session. Transitions: IN_PROGRESS → SUBMITTED. Sets `submittedAt = now()`. All draft ModuleResponses are treated as final.
+
+**Response 200**
+
+```json
+{
+  "sessionId": "uuid",
+  "status": "SUBMITTED",
+  "submittedAt": "2026-07-14T11:25:00Z"
+}
+```
+
+**Errors**
+
+| Status | Code                      | Reason                                                  |
+| ------ | ------------------------- | ------------------------------------------------------- |
+| 422    | `SESSION_NOT_SUBMITTABLE` | Session already submitted, auto-submitted, or abandoned |
+
+---
+
+## 2. Free Navigation — Questions
+
+> **Design Decision:** Candidates can jump freely between ALL modules and ALL questions.  
+> There is no forced ordering or module locking. `moduleIndex` is a stable 0-based position within a module type used for navigation display — it does NOT enforce traversal order.
+
+### 2.1 Get Question by ID
+
+```
+GET /sessions/:sessionId/questions/:questionId
+```
+
+Returns the full content for the specified question. The client maps question IDs from the `questions[]` array returned by session start/resume.
+
+**Response 200**
+
+```json
+{
+  "questionId": "uuid",
+  "roleTemplateId": "uuid",
+  "content": {
+    "moduleType": "CODING",
+    "prompt": "Given an array of integers nums...",
+    "starterCode": {
+      "python": "def solve(nums):\n    pass",
+      "javascript": "function solve(nums) {}"
+    },
+    "testCases": [
+      {
+        "input": "[2,7,11,15], 9",
+        "expectedOutput": "[0,1]",
+        "label": "Example 1"
+      }
+    ],
+    "constraints": ["2 ≤ nums.length ≤ 10^4"],
+    "difficulty": "easy"
   }
 }
 ```
 
-`evidenceClipUrl` is a signed, short-TTL MinIO URL — generated fresh on this request, never stored as a permanent link, per the architecture doc's reviewer-access note.
+The `content` object shape varies by `moduleType`:
+
+| moduleType     | Key fields (client-facing)                                                 |
+| -------------- | -------------------------------------------------------------------------- |
+| `MCQ`          | `prompt`, `options[]`                                                      |
+| `SQL`          | `prompt`, `schema`, `seedData`                                             |
+| `CODING`       | `prompt`, `starterCode{}`, `testCases[]`, `constraints[]`, `difficulty`    |
+| `AI_PROMPTING` | `prompt`, `context?`, `rubric{evaluationCriteria[], idealResponseSummary}` |
+| `SIMULATION`   | `title`, `description`, `triggers[]`, `rubric[]`                           |
+
+**Server-only fields never included in this response:** `correctIndex` (MCQ), `expectedQuery` (SQL), `hiddenTests` (CODING).
+
+**Errors**
+
+| Status | Code                 | Reason                         |
+| ------ | -------------------- | ------------------------------ |
+| 404    | `QUESTION_NOT_FOUND` | questionId not in this session |
+| 403    | `SESSION_CLOSED`     | Session is not IN_PROGRESS     |
 
 ---
 
-## 8. Admin: record a decision
+## 3. Response Submission
 
-`POST /admin/sessions/:sessionId/decision`
+### 3.1 Save Draft (Autosave)
 
-**Request**
-```json
-{
-  "decision": "ADVANCE | REJECT"
-}
+```
+POST /sessions/:sessionId/responses/draft
 ```
 
-**Response `200`**
+Creates or updates a `ModuleResponse` with `isDraft = true` and `lastAutosavedAt = now()`.  
+**Trigger:** debounced every 10–15 s while typing + immediately on blur.
+
+**Request**
+
 ```json
 {
   "sessionId": "uuid",
-  "decision": "string",
-  "decidedAt": "ISO8601"
+  "questionId": "uuid",
+  "responsePayload": {
+    "moduleType": "CODING",
+    "code": "def two_sum(nums, target):\n    ...",
+    "language": "python"
+  },
+  "timeSpentSeconds": 120
 }
 ```
 
-`reviewerId` is taken from the authenticated JWT server-side, never sent by the client.
+**Response 200**
+
+```json
+{
+  "moduleResponseId": "uuid",
+  "isDraft": true,
+  "lastAutosavedAt": "2026-07-14T10:12:34Z"
+}
+```
+
+**Errors**
+
+| Status | Code                      | Reason                                  |
+| ------ | ------------------------- | --------------------------------------- |
+| 404    | `QUESTION_NOT_IN_SESSION` | questionId not assigned to this session |
+| 422    | `SESSION_NOT_IN_PROGRESS` | Session already closed                  |
 
 ---
 
-## Notes for both devs
+### 3.2 Submit Response (Final)
 
-- Every request/response shape here maps directly to a Prisma model field (see `schema.prisma`) — if you need a field that isn't in the schema, add it to the schema first, then update this file, don't invent a shape that outruns the data model.
-- `responsePayload` and `content` are intentionally `Json` — module-specific shape lives inside them so we don't need a schema migration every time question content changes.
-- This is v0. Once Phase 1 (Coding module vertical slice) is actually built, expect 1-2 rounds of contract adjustment — normal, not a failure of this design. Update this file when it happens; don't let code and contract drift apart.
+```
+POST /sessions/:sessionId/responses/submit
+```
+
+Marks a `ModuleResponse` as final (`isDraft = false`).  
+For **CODING** submissions: triggers Judge0 execution (see Section 6).  
+For all other module types: `executionResult` is always `null`.
+
+**Request** — same shape as SaveDraftRequest.
+
+**Response 200**
+
+```json
+{
+  "moduleResponseId": "uuid",
+  "isDraft": false,
+  "executionResult": {
+    "executionStatus": "PASS",
+    "stdout": "",
+    "stderr": "",
+    "allVisiblePassed": true
+  }
+}
+```
+
+For CODING when Judge0 times out (PENDING fallback):
+
+```json
+{
+  "moduleResponseId": "uuid",
+  "isDraft": false,
+  "executionResult": {
+    "executionStatus": "PENDING",
+    "stdout": "",
+    "stderr": "",
+    "allVisiblePassed": false
+  }
+}
+```
+
+---
+
+## 4. Proctoring Events
+
+```
+POST /sessions/:sessionId/events
+```
+
+Fire-and-forget event log. Client sends and moves on — no meaningful response body.  
+Backend persists to `EventLog` table.
+
+**Request**
+
+```json
+{
+  "eventType": "TAB_SWITCH",
+  "payload": { "targetUrl": "https://stackoverflow.com" },
+  "occurredAt": "2026-07-14T10:14:00Z"
+}
+```
+
+Valid `eventType` values:
+
+- **Proctoring:** `PASTE`, `TAB_SWITCH`, `GAZE_DEVIATION`, `FACE_NOT_VISIBLE`, `MULTIPLE_FACES`
+- **Session integrity:** `HEARTBEAT_MISSED`, `DISCONNECTED`, `RECONNECTED`, `GRACE_WINDOW_EXPIRED`, `AUTO_SUBMITTED`, `SECOND_TAB_DETECTED`, `DEADLINE_REACHED`
+
+**Response 204** — no body.
+
+---
+
+## 5. Admin
+
+All admin endpoints require a JWT with `recruiter` or `admin` Keycloak role.
+
+### 5.1 List Sessions
+
+```
+GET /admin/sessions?page=1&pageSize=20&status=SUBMITTED&roleTemplateId=uuid
+```
+
+**Query params:** `page` (default 1), `pageSize` (default 20, max 100), `status` (optional filter), `roleTemplateId` (optional filter).
+
+**Response 200**
+
+```json
+{
+  "items": [
+    {
+      "sessionId": "uuid",
+      "candidateName": "Alice Smith",
+      "candidateEmail": "alice@example.com",
+      "roleTemplateName": "Software Developer",
+      "status": "SUBMITTED",
+      "startedAt": "2026-07-14T10:00:00Z",
+      "submittedAt": "2026-07-14T11:20:00Z",
+      "deadlineAt": "2026-07-14T11:30:00Z",
+      "disconnectCount": 0,
+      "compositeScore": 0.78,
+      "sayDoConsistencyScore": 0.65,
+      "humanReviewRequired": true
+    }
+  ],
+  "total": 42,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+---
+
+### 5.2 Get Session Detail
+
+```
+GET /admin/sessions/:sessionId
+```
+
+**Response 200** — full session detail including typed module responses, integrity flags, and score.
+
+```json
+{
+  "sessionId": "uuid",
+  "candidate": {
+    "id": "uuid",
+    "name": "Alice Smith",
+    "email": "alice@example.com"
+  },
+  "roleTemplateName": "Software Developer",
+  "status": "SUBMITTED",
+  "cvMode": "FULL",
+  "startedAt": "2026-07-14T10:00:00Z",
+  "submittedAt": "2026-07-14T11:20:00Z",
+  "deadlineAt": "2026-07-14T11:30:00Z",
+  "disconnectCount": 0,
+  "moduleResponses": [
+    {
+      "moduleResponseId": "uuid",
+      "questionId": "uuid",
+      "moduleType": "CODING",
+      "responsePayload": {
+        "moduleType": "CODING",
+        "code": "def solve()...",
+        "language": "python"
+      },
+      "timeSpentSeconds": 840,
+      "isDraft": false,
+      "lastAutosavedAt": "2026-07-14T11:18:00Z"
+    }
+  ],
+  "integrityFlags": [
+    {
+      "flagId": "uuid",
+      "category": "GAZE_DEVIATION",
+      "severity": "MEDIUM",
+      "confidence": 0.82,
+      "flaggedAt": "2026-07-14T10:30:00Z",
+      "evidenceClipUrl": "https://minio.../clips/uuid.webm?token=..."
+    }
+  ],
+  "score": {
+    "compositeScore": 0.78,
+    "moduleScores": { "MCQ": 0.85, "CODING": 0.72 },
+    "sayDoConsistencyScore": 0.65,
+    "aiConfidence": 0.91,
+    "humanReviewed": false
+  }
+}
+```
+
+---
+
+### 5.3 Record Reviewer Decision
+
+```
+POST /admin/sessions/:sessionId/decision
+```
+
+Records the human reviewer's ADVANCE/REJECT decision.
+
+**Request**
+
+```json
+{ "decision": "ADVANCE" }
+```
+
+**Response 201**
+
+```json
+{
+  "sessionId": "uuid",
+  "decision": "ADVANCE",
+  "decidedAt": "2026-07-14T14:00:00Z"
+}
+```
+
+**Errors**
+
+| Status | Code                        | Reason                                               |
+| ------ | --------------------------- | ---------------------------------------------------- |
+| 409    | `DECISION_ALREADY_RECORDED` | A decision already exists for this session           |
+| 422    | `SESSION_NOT_REVIEWABLE`    | Session not yet scored (status not SUBMITTED/CLOSED) |
+
+---
+
+## 6. Judge0 Code Execution (CODING only)
+
+**Decision: Synchronous-with-timeout-then-poll fallback.**
+
+```
+Background: CD-Recruit uses the hosted Judge0 CE API (judge0-ce.p.rapidapi.com)
+NOT a self-hosted instance. Self-hosted Judge0 is scoped to a later upgrade trigger.
+```
+
+**Flow:**
+
+1. `POST /sessions/:id/responses/submit` (CODING) → backend calls Judge0 synchronously.
+2. Backend waits up to **8 seconds** for Judge0 to return a result.
+3. **If result arrives ≤ 8 s:** Response includes fully-populated `executionResult`.
+4. **If Judge0 times out:** Response includes `executionResult.executionStatus = "PENDING"`. Client must poll:
+
+### 6.1 Poll Execution Status
+
+```
+GET /sessions/:sessionId/responses/:moduleResponseId/execution
+```
+
+Returns the current execution result. Client polls every **3 seconds** until `executionStatus !== "PENDING"`.
+
+**Response 200**
+
+```json
+{
+  "moduleResponseId": "uuid",
+  "executionResult": {
+    "executionStatus": "PASS",
+    "stdout": "6\n",
+    "stderr": "",
+    "allVisiblePassed": true
+  }
+}
+```
+
+> **Note on hidden tests:** `allVisiblePassed` reflects only the public test cases shown to the candidate. The Correlation Engine (Phase 10) runs hidden tests post-submission for final scoring and does not surface individual hidden test results to the candidate.

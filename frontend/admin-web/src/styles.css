@@ -1,0 +1,119 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-brand: #2f5cff;
+  --color-brand-ink: #15308f;
+  --color-signal-green: #17c964;
+  --color-amber: #f5a623;
+  --color-danger: #e5484d;
+
+  --color-ink: #0b0b0d;
+  --color-ink-2: #5b5b64;
+  --color-ink-3: #9c9ca5;
+  --color-line: #e6e6ea;
+  --color-line-strong: #d6d7dc;
+  --color-bg-soft: #f7f7f9;
+  --color-bg-inset: #eff0f3;
+
+  --color-sbg: #0b0b0d;
+  --color-sbg-hover: #18181c;
+  --color-sline: #232327;
+  --color-stext: #ededef;
+  --color-stext-2: #8b8b93;
+}
+
+/* shadcn tokens still used by existing ui components */
+@theme inline {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --radius: 10px;
+  --background: #ffffff;
+  --foreground: #0b0b0d;
+  --card: #ffffff;
+  --card-foreground: #0b0b0d;
+  --popover: #ffffff;
+  --popover-foreground: #0b0b0d;
+  --primary: #2f5cff;
+  --primary-foreground: #ffffff;
+  --secondary: #eff0f3;
+  --secondary-foreground: #0b0b0d;
+  --muted: #f7f7f9;
+  --muted-foreground: #5b5b64;
+  --accent: #eaf0ff;
+  --accent-foreground: #15308f;
+  --destructive: #e5484d;
+  --destructive-foreground: #ffffff;
+  --border: #e6e6ea;
+  --input: #e6e6ea;
+  --ring: #2f5cff;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: #f7f7f9;
+    color: #0b0b0d;
+    font-family: var(--font-sans);
+  }
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%235b5b64' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
+    background-position: right 0.5rem center !important;
+    background-repeat: no-repeat !important;
+    background-size: 1.25em 1.25em !important;
+    padding-right: 2rem !important;
+    border: 1px solid var(--color-line);
+    background-color: #ffffff;
+    color: var(--color-ink);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    cursor: pointer;
+  
+  }
+  select:hover {
+    border-color: var(--color-line-strong);
+  }
+  select:focus {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 2px rgba(47, 92, 255, 0.15);
+  }
+}
