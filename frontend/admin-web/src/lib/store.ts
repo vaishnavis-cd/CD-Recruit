@@ -70,7 +70,7 @@ interface Store {
   createDrive: (input: {
     name: string;
     roleTemplateId: string;
-    moduleConfig: any;
+    moduleConfig?: any;
     status?: DriveStatus;
     scheduleStart?: string;
     scheduleEnd?: string;
