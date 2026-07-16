@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -56,6 +56,7 @@ function DrivesPage() {
   const deleteDrive = useStore((s) => s.deleteDrive);
   const questions = useStore((s) => s.questions);
   const loading = useStore((s) => s.loading);
+  const roleTemplates = useStore((s) => s.roleTemplates);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,8 +69,18 @@ function DrivesPage() {
 
   // Wizard State
   const [driveName, setDriveName] = useState("");
-  const [selectedRole, setSelectedRole] = useState(ROLE_TEMPLATES[0].id);
+  const [selectedRole, setSelectedRole] = useState("");
   const [customRoleName, setCustomRoleName] = useState("");
+
+  // Sync selectedRole with first template when templates load or if current is invalid
+  useEffect(() => {
+    if (roleTemplates.length > 0) {
+      const exists = roleTemplates.some((r) => r.id === selectedRole);
+      if (!exists) {
+        setSelectedRole(roleTemplates[0].id);
+      }
+    }
+  }, [roleTemplates, selectedRole]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -103,7 +114,7 @@ function DrivesPage() {
 
   const resetWizard = () => {
     setDriveName("");
-    setSelectedRole(ROLE_TEMPLATES[0].id);
+    setSelectedRole(roleTemplates[0]?.id || "");
     setCustomRoleName("");
   };
 
@@ -303,9 +314,9 @@ function DrivesPage() {
                   onChange={(e) => setSelectedRole(e.target.value)}
                   className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
                 >
-                  {ROLE_TEMPLATES.map((r) => (
+                  {roleTemplates.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.roleName} ({r.track})
+                      {r.roleName} {r.track ? `(${r.track})` : ""}
                     </option>
                   ))}
                   <option value="rt-custom">Custom Role</option>

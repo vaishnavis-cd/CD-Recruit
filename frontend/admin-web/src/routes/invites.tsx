@@ -71,7 +71,6 @@ function InvitesPage() {
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [roleId, setRoleId] = useState(ROLE_TEMPLATES[0].id);
   const [selectedDriveId, setSelectedDriveId] = useState<string>("");
   const [created, setCreated] = useState<Invite | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -132,7 +131,6 @@ function InvitesPage() {
   const resetForm = () => {
     setName("");
     setEmail("");
-    setRoleId(ROLE_TEMPLATES[0].id);
     setSelectedDriveId("");
     setCreated(null);
     setOpen(false);

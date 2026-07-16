@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../common/prisma.service";
 import {
   SessionLogService,
@@ -19,7 +19,7 @@ export class SimulationService {
   ) {}
 
   async startSimulation(sessionId: string): Promise<SimulationSession> {
-    const session = await this.sessionLogService.getSession(sessionId);
+    let session = await this.sessionLogService.getSession(sessionId);
     if (!session) {
       throw new BadRequestException(
         "Simulation session could not be retrieved",
@@ -40,7 +40,11 @@ export class SimulationService {
       );
     }
 
-    return this.sessionLogService.getSession(sessionId);
+    session = await this.sessionLogService.getSession(sessionId);
+    if (!session) {
+      throw new NotFoundException(`Simulation session not found for ID ${sessionId}`);
+    }
+    return session;
   }
 
   async getCurrentEvent(sessionId: string): Promise<{
@@ -83,8 +87,11 @@ export class SimulationService {
         "LOADED",
         "Event Loaded",
       );
-      eventState = (await this.sessionLogService.getSession(sessionId))
-        .eventStates[eventId];
+      const freshSession = await this.sessionLogService.getSession(sessionId);
+      if (!freshSession) {
+        throw new NotFoundException(`Simulation session not found`);
+      }
+      eventState = freshSession.eventStates[eventId];
     }
 
     // Call LLM generator service (with static fallback) to get enriched content
@@ -176,6 +183,9 @@ export class SimulationService {
 
     // Update event final logs
     const updatedSession = await this.sessionLogService.getSession(sessionId);
+    if (!updatedSession) {
+      throw new NotFoundException(`Simulation session not found`);
+    }
     const eventState = updatedSession.eventStates[eventId];
     eventState.endTime = new Date().toISOString();
     eventState.durationSeconds = Math.round(
