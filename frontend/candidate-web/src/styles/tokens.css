@@ -1,0 +1,46 @@
+/* Design Tokens for CD-Recruit Candidate Web */
+
+:root {
+  /* Light Mode values */
+  --bg: #FFFFFF;
+  --surface: #F5F6F8;
+  --border-token: #E4E6EB;
+  --text-primary: #111318;
+  --text-secondary: #6B7280;
+  --accent: #2F5CFF;
+  --accent-hover: #1A44D6;
+  --warning: #F59E0B;
+  --critical: #E5484D;
+  --success: #12B76A;
+}
+
+:root.dark {
+  /* Dark Mode values */
+  --bg: #0F1115;
+  --surface: #1A1D24;
+  --border-token: #2A2E37;
+  --text-primary: #F2F3F5;
+  --text-secondary: #9CA3AF;
+  --accent: #5B7FFF;
+  --accent-hover: #7E9BFF;
+  --warning: #FBBF24;
+  --critical: #F0555B;
+  --success: #3ECF8E;
+}
+
+@theme {
+  /* Register theme tokens for Tailwind CSS v4 */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border-token: var(--border-token);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-warning: var(--warning);
+  --color-critical: var(--critical);
+  --color-success: var(--success);
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}

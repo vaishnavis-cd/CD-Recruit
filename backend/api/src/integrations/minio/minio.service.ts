@@ -12,19 +12,19 @@ export class MinioService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {
     this.bucketBiometric = this.configService.get<string>(
       "app.minio.bucketBiometric",
-    );
+    ) ?? "";
     this.bucketGeneral = this.configService.get<string>(
       "app.minio.bucketGeneral",
-    );
+    ) ?? "";
   }
 
   async onModuleInit() {
     try {
-      const endPoint = this.configService.get<string>("app.minio.endpoint");
+      const endPoint = this.configService.get<string>("app.minio.endpoint") ?? "";
       const port = this.configService.get<number>("app.minio.port");
       const useSSL = this.configService.get<boolean>("app.minio.useSsl");
-      const accessKey = this.configService.get<string>("app.minio.accessKey");
-      const secretKey = this.configService.get<string>("app.minio.secretKey");
+      const accessKey = this.configService.get<string>("app.minio.accessKey") ?? "";
+      const secretKey = this.configService.get<string>("app.minio.secretKey") ?? "";
 
       this.minioClient = new Minio.Client({
         endPoint,
