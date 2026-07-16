@@ -18,7 +18,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { UUIDValidationPipe } from "../common/pipes/uuid-validation.pipe";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { DriveService } from "./drive.service";
-import { CreateDriveDto, UpdateDriveDto, ListDrivesQueryDto } from "../common/dto/drive.dto";
+import { CreateDriveDto, UpdateDriveDto, ListDrivesQueryDto, SaveDriveQuestionsDto, AddCandidatesBulkDto } from "../common/dto/drive.dto";
 
 @Controller("admin/drives")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -74,5 +74,34 @@ export class DriveController {
     @CurrentUser() staff: any,
   ) {
     return this.driveService.delete(driveId, staff.id);
+  }
+
+  @Post(":driveId/questions")
+  @HttpCode(HttpStatus.OK)
+  async saveQuestions(
+    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @Body() dto: SaveDriveQuestionsDto,
+    @CurrentUser() staff: any,
+  ) {
+    return this.driveService.saveQuestions(driveId, dto.questionIds, staff.id);
+  }
+
+  @Post(":driveId/invites/bulk")
+  @HttpCode(HttpStatus.OK)
+  async addCandidatesBulk(
+    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @Body() dto: AddCandidatesBulkDto,
+    @CurrentUser() staff: any,
+  ) {
+    return this.driveService.addCandidatesBulk(driveId, dto.candidates, staff.id);
+  }
+
+  @Post(":driveId/generate-links")
+  @HttpCode(HttpStatus.OK)
+  async generateLinks(
+    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.driveService.generateLinks(driveId, staff.id);
   }
 }

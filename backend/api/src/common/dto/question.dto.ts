@@ -31,6 +31,10 @@ export class CreateQuestionDto {
   tags?: string[];
 
   @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
   @IsEnum(QuestionStatus)
   status?: QuestionStatus;
 }
@@ -54,6 +58,10 @@ export class UpdateQuestionDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 
   @IsOptional()
   @IsEnum(QuestionStatus)
@@ -85,6 +93,10 @@ export class ListQuestionsQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 
   @IsOptional()
   @IsEnum(QuestionStatus)

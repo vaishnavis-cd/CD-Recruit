@@ -32,8 +32,8 @@ export class CreateDriveDto {
   @IsUUID()
   roleTemplateId: string;
 
-  @IsNotEmpty()
-  moduleConfig: any; // We validate internally in service for structure
+  @IsOptional()
+  moduleConfig?: any; // We validate internally in service for structure
 
   @IsOptional()
   @IsEnum(DriveStatus)
@@ -78,6 +78,19 @@ export class UpdateDriveDto {
   @IsOptional()
   @IsDateString()
   scheduleEnd?: string;
+}
+
+export class SaveDriveQuestionsDto {
+  @IsArray()
+  @IsString({ each: true })
+  questionIds: string[];
+}
+
+export class AddCandidatesBulkDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DriveCandidateDto)
+  candidates: DriveCandidateDto[];
 }
 
 export class ListDrivesQueryDto {
