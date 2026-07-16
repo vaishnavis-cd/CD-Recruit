@@ -1,0 +1,108 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
+import { SessionService } from "./session.service";
+import {
+  StartSessionDto,
+  ResumeSessionDto,
+  HeartbeatDto,
+} from "@app/common/dto/session.dto";
+import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
+import {
+  StartSessionResponse,
+  ResumeSessionResponse,
+  HeartbeatResponse,
+  CloseSessionResponse,
+} from "@cd-recruit/shared-types";
+
+/**
+ * SessionController — thin HTTP layer for the session lifecycle.
+ *
+ * All business logic lives in SessionService.  The controller only:
+ *   1. Applies guards and validation decorators
+ *   2. Extracts route/body params
+ *   3. Delegates to the service
+ *   4. Returns the result (NestJS serialises it as JSON automatically)
+ */
+@Controller("sessions")
+export class SessionController {
+  constructor(private readonly sessionService: SessionService) {}
+
+  /**
+   * POST /api/v1/sessions/start
+   *
+   * Redeem an invite token and create a new assessment session.
+   * Protected by InviteTokenRateLimitGuard to prevent brute-force.
+   */
+  @Post("start")
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(InviteTokenRateLimitGuard)
+  async start(@Body() dto: StartSessionDto): Promise<StartSessionResponse> {
+    return this.sessionService.startSession(dto.inviteToken);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/heartbeat
+   *
+   * Tab-alive signal.  Must be sent every 15 s.
+   * Returns 409 SECOND_TAB_DETECTED when a different tab is already active.
+   */
+  @Post(":sessionId/heartbeat")
+  @HttpCode(HttpStatus.OK)
+  async heartbeat(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() dto: HeartbeatDto,
+  ): Promise<HeartbeatResponse> {
+    return this.sessionService.heartbeat(sessionId, dto.tabId);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/resume
+   *
+   * Reconnect after a DISCONNECTED transition.
+   * Only allowed within the grace window and below max disconnects.
+   */
+  @Post(":sessionId/resume")
+  @HttpCode(HttpStatus.OK)
+  async resume(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() dto: ResumeSessionDto,
+  ): Promise<ResumeSessionResponse> {
+    return this.sessionService.resumeSession(sessionId, dto.tabId);
+  }
+
+  /**
+   * GET /api/v1/sessions/:sessionId/progress
+   *
+   * Returns per-question answer status for the free-navigation sidebar.
+   * Stub until Phase 3 (question serving).
+   */
+  @Get(":sessionId/progress")
+  @HttpCode(HttpStatus.NOT_IMPLEMENTED)
+  progress(@Param("sessionId", ParseUUIDPipe) _sessionId: string): {
+    message: string;
+  } {
+    return { message: "Not implemented — Phase 3" };
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/close
+   *
+   * Candidate explicitly submits the session.
+   */
+  @Post(":sessionId/close")
+  @HttpCode(HttpStatus.OK)
+  async close(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+  ): Promise<CloseSessionResponse> {
+    return this.sessionService.closeSession(sessionId);
+  }
+}

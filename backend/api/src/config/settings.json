@@ -1,0 +1,5 @@
+{
+  "aiConfidenceThreshold": 0.8,
+  "passRateThreshold": 0.7,
+  "biometricRetentionDays": 30
+}
