@@ -79,6 +79,12 @@ interface Store {
   duplicateDrive: (driveId: string) => Promise<void>;
   closeDrive: (driveId: string) => Promise<void>;
   deleteDrive: (driveId: string) => Promise<void>;
+  saveDriveQuestions: (driveId: string, questionIds: string[]) => Promise<void>;
+  addCandidatesBulk: (
+    driveId: string,
+    candidates: Array<{ name: string; candidateEmail: string }>,
+  ) => Promise<void>;
+  generateDriveLinks: (driveId: string) => Promise<void>;
 
 
   fetchQuestions: (query?: {
@@ -86,9 +92,11 @@ interface Store {
     difficulty?: string;
     search?: string;
     status?: string;
+    role?: string;
   }) => Promise<void>;
   createQuestion: (input: {
     moduleType: string;
+    role?: string;
     content: any;
     scoringConfig?: any;
     difficulty?: string;
@@ -99,6 +107,7 @@ interface Store {
     id: string,
     input: {
       moduleType?: string;
+      role?: string;
       content?: any;
       scoringConfig?: any;
       difficulty?: string;
@@ -598,6 +607,51 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  saveDriveQuestions: async (driveId: string, questionIds: string[]) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/questions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ questionIds }),
+      });
+      if (!res.ok) throw new Error("Failed to save drive questions");
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string }>) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/invites/bulk`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ candidates }),
+      });
+      if (!res.ok) throw new Error("Failed to add candidates");
+      get().fetchDrives();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  generateDriveLinks: async (driveId: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/generate-links`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to generate links");
+      get().fetchDrives();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  },
 
   fetchQuestions: async (query) => {
     try {
@@ -611,6 +665,9 @@ export const useStore = create<Store>((set, get) => ({
       }
       if (query?.search) {
         url += `&search=${encodeURIComponent(query.search)}`;
+      }
+      if (query?.role) {
+        url += `&role=${encodeURIComponent(query.role)}`;
       }
       if (query?.status) {
         url += `&status=${query.status}`;

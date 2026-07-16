@@ -36,15 +36,18 @@ export interface DriveCandidateRosterItem {
   sessionStatus: string | null;
   compositeScore: number | null;
   submittedAt: string | null;
+  isGenerated: boolean;
 }
 
 export interface DriveDetail extends Drive {
   roster: DriveCandidateRosterItem[];
+  questionIds?: string[];
 }
 
 export interface Question {
   id: string;
   moduleType: string;
+  role: string;
   content: any;
   scoringConfig: any;
   difficulty: string;

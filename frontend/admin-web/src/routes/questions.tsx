@@ -48,6 +48,7 @@ function QuestionBankPage() {
   const [query, setQuery] = useState("");
   const [modFilter, setModFilter] = useState<string>("all");
   const [diffFilter, setDiffFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
@@ -57,6 +58,7 @@ function QuestionBankPage() {
   const [promptText, setPromptText] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [tagsInput, setTagsInput] = useState("");
+  const [role, setRole] = useState("General");
 
   // MCQ specific (Create)
   const [mcqOptions, setMcqOptions] = useState<string[]>(["", "", "", ""]);
@@ -78,6 +80,7 @@ function QuestionBankPage() {
   const [editPromptText, setEditPromptText] = useState("");
   const [editDifficulty, setEditDifficulty] = useState("medium");
   const [editTagsInput, setEditTagsInput] = useState("");
+  const [editRole, setEditRole] = useState("General");
   const [editMcqOptions, setEditMcqOptions] = useState<string[]>(["", "", "", ""]);
   const [editCorrectIndex, setEditCorrectIndex] = useState(0);
   const [editSqlSchema, setEditSqlSchema] = useState("");
@@ -95,9 +98,10 @@ function QuestionBankPage() {
     fetchQuestions({
       moduleType: modFilter !== "all" ? modFilter : undefined,
       difficulty: diffFilter !== "all" ? diffFilter : undefined,
+      role: roleFilter !== "all" ? roleFilter : undefined,
       search: query ? query : undefined,
     });
-  }, [modFilter, diffFilter, query]);
+  }, [modFilter, diffFilter, roleFilter, query]);
 
   // Grouped questions helper by tags
   const groupedQuestions = useMemo(() => {
@@ -129,6 +133,7 @@ function QuestionBankPage() {
     setEditDifficulty(q.difficulty);
     setEditTagsInput(q.tags?.join(", ") || "");
     setEditPromptText(q.content?.prompt || q.content?.title || "");
+    setEditRole(q.role || "General");
 
     if (q.moduleType === "MCQ") {
       const opts = [...(q.content?.options || ["", "", "", ""])];
@@ -182,6 +187,7 @@ function QuestionBankPage() {
         content,
         scoringConfig,
         difficulty: editDifficulty,
+        role: editRole,
         tags: editTagsInput
           .split(",")
           .map((t) => t.trim())
@@ -223,6 +229,7 @@ function QuestionBankPage() {
         content,
         scoringConfig,
         difficulty,
+        role,
         tags: tagsInput
           .split(",")
           .map((t) => t.trim())
@@ -239,6 +246,7 @@ function QuestionBankPage() {
   const resetForm = () => {
     setPromptText("");
     setTagsInput("");
+    setRole("General");
     setMcqOptions(["", "", "", ""]);
     setCorrectIndex(0);
     setSqlSchema("");
@@ -292,25 +300,25 @@ function QuestionBankPage() {
     let headers = "";
     let sampleRow = "";
     if (mod === "MCQ") {
-      headers = "prompt,difficulty,tags,option1,option2,option3,option4,correctIndex";
+      headers = "prompt,difficulty,tags,role,option1,option2,option3,option4,correctIndex";
       sampleRow =
-        '"What is the time complexity of binary search?",easy,"algorithms,binary search",O(n),O(log n),O(n log n),O(1),1';
+        '"What is the time complexity of binary search?",easy,"algorithms,binary search","Backend Engineer",O(n),O(log n),O(n log n),O(1),1';
     } else if (mod === "SQL") {
-      headers = "prompt,difficulty,tags,schema,seedData";
+      headers = "prompt,difficulty,tags,role,schema,seedData";
       sampleRow =
-        '"Select all employees from sales department",medium,"sql,databases","CREATE TABLE employees (id SERIAL, name TEXT, department TEXT);","INSERT INTO employees (name, department) VALUES (\'John\', \'sales\');"';
+        '"Select all employees from sales department",medium,"sql,databases","Data Engineer","CREATE TABLE employees (id SERIAL, name TEXT, department TEXT);","INSERT INTO employees (name, department) VALUES (\'John\', \'sales\');"';
     } else if (mod === "CODING") {
-      headers = "prompt,difficulty,tags,starterCode,testCasesJSON";
+      headers = "prompt,difficulty,tags,role,starterCode,testCasesJSON";
       sampleRow =
-        '"Write a function to sum two numbers",easy,"basics,math","function sum(a, b) {\n  return a + b;\n}","[{\"input\": \"[1, 2]\", \"expected\": \"3\"}]"';
+        '"Write a function to sum two numbers",easy,"basics,math","Backend Engineer","function sum(a, b) {\n  return a + b;\n}","[{\"input\": \"[1, 2]\", \"expected\": \"3\"}]"';
     } else if (mod === "AI_PROMPTING") {
-      headers = "prompt,difficulty,tags,rubricJSON";
+      headers = "prompt,difficulty,tags,role,rubricJSON";
       sampleRow =
-        '"Draft a prompt for an assistant to write professional emails",medium,"ai,prompting","[{\\"criteria\\": \\"Tone\\", \\"maxScore\\": 5}]"';
+        '"Draft a prompt for an assistant to write professional emails",medium,"ai,prompting","AI Engineer","[{\\"criteria\\": \\"Tone\\", \\"maxScore\\": 5}]"';
     } else if (mod === "SIMULATION") {
-      headers = "title,difficulty,tags,triggersJSON,rubricJSON";
+      headers = "title,difficulty,tags,role,triggersJSON,rubricJSON";
       sampleRow =
-        '"Handle a production outage call with client",hard,"communication,outage","[{\\"timeSeconds\\": 15, \\"message\\": \\"Client is asking for ETA.\\"}]","[{\\"criteria\\": \\"Transparency\\", \\"maxScore\\": 10}]"';
+        '"Handle a production outage call with client",hard,"communication,outage","Full-stack Engineer","[{\\"timeSeconds\\": 15, \\"message\\": \\"Client is asking for ETA.\\"}]","[{\\"criteria\\": \\"Transparency\\", \\"maxScore\\": 10}]"';
     }
     const csvContent =
       "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + sampleRow);
@@ -349,6 +357,7 @@ function QuestionBankPage() {
           };
 
           const difficulty = getVal("difficulty") || "medium";
+          const roleVal = getVal("role") || "General";
           const tags = (getVal("tags") || "")
             .split(",")
             .map((t) => t.trim())
@@ -389,6 +398,7 @@ function QuestionBankPage() {
           parsedQuestions.push({
             difficulty,
             tags,
+            role: roleVal,
             content,
             scoringConfig,
           });
@@ -421,27 +431,69 @@ function QuestionBankPage() {
         </div>
       }
       actions={
-        <div className="relative group">
-          <button
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#2448D9] cursor-pointer shadow-sm transition-colors rounded-md"
+        <div className="flex items-center gap-2">
+          {/* Module Filter */}
+          <select
+            value={modFilter}
+            onChange={(e) => setModFilter(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
           >
-            <Plus size={14} /> Add Question
-          </button>
-          {/* Dropdown Menu on Hover */}
-          <div className="absolute right-0 top-full w-44 pt-1.5 z-50 hidden group-hover:block hover:block">
-            <div className="bg-white border border-[#E6E6EA] rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
-              >
-                Create Manually
-              </button>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
-              >
-                Bulk Import CSV
-              </button>
+            <option value="all">All Modules</option>
+            <option value="MCQ">MCQ</option>
+            <option value="SQL">SQL</option>
+            <option value="CODING">Coding</option>
+            <option value="AI_PROMPTING">AI Prompting</option>
+            <option value="SIMULATION">Simulation</option>
+          </select>
+
+          {/* Difficulty Filter */}
+          <select
+            value={diffFilter}
+            onChange={(e) => setDiffFilter(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+          >
+            <option value="all">All Difficulties</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+
+          {/* Role Filter */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+          >
+            <option value="all">All Roles</option>
+            <option value="General">General</option>
+            <option value="Backend Engineer">Backend Engineer</option>
+            <option value="Full-stack Engineer">Full-stack Engineer</option>
+            <option value="Data Engineer">Data Engineer</option>
+            <option value="ML Engineer">ML Engineer</option>
+          </select>
+
+          <div className="relative group">
+            <button
+              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#2448D9] cursor-pointer shadow-sm transition-colors rounded-md"
+            >
+              <Plus size={14} /> Add Question
+            </button>
+            {/* Dropdown Menu on Hover */}
+            <div className="absolute right-0 top-full w-44 pt-1.5 z-50 hidden group-hover:block hover:block">
+              <div className="bg-white border border-[#E6E6EA] rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+                >
+                  Create Manually
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+                >
+                  Bulk Import CSV
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -484,6 +536,9 @@ function QuestionBankPage() {
                       }`}
                     >
                       {q.difficulty}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
+                      Role: {q.role || "General"}
                     </span>
                   </div>
                   <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
@@ -577,6 +632,9 @@ function QuestionBankPage() {
                       }`}
                     >
                       {q.difficulty}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
+                      Role: {q.role || "General"}
                     </span>
                   </div>
                   <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
@@ -693,7 +751,7 @@ function QuestionBankPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                     Module Type
@@ -722,6 +780,22 @@ function QuestionBankPage() {
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Target Role
+                  </label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  >
+                    <option value="General">General</option>
+                    <option value="Backend Engineer">Backend Engineer</option>
+                    <option value="Full-stack Engineer">Full-stack Engineer</option>
+                    <option value="Data Engineer">Data Engineer</option>
+                    <option value="ML Engineer">ML Engineer</option>
                   </select>
                 </div>
               </div>
@@ -1013,7 +1087,7 @@ function QuestionBankPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                     Module Type (Read-Only)
@@ -1036,6 +1110,22 @@ function QuestionBankPage() {
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Target Role
+                  </label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  >
+                    <option value="General">General</option>
+                    <option value="Backend Engineer">Backend Engineer</option>
+                    <option value="Full-stack Engineer">Full-stack Engineer</option>
+                    <option value="Data Engineer">Data Engineer</option>
+                    <option value="ML Engineer">ML Engineer</option>
                   </select>
                 </div>
               </div>

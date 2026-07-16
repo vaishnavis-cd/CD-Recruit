@@ -49,13 +49,14 @@ export class QuestionService {
   }
 
   async create(dto: CreateQuestionDto) {
-    const { moduleType, content, scoringConfig = {}, difficulty = "medium", tags = [], status = QuestionStatus.PUBLISHED } = dto;
+    const { moduleType, content, scoringConfig = {}, difficulty = "medium", tags = [], status = QuestionStatus.PUBLISHED, role = "General" } = dto;
     
     this.validateQuestionContent(moduleType, content, scoringConfig);
 
     const question = await this.prisma.question.create({
       data: {
         moduleType: moduleType as any,
+        role,
         content: content as any,
         scoringConfig: scoringConfig as any,
         difficulty,
@@ -69,7 +70,7 @@ export class QuestionService {
   }
 
   async list(query: ListQuestionsQueryDto) {
-    const { page, pageSize, moduleType, difficulty, search, status } = query;
+    const { page, pageSize, moduleType, difficulty, search, status, role } = query;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
 
@@ -79,6 +80,9 @@ export class QuestionService {
     }
     if (difficulty) {
       where.difficulty = difficulty;
+    }
+    if (role) {
+      where.role = { contains: role, mode: "insensitive" };
     }
     if (status) {
       where.status = status;
@@ -91,6 +95,7 @@ export class QuestionService {
         { content: { path: ["prompt"], string_contains: search } },
         { content: { path: ["title"], string_contains: search } },
         { tags: { has: search } },
+        { role: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -187,7 +192,7 @@ export class QuestionService {
       throw new NotFoundException(`Question not found with ID ${id}`);
     }
 
-    const { moduleType = question.moduleType as ModuleType, content = question.content, scoringConfig = question.scoringConfig, difficulty, tags, status } = dto;
+    const { moduleType = question.moduleType as ModuleType, content = question.content, scoringConfig = question.scoringConfig, difficulty, tags, status, role } = dto;
 
     this.validateQuestionContent(moduleType, content, scoringConfig);
 
@@ -201,6 +206,7 @@ export class QuestionService {
       const newQuestion = await this.prisma.question.create({
         data: {
           moduleType: moduleType as any,
+          role: role ?? question.role,
           content: content as any,
           scoringConfig: scoringConfig as any,
           difficulty: difficulty ?? question.difficulty,
@@ -224,6 +230,7 @@ export class QuestionService {
         where: { id },
         data: {
           moduleType: moduleType as any,
+          role: role ?? question.role,
           content: content as any,
           scoringConfig: scoringConfig as any,
           difficulty: difficulty ?? question.difficulty,
@@ -262,6 +269,7 @@ export class QuestionService {
         const created = await tx.question.create({
           data: {
             moduleType: moduleType as any,
+            role: q.role ?? "General",
             content: q.content,
             scoringConfig: q.scoringConfig ?? {},
             difficulty: q.difficulty ?? "medium",

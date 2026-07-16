@@ -118,6 +118,7 @@ model DriveQuestion {
 model Question {
   id             String     @id @default(uuid())
   moduleType     ModuleType @map("module_type")
+  role           String?    @default("General")
   content        Json
   scoringConfig  Json?      @map("scoring_config")
   difficulty     String?
@@ -311,6 +312,7 @@ model Invite {
   redeemedAt      DateTime?    @map("redeemed_at")
   revokedAt       DateTime?    @map("revoked_at")
   sessionId       String?      @unique @map("session_id")
+  isGenerated     Boolean      @default(false) @map("is_generated")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])
