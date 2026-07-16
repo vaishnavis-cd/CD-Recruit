@@ -15,6 +15,7 @@ import {
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
+import { InviteStatus } from "@prisma/client";
 
 @Injectable()
 export class DriveService {
@@ -168,7 +169,7 @@ export class DriveService {
             createdById: staffId,
             expiresAt,
             token,
-            status: "PENDING",
+            status: InviteStatus.PENDING,
           });
         }
 
@@ -293,7 +294,8 @@ export class DriveService {
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
-      const inviteLink = `${process.env.VITE_API_BASE_URL.replace("/api/v1", "")}/start?token=${invite.token}`;
+      const baseUrl = process.env.VITE_API_BASE_URL ?? "http://localhost:3000/api/v1";
+      const inviteLink = `${baseUrl.replace("/api/v1", "")}/start?token=${invite.token}`;
       const session = invite.session;
 
       return {

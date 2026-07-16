@@ -260,7 +260,7 @@ export class QuestionService {
   }
 
   async bulkUpload(moduleType: ModuleType, questions: any[]) {
-    const createdList = [];
+    const createdList: any[] = [];
 
     await this.prisma.$transaction(async (tx) => {
       for (const q of questions) {
