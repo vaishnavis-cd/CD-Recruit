@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { SessionStatus } from "@cd-recruit/shared-types";
 import type { CvMode, QuestionSummary } from "@cd-recruit/shared-types";
 import { TAB_ID } from "./tab";
-import { startSession, resumeSession } from "@/api/session";
+import { startSession, resumeSession, beginSession as apiBeginSession } from "@/api/session";
 import type { ApiError } from "@/api/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,6 +35,7 @@ export interface SessionState {
   startedAt: string | null;
   deadlineAt: string | null;
   disconnectCount: number;
+  durationMinutes: number | null;
   questions: QuestionSummary[];
 
   // ── UI flags ─────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ export interface SessionState {
 interface SessionActions {
   startSession: (inviteToken: string) => Promise<void>;
   resumeSession: () => Promise<void>;
+  beginSession: () => Promise<void>;
   updateFromHeartbeat: (
     sessionStatus: SessionStatus,
     deadlineAt: string,
@@ -103,6 +105,7 @@ const INITIAL_STATE: SessionState = {
   startedAt: null,
   deadlineAt: null,
   disconnectCount: 0,
+  durationMinutes: null,
   questions: [],
   isLoading: false,
   error: null,
@@ -156,6 +159,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           startedAt: response.startedAt,
           deadlineAt: response.deadlineAt,
           disconnectCount: response.disconnectCount,
+          durationMinutes: response.durationMinutes,
           questions: response.questions,
           persistedSessionId: response.sessionId,
           isLoading: false,
@@ -199,6 +203,29 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         } else {
           set({ isLoading: false, error: toSessionError(apiError) });
         }
+      }
+    },
+
+    // ── beginSession ──────────────────────────────────────────────────────────
+    beginSession: async () => {
+      const sessionId = get().sessionId;
+      if (!sessionId || get().isLoading) return;
+
+      set({ isLoading: true, error: null });
+
+      try {
+        const response = await apiBeginSession(sessionId);
+
+        set({
+          status: response.status,
+          startedAt: response.startedAt,
+          deadlineAt: response.deadlineAt,
+          questions: response.questions,
+          isLoading: false,
+          error: null,
+        });
+      } catch (err) {
+        set({ isLoading: false, error: toSessionError(err as ApiError) });
       }
     },
 

@@ -122,3 +122,39 @@ export async function resumeSession(
     throw normaliseError(err);
   }
 }
+
+/**
+ * POST /sessions/:sessionId/begin
+ * Begins a NOT_STARTED session, transitioning it to IN_PROGRESS.
+ */
+export async function beginSession(
+  sessionId: string,
+): Promise<StartSessionResponse> {
+  try {
+    const { data } = await apiClient.post<StartSessionResponse>(
+      `/sessions/${sessionId}/begin`
+    );
+    return data;
+  } catch (err) {
+    throw normaliseError(err);
+  }
+}
+
+/**
+ * POST /sessions/:sessionId/selfie
+ * Uploads baseline selfie base64 image data URL.
+ */
+export async function uploadSelfie(
+  sessionId: string,
+  base64Image: string,
+): Promise<{ ok: boolean }> {
+  try {
+    const { data } = await apiClient.post<{ ok: boolean }>(
+      `/sessions/${sessionId}/selfie`,
+      { image: base64Image }
+    );
+    return data;
+  } catch (err) {
+    throw normaliseError(err);
+  }
+}

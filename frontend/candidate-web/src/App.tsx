@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useSessionStore } from "@/store/session.store";
 import { SecondTabOverlay } from "@/components/common/SecondTabOverlay";
+import { WatermarkOverlay } from "@/components/common/WatermarkOverlay";
 import { AppRoutes } from "@/routes";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -32,6 +33,7 @@ export function App() {
   return (
     <>
       <SecondTabOverlay />
+      <WatermarkOverlay />
       <AppRoutes />
     </>
   );
