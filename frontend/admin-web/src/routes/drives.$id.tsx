@@ -11,9 +11,11 @@ import {
   CalendarDays,
   RefreshCw,
   XCircle,
+  X,
+  Edit,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
 
 export const Route = createFileRoute("/drives/$id")({
@@ -43,6 +45,13 @@ function DriveDetailPage() {
   // Extend Modal State
   const [extendInviteId, setExtendInviteId] = useState<string | null>(null);
   const [extendExpiryDate, setExtendExpiryDate] = useState("");
+
+  // Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editStatus, setEditStatus] = useState<string>("DRAFT");
 
   const loadData = async () => {
     try {
@@ -85,6 +94,39 @@ function DriveDetailPage() {
     }
   };
 
+  const handleOpenEdit = () => {
+    if (!drive) return;
+    setEditName(drive.name);
+    setEditStart(drive.scheduleStart ? drive.scheduleStart.slice(0, 16) : "");
+    setEditEnd(drive.scheduleEnd ? drive.scheduleEnd.slice(0, 16) : "");
+    setEditStatus(drive.status);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          name: editName,
+          scheduleStart: editStart ? new Date(editStart).toISOString() : null,
+          scheduleEnd: editEnd ? new Date(editEnd).toISOString() : null,
+          status: editStatus,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to update drive");
+      }
+      setShowEditModal(false);
+      loadData();
+    } catch (err: any) {
+      alert("Failed to update drive: " + err.message);
+    }
+  };
+
   if (loading) {
     return (
       <AppShell title="Drive Details">
@@ -103,8 +145,39 @@ function DriveDetailPage() {
     );
   }
 
+  const isLocked = drive.invitedCount > 0;
+
   return (
-    <AppShell title={drive.name} count={`${drive.invitedCount} Candidates`}>
+    <AppShell
+      title={drive.name}
+      count={`${drive.invitedCount} Candidates`}
+      actions={
+        !isLocked && (
+          <button
+            onClick={handleOpenEdit}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#1E4DDF] shadow-sm transition-colors cursor-pointer"
+          >
+            <Edit size={14} /> Edit Drive Details
+          </button>
+        )
+      }
+    >
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-1.5 text-[12px] text-[#5B5B64] mb-5 font-medium">
+        <Link to="/drives" className="hover:text-[#2F5CFF] hover:underline transition-colors">
+          Drives
+        </Link>
+        <span className="text-[#9C9CA5]">/</span>
+        <span className="text-[#0B0B0D] truncate max-w-[200px]">{drive.name}</span>
+      </div>
+
+      {/* Invite Token Banner Notice */}
+      {isLocked && (
+        <div className="mb-6 p-4 bg-[#EFF4FF] border border-[#BFDBFE] rounded-[10px] text-[#15308F] text-[13px] flex items-center gap-2">
+          <span className="font-semibold">⚠️ Locked:</span> Candidate invite links (tokens) have been generated for this drive. Details are locked and cannot be edited.
+        </div>
+      )}
+
       {/* Header Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4">
@@ -226,7 +299,7 @@ function DriveDetailPage() {
                   onClick={() => {
                     setExtendInviteId(c.inviteId);
                     setExtendExpiryDate(
-                      new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                      new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16)
                     );
                   }}
                   className="p-1 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] cursor-pointer"
@@ -257,6 +330,91 @@ function DriveDetailPage() {
           </div>
         ))}
       </div>
+
+      {/* Edit Drive details modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[460px] p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-[#E6E6EA]">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Edit Drive Details</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  Drive Name
+                </label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  Status
+                </label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                >
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="SCHEDULED">SCHEDULED</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="CLOSED">CLOSED</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  Start Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={editStart}
+                  onChange={(e) => setEditStart(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  End Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={editEnd}
+                  onChange={(e) => setEditEnd(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 text-[13px]">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] font-semibold cursor-pointer shadow-sm"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Extend Modal */}
       {extendInviteId && (

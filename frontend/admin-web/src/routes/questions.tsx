@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -10,6 +10,13 @@ import {
   FileSpreadsheet,
   Trash2,
   X,
+  Edit3,
+  Download,
+  UploadCloud,
+  Check,
+  Folder,
+  ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -33,35 +40,56 @@ function QuestionBankPage() {
   const questions = useStore((s) => s.questions);
   const fetchQuestions = useStore((s) => s.fetchQuestions);
   const createQuestion = useStore((s) => s.createQuestion);
+  const updateQuestion = useStore((s) => s.updateQuestion);
   const archiveQuestion = useStore((s) => s.archiveQuestion);
   const bulkUploadQuestions = useStore((s) => s.bulkUploadQuestions);
 
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [modFilter, setModFilter] = useState<string>("all");
   const [diffFilter, setDiffFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
 
-  // Form State
+  // Form State (Create)
   const [moduleType, setModuleType] = useState<string>("MCQ");
   const [promptText, setPromptText] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   const [tagsInput, setTagsInput] = useState("");
 
-  // MCQ specific
+  // MCQ specific (Create)
   const [mcqOptions, setMcqOptions] = useState<string[]>(["", "", "", ""]);
   const [correctIndex, setCorrectIndex] = useState(0);
 
-  // SQL specific
+  // SQL specific (Create)
   const [sqlSchema, setSqlSchema] = useState("");
   const [sqlSeed, setSqlSeed] = useState("");
 
-  // Coding specific
+  // Coding specific (Create)
   const [starterCode, setStarterCode] = useState("");
   const [testCasesInput, setTestCasesInput] = useState("");
 
-  // Simulation specific
+  // Simulation specific (Create)
   const [simTriggers, setSimTriggers] = useState("");
   const [simRubric, setSimRubric] = useState("");
+
+  // Edit Form State
+  const [editPromptText, setEditPromptText] = useState("");
+  const [editDifficulty, setEditDifficulty] = useState("medium");
+  const [editTagsInput, setEditTagsInput] = useState("");
+  const [editMcqOptions, setEditMcqOptions] = useState<string[]>(["", "", "", ""]);
+  const [editCorrectIndex, setEditCorrectIndex] = useState(0);
+  const [editSqlSchema, setEditSqlSchema] = useState("");
+  const [editSqlSeed, setEditSqlSeed] = useState("");
+  const [editStarterCode, setEditStarterCode] = useState("");
+  const [editTestCasesInput, setEditTestCasesInput] = useState("");
+  const [editSimTriggers, setEditSimTriggers] = useState("");
+  const [editSimRubric, setEditSimRubric] = useState("");
+
+  // Bulk Import State
+  const [importModuleType, setImportModuleType] = useState<string>("MCQ");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchQuestions({
@@ -70,6 +98,101 @@ function QuestionBankPage() {
       search: query ? query : undefined,
     });
   }, [modFilter, diffFilter, query]);
+
+  // Grouped questions helper by tags
+  const groupedQuestions = useMemo(() => {
+    const groups: Record<string, typeof questions> = {};
+    questions.forEach((q) => {
+      if (!q.tags || q.tags.length === 0) {
+        if (!groups["untagged"]) {
+          groups["untagged"] = [];
+        }
+        groups["untagged"].push(q);
+      } else {
+        q.tags.forEach((tag) => {
+          const t = tag.trim().toLowerCase();
+          if (!t) return;
+          if (!groups[t]) {
+            groups[t] = [];
+          }
+          if (!groups[t].some((x) => x.id === q.id)) {
+            groups[t].push(q);
+          }
+        });
+      }
+    });
+    return groups;
+  }, [questions]);
+
+  const handleOpenEdit = (q: any) => {
+    setEditingQuestion(q);
+    setEditDifficulty(q.difficulty);
+    setEditTagsInput(q.tags?.join(", ") || "");
+    setEditPromptText(q.content?.prompt || q.content?.title || "");
+
+    if (q.moduleType === "MCQ") {
+      const opts = [...(q.content?.options || ["", "", "", ""])];
+      while (opts.length < 4) opts.push("");
+      setEditMcqOptions(opts);
+      setEditCorrectIndex(q.scoringConfig?.correctIndex ?? 0);
+    } else if (q.moduleType === "SQL") {
+      setEditSqlSchema(q.content?.schema || "");
+      setEditSqlSeed(q.content?.seedData || "");
+    } else if (q.moduleType === "CODING") {
+      setEditStarterCode(q.content?.starterCode || "");
+      setEditTestCasesInput(
+        q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : ""
+      );
+    } else if (q.moduleType === "SIMULATION") {
+      setEditSimTriggers(
+        q.content?.triggers ? JSON.stringify(q.content.triggers, null, 2) : ""
+      );
+      setEditSimRubric(
+        q.content?.rubric ? JSON.stringify(q.content.rubric, null, 2) : ""
+      );
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editingQuestion) return;
+    const content: any = { prompt: editPromptText };
+    const scoringConfig: any = {};
+
+    try {
+      if (editingQuestion.moduleType === "MCQ") {
+        content.options = editMcqOptions.filter((o) => o.trim());
+        if (content.options.length < 2) {
+          alert("Please provide at least 2 options");
+          return;
+        }
+        scoringConfig.correctIndex = editCorrectIndex;
+      } else if (editingQuestion.moduleType === "SQL") {
+        content.schema = editSqlSchema;
+        content.seedData = editSqlSeed;
+      } else if (editingQuestion.moduleType === "CODING") {
+        content.starterCode = editStarterCode;
+        content.testCases = editTestCasesInput ? JSON.parse(editTestCasesInput) : [];
+      } else if (editingQuestion.moduleType === "SIMULATION") {
+        content.title = editPromptText;
+        content.triggers = editSimTriggers ? JSON.parse(editSimTriggers) : [];
+        content.rubric = editSimRubric ? JSON.parse(editSimRubric) : [];
+      }
+
+      await updateQuestion(editingQuestion.id, {
+        content,
+        scoringConfig,
+        difficulty: editDifficulty,
+        tags: editTagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+      });
+
+      setEditingQuestion(null);
+    } catch (err: any) {
+      alert("Failed updating question: " + err.message);
+    }
+  };
 
   const handleCreate = async () => {
     const content: any = { prompt: promptText };
@@ -126,6 +249,162 @@ function QuestionBankPage() {
     setSimRubric("");
   };
 
+  // CSV Parser Utility
+  function parseCSV(text: string) {
+    const lines = [];
+    let row: string[] = [];
+    let inQuotes = false;
+    let val = "";
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i + 1];
+      if (c === '"') {
+        if (inQuotes && next === '"') {
+          val += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === "," && !inQuotes) {
+        row.push(val.trim());
+        val = "";
+      } else if ((c === "\n" || c === "\r") && !inQuotes) {
+        if (c === "\r" && next === "\n") i++;
+        row.push(val.trim());
+        if (row.length > 0 && row.some((x) => x)) {
+          lines.push(row);
+        }
+        row = [];
+        val = "";
+      } else {
+        val += c;
+      }
+    }
+    if (val || row.length > 0) {
+      row.push(val.trim());
+      lines.push(row);
+    }
+    return lines;
+  }
+
+  // Dynamic CSV Template Download
+  const handleDownloadSample = (mod: string) => {
+    let headers = "";
+    let sampleRow = "";
+    if (mod === "MCQ") {
+      headers = "prompt,difficulty,tags,option1,option2,option3,option4,correctIndex";
+      sampleRow =
+        '"What is the time complexity of binary search?",easy,"algorithms,binary search",O(n),O(log n),O(n log n),O(1),1';
+    } else if (mod === "SQL") {
+      headers = "prompt,difficulty,tags,schema,seedData";
+      sampleRow =
+        '"Select all employees from sales department",medium,"sql,databases","CREATE TABLE employees (id SERIAL, name TEXT, department TEXT);","INSERT INTO employees (name, department) VALUES (\'John\', \'sales\');"';
+    } else if (mod === "CODING") {
+      headers = "prompt,difficulty,tags,starterCode,testCasesJSON";
+      sampleRow =
+        '"Write a function to sum two numbers",easy,"basics,math","function sum(a, b) {\n  return a + b;\n}","[{\"input\": \"[1, 2]\", \"expected\": \"3\"}]"';
+    } else if (mod === "AI_PROMPTING") {
+      headers = "prompt,difficulty,tags,rubricJSON";
+      sampleRow =
+        '"Draft a prompt for an assistant to write professional emails",medium,"ai,prompting","[{\\"criteria\\": \\"Tone\\", \\"maxScore\\": 5}]"';
+    } else if (mod === "SIMULATION") {
+      headers = "title,difficulty,tags,triggersJSON,rubricJSON";
+      sampleRow =
+        '"Handle a production outage call with client",hard,"communication,outage","[{\\"timeSeconds\\": 15, \\"message\\": \\"Client is asking for ETA.\\"}]","[{\\"criteria\\": \\"Transparency\\", \\"maxScore\\": 10}]"';
+    }
+    const csvContent =
+      "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + sampleRow);
+    const link = document.createElement("a");
+    link.setAttribute("href", csvContent);
+    link.setAttribute("download", `sample_${mod.toLowerCase()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = () => {
+    if (!csvFile) {
+      alert("Please select a CSV file first.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const rows = parseCSV(text);
+        if (rows.length < 2) {
+          alert("The CSV file must contain at least a header row and one data row.");
+          return;
+        }
+        const headers = rows[0].map((h) => h.toLowerCase());
+        const parsedQuestions = [];
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (row.length === 0 || (row.length === 1 && !row[0])) continue;
+
+          const getVal = (headerName: string) => {
+            const idx = headers.indexOf(headerName.toLowerCase());
+            return idx !== -1 ? row[idx] : "";
+          };
+
+          const difficulty = getVal("difficulty") || "medium";
+          const tags = (getVal("tags") || "")
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean);
+
+          const content: any = {};
+          const scoringConfig: any = {};
+
+          if (importModuleType === "MCQ") {
+            content.prompt = getVal("prompt");
+            const opt1 = getVal("option1");
+            const opt2 = getVal("option2");
+            const opt3 = getVal("option3");
+            const opt4 = getVal("option4");
+            content.options = [opt1, opt2, opt3, opt4].filter(Boolean);
+            scoringConfig.correctIndex = parseInt(getVal("correctIndex")) || 0;
+          } else if (importModuleType === "SQL") {
+            content.prompt = getVal("prompt");
+            content.schema = getVal("schema");
+            content.seedData = getVal("seedData");
+          } else if (importModuleType === "CODING") {
+            content.prompt = getVal("prompt");
+            content.starterCode = getVal("starterCode");
+            const tc = getVal("testCasesJSON");
+            content.testCases = tc ? JSON.parse(tc) : [];
+          } else if (importModuleType === "AI_PROMPTING") {
+            content.prompt = getVal("prompt");
+            const rub = getVal("rubricJSON");
+            content.rubric = rub ? JSON.parse(rub) : [];
+          } else if (importModuleType === "SIMULATION") {
+            content.title = getVal("title") || getVal("prompt");
+            const trig = getVal("triggersJSON");
+            const rubricVal = getVal("rubricJSON");
+            content.triggers = trig ? JSON.parse(trig) : [];
+            content.rubric = rubricVal ? JSON.parse(rubricVal) : [];
+          }
+
+          parsedQuestions.push({
+            difficulty,
+            tags,
+            content,
+            scoringConfig,
+          });
+        }
+
+        await bulkUploadQuestions(importModuleType, parsedQuestions);
+        alert(`Successfully imported ${parsedQuestions.length} questions!`);
+        setCsvFile(null);
+        setShowImportModal(false);
+      } catch (err: any) {
+        alert("CSV Import failed: " + err.message);
+      }
+    };
+    reader.readAsText(csvFile);
+  };
+
   return (
     <AppShell
       title="Question Bank"
@@ -142,118 +421,264 @@ function QuestionBankPage() {
         </div>
       }
       actions={
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#0B0B0D] rounded-md hover:bg-[#232327] cursor-pointer shadow-sm"
-        >
-          <Plus size={14} />
-          Create Question
-        </button>
-      }
-    >
-      {/* Filters */}
-      <div className="flex gap-3 mb-6">
-        <select
-          value={modFilter}
-          onChange={(e) => setModFilter(e.target.value)}
-          className="px-3 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] focus:outline-none"
-        >
-          <option value="all">All Modules</option>
-          <option value="MCQ">MCQ</option>
-          <option value="SQL">SQL</option>
-          <option value="CODING">Coding / DSA</option>
-          <option value="AI_PROMPTING">AI Prompting</option>
-          <option value="SIMULATION">Contextual Simulation</option>
-        </select>
-
-        <select
-          value={diffFilter}
-          onChange={(e) => setDiffFilter(e.target.value)}
-          className="px-3 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] focus:outline-none"
-        >
-          <option value="all">All Difficulties</option>
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard">Hard</option>
-        </select>
-      </div>
-
-      {/* Questions list */}
-      <div className="space-y-3">
-        {questions.map((q) => (
-          <div
-            key={q.id}
-            className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+        <div className="relative group">
+          <button
+            className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#2448D9] cursor-pointer shadow-sm transition-colors rounded-md"
           >
-            <div className="space-y-1.5 flex-1 min-w-0 pr-4">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
-                  {q.moduleType}
-                </span>
-                <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
-                    q.difficulty === "easy"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : q.difficulty === "medium"
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-rose-50 text-rose-700"
-                  }`}
-                >
-                  {q.difficulty}
-                </span>
-              </div>
-              <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
-                {q.content?.prompt || q.content?.title || "Simulation Scenario"}
-              </h4>
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                {q.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
-                  >
-                    <Tag size={8} />
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 shrink-0">
-              <div className="text-center font-mono">
-                <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
-                <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
-              </div>
-              <div className="text-center font-mono">
-                <div className="text-[13px] font-semibold text-[#0B0B0D]">
-                  {q.avgScore !== null ? `${q.avgScore}%` : "—"}
-                </div>
-                <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
-              </div>
+            <Plus size={14} /> Add Question
+          </button>
+          {/* Dropdown Menu on Hover */}
+          <div className="absolute right-0 top-full w-44 pt-1.5 z-50 hidden group-hover:block hover:block">
+            <div className="bg-white border border-[#E6E6EA] rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
               <button
-                onClick={() => {
-                  if (confirm("Are you sure you want to archive this question?")) {
-                    archiveQuestion(q.id);
-                  }
-                }}
-                className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
-                title="Archive Question"
+                onClick={() => setShowCreateModal(true)}
+                className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
               >
-                <Trash2 size={14} />
+                Create Manually
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+              >
+                Bulk Import CSV
               </button>
             </div>
           </div>
-        ))}
-        {questions.length === 0 && (
-          <p className="text-center py-8 text-[13px] text-[#8B8B93] font-mono">
-            No questions found matching criteria.
-          </p>
-        )}
-      </div>
+        </div>
+      }
+    >
+      {/* Tag Directory Navigation */}
+      {query.trim() !== "" ? (
+        /* Search results list */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+            <h3 className="text-[13px] font-semibold text-[#0B0B0D]">
+              Search Results for "{query}" ({questions.length})
+            </h3>
+            <button
+              onClick={() => setQuery("")}
+              className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer"
+            >
+              Clear search
+            </button>
+          </div>
+          <div className="space-y-3">
+            {questions.map((q) => (
+              <div
+                key={q.id}
+                className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+              >
+                <div className="space-y-1.5 flex-1 min-w-0 pr-4">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
+                      {q.moduleType}
+                    </span>
+                    <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
+                        q.difficulty === "easy"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : q.difficulty === "medium"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                  </div>
+                  <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
+                    {q.content?.prompt || q.content?.title || "Simulation Scenario"}
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {q.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
+                      >
+                        <Tag size={8} />
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 shrink-0">
+                  <div className="text-center font-mono">
+                    <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
+                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
+                  </div>
+                  <div className="text-center font-mono">
+                    <div className="text-[13px] font-semibold text-[#0B0B0D]">
+                      {q.avgScore !== null ? `${q.avgScore}%` : "—"}
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEdit(q)}
+                      className="p-2 text-[#2F5CFF] hover:bg-[#EFF4FF] rounded transition-colors cursor-pointer"
+                      title="Preview & Edit"
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm("Are you sure you want to archive this question?")) {
+                          archiveQuestion(q.id);
+                        }
+                      }}
+                      className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                      title="Archive"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : selectedFolder !== null ? (
+        /* Inside a folder */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedFolder(null)}
+                className="flex items-center gap-1 text-[12px] font-medium text-[#2F5CFF] hover:underline cursor-pointer"
+              >
+                <ArrowLeft size={13} /> Back to Folders
+              </button>
+              <span className="text-[#8B8B93]">/</span>
+              <span className="text-[13px] font-semibold text-[#0B0B0D] capitalize flex items-center gap-1.5">
+                <Folder size={14} className="text-[#2F5CFF]" />
+                {selectedFolder} ({groupedQuestions[selectedFolder]?.length || 0})
+              </span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {(groupedQuestions[selectedFolder] || []).map((q) => (
+              <div
+                key={q.id}
+                className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+              >
+                <div className="space-y-1.5 flex-1 min-w-0 pr-4">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
+                      {q.moduleType}
+                    </span>
+                    <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
+                        q.difficulty === "easy"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : q.difficulty === "medium"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                  </div>
+                  <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
+                    {q.content?.prompt || q.content?.title || "Simulation Scenario"}
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {q.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
+                      >
+                        <Tag size={8} />
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 shrink-0">
+                  <div className="text-center font-mono">
+                    <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
+                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
+                  </div>
+                  <div className="text-center font-mono">
+                    <div className="text-[13px] font-semibold text-[#0B0B0D]">
+                      {q.avgScore !== null ? `${q.avgScore}%` : "—"}
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEdit(q)}
+                      className="p-2 text-[#2F5CFF] hover:bg-[#EFF4FF] rounded transition-colors cursor-pointer"
+                      title="Preview & Edit"
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm("Are you sure you want to archive this question?")) {
+                          archiveQuestion(q.id);
+                        }
+                      }}
+                      className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                      title="Archive"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* Folder Grid directory list */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+            <h3 className="text-[13px] font-semibold text-[#0B0B0D]">Question Repositories</h3>
+            <span className="text-[11px] text-[#8B8B93] font-mono">
+              {Object.keys(groupedQuestions).length} tag directories
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Object.keys(groupedQuestions).length === 0 ? (
+              <p className="col-span-full text-center py-8 text-[13px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+                No questions found.
+              </p>
+            ) : (
+              Object.entries(groupedQuestions).map(([tag, list]) => (
+                <div
+                  key={tag}
+                  onClick={() => setSelectedFolder(tag)}
+                  className="p-5 bg-white border border-[#E6E6EA] rounded-[12px] shadow-sm hover:shadow-md hover:border-[#2F5CFF] transition-all cursor-pointer flex flex-col justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-[#EFF4FF] text-[#2F5CFF] rounded-lg group-hover:bg-[#2F5CFF] group-hover:text-white transition-colors">
+                      <Folder size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate max-w-[120px] capitalize">
+                        {tag}
+                      </h4>
+                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                        {list.length} {list.length === 1 ? "question" : "questions"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-4">
+                    <span className="text-[11px] font-medium text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                      Open <ChevronRight size={12} />
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Creation Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
               <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
@@ -462,6 +887,320 @@ function QuestionBankPage() {
                 className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
               >
                 Create Question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+                Bulk Upload Questions
+              </h2>
+              <button
+                onClick={() => {
+                  setCsvFile(null);
+                  setShowImportModal(false);
+                }}
+                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <p className="text-[12px] text-[#5B5B64]">
+                Select a module category and download the matched template layout to begin importing questions.
+              </p>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  Module Category
+                </label>
+                <select
+                  value={importModuleType}
+                  onChange={(e) => setImportModuleType(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none"
+                >
+                  <option value="MCQ">Multiple Choice (MCQ)</option>
+                  <option value="SQL">SQL Database Evaluation</option>
+                  <option value="CODING">Coding & Algorithms</option>
+                  <option value="AI_PROMPTING">AI Prompting</option>
+                  <option value="SIMULATION">Contextual Simulation</option>
+                </select>
+              </div>
+
+              {/* Template Downloader section */}
+              <div className="p-4 bg-[#F7F7F9] rounded-lg border border-[#E6E6EA] flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="text-[12px] font-semibold text-[#0B0B0D]">CSV Template Ready</div>
+                  <div className="text-[11px] text-[#8B8B93]">
+                    Matches layout header schema precisely for {importModuleType}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDownloadSample(importModuleType)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2F5CFF] text-[#2F5CFF] bg-white rounded hover:bg-[#2F5CFF] hover:text-white transition-all text-[12px] font-medium cursor-pointer shadow-sm"
+                >
+                  <Download size={13} />
+                  Download template
+                </button>
+              </div>
+
+              {/* Upload Area */}
+              <div className="space-y-2">
+                <label className="block text-[12px] font-medium text-[#5B5B64]">Select CSV File</label>
+                <div className="border-2 border-dashed border-[#E6E6EA] rounded-lg p-6 flex flex-col items-center justify-center bg-[#FDFDFD] hover:bg-[#F9FBFD] transition-colors relative cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setCsvFile(file);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <UploadCloud size={32} className="text-[#8B8B93] mb-2" />
+                  <span className="text-[12px] text-[#5B5B64] font-medium text-center px-4">
+                    {csvFile ? csvFile.name : "Drag & drop your CSV file here, or click to browse"}
+                  </span>
+                  <span className="text-[10px] text-[#8B8B93] mt-1">Accepts .csv format</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+              <button
+                onClick={() => {
+                  setCsvFile(null);
+                  setShowImportModal(false);
+                }}
+                className="px-3.5 py-2 text-[12px] border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={!csvFile}
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                <Check size={14} />
+                Import Questions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview & Edit Modal */}
+      {editingQuestion && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+                Preview & Edit Question (v{editingQuestion.version})
+              </h2>
+              <button
+                onClick={() => setEditingQuestion(null)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Module Type (Read-Only)
+                  </label>
+                  <input
+                    value={editingQuestion.moduleType}
+                    disabled
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-[#EFF0F3] text-[13px] text-[#5B5B64] cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Difficulty
+                  </label>
+                  <select
+                    value={editDifficulty}
+                    onChange={(e) => setEditDifficulty(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  Tags (comma separated)
+                </label>
+                <input
+                  value={editTagsInput}
+                  onChange={(e) => setEditTagsInput(e.target.value)}
+                  placeholder="e.g. recursion, arrays, medium"
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  {editingQuestion.moduleType === "SIMULATION" ? "Scenario Description" : "Question Prompt"}
+                </label>
+                <textarea
+                  value={editPromptText}
+                  onChange={(e) => setEditPromptText(e.target.value)}
+                  rows={4}
+                  placeholder={
+                    editingQuestion.moduleType === "SIMULATION"
+                      ? "Describe the simulation roleplay scenario context..."
+                      : "Enter the question prompt here..."
+                  }
+                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+
+              {/* MCQ Fields */}
+              {editingQuestion.moduleType === "MCQ" && (
+                <div className="space-y-2">
+                  <label className="block text-[12px] font-medium text-[#5B5B64]">
+                    MCQ Options
+                  </label>
+                  {editMcqOptions.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={editCorrectIndex === i}
+                        onChange={() => setEditCorrectIndex(i)}
+                        className="w-4 h-4 text-[#2F5CFF]"
+                      />
+                      <input
+                        value={opt}
+                        onChange={(e) => {
+                          const list = [...editMcqOptions];
+                          list[i] = e.target.value;
+                          setEditMcqOptions(list);
+                        }}
+                        placeholder={`Option ${i + 1}`}
+                        className="flex-1 px-3 py-1.5 border border-[#E6E6EA] rounded text-[13px]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* SQL Fields */}
+              {editingQuestion.moduleType === "SQL" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Schema Definition SQL
+                    </label>
+                    <textarea
+                      value={editSqlSchema}
+                      onChange={(e) => setEditSqlSchema(e.target.value)}
+                      rows={3}
+                      placeholder="CREATE TABLE users (id SERIAL, name VARCHAR(100));"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Seed Data SQL
+                    </label>
+                    <textarea
+                      value={editSqlSeed}
+                      onChange={(e) => setEditSqlSeed(e.target.value)}
+                      rows={3}
+                      placeholder="INSERT INTO users (name) VALUES ('Alice');"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Coding Fields */}
+              {editingQuestion.moduleType === "CODING" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Starter Code
+                    </label>
+                    <textarea
+                      value={editStarterCode}
+                      onChange={(e) => setEditStarterCode(e.target.value)}
+                      rows={4}
+                      placeholder="function solve(arr) { \n  // write code \n}"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Test Cases JSON (Array of input/expected)
+                    </label>
+                    <textarea
+                      value={editTestCasesInput}
+                      onChange={(e) => setEditTestCasesInput(e.target.value)}
+                      rows={3}
+                      placeholder='[{"input": "[1, 2]", "expected": "3"}]'
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Simulation Fields */}
+              {editingQuestion.moduleType === "SIMULATION" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Triggers JSON Array
+                    </label>
+                    <textarea
+                      value={editSimTriggers}
+                      onChange={(e) => setEditSimTriggers(e.target.value)}
+                      rows={3}
+                      placeholder='[{"timeSeconds": 10, "message": "Can you refactor this?"}]'
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Rubric Criteria JSON Array
+                    </label>
+                    <textarea
+                      value={editSimRubric}
+                      onChange={(e) => setEditSimRubric(e.target.value)}
+                      rows={3}
+                      placeholder='[{"criterion": "Code Quality", "maxPoints": 5}]'
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+              <button
+                onClick={() => setEditingQuestion(null)}
+                className="px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded hover:bg-white transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
+              >
+                Save Changes
               </button>
             </div>
           </div>

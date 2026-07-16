@@ -319,8 +319,12 @@ export class DriveService {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
     }
 
-    if (drive.status !== "DRAFT") {
-      throw new BadRequestException("Only drives in DRAFT status can be modified");
+    const inviteCount = await this.prisma.invite.count({
+      where: { driveId },
+    });
+
+    if (inviteCount > 0) {
+      throw new BadRequestException("This drive cannot be modified because candidate invite links have already been generated.");
     }
 
     const { name, roleTemplateId, moduleConfig, scheduleStart, scheduleEnd, status } = dto;
@@ -456,5 +460,122 @@ export class DriveService {
       name: updated.name,
       status: updated.status,
     };
+  }
+
+  async delete(driveId: string, staffId: string) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+      include: {
+        invites: {
+          include: {
+            session: true,
+          },
+        },
+      },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Get all session IDs and invite IDs
+      const inviteIds = drive.invites.map((i) => i.id);
+      const sessionIds = drive.invites
+        .map((i) => i.session?.id)
+        .filter((id): id is string => !!id);
+
+      // Get any sessions directly linked to the drive
+      const directSessions = await tx.session.findMany({
+        where: { driveId },
+        select: { id: true },
+      });
+      const directSessionIds = directSessions.map((s) => s.id);
+      const allSessionIds = Array.from(new Set([...sessionIds, ...directSessionIds]));
+
+      if (allSessionIds.length > 0) {
+        // Query flag IDs for these sessions to delete evidence clips safely without relation filters in write
+        const flags = await tx.integrityFlag.findMany({
+          where: { sessionId: { in: allSessionIds } },
+          select: { id: true },
+        });
+        const flagIds = flags.map((f) => f.id);
+
+        if (flagIds.length > 0) {
+          // Delete evidence clips associated with integrity flags
+          await tx.evidenceClip.deleteMany({
+            where: {
+              flagId: { in: flagIds },
+            },
+          });
+        }
+
+        // Delete integrity flags
+        await tx.integrityFlag.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete event logs
+        await tx.eventLog.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete module responses
+        await tx.moduleResponse.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete scores
+        await tx.score.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete reviewer decisions
+        await tx.reviewerDecision.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+      }
+
+      // 2. Unlink sessions from invites to prevent foreign key errors
+      if (inviteIds.length > 0) {
+        await tx.invite.updateMany({
+          where: { id: { in: inviteIds } },
+          data: { sessionId: null },
+        });
+      }
+
+      // 3. Delete sessions
+      if (allSessionIds.length > 0) {
+        await tx.session.deleteMany({
+          where: { id: { in: allSessionIds } },
+        });
+      }
+
+      // 4. Delete invites
+      if (inviteIds.length > 0) {
+        await tx.invite.deleteMany({
+          where: { id: { in: inviteIds } },
+        });
+      }
+
+      // 5. Delete drive questions
+      await tx.driveQuestion.deleteMany({
+        where: { driveId },
+      });
+
+      // 6. Delete drive
+      await tx.drive.delete({
+        where: { id: driveId },
+      });
+
+      // 7. Audit log
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "DRIVE_DELETED",
+          entityType: "Drive",
+          entityId: driveId,
+          metadata: { name: drive.name },
+        },
+      });
+    });
+
+    return { success: true };
   }
 }

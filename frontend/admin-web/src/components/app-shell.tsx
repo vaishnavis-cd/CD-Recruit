@@ -1,54 +1,23 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  ListChecks,
+  BriefcaseBusiness,
   Send,
   FileBarChart,
   LogOut,
-  HelpCircle,
+  ClipboardCheck,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { SIDEBAR_SPARK } from "../lib/mock-data";
 import type { ReactNode } from "react";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/drives", label: "Drives", icon: ListChecks },
+  { to: "/drives", label: "Drives", icon: BriefcaseBusiness },
   { to: "/invites", label: "Invites", icon: Send },
   { to: "/reports", label: "Reports", icon: FileBarChart },
-  { to: "/questions", label: "Question Bank", icon: HelpCircle },
+  { to: "/questions", label: "Question Bank", icon: ClipboardCheck },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
-
-function SidebarSpark() {
-  const w = 180;
-  const h = 40;
-  const n = SIDEBAR_SPARK.length;
-  const max = Math.max(...SIDEBAR_SPARK);
-  const min = Math.min(...SIDEBAR_SPARK);
-  const range = max - min || 1;
-  const pts = SIDEBAR_SPARK.map((v, i) => {
-    const x = (i / (n - 1)) * (w - 6) + 3;
-    const y = 4 + (1 - (v - min) / range) * (h - 12);
-    return `${x},${y}`;
-  }).join(" ");
-  return (
-    <div className="px-4 py-3 border-b border-[#232327]">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#8B8B93]">
-          say-do · 7d
-        </span>
-        <span className="text-[10px] font-mono text-[#EDEDEF]">
-          {SIDEBAR_SPARK[SIDEBAR_SPARK.length - 1]}
-        </span>
-      </div>
-      <svg width={w} height={h} className="block">
-        <polyline points={pts} fill="none" stroke="#2F5CFF" strokeWidth={1.5} />
-        <polyline points={pts} fill="none" stroke="#2F5CFF" strokeWidth={4} opacity={0.18} />
-      </svg>
-    </div>
-  );
-}
 
 export interface AppShellProps {
   title: string;
@@ -63,21 +32,20 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
 
   return (
     <div className="flex min-h-screen bg-[#F7F7F9] text-[#0B0B0D] font-sans">
-      <aside className="w-[244px] shrink-0 bg-[#0B0B0D] text-[#EDEDEF] flex flex-col sticky top-0 h-screen">
+      <aside className="w-[244px] shrink-0 bg-white border-r border-[#E6E6EA] text-[#0B0B0D] flex flex-col sticky top-0 h-screen">
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-[#2F5CFF] flex items-center justify-center font-mono text-[13px] font-semibold">
+            <div className="w-7 h-7 rounded-md bg-[#2F5CFF] flex items-center justify-center font-mono text-[13px] font-semibold text-white">
               CD
             </div>
             <div>
-              <div className="text-[13px] font-semibold tracking-tight">CD-Recruit</div>
+              <div className="text-[13px] font-semibold tracking-tight text-[#0B0B0D]">CD-Recruit</div>
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#8B8B93]">
                 admin
               </div>
             </div>
           </div>
         </div>
-        <SidebarSpark />
         <nav className="flex-1 py-3">
           {NAV.map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
@@ -88,12 +56,12 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
                 to={item.to}
                 className={`relative flex items-center gap-3 px-4 py-2 text-[13px] transition-colors ${
                   active
-                    ? "text-white bg-[#18181C]"
-                    : "text-[#8B8B93] hover:text-[#EDEDEF] hover:bg-[#18181C]"
+                    ? "text-[#2F5CFF] bg-gradient-to-r from-transparent to-[rgba(47,92,255,0.12)] font-medium"
+                    : "text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-[#EFF0F3]"
                 }`}
               >
                 {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#2F5CFF] rounded-r" />
+                  <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-[#2F5CFF]" />
                 )}
                 <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
                 {item.label}
@@ -101,17 +69,17 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
             );
           })}
         </nav>
-        <div className="px-4 py-3 border-t border-[#232327] flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#2F5CFF] flex items-center justify-center text-[11px] font-mono font-semibold">
+        <div className="px-4 py-3 border-t border-[#E6E6EA] flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-[#2F5CFF] text-white flex items-center justify-center text-[11px] font-mono font-semibold">
             RB
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] truncate">Rachel Brooks</div>
+            <div className="text-[12px] truncate text-[#0B0B0D]">Rachel Brooks</div>
             <div className="text-[10px] font-mono text-[#8B8B93] uppercase tracking-[0.14em]">
               recruiter
             </div>
           </div>
-          <Link to="/login" className="text-[#8B8B93] hover:text-white">
+          <Link to="/login" className="text-[#8B8B93] hover:text-[#0B0B0D]">
             <LogOut size={14} />
           </Link>
         </div>

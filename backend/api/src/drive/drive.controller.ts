@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -65,5 +66,13 @@ export class DriveController {
     @CurrentUser() staff: any,
   ) {
     return this.driveService.closeEarly(driveId, staff.id);
+  }
+
+  @Delete(":driveId")
+  async delete(
+    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.driveService.delete(driveId, staff.id);
   }
 }
