@@ -2,17 +2,20 @@ import { useEffect } from "react";
 import { useSessionStore } from "@/store/session.store";
 import { SecondTabOverlay } from "@/components/common/SecondTabOverlay";
 import { AppRoutes } from "@/routes";
+import { useTheme } from "@/hooks/useTheme";
 
 /**
  * App — root component.
  *
  * Responsibilities:
- *  1. Attempt session resume on page load if sessionStorage has a persisted sessionId
- *  2. Render SecondTabOverlay at root level — outside the router so it covers
+ *  1. Initialize theme preference on load
+ *  2. Attempt session resume on page load if sessionStorage has a persisted sessionId
+ *  3. Render SecondTabOverlay at root level — outside the router so it covers
  *     every route when isSecondTab becomes true
- *  3. Render the router
+ *  4. Render the router
  */
 export function App() {
+  useTheme();
   const persistedSessionId = useSessionStore((s) => s.persistedSessionId);
   const sessionId = useSessionStore((s) => s.sessionId);
   const resumeSession = useSessionStore((s) => s.resumeSession);

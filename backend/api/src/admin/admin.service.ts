@@ -33,7 +33,7 @@ export class AdminService {
   ) {
     this.bucketBiometric = this.configService.get<string>(
       "app.minio.bucketBiometric",
-    );
+    ) ?? "";
   }
 
   async listSessions(

@@ -11,7 +11,40 @@ import {
 
 export const API_BASE = "http://localhost:3001/api/v1";
 
+// Global fetch interceptor to handle 401 errors by clearing token and retrying
+if (typeof window !== "undefined") {
+  const originalFetch = window.fetch;
+  window.fetch = async function (url: RequestInfo | URL, options?: RequestInit) {
+    const res = await originalFetch(url, options);
+    if (res.status === 401) {
+      const urlStr = typeof url === "string" ? url : (url as URL).toString();
+      if (!urlStr.includes("/auth/dev-token")) {
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("admin_token");
+        }
+        // Get fresh headers and retry the request once
+        const headers = await getAuthHeaders();
+        const newOptions = {
+          ...options,
+          headers: {
+            ...options?.headers,
+            ...headers,
+          },
+        };
+        return originalFetch(url, newOptions);
+      }
+    }
+    return res;
+  };
+}
+
 export async function getAuthHeaders() {
+  if (typeof window === "undefined" || typeof localStorage === "undefined") {
+    return {
+      Authorization: "",
+      "Content-Type": "application/json",
+    };
+  }
   let token = localStorage.getItem("admin_token");
   if (!token) {
     try {
@@ -85,6 +118,9 @@ interface Store {
     candidates: Array<{ name: string; candidateEmail: string }>,
   ) => Promise<void>;
   generateDriveLinks: (driveId: string) => Promise<void>;
+
+  roleTemplates: RoleTemplate[];
+  fetchRoleTemplates: () => Promise<void>;
 
 
   fetchQuestions: (query?: {
@@ -220,6 +256,7 @@ export const useStore = create<Store>((set, get) => ({
   actionQueue: null,
   loading: false,
   error: null,
+  roleTemplates: ROLE_TEMPLATES,
 
   fetchSessions: async (query) => {
     set({ loading: true });
@@ -544,6 +581,25 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  fetchRoleTemplates: async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/role-templates`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch role templates");
+      const data = await res.json();
+      const mapped = data.map((t: any) => ({
+        id: t.id,
+        roleName: t.roleName,
+        track: "Standard",
+      }));
+      if (mapped.length > 0) {
+        set({ roleTemplates: mapped });
+      }
+    } catch (err) {
+      console.error("Failed to load role templates from API:", err);
+    }
+  },
+
   fetchDriveDetail: async (driveId: string) => {
     const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, { headers });
@@ -760,5 +816,6 @@ if (typeof window !== "undefined") {
     useStore.getState().fetchDrives();
     useStore.getState().fetchQuestions();
     useStore.getState().fetchActionQueue();
+    useStore.getState().fetchRoleTemplates();
   }, 100);
 }

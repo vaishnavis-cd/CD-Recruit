@@ -11,7 +11,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {
-    this.jwtSecret = this.configService.get<string>("app.jwtSecret");
+    this.jwtSecret = this.configService.get<string>("app.jwtSecret") ?? "";
   }
 
   /**

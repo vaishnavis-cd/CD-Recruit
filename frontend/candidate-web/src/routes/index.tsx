@@ -6,6 +6,16 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { LoginPage } from "@/pages/Login/LoginPage";
 import { LobbyPage } from "@/pages/Lobby/LobbyPage";
 import { ErrorPage } from "@/pages/Error/ErrorPage";
+import { TooEarlyPage } from "@/pages/TooEarly/TooEarlyPage";
+import { SystemCheckPage } from "@/pages/SystemCheck/SystemCheckPage";
+import { ConsentPage } from "@/pages/Consent/ConsentPage";
+import { TutorialPage } from "@/pages/Tutorial/TutorialPage";
+import { WaitingRoomPage } from "@/pages/WaitingRoom/WaitingRoomPage";
+import { AssessmentShell } from "@/pages/Assessment/AssessmentShell";
+import { PreSubmitPage } from "@/pages/PreSubmit/PreSubmitPage";
+import { SyncValidationPage } from "@/pages/SyncValidation/SyncValidationPage";
+import { ThankYouPage } from "@/pages/ThankYou/ThankYouPage";
+import { LinkExpiredPage } from "@/pages/LinkExpired/LinkExpiredPage";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RequireSession guard
@@ -68,6 +78,9 @@ export function AppRoutes() {
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/error" element={<ErrorPage />} />
+      <Route path="/too-early" element={<TooEarlyPage />} />
+      <Route path="/link-expired" element={<LinkExpiredPage />} />
+      <Route path="/thank-you" element={<ThankYouPage />} />
 
       {/* Protected */}
       <Route
@@ -78,13 +91,59 @@ export function AppRoutes() {
           </RequireSession>
         }
       />
-
-      {/* Phase 3+ assessment stub */}
       <Route
-        path="/assessment/*"
+        path="/system-check"
         element={
           <RequireSession>
-            <div style={{ padding: "2rem" }}>Assessment — Phase 3</div>
+            <SystemCheckPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/consent"
+        element={
+          <RequireSession>
+            <ConsentPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/tutorial"
+        element={
+          <RequireSession>
+            <TutorialPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/waiting-room"
+        element={
+          <RequireSession>
+            <WaitingRoomPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/assessment"
+        element={
+          <RequireSession>
+            <AssessmentShell />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/pre-submit"
+        element={
+          <RequireSession>
+            <PreSubmitPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/sync-validation"
+        element={
+          <RequireSession>
+            <SyncValidationPage />
           </RequireSession>
         }
       />
