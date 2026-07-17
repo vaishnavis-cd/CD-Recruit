@@ -47,22 +47,35 @@ export async function getAuthHeaders() {
   }
   let token = localStorage.getItem("admin_token");
   if (!token) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/dev-token`);
-      const data = await res.json();
-      token = data.token;
-      if (token) {
-        localStorage.setItem("admin_token", token);
-      }
-    } catch (err) {
-      console.error("Failed to fetch dev token:", err);
+    // Serialize concurrent calls: if a token fetch is already in-flight, wait for it.
+    if (!_tokenPromise) {
+      _tokenPromise = (async () => {
+        try {
+          const res = await fetch(`${API_BASE}/auth/dev-token`);
+          const data = await res.json();
+          const t = data.token as string | undefined;
+          if (t) {
+            localStorage.setItem("admin_token", t);
+          }
+          return t ?? null;
+        } catch (err) {
+          console.error("Failed to fetch dev token:", err);
+          return null;
+        } finally {
+          _tokenPromise = null;
+        }
+      })();
     }
+    token = await _tokenPromise;
   }
   return {
     Authorization: `Bearer ${token || ""}`,
     "Content-Type": "application/json",
   };
 }
+
+// Singleton in-flight token promise — shared by all concurrent callers.
+let _tokenPromise: Promise<string | null> | null = null;
 
 interface Store {
   sessions: Session[];
