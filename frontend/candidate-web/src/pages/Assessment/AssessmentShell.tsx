@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { formatCountdown } from "@/lib/time-gate";
-import { AlertTriangle, Book, Code2, ArrowRight, Play, Server, MessageSquare } from "lucide-react";
+import { AlertTriangle, Book, Code2, ArrowRight, Play, Server, MessageSquare, Loader2 } from "lucide-react";
+import { useSessionStore } from "@/store/session.store";
+import { getQuestion } from "@/api/session";
 
 interface QuestionItem {
   id: string;
@@ -11,36 +13,94 @@ interface QuestionItem {
   status: "unvisited" | "skipped" | "flagged" | "answered";
   title: string;
   prompt: string;
+  content?: any;
 }
 
 export function AssessmentShell() {
   const navigate = useNavigate();
+  const sessionId = useSessionStore((s) => s.sessionId);
+  const sessionQuestions = useSessionStore((s) => s.questions);
+  const deadlineAt = useSessionStore((s) => s.deadlineAt);
 
-  const [questions, setQuestions] = useState<QuestionItem[]>([
-    { id: "q1", moduleType: "MCQ", index: 0, status: "answered", title: "Core Architecture", prompt: "Identify the primary advantage of on-device CV inference..." },
-    { id: "q2", moduleType: "MCQ", index: 1, status: "flagged", title: "DPDP Data Retention", prompt: "Under India's DPDP Act, biometric clips must be..." },
-    { id: "q3", moduleType: "CODING", index: 0, status: "skipped", title: "Say-Do Correlation", prompt: "Implement an algorithm to correlate keystroke logs with..." },
-    { id: "q4", moduleType: "CODING", index: 1, status: "unvisited", title: "Rate-Limiting Buffer", prompt: "Implement a sliding-window rate limiter in JS..." },
-    { id: "q5", moduleType: "SIMULATION", index: 0, status: "unvisited", title: "Scenario Trigger Response", prompt: "Respond to the simulated incident alert from the security team..." },
-  ]);
-
-  const [activeQId, setActiveQId] = useState("q1");
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [activeQId, setActiveQId] = useState("");
   const [timeLeft, setTimeLeft] = useState(45 * 60 * 1000);
+  const [loading, setLoading] = useState(true);
 
+  // Load questions details from backend
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1000) {
-          clearInterval(timer);
-          navigate("/sync-validation");
-          return 0;
-        }
-        return t - 1000;
-      });
-    }, 1000);
+    if (!sessionId || sessionQuestions.length === 0) {
+      setLoading(false);
+      return;
+    }
 
+    const loadQuestions = async () => {
+      try {
+        const loaded = await Promise.all(
+          sessionQuestions.map(async (sq, idx) => {
+            const detail = await getQuestion(sessionId, sq.questionId);
+            const content = detail.content as any;
+            
+            // Try to resolve titles/prompts for different types
+            let title = content.title || `${sq.moduleType} Question ${idx + 1}`;
+            let prompt = content.prompt || "";
+            
+            if (sq.moduleType === "MCQ") {
+              title = `Multiple Choice Q${sq.moduleIndex + 1}`;
+            } else if (sq.moduleType === "SQL") {
+              title = `SQL Query Q${sq.moduleIndex + 1}`;
+            } else if (sq.moduleType === "CODING") {
+              title = `Coding Challenge Q${sq.moduleIndex + 1}`;
+            } else if (sq.moduleType === "AI_PROMPTING") {
+              title = `AI Prompting Q${sq.moduleIndex + 1}`;
+            }
+
+            return {
+              id: sq.questionId,
+              moduleType: sq.moduleType as any,
+              index: sq.moduleIndex,
+              status: "unvisited" as const,
+              title,
+              prompt,
+              content,
+            };
+          })
+        );
+        setQuestions(loaded);
+        if (loaded.length > 0) {
+          setActiveQId(loaded[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load session questions:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadQuestions();
+  }, [sessionId, sessionQuestions]);
+
+  // Sync deadline timer
+  useEffect(() => {
+    if (!deadlineAt) return;
+
+    const targetTime = new Date(deadlineAt).getTime();
+    
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = targetTime - now;
+      if (diff <= 0) {
+        setTimeLeft(0);
+        navigate("/sync-validation");
+      } else {
+        setTimeLeft(diff);
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
-  }, [navigate]);
+  }, [deadlineAt, navigate]);
 
   const activeQuestion = questions.find(q => q.id === activeQId) || questions[0];
 
@@ -58,6 +118,37 @@ export function AssessmentShell() {
   };
 
   const isTimePressure = timeLeft <= 10 * 60 * 1000;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          <span className="text-xs font-semibold tracking-wider text-text-secondary">Loading questions from backend...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text-primary p-6 text-center">
+        <div>
+          <AlertTriangle className="w-12 h-12 text-warning mx-auto mb-4" />
+          <h2 className="text-lg font-bold mb-2">No Questions Assigned</h2>
+          <p className="text-sm text-text-secondary max-w-md">
+            This drive or role template does not have any questions configured. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const defaultTextareaValue = activeQuestion?.moduleType === "CODING"
+    ? (activeQuestion.content?.starterCode || "")
+    : activeQuestion?.moduleType === "SQL"
+    ? `-- Database Schema:\n${activeQuestion.content?.schema || ""}\n\n-- Seed Data:\n${activeQuestion.content?.seedData || ""}\n\n-- Write your query below:\n`
+    : "";
 
   return (
     <div className="min-h-screen flex flex-col bg-bg text-text-primary transition-colors duration-200">
@@ -133,9 +224,20 @@ export function AssessmentShell() {
                 {activeQuestion.moduleType} (Q{activeQuestion.index + 1})
               </div>
               <h2 className="text-xl font-extrabold mb-4">{activeQuestion.title}</h2>
-              <p className="text-sm text-text-secondary leading-relaxed mb-6">
+              <p className="text-sm text-text-secondary leading-relaxed mb-6 whitespace-pre-line">
                 {activeQuestion.prompt}
               </p>
+
+              {activeQuestion.moduleType === "MCQ" && activeQuestion.content?.options && (
+                <div className="space-y-2.5 mt-6">
+                  {activeQuestion.content.options.map((opt: string, optIdx: number) => (
+                    <label key={optIdx} className="flex items-center gap-3 p-3 rounded-xl border border-border-token hover:bg-surface cursor-pointer bg-surface/50 transition-colors">
+                      <input type="radio" name={`mcq-${activeQuestion.id}`} value={optIdx} className="w-4 h-4 accent-accent cursor-pointer" />
+                      <span className="text-xs text-text-primary font-medium">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between mt-8 border-t border-border-token pt-4">
@@ -166,15 +268,19 @@ export function AssessmentShell() {
 
           <div className="flex-1 flex flex-col bg-surface/10 overflow-hidden">
             <div className="bg-surface border-b border-border-token px-4 py-2.5 flex items-center justify-between">
-              <span className="text-xs font-bold text-text-secondary font-mono">Workspace.py</span>
+              <span className="text-xs font-bold text-text-secondary font-mono">
+                {activeQuestion.moduleType === "CODING" ? "Workspace.py" : activeQuestion.moduleType === "SQL" ? "query.sql" : "Workspace.txt"}
+              </span>
               <div className="flex gap-2">
-                <button
-                  onClick={() => updateQuestionStatus("answered")}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded transition-colors cursor-pointer"
-                >
-                  <Play className="w-3.5 h-3.5 text-success" />
-                  <span>Run Code</span>
-                </button>
+                {(activeQuestion.moduleType === "CODING" || activeQuestion.moduleType === "SQL") && (
+                  <button
+                    onClick={() => updateQuestionStatus("answered")}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded transition-colors cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 text-success" />
+                    <span>Run Code</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     updateQuestionStatus("answered");
@@ -189,8 +295,10 @@ export function AssessmentShell() {
             </div>
 
             <textarea
+              key={activeQuestion?.id}
               className="flex-1 p-6 font-mono text-xs bg-bg text-text-primary focus:outline-none resize-none"
-              defaultValue={`# Write your solution here\n\ndef solve_problem(inputs):\n    # TODO: Implement Say-Do consistency parser\n    pass\n`}
+              defaultValue={defaultTextareaValue}
+              placeholder={activeQuestion.moduleType === "AI_PROMPTING" ? "Type your prompt here..." : "Type your response here..."}
             />
           </div>
         </div>

@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { MinioService } from "../integrations/minio/minio.service";
+import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
 import { ConfigService } from "@nestjs/config";
 import {
   SessionListItem,
@@ -28,7 +28,7 @@ export class AdminService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly minioService: MinioService,
+    private readonly storage: ObjectStoragePort,
     private readonly configService: ConfigService,
   ) {
     this.bucketBiometric = this.configService.get<string>(
@@ -189,7 +189,7 @@ export class AdminService {
       session.integrityFlags.map(async (flag) => {
         let evidenceClipUrl: string | null = null;
         if (flag.evidenceClip) {
-          evidenceClipUrl = await this.minioService.getSignedUrl(
+          evidenceClipUrl = await this.storage.getSignedUrl(
             this.bucketBiometric,
             flag.evidenceClip.storageRef,
           );
@@ -381,7 +381,7 @@ export class AdminService {
       flags.map(async (f) => {
         let evidenceClipUrl: string | null = null;
         if (f.evidenceClip) {
-          evidenceClipUrl = await this.minioService.getSignedUrl(
+          evidenceClipUrl = await this.storage.getSignedUrl(
             this.bucketBiometric,
             f.evidenceClip.storageRef,
           );

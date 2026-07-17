@@ -42,6 +42,11 @@ async function bootstrap(): Promise<void> {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>("app.port") || 3001;
+
+  if (process.env.INFRA_MODE === "local" && process.env.NODE_ENV === "production") {
+    throw new Error("INFRA_MODE=local must never run with NODE_ENV=production");
+  }
+
   await app.listen(port);
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);

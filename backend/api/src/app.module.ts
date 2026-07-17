@@ -19,6 +19,8 @@ import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
 
+const infraMode = process.env.INFRA_MODE ?? "local";
+
 @Module({
   imports: [
     // ── Infrastructure ────────────────────────────────────────────────────
@@ -37,20 +39,24 @@ import { SqlModule } from "./sql/sql.module";
       }),
     }),
 
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<AppConfig, true>) => {
-        const redisUrl = config.get("redisUrl", { infer: true });
-        const url = new URL(redisUrl);
-        return {
-          connection: {
-            host: url.hostname,
-            port: parseInt(url.port || "6379", 10),
-            password: url.password || undefined,
-          },
-        };
-      },
-    }),
+    ...(infraMode === "full"
+      ? [
+          BullModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService<AppConfig, true>) => {
+              const redisUrl = config.get("redisUrl", { infer: true });
+              const url = new URL(redisUrl);
+              return {
+                connection: {
+                  host: url.hostname,
+                  port: parseInt(url.port || "6379", 10),
+                  password: url.password || undefined,
+                },
+              };
+            },
+          }),
+        ]
+      : []),
 
     // ── Feature modules ──────────────────────────────────────────────────
     HealthModule,
