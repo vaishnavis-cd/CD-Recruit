@@ -22,8 +22,8 @@ export interface StartSessionResponse {
   durationMinutes: number;
   cvMode: CvMode;
   status: SessionStatus;
-  startedAt: string; // ISO-8601
-  deadlineAt: string; // ISO-8601 — backend is source of truth; frontend treats as advisory
+  startedAt: string | null; // ISO-8601
+  deadlineAt: string | null; // ISO-8601 — backend is source of truth; frontend treats as advisory
   /**
    * Number of times this session has transitioned to DISCONNECTED.
    * Reconnect is allowed while disconnectCount < 3.

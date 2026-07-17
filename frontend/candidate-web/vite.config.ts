@@ -10,11 +10,19 @@ export default defineConfig({
       "@": resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    // Pre-bundle CJS shared-types for dev server
+    include: ["@cd-recruit/shared-types"],
+  },
+  build: {
+    // Tell Rollup's built-in CommonJS plugin to handle shared-types CJS output
+    commonjsOptions: {
+      include: [/shared-types/, /node_modules/],
+    },
+  },
   server: {
     port: 3000,
     proxy: {
-      // Proxy /api requests to the NestJS backend in dev
-      // Eliminates CORS issues when running on different ports
       "/api": {
         target: "http://localhost:3001",
         changeOrigin: true,
