@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -127,7 +128,7 @@ function SettingsPage() {
       loadStaffList();
     } catch (err) {
       console.error(err);
-      alert("Error updating role");
+      toast.error("Error updating role");
     }
   };
 
@@ -147,10 +148,10 @@ function SettingsPage() {
         }),
       });
       if (!res.ok) throw new Error("Failed to save scoring config");
-      alert("Scoring thresholds saved successfully");
+      toast.success("Scoring thresholds saved successfully");
     } catch (err) {
       console.error(err);
-      alert("Error saving config");
+      toast.error("Error saving config");
     } finally {
       setSavingScoring(false);
     }
@@ -169,10 +170,10 @@ function SettingsPage() {
         body: JSON.stringify({ biometricRetentionDays: retentionDays }),
       });
       if (!res.ok) throw new Error("Failed to save retention config");
-      alert("Retention schedule saved successfully");
+      toast.success("Retention schedule saved successfully");
     } catch (err) {
       console.error(err);
-      alert("Error saving config");
+      toast.error("Error saving config");
     } finally {
       setSavingRetention(false);
     }
