@@ -226,10 +226,13 @@ async function main() {
 
   const seededQuestions = [];
   for (const q of questionData) {
+    // Use the second tag (unique per question) to prevent false duplicate matches.
+    // tags[0] is shared across questions of the same type (e.g. "testing" for all MCQs).
+    const uniqueTag = q.tags[1] ?? q.tags[0];
     const existing = await prisma.question.findFirst({
       where: {
         moduleType: q.moduleType,
-        tags: { has: q.tags[0] },
+        tags: { has: uniqueTag },
       },
     });
 

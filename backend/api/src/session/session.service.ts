@@ -9,7 +9,7 @@ import { GoneException } from "@app/common/exceptions/app.exceptions";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
-import { CvMode, Session, SessionStatus } from "@prisma/client";
+import { CvMode, InviteStatus, Session, SessionStatus } from "@prisma/client";
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
@@ -33,12 +33,66 @@ type SessionWithTemplate = Session & {
 };
 
 /**
- * Build the question list shape returned in session start/resume responses.
- * Phase 1 returns an empty array because no questions are seeded yet.
- * Phase 3 replaces this with real question fetching.
+ * Build the ordered question list for a session from its drive.
+ *
+ * Ownership chain: Session.driveId → Drive → DriveQuestion → Question
+ *
+ * Ordering: DriveQuestion.id ASC (stable insertion order — UUIDs sort by creation time).
+ * TODO: Add an explicit `sequence` INTEGER column to DriveQuestion in a future
+ * migration, then replace orderBy: { id: 'asc' } with
+ * orderBy: { sequence: 'asc' } everywhere question order is resolved.
+ * Migration: ALTER TABLE drive_question ADD COLUMN sequence INTEGER;
  */
-function buildQuestionList(_session: Session): [] {
-  return [];
+async function buildQuestionList(
+  prisma: PrismaService,
+  session: Session,
+): Promise<import("@cd-recruit/shared-types").QuestionSummary[]> {
+  if (!session.driveId) {
+    return [];
+  }
+
+  // Fetch all DriveQuestion entries for this drive in stable order
+  // TODO: Replace with explicit sequence column — see migration note above
+  const driveQuestions = await prisma.driveQuestion.findMany({
+    where: { driveId: session.driveId },
+    orderBy: { id: "asc" }, // TODO: Replace with explicit sequence column
+  });
+
+  // Fetch all responses for this session in one query
+  const responses = await prisma.moduleResponse.findMany({
+    where: { sessionId: session.id },
+  });
+
+  const responseMap = new Map(responses.map((r) => [r.questionId, r]));
+
+  // Compute per-module-type index (0-based) for free-navigation addressing
+  // QuestionSummary.moduleIndex = position of this question within its moduleType
+  const moduleTypeCounters = new Map<string, number>();
+
+  return driveQuestions.map((dq) => {
+    const response = responseMap.get(dq.questionId);
+    let status: "untouched" | "draft" | "submitted";
+
+    if (!response) {
+      status = "untouched";
+    } else if (response.isDraft === false) {
+      status = "submitted";
+    } else {
+      status = "draft";
+    }
+
+    const moduleTypeKey = dq.moduleType as string;
+    const moduleIndex = moduleTypeCounters.get(moduleTypeKey) ?? 0;
+    moduleTypeCounters.set(moduleTypeKey, moduleIndex + 1);
+
+    return {
+      questionId: dq.questionId,
+      moduleType:
+        dq.moduleType as unknown as import("@cd-recruit/shared-types").ModuleType,
+      moduleIndex,
+      status,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,7 +121,9 @@ export class SessionService {
     this.maxDisconnectCount = this.config.get("maxDisconnectCount", {
       infer: true,
     });
-    this.bucketBiometric = this.config.get<string>("app.minio.bucketBiometric" as any) ?? "biometrics";
+    this.bucketBiometric =
+      this.config.get<string>("app.minio.bucketBiometric" as any) ??
+      "biometrics";
   }
 
   // ─── Start session ────────────────────────────────────────────────────────
@@ -76,13 +132,13 @@ export class SessionService {
    * Validate the invite token, create or retrieve the candidate, create the
    * session, and return the contract-specified response.
    *
-   * Error codes (thrown as NestJS exceptions):
+   * Error codes:
    *   401 INVITE_TOKEN_INVALID  — bad/malformed token
    *   410 INVITE_TOKEN_EXPIRED  — token past TTL
    *   409 SESSION_ALREADY_ACTIVE — candidate already has IN_PROGRESS session
    */
   async startSession(inviteToken: string): Promise<StartSessionResponse> {
-    // 1. Verify token (throws 401/410 on failure)
+    // 1. Verify token
     const payload = this.auth.verifyInviteToken(inviteToken);
 
     // 2. Validate roleTemplate exists
@@ -94,7 +150,6 @@ export class SessionService {
       this.logger.warn(
         `Invite token references unknown roleTemplateId: ${payload.roleTemplateId}`,
       );
-      // Treat as invalid token — leaking "role not found" is unnecessary
       throw new UnprocessableEntityException({
         code: "INVITE_TOKEN_INVALID",
         message: "The invite token references an unknown role template.",
@@ -122,12 +177,24 @@ export class SessionService {
       });
     }
 
-    // 5. Create the session (starts as NOT_STARTED, dates set upon /begin)
+    // 5. Fetch the invite to get driveId — Session must know its Drive for
+    //    question serving via Session → Drive → DriveQuestion
+    const invite = await this.prisma.invite.findFirst({
+      where: {
+        candidateEmail: payload.candidateEmail,
+        roleTemplateId: payload.roleTemplateId,
+        status: InviteStatus.PENDING,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // 6. Create the session
     const now = new Date();
     const session = await this.prisma.session.create({
       data: {
         candidateId: candidateRecord.id,
         roleTemplateId: payload.roleTemplateId,
+        driveId: invite?.driveId ?? null, // Populate from invite — required for question serving
         cvMode: (payload.cvMode as CvMode) || CvMode.FULL,
         status: SessionStatus.NOT_STARTED,
         startedAt: null,
@@ -140,7 +207,8 @@ export class SessionService {
     });
 
     this.logger.log(
-      `Session created: ${session.id} for candidate ${candidateRecord.id}`,
+      `Session created: ${session.id} for candidate ${candidateRecord.id} ` +
+        `driveId=${session.driveId ?? "none"}`,
     );
 
     return this.buildStartResponse(
@@ -200,14 +268,6 @@ export class SessionService {
 
   // ─── Heartbeat ────────────────────────────────────────────────────────────
 
-  /**
-   * Update lastHeartbeatAt and enforce single-active-tab.
-   *
-   * Error codes:
-   *   404 SESSION_NOT_FOUND        — session does not exist
-   *   422 SESSION_NOT_IN_PROGRESS  — session is not IN_PROGRESS
-   *   409 SECOND_TAB_DETECTED      — a different tabId is already registered
-   */
   async heartbeat(
     sessionId: string,
     tabId: string,
@@ -231,8 +291,6 @@ export class SessionService {
       });
     }
 
-    // Single-active-tab enforcement:
-    // If activeTabId is set and differs from the incoming tabId, block the second tab.
     if (session.activeTabId && session.activeTabId !== tabId) {
       this.logger.warn(
         `SECOND_TAB_DETECTED for session ${sessionId}: ` +
@@ -251,7 +309,6 @@ export class SessionService {
       data: {
         lastHeartbeatAt: now,
         lastActivityAt: now,
-        // Register the tab on the first heartbeat (activeTabId was null)
         activeTabId: tabId,
       },
     });
@@ -266,15 +323,6 @@ export class SessionService {
 
   // ─── Resume ───────────────────────────────────────────────────────────────
 
-  /**
-   * Reconnect a DISCONNECTED session within the grace window.
-   *
-   * Error codes:
-   *   404 SESSION_NOT_FOUND        — session not found
-   *   409 SESSION_NOT_DISCONNECTED — session is not DISCONNECTED
-   *   410 MAX_DISCONNECTS_REACHED  — disconnectCount >= maxDisconnectCount
-   *   410 RESUME_WINDOW_EXPIRED    — disconnectedAt + graceWindow < now
-   */
   async resumeSession(
     sessionId: string,
     tabId: string,
@@ -298,7 +346,6 @@ export class SessionService {
       });
     }
 
-    // Max disconnects check — if already at limit, session was auto-submitted
     if (session.disconnectCount >= this.maxDisconnectCount) {
       throw new GoneException({
         code: "MAX_DISCONNECTS_REACHED",
@@ -306,9 +353,7 @@ export class SessionService {
       });
     }
 
-    // Grace window check
     if (!session.disconnectedAt) {
-      // Should not happen if the heartbeat monitor is working, but guard anyway
       throw new GoneException({
         code: "RESUME_WINDOW_EXPIRED",
         message: "The reconnect window has expired.",
@@ -322,8 +367,7 @@ export class SessionService {
     if (new Date() > graceCutoff) {
       throw new GoneException({
         code: "RESUME_WINDOW_EXPIRED",
-        message:
-          "The reconnect window has expired. Session was auto-submitted.",
+        message: "The reconnect window has expired. Session was auto-submitted.",
       });
     }
 
@@ -341,7 +385,6 @@ export class SessionService {
       include: { roleTemplate: true },
     });
 
-    // Log the reconnect event
     await this.prisma.eventLog.create({
       data: {
         sessionId,
@@ -362,16 +405,12 @@ export class SessionService {
       deadlineAt: updated.deadlineAt!.toISOString(),
       disconnectCount: updated.disconnectCount,
       reconnectedAt: now.toISOString(),
-      questions: buildQuestionList(updated),
+      questions: await buildQuestionList(this.prisma, updated),
     };
   }
 
   // ─── Close session ────────────────────────────────────────────────────────
 
-  /**
-   * Manual submission — candidate explicitly closes the session.
-   * Transitions: IN_PROGRESS → SUBMITTED.
-   */
   async closeSession(sessionId: string): Promise<CloseSessionResponse> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -423,27 +462,20 @@ export class SessionService {
     };
   }
 
-  // ─── Disconnect (called internally by heartbeat monitor) ──────────────────
+  // ─── Disconnect ───────────────────────────────────────────────────────────
 
-  /**
-   * Transition a session to DISCONNECTED and enqueue a grace-window job.
-   * Called by HeartbeatMonitorProcessor — not exposed as an HTTP endpoint.
-   *
-   * Idempotent: if session is already DISCONNECTED or past IN_PROGRESS, no-op.
-   */
   async markDisconnected(sessionId: string): Promise<void> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
 
     if (!session || session.status !== SessionStatus.IN_PROGRESS) {
-      return; // Already transitioned — idempotent no-op
+      return;
     }
 
     const now = new Date();
     const newDisconnectCount = session.disconnectCount + 1;
 
-    // If this disconnect hits the max, go straight to AUTO_SUBMITTED
     if (newDisconnectCount >= this.maxDisconnectCount) {
       await this.prisma.session.update({
         where: { id: sessionId },
@@ -474,7 +506,6 @@ export class SessionService {
       return;
     }
 
-    // Transition to DISCONNECTED and enqueue grace-window job
     await this.prisma.session.update({
       where: { id: sessionId },
       data: {
@@ -495,14 +526,12 @@ export class SessionService {
       },
     });
 
-    // Enqueue a delayed auto-submit job for the grace window cutoff.
-    // jobId is deterministic per sessionId to prevent duplicate jobs.
     await this.graceWindowQueue.add(
       "auto-submit",
       { sessionId },
       {
         delay: this.graceWindowSeconds * 1000,
-        jobId: `grace-${sessionId}`, // deterministic — safe to re-enqueue
+        jobId: `grace-${sessionId}`,
         removeOnComplete: true,
         removeOnFail: false,
       },
@@ -514,12 +543,8 @@ export class SessionService {
     );
   }
 
-  // ─── Auto-submit (called by grace-window processor) ───────────────────────
+  // ─── Auto-submit ──────────────────────────────────────────────────────────
 
-  /**
-   * Auto-submit a session that is still DISCONNECTED after the grace window.
-   * Idempotent: if session is no longer DISCONNECTED (resumed or already closed), no-op.
-   */
   async autoSubmit(sessionId: string): Promise<void> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -556,12 +581,213 @@ export class SessionService {
     );
   }
 
+  // ─── Selfie upload ────────────────────────────────────────────────────────
+
+  async uploadSelfie(
+    sessionId: string,
+    base64Image: string,
+  ): Promise<{ ok: boolean }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    if (session.status !== SessionStatus.NOT_STARTED) {
+      throw new ConflictException({
+        code: "SESSION_ALREADY_STARTED",
+        message: "Cannot upload baseline selfie after session has started.",
+      });
+    }
+
+    const matches = base64Image.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new UnprocessableEntityException({
+        code: "INVALID_IMAGE_FORMAT",
+        message: "Invalid image data format. Expected base64 data URL.",
+      });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], "base64");
+    const objectKey = `selfie-${sessionId}.jpg`;
+
+    const uploaded = await this.minio.putObject(
+      this.bucketBiometric,
+      objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" },
+    );
+
+    if (!uploaded) {
+      throw new UnprocessableEntityException({
+        code: "UPLOAD_FAILED",
+        message: "Failed to upload selfie to MinIO storage.",
+      });
+    }
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { baselineSelfieRef: objectKey },
+    });
+
+    return { ok: true };
+  }
+
+  // ─── Question serving (Phase 3) ───────────────────────────────────────────
+
+  /**
+   * Fetch a single question for a session with answer keys stripped.
+   * Includes existing draft response so the frontend can restore state.
+   *
+   * Ownership validated via: Session.driveId → DriveQuestion → Question
+   */
+  async getQuestionForSession(sessionId: string, questionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    if (!session.driveId) {
+      throw new UnprocessableEntityException({
+        code: "NO_DRIVE_ASSIGNED",
+        message: "Session has no assigned drive.",
+      });
+    }
+
+    if (session.status !== SessionStatus.IN_PROGRESS) {
+      throw new UnprocessableEntityException({
+        code: "SESSION_NOT_IN_PROGRESS",
+        message: "Session must be IN_PROGRESS to fetch questions.",
+      });
+    }
+
+    // Validate ownership: Session → Drive → DriveQuestion
+    const driveQuestion = await this.prisma.driveQuestion.findFirst({
+      where: {
+        driveId: session.driveId,
+        questionId,
+      },
+    });
+
+    if (!driveQuestion) {
+      throw new NotFoundException({
+        code: "QUESTION_NOT_IN_SESSION",
+        message: "Question does not belong to this session.",
+      });
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+    });
+
+    if (!question) {
+      throw new NotFoundException({
+        code: "QUESTION_NOT_FOUND",
+        message: "Question not found.",
+      });
+    }
+
+    const sanitizedContent = this.stripAnswerFields(
+      question.moduleType,
+      question.content,
+    );
+
+    // Include existing draft for frontend state restoration after refresh
+    const draftResponse = await this.prisma.moduleResponse.findUnique({
+      where: { sessionId_questionId: { sessionId, questionId } },
+    });
+
+    return {
+      id: question.id,
+      moduleType: question.moduleType,
+      content: sanitizedContent,
+      difficulty: question.difficulty,
+      tags: question.tags,
+      draftResponse: draftResponse
+        ? {
+            content: draftResponse.responsePayload,
+            isDraft: draftResponse.isDraft,
+            lastAutosavedAt: draftResponse.lastAutosavedAt?.toISOString() ?? null,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Strip answer-bearing fields before sending a question to the candidate.
+   *
+   * MCQ:          scoringConfig.correctIndex is never sent (kept server-side only)
+   * SQL:          content.expectedQuery removed
+   * CODING:       testCase.expectedOutput removed; input kept for display
+   * AI_PROMPTING: content.rubric removed; prompt kept
+   */
+  private stripAnswerFields(moduleType: string, content: any): any {
+    const sanitized = { ...content };
+
+    switch (moduleType) {
+      case "SQL":
+        delete sanitized.expectedQuery;
+        return sanitized;
+
+      case "CODING":
+        if (sanitized.testCases) {
+          sanitized.testCases = sanitized.testCases.map((tc: any) => ({
+            input: tc.input,
+          }));
+        }
+        return sanitized;
+
+      case "AI_PROMPTING":
+        delete sanitized.rubric;
+        return sanitized;
+
+      case "MCQ":
+      default:
+        // MCQ: options live in content — nothing to strip.
+        // correctIndex is in scoringConfig which is never included in the response.
+        return sanitized;
+    }
+  }
+
+  // ─── Progress (Phase 3) ───────────────────────────────────────────────────
+
+  /**
+   * Return per-question status for the session's question list.
+   * Used by the frontend sidebar to show answered/draft/untouched state.
+   */
+  async getProgress(sessionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    const questions = await buildQuestionList(this.prisma, session);
+    return { questions };
+  }
+
   // ─── Response builder ─────────────────────────────────────────────────────
 
-  private buildStartResponse(
+  private async buildStartResponse(
     session: SessionWithTemplate,
     candidateId: string,
-  ): StartSessionResponse {
+  ): Promise<StartSessionResponse> {
     return {
       sessionId: session.id,
       candidateId,
@@ -575,68 +801,7 @@ export class SessionService {
       startedAt: session.startedAt?.toISOString() ?? null,
       deadlineAt: session.deadlineAt?.toISOString() ?? null,
       disconnectCount: session.disconnectCount,
-      questions: buildQuestionList(session),
+      questions: await buildQuestionList(this.prisma, session),
     };
-  }
-
-  /**
-   * Upload baseline selfie to MinIO and store the object key in baselineSelfieRef
-   */
-  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean }> {
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-    });
-
-    if (!session) {
-      throw new NotFoundException({
-        code: "SESSION_NOT_FOUND",
-        message: "Session not found.",
-      });
-    }
-
-    // Verify session state is NOT_STARTED
-    if (session.status !== SessionStatus.NOT_STARTED) {
-      throw new ConflictException({
-        code: "SESSION_ALREADY_STARTED",
-        message: "Cannot upload baseline selfie after session has started.",
-      });
-    }
-
-    // Parse base64 data URL
-    const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      throw new UnprocessableEntityException({
-        code: "INVALID_IMAGE_FORMAT",
-        message: "Invalid image data format. Expected base64 data URL.",
-      });
-    }
-
-    const imageBuffer = Buffer.from(matches[2], "base64");
-    const objectKey = `selfie-${sessionId}.jpg`;
-
-    // Upload to MinIO
-    const uploaded = await this.minio.putObject(
-      this.bucketBiometric,
-      objectKey,
-      imageBuffer,
-      { "Content-Type": "image/jpeg" }
-    );
-
-    if (!uploaded) {
-      throw new UnprocessableEntityException({
-        code: "UPLOAD_FAILED",
-        message: "Failed to upload selfie to MinIO storage.",
-      });
-    }
-
-    // Update DB
-    await this.prisma.session.update({
-      where: { id: sessionId },
-      data: {
-        baselineSelfieRef: objectKey,
-      },
-    });
-
-    return { ok: true };
   }
 }

@@ -18,6 +18,7 @@ import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
+import { ResponseModule } from "./response/response.module";
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { SqlModule } from "./sql/sql.module";
     QueueModule,
     CodingModule,
     SqlModule,
+    ResponseModule,
   ],
 })
 export class AppModule {}

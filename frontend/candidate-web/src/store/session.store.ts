@@ -192,13 +192,25 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         });
       } catch (err) {
         const apiError = err as ApiError;
-        // Terminal errors — clear persisted session so the candidate goes to login
+        // SESSION_NOT_DISCONNECTED (409) means the session is IN_PROGRESS in another tab
+        // or was refreshed. Don't clear the session — the candidate can still navigate.
+        // Only clear for truly terminal errors (410 gone, 404 not found).
         if (apiError.status === 410 || apiError.status === 404) {
           clearPersistedSessionId();
           set({
             persistedSessionId: null,
             isLoading: false,
             error: toSessionError(apiError),
+          });
+        } else if (apiError.status === 409) {
+          // Session is IN_PROGRESS (not DISCONNECTED) — populate the store from
+          // the persisted session ID so navigation continues without re-login.
+          // The heartbeat will keep the session alive.
+          set({
+            sessionId: persistedId,
+            status: SessionStatus.IN_PROGRESS,
+            isLoading: false,
+            error: null,
           });
         } else {
           set({ isLoading: false, error: toSessionError(apiError) });

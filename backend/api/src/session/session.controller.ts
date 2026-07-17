@@ -107,17 +107,29 @@ export class SessionController {
   }
 
   /**
+   * GET /api/v1/sessions/:sessionId/questions/:questionId
+   *
+   * Fetch a single question for the session, with answer keys stripped.
+   * Returns existing draft response if available.
+   */
+  @Get(":sessionId/questions/:questionId")
+  @HttpCode(HttpStatus.OK)
+  async getQuestion(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("questionId", ParseUUIDPipe) questionId: string,
+  ) {
+    return this.sessionService.getQuestionForSession(sessionId, questionId);
+  }
+
+  /**
    * GET /api/v1/sessions/:sessionId/progress
    *
    * Returns per-question answer status for the free-navigation sidebar.
-   * Stub until Phase 3 (question serving).
    */
   @Get(":sessionId/progress")
-  @HttpCode(HttpStatus.NOT_IMPLEMENTED)
-  progress(@Param("sessionId", ParseUUIDPipe) _sessionId: string): {
-    message: string;
-  } {
-    return { message: "Not implemented — Phase 3" };
+  @HttpCode(HttpStatus.OK)
+  async progress(@Param("sessionId", ParseUUIDPipe) sessionId: string) {
+    return this.sessionService.getProgress(sessionId);
   }
 
   /**
