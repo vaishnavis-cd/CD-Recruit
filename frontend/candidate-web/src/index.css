@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg: #FFFFFF;
+    --surface: #F5F6F8;
+    --border: #E4E6EB;
+    --text-primary: #111318;
+    --text-secondary: #6B7280;
+    --accent: #2F5CFF;
+    --warning: #F59E0B;
+    --critical: #E5484D;
+    --success: #12B76A;
+  }
+
+  .dark {
+    --bg: #0F1115;
+    --surface: #1A1D24;
+    --border: #2A2E37;
+    --text-primary: #F2F3F5;
+    --text-secondary: #9CA3AF;
+    --accent: #5B7FFF;
+    --warning: #FBBF24;
+    --critical: #F0555B;
+    --success: #3ECF8E;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg);
+    color: var(--text-primary);
+  }
+
+  code, pre, .mono {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
