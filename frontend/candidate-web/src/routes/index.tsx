@@ -7,8 +7,6 @@ import { LoginPage } from "@/pages/Login/LoginPage";
 import { LobbyPage } from "@/pages/Lobby/LobbyPage";
 import { ErrorPage } from "@/pages/Error/ErrorPage";
 import { TooEarlyPage } from "@/pages/TooEarly/TooEarlyPage";
-import { SystemCheckPage } from "@/pages/SystemCheck/SystemCheckPage";
-import { ConsentPage } from "@/pages/Consent/ConsentPage";
 import { TutorialPage } from "@/pages/Tutorial/TutorialPage";
 import { WaitingRoomPage } from "@/pages/WaitingRoom/WaitingRoomPage";
 import { AssessmentShell } from "@/pages/Assessment/AssessmentShell";
@@ -63,6 +61,12 @@ function RequireSession({ children }: { children: ReactNode }) {
     );
   }
 
+  // If status is NOT_STARTED and client is not on /lobby, redirect back to lobby
+  const currentPath = window.location.pathname;
+  if (status === SessionStatus.NOT_STARTED && currentPath !== "/lobby") {
+    return <Navigate to="/lobby" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -88,22 +92,6 @@ export function AppRoutes() {
         element={
           <RequireSession>
             <LobbyPage />
-          </RequireSession>
-        }
-      />
-      <Route
-        path="/system-check"
-        element={
-          <RequireSession>
-            <SystemCheckPage />
-          </RequireSession>
-        }
-      />
-      <Route
-        path="/consent"
-        element={
-          <RequireSession>
-            <ConsentPage />
           </RequireSession>
         }
       />

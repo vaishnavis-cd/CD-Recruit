@@ -28,7 +28,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message = exception.message;
       const responseBody = exception.getResponse() as any;
       if (responseBody && typeof responseBody === "object") {
-        code = responseBody.error || "HTTP_EXCEPTION";
+        code = responseBody.code || responseBody.error || "HTTP_EXCEPTION";
         if (Array.isArray(responseBody.message)) {
           message = responseBody.message.join(", ");
         } else if (responseBody.message) {

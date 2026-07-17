@@ -50,6 +50,33 @@ export class SessionController {
   }
 
   /**
+   * POST /api/v1/sessions/:sessionId/begin
+   *
+   * Begin the assessment session, transitioning NOT_STARTED to IN_PROGRESS.
+   */
+  @Post(":sessionId/begin")
+  @HttpCode(HttpStatus.OK)
+  async begin(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+  ): Promise<StartSessionResponse> {
+    return this.sessionService.beginSession(sessionId);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/selfie
+   *
+   * Upload baseline selfie before beginning the assessment.
+   */
+  @Post(":sessionId/selfie")
+  @HttpCode(HttpStatus.OK)
+  async selfie(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body("image") image: string,
+  ): Promise<{ ok: boolean }> {
+    return this.sessionService.uploadSelfie(sessionId, image);
+  }
+
+  /**
    * POST /api/v1/sessions/:sessionId/heartbeat
    *
    * Tab-alive signal.  Must be sent every 15 s.

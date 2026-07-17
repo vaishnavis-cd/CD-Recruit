@@ -96,4 +96,34 @@ export class MinioService implements OnModuleInit {
       return null;
     }
   }
+
+  /**
+   * Uploads an object buffer to the specified bucket.
+   */
+  async putObject(
+    bucketName: string,
+    objectKey: string,
+    buffer: Buffer,
+    metaData?: Minio.ItemBucketMetadata,
+  ): Promise<boolean> {
+    if (!this.minioClient) {
+      this.logger.warn("MinIO client is not initialized. Cannot put object.");
+      return false;
+    }
+    try {
+      await this.minioClient.putObject(
+        bucketName,
+        objectKey,
+        buffer,
+        buffer.length,
+        metaData,
+      );
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Error putting object to ${bucketName}/${objectKey}: ${error.message}`,
+      );
+      return false;
+    }
+  }
 }

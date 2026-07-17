@@ -15,6 +15,7 @@ import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
+import { MinioService } from "@app/integrations/minio/minio.service";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -49,12 +50,14 @@ export class SessionService {
   private readonly logger = new Logger(SessionService.name);
   private readonly graceWindowSeconds: number;
   private readonly maxDisconnectCount: number;
+  private readonly bucketBiometric: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly candidate: CandidateService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly minio: MinioService,
     @InjectQueue("grace-window")
     private readonly graceWindowQueue: Queue<{ sessionId: string }>,
   ) {
@@ -64,6 +67,7 @@ export class SessionService {
     this.maxDisconnectCount = this.config.get("maxDisconnectCount", {
       infer: true,
     });
+    this.bucketBiometric = this.config.get<string>("app.minio.bucketBiometric" as any) ?? "biometrics";
   }
 
   // ─── Start session ────────────────────────────────────────────────────────
@@ -99,8 +103,8 @@ export class SessionService {
 
     // 3. Find or create candidate
     const candidateRecord = await this.candidate.findOrCreate(
-      payload.email,
-      payload.name,
+      payload.candidateEmail,
+      payload.candidateName,
     );
 
     // 4. Guard against concurrent active sessions
@@ -118,22 +122,17 @@ export class SessionService {
       });
     }
 
-    // 5. Compute deadline server-side
+    // 5. Create the session (starts as NOT_STARTED, dates set upon /begin)
     const now = new Date();
-    const deadlineAt = new Date(
-      now.getTime() + roleTemplate.durationMinutes * 60 * 1000,
-    );
-
-    // 6. Create the session
     const session = await this.prisma.session.create({
       data: {
         candidateId: candidateRecord.id,
         roleTemplateId: payload.roleTemplateId,
-        cvMode: payload.cvMode as CvMode,
-        status: SessionStatus.IN_PROGRESS,
-        startedAt: now,
-        deadlineAt,
-        lastHeartbeatAt: now,
+        cvMode: (payload.cvMode as CvMode) || CvMode.FULL,
+        status: SessionStatus.NOT_STARTED,
+        startedAt: null,
+        deadlineAt: null,
+        lastHeartbeatAt: null,
         lastActivityAt: now,
         disconnectCount: 0,
       },
@@ -147,6 +146,55 @@ export class SessionService {
     return this.buildStartResponse(
       session as SessionWithTemplate,
       candidateRecord.id,
+    );
+  }
+
+  /**
+   * Transition a session from NOT_STARTED to IN_PROGRESS.
+   * Computes the deadline based on RoleTemplate duration.
+   */
+  async beginSession(sessionId: string): Promise<StartSessionResponse> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { roleTemplate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    if (session.status !== SessionStatus.NOT_STARTED) {
+      throw new ConflictException({
+        code: "SESSION_ALREADY_STARTED",
+        message: `Session has already been started or closed (current status: ${session.status}).`,
+      });
+    }
+
+    const now = new Date();
+    const deadlineAt = new Date(
+      now.getTime() + session.roleTemplate.durationMinutes * 60 * 1000,
+    );
+
+    const updated = await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        status: SessionStatus.IN_PROGRESS,
+        startedAt: now,
+        deadlineAt,
+        lastHeartbeatAt: now,
+        lastActivityAt: now,
+      },
+      include: { roleTemplate: true },
+    });
+
+    this.logger.log(`Session ${sessionId} has begun.`);
+
+    return this.buildStartResponse(
+      updated as SessionWithTemplate,
+      updated.candidateId,
     );
   }
 
@@ -349,6 +397,13 @@ export class SessionService {
     }
 
     const now = new Date();
+    if (session.deadlineAt && now > session.deadlineAt) {
+      throw new GoneException({
+        code: "DEADLINE_PASSED",
+        message: "The assessment session deadline has passed.",
+      });
+    }
+
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
@@ -517,10 +572,71 @@ export class SessionService {
         session.cvMode as unknown as import("@cd-recruit/shared-types").CvMode,
       status:
         session.status as unknown as import("@cd-recruit/shared-types").SessionStatus,
-      startedAt: session.startedAt!.toISOString(),
-      deadlineAt: session.deadlineAt!.toISOString(),
+      startedAt: session.startedAt?.toISOString() ?? null,
+      deadlineAt: session.deadlineAt?.toISOString() ?? null,
       disconnectCount: session.disconnectCount,
       questions: buildQuestionList(session),
     };
+  }
+
+  /**
+   * Upload baseline selfie to MinIO and store the object key in baselineSelfieRef
+   */
+  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    // Verify session state is NOT_STARTED
+    if (session.status !== SessionStatus.NOT_STARTED) {
+      throw new ConflictException({
+        code: "SESSION_ALREADY_STARTED",
+        message: "Cannot upload baseline selfie after session has started.",
+      });
+    }
+
+    // Parse base64 data URL
+    const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new UnprocessableEntityException({
+        code: "INVALID_IMAGE_FORMAT",
+        message: "Invalid image data format. Expected base64 data URL.",
+      });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], "base64");
+    const objectKey = `selfie-${sessionId}.jpg`;
+
+    // Upload to MinIO
+    const uploaded = await this.minio.putObject(
+      this.bucketBiometric,
+      objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+
+    if (!uploaded) {
+      throw new UnprocessableEntityException({
+        code: "UPLOAD_FAILED",
+        message: "Failed to upload selfie to MinIO storage.",
+      });
+    }
+
+    // Update DB
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        baselineSelfieRef: objectKey,
+      },
+    });
+
+    return { ok: true };
   }
 }
