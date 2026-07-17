@@ -40,6 +40,7 @@ services:
   # ── Redis ───────────────────────────────────────────────────────────────────
   # Used by BullMQ (job queues) and session-state caching.
   redis:
+    profiles: ["full"]
     image: redis:7-alpine
     container_name: cdrecruit_redis_dev
     ports:
@@ -65,6 +66,7 @@ services:
   #                     http://localhost:3001/* (NestJS API — for admin-web callback)
   #   Admin console:    http://localhost:8080  (admin / admin)
   keycloak:
+    profiles: ["full"]
     image: quay.io/keycloak/keycloak:24.0
     container_name: cdrecruit_keycloak_dev
     command: start-dev --import-realm
@@ -98,6 +100,7 @@ services:
   # Console: http://localhost:9001  (minioadmin / minioadmin)
   # API:     http://localhost:9000
   minio:
+    profiles: ["full"]
     image: minio/minio:latest
     container_name: cdrecruit_minio_dev
     command: server /data --console-address ":9001"

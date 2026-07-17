@@ -1,3 +1,10 @@
+// NOTE: when real Keycloak integration lands (Phase 4), a real token's
+// claims will be nested (realm_access.roles: string[]) not the current
+// flat { sub, email, role }. This file is the only place that needs to
+// change — RolesGuard already reads only request.user.role and doesn't
+// know about token shape. Decide then whether to translate to a single
+// role here or generalize RolesGuard to arrays.
+
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";

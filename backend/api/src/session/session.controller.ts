@@ -107,6 +107,20 @@ export class SessionController {
   }
 
   /**
+   * GET /api/v1/sessions/:sessionId/questions/:questionId
+   *
+   * Fetch the full details of a question for the active session.
+   */
+  @Get(":sessionId/questions/:questionId")
+  @HttpCode(HttpStatus.OK)
+  async getQuestion(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("questionId", ParseUUIDPipe) questionId: string,
+  ) {
+    return this.sessionService.getQuestion(sessionId, questionId);
+  }
+
+  /**
    * GET /api/v1/sessions/:sessionId/progress
    *
    * Returns per-question answer status for the free-navigation sidebar.

@@ -6,16 +6,15 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { GoneException } from "@app/common/exceptions/app.exceptions";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
-import { CvMode, Session, SessionStatus } from "@prisma/client";
+import { CvMode, Session, SessionStatus, InviteStatus } from "@prisma/client";
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
-import { MinioService } from "@app/integrations/minio/minio.service";
+import { ObjectStoragePort } from "@app/integrations/storage/object-storage.port";
+import { QueueProviderPort } from "@app/queue/queue-provider.port";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -34,11 +33,38 @@ type SessionWithTemplate = Session & {
 
 /**
  * Build the question list shape returned in session start/resume responses.
- * Phase 1 returns an empty array because no questions are seeded yet.
  * Phase 3 replaces this with real question fetching.
  */
-function buildQuestionList(_session: Session): [] {
-  return [];
+async function buildQuestionList(
+  prisma: PrismaService,
+  session: Session,
+): Promise<any[]> {
+  if (!session.driveId) {
+    return [];
+  }
+  const driveQuestions = await prisma.driveQuestion.findMany({
+    where: { driveId: session.driveId },
+    include: { question: true },
+    orderBy: [
+      { moduleType: "asc" },
+      { question: { id: "asc" } },
+    ],
+  });
+
+  const counts: Record<string, number> = {};
+  return driveQuestions.map((dq) => {
+    const type = dq.moduleType;
+    if (counts[type] === undefined) {
+      counts[type] = 0;
+    } else {
+      counts[type]++;
+    }
+    return {
+      questionId: dq.questionId,
+      moduleType: dq.moduleType,
+      moduleIndex: counts[type],
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,9 +83,8 @@ export class SessionService {
     private readonly auth: AuthService,
     private readonly candidate: CandidateService,
     private readonly config: ConfigService<AppConfig, true>,
-    private readonly minio: MinioService,
-    @InjectQueue("grace-window")
-    private readonly graceWindowQueue: Queue<{ sessionId: string }>,
+    private readonly minio: ObjectStoragePort,
+    private readonly queueProvider: QueueProviderPort,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -124,10 +149,15 @@ export class SessionService {
 
     // 5. Create the session (starts as NOT_STARTED, dates set upon /begin)
     const now = new Date();
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: payload.inviteId },
+    });
+
     const session = await this.prisma.session.create({
       data: {
         candidateId: candidateRecord.id,
         roleTemplateId: payload.roleTemplateId,
+        driveId: invite?.driveId || null,
         cvMode: (payload.cvMode as CvMode) || CvMode.FULL,
         status: SessionStatus.NOT_STARTED,
         startedAt: null,
@@ -139,11 +169,22 @@ export class SessionService {
       include: { roleTemplate: true },
     });
 
+    if (invite) {
+      await this.prisma.invite.update({
+        where: { id: invite.id },
+        data: {
+          status: InviteStatus.REDEEMED,
+          redeemedAt: now,
+          sessionId: session.id,
+        },
+      });
+    }
+
     this.logger.log(
       `Session created: ${session.id} for candidate ${candidateRecord.id}`,
     );
 
-    return this.buildStartResponse(
+    return await this.buildStartResponse(
       session as SessionWithTemplate,
       candidateRecord.id,
     );
@@ -192,7 +233,7 @@ export class SessionService {
 
     this.logger.log(`Session ${sessionId} has begun.`);
 
-    return this.buildStartResponse(
+    return await this.buildStartResponse(
       updated as SessionWithTemplate,
       updated.candidateId,
     );
@@ -362,7 +403,7 @@ export class SessionService {
       deadlineAt: updated.deadlineAt!.toISOString(),
       disconnectCount: updated.disconnectCount,
       reconnectedAt: now.toISOString(),
-      questions: buildQuestionList(updated),
+      questions: await buildQuestionList(this.prisma, updated),
     };
   }
 
@@ -497,14 +538,13 @@ export class SessionService {
 
     // Enqueue a delayed auto-submit job for the grace window cutoff.
     // jobId is deterministic per sessionId to prevent duplicate jobs.
-    await this.graceWindowQueue.add(
+    await this.queueProvider.enqueueDelayed(
+      "grace-window",
       "auto-submit",
       { sessionId },
       {
-        delay: this.graceWindowSeconds * 1000,
-        jobId: `grace-${sessionId}`, // deterministic — safe to re-enqueue
-        removeOnComplete: true,
-        removeOnFail: false,
+        delayMs: this.graceWindowSeconds * 1000,
+        jobId: `grace-${sessionId}`,
       },
     );
 
@@ -558,10 +598,10 @@ export class SessionService {
 
   // ─── Response builder ─────────────────────────────────────────────────────
 
-  private buildStartResponse(
+  private async buildStartResponse(
     session: SessionWithTemplate,
     candidateId: string,
-  ): StartSessionResponse {
+  ): Promise<StartSessionResponse> {
     return {
       sessionId: session.id,
       candidateId,
@@ -575,7 +615,38 @@ export class SessionService {
       startedAt: session.startedAt?.toISOString() ?? null,
       deadlineAt: session.deadlineAt?.toISOString() ?? null,
       disconnectCount: session.disconnectCount,
-      questions: buildQuestionList(session),
+      questions: await buildQuestionList(this.prisma, session),
+    };
+  }
+
+  /**
+   * Fetch the full details of a question for the active session.
+   */
+  async getQuestion(sessionId: string, questionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+    });
+    if (!question) {
+      throw new NotFoundException({
+        code: "QUESTION_NOT_FOUND",
+        message: "Question not found.",
+      });
+    }
+
+    return {
+      questionId: question.id,
+      roleTemplateId: session.roleTemplateId,
+      content: question.content,
     };
   }
 

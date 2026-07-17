@@ -158,3 +158,22 @@ export async function uploadSelfie(
     throw normaliseError(err);
   }
 }
+
+/**
+ * GET /sessions/:sessionId/questions/:questionId
+ * Fetches the full question content payload.
+ */
+export async function getQuestion(
+  sessionId: string,
+  questionId: string,
+): Promise<any> {
+  try {
+    const { data } = await apiClient.get<any>(
+      `/sessions/${sessionId}/questions/${questionId}`,
+    );
+    return data;
+  } catch (err) {
+    throw normaliseError(err);
+  }
+}
+
