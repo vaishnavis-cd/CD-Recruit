@@ -643,11 +643,59 @@ export class SessionService {
       });
     }
 
+    const response = await this.prisma.moduleResponse.findUnique({
+      where: {
+        sessionId_questionId: {
+          sessionId,
+          questionId,
+        },
+      },
+    });
+
     return {
       questionId: question.id,
       roleTemplateId: session.roleTemplateId,
-      content: question.content,
+      content: this.sanitiseQuestionContent(question.moduleType, question.content),
+      response: response
+        ? {
+            responsePayload: response.responsePayload,
+            isDraft: response.isDraft,
+            timeSpentSeconds: response.timeSpentSeconds,
+          }
+        : null,
     };
+  }
+
+  /**
+   * Strip server-only fields before sending question content to the candidate.
+   * - MCQ: remove correctIndex and explanation
+   * - SQL: remove expectedQuery
+   * - CODING: remove testCases where isHidden === true (and any legacy hiddenTests array)
+   */
+  private sanitiseQuestionContent(moduleType: string, content: unknown): unknown {
+    if (!content || typeof content !== "object") return content;
+
+    const c = content as Record<string, unknown>;
+
+    if (moduleType === "MCQ") {
+      const { correctIndex: _ci, explanation: _ex, ...safe } = c;
+      return safe;
+    }
+
+    if (moduleType === "SQL") {
+      const { expectedQuery: _eq, ...safe } = c;
+      return safe;
+    }
+
+    if (moduleType === "CODING") {
+      const { hiddenTests: _ht, ...rest } = c;
+      const visibleTestCases = Array.isArray(rest.testCases)
+        ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
+        : [];
+      return { ...rest, testCases: visibleTestCases };
+    }
+
+    return content;
   }
 
   /**
