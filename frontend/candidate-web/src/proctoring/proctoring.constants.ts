@@ -1,0 +1,36 @@
+import { ProctoringEventType } from "./proctoring.types";
+
+export const SEVERITY_MAPPING: Record<ProctoringEventType, "MEDIUM" | "HIGH"> = {
+  FACE_MISSING: "MEDIUM",
+  LOOKING_AWAY: "MEDIUM",
+  BOOK_DETECTED: "MEDIUM",
+  MULTIPLE_FACES: "HIGH",
+  SEAT_EXIT: "HIGH",
+  PHONE_DETECTED: "HIGH",
+  HEADPHONES_DETECTED: "HIGH",
+  EXCESSIVE_MOVEMENT: "HIGH",
+};
+
+export const COOLDOWN_MAPPING: Record<ProctoringEventType, number> = {
+  PHONE_DETECTED: 30000,
+  HEADPHONES_DETECTED: 30000,
+  BOOK_DETECTED: 30000,
+  FACE_MISSING: 15000,
+  LOOKING_AWAY: 15000,
+  EXCESSIVE_MOVEMENT: 15000,
+  MULTIPLE_FACES: 0,
+  SEAT_EXIT: 0,
+};
+
+// Recognition & tracking thresholds
+export const CONFIG = {
+  FACE_MISSING_THRESHOLD_MS: 2000,
+  LOOKING_AWAY_THRESHOLD_MS: 2000,
+  EXCESSIVE_MOVEMENT_THRESHOLD: 0.15, // frame-to-frame shoulder deviation
+  FRAME_INTERVAL_MS: 200,             // process 5 frames per second to keep CPU load low
+  ROLLING_BUFFER_CHUNK_MS: 1000,      // 1-second chunks for MediaRecorder
+  PAST_BUFFER_SECONDS: 3,
+  FUTURE_BUFFER_SECONDS: 3,
+  MAX_RETRY_ATTEMPTS: 5,
+  RETRY_INTERVAL_MS: 30000,
+};
