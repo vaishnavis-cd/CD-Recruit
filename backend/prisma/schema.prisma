@@ -209,6 +209,7 @@ model Session {
   moduleResponses   ModuleResponse[]
   eventLogs         EventLog[]
   integrityFlags    IntegrityFlag[]
+  proctoringEvents  ProctoringEvent[]
   score             Score?
   reviewerDecision  ReviewerDecision?
   invite            Invite?
@@ -409,4 +410,38 @@ model SQLExecution {
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("sql_execution")
+}
+
+enum ProctoringEventType {
+  FACE_MISSING
+  MULTIPLE_FACES
+  LOOKING_AWAY
+  SEAT_EXIT
+  EXCESSIVE_MOVEMENT
+  PHONE_DETECTED
+  HEADPHONES_DETECTED
+  BOOK_DETECTED
+}
+
+enum ProctoringUploadStatus {
+  PENDING
+  UPLOADED
+  FAILED
+}
+
+model ProctoringEvent {
+  id           String                 @id @default(uuid())
+  sessionId    String                 @map("session_id")
+  eventType    ProctoringEventType    @map("event_type")
+  severity     String                 @map("severity")
+  timestamp    DateTime               @map("timestamp")
+  clipUrl      String?                @map("clip_url")
+  modelVersion String?                @map("model_version")
+  uploadStatus ProctoringUploadStatus @default(PENDING) @map("upload_status")
+  createdAt    DateTime               @default(now()) @map("created_at")
+
+  session      Session                @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("proctoring_event")
 }

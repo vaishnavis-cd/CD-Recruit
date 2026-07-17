@@ -18,6 +18,7 @@ import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
+import { ProctoringModule } from "./proctoring/proctoring.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -71,6 +72,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     QueueModule,
     CodingModule,
     SqlModule,
+    ProctoringModule,
   ],
 })
 export class AppModule {}

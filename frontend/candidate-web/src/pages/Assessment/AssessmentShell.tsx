@@ -5,6 +5,8 @@ import { formatCountdown } from "@/lib/time-gate";
 import { AlertTriangle, Book, Code2, ArrowRight, Play, Server, MessageSquare, Loader2 } from "lucide-react";
 import { useSessionStore } from "@/store/session.store";
 import { getQuestion } from "@/api/session";
+import { ProctoringModule } from "@/proctoring/proctoring.module";
+import { WebcamService } from "@/proctoring/webcam.service";
 
 interface QuestionItem {
   id: string;
@@ -21,11 +23,57 @@ export function AssessmentShell() {
   const sessionId = useSessionStore((s) => s.sessionId);
   const sessionQuestions = useSessionStore((s) => s.questions);
   const deadlineAt = useSessionStore((s) => s.deadlineAt);
+  const cvMode = useSessionStore((s) => s.cvMode);
 
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [activeQId, setActiveQId] = useState("");
   const [timeLeft, setTimeLeft] = useState(45 * 60 * 1000);
   const [loading, setLoading] = useState(true);
+
+  // 1. Initialize Proctoring Pipeline if FULL mode
+  useEffect(() => {
+    if (!sessionId || cvMode !== "FULL") return;
+
+    let stopped = false;
+    const startProctoring = async () => {
+      if (stopped) return;
+      const success = await ProctoringModule.getInstance().start(sessionId);
+      if (success) {
+        console.log("[Proctoring] Active on-device CV monitoring initialized.");
+      } else {
+        console.warn("[Proctoring] Failed to start. Running in reduced fallback.");
+      }
+    };
+
+    void startProctoring();
+
+    return () => {
+      stopped = true;
+      void ProctoringModule.getInstance().stop();
+    };
+  }, [sessionId, cvMode]);
+
+  // 2. Attach Stream to Local Webcam Preview
+  useEffect(() => {
+    if (cvMode !== "FULL" || loading) return;
+
+    let timer: any = null;
+    const attachVideo = () => {
+      const stream = WebcamService.getInstance().getStream();
+      const videoEl = document.getElementById("proctoring-preview-video") as HTMLVideoElement;
+      if (videoEl && stream) {
+        videoEl.srcObject = stream;
+        videoEl.play().catch((e) => console.debug("Autoplay preview deferred:", e));
+        if (timer) clearInterval(timer);
+      }
+    };
+
+    timer = setInterval(attachVideo, 500);
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cvMode, loading]);
 
   // Load questions details from backend
   useEffect(() => {
@@ -214,6 +262,25 @@ export function AssessmentShell() {
               </button>
             ))}
           </div>
+
+          {/* Local Webcam Proctoring Preview */}
+          {cvMode === "FULL" && (
+            <div className="mt-auto p-4 border-t border-border-token bg-surface/40 flex flex-col items-center">
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border-token bg-black/30 shadow-inner">
+                <video
+                  id="proctoring-preview-video"
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+                <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[9px] text-white font-bold tracking-wider uppercase border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                  <span>PROCTOR ACTIVE</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Center/Right Side: Workspace Split Pane */}
@@ -308,6 +375,98 @@ export function AssessmentShell() {
         <div className="bg-warning text-white py-2 px-4 text-center text-xs font-semibold flex items-center justify-center gap-2 animate-bounce">
           <AlertTriangle className="w-4 h-4 animate-pulse" />
           <span>Warning: Less than {Math.ceil(timeLeft / 60000)} minutes remaining. Answers autosave automatically.</span>
+        </div>
+      )}
+
+      {/* Developer Mock Proctoring Simulator Panel */}
+      {import.meta.env.DEV && cvMode === "FULL" && (
+        <div className="fixed bottom-4 right-4 z-50 p-4 rounded-2xl bg-surface/90 border border-border-token shadow-2xl backdrop-blur-md max-w-xs text-xs space-y-2">
+          <div className="font-extrabold uppercase tracking-wider text-accent flex items-center justify-between">
+            <span>Proctoring Simulator</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("FACE_MISSING", "mediapipe-face-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Face Missing
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("MULTIPLE_FACES", "mediapipe-face-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Multiple Faces
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("LOOKING_AWAY", "mediapipe-face-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Looking Away
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("SEAT_EXIT", "mediapipe-pose-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Seat Exit
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("EXCESSIVE_MOVEMENT", "mediapipe-pose-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Excess Movement
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("PHONE_DETECTED", "object-detector-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Phone Detected
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("HEADPHONES_DETECTED", "object-detector-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Headphones
+            </button>
+            <button
+              onClick={() => {
+                import("@/proctoring/detection-engine.service").then(({ DetectionEngineService }) => {
+                  DetectionEngineService.getInstance().triggerMockEvent("BOOK_DETECTED", "object-detector-v1");
+                });
+              }}
+              className="px-2 py-1 bg-surface border border-border-token rounded hover:bg-accent hover:text-white transition-colors cursor-pointer text-center text-[10px]"
+            >
+              Book Detected
+            </button>
+          </div>
         </div>
       )}
     </div>

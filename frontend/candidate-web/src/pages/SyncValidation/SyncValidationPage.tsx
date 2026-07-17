@@ -44,6 +44,12 @@ export function SyncValidationPage() {
 
     // 3. Session close
     updateStatus("close", "syncing");
+    try {
+      const { ProctoringModule } = await import("@/proctoring/proctoring.module");
+      await ProctoringModule.getInstance().stop();
+    } catch (e) {
+      console.warn("Failed to stop proctoring module on close:", e);
+    }
     await new Promise(r => setTimeout(r, 800));
     updateStatus("close", "done");
 
