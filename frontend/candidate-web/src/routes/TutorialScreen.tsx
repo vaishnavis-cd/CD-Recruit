@@ -69,10 +69,12 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
     // Create session if not yet created
     if (!session) {
       try {
+        const selfieDataUrl = localStorage.getItem('cd-recruit-selfie-data')
         const newSession = await services.sessionApi.createSession(
           inviteToken,
           cvMode,
-          mode
+          mode,
+          selfieDataUrl
         )
         setSession(newSession)
         const scheduledMs = parseInt(localStorage.getItem('cd-recruit-scheduled-ms') ?? '0')

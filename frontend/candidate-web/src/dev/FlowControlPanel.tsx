@@ -20,6 +20,7 @@ const SCREEN_SHORTCUTS: Array<{ label: string; state: ScreenState }> = [
   { label: 'System Check (expedited)', state: { type: 'system-check', mode: 'expedited', inviteToken: DEMO_TOKEN } },
   { label: 'Consent (terms)', state: { type: 'consent', step: 'terms', inviteToken: DEMO_TOKEN } },
   { label: 'Consent (biometric)', state: { type: 'consent', step: 'biometric', inviteToken: DEMO_TOKEN } },
+  { label: 'Consent (liveness)', state: { type: 'consent', step: 'liveness', inviteToken: DEMO_TOKEN } },
   { label: 'Consent (selfie)', state: { type: 'consent', step: 'selfie', inviteToken: DEMO_TOKEN } },
   { label: 'Tutorial (full)', state: { type: 'tutorial', mode: 'full', inviteToken: DEMO_TOKEN } },
   { label: 'Tutorial (condensed)', state: { type: 'tutorial', mode: 'condensed', inviteToken: DEMO_TOKEN } },

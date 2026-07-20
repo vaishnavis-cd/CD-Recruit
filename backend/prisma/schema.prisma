@@ -433,6 +433,10 @@ enum ProctoringEventType {
   PHONE_DETECTED
   HEADPHONES_DETECTED
   BOOK_DETECTED
+  // PROPOSED shape — pending Track B confirmation, coordinate before backend correlation logic is built against this
+  TAB_SWITCH
+  PASTE
+  FULLSCREEN_EXIT
 }
 
 enum ProctoringUploadStatus {

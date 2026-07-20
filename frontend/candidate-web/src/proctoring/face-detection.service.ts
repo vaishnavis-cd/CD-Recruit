@@ -121,10 +121,21 @@ export class FaceDetectionService {
         headDirection = "DOWN";
       }
 
+      let blinkDetected = false;
+      if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
+        const categories = result.faceBlendshapes[0].categories;
+        const blinkLeft = categories.find((c) => c.categoryName === "eyeBlinkLeft")?.score ?? 0;
+        const blinkRight = categories.find((c) => c.categoryName === "eyeBlinkRight")?.score ?? 0;
+        if (blinkLeft > 0.45 || blinkRight > 0.45) {
+          blinkDetected = true;
+        }
+      }
+
       const finalRes: FaceDetectionResult = {
         faceDetected: true,
         faceCount,
         headDirection,
+        blinkDetected,
       };
 
       if (this.detectCount % 15 === 1) {
