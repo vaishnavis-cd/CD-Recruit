@@ -132,7 +132,12 @@ export class DetectionEngineService {
       modelVersion,
     };
 
-    console.warn(`[Proctoring Event Triggered]: ${eventType} (Severity: ${event.severity})`);
+    console.log(
+      `[DetectionEngine] EVENT_CREATED: eventType=${eventType}, modelVersion=${modelVersion}, timestamp=${event.timestamp}`,
+    );
+    console.warn(
+      `[Proctoring Event Triggered]: EVENT_TYPE=${eventType}, TIMESTAMP=${event.timestamp} (Severity: ${event.severity})`,
+    );
 
     // Notify subscribers
     for (const listener of this.listeners) {

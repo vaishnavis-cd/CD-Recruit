@@ -2,17 +2,21 @@ import type { CvDetectionPort, DetectionEvent } from './port'
 
 export const realCvDetectionAdapter: CvDetectionPort = {
   async start(): Promise<void> {
-    throw new Error('MediaPipe CV proctoring is out of scope: stays mock')
+    // MediaPipe CV deliberately deferred — see docs/DECISIONS.md
+    return Promise.resolve()
   },
 
-  stop(): void {},
+  async stop(): Promise<void> {
+    // No-op
+  },
 
   onDetectionEvent(_callback: (event: DetectionEvent) => void): () => void {
     return () => {}
   },
 
   async captureFrame(): Promise<string> {
-    throw new Error('MediaPipe CV proctoring is out of scope: stays mock')
+    // MediaPipe CV deliberately deferred — see docs/DECISIONS.md
+    return Promise.resolve("")
   },
 
   isWasmSupported(): boolean {

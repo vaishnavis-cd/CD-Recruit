@@ -6,6 +6,7 @@ export class FaceDetectionService {
   private landmarker: FaceLandmarker | null = null;
   private isLoading = false;
   private isLoaded = false;
+  private detectCount = 0;
 
   private constructor() {}
 
@@ -24,14 +25,16 @@ export class FaceDetectionService {
 
     this.isLoading = true;
     try {
-      console.log("Loading MediaPipe Face Landmarker model...");
+      console.log("[FaceDetection] FACE_MODEL_LOADING: Loading MediaPipe Face Landmarker wasm resolver...");
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
       );
 
+      console.log("[FaceDetection] Loading Face Landmarker task model from Google storage...");
       this.landmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker_with_blendshapes/float16/1/face_landmarker_with_blendshapes.task",
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker_with_blendshapes/float16/1/face_landmarker_with_blendshapes.task",
           delegate: "GPU",
         },
         runningMode: "IMAGE",
@@ -40,10 +43,10 @@ export class FaceDetectionService {
 
       this.isLoaded = true;
       this.isLoading = false;
-      console.log("MediaPipe Face Landmarker model loaded successfully.");
+      console.log("[FaceDetection] FACE_MODEL_LOADED: MediaPipe Face Landmarker initialized.");
     } catch (err) {
       this.isLoading = false;
-      console.error("Failed to load Face Landmarker model:", err);
+      console.error("[FaceDetection] Failed to load Face Landmarker model:", err);
       throw err;
     }
   }
@@ -52,7 +55,11 @@ export class FaceDetectionService {
    * Process a frame and return face detection metadata.
    */
   public detect(videoElement: HTMLVideoElement): FaceDetectionResult {
+    this.detectCount++;
     if (!this.isLoaded || !this.landmarker) {
+      if (this.detectCount % 15 === 1) {
+        console.warn("[FaceDetection] Face Landmarker model is not loaded yet.");
+      }
       return { faceDetected: false, faceCount: 0, headDirection: "CENTER" };
     }
 
@@ -60,18 +67,19 @@ export class FaceDetectionService {
       const result = this.landmarker.detect(videoElement);
 
       if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) {
-        return { faceDetected: false, faceCount: 0, headDirection: "CENTER" };
+        const fallbackRes: FaceDetectionResult = {
+          faceDetected: false,
+          faceCount: 0,
+          headDirection: "CENTER",
+        };
+        if (this.detectCount % 15 === 1) {
+          console.log("[FaceDetection] Result:", JSON.stringify(fallbackRes));
+        }
+        return fallbackRes;
       }
 
       const faceCount = result.faceLandmarks.length;
       const landmarks = result.faceLandmarks[0]; // Primary face
-
-      // Key landmark indices:
-      // Nose Tip: 4
-      // Left cheek/edge boundary: 234
-      // Right cheek/edge boundary: 454
-      // Forehead top boundary: 10
-      // Chin bottom boundary: 152
 
       const nose = landmarks[4];
       const leftBoundary = landmarks[234];
@@ -80,7 +88,15 @@ export class FaceDetectionService {
       const chin = landmarks[152];
 
       if (!nose || !leftBoundary || !rightBoundary || !forehead || !chin) {
-        return { faceDetected: true, faceCount, headDirection: "CENTER" };
+        const partialRes: FaceDetectionResult = {
+          faceDetected: true,
+          faceCount,
+          headDirection: "CENTER",
+        };
+        if (this.detectCount % 15 === 1) {
+          console.log("[FaceDetection] Result (Partial Landmarks):", JSON.stringify(partialRes));
+        }
+        return partialRes;
       }
 
       // Horizontal head orientation (Yaw)
@@ -95,7 +111,6 @@ export class FaceDetectionService {
 
       let headDirection: "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN" = "CENTER";
 
-      // Coarse orientation logic
       if (horizontalRatio < 0.6) {
         headDirection = "LEFT";
       } else if (horizontalRatio > 1.6) {
@@ -106,13 +121,34 @@ export class FaceDetectionService {
         headDirection = "DOWN";
       }
 
-      return {
+      let blinkDetected = false;
+      if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
+        const categories = result.faceBlendshapes[0].categories;
+        const blinkLeft = categories.find((c) => c.categoryName === "eyeBlinkLeft")?.score ?? 0;
+        const blinkRight = categories.find((c) => c.categoryName === "eyeBlinkRight")?.score ?? 0;
+        if (blinkLeft > 0.45 || blinkRight > 0.45) {
+          blinkDetected = true;
+        }
+      }
+
+      const finalRes: FaceDetectionResult = {
         faceDetected: true,
         faceCount,
         headDirection,
+        blinkDetected,
       };
+
+      if (this.detectCount % 15 === 1) {
+        console.log(
+          `[FaceDetection] Result: ${JSON.stringify(finalRes)} (horizontalRatio=${horizontalRatio.toFixed(
+            3,
+          )}, verticalRatio=${verticalRatio.toFixed(3)})`,
+        );
+      }
+
+      return finalRes;
     } catch (err) {
-      console.error("Error during face landmark detection:", err);
+      console.error("[FaceDetection] Error during landmark detection:", err);
       return { faceDetected: false, faceCount: 0, headDirection: "CENTER" };
     }
   }

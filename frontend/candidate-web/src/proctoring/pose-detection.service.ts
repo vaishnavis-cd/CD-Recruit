@@ -6,6 +6,7 @@ export class PoseDetectionService {
   private landmarker: PoseLandmarker | null = null;
   private isLoading = false;
   private isLoaded = false;
+  private detectCount = 0;
 
   // Previous landmark coordinates to compute movement displacement
   private prevKeyPoints: { x: number; y: number }[] = [];
@@ -27,14 +28,16 @@ export class PoseDetectionService {
 
     this.isLoading = true;
     try {
-      console.log("Loading MediaPipe Pose Landmarker model...");
+      console.log("[PoseDetection] POSE_MODEL_LOADING: Loading MediaPipe Pose Landmarker wasm resolver...");
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
       );
 
+      console.log("[PoseDetection] Loading Pose Landmarker task model from Google storage...");
       this.landmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
           delegate: "GPU",
         },
         runningMode: "IMAGE",
@@ -42,10 +45,10 @@ export class PoseDetectionService {
 
       this.isLoaded = true;
       this.isLoading = false;
-      console.log("MediaPipe Pose Landmarker model loaded successfully.");
+      console.log("[PoseDetection] POSE_MODEL_LOADED: MediaPipe Pose Landmarker initialized.");
     } catch (err) {
       this.isLoading = false;
-      console.error("Failed to load Pose Landmarker model:", err);
+      console.error("[PoseDetection] Failed to load Pose Landmarker model:", err);
       throw err;
     }
   }
@@ -54,7 +57,11 @@ export class PoseDetectionService {
    * Process a frame and return pose detection metadata.
    */
   public detect(videoElement: HTMLVideoElement): PoseDetectionResult {
+    this.detectCount++;
     if (!this.isLoaded || !this.landmarker) {
+      if (this.detectCount % 15 === 1) {
+        console.warn("[PoseDetection] Pose Landmarker model is not loaded yet.");
+      }
       return { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
     }
 
@@ -62,53 +69,48 @@ export class PoseDetectionService {
       const result = this.landmarker.detect(videoElement);
 
       if (!result || !result.landmarks || result.landmarks.length === 0) {
-        // No body detected
-        return {
+        const fallbackRes: PoseDetectionResult = {
           inFrame: false,
           isLeavingSeat: true,
           isStanding: false,
           movementMetric: 0,
         };
+        if (this.detectCount % 15 === 1) {
+          console.log("[PoseDetection] Result:", JSON.stringify(fallbackRes));
+        }
+        return fallbackRes;
       }
 
       const landmarks = result.landmarks[0]; // Primary body
-      // Key points:
-      // Nose: 0
-      // Left shoulder: 11
-      // Right shoulder: 12
       const nose = landmarks[0];
       const leftShoulder = landmarks[11];
       const rightShoulder = landmarks[12];
 
-      // 1. Candidate presence check
-      // If shoulders and nose are missing or have very low coordinates, we consider them out of frame
       const isPresent = !!(nose && leftShoulder && rightShoulder);
 
       if (!isPresent) {
-        return {
+        const missingRes: PoseDetectionResult = {
           inFrame: false,
           isLeavingSeat: true,
           isStanding: false,
           movementMetric: 0,
         };
+        if (this.detectCount % 15 === 1) {
+          console.log("[PoseDetection] Result (Missing Keypoints):", JSON.stringify(missingRes));
+        }
+        return missingRes;
       }
 
-      // 2. Seat Exit check (leaving seat)
-      // If the visibility metric of key face/torso features is low, we assume they are leaving the frame
       const noseVisibility = nose.visibility ?? 1.0;
       const leftShoulderVisibility = leftShoulder.visibility ?? 1.0;
       const rightShoulderVisibility = rightShoulder.visibility ?? 1.0;
 
       const avgVisibility = (noseVisibility + leftShoulderVisibility + rightShoulderVisibility) / 3;
-      const isLeavingSeat = avgVisibility < 0.45; // If visibility drops significantly
+      const isLeavingSeat = avgVisibility < 0.45;
 
-      // 3. Standing up check
-      // Normally candidate shoulder y-coordinates are around 0.5 - 0.8 in the image frame.
-      // If they stand up, shoulders rise up (y-value decreases to < 0.25).
       const avgShoulderY = (leftShoulder.y + rightShoulder.y) / 2;
       const isStanding = avgShoulderY < 0.3;
 
-      // 4. Movement Metric calculation (displacement from previous frame)
       let movementMetric = 0;
       const currentKeyPoints = [nose, leftShoulder, rightShoulder];
 
@@ -123,17 +125,26 @@ export class PoseDetectionService {
         movementMetric = totalDisplacement / currentKeyPoints.length;
       }
 
-      // Update previous coordinates
       this.prevKeyPoints = currentKeyPoints.map((kp) => ({ x: kp.x, y: kp.y }));
 
-      return {
+      const finalRes: PoseDetectionResult = {
         inFrame: true,
         isLeavingSeat,
         isStanding,
         movementMetric,
       };
+
+      if (this.detectCount % 15 === 1) {
+        console.log(
+          `[PoseDetection] Result: ${JSON.stringify(finalRes)} (avgVisibility=${avgVisibility.toFixed(
+            3,
+          )}, avgShoulderY=${avgShoulderY.toFixed(3)})`,
+        );
+      }
+
+      return finalRes;
     } catch (err) {
-      console.error("Error during pose landmark detection:", err);
+      console.error("[PoseDetection] Error during pose landmark detection:", err);
       return { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
     }
   }

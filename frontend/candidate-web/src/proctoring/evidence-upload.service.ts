@@ -29,8 +29,9 @@ export class EvidenceUploadService {
   }
 
   /**
-   * Upload evidence clip and then store event metadata.
-   * If initial upload fails, queue it for retry.
+   * Upload evidence clip and store event metadata.
+   * Even if upload fails, event metadata is persisted with uploadStatus: FAILED
+   * Video file is queued for retry separately.
    */
   public async uploadEvidence(
     sessionId: string,
@@ -40,21 +41,44 @@ export class EvidenceUploadService {
     const cleanEventType = event.eventType.toLowerCase();
     const filename = `${cleanEventType}_${Date.now()}.webm`;
 
+    let clipUrl: string | null = null;
+    let uploadStatus: "UPLOADED" | "FAILED" = "FAILED";
+
     try {
-      const clipUrl = await this.performUpload(sessionId, blob, filename);
-      // Upload succeeded -> Save the event metadata with UPLOADED status
+      clipUrl = await this.performUpload(sessionId, blob, filename);
+      uploadStatus = "UPLOADED";
+      console.log(`[Proctoring] Video clip uploaded successfully: ${filename}`);
+    } catch (err: any) {
+      console.warn(
+        `[Proctoring] Video upload failed for event ${event.eventType}. Will retry later.`,
+        err,
+      );
+      // Queue video for retry, but still store event metadata
+      this.addToRetryQueue(sessionId, event, blob, filename);
+    }
+
+    // ALWAYS store event metadata, regardless of upload status
+    try {
       await ProctoringEventService.getInstance().createEvent({
         ...event,
         clipUrl,
-        uploadStatus: "UPLOADED",
+        uploadStatus,
       });
-      console.log(`[Proctoring] Event ${event.eventType} and clip successfully persisted.`);
-    } catch (err) {
-      console.warn(
-        `[Proctoring] Initial upload failed for event ${event.eventType}. Adding to retry queue.`,
-        err,
+      console.log(
+        `[Proctoring] Event ${event.eventType} metadata persisted with status: ${uploadStatus}`
       );
-      this.addToRetryQueue(sessionId, event, blob, filename);
+    } catch (err: any) {
+      if (err?.response?.status === 409 || err?.status === 409) {
+        console.log(
+          `[Proctoring] Server-side duplicate filter rejected ${event.eventType}. Discarding duplicate.`
+        );
+        return;
+      }
+      console.error(
+        `[Proctoring] Failed to persist event metadata for ${event.eventType}:`,
+        err
+      );
+      throw err;
     }
   }
 
@@ -66,21 +90,35 @@ export class EvidenceUploadService {
     blob: Blob,
     filename: string,
   ): Promise<string> {
+    const url = `/proctoring/session/${sessionId}/upload`;
+    console.log(`[EvidenceUploadService] API_REQUEST: POST ${url}, filename=${filename}, size=${blob.size} bytes`);
+
     const formData = new FormData();
     const file = new File([blob], filename, { type: "video/webm" });
     formData.append("file", file);
 
-    const response = await apiClient.post<{ storageRef: string; clipUrl: string }>(
-      `/proctoring/session/${sessionId}/upload`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
+    try {
+      const response = await apiClient.post<{ storageRef: string; clipUrl: string }>(
+        url,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         },
-      },
-    );
-
-    return response.data.clipUrl;
+      );
+      console.log(
+        `[EvidenceUploadService] API_RESPONSE: POST ${url}, status=${response.status}, clipUrl=${response.data.clipUrl}`,
+      );
+      return response.data.clipUrl;
+    } catch (err: any) {
+      console.error(
+        `[EvidenceUploadService] API_ERROR: POST ${url}, status=${err?.response?.status || "UNKNOWN"}, body=${JSON.stringify(
+          err?.response?.data || "No body",
+        )}`,
+      );
+      throw err;
+    }
   }
 
   /**
@@ -137,7 +175,11 @@ export class EvidenceUploadService {
           uploadStatus: "UPLOADED",
         });
         console.log(`[Proctoring] Queued upload of ${item.filename} succeeded.`);
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.response?.status === 409 || err?.status === 409) {
+          console.log(`[Proctoring] Server-side duplicate filter rejected queued ${item.event.eventType}. Discarding duplicate.`);
+          continue;
+        }
         item.attempts++;
         if (item.attempts > CONFIG.MAX_RETRY_ATTEMPTS) {
           console.error(

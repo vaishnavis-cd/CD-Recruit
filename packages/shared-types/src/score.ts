@@ -12,4 +12,10 @@ export interface Score {
   aiConfidence: number;
   /** True once a human reviewer has verified and optionally overridden the AI score. */
   humanReviewed: boolean;
+  /** Rationale explanation for the Say-Do consistency score. */
+  sayDoRationale?: string | null;
+  /** The source engine/level used to perform grading. */
+  gradingSource?: 'placeholder' | 'deterministic' | 'ai_graded' | 'correlation_engine';
+  /** Detected Mismatches between claims and actual actions. */
+  mismatches?: Array<{ said: string; did: string; impact: string }>;
 }

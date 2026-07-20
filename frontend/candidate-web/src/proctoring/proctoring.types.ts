@@ -14,6 +14,7 @@ export interface FaceDetectionResult {
   faceDetected: boolean;
   faceCount: number;
   headDirection: HeadDirection;
+  blinkDetected?: boolean;
 }
 
 export interface PoseDetectionResult {
