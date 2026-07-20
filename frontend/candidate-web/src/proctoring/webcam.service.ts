@@ -17,14 +17,16 @@ export class WebcamService {
    */
   public async requestPermission(): Promise<boolean> {
     try {
+      console.log("[WebcamService] CAMERA_PERMISSION_REQUEST initiated");
       const tempStream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
         audio: false,
       });
       tempStream.getTracks().forEach((track) => track.stop());
+      console.log("[WebcamService] CAMERA_PERMISSION_SUCCESS: permission granted");
       return true;
     } catch (err) {
-      console.error("Webcam permission denied or unavailable:", err);
+      console.error("[WebcamService] CAMERA_PERMISSION_DENIED or unavailable:", err);
       return false;
     }
   }
@@ -34,26 +36,41 @@ export class WebcamService {
    */
   public async start(): Promise<MediaStream> {
     if (this.stream) {
+      console.log("[WebcamService] Stream already active. Reusing current stream.");
       return this.stream;
     }
 
     try {
+      console.log("[WebcamService] Creating media stream (getUserMedia)...");
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
           frameRate: { ideal: 15 },
         },
-        audio: false, // We do not need audio for this CV module
+        audio: false,
       });
+      console.log("[WebcamService] STREAM_CREATED successfully:", this.stream.id);
 
       const video = this.getVideoElement();
+      console.log("[WebcamService] VIDEO_ELEMENT_ASSIGNED to stream object");
       video.srcObject = this.stream;
+
+      video.onloadedmetadata = () => {
+        console.log(
+          `[WebcamService] LOADEDMETADATA event fired: videoWidth=${video.videoWidth}, videoHeight=${video.videoHeight}, readyState=${video.readyState}`,
+        );
+      };
+
+      console.log("[WebcamService] Triggering video.play()...");
       await video.play();
+      console.log(
+        `[WebcamService] VIDEO_PLAY_SUCCESS: videoWidth=${video.videoWidth}, videoHeight=${video.videoHeight}, readyState=${video.readyState}`,
+      );
 
       return this.stream;
     } catch (err) {
-      console.error("Failed to start webcam stream:", err);
+      console.error("[WebcamService] Failed to start webcam stream or play video:", err);
       throw err;
     }
   }
@@ -63,6 +80,7 @@ export class WebcamService {
    */
   public stop(): void {
     if (this.stream) {
+      console.log("[WebcamService] Stopping stream tracks...");
       this.stream.getTracks().forEach((track) => {
         track.stop();
         this.stream?.removeTrack(track);
@@ -71,6 +89,7 @@ export class WebcamService {
     }
 
     if (this.videoElement) {
+      console.log("[WebcamService] Clearing hidden video element srcObject");
       this.videoElement.srcObject = null;
       if (this.videoElement.parentNode) {
         this.videoElement.parentNode.removeChild(this.videoElement);
@@ -98,10 +117,6 @@ export class WebcamService {
       this.videoElement.style.left = "-9999px";
       this.videoElement.style.width = "640px";
       this.videoElement.style.height = "480px";
-      this.videoElement.style.opacity = "0";
-      this.videoElement.style.pointerEvents = "none";
-      this.videoElement.muted = true;
-      this.videoElement.playsInline = true;
       document.body.appendChild(this.videoElement);
     }
     return this.videoElement;

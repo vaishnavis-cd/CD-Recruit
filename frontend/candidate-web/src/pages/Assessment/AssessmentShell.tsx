@@ -61,9 +61,18 @@ export function AssessmentShell() {
     const attachVideo = () => {
       const stream = WebcamService.getInstance().getStream();
       const videoEl = document.getElementById("proctoring-preview-video") as HTMLVideoElement;
+      console.log(`[AssessmentShell] attachVideo check: videoEl exists? ${!!videoEl}, stream exists? ${!!stream}`);
       if (videoEl && stream) {
-        videoEl.srcObject = stream;
-        videoEl.play().catch((e) => console.debug("Autoplay preview deferred:", e));
+        if (videoEl.srcObject !== stream) {
+          console.log("[AssessmentShell] Attaching stream to preview video element");
+          videoEl.srcObject = stream;
+          videoEl.onloadedmetadata = () => {
+            console.log(`[AssessmentShell] Preview loadedmetadata: videoWidth=${videoEl.videoWidth}, videoHeight=${videoEl.videoHeight}, readyState=${videoEl.readyState}`);
+          };
+          videoEl.play()
+            .then(() => console.log(`[AssessmentShell] Preview video.play() success. videoWidth=${videoEl.videoWidth}, videoHeight=${videoEl.videoHeight}, readyState=${videoEl.readyState}`))
+            .catch((e) => console.error("[AssessmentShell] Preview video.play() failed:", e));
+        }
         if (timer) clearInterval(timer);
       }
     };

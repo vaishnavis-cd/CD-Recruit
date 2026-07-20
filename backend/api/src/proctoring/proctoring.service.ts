@@ -78,7 +78,11 @@ export class ProctoringService {
       dto.uploadStatus ??
       (dto.clipUrl ? ProctoringUploadStatus.UPLOADED : ProctoringUploadStatus.FAILED);
 
-    return this.prisma.proctoringEvent.create({
+    this.logger.log(
+      `[ProctoringService] WRITING_TO_DB: sessionId=${dto.sessionId}, eventType=${dto.eventType}, uploadStatus=${uploadStatus}`,
+    );
+
+    const createdEvent = await this.prisma.proctoringEvent.create({
       data: {
         sessionId: dto.sessionId,
         eventType: dto.eventType,
@@ -89,6 +93,9 @@ export class ProctoringService {
         uploadStatus,
       },
     });
+
+    this.logger.log(`[ProctoringService] DB_WRITE_SUCCESS: eventId=${createdEvent.id}`);
+    return createdEvent;
   }
 
   /**
@@ -114,7 +121,9 @@ export class ProctoringService {
     }
 
     const storageRef = `proctoring/${sessionId}/${filename}`;
-    this.logger.log(`Uploading evidence clip to ${this.bucketBiometric}/${storageRef}`);
+    this.logger.log(
+      `[ProctoringService] MINIO_UPLOAD_START: filename=${filename}, bucket=${this.bucketBiometric}, storageRef=${storageRef}`,
+    );
 
     const success = await this.storage.putObject(
       this.bucketBiometric,
@@ -126,6 +135,8 @@ export class ProctoringService {
     if (!success) {
       throw new BadRequestException("Failed to upload evidence clip to object storage.");
     }
+
+    this.logger.log(`[ProctoringService] MINIO_UPLOAD_SUCCESS: storageRef=${storageRef}`);
 
     return {
       storageRef,
