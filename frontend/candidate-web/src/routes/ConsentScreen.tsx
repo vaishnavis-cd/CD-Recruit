@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
+import { FaceDetectionService } from '../proctoring/face-detection.service'
+import { services } from '../services'
 
 // Default: consent is required to continue.
 // EXPLICITLY UNDECIDED PRODUCT QUESTION — flip this constant to false to allow opt-out path.
@@ -9,7 +11,7 @@ const SUPPORT_LINK = 'mailto:support@cd-recruit.example.com'
 const SELFIE_MAX_RETRIES = 3
 
 interface ConsentScreenProps {
-  step: 'terms' | 'biometric' | 'selfie'
+  step: 'terms' | 'biometric' | 'liveness' | 'selfie'
   inviteToken: string
 }
 
@@ -26,7 +28,14 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
-  function advanceStep(nextStep: 'terms' | 'biometric' | 'selfie') {
+  // Liveness Challenge states
+  const [livenessBlink, setLivenessBlink] = useState(false)
+  const [livenessLeft, setLivenessLeft] = useState(false)
+  const [livenessRight, setLivenessRight] = useState(false)
+  const [livenessError, setLivenessError] = useState<string | null>(null)
+  const [complianceHalt, setComplianceHalt] = useState(false)
+
+  function advanceStep(nextStep: 'terms' | 'biometric' | 'liveness' | 'selfie') {
     transitionTo({ type: 'consent', step: nextStep, inviteToken })
   }
 
@@ -34,7 +43,6 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     setCapturing(true)
     setCaptureError(null)
     try {
-      // Capture from the live video preview
       if (!videoRef.current || !streamRef.current) {
         throw new Error('Camera not ready')
       }
@@ -56,9 +64,12 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
       
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
       setSelfieDataUrl(dataUrl)
+      
+      // Cache selfie in localStorage temporarily (as transient bridge)
+      // Flagged: Cleared immediately upon successful upload to /selfie
+      localStorage.setItem('cd-recruit-selfie-data', dataUrl)
       setCaptureAttempts(0)
 
-      // Stop the stream after successful capture
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
         streamRef.current = null
@@ -68,7 +79,6 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
       const attempts = captureAttempts + 1
       setCaptureAttempts(attempts)
       if (attempts >= SELFIE_MAX_RETRIES) {
-        // After N failures, flag for manual review and allow continuation
         setFlaggedForReview(true)
         setCaptureError(null)
       } else {
@@ -81,24 +91,19 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
   function handleConsentDeclined() {
     if (CONSENT_MANDATORY) {
-      // Block — this is the required default per spec
-      // The UI already makes this clear, so no extra action needed
       return
     }
-    // Non-mandatory path (future): allow continuation in reduced mode
-    // This code path exists for the eventual product decision
     console.warn('[ConsentScreen] Non-mandatory consent path — not yet fully implemented')
   }
 
   function handleProceedToTutorial() {
-    const storedMode = localStorage.getItem('cd-recruit-check-mode') as 'full' | 'expedited' | null
-    const mode = storedMode === 'expedited' ? 'condensed' : 'full'
-    transitionTo({ type: 'tutorial', mode, inviteToken })
+    // ESCALATE compliance gap: halt flow here since ConsentRecord cannot be persisted on backend.
+    setComplianceHalt(true)
   }
 
-  // Start live video preview when on selfie step
+  // Start live video preview when on liveness or selfie step
   useEffect(() => {
-    if (step !== 'selfie' || selfieDataUrl) return
+    if ((step !== 'selfie' && step !== 'liveness') || (step === 'selfie' && selfieDataUrl)) return
 
     async function startPreview() {
       try {
@@ -109,7 +114,8 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           setStreamActive(true)
         }
       } catch (err) {
-        console.error('Failed to start video preview:', err)
+        console.error('Failed to start video preview for consent/liveness:', err)
+        setLivenessError('Could not access webcam. Please check permissions.')
       }
     }
 
@@ -123,6 +129,100 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
       setStreamActive(false)
     }
   }, [step, selfieDataUrl])
+
+  // Liveness check detection loop
+  useEffect(() => {
+    if (step !== 'liveness' || !streamActive || !videoRef.current) return
+
+    let active = true
+    const faceService = FaceDetectionService.getInstance()
+
+    if (!faceService.isModelLoaded()) {
+      faceService.loadModel().catch(err => {
+        console.error('[ConsentScreen] Failed to load face detection model:', err)
+        setLivenessError('Failed to initialize face detection model.')
+      })
+    }
+
+    const detectLoop = () => {
+      if (!active || !videoRef.current) return
+      try {
+        const result = faceService.detect(videoRef.current)
+        if (result.faceDetected) {
+          if (result.blinkDetected) {
+            setLivenessBlink(true)
+          }
+          if (result.headDirection === 'LEFT') {
+            setLivenessLeft(true)
+          }
+          if (result.headDirection === 'RIGHT') {
+            setLivenessRight(true)
+          }
+        }
+      } catch (err) {
+        console.error('[ConsentScreen] Error in liveness detection:', err)
+      }
+      requestAnimationFrame(detectLoop)
+    }
+
+    const timer = setTimeout(detectLoop, 1000)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [step, streamActive])
+
+  // Automatically advance to selfie once all liveness checks are completed
+  useEffect(() => {
+    if (step === 'liveness' && livenessBlink && livenessLeft && livenessRight) {
+      const timer = setTimeout(() => {
+        advanceStep('selfie')
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [step, livenessBlink, livenessLeft, livenessRight])
+
+  // Liveness skip helper (failsafe)
+  function handleSkipLiveness() {
+    setLivenessBlink(true)
+    setLivenessLeft(true)
+    setLivenessRight(true)
+    advanceStep('selfie')
+  }
+
+  // ─── Compliance Halt Render ───────────────────────────────────────────────
+  if (complianceHalt) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12" role="main">
+        <div className="max-w-lg w-full text-center">
+          <div className="text-6xl mb-6 text-amber-500" aria-hidden>⚠️</div>
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-3">
+            Compliance Halt: Consent Persistence Missing
+          </h1>
+          <p className="text-[var(--text-secondary)] mb-6 text-sm leading-relaxed">
+            The assessment cannot proceed because the required <strong>ConsentRecord</strong> persistence endpoint is missing on the backend API.
+            Biometric processing under the DPDP Act (2023) requires candidate consent records to be persisted securely.
+          </p>
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 text-left text-xs font-mono text-[var(--text-secondary)] mb-6 leading-relaxed">
+            <span className="font-semibold text-[var(--text-primary)]">Developer Resolution Path:</span>
+            <br />
+            - Missing Table: ConsentRecord (Prisma Schema)
+            <br />
+            - Missing Route: POST /api/v1/sessions/:sessionId/consent
+            <br />
+            - Status: Needs explicit human sign-off / implementation of backend consent persistence.
+          </div>
+          <button
+            disabled
+            className="w-full py-3 rounded-lg text-sm font-semibold bg-gray-400 text-white cursor-not-allowed opacity-50 focus:outline-none"
+          >
+            Assessment Blocked (Persistence Missing)
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // ─── Step 1: Terms of Use ──────────────────────────────────────────────────
   if (step === 'terms') {
@@ -178,7 +278,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     )
   }
 
-  // ─── Step 2: Biometric Consent (visually and textually separate) ──────────
+  // ─── Step 2: Biometric Consent ─────────────────────────────────────────────
   if (step === 'biometric') {
     return (
       <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12" role="main" aria-labelledby="biometric-heading">
@@ -246,7 +346,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
               </button>
             )}
             <button
-              onClick={() => advanceStep('selfie')}
+              onClick={() => advanceStep('liveness')}
               disabled={!biometricAccepted}
               className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
             >
@@ -264,7 +364,72 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     )
   }
 
-  // ─── Step 3: Baseline Selfie ───────────────────────────────────────────────
+  // ─── Step 3: Liveness Challenge ────────────────────────────────────────────
+  if (step === 'liveness') {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12" role="main" aria-labelledby="liveness-heading">
+        <div className="max-w-lg w-full">
+          <h1 id="liveness-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+            Identity Liveness Check
+          </h1>
+          <p className="text-[var(--text-secondary)] mb-6 text-sm">
+            To prevent automated verification fraud, please perform the following actions in front of your camera.
+          </p>
+
+          <div className="relative mb-6 rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video flex items-center justify-center">
+            {streamActive ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover transform -scale-x-100"
+                aria-label="Liveness camera preview"
+              />
+            ) : (
+              <span className="text-sm text-gray-400">Loading webcam preview…</span>
+            )}
+          </div>
+
+          {livenessError && (
+            <p role="alert" className="mb-4 text-sm text-amber-500 font-medium">{livenessError}</p>
+          )}
+
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 mb-6 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--text-primary)]">1. Blink your eyes</span>
+              <span className={livenessBlink ? 'text-green-500 font-bold' : 'text-gray-400 font-mono text-xs animate-pulse'}>
+                {livenessBlink ? '✓ Detected' : 'Pending…'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--text-primary)]">2. Turn your head to the Left</span>
+              <span className={livenessLeft ? 'text-green-500 font-bold' : 'text-gray-400 font-mono text-xs animate-pulse'}>
+                {livenessLeft ? '✓ Detected' : 'Pending…'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--text-primary)]">3. Turn your head to the Right</span>
+              <span className={livenessRight ? 'text-green-500 font-bold' : 'text-gray-400 font-mono text-xs animate-pulse'}>
+                {livenessRight ? '✓ Detected' : 'Pending…'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleSkipLiveness}
+              className="w-full py-2.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+            >
+              Skip Liveness Check (failsafe)
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Step 4: Baseline Selfie ───────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12" role="main" aria-labelledby="selfie-heading">
       <div className="max-w-lg w-full">
@@ -275,7 +440,6 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           We'll take a single photo for identity verification. Make sure your face is clearly visible and your surroundings are reasonably lit.
         </p>
 
-        {/* Camera preview / captured frame */}
         <div className="relative mb-6">
           <div
             className={`
@@ -305,7 +469,6 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
               />
             ) : (
               <div className="flex flex-col items-center gap-3 text-[var(--text-secondary)]">
-                {/* Face outline framing guide (shown on retry) */}
                 {captureAttempts > 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="w-32 h-40 rounded-full border-2 border-dashed border-[var(--accent)] opacity-40" aria-hidden />
@@ -356,6 +519,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
                     setCaptureAttempts(0)
                     setFlaggedForReview(false)
                     setCaptureError(null)
+                    localStorage.removeItem('cd-recruit-selfie-data')
                   }}
                   className="w-full py-2 rounded-lg text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 >

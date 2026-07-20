@@ -14,6 +14,9 @@ const COOLDOWNS: Record<ProctoringEventType, number> = {
   EXCESSIVE_MOVEMENT: 15000,
   MULTIPLE_FACES: 0,
   SEAT_EXIT: 0,
+  TAB_SWITCH: 10000,
+  PASTE: 5000,
+  FULLSCREEN_EXIT: 10000,
 };
 
 @Injectable()
@@ -248,13 +251,28 @@ export class ProctoringService {
       const textLength = payload?.textLength || textSnippet.length || 0;
 
       // Rule 1: Tab Switch + External Insert within 10s
-      const recentTabSwitch = await this.prisma.eventLog.findFirst({
+      // First check EventLog table (server-side tracking)
+      let recentTabSwitch = await this.prisma.eventLog.findFirst({
         where: {
           sessionId,
           eventType: "TAB_SWITCH",
           occurredAt: { gte: tenSecondsAgo },
         },
       });
+
+      // Fallback: check ProctoringEvent table (client-side reported tab-switch)
+      if (!recentTabSwitch) {
+        const pe = await this.prisma.proctoringEvent.findFirst({
+          where: {
+            sessionId,
+            eventType: "TAB_SWITCH" as any,
+            timestamp: { gte: tenSecondsAgo },
+          },
+        });
+        if (pe) {
+          recentTabSwitch = pe as any; // Map to satisfy recentTabSwitch check
+        }
+      }
 
       // Rule 2: Provenance check (self-copied matching vs external insert)
       let isSelfCopied = false;
@@ -303,6 +321,18 @@ export class ProctoringService {
           category,
           severity,
           confidence,
+          flaggedAt: now,
+        },
+      });
+    }
+
+    if (eventType === "FULLSCREEN_EXIT") {
+      return this.prisma.integrityFlag.create({
+        data: {
+          sessionId,
+          category: "FULLSCREEN_EXIT_FLAG",
+          severity: "HIGH",
+          confidence: 0.9,
           flaggedAt: now,
         },
       });

@@ -3,6 +3,8 @@ import axios from 'axios'
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
 import { CODING_QUESTIONS } from '../../fixtures/questions'
+import { useSessionStore } from '../../store/sessionMachine'
+import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -20,12 +22,24 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     return { invite, drive: FIXTURE_DRIVE, session: null }
   },
 
-  async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed'): Promise<Session> {
+  async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
     // 1. Redeem invite token and create session on the backend
     const startRes = await apiClient.post('/sessions/start', { inviteToken: token })
     const { sessionId, startedAt } = startRes.data
 
-    // 2. Begin the session to transition its status to IN_PROGRESS
+    // 2. Upload baseline selfie if provided (interim biometric-data handling pattern bridge via localStorage - clear immediately)
+    if (selfieDataUrl) {
+      try {
+        await apiClient.post(`/sessions/${sessionId}/selfie`, { image: selfieDataUrl })
+        console.log('[realSessionApiAdapter] Baseline selfie uploaded successfully.')
+      } catch (err) {
+        console.error('[realSessionApiAdapter] Failed to upload baseline selfie:', err)
+      } finally {
+        localStorage.removeItem('cd-recruit-selfie-data')
+      }
+    }
+
+    // 3. Begin the session to transition its status to IN_PROGRESS
     const beginRes = await apiClient.post(`/sessions/${sessionId}/begin`)
 
     return {
@@ -80,17 +94,34 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   },
 
   async reportIntegritySignal(signal: IntegritySignalType): Promise<void> {
-    try {
-      await apiClient.post('/proctoring/events', {
-        sessionId: (signal as any).sessionId || '',
-        eventType: (signal as any).type || 'EXTERNAL_INSERT',
-        severity: (signal as any).severity || 'MEDIUM',
-        timestamp: new Date().toISOString(),
-        payload: (signal as any).payload || {},
-      })
-    } catch (err) {
-      console.warn('Failed to report integrity signal:', err)
+    const sessionId = useSessionStore.getState().session?.id || ''
+    if (!sessionId) {
+      console.warn('[realSessionApiAdapter] reportIntegritySignal: No active sessionId found.')
+      return
     }
+
+    let eventType: any = 'TAB_SWITCH'
+    let severity: 'MEDIUM' | 'HIGH' = 'MEDIUM'
+    const payload: any = signal.metadata || {}
+
+    if (signal.kind === 'tab-switch' || signal.kind === 'window-blur') {
+      eventType = 'TAB_SWITCH'
+      severity = 'MEDIUM'
+    } else if (signal.kind === 'paste-anomaly') {
+      eventType = 'PASTE'
+      severity = 'HIGH'
+    } else if (signal.kind === 'fullscreen-exit') {
+      eventType = 'FULLSCREEN_EXIT'
+      severity = 'HIGH'
+    }
+
+    await ProctoringEventService.getInstance().createEvent({
+      sessionId,
+      eventType,
+      severity,
+      timestamp: signal.timestamp || new Date().toISOString(),
+      payload,
+    })
   },
 
   async syncEventLog(_payload: SyncEventPayload): Promise<{ success: boolean; retryAfterMs?: number }> {
