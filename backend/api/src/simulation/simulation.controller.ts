@@ -1,7 +1,12 @@
-import { Controller, Get, Post, Body, Param } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
 import { SimulationService } from "./simulation.service";
 import { SessionLogService } from "./session-log.service";
 import { PrismaService } from "../common/prisma.service";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../common/guards/roles.guard";
+import { Roles } from "../common/decorators/roles.decorator";
+import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
+import { StaffRole } from "@cd-recruit/shared-types";
 
 @Controller()
 export class SimulationController {
@@ -12,6 +17,8 @@ export class SimulationController {
   ) {}
 
   @Get("admin/sessions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
   async listSessions() {
     return this.prisma.session.findMany({
       include: {
@@ -133,16 +140,19 @@ export class SimulationController {
   }
 
   @Post("sessions/:id/simulation/start")
+  @UseGuards(SessionOwnerGuard)
   async startSimulation(@Param("id") sessionId: string) {
     return this.simulationService.startSimulation(sessionId);
   }
 
   @Get("sessions/:id/simulation/current")
+  @UseGuards(SessionOwnerGuard)
   async getCurrentEvent(@Param("id") sessionId: string) {
     return this.simulationService.getCurrentEvent(sessionId);
   }
 
   @Post("sessions/:id/simulation/state")
+  @UseGuards(SessionOwnerGuard)
   async logEventState(
     @Param("id") sessionId: string,
     @Body() body: { state: string; action: string; payload?: any },
@@ -157,26 +167,33 @@ export class SimulationController {
   }
 
   @Post("sessions/:id/simulation/submit")
+  @UseGuards(SessionOwnerGuard)
   async submitEvent(@Param("id") sessionId: string, @Body() response: any) {
     return this.simulationService.submitEvent(sessionId, response);
   }
 
   @Post("sessions/:id/simulation/skip")
+  @UseGuards(SessionOwnerGuard)
   async skipEvent(@Param("id") sessionId: string) {
     return this.simulationService.skipEvent(sessionId);
   }
 
   @Get("sessions/:id/simulation/summary")
+  @UseGuards(SessionOwnerGuard)
   async getSessionSummary(@Param("id") sessionId: string) {
     return this.simulationService.getSessionSummary(sessionId);
   }
 
   @Get("sessions/:id/simulation/timeline")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
   async getRecruiterTimeline(@Param("id") sessionId: string) {
     return this.sessionLogService.getTimeline(sessionId);
   }
 
   @Get("sessions/:id/simulation/logs")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
   async getSessionLogs(@Param("id") sessionId: string) {
     return this.sessionLogService.getSession(sessionId);
   }

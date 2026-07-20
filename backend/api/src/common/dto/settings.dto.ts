@@ -51,3 +51,9 @@ export class ListAuditLogQueryDto {
   @IsString()
   search?: string;
 }
+
+export class UpdateAppealWindowConfigDto {
+  @IsInt()
+  @Min(1)
+  appealWindowDays: number;
+}

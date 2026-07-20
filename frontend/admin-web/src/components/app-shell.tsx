@@ -7,6 +7,7 @@ import {
   LogOut,
   ClipboardCheck,
   Settings as SettingsIcon,
+  Award,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -14,6 +15,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/drives", label: "Drives", icon: BriefcaseBusiness },
   { to: "/invites", label: "Invites", icon: Send },
+  { to: "/results", label: "Results", icon: Award },
   { to: "/reports", label: "Reports", icon: FileBarChart },
   { to: "/questions", label: "Question Bank", icon: ClipboardCheck },
   { to: "/settings", label: "Settings", icon: SettingsIcon },

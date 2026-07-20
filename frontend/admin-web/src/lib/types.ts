@@ -101,3 +101,65 @@ export interface AuditLog {
     email: string;
   };
 }
+
+export interface SessionResultItem {
+  id: string;
+  sessionId: string;
+  candidateId: string;
+  candidateName: string;
+  candidateEmail: string;
+  driveId?: string | null;
+  driveName?: string;
+  roleTemplateName?: string;
+  status: string;
+  submittedAt: string | null;
+  compositeScore: number | null;
+  moduleScores?: Record<string, number>;
+  aiConfidence?: number | null;
+  humanReviewed?: boolean;
+  integrityFlagsCount?: number;
+  decision?: {
+    outcome: "PASS" | "FAIL";
+    decidedAt: string;
+    decidedBy: string;
+    note?: string;
+  };
+}
+
+export interface CandidateSessionDetail {
+  id: string;
+  candidateName: string;
+  candidateEmail: string;
+  driveName: string;
+  roleTemplateName: string;
+  status: string;
+  startedAt: string | null;
+  submittedAt: string | null;
+  deadlineAt: string | null;
+  disconnectCount: number;
+  moduleResponses: Array<{
+    id: string;
+    questionId: string;
+    responsePayload: any;
+  }>;
+  integrityFlags: Array<{
+    id: string;
+    category: string;
+    severity: string;
+    confidence: number;
+    flaggedAt: string;
+  }>;
+  score: {
+    compositeScore: number;
+    moduleScores: Record<string, number>;
+    sayDoConsistencyScore: number;
+    aiConfidence: number;
+    humanReviewed: boolean;
+  } | null;
+  decision?: {
+    outcome: "PASS" | "FAIL";
+    decidedAt: string;
+    decidedBy: string;
+    note?: string;
+  };
+}

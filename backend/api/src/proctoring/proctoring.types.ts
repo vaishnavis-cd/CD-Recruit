@@ -2,6 +2,8 @@ import { IsString, IsNotEmpty, IsUUID, IsEnum, IsISO8601, IsOptional } from "cla
 import { ProctoringEventType, ProctoringUploadStatus } from "@prisma/client";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
+export { ProctoringEventType, ProctoringUploadStatus };
+
 export class CreateProctoringEventDto {
   @ApiProperty({
     description: "Session ID (UUID) linked to the assessment session",

@@ -2,8 +2,8 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException, 
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
-import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse } from "./proctoring.types";
-import { ProctoringEventType, ProctoringUploadStatus, SessionStatus } from "@prisma/client";
+import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
+import { SessionStatus } from "@prisma/client";
 
 const COOLDOWNS: Record<ProctoringEventType, number> = {
   PHONE_DETECTED: 30000,
@@ -234,5 +234,80 @@ export class ProctoringService {
     }
 
     return summary;
+  }
+
+  /**
+   * Evaluate proctoring telemetry for correlated integrity flags and provenance tagging.
+   */
+  async evaluateEvent(sessionId: string, eventType: string, payload: any) {
+    const now = new Date();
+    const tenSecondsAgo = new Date(now.getTime() - 10000);
+
+    if (eventType === "EXTERNAL_INSERT" || eventType === "PASTE") {
+      const textSnippet = payload?.snippet || payload?.text || "";
+      const textLength = payload?.textLength || textSnippet.length || 0;
+
+      // Rule 1: Tab Switch + External Insert within 10s
+      const recentTabSwitch = await this.prisma.eventLog.findFirst({
+        where: {
+          sessionId,
+          eventType: "TAB_SWITCH",
+          occurredAt: { gte: tenSecondsAgo },
+        },
+      });
+
+      // Rule 2: Provenance check (self-copied matching vs external insert)
+      let isSelfCopied = false;
+      if (textSnippet && textSnippet.length > 5) {
+        const session = await this.prisma.session.findUnique({
+          where: { id: sessionId },
+          include: {
+            drive: {
+              include: {
+                questions: {
+                  include: { question: true },
+                },
+              },
+            },
+          },
+        });
+
+        if (session?.drive?.questions) {
+          for (const dq of session.drive.questions) {
+            const qStr = JSON.stringify(dq.question.content);
+            if (qStr.includes(textSnippet)) {
+              isSelfCopied = true;
+              break;
+            }
+          }
+        }
+      }
+
+      let category = "EXTERNAL_INSERT_FLAG";
+      let severity = "HIGH";
+      let confidence = 0.85;
+
+      if (recentTabSwitch) {
+        category = "CORRELATED_PASTE_ANOMALY";
+        severity = "CRITICAL";
+        confidence = 0.95;
+      } else if (isSelfCopied) {
+        category = "SELF_COPY_INSERT";
+        severity = "LOW";
+        confidence = 0.3;
+      }
+
+      return this.prisma.integrityFlag.create({
+        data: {
+          sessionId,
+          category,
+          severity,
+          confidence,
+          flaggedAt: now,
+        },
+      });
+    }
+
+    return null;
   }
 }

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResultsRouteImport } from './routes/results'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QuestionsRouteImport } from './routes/questions'
 import { Route as LoginRouteImport } from './routes/login'
@@ -17,11 +18,17 @@ import { Route as InvitesRouteImport } from './routes/invites'
 import { Route as DrivesRouteImport } from './routes/drives'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResultsIdRouteImport } from './routes/results.$id'
 import { Route as DrivesIdRouteImport } from './routes/drives.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultsRoute = ResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -59,6 +66,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResultsIdRoute = ResultsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ResultsRoute,
+} as any)
 const DrivesIdRoute = DrivesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -73,8 +85,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/questions': typeof QuestionsRoute
   '/reports': typeof ReportsRoute
+  '/results': typeof ResultsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/drives/$id': typeof DrivesIdRoute
+  '/results/$id': typeof ResultsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,8 +98,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/questions': typeof QuestionsRoute
   '/reports': typeof ReportsRoute
+  '/results': typeof ResultsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/drives/$id': typeof DrivesIdRoute
+  '/results/$id': typeof ResultsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,8 +112,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/questions': typeof QuestionsRoute
   '/reports': typeof ReportsRoute
+  '/results': typeof ResultsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/drives/$id': typeof DrivesIdRoute
+  '/results/$id': typeof ResultsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,8 +127,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/questions'
     | '/reports'
+    | '/results'
     | '/settings'
     | '/drives/$id'
+    | '/results/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,8 +140,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/questions'
     | '/reports'
+    | '/results'
     | '/settings'
     | '/drives/$id'
+    | '/results/$id'
   id:
     | '__root__'
     | '/'
@@ -131,8 +153,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/questions'
     | '/reports'
+    | '/results'
     | '/settings'
     | '/drives/$id'
+    | '/results/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,6 +167,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   QuestionsRoute: typeof QuestionsRoute
   ReportsRoute: typeof ReportsRoute
+  ResultsRoute: typeof ResultsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -153,6 +178,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/results': {
+      id: '/results'
+      path: '/results'
+      fullPath: '/results'
+      preLoaderRoute: typeof ResultsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -204,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/results/$id': {
+      id: '/results/$id'
+      path: '/$id'
+      fullPath: '/results/$id'
+      preLoaderRoute: typeof ResultsIdRouteImport
+      parentRoute: typeof ResultsRoute
+    }
     '/drives/$id': {
       id: '/drives/$id'
       path: '/$id'
@@ -225,6 +264,17 @@ const DrivesRouteChildren: DrivesRouteChildren = {
 const DrivesRouteWithChildren =
   DrivesRoute._addFileChildren(DrivesRouteChildren)
 
+interface ResultsRouteChildren {
+  ResultsIdRoute: typeof ResultsIdRoute
+}
+
+const ResultsRouteChildren: ResultsRouteChildren = {
+  ResultsIdRoute: ResultsIdRoute,
+}
+
+const ResultsRouteWithChildren =
+  ResultsRoute._addFileChildren(ResultsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
@@ -233,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   QuestionsRoute: QuestionsRoute,
   ReportsRoute: ReportsRoute,
+  ResultsRoute: ResultsRouteWithChildren,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

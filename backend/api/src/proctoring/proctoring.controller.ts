@@ -10,12 +10,17 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+<<<<<<< HEAD
+=======
+  UseGuards,
+>>>>>>> 596c8f8a88812168880c01880567ac662ad6bc3b
   Logger,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from "@nestjs/swagger";
 import { ProctoringService } from "./proctoring.service";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse } from "./proctoring.types";
+import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
 
 @ApiTags("proctoring")
 @Controller("proctoring")
@@ -30,6 +35,7 @@ export class ProctoringController {
    */
   @Post("events")
   @HttpCode(HttpStatus.CREATED)
+<<<<<<< HEAD
   @ApiOperation({ summary: "Persist proctoring event telemetry metadata" })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -50,6 +56,16 @@ export class ProctoringController {
   async createEvent(@Body() dto: CreateProctoringEventDto) {
     this.logger.log(`[ProctoringController] EVENT_RECEIVED: sessionId=${dto.sessionId}, eventType=${dto.eventType}, severity=${dto.severity}`);
     return this.proctoringService.createEvent(dto);
+=======
+  @UseGuards(SessionOwnerGuard)
+  async createEvent(@Body() dto: CreateProctoringEventDto) {
+    const event = await this.proctoringService.createEvent(dto);
+    // Asynchronously evaluate correlation & provenance flags
+    this.proctoringService.evaluateEvent(dto.sessionId, dto.eventType, dto).catch((err) => {
+      this.logger.error(`Error evaluating proctoring event: ${err.message}`);
+    });
+    return event;
+>>>>>>> 596c8f8a88812168880c01880567ac662ad6bc3b
   }
 
   /**
