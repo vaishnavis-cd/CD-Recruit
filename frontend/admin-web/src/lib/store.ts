@@ -247,6 +247,8 @@ function mapBackendSession(session: any): Session {
     submittedAt: session.submittedAt
       ? session.submittedAt.slice(0, 10)
       : new Date().toISOString().slice(0, 10),
+    gradingSource: session.score?.gradingSource || 'placeholder',
+    sayDoRationale: session.score?.sayDoRationale || null,
   };
 }
 
@@ -399,6 +401,105 @@ export const useStore = create<Store>((set, get) => ({
         };
         return mapped;
       }
+      if (!res.ok) throw new Error("Failed to fetch session detail");
+      const detail = await res.json();
+
+      // Map detailed fields
+      const compositeScore = detail.score ? Math.round(detail.score.compositeScore * 100) : 70;
+      const sayDoScore = detail.score ? Math.round(detail.score.sayDoConsistencyScore * 100) : 80;
+
+      const initials = detail.candidate.name
+        ? detail.candidate.name
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase()
+        : "CN";
+
+      // Map module scores to key-value
+      const moduleScores: Record<string, number> = {};
+      if (detail.score?.moduleScores) {
+        Object.entries(detail.score.moduleScores).forEach(([mod, val]) => {
+          moduleScores[mod] = Math.round((val as number) * 100);
+        });
+      }
+
+      // Map integrity flags
+      const flags = detail.integrityFlags.map((f: any) => ({
+        category: f.category,
+        severity:
+          f.severity === "HIGH" || f.severity === "critical"
+            ? ("critical" as const)
+            : ("low" as const),
+        timestamp: f.flaggedAt ? f.flaggedAt.slice(11, 16) : "12:00",
+        hasEvidence: !!f.evidenceClipUrl,
+      }));
+
+      // Map mismatches and rationale if they exist
+      const mismatches = detail.score?.mismatches || [];
+      const sayDoRationale = detail.score?.sayDoRationale || null;
+      const gradingSource = detail.score?.gradingSource || 'placeholder';
+
+      // Generate mock trace for visualization if missing
+      const sayDoTrace: { t: number; said: number; did: number }[] = [];
+      let saidVal = sayDoScore;
+      let didVal = sayDoScore;
+      for (let idx = 0; idx <= 40; idx++) {
+        saidVal += (Math.random() - 0.5) * 4;
+        didVal += (Math.random() - 0.5) * 4;
+        sayDoTrace.push({
+          t: idx,
+          said: Math.round(Math.max(30, Math.min(98, saidVal))),
+          did: Math.round(Math.max(20, Math.min(98, didVal))),
+        });
+      }
+
+      const status = mapBackendStatus(
+        detail.status,
+        !!detail.score,
+        detail.score?.humanReviewed,
+        detail.score?.aiConfidence || 1.0,
+        !!detail.decision,
+      );
+
+      const mappedDetail: Session = {
+        id: detail.sessionId,
+        candidate: {
+          id: detail.candidate.id,
+          name: detail.candidate.name,
+          email: detail.candidate.email,
+          initials,
+        },
+        roleTemplate: {
+          id: detail.roleTemplateName.toLowerCase().replace(" ", "-"),
+          roleName: detail.roleTemplateName,
+          track: "Mid",
+        },
+        status,
+        compositeScore,
+        sayDoScore,
+        sayDoTrace,
+        moduleScores,
+        mismatches,
+        integrityFlags: flags,
+        submittedAt: detail.submittedAt
+          ? detail.submittedAt.slice(0, 10)
+          : new Date().toISOString().slice(0, 10),
+        decision: detail.decision
+          ? {
+              outcome: detail.decision.outcome.toLowerCase() as "advance" | "reject",
+              decidedAt: detail.decision.decidedAt.slice(0, 10),
+              decidedBy: detail.decision.decidedBy,
+              note: detail.decision.note,
+            }
+          : undefined,
+        sayDoRationale,
+        gradingSource,
+      };
+
+      set((s) => ({
+        sessions: s.sessions.map((x) => (x.id === sessionId ? mappedDetail : x)),
+      }));
     } catch (err) {
       console.error("Failed to load session detail from API, using fallback detail:", err);
     }

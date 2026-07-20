@@ -134,6 +134,14 @@ export function SessionDetailBody({
       <div className="flex-1 overflow-y-auto p-6 bg-[#F7F7F9]">
         {tab === "saydo" && (
           <div>
+            {session.gradingSource === 'placeholder' && (
+              <div className="bg-[#FFF4DC] border border-[#FFEAB8] rounded-lg p-4 mb-4 text-[#8A5A00] text-[13px] flex items-start gap-2">
+                <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                <div>
+                  <strong>Placeholder Score:</strong> The Say-Do Consistency score for this session has not yet been computed by the Correlation Engine. The displayed score is a static fallback placeholder.
+                </div>
+              </div>
+            )}
             <div className="mb-2 text-[11px] font-mono uppercase tracking-[0.16em] text-[#5B5B64]">
               Say-Do trace · elapsed session time
             </div>
@@ -145,6 +153,14 @@ export function SessionDetailBody({
                 setHighlightIdx(i);
               }}
             />
+            {session.sayDoRationale && (
+              <div className="mt-6 bg-white border border-[#E6E6EA] rounded-lg p-5">
+                <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#5B5B64] mb-2">
+                  AI Scoring Rationale
+                </div>
+                <p className="text-[13px] text-[#0B0B0D] leading-relaxed whitespace-pre-wrap">{session.sayDoRationale}</p>
+              </div>
+            )}
             <div className="mt-6">
               <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#5B5B64] mb-3">
                 Said / Did mismatches

@@ -4,6 +4,7 @@ import { ValidationPipe, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
@@ -47,9 +48,20 @@ async function bootstrap(): Promise<void> {
     throw new Error("INFRA_MODE=local must never run with NODE_ENV=production");
   }
 
+  // ── Swagger Configuration ─────────────────────────────────────────────
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle("CD Recruit Proctoring API")
+    .setDescription("Authoritative spec documentation for client-side proctoring engine backend")
+    .setVersion("1.0")
+    .addTag("proctoring")
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup("api-docs", app, swaggerDocument);
+
   await app.listen(port);
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);
+  logger.log(`Swagger UI: http://localhost:${port}/api-docs`);
 }
 
 bootstrap().catch((err) => {

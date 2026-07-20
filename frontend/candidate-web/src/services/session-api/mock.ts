@@ -38,20 +38,22 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
     return { invite, drive: FIXTURE_DRIVE, session: mockSession }
   },
 
-  async createSession(_token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed'): Promise<Session> {
-    await randomLatency()
-    maybeFail(0.05)
-
-    mockSession = {
-      id: `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
+    if (selfieDataUrl) {
+      console.log('[mockSessionApiAdapter] Baseline selfie received, sanitizing local storage.');
+      localStorage.removeItem('cd-recruit-selfie-data');
+    }
+    const session: Session = {
+      id: `session_${Math.random().toString(36).substr(2, 9)}`,
       cvMode,
       tutorialMode,
       startedAt: new Date().toISOString(),
       submittedAt: null,
       status: 'active',
     }
-    localStorage.setItem('cd-recruit-session', JSON.stringify(mockSession))
-    return mockSession
+    mockSession = session
+    localStorage.setItem('cd-recruit-session', JSON.stringify(session))
+    return Promise.resolve(session)
   },
 
   async submitModuleResponse(response: ModuleResponse): Promise<void> {
