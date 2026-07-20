@@ -13,6 +13,7 @@ export default defineConfig({
   optimizeDeps: {
     // Pre-bundle CJS shared-types for dev server
     include: ["@cd-recruit/shared-types"],
+    exclude: ["sql.js"],
   },
   build: {
     // Tell Rollup's built-in CommonJS plugin to handle shared-types CJS output
@@ -22,6 +23,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    headers: {
+      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Cross-Origin-Opener-Policy": "same-origin",
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:3001",

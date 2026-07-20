@@ -1,0 +1,46 @@
+// SERVICE FACTORY — single injection point for all port adapters.
+// Checks environment variables to switch between mock and real adapters.
+
+import { mockSessionApiAdapter } from './session-api/mock'
+import { realSessionApiAdapter } from './session-api/real'
+import { mockTimeAuthorityAdapter } from './time/mock'
+import { realTimeAuthorityAdapter } from './time/real'
+import { mockScenarioEngineAdapter } from './scenario/mock'
+import { realScenarioEngineAdapter } from './scenario/real'
+import { mockCodeExecutionAdapter } from './execution/mock'
+import { realCodeExecutionAdapter } from './execution/real'
+import { mockCvDetectionAdapter } from './cv/mock'
+import { realCvDetectionAdapter } from './cv/real'
+
+import type { CandidateSessionApiPort } from './session-api/port'
+import type { TimeAuthorityPort } from './time/port'
+import type { ScenarioEnginePort } from './scenario/port'
+import type { CodeExecutionPort } from './execution/port'
+import type { CvDetectionPort } from './cv/port'
+
+export interface Services {
+  sessionApi: CandidateSessionApiPort
+  time: TimeAuthorityPort
+  scenario: ScenarioEnginePort
+  execution: CodeExecutionPort
+  cv: CvDetectionPort
+}
+
+export function createServices(): Services {
+  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'mock'
+  const timeMode = import.meta.env.VITE_TIME_MODE ?? 'mock'
+  const scenarioMode = import.meta.env.VITE_SCENARIO_MODE ?? 'mock'
+  const executionMode = import.meta.env.VITE_EXECUTION_MODE ?? 'mock'
+  const cvMode = import.meta.env.VITE_CV_MODE ?? 'mock'
+
+  return {
+    sessionApi: sessionApiMode === 'real' ? realSessionApiAdapter : mockSessionApiAdapter,
+    time: timeMode === 'real' ? realTimeAuthorityAdapter : mockTimeAuthorityAdapter,
+    scenario: scenarioMode === 'real' ? realScenarioEngineAdapter : mockScenarioEngineAdapter,
+    execution: executionMode === 'real' ? realCodeExecutionAdapter : mockCodeExecutionAdapter,
+    cv: cvMode === 'real' ? realCvDetectionAdapter : mockCvDetectionAdapter,
+  }
+}
+
+// Singleton services instance — components use this via context
+export const services = createServices()
