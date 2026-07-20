@@ -7,7 +7,7 @@ import { FlowControlPanel } from './dev/FlowControlPanel'
 export default function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           {/* Canonical entry point */}
           <Route path="/invite/:token" element={<SessionRouter />} />
