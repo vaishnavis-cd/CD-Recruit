@@ -1,0 +1,76 @@
+import type * as Monaco from 'monaco-editor'
+
+// Custom Monaco themes using IBM Plex Mono + design tokens
+// NOT using Monaco's built-in vs / vs-dark themes per spec
+
+export const cdRecruitLightTheme: Monaco.editor.IStandaloneThemeData = {
+  base: 'vs',
+  inherit: false,
+  rules: [
+    { token: '', foreground: '111318', background: 'F5F6F8' },
+    { token: 'comment', foreground: '6B7280', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '2F5CFF', fontStyle: 'bold' },
+    { token: 'string', foreground: '12B76A' },
+    { token: 'number', foreground: 'E5484D' },
+    { token: 'type', foreground: 'F59E0B' },
+    { token: 'function', foreground: '111318', fontStyle: 'bold' },
+    { token: 'variable', foreground: '111318' },
+    { token: 'operator', foreground: '6B7280' },
+    { token: 'delimiter', foreground: '6B7280' },
+    { token: 'identifier', foreground: '111318' },
+    { token: 'constant', foreground: 'E5484D' },
+  ],
+  colors: {
+    'editor.background': '#F5F6F8',
+    'editor.foreground': '#111318',
+    'editor.lineHighlightBackground': '#E4E6EB55',
+    'editor.selectionBackground': '#2F5CFF33',
+    'editorLineNumber.foreground': '#6B7280',
+    'editorLineNumber.activeForeground': '#111318',
+    'editorCursor.foreground': '#2F5CFF',
+    'editor.inactiveSelectionBackground': '#2F5CFF22',
+    'editorIndentGuide.background1': '#E4E6EB',
+    'editorIndentGuide.activeBackground1': '#6B7280',
+    'editorWidget.background': '#FFFFFF',
+    'editorWidget.border': '#E4E6EB',
+    'editorSuggestWidget.background': '#FFFFFF',
+    'editorSuggestWidget.border': '#E4E6EB',
+    'editorSuggestWidget.selectedBackground': '#F5F6F8',
+  },
+}
+
+export const cdRecruitDarkTheme: Monaco.editor.IStandaloneThemeData = {
+  base: 'vs-dark',
+  inherit: false,
+  rules: [
+    { token: '', foreground: 'F2F3F5', background: '1A1D24' },
+    { token: 'comment', foreground: '9CA3AF', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '5B7FFF', fontStyle: 'bold' },
+    { token: 'string', foreground: '3ECF8E' },
+    { token: 'number', foreground: 'F0555B' },
+    { token: 'type', foreground: 'FBBF24' },
+    { token: 'function', foreground: 'F2F3F5', fontStyle: 'bold' },
+    { token: 'variable', foreground: 'F2F3F5' },
+    { token: 'operator', foreground: '9CA3AF' },
+    { token: 'delimiter', foreground: '9CA3AF' },
+    { token: 'identifier', foreground: 'F2F3F5' },
+    { token: 'constant', foreground: 'F0555B' },
+  ],
+  colors: {
+    'editor.background': '#1A1D24',
+    'editor.foreground': '#F2F3F5',
+    'editor.lineHighlightBackground': '#2A2E3755',
+    'editor.selectionBackground': '#5B7FFF33',
+    'editorLineNumber.foreground': '#9CA3AF',
+    'editorLineNumber.activeForeground': '#F2F3F5',
+    'editorCursor.foreground': '#5B7FFF',
+    'editor.inactiveSelectionBackground': '#5B7FFF22',
+    'editorIndentGuide.background1': '#2A2E37',
+    'editorIndentGuide.activeBackground1': '#9CA3AF',
+    'editorWidget.background': '#1A1D24',
+    'editorWidget.border': '#2A2E37',
+    'editorSuggestWidget.background': '#1A1D24',
+    'editorSuggestWidget.border': '#2A2E37',
+    'editorSuggestWidget.selectedBackground': '#2A2E37',
+  },
+}

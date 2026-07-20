@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -69,6 +70,7 @@ function InvitesPage() {
 
   const [open, setOpen] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [confirmBulkRevoke, setConfirmBulkRevoke] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [selectedDriveId, setSelectedDriveId] = useState<string>("");
@@ -124,7 +126,7 @@ function InvitesPage() {
       });
       setCreated(inv);
     } catch (err: any) {
-      alert(err.message || "Failed creating invite");
+      toast.error(err.message || "Failed creating invite");
     }
   };
 
@@ -154,10 +156,13 @@ function InvitesPage() {
 
   const handleBulkRevoke = async () => {
     if (selectedIds.length === 0) return;
-    if (confirm(`Are you sure you want to revoke ${selectedIds.length} invite(s)?`)) {
-      await bulkRevoke(selectedIds);
-      setSelectedIds([]);
-    }
+    setConfirmBulkRevoke(true);
+  };
+
+  const confirmBulkRevokeAction = async () => {
+    await bulkRevoke(selectedIds);
+    setSelectedIds([]);
+    setConfirmBulkRevoke(false);
   };
 
   const handleBulkResend = async () => {
@@ -531,6 +536,39 @@ function InvitesPage() {
                 className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] cursor-pointer"
               >
                 Save Extensions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Revoke Confirmation Modal */}
+      {confirmBulkRevoke && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <XCircle size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Revoke Multiple Invites?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to revoke <span className="font-semibold text-[#0B0B0D]">{selectedIds.length} invite(s)</span>? The invite links will no longer be valid and the candidates will not be able to access the assessment.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmBulkRevoke(false)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkRevokeAction}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Revoke {selectedIds.length} Invite(s)
               </button>
             </div>
           </div>
