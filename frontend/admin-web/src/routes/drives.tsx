@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate, Outlet, useLocation } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Search,
   Plus,
@@ -66,15 +67,18 @@ function DrivesPage() {
   const [statusFilter, setStatusFilter] = useState<DriveStatus | "all">("all");
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
+  const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
 
   // Wizard State
   const [driveName, setDriveName] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [customRoleName, setCustomRoleName] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Sync selectedRole with first template when templates load or if current is invalid
+  // Sync selectedRole with first template when templates load or if current is invalid.
+  // "rt-custom" is a valid sentinel for the Custom Role option — never override it.
   useEffect(() => {
-    if (roleTemplates.length > 0) {
+    if (roleTemplates.length > 0 && selectedRole !== "rt-custom") {
       const exists = roleTemplates.some((r) => r.id === selectedRole);
       if (!exists) {
         setSelectedRole(roleTemplates[0].id);
@@ -92,14 +96,32 @@ function DrivesPage() {
   }, [drives, query, statusFilter]);
 
   const handleLaunch = async () => {
+    setFormError(null);
     if (!driveName.trim()) {
-      alert("Please enter a drive name");
+      setFormError("Please enter a drive name.");
       return;
     }
+    if (selectedRole === "rt-custom" && !customRoleName.trim()) {
+      setFormError("Please enter a custom role name.");
+      return;
+    }
+    // For Custom Role, fall back to the first real template as the backing ID.
+    // The drive name already captures the intent; a dedicated create-template
+    // endpoint would be needed to persist a new template.
+    const effectiveRoleTemplateId =
+      selectedRole === "rt-custom"
+        ? (roleTemplates[0]?.id ?? "")
+        : selectedRole;
+
+    if (!effectiveRoleTemplateId) {
+      setFormError("No role templates available. Please contact your administrator.");
+      return;
+    }
+
     try {
       const result = await createDrive({
         name: driveName,
-        roleTemplateId: selectedRole,
+        roleTemplateId: effectiveRoleTemplateId,
         status: "DRAFT",
       });
 
@@ -108,7 +130,7 @@ function DrivesPage() {
       // Redirect to the newly created drive details page
       navigate({ to: `/drives/${result.driveId}` });
     } catch (err: any) {
-      alert(err.message || "Failed to create Drive");
+      toast.error(err.message || "Failed to create Drive");
     }
   };
 
@@ -116,6 +138,7 @@ function DrivesPage() {
     setDriveName("");
     setSelectedRole(roleTemplates[0]?.id || "");
     setCustomRoleName("");
+    setFormError(null);
   };
 
   const handleDeleteDrive = async () => {
@@ -124,7 +147,7 @@ function DrivesPage() {
       await deleteDrive(confirmDeleteDrive.id);
       setConfirmDeleteDrive(null);
     } catch (err: any) {
-      alert("Failed to delete drive: " + (err.message || err));
+      toast.error("Failed to delete drive: " + (err.message || err));
     }
   };
 
@@ -258,11 +281,7 @@ function DrivesPage() {
               </button>
               {d.status === "ACTIVE" && (
                 <button
-                  onClick={() => {
-                    if (confirm("Are you sure you want to close this Drive early?")) {
-                      closeDrive(d.id);
-                    }
-                  }}
+                  onClick={() => setConfirmCloseDrive(d)}
                   className="px-2.5 py-1.5 text-[12px] font-medium border border-[#FEE2E2] bg-[#FEF2F2] text-[#EF4444] rounded-md hover:bg-[#FEE2E2] transition-colors cursor-pointer"
                 >
                   Close
@@ -294,6 +313,12 @@ function DrivesPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {formError && (
+                <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-md bg-[#FFF5F5] border border-[#FECACA] text-[#C0392B] text-[12px] leading-relaxed">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
               <div>
                 <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
                   Drive Name
@@ -346,9 +371,49 @@ function DrivesPage() {
               </button>
               <button
                 onClick={handleLaunch}
-                className="flex items-center gap-1.5 py-2 px-4 text-[13px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm font-semibold"
+                disabled={
+                  !driveName.trim() ||
+                  (selectedRole === "rt-custom" && !customRoleName.trim())
+                }
+                className="flex items-center gap-1.5 py-2 px-4 text-[13px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Create Drive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Drive Confirmation Modal */}
+      {confirmCloseDrive && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-orange-50 text-orange-500 rounded-full">
+                <X size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Close Drive Early?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to close the assessment drive <span className="font-semibold text-[#0B0B0D]">"{confirmCloseDrive.name}"</span> early? This will prevent any new candidates from starting the assessment and mark the drive as closed.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmCloseDrive(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  closeDrive(confirmCloseDrive.id);
+                  setConfirmCloseDrive(null);
+                }}
+                className="px-4 py-2 text-white bg-orange-500 hover:bg-orange-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Close Drive
               </button>
             </div>
           </div>

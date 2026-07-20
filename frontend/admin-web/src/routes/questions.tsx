@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Search,
   Plus,
@@ -94,6 +95,9 @@ function QuestionBankPage() {
   const [importModuleType, setImportModuleType] = useState<string>("MCQ");
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
+  // Confirmation Modal State
+  const [confirmArchiveQuestion, setConfirmArchiveQuestion] = useState<any | null>(null);
+
   useEffect(() => {
     fetchQuestions({
       moduleType: modFilter !== "all" ? modFilter : undefined,
@@ -167,7 +171,7 @@ function QuestionBankPage() {
       if (editingQuestion.moduleType === "MCQ") {
         content.options = editMcqOptions.filter((o) => o.trim());
         if (content.options.length < 2) {
-          alert("Please provide at least 2 options");
+          toast.error("Please provide at least 2 options");
           return;
         }
         scoringConfig.correctIndex = editCorrectIndex;
@@ -196,7 +200,7 @@ function QuestionBankPage() {
 
       setEditingQuestion(null);
     } catch (err: any) {
-      alert("Failed updating question: " + err.message);
+      toast.error("Failed updating question: " + err.message);
     }
   };
 
@@ -208,7 +212,7 @@ function QuestionBankPage() {
       if (moduleType === "MCQ") {
         content.options = mcqOptions.filter((o) => o.trim());
         if (content.options.length < 2) {
-          alert("Please provide at least 2 options");
+          toast.error("Please provide at least 2 options");
           return;
         }
         scoringConfig.correctIndex = correctIndex;
@@ -239,7 +243,7 @@ function QuestionBankPage() {
       setShowCreateModal(false);
       resetForm();
     } catch (err: any) {
-      alert("Failed creating question: " + err.message);
+      toast.error("Failed creating question: " + err.message);
     }
   };
 
@@ -332,7 +336,7 @@ function QuestionBankPage() {
 
   const handleImport = () => {
     if (!csvFile) {
-      alert("Please select a CSV file first.");
+      toast.error("Please select a CSV file first.");
       return;
     }
     const reader = new FileReader();
@@ -341,7 +345,7 @@ function QuestionBankPage() {
         const text = e.target?.result as string;
         const rows = parseCSV(text);
         if (rows.length < 2) {
-          alert("The CSV file must contain at least a header row and one data row.");
+          toast.error("The CSV file must contain at least a header row and one data row.");
           return;
         }
         const headers = rows[0].map((h) => h.toLowerCase());
@@ -405,11 +409,11 @@ function QuestionBankPage() {
         }
 
         await bulkUploadQuestions(importModuleType, parsedQuestions);
-        alert(`Successfully imported ${parsedQuestions.length} questions!`);
+        toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
         setCsvFile(null);
         setShowImportModal(false);
       } catch (err: any) {
-        alert("CSV Import failed: " + err.message);
+        toast.error("CSV Import failed: " + err.message);
       }
     };
     reader.readAsText(csvFile);
@@ -576,11 +580,7 @@ function QuestionBankPage() {
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm("Are you sure you want to archive this question?")) {
-                          archiveQuestion(q.id);
-                        }
-                      }}
+                      onClick={() => setConfirmArchiveQuestion(q)}
                       className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
                       title="Archive"
                     >
@@ -672,11 +672,7 @@ function QuestionBankPage() {
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm("Are you sure you want to archive this question?")) {
-                          archiveQuestion(q.id);
-                        }
-                      }}
+                      onClick={() => setConfirmArchiveQuestion(q)}
                       className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
                       title="Archive"
                     >
@@ -1291,6 +1287,42 @@ function QuestionBankPage() {
                 className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Question Confirmation Modal */}
+      {confirmArchiveQuestion && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Archive Question?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to archive this question? The question will be removed from active use and won't appear in new drive assignments.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmArchiveQuestion(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  archiveQuestion(confirmArchiveQuestion.id);
+                  setConfirmArchiveQuestion(null);
+                }}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Archive Question
               </button>
             </div>
           </div>
