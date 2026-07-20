@@ -1,40 +1,25 @@
-import { useEffect } from "react";
-import { useSessionStore } from "@/store/session.store";
-import { SecondTabOverlay } from "@/components/common/SecondTabOverlay";
-import { WatermarkOverlay } from "@/components/common/WatermarkOverlay";
-import { AppRoutes } from "@/routes";
-import { useTheme } from "@/hooks/useTheme";
+import React from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ThemeProvider } from './theme/ThemeProvider'
+import { SessionRouter } from './routes/SessionRouter'
+import { FlowControlPanel } from './dev/FlowControlPanel'
 
-/**
- * App — root component.
- *
- * Responsibilities:
- *  1. Initialize theme preference on load
- *  2. Attempt session resume on page load if sessionStorage has a persisted sessionId
- *  3. Render SecondTabOverlay at root level — outside the router so it covers
- *     every route when isSecondTab becomes true
- *  4. Render the router
- */
-export function App() {
-  useTheme();
-  const persistedSessionId = useSessionStore((s) => s.persistedSessionId);
-  const sessionId = useSessionStore((s) => s.sessionId);
-  const resumeSession = useSessionStore((s) => s.resumeSession);
-
-  // Resume-on-load: sessionStorage has a sessionId but the in-memory store
-  // is not yet hydrated (page was refreshed). Attempt resume once on mount.
-  useEffect(() => {
-    if (persistedSessionId && !sessionId) {
-      void resumeSession();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+export default function App() {
   return (
-    <>
-      <SecondTabOverlay />
-      <WatermarkOverlay />
-      <AppRoutes />
-    </>
-  );
+    <ThemeProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Canonical entry point */}
+          <Route path="/invite/:token" element={<SessionRouter />} />
+          {/* Dev convenience redirect */}
+          <Route path="/" element={<Navigate to="/invite/demo-token-2024" replace />} />
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/invite/demo-token-2024" replace />} />
+        </Routes>
+
+        {/* Dev panel — only renders in import.meta.env.DEV */}
+        <FlowControlPanel />
+      </BrowserRouter>
+    </ThemeProvider>
+  )
 }

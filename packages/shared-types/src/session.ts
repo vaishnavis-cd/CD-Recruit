@@ -112,3 +112,56 @@ export interface CloseSessionResponse {
   status: SessionStatus;
   submittedAt: string; // ISO-8601
 }
+
+// ---------------------------------------------------------------------------
+// Candidate UI Port Mappings (added additively for frontend integration)
+// ---------------------------------------------------------------------------
+
+export interface CandidateInvite {
+  token: string;
+  scheduledTime: string; // ISO 8601
+  bufferMinutes: number;
+  graceMinutes: number;
+  candidateId: string;
+  driveId: string;
+}
+
+export interface CandidateDrive {
+  id: string;
+  name: string;
+  roleName: string;
+  status: "open" | "closed";
+  scheduleStart: string;
+  scheduleEnd: string;
+}
+
+export interface CandidateSession {
+  id: string;
+  cvMode: "full" | "reduced";
+  tutorialMode: "full" | "condensed";
+  startedAt: string;
+  submittedAt: string | null;
+  status: "active" | "submitted" | "expired";
+}
+
+export interface CandidateModuleResponse {
+  sessionId: string;
+  moduleIndex: number;
+  questionId: string;
+  response: unknown;
+  savedAt: string;
+}
+
+export interface IntegritySignalType {
+  kind: "tab-switch" | "window-blur" | "paste-anomaly" | "fullscreen-exit" | "network-drop" | "infra-failure";
+  category: "silent" | "functional";
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SyncEventPayload {
+  sessionId: string;
+  events: IntegritySignalType[];
+  responses: CandidateModuleResponse[];
+}
+

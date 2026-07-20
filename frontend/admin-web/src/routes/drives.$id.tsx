@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Copy,
   Calendar,
@@ -18,6 +19,7 @@ import {
   Clock,
   Settings,
   BookOpen,
+  AlertTriangle,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -74,6 +76,11 @@ function DriveDetailPage() {
   const [candidateInput, setCandidateInput] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+
+  // Confirmation Modal States
+  const [confirmGenerateLinks, setConfirmGenerateLinks] = useState(false);
+  const [confirmRevokeCandidate, setConfirmRevokeCandidate] = useState<any | null>(null);
+  const [confirmRevokeInvite, setConfirmRevokeInvite] = useState<any | null>(null);
 
   const loadData = async () => {
     try {
@@ -147,7 +154,7 @@ CD-Recruit Team`;
 
   const handleBulkAdd = async () => {
     if (candidatesList.length === 0) {
-      alert("No valid candidates parsed. Format: Name, Email (one per line)");
+      toast.error("No valid candidates parsed. Format: Name, Email (one per line)");
       return;
     }
     setBulkLoading(true);
@@ -158,10 +165,10 @@ CD-Recruit Team`;
         candidatesList.map((c) => ({ name: c.name, candidateEmail: c.email })),
       );
       setCandidateInput("");
-      alert(`Successfully added ${candidatesList.length} candidates!`);
+      toast.success(`Successfully added ${candidatesList.length} candidates!`);
       loadData();
     } catch (err: any) {
-      alert("Failed to add candidates: " + err.message);
+      toast.error("Failed to add candidates: " + err.message);
     } finally {
       setBulkLoading(false);
     }
@@ -231,14 +238,14 @@ CD-Recruit Team`;
         const text = e.target?.result as string;
         const rows = parseCSV(text);
         if (rows.length < 2) {
-          alert("CSV must contain headers (name, email) and at least one candidate row.");
+          toast.error("CSV must contain headers (name, email) and at least one candidate row.");
           return;
         }
         const headers = rows[0].map((h) => h.toLowerCase().trim());
         const nameIdx = headers.indexOf("name");
         const emailIdx = headers.indexOf("email");
         if (nameIdx === -1 || emailIdx === -1) {
-          alert("CSV must contain both 'name' and 'email' columns.");
+          toast.error("CSV must contain both 'name' and 'email' columns.");
           return;
         }
 
@@ -254,7 +261,7 @@ CD-Recruit Team`;
         }
 
         if (parsed.length === 0) {
-          alert("No valid candidates found in CSV.");
+          toast.error("No valid candidates found in CSV.");
           return;
         }
 
@@ -265,10 +272,10 @@ CD-Recruit Team`;
           parsed.map((c) => ({ name: c.name, candidateEmail: c.email })),
         );
         setCsvFile(null);
-        alert(`Successfully imported ${parsed.length} candidates from CSV!`);
+        toast.success(`Successfully imported ${parsed.length} candidates from CSV!`);
         loadData();
       } catch (err: any) {
-        alert("CSV parse failed: " + err.message);
+        toast.error("CSV parse failed: " + err.message);
       } finally {
         setBulkLoading(false);
       }
@@ -277,17 +284,20 @@ CD-Recruit Team`;
   };
 
   const handleGenerateLinks = async () => {
-    if (confirm("Are you sure you want to generate invite links? This will lock editing of this drive's configurations.")) {
-      setGenerating(true);
-      try {
-        await generateDriveLinks(driveId);
-        alert("Invite links generated successfully!");
-        loadData();
-      } catch (err: any) {
-        alert("Failed to generate links: " + err.message);
-      } finally {
-        setGenerating(false);
-      }
+    setConfirmGenerateLinks(true);
+  };
+
+  const confirmGenerateLinksAction = async () => {
+    setConfirmGenerateLinks(false);
+    setGenerating(true);
+    try {
+      await generateDriveLinks(driveId);
+      toast.success("Invite links generated successfully!");
+      loadData();
+    } catch (err: any) {
+      toast.error("Failed to generate links: " + err.message);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -298,7 +308,7 @@ CD-Recruit Team`;
       setExtendInviteId(null);
       loadData();
     } catch (err) {
-      alert("Failed extending invite");
+      toast.error("Failed extending invite");
     }
   };
 
@@ -307,7 +317,7 @@ CD-Recruit Team`;
       await regenerateToken(id);
       loadData();
     } catch (err) {
-      alert("Failed regenerating token");
+      toast.error("Failed regenerating token");
     }
   };
 
@@ -329,20 +339,20 @@ CD-Recruit Team`;
         const errData = await res.json();
         throw new Error(errData.message || "Failed to save configuration");
       }
-      alert("Configuration saved successfully!");
+      toast.success("Configuration saved successfully!");
       loadData();
     } catch (err: any) {
-      alert("Failed to save configuration: " + err.message);
+      toast.error("Failed to save configuration: " + err.message);
     }
   };
 
   const handleSaveQuestions = async () => {
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
-      alert("Question assignments updated successfully!");
+      toast.success("Question assignments updated successfully!");
       loadData();
     } catch (err: any) {
-      alert("Failed saving questions: " + err.message);
+      toast.error("Failed saving questions: " + err.message);
     }
   };
 
@@ -586,11 +596,7 @@ CD-Recruit Team`;
                         Link Pending
                       </span>
                       <button
-                        onClick={() => {
-                          if (confirm("Are you sure you want to remove this candidate?")) {
-                            revokeInvite(c.inviteId).then(() => loadData());
-                          }
-                        }}
+                        onClick={() => setConfirmRevokeCandidate(c)}
                         className="p-1 border border-[#FEE2E2] bg-[#FEF2F2] text-[#EF4444] rounded hover:bg-[#FEE2E2] cursor-pointer"
                         title="Remove Candidate"
                       >
@@ -627,11 +633,7 @@ CD-Recruit Team`;
 
                       {c.inviteStatus === "PENDING" && (
                         <button
-                          onClick={() => {
-                            if (confirm("Are you sure you want to revoke this invite?")) {
-                              revokeInvite(c.inviteId).then(() => loadData());
-                            }
-                          }}
+                          onClick={() => setConfirmRevokeInvite(c)}
                           className="p-1 border border-[#FEE2E2] bg-[#FEF2F2] text-[#EF4444] rounded hover:bg-[#FEE2E2] cursor-pointer"
                           title="Revoke Invite"
                         >
@@ -965,6 +967,115 @@ CD-Recruit Team`;
                 className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF]"
               >
                 Save Extensions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Links Confirmation Modal */}
+      {confirmGenerateLinks && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[480px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-[#EFF6FF] text-[#2F5CFF] rounded-full">
+                <Settings size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Generate Invite Links?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to generate invite links? <span className="font-semibold text-[#0B0B0D]">This will lock editing</span> of this drive's configurations and question assignments. You will not be able to modify the drive settings after this action.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmGenerateLinks(false)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmGenerateLinksAction}
+                className="px-4 py-2 text-white bg-[#2F5CFF] hover:bg-[#1E4DDF] font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Generate Links
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Candidate Confirmation Modal */}
+      {confirmRevokeCandidate && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Remove Candidate?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to remove <span className="font-semibold text-[#0B0B0D]">{confirmRevokeCandidate.candidateName}</span> from this drive? This will permanently remove this candidate from the roster.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmRevokeCandidate(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  revokeInvite(confirmRevokeCandidate.inviteId).then(() => {
+                    loadData();
+                    setConfirmRevokeCandidate(null);
+                  });
+                }}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Remove Candidate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Invite Confirmation Modal */}
+      {confirmRevokeInvite && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <XCircle size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Revoke Invite?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to revoke the invite for <span className="font-semibold text-[#0B0B0D]">{confirmRevokeInvite.candidateName}</span>? The invite link will no longer be valid and the candidate will not be able to access the assessment.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmRevokeInvite(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  revokeInvite(confirmRevokeInvite.inviteId).then(() => {
+                    loadData();
+                    setConfirmRevokeInvite(null);
+                  });
+                }}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Revoke Invite
               </button>
             </div>
           </div>

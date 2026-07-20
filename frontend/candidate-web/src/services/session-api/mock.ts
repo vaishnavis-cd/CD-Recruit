@@ -1,0 +1,92 @@
+import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, IntegritySignalType, SyncEventPayload } from './port'
+import { FIXTURE_INVITE } from '../../fixtures/invite'
+import { FIXTURE_DRIVE } from '../../fixtures/drive'
+
+// Configurable failure rate for retry-path testing (0 = never fail, 1 = always fail)
+const MOCK_FAILURE_RATE = 0.1
+
+function randomLatency(minMs = 300, maxMs = 800): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, minMs + Math.random() * (maxMs - minMs)))
+}
+
+function maybeFail(rate = MOCK_FAILURE_RATE): void {
+  if (Math.random() < rate) {
+    throw new Error('Mock simulated network failure — retry to proceed')
+  }
+}
+
+let mockSession: Session | null = null
+
+export const mockSessionApiAdapter: CandidateSessionApiPort = {
+  async resolveInvite(token: string): Promise<{ invite: Invite; drive: Drive; session: Session | null }> {
+    await randomLatency()
+    maybeFail(0.05) // low failure rate on resolve
+
+    // Return fixture data — all tokens resolve to the same fixture in mock mode
+    const invite: Invite = { ...FIXTURE_INVITE, token }
+
+    // Check if a session already exists in localStorage
+    const stored = localStorage.getItem('cd-recruit-session')
+    if (stored) {
+      try {
+        mockSession = JSON.parse(stored) as Session
+      } catch {
+        mockSession = null
+      }
+    }
+
+    return { invite, drive: FIXTURE_DRIVE, session: mockSession }
+  },
+
+  async createSession(_token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed'): Promise<Session> {
+    await randomLatency()
+    maybeFail(0.05)
+
+    mockSession = {
+      id: `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      cvMode,
+      tutorialMode,
+      startedAt: new Date().toISOString(),
+      submittedAt: null,
+      status: 'active',
+    }
+    localStorage.setItem('cd-recruit-session', JSON.stringify(mockSession))
+    return mockSession
+  },
+
+  async submitModuleResponse(response: ModuleResponse): Promise<void> {
+    await randomLatency(100, 300)
+    // Silently store — mock doesn't actually need to do anything
+    const key = `cd-recruit-resp-${response.sessionId}-${response.questionId}`
+    localStorage.setItem(key, JSON.stringify(response))
+  },
+
+  async submitFinalAssessment(sessionId: string): Promise<{ referenceId: string }> {
+    await randomLatency(500, 1200)
+    maybeFail(MOCK_FAILURE_RATE)
+
+    if (mockSession) {
+      mockSession = { ...mockSession, submittedAt: new Date().toISOString(), status: 'submitted' }
+      localStorage.setItem('cd-recruit-session', JSON.stringify(mockSession))
+    }
+
+    return { referenceId: `REF-${sessionId.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}` }
+  },
+
+  async reportIntegritySignal(_signal: IntegritySignalType): Promise<void> {
+    // Client-side no-op per spec — just needs to exist for components to call
+    // In production, this would POST to the integrity logging service
+    await Promise.resolve()
+  },
+
+  async syncEventLog(payload: SyncEventPayload): Promise<{ success: boolean; retryAfterMs?: number }> {
+    await randomLatency(600, 1500)
+    maybeFail(0.15) // slightly higher failure rate to exercise retry UI
+
+    // Simulate occasional retry-after
+    if (Math.random() < 0.05) {
+      return { success: false, retryAfterMs: 3000 }
+    }
+    return { success: true }
+  },
+}
