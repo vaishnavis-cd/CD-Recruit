@@ -6,6 +6,7 @@ export class ObjectDetectionService {
   private detector: ObjectDetector | null = null;
   private isLoading = false;
   private isLoaded = false;
+  private detectCount = 0;
 
   private constructor() {}
 
@@ -24,14 +25,16 @@ export class ObjectDetectionService {
 
     this.isLoading = true;
     try {
-      console.log("Loading MediaPipe Object Detector model...");
+      console.log("[ObjectDetection] OBJECT_MODEL_LOADING: Loading MediaPipe Object Detector resolver...");
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
       );
 
+      console.log("[ObjectDetection] Loading Object Detector task model from Google storage...");
       this.detector = await ObjectDetector.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
           delegate: "GPU",
         },
         runningMode: "IMAGE",
@@ -40,10 +43,10 @@ export class ObjectDetectionService {
 
       this.isLoaded = true;
       this.isLoading = false;
-      console.log("MediaPipe Object Detector model loaded successfully.");
+      console.log("[ObjectDetection] OBJECT_MODEL_LOADED: MediaPipe Object Detector initialized.");
     } catch (err) {
       this.isLoading = false;
-      console.error("Failed to load Object Detector model:", err);
+      console.error("[ObjectDetection] Failed to load Object Detector model:", err);
       throw err;
     }
   }
@@ -52,7 +55,11 @@ export class ObjectDetectionService {
    * Run object detection on a frame.
    */
   public detect(videoElement: HTMLVideoElement): ObjectDetectionResult {
+    this.detectCount++;
     if (!this.isLoaded || !this.detector) {
+      if (this.detectCount % 15 === 1) {
+        console.warn("[ObjectDetection] Object Detector model is not loaded yet.");
+      }
       return { phoneDetected: false, headphonesDetected: false, bookDetected: false };
     }
 
@@ -71,10 +78,6 @@ export class ObjectDetectionService {
             const label = category.categoryName.toLowerCase();
             const score = category.score;
 
-            // Log details in debug mode
-            // console.debug(`Detected: ${label} with score: ${score}`);
-
-            // Map COCO classes / labels to specified proctoring categories
             if (
               label.includes("cell phone") ||
               label.includes("phone") ||
@@ -102,13 +105,19 @@ export class ObjectDetectionService {
         }
       }
 
-      return {
+      const finalRes: ObjectDetectionResult = {
         phoneDetected,
         headphonesDetected,
         bookDetected,
       };
+
+      if (this.detectCount % 15 === 1) {
+        console.log(`[ObjectDetection] Result: ${JSON.stringify(finalRes)}`);
+      }
+
+      return finalRes;
     } catch (err) {
-      console.error("Error during object detection:", err);
+      console.error("[ObjectDetection] Error during object detection:", err);
       return { phoneDetected: false, headphonesDetected: false, bookDetected: false };
     }
   }

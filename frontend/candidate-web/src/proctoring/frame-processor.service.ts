@@ -8,6 +8,7 @@ export class FrameProcessorService {
   private timerId: any = null;
   private isProcessing = false;
   private listeners: FrameListener[] = [];
+  private frameCount = 0;
 
   private constructor() {}
 
@@ -34,7 +35,9 @@ export class FrameProcessorService {
   public start(): void {
     if (this.isProcessing) return;
 
+    console.log("[FrameProcessor] FRAME_PROCESSOR_STARTED: Initiating loop...");
     this.isProcessing = true;
+    this.frameCount = 0;
     const webcam = WebcamService.getInstance();
 
     const loop = async () => {
@@ -42,20 +45,37 @@ export class FrameProcessorService {
 
       try {
         const video = webcam.getVideoElement();
-        // Only process if video is playing and has valid dimensions
-        if (video && video.readyState >= 2 && !video.paused) {
-          const timestamp = Date.now();
-          // Distribute to all subscribers
-          for (const listener of this.listeners) {
-            try {
-              listener(video, timestamp);
-            } catch (err) {
-              console.error("Error in frame listener:", err);
+        if (video) {
+          if (video.readyState >= 2 && !video.paused) {
+            this.frameCount++;
+            if (this.frameCount % 15 === 1) {
+              console.log(
+                `[FrameProcessor] FRAME_RECEIVED. Total processed frames: ${this.frameCount}. Subscribers count: ${this.listeners.length}`,
+              );
+            }
+
+            const timestamp = Date.now();
+            // Distribute to all subscribers
+            for (const listener of this.listeners) {
+              try {
+                listener(video, timestamp);
+              } catch (err) {
+                console.error("Error in frame listener execution:", err);
+              }
+            }
+          } else {
+            // Log periodically if video element isn't ready
+            if (this.frameCount % 15 === 0) {
+              console.warn(
+                `[FrameProcessor] Video not ready for frames: readyState=${video.readyState}, paused=${video.paused}`,
+              );
             }
           }
+        } else {
+          console.warn("[FrameProcessor] Webcam video element is null or undefined.");
         }
       } catch (err) {
-        console.error("Frame processing error:", err);
+        console.error("Frame processing execution error:", err);
       }
 
       this.timerId = setTimeout(loop, CONFIG.FRAME_INTERVAL_MS);
@@ -68,6 +88,7 @@ export class FrameProcessorService {
    * Stop the frame capture loop.
    */
   public stop(): void {
+    console.log(`[FrameProcessor] Stopping frame loop. Total frames processed: ${this.frameCount}`);
     this.isProcessing = false;
     if (this.timerId) {
       clearTimeout(this.timerId);

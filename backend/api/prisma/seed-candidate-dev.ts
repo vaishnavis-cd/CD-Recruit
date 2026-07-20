@@ -3,9 +3,9 @@ import * as jwt from "jsonwebtoken";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
-// Load .env file from backend/api
+// Load .env file from workspace root or backend root
+dotenv.config({ path: path.join(__dirname, "../../../.env") });
 dotenv.config({ path: path.join(__dirname, "../.env") });
-dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 const prisma = new PrismaClient();
 

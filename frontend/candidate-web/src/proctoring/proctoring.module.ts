@@ -60,6 +60,13 @@ export class ProctoringModule {
         ObjectDetectionService.getInstance().loadModel(),
       ]);
 
+      // Check if start was aborted/stopped during model loading
+      if (!this.sessionId) {
+        console.log("[Proctoring] Start aborted during model loading.");
+        this.stop();
+        return false;
+      }
+
       // 4. Configure engine and event listener
       const engine = DetectionEngineService.getInstance();
       engine.setSessionId(sessionId);
@@ -105,8 +112,6 @@ export class ProctoringModule {
    * Stop the proctoring pipeline, release camera, and flush remaining uploads.
    */
   public async stop(): Promise<void> {
-    if (!this.isRunning) return;
-
     console.log("[Proctoring] Stopping proctoring module...");
 
     // Stop frame loops
