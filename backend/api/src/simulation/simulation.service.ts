@@ -8,6 +8,7 @@ import {
 import { eventTemplates, EventTemplate } from "./event-template-library";
 import { EventGenerationService } from "./event-generation.service";
 import { CompetencyEngine, EventScoreDetail } from "./competency-engine";
+import { CorrelationEngineClient } from "../common/correlation-engine.client";
 
 @Injectable()
 export class SimulationService {
@@ -16,6 +17,7 @@ export class SimulationService {
     private sessionLogService: SessionLogService,
     private eventGenerationService: EventGenerationService,
     private competencyEngine: CompetencyEngine,
+    private correlationClient: CorrelationEngineClient,
   ) {}
 
   async startSimulation(sessionId: string): Promise<SimulationSession> {
@@ -73,10 +75,6 @@ export class SimulationService {
     }
 
     const eventId = session.eventsList[index];
-    const template = eventTemplates.find((t) => t.id === eventId);
-    if (!template) {
-      throw new Error(`Event template ${eventId} not found`);
-    }
 
     // Initialize event state if it doesn't exist
     let eventState = session.eventStates[eventId];
@@ -92,6 +90,67 @@ export class SimulationService {
         throw new NotFoundException(`Simulation session not found`);
       }
       eventState = freshSession.eventStates[eventId];
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+    const question = isUuid
+      ? await this.prisma.question.findUnique({ where: { id: eventId } })
+      : null;
+
+    if (question) {
+      const content = question.content as any;
+      const enrichedContent: any = {
+        context: content.description || content.title || "Pre-approved scenario",
+      };
+
+      if (content.triggers && Array.isArray(content.triggers)) {
+        for (const t of content.triggers) {
+          if (t.type === "slack" || t.type === "chat") {
+            enrichedContent.messages = (enrichedContent.messages || "") + `${t.from}: ${t.body}\n`;
+          } else if (t.type === "ticket" || t.type === "jira") {
+            enrichedContent.tickets = (enrichedContent.tickets || "") + `${t.from}: ${t.body}\n`;
+          } else if (t.type === "email") {
+            enrichedContent.emails = (enrichedContent.emails || "") + `${t.from}: ${t.body}\n`;
+          } else if (t.type === "logs") {
+            enrichedContent.logs = (enrichedContent.logs || "") + `${t.from}: ${t.body}\n`;
+          } else if (t.type === "alerts") {
+            enrichedContent.alerts = (enrichedContent.alerts || "") + `${t.from}: ${t.body}\n`;
+          }
+        }
+      }
+
+      const workspaceType = content.workspaceType || 
+        (content.triggers?.[0]?.type === "ticket" ? "jira" : 
+         content.triggers?.[0]?.type === "slack" ? "chat" : "incident");
+
+      const eventTemplate = {
+        id: question.id,
+        title: content.title || "Simulation Scenario",
+        description: content.description || "",
+        track: (question.difficulty === "hard" ? "experienced" : "fresher") as "fresher" | "experienced",
+        workspaceType: workspaceType as any,
+        timerSeconds: content.timerSeconds || 120,
+        competencies: question.tags || ["Technical"],
+        artifactIds: [],
+        supportedActions: ["respond"],
+        eventDepth: "medium" as const,
+      };
+
+      return {
+        event: {
+          ...eventTemplate,
+          enrichedContent,
+        },
+        index,
+        total,
+        state: eventState.state,
+        timerSeconds: eventTemplate.timerSeconds,
+      };
+    }
+
+    const template = eventTemplates.find((t) => t.id === eventId);
+    if (!template) {
+      throw new Error(`Event template ${eventId} not found`);
     }
 
     // Call LLM generator service (with static fallback) to get enriched content
@@ -234,9 +293,11 @@ export class SimulationService {
           moduleScores: {
             SIMULATION: grading.finalScore,
           },
-          sayDoConsistencyScore: 85.0, // Default baseline for Say-Do consistency
-          aiConfidence: 0.9,
+          sayDoConsistencyScore: -1.0, // Sentinel value for uncomputed score
+          aiConfidence: -1.0,          // Sentinel value for uncomputed confidence
           humanReviewed: false,
+          sayDoRationale: null,
+          gradingSource: "deterministic",
         },
         update: {
           compositeScore: grading.finalScore,
@@ -244,6 +305,11 @@ export class SimulationService {
             SIMULATION: grading.finalScore,
           },
         },
+      });
+      
+      // Trigger Say-Do correlation engine asynchronously
+      this.correlationClient.triggerCorrelation(sessionId).catch((err) => {
+        console.error(`Failed to trigger correlation asynchronously: ${err.message}`);
       });
     }
 

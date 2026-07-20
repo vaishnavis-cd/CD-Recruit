@@ -79,9 +79,18 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     return { referenceId }
   },
 
-  async reportIntegritySignal(_signal: IntegritySignalType): Promise<void> {
-    // Proctoring evidence pipeline is unbuilt: stays mock
-    return Promise.resolve()
+  async reportIntegritySignal(signal: IntegritySignalType): Promise<void> {
+    try {
+      await apiClient.post('/proctoring/events', {
+        sessionId: (signal as any).sessionId || '',
+        eventType: (signal as any).type || 'EXTERNAL_INSERT',
+        severity: (signal as any).severity || 'MEDIUM',
+        timestamp: new Date().toISOString(),
+        payload: (signal as any).payload || {},
+      })
+    } catch (err) {
+      console.warn('Failed to report integrity signal:', err)
+    }
   },
 
   async syncEventLog(_payload: SyncEventPayload): Promise<{ success: boolean; retryAfterMs?: number }> {

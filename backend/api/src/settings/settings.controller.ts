@@ -14,7 +14,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { UUIDValidationPipe } from "../common/pipes/uuid-validation.pipe";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { SettingsService } from "./settings.service";
-import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto } from "../common/dto/settings.dto";
+import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto, UpdateAppealWindowConfigDto } from "../common/dto/settings.dto";
 
 @Controller("admin/settings")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -65,6 +65,22 @@ export class SettingsController {
   ) {
     return this.settingsService.updateRetentionConfig(
       dto.biometricRetentionDays,
+      actor.id,
+    );
+  }
+
+  @Get("appeal-window")
+  async getAppealWindowConfig() {
+    return this.settingsService.getAppealWindowConfig();
+  }
+
+  @Patch("appeal-window")
+  async updateAppealWindowConfig(
+    @Body() dto: UpdateAppealWindowConfigDto,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateAppealWindowConfig(
+      dto.appealWindowDays,
       actor.id,
     );
   }

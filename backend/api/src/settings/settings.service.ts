@@ -24,8 +24,20 @@ export class SettingsService {
         aiConfidenceThreshold: 0.8,
         passRateThreshold: 0.7,
         biometricRetentionDays: 30,
+        appealWindowDays: 14,
       };
       fs.writeFileSync(this.configPath, JSON.stringify(defaultConfig, null, 2), "utf8");
+    } else {
+      try {
+        const data = fs.readFileSync(this.configPath, "utf8");
+        const json = JSON.parse(data);
+        if (json.appealWindowDays === undefined) {
+          json.appealWindowDays = 14;
+          fs.writeFileSync(this.configPath, JSON.stringify(json, null, 2), "utf8");
+        }
+      } catch (err) {
+        // ignore
+      }
     }
   }
 
@@ -130,6 +142,33 @@ export class SettingsService {
         entityType: "Config",
         entityId: "retention",
         metadata: { oldDays, newDays: biometricRetentionDays },
+      },
+    });
+
+    return config;
+  }
+
+  async getAppealWindowConfig() {
+    const config = this.readConfig();
+    return {
+      appealWindowDays: config.appealWindowDays ?? 14,
+    };
+  }
+
+  async updateAppealWindowConfig(appealWindowDays: number, actorId: string) {
+    const config = this.readConfig();
+    const oldDays = config.appealWindowDays ?? 14;
+    config.appealWindowDays = appealWindowDays;
+    this.writeConfig(config);
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "APPEAL_WINDOW_CONFIG_UPDATED",
+        entityType: "Config",
+        entityId: "appealWindow",
+        metadata: { oldDays, newDays: appealWindowDays },
       },
     });
 

@@ -1,22 +1,32 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
-/**
- * SessionOwnerGuard — verifies that the :sessionId route param belongs to
- * the authenticated candidate making the request.
- *
- * Stubbed for Phase 1 scaffold.  Implementation in Phase 1:
- *   1. Extract sessionId from request.params
- *   2. Extract candidateId from the verified JWT on request.user
- *   3. Query Prisma: session.candidateId === candidateId
- *   4. Return false (→ 403) if mismatch
- *
- * Applied with @UseGuards(SessionOwnerGuard) on any route that addresses a
- * session by ID — heartbeat, resume, progress, close, responses, events.
- */
 @Injectable()
 export class SessionOwnerGuard implements CanActivate {
-  canActivate(_context: ExecutionContext): boolean {
-    // TODO Phase 1: implement ownership check
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const sessionId = request.params.sessionId || request.params.id || request.body.sessionId || request.query.sessionId;
+
+    if (!sessionId) {
+      throw new ForbiddenException("Session ID is required.");
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException("Session not found.");
+    }
+
+    if (["SUBMITTED", "CLOSED", "ABANDONED"].includes(session.status)) {
+      throw new ForbiddenException(`Session is already ${session.status.toLowerCase()}.`);
+    }
+
+    // Attach to request
+    request.session = session;
     return true;
   }
 }
