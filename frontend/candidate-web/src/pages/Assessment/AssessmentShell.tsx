@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { formatCountdown } from "@/lib/time-gate";
@@ -7,6 +7,7 @@ import { useSessionStore } from "@/store/session.store";
 import { getQuestion } from "@/api/session";
 import { ProctoringModule } from "@/proctoring/proctoring.module";
 import { WebcamService } from "@/proctoring/webcam.service";
+import { CodingPage } from "@/pages/Coding/CodingPage";
 
 interface QuestionItem {
   id: string;
@@ -16,6 +17,14 @@ interface QuestionItem {
   title: string;
   prompt: string;
   content?: any;
+  response?: {
+    responsePayload?: {
+      code: string;
+      language: string;
+    };
+    isDraft?: boolean;
+    timeSpentSeconds?: number | null;
+  } | null;
 }
 
 export function AssessmentShell() {
@@ -29,6 +38,7 @@ export function AssessmentShell() {
   const [activeQId, setActiveQId] = useState("");
   const [timeLeft, setTimeLeft] = useState(45 * 60 * 1000);
   const [loading, setLoading] = useState(true);
+  const [switchingQuestion, setSwitchingQuestion] = useState(false);
 
   // 1. Initialize Proctoring Pipeline if FULL mode
   useEffect(() => {
@@ -107,10 +117,11 @@ export function AssessmentShell() {
               id: sq.questionId,
               moduleType: sq.moduleType as any,
               index: sq.moduleIndex,
-              status: "unvisited" as const,
+              status: (detail.response && !detail.response.isDraft ? "answered" : "unvisited") as "answered" | "unvisited",
               title,
               prompt,
               content,
+              response: detail.response ?? null,
             };
           })
         );
@@ -152,6 +163,33 @@ export function AssessmentShell() {
 
   const activeQuestion = questions.find(q => q.id === activeQId) || questions[0];
 
+  /**
+   * Re-fetch the latest question detail (including saved draft) from the
+   * backend whenever the candidate navigates to a different question.
+   * This ensures that code written, autosaved and then navigated away from
+   * is correctly restored when the candidate comes back.
+   */
+  const switchToQuestion = useCallback(async (questionId: string) => {
+    if (questionId === activeQId) return;
+    if (!sessionId) { setActiveQId(questionId); return; }
+
+    setSwitchingQuestion(true);
+    setActiveQId(questionId);
+
+    try {
+      const detail = await getQuestion(sessionId, questionId);
+      setQuestions(prev => prev.map(q =>
+        q.id === questionId
+          ? { ...q, content: detail.content as any, response: detail.response ?? null }
+          : q
+      ));
+    } catch {
+      // best-effort — keep stale cached data if re-fetch fails
+    } finally {
+      setSwitchingQuestion(false);
+    }
+  }, [activeQId, sessionId]);
+
   const updateQuestionStatus = (status: "unvisited" | "skipped" | "flagged" | "answered") => {
     setQuestions(prev => prev.map(q => q.id === activeQId ? { ...q, status } : q));
   };
@@ -159,7 +197,7 @@ export function AssessmentShell() {
   const handleNext = () => {
     const currentIndex = questions.findIndex(q => q.id === activeQId);
     if (currentIndex < questions.length - 1) {
-      setActiveQId(questions[currentIndex + 1].id);
+      void switchToQuestion(questions[currentIndex + 1].id);
     } else {
       navigate("/pre-submit", { state: { questions } });
     }
@@ -215,7 +253,7 @@ export function AssessmentShell() {
               {questions.map((q, idx) => (
                 <button
                   key={q.id}
-                  onClick={() => setActiveQId(q.id)}
+                  onClick={() => switchToQuestion(q.id)}
                   className={`aspect-square flex items-center justify-center rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                     activeQId === q.id
                       ? "ring-2 ring-accent border-accent text-accent"
@@ -239,7 +277,7 @@ export function AssessmentShell() {
             {questions.map(q => (
               <button
                 key={q.id}
-                onClick={() => setActiveQId(q.id)}
+                onClick={() => switchToQuestion(q.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
                   activeQId === q.id
                     ? "bg-accent/10 border-accent/25 text-accent font-semibold"
@@ -333,41 +371,58 @@ export function AssessmentShell() {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col bg-surface/10 overflow-hidden">
-            <div className="bg-surface border-b border-border-token px-4 py-2.5 flex items-center justify-between">
-              <span className="text-xs font-bold text-text-secondary font-mono">
-                {activeQuestion.moduleType === "CODING" ? "Workspace.py" : activeQuestion.moduleType === "SQL" ? "query.sql" : "Workspace.txt"}
-              </span>
-              <div className="flex gap-2">
-                {(activeQuestion.moduleType === "CODING" || activeQuestion.moduleType === "SQL") && (
-                  <button
-                    onClick={() => updateQuestionStatus("answered")}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded transition-colors cursor-pointer"
-                  >
-                    <Play className="w-3.5 h-3.5 text-success" />
-                    <span>Run Code</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    updateQuestionStatus("answered");
-                    handleNext();
-                  }}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded transition-colors cursor-pointer"
-                >
-                  <Server className="w-3.5 h-3.5" />
-                  <span>Submit Answer</span>
-                </button>
+          {activeQuestion.moduleType === "CODING" ? (
+            switchingQuestion ? (
+              <div className="flex-1 flex items-center justify-center bg-bg">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-accent" />
+                  <span className="text-xs text-text-secondary font-semibold">Loading question...</span>
+                </div>
               </div>
-            </div>
-
-            <textarea
-              key={activeQuestion?.id}
-              className="flex-1 p-6 font-mono text-xs bg-bg text-text-primary focus:outline-none resize-none"
-              defaultValue={defaultTextareaValue}
-              placeholder={activeQuestion.moduleType === "AI_PROMPTING" ? "Type your prompt here..." : "Type your response here..."}
+            ) : (
+            <CodingPage
+              question={activeQuestion}
+              onNext={handleNext}
+              updateStatus={updateQuestionStatus}
             />
-          </div>
+            )
+          ) : (
+            <div className="flex-1 flex flex-col bg-surface/10 overflow-hidden">
+              <div className="bg-surface border-b border-border-token px-4 py-2.5 flex items-center justify-between">
+                <span className="text-xs font-bold text-text-secondary font-mono">
+                  {activeQuestion.moduleType === "SQL" ? "query.sql" : "Workspace.txt"}
+                </span>
+                <div className="flex gap-2">
+                  {activeQuestion.moduleType === "SQL" && (
+                    <button
+                      onClick={() => updateQuestionStatus("answered")}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded transition-colors cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 text-success" />
+                      <span>Run Code</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      updateQuestionStatus("answered");
+                      handleNext();
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded transition-colors cursor-pointer"
+                  >
+                    <Server className="w-3.5 h-3.5" />
+                    <span>Submit Answer</span>
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                key={activeQuestion?.id}
+                className="flex-1 p-6 font-mono text-xs bg-bg text-text-primary focus:outline-none resize-none"
+                defaultValue={defaultTextareaValue}
+                placeholder={activeQuestion.moduleType === "AI_PROMPTING" ? "Type your prompt here..." : "Type your response here..."}
+              />
+            </div>
+          )}
         </div>
       </main>
 
