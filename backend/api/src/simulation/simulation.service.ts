@@ -8,6 +8,7 @@ import {
 import { eventTemplates, EventTemplate } from "./event-template-library";
 import { EventGenerationService } from "./event-generation.service";
 import { CompetencyEngine, EventScoreDetail } from "./competency-engine";
+import { CorrelationEngineClient } from "../common/correlation-engine.client";
 
 @Injectable()
 export class SimulationService {
@@ -16,6 +17,7 @@ export class SimulationService {
     private sessionLogService: SessionLogService,
     private eventGenerationService: EventGenerationService,
     private competencyEngine: CompetencyEngine,
+    private correlationClient: CorrelationEngineClient,
   ) {}
 
   async startSimulation(sessionId: string): Promise<SimulationSession> {
@@ -234,9 +236,11 @@ export class SimulationService {
           moduleScores: {
             SIMULATION: grading.finalScore,
           },
-          sayDoConsistencyScore: 85.0, // Default baseline for Say-Do consistency
-          aiConfidence: 0.9,
+          sayDoConsistencyScore: -1.0, // Sentinel value for uncomputed score
+          aiConfidence: -1.0,          // Sentinel value for uncomputed confidence
           humanReviewed: false,
+          sayDoRationale: null,
+          gradingSource: "deterministic",
         },
         update: {
           compositeScore: grading.finalScore,
@@ -244,6 +248,11 @@ export class SimulationService {
             SIMULATION: grading.finalScore,
           },
         },
+      });
+      
+      // Trigger Say-Do correlation engine asynchronously
+      this.correlationClient.triggerCorrelation(sessionId).catch((err) => {
+        console.error(`Failed to trigger correlation asynchronously: ${err.message}`);
       });
     }
 
