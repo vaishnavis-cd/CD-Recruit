@@ -32,6 +32,8 @@ export interface Session {
   submittedAt: string;
   reviewer?: { initials: string; name: string };
   decision?: { outcome: "advance" | "reject"; decidedAt: string; decidedBy: string; note?: string };
+  sayDoRationale?: string | null;
+  gradingSource?: 'placeholder' | 'deterministic' | 'ai_graded' | 'correlation_engine';
 }
 
 export interface Invite {
