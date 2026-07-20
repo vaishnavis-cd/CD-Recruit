@@ -247,6 +247,8 @@ function mapBackendSession(session: any): Session {
     submittedAt: session.submittedAt
       ? session.submittedAt.slice(0, 10)
       : new Date().toISOString().slice(0, 10),
+    gradingSource: session.score?.gradingSource || 'placeholder',
+    sayDoRationale: session.score?.sayDoRationale || null,
   };
 }
 
@@ -368,6 +370,11 @@ export const useStore = create<Store>((set, get) => ({
         hasEvidence: !!f.evidenceClipUrl,
       }));
 
+      // Map mismatches and rationale if they exist
+      const mismatches = detail.score?.mismatches || [];
+      const sayDoRationale = detail.score?.sayDoRationale || null;
+      const gradingSource = detail.score?.gradingSource || 'placeholder';
+
       // Generate mock trace for visualization if missing
       const sayDoTrace: { t: number; said: number; did: number }[] = [];
       let saidVal = sayDoScore;
@@ -408,7 +415,7 @@ export const useStore = create<Store>((set, get) => ({
         sayDoScore,
         sayDoTrace,
         moduleScores,
-        mismatches: [], // Stubs
+        mismatches,
         integrityFlags: flags,
         submittedAt: detail.submittedAt
           ? detail.submittedAt.slice(0, 10)
@@ -421,6 +428,8 @@ export const useStore = create<Store>((set, get) => ({
               note: detail.decision.note,
             }
           : undefined,
+        sayDoRationale,
+        gradingSource,
       };
 
       set((s) => ({
