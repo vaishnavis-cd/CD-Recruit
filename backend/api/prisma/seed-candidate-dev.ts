@@ -144,11 +144,17 @@ async function main() {
       difficulty: "medium",
       tags: ["javascript", "coding-sum"],
       content: {
-        prompt: "Write a function sum(a, b) that returns the sum of two numbers.",
-        starterCode: "function sum(a, b) {\n  // Write your code here\n}",
+        prompt: "Write a program that reads two comma-separated numbers on each line from standard input (stdin) and prints their sum to standard output (stdout).",
+        starterCode: {
+          javascript:
+            "const fs = require('fs');\n\nfunction sum(a, b) {\n  // Write your code here\n  return 0;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const parts = line.trim().split(',');\n    const a = parseInt(parts[0].trim(), 10);\n    const b = parseInt(parts[1].trim(), 10);\n    console.log(sum(a, b));\n  }\n}",
+          python:
+            "import sys\n\ndef sum(a: int, b: int) -> int:\n    # Write your code here\n    return 0\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    parts = line.strip().split(',')\n    a = int(parts[0].strip())\n    b = int(parts[1].strip())\n    print(sum(a, b))",
+        },
         testCases: [
-          { input: "1, 2", expectedOutput: "3" },
-          { input: "-1, 5", expectedOutput: "4" },
+          { input: "1, 2", expectedOutput: "3", isHidden: false },
+          { input: "-1, 5", expectedOutput: "4", isHidden: false },
+          { input: "10, 20", expectedOutput: "30", isHidden: true },
         ],
       },
       scoringConfig: {},
@@ -160,11 +166,17 @@ async function main() {
       difficulty: "medium",
       tags: ["javascript", "coding-reverse"],
       content: {
-        prompt: "Write a function reverseString(str) that reverses a string.",
-        starterCode: "function reverseString(str) {\n  // Write your code here\n}",
+        prompt: "Write a program that reads a string on each line from standard input (stdin) and prints its reversed version to standard output (stdout).",
+        starterCode: {
+          javascript:
+            "const fs = require('fs');\n\nfunction reverseString(str) {\n  // Write your code here\n  return '';\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    console.log(reverseString(line.trim()));\n  }\n}",
+          python:
+            "import sys\n\ndef reverse_string(s: str) -> str:\n    # Write your code here\n    return ''\n\nfor line in sys.stdin:\n    print(reverse_string(line.strip()))",
+        },
         testCases: [
-          { input: "'hello'", expectedOutput: "'olleh'" },
-          { input: "'qa'", expectedOutput: "'aq'" },
+          { input: "hello", expectedOutput: "olleh", isHidden: false },
+          { input: "qa", expectedOutput: "aq", isHidden: false },
+          { input: "antigravity", expectedOutput: "ytivargitna", isHidden: true },
         ],
       },
       scoringConfig: {},
@@ -176,11 +188,18 @@ async function main() {
       difficulty: "medium",
       tags: ["javascript", "coding-even"],
       content: {
-        prompt: "Write a function isEven(n) that returns true if n is even.",
-        starterCode: "function isEven(n) {\n  // Write your code here\n}",
+        prompt: "Write a program that reads an integer on each line from standard input (stdin) and prints 'true' if the number is even, or 'false' otherwise, to standard output (stdout).",
+        starterCode: {
+          javascript:
+            "const fs = require('fs');\n\nfunction isEven(n) {\n  // Write your code here\n  return false;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const n = parseInt(line.trim(), 10);\n    console.log(isEven(n) ? 'true' : 'false');\n  }\n}",
+          python:
+            "import sys\n\ndef is_even(n: int) -> bool:\n    # Write your code here\n    return False\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    n = int(line.strip())\n    print('true' if is_even(n) else 'false')",
+        },
         testCases: [
-          { input: "4", expectedOutput: "true" },
-          { input: "7", expectedOutput: "false" },
+          { input: "4", expectedOutput: "true", isHidden: false },
+          { input: "7", expectedOutput: "false", isHidden: false },
+          { input: "100", expectedOutput: "true", isHidden: true },
+          { input: "-5", expectedOutput: "false", isHidden: true },
         ],
       },
       scoringConfig: {},

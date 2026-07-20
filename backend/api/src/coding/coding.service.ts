@@ -12,6 +12,28 @@ export class CodingService {
     private readonly judge0Service: Judge0Service,
   ) {}
 
+  private getQuestionTestCases(content: any): Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }> {
+    let list: any[] = [];
+    if (Array.isArray(content.testCases)) {
+      list = content.testCases.map((tc: any) => ({
+        input: tc.input || "",
+        expectedOutput: tc.expectedOutput || "",
+        isHidden: !!tc.isHidden,
+        label: tc.label,
+      }));
+    }
+    if (Array.isArray(content.hiddenTests)) {
+      const hiddenMapped = content.hiddenTests.map((tc: any) => ({
+        input: tc.input || "",
+        expectedOutput: tc.expectedOutput || "",
+        isHidden: true,
+        label: tc.label || "Hidden Test Case",
+      }));
+      list = [...list, ...hiddenMapped];
+    }
+    return list;
+  }
+
   /**
    * Run candidate code against sample test cases only.
    */
@@ -35,8 +57,10 @@ export class CodingService {
       throw new NotFoundException("Coding question not found");
     }
 
-    const content = question.content as unknown as CodingQuestionContentJson;
-    const sampleTests = content.testCases || [];
+    const content = question.content as any;
+    const allTests = this.getQuestionTestCases(content);
+    // Only run visible (sample) tests
+    const visibleTests = allTests.filter((t) => !t.isHidden);
 
     // 3. Create CodingExecution record as PENDING
     const languageId = this.judge0Service.getLanguageId(dto.language);
@@ -49,17 +73,16 @@ export class CodingService {
         sourceCode: dto.sourceCode,
         status: ExecutionStatus.PENDING,
         passedTests: 0,
-        totalTests: sampleTests.length,
+        totalTests: visibleTests.length,
       },
     });
 
-    // 4. Execute tests asynchronously/synchronously in background, but wait for it to return response to frontend.
-    // Since run is expected to return the result to frontend, we wait for it.
+    // 4. Run execution tests against sample cases
     const result = await this.judge0Service.runTests(
       dto.sourceCode,
-      dto.language,
+      languageId,
       dto.questionId,
-      sampleTests,
+      visibleTests,
     );
 
     // 5. Update database record with final results
@@ -87,6 +110,19 @@ export class CodingService {
       executionTime: updatedExecution.executionTime,
       memoryUsage: updatedExecution.memoryUsage,
       stdout: updatedExecution.stdout || updatedExecution.stderr || updatedExecution.compileOutput || "",
+      results: result.results.map((r, idx) => ({
+        passed: r.passed,
+        status: r.status,
+        executionTime: r.executionTime,
+        memoryUsage: r.memoryUsage,
+        stdout: r.stdout,
+        stderr: r.stderr,
+        compileOutput: r.compileOutput,
+        input: visibleTests[idx]?.input,
+        expectedOutput: visibleTests[idx]?.expectedOutput,
+        label: visibleTests[idx]?.label || `Test Case ${idx + 1}`,
+        isHidden: false,
+      })),
     };
   }
 
@@ -96,10 +132,17 @@ export class CodingService {
   async getExecution(id: string) {
     const execution = await this.prisma.codingExecution.findUnique({
       where: { id },
+      include: { question: true },
     });
     if (!execution) {
       throw new NotFoundException("Execution not found");
     }
+
+    const content = execution.question.content as any;
+    const allTests = this.getQuestionTestCases(content);
+    const targetTests = execution.submissionType === SubmissionType.RUN
+      ? allTests.filter((t) => !t.isHidden)
+      : allTests;
 
     return {
       executionId: execution.id,
@@ -109,6 +152,7 @@ export class CodingService {
       executionTime: execution.executionTime,
       memoryUsage: execution.memoryUsage,
       stdout: execution.stdout || execution.stderr || execution.compileOutput || "",
+      results: [], // Polling client relies on RUN/SUBMIT endpoint return value mostly
     };
   }
 
@@ -135,10 +179,8 @@ export class CodingService {
       throw new NotFoundException("Coding question not found");
     }
 
-    const content = question.content as unknown as CodingQuestionContentJson;
-    const sampleTests = content.testCases || [];
-    const hiddenTests = content.hiddenTests || [];
-    const allTests = [...sampleTests, ...hiddenTests];
+    const content = question.content as any;
+    const allTests = this.getQuestionTestCases(content);
 
     // 3. Create CodingExecution record as PENDING
     const languageId = this.judge0Service.getLanguageId(dto.language);
@@ -158,7 +200,7 @@ export class CodingService {
     // 4. Run execution tests against sample + hidden cases
     const result = await this.judge0Service.runTests(
       dto.sourceCode,
-      dto.language,
+      languageId,
       dto.questionId,
       allTests,
     );
@@ -209,7 +251,7 @@ export class CodingService {
       },
     });
 
-    // 7. Return summary response to frontend (no stdout/stderr/compileOutput returned to candidate to prevent reverse engineering of hidden tests)
+    // 7. Return summary response to frontend (hide details of hidden tests)
     return {
       executionId: updatedExecution.id,
       status: updatedExecution.status,
@@ -217,6 +259,30 @@ export class CodingService {
       totalTests: updatedExecution.totalTests,
       executionTime: updatedExecution.executionTime,
       memoryUsage: updatedExecution.memoryUsage,
+      results: result.results.map((r, idx) => {
+        const tc = allTests[idx];
+        if (tc?.isHidden) {
+          return {
+            passed: r.passed,
+            status: r.status,
+            isHidden: true,
+            label: tc.label || `Hidden Case ${idx + 1}`,
+          };
+        }
+        return {
+          passed: r.passed,
+          status: r.status,
+          executionTime: r.executionTime,
+          memoryUsage: r.memoryUsage,
+          stdout: r.stdout,
+          stderr: r.stderr,
+          compileOutput: r.compileOutput,
+          input: tc?.input,
+          expectedOutput: tc?.expectedOutput,
+          label: tc?.label || `Test Case ${idx + 1}`,
+          isHidden: false,
+        };
+      }),
     };
   }
 
