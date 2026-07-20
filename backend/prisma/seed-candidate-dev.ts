@@ -84,11 +84,17 @@ async function main() {
       difficulty: "medium",
       tags: ["javascript", "coding"],
       content: {
-        prompt: "Write a function sum(a, b) that returns the sum of two numbers.",
-        starterCode: "function sum(a, b) {\n  // Write your code here\n}",
+        prompt: "Write a program that reads two comma-separated numbers on each line from standard input (stdin) and prints their sum to standard output (stdout).",
+        starterCode: {
+          javascript:
+            "const fs = require('fs');\n\nfunction sum(a, b) {\n  // Write your code here\n  return 0;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const parts = line.trim().split(',');\n    const a = parseInt(parts[0].trim(), 10);\n    const b = parseInt(parts[1].trim(), 10);\n    console.log(sum(a, b));\n  }\n}",
+          python:
+            "import sys\n\ndef sum(a: int, b: int) -> int:\n    # Write your code here\n    return 0\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    parts = line.strip().split(',')\n    a = int(parts[0].strip())\n    b = int(parts[1].strip())\n    print(sum(a, b))",
+        },
         testCases: [
-          { input: "1, 2", expectedOutput: "3" },
-          { input: "-1, 5", expectedOutput: "4" },
+          { input: "1, 2", expectedOutput: "3", isHidden: false },
+          { input: "-1, 5", expectedOutput: "4", isHidden: false },
+          { input: "10, 20", expectedOutput: "30", isHidden: true },
         ],
       },
       scoringConfig: {},

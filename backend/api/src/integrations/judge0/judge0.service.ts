@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Judge0Client } from "./judge0.client";
 import { JUDGE0_POLLING, JUDGE0_STATUS } from "./judge0.constants";
 import { ExecutionStatus } from "@cd-recruit/shared-types";
@@ -11,31 +11,35 @@ export class Judge0Service {
   constructor(private readonly client: Judge0Client) {}
 
   /**
-   * Helper to map language string to Judge0 language ID.
+   * Lookup table: language slug → Judge0 CE language ID.
+   */
+  private static readonly LANGUAGE_MAP: Record<string, number> = {
+    python: 71,      // Python (3.8.1)
+    python3: 71,
+    javascript: 63,  // JavaScript (Node.js 12.14.0)
+    js: 63,
+    typescript: 74,  // TypeScript (3.7.4)
+    ts: 74,
+    java: 62,        // Java (JDK 13.0.1)
+    cpp: 54,         // C++ (GCC 9.2.0)
+    "c++": 54,
+    go: 60,          // Go (1.13.5)
+    golang: 60,
+  };
+
+  /**
+   * Map a language slug to a Judge0 language ID.
+   * Throws BadRequestException for unknown languages so NestJS returns 400.
    */
   getLanguageId(language: string): number {
-    const lang = language.toLowerCase();
-    switch (lang) {
-      case "python":
-      case "python3":
-        return 71; // Python (3.8.1)
-      case "javascript":
-      case "js":
-        return 63; // JavaScript (Node.js 12.14.0)
-      case "typescript":
-      case "ts":
-        return 74; // TypeScript (3.7.4)
-      case "java":
-        return 62; // Java (JDK 13.0.1)
-      case "cpp":
-      case "c++":
-        return 54; // C++ (GCC 9.2.0)
-      case "go":
-      case "golang":
-        return 60; // Go (1.13.5)
-      default:
-        throw new Error(`Unsupported language: ${language}`);
+    const id = Judge0Service.LANGUAGE_MAP[language.toLowerCase()];
+    if (!id) {
+      const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
+      throw new BadRequestException(
+        `Language "${language}" is not supported. Supported: ${supported.join(", ")}`,
+      );
     }
+    return id;
   }
 
   /**
@@ -74,71 +78,9 @@ export class Judge0Service {
   }
 
   /**
-   * Helper to wrap candidate code to execute test cases via standard I/O.
+   * Hook for wrapping candidate code before submission (no-op for stdin/stdout approach).
    */
-  wrapCode(sourceCode: string, language: string, questionId: string): string {
-    const lang = language.toLowerCase();
-    if (lang === "python" || lang === "python3") {
-      // Find candidate function name to call.
-      // E.g., def two_sum(...) or def is_valid(...)
-      // We can use a regex to look for "def [a-zA-Z0-9_]+"
-      const match = sourceCode.match(/def\s+([a-zA-Z0-9_]+)/);
-      const funcName = match ? match[1] : "solve";
-
-      return `${sourceCode}
-
-# --- Platform Test Runner Wrapper ---
-import sys
-import json
-
-try:
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        # Evaluate arguments safely
-        args = eval(f"({line})")
-        # Call function
-        if isinstance(args, tuple):
-            result = ${funcName}(*args)
-        else:
-            result = ${funcName}(args)
-        print(json.dumps(result))
-except Exception as e:
-    print(f"Wrapper Error: {e}", file=sys.stderr)
-    sys.exit(1)
-`;
-    }
-
-    if (lang === "javascript" || lang === "js" || lang === "typescript" || lang === "ts") {
-      // Find candidate function name.
-      // E.g., function twoSum(...) or const twoSum = (...)
-      const match = sourceCode.match(/(?:function|const|let|var)\s+([a-zA-Z0-9_]+)/);
-      const funcName = match ? match[1] : "solve";
-
-      return `${sourceCode}
-
-// --- Platform Test Runner Wrapper ---
-const fs = require('fs');
-try {
-  const input = fs.readFileSync(0, 'utf-8').trim();
-  if (input) {
-    const lines = input.split('\\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      const args = eval(\`[\${line}]\`);
-      const result = ${funcName}(...args);
-      console.log(JSON.stringify(result));
-    }
-  }
-} catch (e) {
-  console.error('Wrapper Error:', e.message);
-  process.exit(1);
-}
-`;
-    }
-
-    // Default to returning unmodified code for compiled/other languages
+  wrapCode(sourceCode: string, questionId: string): string {
     return sourceCode;
   }
 
@@ -199,10 +141,11 @@ try {
 
   /**
    * Run coding code against a set of test cases.
+   * @param languageId Already-resolved Judge0 language ID (call getLanguageId first).
    */
   async runTests(
     sourceCode: string,
-    language: string,
+    languageId: number,
     questionId: string,
     testCases: Array<{ input: string; expectedOutput: string; label?: string }>,
   ): Promise<{
@@ -214,6 +157,15 @@ try {
     stdout: string;
     stderr: string;
     compileOutput: string;
+    results: Array<{
+      passed: boolean;
+      status: ExecutionStatus;
+      executionTime: number;
+      memoryUsage: number;
+      stdout: string;
+      stderr: string;
+      compileOutput: string;
+    }>;
   }> {
     if (!testCases || testCases.length === 0) {
       return {
@@ -225,11 +177,11 @@ try {
         stdout: "",
         stderr: "",
         compileOutput: "",
+        results: [],
       };
     }
 
-    const languageId = this.getLanguageId(language);
-    const wrappedCode = this.wrapCode(sourceCode, language, questionId);
+    const wrappedCode = this.wrapCode(sourceCode, questionId);
     const sourceCodeBase64 = this.encodeBase64(wrappedCode);
 
     // Submit all test cases to Judge0 in parallel
@@ -344,6 +296,15 @@ try {
       stdout: firstStdout,
       stderr: firstStderr,
       compileOutput: firstCompile,
+      results: results.map((r) => ({
+        passed: r.passed,
+        status: r.status,
+        executionTime: r.time,
+        memoryUsage: r.memory,
+        stdout: r.stdout,
+        stderr: r.stderr,
+        compileOutput: r.compileOutput,
+      })),
     };
   }
 }
