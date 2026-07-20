@@ -1,6 +1,8 @@
 import { IsString, IsNotEmpty, IsUUID, IsEnum, IsISO8601, IsOptional } from "class-validator";
 import { ProctoringEventType, ProctoringUploadStatus } from "@prisma/client";
 
+export { ProctoringEventType, ProctoringUploadStatus };
+
 export class CreateProctoringEventDto {
   @IsUUID()
   @IsNotEmpty()

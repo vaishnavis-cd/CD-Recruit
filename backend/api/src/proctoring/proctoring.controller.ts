@@ -10,13 +10,18 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseGuards,
+  Logger,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ProctoringService } from "./proctoring.service";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse } from "./proctoring.types";
+import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
 
 @Controller("proctoring")
 export class ProctoringController {
+  private readonly logger = new Logger(ProctoringController.name);
+
   constructor(private readonly proctoringService: ProctoringService) {}
 
   /**
@@ -25,8 +30,14 @@ export class ProctoringController {
    */
   @Post("events")
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(SessionOwnerGuard)
   async createEvent(@Body() dto: CreateProctoringEventDto) {
-    return this.proctoringService.createEvent(dto);
+    const event = await this.proctoringService.createEvent(dto);
+    // Asynchronously evaluate correlation & provenance flags
+    this.proctoringService.evaluateEvent(dto.sessionId, dto.eventType, dto).catch((err) => {
+      this.logger.error(`Error evaluating proctoring event: ${err.message}`);
+    });
+    return event;
   }
 
   /**

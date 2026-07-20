@@ -16,6 +16,7 @@ import {
   HeartbeatDto,
 } from "@app/common/dto/session.dto";
 import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
+import { SessionOwnerGuard } from "@app/common/guards/session-owner.guard";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -56,6 +57,7 @@ export class SessionController {
    */
   @Post(":sessionId/begin")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async begin(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ): Promise<StartSessionResponse> {
@@ -69,6 +71,7 @@ export class SessionController {
    */
   @Post(":sessionId/selfie")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async selfie(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Body("image") image: string,
@@ -84,6 +87,7 @@ export class SessionController {
    */
   @Post(":sessionId/heartbeat")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async heartbeat(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Body() dto: HeartbeatDto,
@@ -99,6 +103,7 @@ export class SessionController {
    */
   @Post(":sessionId/resume")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async resume(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Body() dto: ResumeSessionDto,
@@ -113,6 +118,7 @@ export class SessionController {
    */
   @Get(":sessionId/questions/:questionId")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async getQuestion(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Param("questionId", ParseUUIDPipe) questionId: string,
@@ -128,6 +134,7 @@ export class SessionController {
    */
   @Get(":sessionId/progress")
   @HttpCode(HttpStatus.NOT_IMPLEMENTED)
+  @UseGuards(SessionOwnerGuard)
   progress(@Param("sessionId", ParseUUIDPipe) _sessionId: string): {
     message: string;
   } {
@@ -141,6 +148,7 @@ export class SessionController {
    */
   @Post(":sessionId/close")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async close(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ): Promise<CloseSessionResponse> {
