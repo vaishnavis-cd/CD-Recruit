@@ -454,7 +454,37 @@ export class SessionService {
       },
     });
 
-    this.logger.log(`Session closed (submitted): ${sessionId}`);
+    // Confidence Gating Safeguard:
+    // Route session to Human Review Queue by enforcing humanReviewed = false until Track C scoring is live
+    await this.prisma.score.upsert({
+      where: { sessionId },
+      create: {
+        sessionId,
+        compositeScore: 0.0,
+        moduleScores: {},
+        sayDoConsistencyScore: 0.0,
+        aiConfidence: 0.5,
+        humanReviewed: false,
+      },
+      update: {
+        humanReviewed: false,
+      },
+    });
+
+    await this.prisma.eventLog.create({
+      data: {
+        sessionId,
+        eventType: "SUBMITTED",
+        payload: {
+          routing: "HUMAN_REVIEW_QUEUE",
+          humanReviewed: false,
+          reason: "TRACK_B_FAILSAFE_DEFAULT",
+        },
+        occurredAt: now,
+      },
+    });
+
+    this.logger.log(`Session closed (submitted): ${sessionId} (Routed to Human Review Queue)`);
 
     return {
       sessionId: updated.id,

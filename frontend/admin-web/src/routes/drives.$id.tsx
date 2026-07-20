@@ -617,6 +617,17 @@ CD-Recruit Team`;
                         Copy Email
                       </button>
 
+                      {c.sessionId && (
+                        <Link
+                          to="/results/$id"
+                          params={{ id: c.sessionId }}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] cursor-pointer"
+                          title="View Candidate Evaluation Results"
+                        >
+                          <Eye size={11} /> View Results
+                        </Link>
+                      )}
+
                       {c.inviteStatus === "PENDING" && (
                         <button
                           onClick={() => copyToClipboard(c.inviteLink, c.inviteId)}

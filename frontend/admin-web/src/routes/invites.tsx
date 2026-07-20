@@ -333,6 +333,16 @@ function InvitesPage() {
                   <CalendarDays size={12} />
                 </button>
               )}
+              {inv.sessionId && (
+                <Link
+                  to="/results/$id"
+                  params={{ id: inv.sessionId }}
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] cursor-pointer"
+                  title="View Candidate Results"
+                >
+                  <Eye size={11} /> Results
+                </Link>
+              )}
               {inv.status !== "REDEEMED" && (
                 <button
                   onClick={() => regenerateToken(inv.id)}

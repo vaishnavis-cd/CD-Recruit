@@ -135,23 +135,29 @@ export class SessionLogService
         ? "experienced"
         : "fresher";
 
-    // Define fixed event lists
-    const eventsList =
-      track === "experienced"
-        ? [
-            "experienced_prod_incident",
-            "experienced_pipeline_failure",
-            "experienced_security_alert",
-            "experienced_customer_escalation",
-            "experienced_priority_conflict",
-          ]
-        : [
-            "fresher_manager_eta",
-            "fresher_req_clarify",
-            "fresher_qa_bug",
-            "fresher_code_review",
-            "fresher_teammate_question",
-          ];
+    // Fetch all simulation questions linked to this drive
+    const driveQuestions = session.drive?.questions || [];
+    let eventsList = driveQuestions.map((dq) => dq.questionId);
+
+    if (eventsList.length === 0) {
+      // Define fixed event lists
+      eventsList =
+        track === "experienced"
+          ? [
+              "experienced_prod_incident",
+              "experienced_pipeline_failure",
+              "experienced_security_alert",
+              "experienced_customer_escalation",
+              "experienced_priority_conflict",
+            ]
+          : [
+              "fresher_manager_eta",
+              "fresher_req_clarify",
+              "fresher_qa_bug",
+              "fresher_code_review",
+              "fresher_teammate_question",
+            ];
+    }
 
     // Initialize new session state
     const newSession: SimulationSession = {
