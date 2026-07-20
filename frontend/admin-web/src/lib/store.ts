@@ -7,6 +7,8 @@ import {
   type ActionQueue,
   type AuditLog,
   type DriveStatus,
+  type SessionResultItem,
+  type CandidateSessionDetail,
 } from "./types";
 
 export const API_BASE = "http://localhost:3001/api/v1";
@@ -172,6 +174,13 @@ interface Store {
     pageSize?: number;
     search?: string;
   }) => Promise<{ items: AuditLog[]; total: number }>;
+
+  resultsList: SessionResultItem[];
+  currentSessionDetail: CandidateSessionDetail | null;
+  fetchResults: (query?: { driveId?: string; status?: string; search?: string }) => Promise<void>;
+  fetchSessionDetail: (sessionId: string) => Promise<CandidateSessionDetail>;
+  recordCandidateDecision: (sessionId: string, decision: "PASS" | "FAIL", note?: string) => Promise<void>;
+  exportResultsCsv: (driveId?: string) => Promise<string>;
 }
 
 // Helpers to map backend session states to frontend styles
@@ -818,6 +827,61 @@ export const useStore = create<Store>((set, get) => ({
     const res = await fetch(url, { headers });
     if (!res.ok) throw new Error("Failed fetching audit logs");
     return res.json();
+  },
+
+  resultsList: [],
+  currentSessionDetail: null,
+
+  fetchResults: async (query) => {
+    try {
+      const headers = await getAuthHeaders();
+      const params = new URLSearchParams();
+      if (query?.driveId) params.append("driveId", query.driveId);
+      if (query?.status) params.append("status", query.status);
+      if (query?.search) params.append("search", query.search);
+
+      const res = await fetch(`${API_BASE}/admin/sessions?${params.toString()}`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch candidate results");
+      const data = await res.json();
+      set({ resultsList: data.items || data || [] });
+    } catch (err) {
+      console.error("fetchResults error:", err);
+    }
+  },
+
+  fetchSessionDetail: async (sessionId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, { headers });
+    if (!res.ok) throw new Error("Failed to fetch candidate session detail");
+    const detail = await res.json();
+    set({ currentSessionDetail: detail });
+    return detail;
+  },
+
+  recordCandidateDecision: async (sessionId: string, decision: "PASS" | "FAIL", note?: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}/decision`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ decision, note }),
+    });
+    if (!res.ok) throw new Error("Failed to record candidate decision");
+    get().fetchResults();
+    get().fetchDrives();
+  },
+
+  exportResultsCsv: async (driveId?: string) => {
+    const headers = await getAuthHeaders();
+    const url = driveId ? `${API_BASE}/admin/drives/${driveId}/export` : `${API_BASE}/admin/dashboard/export`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("Failed to export results CSV");
+    const blob = await res.blob();
+    const csvUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = csvUrl;
+    a.download = `candidate_results_${Date.now()}.csv`;
+    a.click();
+    return csvUrl;
   },
 }));
 

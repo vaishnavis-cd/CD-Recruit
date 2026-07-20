@@ -1,8 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from "@nestjs/common";
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from "@nestjs/common";
 import { SqlService } from "./sql.service";
 import { RunSqlDto, SubmitSqlDto, DraftSqlDto } from "./dto/sql.dto";
+import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
 
 @Controller("sql")
+@UseGuards(SessionOwnerGuard)
 export class SqlController {
   constructor(private readonly sqlService: SqlService) {}
 
