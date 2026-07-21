@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
-import { useSessionStore } from "@/store/session.store";
+import { useSessionStore } from "@/store/sessionMachine";
 
 interface CodingWorkspaceProps {
   question: {
@@ -55,7 +55,7 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
 };
 
 export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorkspaceProps) {
-  const sessionId = useSessionStore((s) => s.sessionId) || "";
+  const sessionId = useSessionStore((s: any) => s.assessment?.sessionId) || "";
   const starter = question.content?.starterCode || {};
 
   // Setup initial language — always validate against our supported list

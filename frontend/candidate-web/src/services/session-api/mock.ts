@@ -25,13 +25,23 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
     // Return fixture data — all tokens resolve to the same fixture in mock mode
     const invite: Invite = { ...FIXTURE_INVITE, token }
 
-    // Check if a session already exists in localStorage
-    const stored = localStorage.getItem('cd-recruit-session')
-    if (stored) {
-      try {
-        mockSession = JSON.parse(stored) as Session
-      } catch {
-        mockSession = null
+    // Check if token matches stored session token
+    const storedToken = localStorage.getItem('cd-recruit-session-token')
+    if (storedToken !== token) {
+      console.log('[mockSessionApiAdapter] New token detected. Clearing stale session state.')
+      localStorage.removeItem('cd-recruit-session')
+      localStorage.removeItem('cd-recruit-autosave')
+      localStorage.removeItem('cd-recruit-selfie-data')
+      localStorage.setItem('cd-recruit-session-token', token)
+      mockSession = null
+    } else {
+      const stored = localStorage.getItem('cd-recruit-session')
+      if (stored) {
+        try {
+          mockSession = JSON.parse(stored) as Session
+        } catch {
+          mockSession = null
+        }
       }
     }
 
@@ -54,6 +64,11 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
     mockSession = session
     localStorage.setItem('cd-recruit-session', JSON.stringify(session))
     return Promise.resolve(session)
+  },
+
+  async recordConsent(sessionId: string, version = '1.0'): Promise<{ ok: boolean }> {
+    console.log('[mockSessionApiAdapter] Candidate consent recorded:', sessionId, version)
+    return Promise.resolve({ ok: true })
   },
 
   async submitModuleResponse(response: ModuleResponse): Promise<void> {
