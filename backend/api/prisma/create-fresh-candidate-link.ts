@@ -61,7 +61,9 @@ async function main() {
       createdById: staff.id,
       expiresAt,
       isGenerated: true,
-      bufferMinutes: 2, // 2-minute buffer for immediate testing
+      scheduledTime: new Date(),
+      bufferMinutes: 15,
+      graceMinutes: 120,
     },
   });
 
