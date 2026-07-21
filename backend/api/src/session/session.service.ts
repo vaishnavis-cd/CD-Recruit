@@ -7,7 +7,8 @@ import {
 } from "@nestjs/common";
 import { GoneException } from "@app/common/exceptions/app.exceptions";
 import { ConfigService } from "@nestjs/config";
-import { CvMode, Session, SessionStatus, InviteStatus } from "@prisma/client";
+import { CvMode, Session, SessionStatus, InviteStatus, ConsentType } from "@prisma/client";
+
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
@@ -803,6 +804,7 @@ export class SessionService {
     sessionId: string,
     version: string = "1.0",
     ipAddress: string = "127.0.0.1",
+    rawConsentType?: string | ConsentType,
   ): Promise<{ ok: boolean; consentRecordId: string }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -815,9 +817,12 @@ export class SessionService {
       });
     }
 
+    const consentType = (rawConsentType as ConsentType) || ConsentType.TERMS;
+
     const consentRecord = await this.prisma.consentRecord.create({
       data: {
         candidateId: session.candidateId,
+        consentType,
         version: version || "1.0",
         ipAddress: ipAddress || "127.0.0.1",
         consentedAt: new Date(),
@@ -831,3 +836,4 @@ export class SessionService {
     return { ok: true, consentRecordId: consentRecord.id };
   }
 }
+
