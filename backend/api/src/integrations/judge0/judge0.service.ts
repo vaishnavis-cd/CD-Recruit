@@ -4,6 +4,8 @@ import { JUDGE0_POLLING, JUDGE0_STATUS } from "./judge0.constants";
 import { ExecutionStatus } from "@cd-recruit/shared-types";
 import { Judge0ExecutionResponse } from "./judge0.types";
 
+import { Judge0Language, JUDGE0_LANGUAGE_SLUG_MAP } from "./judge0-language.enum";
+
 @Injectable()
 export class Judge0Service {
   private readonly logger = new Logger(Judge0Service.name);
@@ -11,28 +13,11 @@ export class Judge0Service {
   constructor(private readonly client: Judge0Client) {}
 
   /**
-   * Lookup table: language slug → Judge0 CE language ID.
-   */
-  private static readonly LANGUAGE_MAP: Record<string, number> = {
-    python: 71,      // Python (3.8.1)
-    python3: 71,
-    javascript: 63,  // JavaScript (Node.js 12.14.0)
-    js: 63,
-    typescript: 74,  // TypeScript (3.7.4)
-    ts: 74,
-    java: 62,        // Java (JDK 13.0.1)
-    cpp: 54,         // C++ (GCC 9.2.0)
-    "c++": 54,
-    go: 60,          // Go (1.13.5)
-    golang: 60,
-  };
-
-  /**
-   * Map a language slug to a Judge0 language ID.
+   * Map a language slug to a Judge0 language ID using typed Judge0Language enum.
    * Throws BadRequestException for unknown languages so NestJS returns 400.
    */
   getLanguageId(language: string): number {
-    const id = Judge0Service.LANGUAGE_MAP[language.toLowerCase()];
+    const id = JUDGE0_LANGUAGE_SLUG_MAP[language.toLowerCase()];
     if (!id) {
       const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
       throw new BadRequestException(

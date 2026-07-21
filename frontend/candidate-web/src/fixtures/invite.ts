@@ -3,9 +3,9 @@ import type { Invite } from '../services/session-api/port'
 // Fixture invite — token resolves against this; real adapter would hit the API
 export const FIXTURE_INVITE: Invite = {
   token: 'demo-token-2024',
-  scheduledTime: new Date(Date.now() + 25 * 60 * 1000).toISOString(), // T = 25 min from now (Buffer window by default)
+  scheduledTime: new Date().toISOString(), // T = NOW (Immediate assessment start)
   bufferMinutes: 30,
-  graceMinutes: 20,
+  graceMinutes: 120,
   candidateId: 'cand-001',
   driveId: 'drive-001',
 }

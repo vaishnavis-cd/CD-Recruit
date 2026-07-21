@@ -102,7 +102,7 @@ function IndividualResultPage() {
           <p className="text-[14px] font-semibold text-[#C0392B]">Evaluation record not found</p>
           <Link
             to="/results"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] border border-[#E6E6EA] bg-white rounded-md"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] border border-[#E6E6EA] bg-[#2F5CFF] rounded-md"
           >
             <ArrowLeft size={14} /> Back to Results
           </Link>
@@ -121,7 +121,7 @@ function IndividualResultPage() {
       actions={
         <Link
           to="/results"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#5B5B64] bg-white border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] border border-[#2F5CFF] rounded-md hover:bg-[#0037FF] transition-colors cursor-pointer"
         >
           <ArrowLeft size={14} /> Back to Results
         </Link>

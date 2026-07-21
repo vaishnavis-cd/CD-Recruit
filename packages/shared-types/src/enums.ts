@@ -37,6 +37,7 @@ export enum ModuleType {
   MCQ = "MCQ",
   SQL = "SQL",
   CODING = "CODING",
+  DEBUGGING = "DEBUGGING",
   AI_PROMPTING = "AI_PROMPTING",
   SIMULATION = "SIMULATION",
 }

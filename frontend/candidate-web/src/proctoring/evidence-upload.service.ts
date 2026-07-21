@@ -1,5 +1,14 @@
-import apiClient from "@/api/client";
+import axios from "axios";
 import { ProctoringEvent } from "./proctoring.types";
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+
+const apiClient = axios.create({
+  baseURL: apiBaseUrl,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 import { ProctoringEventService } from "./proctoring-event.service";
 import { CONFIG } from "./proctoring.constants";
 

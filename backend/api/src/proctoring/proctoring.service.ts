@@ -51,9 +51,10 @@ export class ProctoringService {
       throw new NotFoundException(`Session not found with ID ${dto.sessionId}`);
     }
 
-    if (session.status !== SessionStatus.IN_PROGRESS) {
+    const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
+    if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
-        `Session is in state ${session.status}. Telemetry events are only accepted for IN_PROGRESS assessments.`,
+        `Session is in state ${session.status}. Telemetry events are only accepted for active assessments.`,
       );
     }
 
@@ -122,9 +123,10 @@ export class ProctoringService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    if (session.status !== SessionStatus.IN_PROGRESS) {
+    const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
+    if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
-        `Upload rejected: session is in ${session.status} state. Uploads only allowed for IN_PROGRESS assessments.`,
+        `Upload rejected: session is in ${session.status} state. Uploads only allowed for active assessments.`,
       );
     }
 

@@ -25,14 +25,33 @@ export class SettingsService {
         passRateThreshold: 0.7,
         biometricRetentionDays: 30,
         appealWindowDays: 14,
+        heartbeatStaleThresholdSeconds: 45,
+        graceWindowSeconds: 300,
+        maxDisconnectCount: 3,
       };
       fs.writeFileSync(this.configPath, JSON.stringify(defaultConfig, null, 2), "utf8");
     } else {
       try {
         const data = fs.readFileSync(this.configPath, "utf8");
         const json = JSON.parse(data);
+        let updated = false;
         if (json.appealWindowDays === undefined) {
           json.appealWindowDays = 14;
+          updated = true;
+        }
+        if (json.heartbeatStaleThresholdSeconds === undefined) {
+          json.heartbeatStaleThresholdSeconds = 45;
+          updated = true;
+        }
+        if (json.graceWindowSeconds === undefined) {
+          json.graceWindowSeconds = 300;
+          updated = true;
+        }
+        if (json.maxDisconnectCount === undefined) {
+          json.maxDisconnectCount = 3;
+          updated = true;
+        }
+        if (updated) {
           fs.writeFileSync(this.configPath, JSON.stringify(json, null, 2), "utf8");
         }
       } catch (err) {
@@ -173,6 +192,15 @@ export class SettingsService {
     });
 
     return config;
+  }
+
+  async getTimingThresholds() {
+    const config = this.readConfig();
+    return {
+      heartbeatStaleThresholdSeconds: config.heartbeatStaleThresholdSeconds ?? 45,
+      graceWindowSeconds: config.graceWindowSeconds ?? 300,
+      maxDisconnectCount: config.maxDisconnectCount ?? 3,
+    };
   }
 
   async listAuditLogs(query: ListAuditLogQueryDto) {
