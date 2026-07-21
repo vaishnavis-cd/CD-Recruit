@@ -1,19 +1,48 @@
 import axios from "axios";
 import { PrismaClient } from "@prisma/client";
+import * as dotenv from "dotenv";
+import * as path from "path";
+
+dotenv.config({ path: path.join(__dirname, "../../../.env") });
+dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const prisma = new PrismaClient();
 const API_URL = "http://localhost:3001/api/v1/proctoring/events";
-const SESSION_ID = "d58c2ef4-e546-4a17-947c-77f47adfc651";
-
-const eventsToTest = [
-  { eventType: "FACE_MISSING", severity: "HIGH", modelVersion: "mediapipe-face-v1" },
-  { eventType: "LOOKING_AWAY", severity: "MEDIUM", modelVersion: "mediapipe-face-v1" },
-  { eventType: "PHONE_DETECTED", severity: "CRITICAL", modelVersion: "object-detector-v1" },
-  { eventType: "MULTIPLE_FACES", severity: "HIGH", modelVersion: "mediapipe-face-v1" },
-];
+async function getActiveSessionId() {
+  let session = await prisma.session.findFirst({
+    where: { status: { in: ["IN_PROGRESS", "NOT_STARTED"] } },
+  });
+  if (!session) {
+    const candidate = await prisma.candidate.upsert({
+      where: { email: "events-test@example.com" },
+      update: {},
+      create: { email: "events-test@example.com", name: "Events Candidate" },
+    });
+    const roleTemplate = await prisma.roleTemplate.findFirst();
+    if (!roleTemplate) throw new Error("No RoleTemplate found. Please seed DB first.");
+    session = await prisma.session.create({
+      data: {
+        candidateId: candidate.id,
+        roleTemplateId: roleTemplate.id,
+        cvMode: "FULL",
+        status: "IN_PROGRESS",
+        startedAt: new Date(),
+      },
+    });
+  }
+  return session.id;
+}
 
 async function main() {
-  console.log("🚀 Testing POST /api/v1/proctoring/events...");
+  const SESSION_ID = await getActiveSessionId();
+  console.log(`🚀 Testing POST /api/v1/proctoring/events for session ${SESSION_ID}...`);
+
+  const eventsToTest = [
+    { eventType: "FACE_MISSING", severity: "HIGH", modelVersion: "mediapipe-face-v1" },
+    { eventType: "LOOKING_AWAY", severity: "MEDIUM", modelVersion: "mediapipe-face-v1" },
+    { eventType: "PHONE_DETECTED", severity: "CRITICAL", modelVersion: "object-detector-v1" },
+    { eventType: "MULTIPLE_FACES", severity: "HIGH", modelVersion: "mediapipe-face-v1" },
+  ];
 
   for (const item of eventsToTest) {
     const payload = {

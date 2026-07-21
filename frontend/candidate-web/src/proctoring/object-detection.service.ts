@@ -30,28 +30,46 @@ export class ObjectDetectionService {
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
       );
 
-      console.log("[ObjectDetection] Loading Object Detector task model from Google storage...");
-      try {
-        this.detector = await ObjectDetector.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
-            delegate: "GPU",
-          },
-          runningMode: "IMAGE",
-          scoreThreshold: 0.35,
-        });
-      } catch (gpuErr) {
-        console.warn("[ObjectDetection] GPU delegate failed for Object Detector, falling back to CPU:", gpuErr);
-        this.detector = await ObjectDetector.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
-            delegate: "CPU",
-          },
-          runningMode: "IMAGE",
-          scoreThreshold: 0.35,
-        });
+      const modelUrls = [
+        "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite",
+        "/models/efficientdet_lite0.tflite",
+      ];
+
+      let loaded = false;
+      for (const url of modelUrls) {
+        try {
+          console.log(`[ObjectDetection] Attempting to load Object Detector from ${url} (GPU)...`);
+          this.detector = await ObjectDetector.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: url,
+              delegate: "GPU",
+            },
+            runningMode: "IMAGE",
+            scoreThreshold: 0.35,
+          });
+          loaded = true;
+          break;
+        } catch (gpuErr) {
+          console.warn(`[ObjectDetection] GPU delegate failed for ${url}, trying CPU:`, gpuErr);
+          try {
+            this.detector = await ObjectDetector.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: url,
+                delegate: "CPU",
+              },
+              runningMode: "IMAGE",
+              scoreThreshold: 0.35,
+            });
+            loaded = true;
+            break;
+          } catch (cpuErr) {
+            console.warn(`[ObjectDetection] CPU delegate failed for ${url}:`, cpuErr);
+          }
+        }
+      }
+
+      if (!loaded || !this.detector) {
+        throw new Error("Failed to load Object Detector model from all candidate sources.");
       }
 
       this.isLoaded = true;
