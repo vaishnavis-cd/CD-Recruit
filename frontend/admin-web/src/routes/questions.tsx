@@ -478,7 +478,7 @@ function QuestionBankPage() {
 
           <div className="relative group">
             <button
-              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#2448D9] cursor-pointer shadow-sm transition-colors rounded-md"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#0037FF] cursor-pointer shadow-sm transition-colors rounded-md"
             >
               <Plus size={14} /> Add Question
             </button>
@@ -954,7 +954,7 @@ function QuestionBankPage() {
               </button>
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
               >
                 Create Question
               </button>
@@ -1056,7 +1056,7 @@ function QuestionBankPage() {
               <button
                 onClick={handleImport}
                 disabled={!csvFile}
-                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
               >
                 <Check size={14} />
                 Import Questions
@@ -1284,7 +1284,7 @@ function QuestionBankPage() {
               </button>
               <button
                 onClick={handleUpdate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
               >
                 Save Changes
               </button>

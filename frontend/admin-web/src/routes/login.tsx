@@ -52,7 +52,7 @@ function LoginPage() {
           />
           <button
             type="submit"
-            className="w-full bg-[#2F5CFF] hover:bg-[#2448D9] text-white font-medium text-[13px] py-2.5 rounded-md transition-colors cursor-pointer"
+            className="w-full bg-[#2F5CFF] hover:bg-[#0037FF] text-white font-medium text-[13px] py-2.5 rounded-md transition-colors cursor-pointer"
           >
             Sign in
           </button>

@@ -6,12 +6,12 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { UUIDValidationPipe } from "../common/pipes/uuid-validation.pipe";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { SettingsService } from "./settings.service";
 import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto, UpdateAppealWindowConfigDto } from "../common/dto/settings.dto";
@@ -29,7 +29,7 @@ export class SettingsController {
 
   @Patch("staff/:staffId/role")
   async updateStaffRole(
-    @Param("staffId", UUIDValidationPipe) staffId: string,
+    @Param("staffId", ParseUUIDPipe) staffId: string,
     @Body() dto: UpdateStaffRoleDto,
     @CurrentUser() actor: any,
   ) {

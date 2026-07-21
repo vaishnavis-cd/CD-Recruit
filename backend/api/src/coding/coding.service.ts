@@ -5,12 +5,39 @@ import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto"
 import { CodingQuestionContentJson } from "./coding.types";
 import { SubmissionType, ExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 
+import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+
 @Injectable()
-export class CodingService {
+export class CodingService implements AssessmentModuleEngine {
+  readonly moduleType = ModuleType.CODING;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly judge0Service: Judge0Service,
   ) {}
+
+  async validateSubmission(submission: any): Promise<boolean> {
+    return !!(submission && submission.code && submission.language);
+  }
+
+  async evaluateSubmission(
+    sessionId: string,
+    questionId: string,
+    submission: any,
+  ): Promise<ModuleEvaluationResult> {
+    const res = await this.submit({
+      sessionId,
+      questionId,
+      sourceCode: submission.code,
+      language: submission.language,
+    });
+    return {
+      status: res.status as any,
+      score: res.passedTests / (res.totalTests || 1),
+      scoreDetail: res,
+      evaluatedAt: new Date(),
+    };
+  }
 
   private getQuestionTestCases(content: any): Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }> {
     let list: any[] = [];

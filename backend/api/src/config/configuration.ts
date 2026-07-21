@@ -39,6 +39,8 @@ export const configuration = () => ({
   correlationEngineApiKey: process.env.CORRELATION_ENGINE_API_KEY ?? "",
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  groqApiKey: process.env.GROQ_API_KEY ?? "",
+  cerebrasApiKey: process.env.CEREBRAS_API_KEY ?? "",
 
   // ── MinIO ─────────────────────────────────────────────────────────────────
   minio: {
