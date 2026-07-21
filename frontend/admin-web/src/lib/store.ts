@@ -210,10 +210,10 @@ function mapBackendSession(session: any): Session {
 
   const initials = session.candidateName
     ? session.candidateName
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-        .toUpperCase()
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
     : "CN";
 
   const status = mapBackendStatus(
@@ -410,10 +410,10 @@ export const useStore = create<Store>((set, get) => ({
 
       const initials = detail.candidate.name
         ? detail.candidate.name
-            .split(" ")
-            .map((n: string) => n[0])
-            .join("")
-            .toUpperCase()
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .toUpperCase()
         : "CN";
 
       // Map module scores to key-value
@@ -487,11 +487,11 @@ export const useStore = create<Store>((set, get) => ({
           : new Date().toISOString().slice(0, 10),
         decision: detail.decision
           ? {
-              outcome: detail.decision.outcome.toLowerCase() as "advance" | "reject",
-              decidedAt: detail.decision.decidedAt.slice(0, 10),
-              decidedBy: detail.decision.decidedBy,
-              note: detail.decision.note,
-            }
+            outcome: detail.decision.outcome.toLowerCase() as "advance" | "reject",
+            decidedAt: detail.decision.decidedAt.slice(0, 10),
+            decidedBy: detail.decision.decidedBy,
+            note: detail.decision.note,
+          }
           : undefined,
         sayDoRationale,
         gradingSource,
@@ -590,15 +590,15 @@ export const useStore = create<Store>((set, get) => ({
         sessions: s.sessions.map((sess) =>
           sess.id === sessionId
             ? {
-                ...sess,
-                status: "decision",
-                decision: {
-                  outcome,
-                  decidedAt: new Date().toISOString().slice(0, 10),
-                  decidedBy: "You",
-                  note,
-                },
-              }
+              ...sess,
+              status: "decision",
+              decision: {
+                outcome,
+                decidedAt: new Date().toISOString().slice(0, 10),
+                decidedBy: "You",
+                note,
+              },
+            }
             : sess,
         ),
       }));

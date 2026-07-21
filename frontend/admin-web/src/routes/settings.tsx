@@ -328,7 +328,7 @@ function SettingsPage() {
               <button
                 onClick={handleSaveScoring}
                 disabled={savingScoring}
-                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
               >
                 {savingScoring ? "Saving Config…" : "Save Configurations"}
               </button>
@@ -365,7 +365,7 @@ function SettingsPage() {
               <button
                 onClick={handleSaveRetention}
                 disabled={savingRetention}
-                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
               >
                 {savingRetention ? "Saving schedule…" : "Save Configurations"}
               </button>

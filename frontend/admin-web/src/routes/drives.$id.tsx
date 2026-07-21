@@ -310,7 +310,7 @@ function DriveDetailPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleSaveConfiguration}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#1E4DDF] rounded-md transition-colors cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
           >
             <Check size={14} /> Save Configuration
           </button>
@@ -600,7 +600,7 @@ function DriveDetailPage() {
                 </button>
                 <button
                   onClick={handleSaveQuestions}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#1E4DDF] rounded shadow-sm"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded shadow-sm transition-colors cursor-pointer"
                 >
                   Save Question Assignments
                 </button>

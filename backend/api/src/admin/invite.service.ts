@@ -19,7 +19,7 @@ export class InviteService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async createInvite(dto: CreateInviteDto, staffId: string) {
     const { candidateEmail, candidateName, roleTemplateId, driveId } = dto;

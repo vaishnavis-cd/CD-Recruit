@@ -137,7 +137,7 @@ function ResultsPage() {
       actions={
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] border border-[#2F5CFF] rounded-md hover:bg-[#2F5CFF] shadow-sm transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] border border-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
         >
           <Download size={14} />
           Export CSV
