@@ -66,6 +66,7 @@ export class ProctoringController {
    */
   @Post("session/:sessionId/upload")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   @UseInterceptors(FileInterceptor("file"))
   @ApiOperation({ summary: "Upload WebM evidence video clip using multipart/form-data" })
   @ApiConsumes("multipart/form-data")

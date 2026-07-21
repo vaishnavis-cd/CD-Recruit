@@ -21,10 +21,10 @@ export class LocalFakeObjectStorageProvider extends ObjectStoragePort {
     bucketName: string,
     objectKey: string,
     buffer: Buffer,
-    metaData?: any,
+    _metaData?: any,
   ): Promise<boolean> {
-    this.logger.debug(
-      `[local-fake-storage] putObject(${bucketName}, ${objectKey}) -> buffer length: ${buffer.length}`,
+    this.logger.warn(
+      `[local-fake-storage] Evidence clip DISCARDED (${bucketName}/${objectKey}, size ${buffer.length}B) — set INFRA_MODE=full and configure MinIO to persist evidence.`,
     );
     return true;
   }

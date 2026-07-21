@@ -4,6 +4,9 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
 import { SessionStatus } from "@prisma/client";
+import { AppConfig } from "../config/configuration";
+import * as fs from "fs";
+import * as path from "path";
 
 const COOLDOWNS: Record<ProctoringEventType, number> = {
   PHONE_DETECTED: 30000,
@@ -17,6 +20,9 @@ const COOLDOWNS: Record<ProctoringEventType, number> = {
   TAB_SWITCH: 10000,
   PASTE: 5000,
   FULLSCREEN_EXIT: 10000,
+  SPEECH_DETECTED: 15000,
+  SECOND_VOICE_SUSPECTED: 30000,
+  IDENTITY_MISMATCH: 30000,
 };
 
 @Injectable()
@@ -27,10 +33,10 @@ export class ProctoringService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ObjectStoragePort,
-    private readonly config: ConfigService,
+    private readonly config: ConfigService<AppConfig, true>,
   ) {
     this.bucketBiometric =
-      this.config.get<string>("app.minio.bucketBiometric" as any) ??
+      this.config.get("minio.bucketBiometric", { infer: true }) ??
       "cd-recruit-biometric";
   }
 

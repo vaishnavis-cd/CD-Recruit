@@ -2,31 +2,30 @@ import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as Minio from "minio";
 import { ObjectStoragePort } from "../storage/object-storage.port";
+import { AppConfig } from "../../config/configuration";
 
 @Injectable()
 export class MinioService extends ObjectStoragePort implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
   private minioClient: Minio.Client | null = null;
   private bucketBiometric: string;
+  /** Primary bucket for biometric & proctoring clips. */
   private bucketGeneral: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly configService: ConfigService<AppConfig, true>) {
     super();
-    this.bucketBiometric = this.configService.get<string>(
-      "app.minio.bucketBiometric",
-    ) ?? "";
-    this.bucketGeneral = this.configService.get<string>(
-      "app.minio.bucketGeneral",
-    ) ?? "";
+    this.bucketBiometric = this.configService.get("minio.bucketBiometric", { infer: true });
+    /** bucketGeneral is dedicated for non-biometric general platform storage (resumes, exports, attachments). */
+    this.bucketGeneral = this.configService.get("minio.bucketGeneral", { infer: true });
   }
 
   async onModuleInit() {
     try {
-      const endPoint = this.configService.get<string>("app.minio.endpoint") ?? "";
-      const port = this.configService.get<number>("app.minio.port");
-      const useSSL = this.configService.get<boolean>("app.minio.useSsl");
-      const accessKey = this.configService.get<string>("app.minio.accessKey") ?? "";
-      const secretKey = this.configService.get<string>("app.minio.secretKey") ?? "";
+      const endPoint = this.configService.get("minio.endpoint", { infer: true });
+      const port = this.configService.get("minio.port", { infer: true });
+      const useSSL = this.configService.get("minio.useSsl", { infer: true });
+      const accessKey = this.configService.get("minio.accessKey", { infer: true });
+      const secretKey = this.configService.get("minio.secretKey", { infer: true });
 
       this.minioClient = new Minio.Client({
         endPoint,
@@ -84,7 +83,7 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
     try {
       const ttl =
         ttlSeconds ??
-        this.configService.get<number>("app.minio.evidenceUrlTtl");
+        this.configService.get("evidenceClipUrlTtlSeconds", { infer: true });
       const url = await this.minioClient.presignedGetObject(
         bucketName,
         objectKey,
