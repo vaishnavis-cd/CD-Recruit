@@ -19,6 +19,7 @@ export type { IntegritySignalType, SyncEventPayload };
 export interface CandidateSessionApiPort {
   resolveInvite(token: string): Promise<{ invite: Invite; drive: Drive; session: Session | null }>
   createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session>
+  recordConsent(sessionId: string, version?: string): Promise<{ ok: boolean }>
   submitModuleResponse(response: ModuleResponse): Promise<void>
   submitFinalAssessment(sessionId: string): Promise<{ referenceId: string }>
   reportIntegritySignal(signal: IntegritySignalType): Promise<void>

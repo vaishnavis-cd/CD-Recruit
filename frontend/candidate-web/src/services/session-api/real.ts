@@ -52,6 +52,11 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     }
   },
 
+  async recordConsent(sessionId: string, version = '1.0'): Promise<{ ok: boolean }> {
+    const res = await apiClient.post(`/sessions/${sessionId}/consent`, { version })
+    return res.data
+  },
+
   async submitModuleResponse(response: ModuleResponse): Promise<void> {
     const { sessionId, questionId, response: val } = response
 

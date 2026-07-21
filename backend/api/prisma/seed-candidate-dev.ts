@@ -365,8 +365,63 @@ async function main() {
 
   console.log("✔ Dev Candidate and Invite successfully seeded!");
   console.log("\n==================================================");
-  console.log("Test Login URL:");
-  console.log(`http://localhost:${frontendPort}/login?token=${token}`);
+  console.log("Standard Test Login URL:");
+  console.log(`http://localhost:3000/login?token=${token}`);
+  console.log("==================================================\n");
+
+  // 7. Fast-Timer Test Candidate (2-minute buffer)
+  const fastCandidateEmail = "dev-candidate-2min@example.com";
+  const fastCandidate = await prisma.candidate.upsert({
+    where: { email: fastCandidateEmail },
+    update: {},
+    create: {
+      email: fastCandidateEmail,
+      name: "Dev Candidate (2Min Buffer)",
+    },
+  });
+
+  const fastInviteId = "dev-invite-2min-uuid-" + Math.floor(Math.random() * 100000);
+  const fastToken = jwt.sign(
+    {
+      inviteId: fastInviteId,
+      candidateEmail: fastCandidate.email,
+      candidateName: fastCandidate.name,
+      roleTemplateId: roleTemplate.id,
+    },
+    jwtSecret,
+    {
+      expiresIn: `${ttlHours}h`,
+    }
+  );
+
+  const fastScheduledTime = new Date(Date.now() + 5 * 60 * 1000); // 5 mins in future
+
+  await prisma.invite.upsert({
+    where: { token: fastToken },
+    update: {
+      bufferMinutes: 2,
+      scheduledTime: fastScheduledTime,
+    },
+    create: {
+      id: fastInviteId,
+      candidateEmail: fastCandidate.email,
+      candidateName: fastCandidate.name,
+      roleTemplateId: roleTemplate.id,
+      driveId: drive.id,
+      status: InviteStatus.PENDING,
+      token: fastToken,
+      createdById: staff.id,
+      expiresAt,
+      isGenerated: true,
+      scheduledTime: fastScheduledTime,
+      bufferMinutes: 2,
+    },
+  });
+
+  console.log("✔ 2-Minute Buffer Candidate & Invite successfully seeded!");
+  console.log("==================================================");
+  console.log("2-Minute Buffer Test Login URL:");
+  console.log(`http://localhost:3000/login?token=${fastToken}`);
   console.log("==================================================\n");
 }
 
