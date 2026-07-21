@@ -16,11 +16,12 @@ export class WebcamService {
    * Request webcam access permissions.
    */
   public async requestPermission(): Promise<boolean> {
+    const hasMicConsent = localStorage.getItem("cd-recruit-mic-consent") === "true";
     try {
       console.log("[WebcamService] CAMERA_PERMISSION_REQUEST initiated");
       const tempStream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
-        audio: false,
+        audio: hasMicConsent,
       });
       tempStream.getTracks().forEach((track) => track.stop());
       console.log("[WebcamService] CAMERA_PERMISSION_SUCCESS: permission granted");
@@ -40,15 +41,17 @@ export class WebcamService {
       return this.stream;
     }
 
+    const hasMicConsent = localStorage.getItem("cd-recruit-mic-consent") === "true";
+
     try {
-      console.log("[WebcamService] Creating media stream (getUserMedia)...");
+      console.log(`[WebcamService] Creating media stream (getUserMedia, mic=${hasMicConsent})...`);
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
           frameRate: { ideal: 15 },
         },
-        audio: false,
+        audio: hasMicConsent,
       });
       console.log("[WebcamService] STREAM_CREATED successfully:", this.stream.id);
 

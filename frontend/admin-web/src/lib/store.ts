@@ -178,10 +178,14 @@ interface Store {
   resultsList: SessionResultItem[];
   currentSessionDetail: CandidateSessionDetail | null;
   fetchResults: (query?: { driveId?: string; status?: string; search?: string }) => Promise<void>;
-  fetchSessionDetail: (sessionId: string) => Promise<CandidateSessionDetail>;
+  fetchSessionDetailForResults: (sessionId: string) => Promise<CandidateSessionDetail>;
   recordCandidateDecision: (sessionId: string, decision: "PASS" | "FAIL", note?: string) => Promise<void>;
   exportResultsCsv: (driveId?: string) => Promise<string>;
 }
+
+// Guard: true only if a score is a real computed value (not null or the -1.0 sentinel)
+const isScored = (v: number | null | undefined): v is number =>
+  v !== null && v !== undefined && v >= 0;
 
 // Helpers to map backend session states to frontend styles
 function mapBackendStatus(
@@ -203,10 +207,13 @@ function mapBackendStatus(
 }
 
 function mapBackendSession(session: any): Session {
-  const compositeScore =
-    session.compositeScore !== null ? Math.round(session.compositeScore * 100) : 70; // Fallback
-  const sayDoScore =
-    session.sayDoConsistencyScore !== null ? Math.round(session.sayDoConsistencyScore * 100) : 80; // Fallback
+  // Only multiply real scores; -1.0 sentinel and null both map to null so UI can show "unscored"
+  const compositeScore = isScored(session.compositeScore)
+    ? Math.round(session.compositeScore * 100)
+    : null;
+  const sayDoScore = isScored(session.sayDoConsistencyScore)
+    ? Math.round(session.sayDoConsistencyScore * 100)
+    : null;
 
   const initials = session.candidateName
     ? session.candidateName
@@ -218,7 +225,7 @@ function mapBackendSession(session: any): Session {
 
   const status = mapBackendStatus(
     session.status,
-    session.compositeScore !== null,
+    isScored(session.compositeScore), // unscored sentinel treated same as no score
     !session.humanReviewRequired, // If humanReviewRequired is false, treat as reviewed
     0.85, // Mock AI confidence
     false,
@@ -269,6 +276,7 @@ function mapBackendInvite(invite: any): Invite {
       ? invite.createdAt.slice(0, 10)
       : new Date().toISOString().slice(0, 10),
     expiresAt: invite.expiresAt || new Date().toISOString(),
+    sessionId: invite.sessionId ?? null,
   };
 }
 
@@ -339,9 +347,13 @@ export const useStore = create<Store>((set, get) => ({
       if (!res.ok) throw new Error("Failed to fetch session detail");
       const detail = await res.json();
 
-      // Map detailed fields
-      const compositeScore = detail.score ? Math.round(detail.score.compositeScore * 100) : 70;
-      const sayDoScore = detail.score ? Math.round(detail.score.sayDoConsistencyScore * 100) : 80;
+      // Map detailed fields — guard against -1.0 sentinel (uncomputed) and null
+      const compositeScore = detail.score && isScored(detail.score.compositeScore)
+        ? Math.round(detail.score.compositeScore * 100)
+        : null;
+      const sayDoScore = detail.score && isScored(detail.score.sayDoConsistencyScore)
+        ? Math.round(detail.score.sayDoConsistencyScore * 100)
+        : null;
 
       const initials = detail.candidate.name
         ? detail.candidate.name
@@ -377,8 +389,9 @@ export const useStore = create<Store>((set, get) => ({
 
       // Generate mock trace for visualization if missing
       const sayDoTrace: { t: number; said: number; did: number }[] = [];
-      let saidVal = sayDoScore;
-      let didVal = sayDoScore;
+      // Seed trace at the scored value, or a neutral 75 if unscored
+      let saidVal: number = sayDoScore ?? 75;
+      let didVal: number = sayDoScore ?? 75;
       for (let idx = 0; idx <= 40; idx++) {
         saidVal += (Math.random() - 0.5) * 4;
         didVal += (Math.random() - 0.5) * 4;
@@ -858,7 +871,7 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  fetchSessionDetail: async (sessionId: string) => {
+  fetchSessionDetailForResults: async (sessionId: string) => {
     const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, { headers });
     if (!res.ok) throw new Error("Failed to fetch candidate session detail");

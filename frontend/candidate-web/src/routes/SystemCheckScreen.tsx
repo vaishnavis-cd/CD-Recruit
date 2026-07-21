@@ -97,9 +97,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     setShowCameraExplainer(false)
     updateCheck('webcam-explainer', { status: 'checking', label: 'Camera access — waiting for permission…' })
 
-    await services.cv.start()
-
-    // Listen for the result via onDetectionEvent
+    // Subscribe BEFORE calling start() so we never miss the permission-granted/denied event
     await new Promise<void>(resolve => {
       const unsub = services.cv.onDetectionEvent(event => {
         if (event.type === 'permission-granted') {
@@ -136,7 +134,25 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
           resolve()
         }
       })
-      setTimeout(() => { unsub(); resolve() }, 8000) // timeout fallback
+
+      // Start the CV pipeline now that the subscriber is registered
+      services.cv.start().catch(() => {
+        // start() itself threw — treat as denied
+        updateCheck('webcam-explainer', {
+          status: 'fail',
+          label: 'Camera access',
+          errorMessage: 'Camera access was denied.',
+          allowRetry: true,
+        })
+        unsub()
+        resolve()
+      })
+
+      // Safety timeout — if no event fires within 10s, unblock
+      setTimeout(() => {
+        unsub()
+        resolve()
+      }, 10000)
     })
 
     await runConnectivityCheck()

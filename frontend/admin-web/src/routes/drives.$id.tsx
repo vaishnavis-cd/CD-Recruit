@@ -20,6 +20,7 @@ import {
   Settings,
   BookOpen,
   AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";

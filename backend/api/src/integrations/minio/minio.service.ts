@@ -128,4 +128,20 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
       return false;
     }
   }
+
+  async deleteObject(bucketName: string, objectKey: string): Promise<boolean> {
+    if (!this.minioClient) {
+      this.logger.warn("MinIO client is not initialized. Cannot delete object.");
+      return false;
+    }
+    try {
+      await this.minioClient.removeObject(bucketName, objectKey);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Error deleting object from ${bucketName}/${objectKey}: ${error.message}`,
+      );
+      return false;
+    }
+  }
 }

@@ -31,7 +31,10 @@ function startDetectionTicks() {
   }, 5000)
 }
 
-export const mockCvDetectionAdapter: CvDetectionPort = {
+export const mockCvDetectionAdapter: CvDetectionPort & { _activeStream: () => MediaStream | null } = {
+  // Expose the live stream so ConsentScreen can reuse it without a second getUserMedia call
+  _activeStream: () => activeStream,
+
   async start(): Promise<void> {
     if (simulateWasmUnsupported) {
       emitEvent({ type: 'wasm-unsupported' })

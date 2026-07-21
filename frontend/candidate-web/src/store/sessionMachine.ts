@@ -8,7 +8,7 @@ export type ScreenState =
   | { type: 'too-early'; scheduledTimeMs: number; inviteToken: string }
   | { type: 'expired'; reason: 'never-started' | 'drive-closed' }
   | { type: 'system-check'; mode: 'full' | 'expedited'; inviteToken: string }
-  | { type: 'consent'; step: 'terms' | 'biometric' | 'liveness' | 'selfie'; inviteToken: string }
+  | { type: 'consent'; step: 'terms' | 'biometric' | 'liveness' | 'selfie' | 'audio'; inviteToken: string }
   | { type: 'tutorial'; mode: 'full' | 'condensed'; inviteToken: string }
   | { type: 'waiting-room'; scheduledTimeMs: number; inviteToken: string }
   | { type: 'assessment'; moduleIndex: number; sessionId: string }

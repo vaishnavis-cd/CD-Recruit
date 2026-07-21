@@ -92,7 +92,14 @@ enum SqlExecutionStatus {
   FAILED
 }
 
-// ---------- Models ----------
+enum ConsentType {
+  TERMS
+  BIOMETRIC
+  SELFIE
+  AUDIO
+}
+
+
 
 model RoleTemplate {
   id              String   @id @default(uuid())
@@ -177,11 +184,12 @@ model Candidate {
 }
 
 model ConsentRecord {
-  id           String   @id @default(uuid())
-  candidateId  String   @map("candidate_id")
+  id           String      @id @default(uuid())
+  candidateId  String      @map("candidate_id")
+  consentType  ConsentType @map("consent_type")
   version      String
-  consentedAt  DateTime @default(now()) @map("consented_at")
-  ipAddress    String   @map("ip_address")
+  consentedAt  DateTime    @default(now()) @map("consented_at")
+  ipAddress    String      @map("ip_address")
 
   candidate Candidate @relation(fields: [candidateId], references: [id])
 
@@ -433,6 +441,9 @@ enum ProctoringEventType {
   PHONE_DETECTED
   HEADPHONES_DETECTED
   BOOK_DETECTED
+  SPEECH_DETECTED
+  SECOND_VOICE_SUSPECTED
+  IDENTITY_MISMATCH
   // PROPOSED shape — pending Track B confirmation, coordinate before backend correlation logic is built against this
   TAB_SWITCH
   PASTE

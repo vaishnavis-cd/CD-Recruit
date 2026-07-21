@@ -120,7 +120,6 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       eventType,
       severity,
       timestamp: signal.timestamp || new Date().toISOString(),
-      payload,
     })
   },
 
