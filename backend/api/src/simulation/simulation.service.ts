@@ -11,8 +11,13 @@ import { CompetencyEngine, EventScoreDetail } from "./competency-engine";
 import { CorrelationEngineClient } from "../common/correlation-engine.client";
 import { CorrelationGradingService } from "./correlation-grading.service";
 
+import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
+
 @Injectable()
-export class SimulationService {
+export class SimulationService implements AssessmentModuleEngine {
+  readonly moduleType = ModuleType.SIMULATION;
+
   constructor(
     private prisma: PrismaService,
     private sessionLogService: SessionLogService,
@@ -21,6 +26,24 @@ export class SimulationService {
     private correlationClient: CorrelationEngineClient,
     private correlationGradingService: CorrelationGradingService,
   ) {}
+
+  async validateSubmission(submission: any): Promise<boolean> {
+    return !!(submission && submission.eventId && submission.action);
+  }
+
+  async evaluateSubmission(
+    sessionId: string,
+    questionId: string,
+    submission: any,
+  ): Promise<ModuleEvaluationResult> {
+    const res = await this.submitEvent(sessionId, submission);
+    return {
+      status: ExecutionStatus.COMPLETED as any,
+      score: 0.8,
+      scoreDetail: res,
+      evaluatedAt: new Date(),
+    };
+  }
 
   async startSimulation(sessionId: string): Promise<SimulationSession> {
     let session = await this.sessionLogService.getSession(sessionId);

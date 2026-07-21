@@ -360,7 +360,7 @@ function DrivesPage() {
             resetWizard();
             setShowWizard(true);
           }}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#1E4DDF] shadow-sm transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
         >
           <Plus size={14} />
           Create Drive
@@ -477,438 +477,99 @@ function DrivesPage() {
         </div>
       )}
 
-      {/* 6-Step Wizard Modal */}
+      {/* Streamlined Drive Creation Modal */}
       {showWizard && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[700px] shadow-2xl flex flex-col h-[85vh]">
-            {/* Header with Steps Indicators */}
-            <div className="px-6 py-4 border-b border-[#E6E6EA] bg-[#F7F7F9] rounded-t-[12px]">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[16px] font-semibold text-[#0B0B0D]">
-                  Create Drive Wizard
-                </h2>
-                <button
-                  onClick={() => setShowWizard(false)}
-                  className="text-[#8B8B93] hover:text-[#0B0B0D]"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="flex items-center gap-1 text-[11px] font-medium text-[#8B8B93]">
-                {[
-                  "Basics",
-                  "Modules",
-                  "Questions",
-                  "Schedule",
-                  "Candidates",
-                  "Review",
-                ].map((sName, idx) => (
-                  <div key={sName} className="flex items-center gap-1.5">
-                    <span
-                      className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-mono ${
-                        step === idx + 1
-                          ? "bg-[#2F5CFF] text-white"
-                          : step > idx + 1
-                          ? "bg-[#0C6B58] text-white"
-                          : "bg-[#EFF0F3] text-[#5B5B64]"
-                      }`}
-                    >
-                      {step > idx + 1 ? "✓" : idx + 1}
-                    </span>
-                    <span className={step === idx + 1 ? "text-[#0B0B0D] font-semibold" : ""}>
-                      {sName}
-                    </span>
-                    {idx < 5 && <span className="mx-1 text-[#D6D7DC]">→</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Step Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* STEP 1: BASICS */}
-              {step === 1 && (
-                <div className="space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Step 1: Drive Basics</h3>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                      Drive Name
-                    </label>
-                    <input
-                      value={driveName}
-                      onChange={(e) => setDriveName(e.target.value)}
-                      placeholder="e.g. Senior Backend Engineer - July 2026 Batch"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                      Role Template
-                    </label>
-                    <select
-                      value={selectedRole}
-                      onChange={(e) => setSelectedRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
-                    >
-                      {roleTemplates.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.roleName} {r.track ? `(${r.track})` : ""}
-                        </option>
-                      ))}
-                      <option value="rt-custom">Custom Role</option>
-                    </select>
-                  </div>
-                  {selectedRole === "rt-custom" && (
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                        Custom Role Name
-                      </label>
-                      <input
-                        value={customRoleName}
-                        onChange={(e) => setCustomRoleName(e.target.value)}
-                        placeholder="e.g. Senior DevOps Specialist"
-                        className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* STEP 2: MODULES CONFIG */}
-              {step === 2 && (
-                <div className="space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Step 2: Module Configurations</h3>
-                  <p className="text-[12px] text-[#8B8B93] mb-2">Enable modules and allocate time and scoring weights. Total weight must equal 100%.</p>
-                  
-                  <div className="space-y-3">
-                    {Object.keys(modulesConfig).map((key) => {
-                      const mod = modulesConfig[key];
-                      return (
-                        <div key={key} className="flex items-center gap-4 p-3 border border-[#E6E6EA] rounded-md bg-[#F7F7F9]">
-                          <input
-                            type="checkbox"
-                            checked={mod.enabled}
-                            onChange={(e) => setModulesConfig({
-                              ...modulesConfig,
-                              [key]: { ...mod, enabled: e.target.checked }
-                            })}
-                            className="h-4 w-4 rounded border-[#D6D7DC]"
-                          />
-                          <span className="w-40 text-[13px] font-semibold text-[#0B0B0D]">{key}</span>
-                          
-                          {mod.enabled ? (
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <label className="text-[11px] text-[#5B5B64]">Mins:</label>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={mod.durationMinutes}
-                                  onChange={(e) => setModulesConfig({
-                                    ...modulesConfig,
-                                    [key]: { ...mod, durationMinutes: parseInt(e.target.value) || 0 }
-                                  })}
-                                  className="w-16 px-2 py-1 text-[12px] border border-[#D6D7DC] rounded bg-white"
-                                />
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <label className="text-[11px] text-[#5B5B64]">Weight:</label>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={Math.round(mod.weight * 100)}
-                                  onChange={(e) => setModulesConfig({
-                                    ...modulesConfig,
-                                    [key]: { ...mod, weight: (parseInt(e.target.value) || 0) / 100 }
-                                  })}
-                                  className="w-16 px-2 py-1 text-[12px] border border-[#D6D7DC] rounded bg-white"
-                                />
-                                <span className="text-[11px] text-[#8B8B93]">%</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-[#8B8B93] italic">Disabled</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-white border border-[#E6E6EA] rounded-md text-[13px]">
-                    <span className="font-semibold text-[#5B5B64]">Total Allocated Weight:</span>
-                    <span className={`font-mono font-bold ${
-                      Math.abs(Object.keys(modulesConfig).filter(k => modulesConfig[k].enabled).reduce((s, k) => s + modulesConfig[k].weight, 0) - 1.0) < 0.001
-                        ? "text-[#0C6B58]"
-                        : "text-[#C0392B]"
-                    }`}>
-                      {Math.round(Object.keys(modulesConfig).filter(k => modulesConfig[k].enabled).reduce((s, k) => s + modulesConfig[k].weight, 0) * 100)}% / 100%
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: QUESTIONS SELECTOR */}
-              {step === 3 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Step 3: Question Bank Select</h3>
-                    <span className="text-[12px] font-semibold text-[#2F5CFF]">
-                      {selectedQuestionIds.length} Selected
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8B8B93]" />
-                      <input
-                        value={questionSearch}
-                        onChange={(e) => setQuestionSearch(e.target.value)}
-                        placeholder="Search questions by text…"
-                        className="w-full pl-8 pr-2 py-1.5 text-[12px] border border-[#E6E6EA] rounded bg-white"
-                      />
-                    </div>
-                    <select
-                      value={selectedModuleFilter}
-                      onChange={(e) => setSelectedModuleFilter(e.target.value)}
-                      className="text-[12px] border border-[#E6E6EA] rounded px-2 bg-white"
-                    >
-                      <option value="all">All Modules</option>
-                      <option value="MCQ">MCQ</option>
-                      <option value="SQL">SQL</option>
-                      <option value="CODING">Coding</option>
-                      <option value="AI_PROMPTING">AI Prompting</option>
-                      <option value="SIMULATION">Simulation</option>
-                    </select>
-                  </div>
-
-                  <div className="border border-[#E6E6EA] rounded-md max-h-[300px] overflow-y-auto divide-y divide-[#E6E6EA]">
-                    {filteredQuestionsList.map((q) => {
-                      const isSelected = selectedQuestionIds.includes(q.id);
-                      return (
-                        <div key={q.id} className="p-3 flex items-start gap-3 hover:bg-[#F7F7F9]">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {
-                              if (isSelected) {
-                                setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== q.id));
-                              } else {
-                                setSelectedQuestionIds([...selectedQuestionIds, q.id]);
-                              }
-                            }}
-                            className="mt-1 h-3.5 w-3.5"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="px-1.5 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[9px] uppercase">
-                                {q.moduleType}
-                              </span>
-                              <span className="text-[10px] text-[#8B8B93]">{q.difficulty}</span>
-                            </div>
-                            <h4 className="text-[12px] font-semibold text-[#0B0B0D] truncate">
-                              {q.content?.title || q.content?.text || "Untitled Question"}
-                            </h4>
-                            <p className="text-[11px] text-[#8B8B93] truncate mt-0.5">
-                              {q.content?.description || q.content?.text || ""}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 4: SCHEDULE CONFIG */}
-              {step === 4 && (
-                <div className="space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Step 4: Scheduling & Concurrency</h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Start Time</label>
-                      <input
-                        type="datetime-local"
-                        value={scheduleStart}
-                        onChange={(e) => setScheduleStart(e.target.value)}
-                        className="w-full px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">End Time</label>
-                      <input
-                        type="datetime-local"
-                        value={scheduleEnd}
-                        onChange={(e) => setScheduleEnd(e.target.value)}
-                        className="w-full px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Buffer Window (Mins)</label>
-                      <input
-                        type="number"
-                        value={bufferMinutes}
-                        onChange={(e) => setBufferMinutes(parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Grace Period (Mins)</label>
-                      <input
-                        type="number"
-                        value={graceMinutes}
-                        onChange={(e) => setGraceMinutes(parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  {showConcurrencyWarning && (
-                    <div className="flex items-start gap-2.5 p-3 rounded-md bg-orange-50 border border-orange-200 text-orange-700 text-[12px] leading-relaxed">
-                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-orange-500" />
-                      <div>
-                        <span className="font-semibold block mb-0.5">High Concurrency warning!</span>
-                        <span>The concurrency ratio is {concurrencyRatio.toFixed(1)} candidates per hour (Threshold: 25/hr). This schedule may saturate local sandbox capacity. Consider expanding the scheduled window.</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* STEP 5: CANDIDATE ROSTER */}
-              {step === 5 && (
-                <div className="space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Step 5: Candidates Roster</h3>
-                  
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                      Pasted CSV Candidate List (Name, Email per line)
-                    </label>
-                    <textarea
-                      value={candidateInput}
-                      onChange={(e) => setCandidateInput(e.target.value)}
-                      placeholder="John Doe, john@example.com&#10;Alice Smith, alice@example.com"
-                      rows={5}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono focus:outline-none focus:border-[#2F5CFF] resize-none"
-                    />
-                  </div>
-
-                  {candidateErrors.length > 0 && (
-                    <div className="flex items-start gap-2.5 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-[12px] leading-relaxed max-h-[150px] overflow-y-auto">
-                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-500" />
-                      <div>
-                        <span className="font-semibold block mb-1">Roster Validation Errors:</span>
-                        <ul className="list-disc pl-4 space-y-0.5 font-mono text-[11px]">
-                          {candidateErrors.map((err, idx) => (
-                            <li key={idx}>{err}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-[12px] text-[#5B5B64]">
-                    <span>Valid Candidates Parsed:</span>
-                    <span className="font-semibold text-[#0B0B0D]">{candidateList.length}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 6: REVIEW & SEND */}
-              {step === 6 && (
-                <div className="space-y-4">
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Step 6: Review Configuration</h3>
-                  
-                  {validationErrors.length > 0 && (
-                    <div className="flex items-start gap-2.5 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-[12px] leading-relaxed">
-                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-500" />
-                      <div>
-                        <span className="font-semibold block mb-1">Completeness Block:</span>
-                        <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
-                          {validationErrors.map((err, idx) => (
-                            <li key={idx}>{err}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="border border-[#E6E6EA] rounded-md divide-y divide-[#E6E6EA] text-[13px] bg-[#F7F7F9]">
-                    <div className="p-3 flex justify-between">
-                      <span className="text-[#5B5B64] font-medium">Drive Name:</span>
-                      <span className="font-semibold text-[#0B0B0D]">{driveName}</span>
-                    </div>
-                    <div className="p-3 flex justify-between">
-                      <span className="text-[#5B5B64] font-medium">Role Preset:</span>
-                      <span className="font-semibold text-[#0B0B0D]">
-                        {selectedRole === "rt-custom" ? `Custom (${customRoleName})` : roleTemplates.find(r => r.id === selectedRole)?.roleName}
-                      </span>
-                    </div>
-                    <div className="p-3 flex justify-between">
-                      <span className="text-[#5B5B64] font-medium">Schedule:</span>
-                      <span className="font-semibold text-[#0B0B0D]">{scheduleStart.replace("T", " ")} to {scheduleEnd.replace("T", " ")}</span>
-                    </div>
-                    <div className="p-3 flex justify-between">
-                      <span className="text-[#5B5B64] font-medium">Total Candidates:</span>
-                      <span className="font-semibold text-[#0B0B0D]">{candidateList.length}</span>
-                    </div>
-                    <div className="p-3 flex justify-between">
-                      <span className="text-[#5B5B64] font-medium">Selected Questions:</span>
-                      <span className="font-semibold text-[#0B0B0D]">{selectedQuestionIds.length}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer with Prev/Next Buttons */}
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex items-center justify-between bg-[#F7F7F9] rounded-b-[12px]">
+          <div className="bg-white rounded-[12px] w-full max-w-[480px] shadow-2xl flex flex-col">
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
               <div>
-                {step > 1 && (
-                  <button
-                    onClick={() => setStep(step - 1)}
-                    className="flex items-center gap-1.5 py-1.5 px-3 text-[12px] font-semibold border border-[#E6E6EA] bg-white rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft size={14} />
-                    Back
-                  </button>
-                )}
+                <h2 className="text-[16px] font-semibold text-[#0B0B0D]">Create New Drive</h2>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">Enter drive name and target role to begin configuration.</p>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowWizard(false)}
-                  className="py-1.5 px-3.5 text-[12px] font-medium text-[#8B8B93] hover:text-[#0B0B0D] transition-colors"
+              <button onClick={() => setShowWizard(false)} className="text-[#8B8B93] hover:text-[#0B0B0D]">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  Drive Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={driveName}
+                  onChange={(e) => setDriveName(e.target.value)}
+                  placeholder="e.g. Software Developer Drive - July 2026"
+                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                  Target Role Preset
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
                 >
-                  Cancel
-                </button>
-                {step < 6 ? (
-                  <button
-                    onClick={() => setStep(step + 1)}
-                    disabled={
-                      (step === 1 && (!driveName.trim() || (selectedRole === "rt-custom" && !customRoleName.trim()))) ||
-                      (step === 2 && Math.abs(Object.keys(modulesConfig).filter(k => modulesConfig[k].enabled).reduce((s, k) => s + modulesConfig[k].weight, 0) - 1.0) > 0.001) ||
-                      (step === 5 && candidateErrors.length > 0)
-                    }
-                    className="flex items-center gap-1.5 py-1.5 px-3.5 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                    <ArrowRight size={14} />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleLaunch}
-                    disabled={validationErrors.length > 0}
-                    className="flex items-center gap-1.5 py-1.5 px-4 text-[12px] font-semibold text-white bg-[#0C6B58] rounded hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Check size={14} />
-                    Create & Schedule
-                  </button>
-                )}
+                  {roleTemplates.map((rt) => (
+                    <option key={rt.id} value={rt.id}>
+                      {rt.name}
+                    </option>
+                  ))}
+                  <option value="rt-custom">+ Custom Role Name</option>
+                </select>
               </div>
+
+              {selectedRole === "rt-custom" && (
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                    Custom Role Name
+                  </label>
+                  <input
+                    type="text"
+                    value={customRoleName}
+                    onChange={(e) => setCustomRoleName(e.target.value)}
+                    placeholder="e.g. Senior DevOps Specialist"
+                    className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowWizard(false)}
+                className="px-3.5 py-2 text-[12px] font-medium text-[#5B5B64] hover:bg-[#E6E6EA] rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!driveName.trim()) {
+                    toast.error("Please enter a drive name.");
+                    return;
+                  }
+                  try {
+                    const res = await createDrive({
+                      name: driveName.trim(),
+                      roleTemplateId: selectedRole === "rt-custom" ? (roleTemplates[0]?.id ?? "") : selectedRole,
+                      status: "DRAFT",
+                    });
+                    toast.success("Drive created! Opening configuration screen...");
+                    setShowWizard(false);
+                    navigate({ to: "/drives/$id", params: { id: res.driveId } });
+                  } catch (err: any) {
+                    toast.error("Failed to create drive: " + (err.message || err));
+                  }
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
+              >
+                Create & Configure Drive
+                <ArrowRight size={14} />
+              </button>
             </div>
           </div>
         </div>

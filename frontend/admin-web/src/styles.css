@@ -96,24 +96,26 @@
   select {
     appearance: none;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%235b5b64' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
-    background-position: right 0.5rem center !important;
+    background-position: right 0.65rem center !important;
     background-repeat: no-repeat !important;
-    background-size: 1.25em 1.25em !important;
-    padding-right: 2rem !important;
-    border: 1px solid var(--color-line);
+    background-size: 1.1em 1.1em !important;
+    padding-right: 2.2rem !important;
+    border: 1px solid #E6E6EA;
     background-color: #ffffff;
-    color: var(--color-ink);
-    border-radius: var(--radius-sm);
+    color: #0B0B0D;
+    border-radius: 0.75rem;
     outline: none;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition: all 0.15s ease-in-out;
     cursor: pointer;
-  
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
   }
   select:hover {
-    border-color: var(--color-line-strong);
+    background-color: #F4F4F6;
+    border-color: #D1D1D6;
   }
   select:focus {
-    border-color: var(--color-brand);
-    box-shadow: 0 0 0 2px rgba(47, 92, 255, 0.15);
+    border-color: #2F5CFF;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(47, 92, 255, 0.12);
   }
 }

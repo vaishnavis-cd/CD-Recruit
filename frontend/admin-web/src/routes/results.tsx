@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import {
@@ -30,6 +30,13 @@ export const Route = createFileRoute("/results")({
 });
 
 function ResultsPage() {
+  const location = useLocation();
+  const isExactResults = location.pathname === "/results" || location.pathname === "/results/";
+
+  if (!isExactResults) {
+    return <Outlet />;
+  }
+
   const resultsList = useStore((s) => s.resultsList);
   const fetchResults = useStore((s) => s.fetchResults);
   const exportResultsCsv = useStore((s) => s.exportResultsCsv);
@@ -130,7 +137,7 @@ function ResultsPage() {
       actions={
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] shadow-sm transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] border border-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
         >
           <Download size={14} />
           Export CSV

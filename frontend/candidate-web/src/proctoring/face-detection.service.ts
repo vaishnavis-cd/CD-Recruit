@@ -38,19 +38,29 @@ export class FaceDetectionService {
 
       const vision = await FilesetResolver.forVisionTasks("/mediapipe");
 
-      console.log("[FaceDetection] Creating Face Landmarker...");
-      this.landmarker = await FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "/mediapipe/face_landmarker.task",
-          delegate: "CPU",
-        },
-        // VIDEO mode uses temporal smoothing across frames — better for live streams
-        // and correctly handles the timestamped detectForVideo() API
-        runningMode: "VIDEO",
-        numFaces: 2,
-        outputFaceBlendshapes: true,
-        outputFacialTransformationMatrixes: false,
-      });
+      console.log("[FaceDetection] Loading Face Landmarker task model from local /models/face_landmarker.task...");
+      try {
+        this.landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "/models/face_landmarker.task",
+            delegate: "GPU",
+          },
+          runningMode: "VIDEO",
+          numFaces: 4,
+          outputFaceBlendshapes: true,
+        });
+      } catch (gpuErr) {
+        console.warn("[FaceDetection] GPU delegate failed for Face Landmarker, falling back to CPU:", gpuErr);
+        this.landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "/models/face_landmarker.task",
+            delegate: "CPU",
+          },
+          runningMode: "VIDEO",
+          numFaces: 4,
+          outputFaceBlendshapes: true,
+        });
+      }
 
       this.isLoaded = true;
       this.isLoading = false;
@@ -83,7 +93,6 @@ export class FaceDetectionService {
     }
 
     try {
-      // VIDEO mode requires a monotonically increasing timestamp in ms
       const result = this.landmarker.detectForVideo(videoElement, performance.now());
 
       if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) {

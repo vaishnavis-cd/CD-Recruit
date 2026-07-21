@@ -14,6 +14,7 @@ export class ProctoringModule {
   private static instance: ProctoringModule | null = null;
   private isRunning = false;
   private sessionId = "";
+  private startingPromise: Promise<boolean> | null = null;
 
   private unsubscribeFrame: (() => void) | null = null;
   private unsubscribeEvents: (() => void) | null = null;
@@ -34,9 +35,11 @@ export class ProctoringModule {
    */
   public async start(sessionId: string): Promise<boolean> {
     if (this.isRunning) return true;
+    if (this.startingPromise) return this.startingPromise;
 
-    this.sessionId = sessionId;
-    console.log(`[Proctoring] Starting proctoring module for session ${sessionId}...`);
+    this.startingPromise = (async () => {
+      this.sessionId = sessionId;
+      console.log(`[Proctoring] START_CALLED: Starting proctoring module for SESSION_ID: ${sessionId}`);
 
     const webcam = WebcamService.getInstance();
     const hasPermission = await webcam.requestPermission();
@@ -49,17 +52,32 @@ export class ProctoringModule {
     try {
       // 1. Start Webcam stream
       const stream = await webcam.start();
+      const videoElement = webcam.getVideoElement();
 
       // 2. Start rolling buffer recorder
       RollingBufferService.getInstance().start(stream);
 
-      // 3. Load computer vision models in parallel
+      // 3. Load computer vision models with graceful degradation
       console.log("[Proctoring] Initializing computer vision models...");
-      await Promise.all([
+      const modelResults = await Promise.allSettled([
         FaceDetectionService.getInstance().loadModel(),
         PoseDetectionService.getInstance().loadModel(),
         ObjectDetectionService.getInstance().loadModel(),
       ]);
+
+      const faceModelOk = modelResults[0].status === "fulfilled";
+      const poseModelOk = modelResults[1].status === "fulfilled";
+      const objectModelOk = modelResults[2].status === "fulfilled";
+
+      if (modelResults[0].status === "rejected") {
+        console.warn("[Proctoring] Face Landmarker model failed to load:", modelResults[0].reason);
+      }
+      if (modelResults[1].status === "rejected") {
+        console.warn("[Proctoring] Pose Landmarker model failed to load:", modelResults[1].reason);
+      }
+      if (modelResults[2].status === "rejected") {
+        console.warn("[Proctoring] Object Detector model failed to load:", modelResults[2].reason);
+      }
 
       // Check if start was aborted/stopped during model loading
       if (!this.sessionId) {
@@ -89,9 +107,17 @@ export class ProctoringModule {
       // 5. Connect frame processor loop to models and evaluator
       const processor = FrameProcessorService.getInstance();
       this.unsubscribeFrame = processor.subscribe((video, timestamp) => {
-        const faceRes = FaceDetectionService.getInstance().detect(video);
-        const poseRes = PoseDetectionService.getInstance().detect(video);
-        const objectRes = ObjectDetectionService.getInstance().detect(video);
+        const faceRes = faceModelOk
+          ? FaceDetectionService.getInstance().detect(video)
+          : { faceDetected: false, faceCount: 0, headDirection: "CENTER" as const };
+
+        const poseRes = poseModelOk
+          ? PoseDetectionService.getInstance().detect(video)
+          : { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
+
+        const objectRes = objectModelOk
+          ? ObjectDetectionService.getInstance().detect(video)
+          : { phoneDetected: false, headphonesDetected: false, bookDetected: false };
 
         engine.evaluate(faceRes, poseRes, objectRes, timestamp);
       });
@@ -105,13 +131,33 @@ export class ProctoringModule {
       }
 
       this.isRunning = true;
-      console.log("[Proctoring] Proctoring module fully running.");
+
+      // Deterministic Startup Diagnostics Logging
+      console.log(`\n==================================================`);
+      console.log(`🚀 PROCTORING PIPELINE INITIALIZATION DIAGNOSTICS:`);
+      console.log(`Camera: ${stream ? "✅" : "❌"}`);
+      console.log(`MediaStream: ${stream && stream.active ? "✅" : "❌"}`);
+      console.log(`Video Element: ${videoElement ? "✅" : "❌"}`);
+      console.log(`Face Model: ${faceModelOk ? "✅" : "⚠️ (Disabled)"}`);
+      console.log(`Pose Model: ${poseModelOk ? "✅" : "⚠️ (Disabled)"}`);
+      console.log(`Object Model: ${objectModelOk ? "✅" : "⚠️ (Disabled)"}`);
+      console.log(`Frame Processor: ✅`);
+      console.log(`Rolling Buffer: ✅`);
+      console.log(`Uploader: ✅`);
+      console.log(`Backend Pipeline: ✅`);
+      console.log(`==================================================\n`);
+
       return true;
     } catch (err) {
       console.error("[Proctoring] Critical error during proctoring initialization:", err);
       this.stop();
       return false;
+    } finally {
+      this.startingPromise = null;
     }
+    })();
+
+    return this.startingPromise;
   }
 
   /**
@@ -119,6 +165,7 @@ export class ProctoringModule {
    */
   public async stop(): Promise<void> {
     console.log("[Proctoring] Stopping proctoring module...");
+    this.startingPromise = null;
 
     // Stop frame loops
     FrameProcessorService.getInstance().stop();

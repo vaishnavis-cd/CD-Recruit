@@ -33,15 +33,45 @@ export class PoseDetectionService {
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
       );
 
-      console.log("[PoseDetection] Loading Pose Landmarker task model from Google storage...");
-      this.landmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-          delegate: "GPU",
-        },
-        runningMode: "IMAGE",
-      });
+      const modelUrls = [
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+        "/models/pose_landmarker_full.task",
+      ];
+
+      let loaded = false;
+      for (const url of modelUrls) {
+        try {
+          console.log(`[PoseDetection] Attempting to load Pose Landmarker from ${url} (GPU)...`);
+          this.landmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: url,
+              delegate: "GPU",
+            },
+            runningMode: "IMAGE",
+          });
+          loaded = true;
+          break;
+        } catch (gpuErr) {
+          console.warn(`[PoseDetection] GPU delegate failed for ${url}, trying CPU:`, gpuErr);
+          try {
+            this.landmarker = await PoseLandmarker.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: url,
+                delegate: "CPU",
+              },
+              runningMode: "IMAGE",
+            });
+            loaded = true;
+            break;
+          } catch (cpuErr) {
+            console.warn(`[PoseDetection] CPU delegate failed for ${url}:`, cpuErr);
+          }
+        }
+      }
+
+      if (!loaded || !this.landmarker) {
+        throw new Error("Failed to load Pose Landmarker model from all candidate sources.");
+      }
 
       this.isLoaded = true;
       this.isLoading = false;

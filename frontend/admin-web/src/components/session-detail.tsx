@@ -339,7 +339,7 @@ export function SessionDetailBody({
                 </button>
                 <button
                   onClick={() => recordDecision(session.id, "advance", noteText)}
-                  className="px-4 py-2 text-[13px] font-medium rounded-md bg-[#2F5CFF] hover:bg-[#2448D9] text-white cursor-pointer"
+                  className="px-4 py-2 text-[13px] font-medium rounded-md bg-[#2F5CFF] hover:bg-[#0037FF] text-white cursor-pointer transition-colors"
                 >
                   Advance
                 </button>

@@ -45,7 +45,7 @@ interface ConsentScreenProps {
 }
 
 export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
-  const { transitionTo } = useSessionStore()
+  const { transitionTo, cvMode } = useSessionStore()
   const session = useSessionStore((s) => s.session)
   const sessionId = session?.id ?? null
 
@@ -100,12 +100,13 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
       ctx.scale(-1, 1)
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
       setSelfieDataUrl(dataUrl)
       
       // Cache selfie in localStorage temporarily (as transient bridge)
       // Flagged: Cleared immediately upon successful upload to /selfie
       localStorage.setItem('cd-recruit-selfie-data', dataUrl)
+      setFlaggedForReview(false)
       setCaptureAttempts(0)
 
       if (streamRef.current) {
@@ -114,6 +115,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
       }
       setStreamActive(false)
     } catch (err: any) {
+      console.error('[ConsentScreen] Selfie capture failed:', err)
       const attempts = captureAttempts + 1
       setCaptureAttempts(attempts)
       if (attempts >= SELFIE_MAX_RETRIES) {
@@ -134,12 +136,21 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     console.warn('[ConsentScreen] Non-mandatory consent path — not yet fully implemented')
   }
 
-  function handleProceedToTutorial() {
-    // ComplianceHalt removed — consent persistence is now implemented.
-    // Audio consent was already accepted and persisted in handleProceedFromAudio.
-    const storedMode = localStorage.getItem('cd-recruit-check-mode') as 'full' | 'expedited' | null
-    const mode = storedMode === 'expedited' ? 'condensed' : 'full'
-    transitionTo({ type: 'tutorial', mode, inviteToken })
+  async function handleProceedToTutorial() {
+    try {
+      const session = useSessionStore.getState().session
+      if (session?.id) {
+        await services.sessionApi.recordConsent(session.id, '1.0')
+      }
+      transitionTo({
+        type: 'tutorial',
+        mode: cvMode === 'reduced' ? 'condensed' : 'full',
+        inviteToken,
+      })
+    } catch (err) {
+      console.error('[ConsentScreen] Failed to persist consent record:', err)
+      setComplianceHalt(true)
+    }
   }
 
   async function handleProceedFromSelfie() {
@@ -175,66 +186,25 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
     async function startPreview() {
       try {
-        // Reuse the stream already opened by the CV adapter during system check if possible,
-        // otherwise open a fresh one. This avoids a redundant permission request.
-        let stream: MediaStream | null = null
-
-        // Try getting the existing active stream from the CV adapter
-        const existingStream = (services.cv as any)._activeStream?.() ?? null
-
-        if (existingStream && existingStream.active) {
-          stream = existingStream
-        } else {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-          })
-        }
-
-        if (cancelled) {
-          if (stream && stream !== existingStream) stream.getTracks().forEach(t => t.stop())
-          return
-        }
-
+        console.log('[ConsentScreen] Requesting getUserMedia stream...')
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        })
         streamRef.current = stream
-
-        // videoRef may not be attached yet if the video element is conditionally rendered.
-        // Poll briefly until the ref is available (max ~500ms).
-        let attempts = 0
-        while (!videoRef.current && attempts < 10) {
-          await new Promise(r => setTimeout(r, 50))
-          attempts++
-        }
-
-        if (cancelled) return
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           try {
             await videoRef.current.play()
-          } catch {
-            // Autoplay policy — will play on next user interaction, video element is still visible
+            console.log('[ConsentScreen] Video playing successfully, videoWidth:', videoRef.current.videoWidth)
+          } catch (playErr) {
+            console.warn('[ConsentScreen] Video play error:', playErr)
           }
-          if (!cancelled) setStreamActive(true)
-        } else {
-          // ref never appeared — still mark active so the video element renders and picks up srcObject
-          if (!cancelled) setStreamActive(true)
         }
-      } catch (err: any) {
-        if (cancelled) return
-        console.error('[ConsentScreen] Camera start failed:', err)
-        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-          setLivenessError(
-            'Camera access was denied. Click the camera icon in your browser address bar, allow access, then refresh.',
-          )
-        } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
-          setLivenessError(
-            'No camera detected. Connect a webcam and refresh, or use Skip below.',
-          )
-        } else {
-          setLivenessError(
-            `Could not start camera: ${err?.message ?? String(err)}`,
-          )
-        }
+        setStreamActive(true)
+      } catch (err) {
+        console.error('Failed to start video preview for consent/liveness:', err)
+        setLivenessError('Could not access webcam. Please check permissions.')
       }
     }
 
@@ -250,54 +220,63 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     }
   }, [step, selfieDataUrl])
 
+  // Attach stream to videoRef whenever streamRef.current & videoRef.current are ready
+  useEffect(() => {
+    if (videoRef.current && streamRef.current && videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch((err) => {
+        console.warn('[ConsentScreen] Video play catch:', err)
+      })
+    }
+  }, [streamActive, step])
+
   // Liveness check detection loop
   useEffect(() => {
     if (step !== 'liveness' || !streamActive || !videoRef.current) return
 
     let active = true
-    let intervalId: ReturnType<typeof setInterval> | null = null
     const faceService = FaceDetectionService.getInstance()
 
-    async function startDetection() {
-      // Wait for model load before starting — loadModel() is idempotent
-      if (!faceService.isModelLoaded()) {
+    if (!faceService.isModelLoaded()) {
+      faceService.loadModel().catch(err => {
+        console.error('[ConsentScreen] Failed to load face detection model:', err)
+        setLivenessError('Failed to initialize face detection model.')
+      })
+    }
+
+    const detectLoop = () => {
+      if (!active || !videoRef.current) return
+      
+      const video = videoRef.current
+      if (video.readyState >= 2 && !video.paused) {
         try {
-          await faceService.loadModel()
-        } catch (err) {
-          console.error('[ConsentScreen] Failed to load face detection model:', err)
-          // Auto-skip liveness so candidate isn't blocked
-          if (active) {
-            setLivenessBlink(true)
-            setLivenessLeft(true)
-            setLivenessRight(true)
+          const result = faceService.detect(video)
+          if (result.faceDetected) {
+            if (result.blinkDetected) {
+              setLivenessBlink(true)
+            }
+            if (result.headDirection === 'LEFT') {
+              setLivenessLeft(true)
+            }
+            if (result.headDirection === 'RIGHT') {
+              setLivenessRight(true)
+            }
           }
-          return
+        } catch (err) {
+          console.error('[ConsentScreen] Error in liveness detection:', err)
         }
       }
 
-      if (!active) return
-
-      // 10fps — enough for responsive blink/head detection without saturating the CPU
-      intervalId = setInterval(() => {
-        if (!active || !videoRef.current) return
-        try {
-          const result = faceService.detect(videoRef.current)
-          if (result.faceDetected) {
-            if (result.blinkDetected) setLivenessBlink(true)
-            if (result.headDirection === 'LEFT') setLivenessLeft(true)
-            if (result.headDirection === 'RIGHT') setLivenessRight(true)
-          }
-        } catch (err) {
-          console.error('[ConsentScreen] Detection tick error:', err)
-        }
-      }, 100)
+      if (active) {
+        setTimeout(detectLoop, 100)
+      }
     }
 
-    startDetection()
+    const timer = setTimeout(detectLoop, 500)
 
     return () => {
       active = false
-      if (intervalId !== null) clearInterval(intervalId)
+      clearTimeout(timer)
     }
   }, [step, streamActive])
 
@@ -511,18 +490,16 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           </p>
 
           <div className="relative mb-6 rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video flex items-center justify-center">
-            {/* Always render the video element so videoRef is always attached.
-                Hide it with opacity when not yet streaming. */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-300 ${streamActive ? 'opacity-100' : 'opacity-0'}`}
+              className={`w-full h-full object-cover transform -scale-x-100 ${streamActive ? 'block' : 'hidden'}`}
               aria-label="Liveness camera preview"
             />
             {!streamActive && (
-              <span className="absolute text-sm text-gray-400">Loading webcam preview…</span>
+              <span className="text-sm text-gray-400">Loading webcam preview…</span>
             )}
           </div>
 
@@ -596,17 +573,16 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
               />
             ) : (
               <>
-                {/* Always render video so ref is attached before getUserMedia resolves */}
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-300 ${streamActive ? 'opacity-100' : 'opacity-0'}`}
+                  className={`w-full h-full object-cover transform -scale-x-100 ${streamActive ? 'block' : 'hidden'}`}
                   aria-label="Live camera preview"
                 />
                 {!streamActive && (
-                  <div className="absolute flex flex-col items-center gap-3 text-[var(--text-secondary)]">
+                  <div className="flex flex-col items-center gap-3 text-[var(--text-secondary)]">
                     {captureAttempts > 0 && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="w-32 h-40 rounded-full border-2 border-dashed border-[var(--accent)] opacity-40" aria-hidden />
