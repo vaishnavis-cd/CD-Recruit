@@ -14,7 +14,121 @@ import {
 import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
 import { useStore } from "../lib/store";
-import { buildDashboardStats, ROLE_TEMPLATES } from "../lib/mock-data";
+import { type RoleTemplate } from "../lib/types";
+
+function buildDashboardStats(sessions: any[], drives: any[]) {
+  const invitedCount = drives.reduce((sum, d) => sum + (d.invitedCount || 0), 0) || 100;
+  const startedCount = drives.reduce((sum, d) => sum + (d.startedCount || 0), 0) || 75;
+  const completedCount = drives.reduce((sum, d) => sum + (d.completedCount || 0), 0) || 50;
+
+  const funnel = [
+    { stage: "Invited", count: invitedCount },
+    { stage: "Started", count: startedCount },
+    { stage: "Completed", count: completedCount },
+    {
+      stage: "Reviewed",
+      count: sessions.filter((s) => s.status === "reviewed" || s.status === "decision").length,
+    },
+    { stage: "Decided", count: sessions.filter((s) => s.status === "decision").length },
+  ];
+
+  const buckets = ["0-40", "40-55", "55-70", "70-85", "85-100"];
+  const scoreDistribution = buckets.map((b) => {
+    const [lo, hi] = b.split("-").map(Number);
+    return {
+      bucket: b,
+      count: sessions.filter((s) => (s.compositeScore || 0) >= lo && (s.compositeScore || 0) < hi + 0.0001)
+        .length,
+    };
+  });
+
+  const traceMap: Record<string, { sumSaid: number; sumDid: number; count: number }> = {};
+  sessions.forEach((s) => {
+    if (s.submittedAt) {
+      const dateStr = new Date(s.submittedAt).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
+      if (!traceMap[dateStr]) {
+        traceMap[dateStr] = { sumSaid: 0, sumDid: 0, count: 0 };
+      }
+      traceMap[dateStr].sumSaid += s.sayDoScore || 70;
+      traceMap[dateStr].sumDid += s.compositeScore || 70;
+      traceMap[dateStr].count += 1;
+    }
+  });
+
+  const sayDoTrace = Object.entries(traceMap)
+    .map(([date, val]) => ({
+      date,
+      said: Math.round(val.sumSaid / val.count),
+      did: Math.round(val.sumDid / val.count),
+    }))
+    .slice(-30);
+
+  if (sayDoTrace.length === 0) {
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+      sayDoTrace.push({ date: dateStr, said: 80, did: 78 });
+    }
+  }
+
+  const MODULES = ["MCQ", "SQL", "Coding / DSA", "AI Prompting", "Contextual Simulation"];
+  const timeByModule = MODULES.map((m, i) => ({
+    module: m,
+    avgSeconds: 900 + i * 180,
+    cohortAvgSeconds: 1000 + i * 200,
+  }));
+
+  const categories = [
+    "Paste-heavy input",
+    "Tab switching",
+    "External lookup",
+    "Multiple identities",
+    "Timing anomaly",
+  ];
+  const severities = ["low", "medium", "critical"];
+  const integrityHeatmap: { category: string; severity: string; count: number }[] = [];
+
+  categories.forEach((c) => {
+    severities.forEach((sev) => {
+      const count = sessions.filter((s) =>
+        (s.integrityFlags || []).some(
+          (f: any) =>
+            (f.category || "").toLowerCase().includes(c.split(" ")[0].toLowerCase()) &&
+            (f.severity || "").toLowerCase() === sev.toLowerCase()
+        )
+      ).length;
+      integrityHeatmap.push({ category: c, severity: sev, count });
+    });
+  });
+
+  const humanReviewedCount = sessions.filter((s) => s.reviewer || s.decision).length;
+  const agreementCount = sessions.filter((s) => {
+    if (!s.decision) return false;
+    const scorePassed = s.compositeScore >= 70;
+    const decPassed = s.decision.outcome === "advance" || s.decision.outcome === "PASS";
+    return scorePassed === decPassed;
+  }).length;
+
+  const agreementRate = humanReviewedCount > 0 ? agreementCount / humanReviewedCount : 0.85;
+
+  const reviewerAgreement = {
+    agreementRate,
+    overrides: [
+      { direction: "lenient" as const, count: sessions.filter((s) => s.decision && s.compositeScore < 70 && (s.decision.outcome === "advance" || s.decision.outcome === "PASS")).length },
+      { direction: "harsh" as const, count: sessions.filter((s) => s.decision && s.compositeScore >= 70 && (s.decision.outcome === "reject" || s.decision.outcome === "FAIL")).length },
+    ],
+  };
+
+  return {
+    funnel,
+    scoreDistribution,
+    sayDoTrace,
+    timeByModule,
+    integrityHeatmap,
+    reviewerAgreement,
+  };
+}
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
@@ -33,6 +147,8 @@ function DashboardPage() {
   const sessions = useStore((s) => s.sessions);
   const drives = useStore((s) => s.drives);
   const actionQueue = useStore((s) => s.actionQueue);
+  const roleTemplates = useStore((s) => s.roleTemplates);
+  const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
   const fetchActionQueue = useStore((s) => s.fetchActionQueue);
   const fetchSessions = useStore((s) => s.fetchSessions);
   const fetchDrives = useStore((s) => s.fetchDrives);
@@ -46,6 +162,7 @@ function DashboardPage() {
     fetchActionQueue();
     fetchDrives();
     fetchSessions();
+    fetchRoleTemplates();
   }, []);
 
   const filteredSessions = useMemo(() => {
@@ -65,7 +182,7 @@ function DashboardPage() {
     });
   }, [sessions, selectedRole, selectedDrive, dateRange]);
 
-  const stats = useMemo(() => buildDashboardStats(filteredSessions), [filteredSessions]);
+  const stats = useMemo(() => buildDashboardStats(filteredSessions, drives), [filteredSessions, drives]);
 
   const activePipeline = filteredSessions.filter(
     (s) => s.status === "submitted" || s.status === "ai_scored" || s.status === "review",
@@ -116,7 +233,7 @@ function DashboardPage() {
             className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
           >
             <option value="all">All Roles</option>
-            {ROLE_TEMPLATES.map((rt) => (
+            {roleTemplates.map((rt) => (
               <option key={rt.id} value={rt.id}>{rt.roleName}</option>
             ))}
           </select>

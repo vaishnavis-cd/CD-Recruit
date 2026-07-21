@@ -42,7 +42,7 @@ export const Route = createFileRoute("/drives/$id")({
       { title: "Drive Configuration — CD-Recruit" },
       {
         name: "description",
-        content: "Configure drive schedule, select 6 assessment modules, assign questions, and manage candidate roster.",
+        content: "Configure drive schedule, select assessment modules, assign questions, and manage candidate roster.",
       },
     ],
   }),
@@ -88,21 +88,19 @@ function DriveDetailPage() {
   const fetchQuestions = useStore((s) => s.fetchQuestions);
   const questionsBank = useStore((s) => s.questions);
   const saveDriveQuestions = useStore((s) => s.saveDriveQuestions);
+  const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
 
   const [drive, setDrive] = useState<DriveDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<"roster" | "questions" | "configuration">("configuration");
-  const [activeQuestionModule, setActiveQuestionModule] = useState<string>("MCQ");
 
   // Config States
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState<string>("DRAFT");
-  const [preferredLanguage, setPreferredLanguage] = useState<string>("javascript");
 
   // 12-Hour AM/PM Schedule state
   const [startDate, setStartDate] = useState("");
@@ -127,17 +125,17 @@ function DriveDetailPage() {
 
   // Question Assignments State
   const [assignedQuestions, setAssignedQuestions] = useState<string[]>([]);
+  const [questionModuleFilter, setQuestionModuleFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
+  const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
 
-  // Bulk Candidate / Question Upload State
-  const [bulkCandidateText, setBulkCandidateText] = useState("");
-  const [questionCsvFile, setQuestionCsvFile] = useState<File | null>(null);
-  const [candidateCsvFile, setCandidateCsvFile] = useState<File | null>(null);
-  const [bulkLoading, setBulkLoading] = useState(false);
+  // Add Candidate Modal State
+  const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
+  const [candidateNameInput, setCandidateNameInput] = useState("");
+  const [candidateEmailInput, setCandidateEmailInput] = useState("");
 
   // Confirmation Modal States
   const [confirmGenerateLinks, setConfirmGenerateLinks] = useState(false);
-  const [confirmRevokeCandidate, setConfirmRevokeCandidate] = useState<any | null>(null);
 
   const loadData = async () => {
     try {
@@ -243,6 +241,33 @@ function DriveDetailPage() {
     }
   };
 
+  const handleAddCandidate = async () => {
+    if (!candidateNameInput.trim() || !candidateEmailInput.trim()) {
+      toast.error("Please enter candidate name and email.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(candidateEmailInput.trim())) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    try {
+      await addCandidatesBulk(driveId, [
+        {
+          name: candidateNameInput.trim(),
+          candidateEmail: candidateEmailInput.trim(),
+        },
+      ]);
+      toast.success("Candidate added successfully!");
+      setShowAddCandidateModal(false);
+      setCandidateNameInput("");
+      setCandidateEmailInput("");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add candidate");
+    }
+  };
+
   const handleDownloadSampleQuestions = async () => {
     try {
       const headers = await getAuthHeaders();
@@ -286,6 +311,22 @@ function DriveDetailPage() {
       setGenerating(false);
     }
   };
+
+  // Filtered Questions Bank List
+  const filteredQuestionsList = useMemo(() => {
+    return questionsBank.filter((q) => {
+      if (questionModuleFilter !== "ALL" && q.moduleType !== questionModuleFilter) {
+        return false;
+      }
+      if (questionSearch.trim()) {
+        const s = questionSearch.toLowerCase().trim();
+        const title = (q.content?.title || q.content?.text || q.content?.question || "").toLowerCase();
+        const tags = (q.tags || []).join(" ").toLowerCase();
+        if (!title.includes(s) && !tags.includes(s)) return false;
+      }
+      return true;
+    });
+  }, [questionsBank, questionModuleFilter, questionSearch]);
 
   if (loading) {
     return (
@@ -457,7 +498,7 @@ function DriveDetailPage() {
             </div>
           </div>
 
-          {/* SECTION 2: 6 Module Selection & 100-Point Scoring Ceiling */}
+          {/* SECTION 2: Module Selection & 100-Point Scoring Ceiling */}
           <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-5">
             <div className="flex items-center justify-between border-b border-[#EFF0F3] pb-3">
               <div className="flex items-center gap-2">
@@ -485,22 +526,6 @@ function DriveDetailPage() {
               </div>
             </div>
 
-            {/* Preferred HR Language for Coding & Debugging */}
-            <div className="flex items-center gap-4 bg-[#F7F7F9] p-3.5 rounded-md border border-[#E6E6EA]">
-              <label className="text-[12px] font-semibold text-[#0B0B0D]">HR Preferred Programming Language:</label>
-              <select
-                value={preferredLanguage}
-                onChange={(e) => setPreferredLanguage(e.target.value)}
-                className="px-3 py-1.5 text-[12px] font-mono border border-[#E6E6EA] rounded bg-white text-[#2F5CFF] font-semibold focus:outline-none"
-              >
-                <option value="javascript">JavaScript (Node.js)</option>
-                <option value="python">Python 3</option>
-                <option value="java">Java 17</option>
-                <option value="cpp">C++ 20</option>
-                <option value="typescript">TypeScript</option>
-              </select>
-            </div>
-
             {/* 6 Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
               {(
@@ -518,7 +543,13 @@ function DriveDetailPage() {
                 return (
                   <div
                     key={mod.id}
-                    className={`border rounded-md p-4 space-y-3 transition-colors ${
+                    onClick={() => {
+                      setModuleConfig({
+                        ...moduleConfig,
+                        [mod.id]: { ...conf, enabled: !conf.enabled },
+                      });
+                    }}
+                    className={`border rounded-md p-4 space-y-3 transition-colors cursor-pointer select-none ${
                       conf.enabled ? "bg-white border-[#2F5CFF] shadow-sm" : "bg-[#F7F7F9] border-[#E6E6EA] opacity-60"
                     }`}
                   >
@@ -530,19 +561,17 @@ function DriveDetailPage() {
                       <input
                         type="checkbox"
                         checked={conf.enabled}
-                        onChange={(e) =>
-                          setModuleConfig({
-                            ...moduleConfig,
-                            [mod.id]: { ...conf, enabled: e.target.checked },
-                          })
-                        }
-                        className="w-4 h-4 text-[#2F5CFF] rounded cursor-pointer"
+                        onChange={() => {}}
+                        className="w-4 h-4 text-[#2F5CFF] rounded cursor-pointer pointer-events-none"
                       />
                     </div>
                     <p className="text-[11px] text-[#8B8B93]">{mod.desc}</p>
 
                     {conf.enabled && (
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EFF0F3] text-[11px]">
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EFF0F3] text-[11px]"
+                      >
                         <div>
                           <label className="block text-[#5B5B64] font-medium mb-1">Duration (min)</label>
                           <input
@@ -587,14 +616,16 @@ function DriveDetailPage() {
           <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EFF0F3] pb-4">
               <div>
-                <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Question Bank Assignment & Bulk Upload</h3>
-                <p className="text-[12px] text-[#5B5B64] mt-0.5">Assign questions from library or bulk import CSV files.</p>
+                <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Question Bank Assignment</h3>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                  Select and assign questions from the central question library.
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDownloadSampleQuestions}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded cursor-pointer"
                 >
                   <Download size={13} /> Sample Question CSV
                 </button>
@@ -602,38 +633,125 @@ function DriveDetailPage() {
                   onClick={handleSaveQuestions}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded shadow-sm transition-colors cursor-pointer"
                 >
-                  Save Question Assignments
+                  <Check size={14} /> Save Question Assignments ({assignedQuestions.length})
                 </button>
               </div>
             </div>
 
+            {/* Horizontal Module Filter Chips & Search Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F7F7F9] p-3 rounded-lg border border-[#E6E6EA]">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { id: "ALL", label: "All Modules" },
+                  { id: "MCQ", label: "MCQ" },
+                  { id: "SQL", label: "SQL" },
+                  { id: "CODING", label: "Coding" },
+                  { id: "DEBUGGING", label: "Debugging" },
+                  { id: "AI_PROMPTING", label: "AI Prompting" },
+                  { id: "SIMULATION", label: "Simulation" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setQuestionModuleFilter(f.id)}
+                    className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                      questionModuleFilter === f.id
+                        ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                        : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full sm:w-[220px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
+                <input
+                  type="text"
+                  value={questionSearch}
+                  onChange={(e) => setQuestionSearch(e.target.value)}
+                  placeholder="Search questions..."
+                  className="w-full pl-9 pr-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+            </div>
+
             {/* Question Selector List */}
-            <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-md max-h-[400px] overflow-y-auto">
-              {questionsBank.map((q) => {
-                const isSelected = assignedQuestions.includes(q.id);
-                return (
-                  <div key={q.id} className="p-3.5 flex items-center justify-between hover:bg-[#F7F7F9] transition-colors">
-                    <div>
-                      <span className="text-[12px] font-mono uppercase font-semibold text-[#2F5CFF] mr-2">{q.moduleType}</span>
-                      <span className="text-[13px] font-semibold text-[#0B0B0D]">{q.content?.title || "Question"}</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (isSelected) {
-                          setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
-                        } else {
-                          setAssignedQuestions([...assignedQuestions, q.id]);
-                        }
-                      }}
-                      className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
-                        isSelected ? "bg-red-50 text-red-600 border border-red-200" : "bg-[#2F5CFF] text-white"
-                      }`}
+            <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-md max-h-[460px] overflow-y-auto">
+              {filteredQuestionsList.length === 0 ? (
+                <div className="p-8 text-center text-[12px] italic text-[#8B8B93]">
+                  No matching questions found in bank.
+                </div>
+              ) : (
+                filteredQuestionsList.map((q) => {
+                  const isSelected = assignedQuestions.includes(q.id);
+                  const title = q.content?.title || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
+                  const difficulty = q.difficulty || "MEDIUM";
+                  return (
+                    <div
+                      key={q.id}
+                      onClick={() => setPreviewQuestion(q)}
+                      className="p-3.5 flex items-center justify-between hover:bg-[#F0F4FF]/50 transition-colors cursor-pointer group"
                     >
-                      {isSelected ? "Remove" : "Assign"}
-                    </button>
-                  </div>
-                );
-              })}
+                      <div className="flex items-center gap-3 pr-4 flex-1">
+                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
+                          {q.moduleType}
+                        </span>
+                        <div>
+                          <div className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors line-clamp-1">
+                            {title}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span
+                              className={`text-[10px] font-mono font-semibold uppercase px-1.5 py-0.2 rounded ${
+                                difficulty.toUpperCase() === "EASY"
+                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                  : difficulty.toUpperCase() === "HARD"
+                                  ? "bg-rose-50 text-rose-600 border border-rose-200"
+                                  : "bg-amber-50 text-amber-600 border border-amber-200"
+                              }`}
+                            >
+                              {difficulty}
+                            </span>
+                            {q.tags && q.tags.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                {q.tags.slice(0, 3).map((tag: string) => (
+                                  <span key={tag} className="text-[10px] text-[#8B8B93] bg-[#EFF0F3] px-1.5 py-0.2 rounded">
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity font-medium flex items-center gap-1">
+                          <Eye size={12} /> Preview
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSelected) {
+                              setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
+                            } else {
+                              setAssignedQuestions([...assignedQuestions, q.id]);
+                            }
+                          }}
+                          className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                              : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
+                          }`}
+                        >
+                          {isSelected ? "Remove" : "Assign"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -648,12 +766,21 @@ function DriveDetailPage() {
                 <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Candidate Roster & Link Generation</h3>
                 <p className="text-[12px] text-[#5B5B64] mt-0.5">Manage candidates and copy assessment invitation links.</p>
               </div>
-              <button
-                onClick={handleDownloadSampleCandidates}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded"
-              >
-                <Download size={13} /> Sample Candidate CSV
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddCandidateModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded shadow-sm transition-colors cursor-pointer"
+                >
+                  <Plus size={14} /> Add Candidate
+                </button>
+                <button
+                  onClick={handleDownloadSampleCandidates}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded cursor-pointer"
+                >
+                  <Download size={13} /> Sample Candidate CSV
+                </button>
+              </div>
             </div>
 
             {/* Candidates Table */}
@@ -668,26 +795,219 @@ function DriveDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EFF0F3]">
-                  {drive.roster.map((c) => (
-                    <tr key={c.candidateId} className="hover:bg-[#F7F7F9]">
-                      <td className="p-3 font-semibold text-[#0B0B0D]">{c.candidateName}</td>
-                      <td className="p-3 font-mono text-[12px] text-[#5B5B64]">{c.candidateEmail}</td>
-                      <td className="p-3 font-mono text-[11px]">{c.inviteStatus}</td>
-                      <td className="p-3 text-right">
-                        {c.sessionId && (
-                          <Link
-                            to="/results/$id"
-                            params={{ id: c.sessionId }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded"
-                          >
-                            <Eye size={12} /> View Results
-                          </Link>
-                        )}
+                  {drive.roster.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
+                        No candidates added to roster yet. Click "Add Candidate" above to get started.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    drive.roster.map((c) => (
+                      <tr key={c.candidateId} className="hover:bg-[#F7F7F9]">
+                        <td className="p-3 font-semibold text-[#0B0B0D]">{c.candidateName}</td>
+                        <td className="p-3 font-mono text-[12px] text-[#5B5B64]">{c.candidateEmail}</td>
+                        <td className="p-3 font-mono text-[11px]">{c.inviteStatus}</td>
+                        <td className="p-3 text-right">
+                          {c.sessionId && (
+                            <Link
+                              to="/results/$id"
+                              params={{ id: c.sessionId }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded"
+                            >
+                              <Eye size={12} /> View Results
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Question Preview Modal (Blurred Background) */}
+      {previewQuestion && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[640px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between bg-[#F7F7F9]">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
+                  {previewQuestion.moduleType}
+                </span>
+                <span
+                  className={`text-[11px] font-mono font-semibold uppercase px-2 py-0.5 rounded ${
+                    (previewQuestion.difficulty || "").toUpperCase() === "EASY"
+                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                      : (previewQuestion.difficulty || "").toUpperCase() === "HARD"
+                      ? "bg-rose-50 text-rose-600 border border-rose-200"
+                      : "bg-amber-50 text-amber-600 border border-amber-200"
+                  }`}
+                >
+                  {previewQuestion.difficulty || "MEDIUM"}
+                </span>
+              </div>
+              <button
+                onClick={() => setPreviewQuestion(null)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D] p-1 rounded-md hover:bg-[#E6E6EA] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D] mb-2">
+                  {previewQuestion.content?.title || previewQuestion.content?.text || previewQuestion.content?.question || "Question Details"}
+                </h3>
+                {previewQuestion.content?.description && (
+                  <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+                    {previewQuestion.content.description}
+                  </p>
+                )}
+              </div>
+
+              {/* MCQ Options */}
+              {previewQuestion.content?.options && Array.isArray(previewQuestion.content.options) && (
+                <div className="space-y-2 pt-2 border-t border-[#EFF0F3]">
+                  <label className="text-[12px] font-mono uppercase tracking-wider text-[#5B5B64] font-semibold block">
+                    Options:
+                  </label>
+                  <div className="space-y-1.5">
+                    {previewQuestion.content.options.map((opt: any, idx: number) => {
+                      const isCorrect = opt.isCorrect || previewQuestion.content.correctAnswer === idx || previewQuestion.content.correctOption === idx;
+                      const optText = typeof opt === "string" ? opt : opt.text || opt.label;
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-2.5 rounded-md text-[13px] border flex items-center justify-between ${
+                            isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-900 font-medium" : "bg-[#F7F7F9] border-[#E6E6EA] text-[#0B0B0D]"
+                          }`}
+                        >
+                          <span><strong className="font-mono mr-2">{String.fromCharCode(65 + idx)}.</strong> {optText}</span>
+                          {isCorrect && <span className="text-[11px] font-bold text-emerald-600 bg-white px-2 py-0.5 rounded border border-emerald-200">Correct Answer</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Code Snippet / Problem Statement */}
+              {previewQuestion.content?.problemStatement && (
+                <div className="space-y-1.5 pt-2 border-t border-[#EFF0F3]">
+                  <label className="text-[12px] font-mono uppercase tracking-wider text-[#5B5B64] font-semibold block">
+                    Problem Statement:
+                  </label>
+                  <div className="p-3 bg-[#0B0B0D] text-slate-100 font-mono text-[12px] rounded-md whitespace-pre-wrap">
+                    {previewQuestion.content.problemStatement}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {previewQuestion.tags && previewQuestion.tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#EFF0F3]">
+                  <span className="text-[11px] font-medium text-[#5B5B64]">Tags:</span>
+                  {previewQuestion.tags.map((tag: string) => (
+                    <span key={tag} className="text-[11px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded font-mono">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] flex items-center justify-end">
+              {/* <button
+                onClick={() => setPreviewQuestion(null)}
+                className="px-4 py-2 text-[12px] font-medium border border-[#E6E6EA] rounded-md text-[#5B5B64] hover:bg-[#E6E6EA] transition-colors cursor-pointer"
+              >
+                Close Preview
+              </button> */}
+              <button
+                onClick={() => {
+                  const isAssigned = assignedQuestions.includes(previewQuestion.id);
+                  if (isAssigned) {
+                    setAssignedQuestions(assignedQuestions.filter((id) => id !== previewQuestion.id));
+                  } else {
+                    setAssignedQuestions([...assignedQuestions, previewQuestion.id]);
+                  }
+                  setPreviewQuestion(null);
+                }}
+                className={`px-4 py-2 text-[12px] font-semibold rounded-md shadow-sm transition-colors cursor-pointer ${
+                  assignedQuestions.includes(previewQuestion.id)
+                    ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                    : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
+                }`}
+              >
+                {assignedQuestions.includes(previewQuestion.id) ? "Remove Question from Drive" : "Assign Question to Drive"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Candidate Modal */}
+      {showAddCandidateModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Add Candidate</h3>
+              <button
+                onClick={() => setShowAddCandidateModal(false)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D] p-1 rounded-md transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                  Candidate Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={candidateNameInput}
+                  onChange={(e) => setCandidateNameInput(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                  Candidate Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={candidateEmailInput}
+                  onChange={(e) => setCandidateEmailInput(e.target.value)}
+                  placeholder="e.g. john.doe@example.com"
+                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#E6E6EA]">
+              <button
+                onClick={() => setShowAddCandidateModal(false)}
+                className="px-3.5 py-2 text-[12px] font-medium border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] transition-colors cursor-pointer text-[#5B5B64]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddCandidate}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md shadow-sm transition-colors cursor-pointer"
+              >
+                Add Candidate
+              </button>
             </div>
           </div>
         </div>

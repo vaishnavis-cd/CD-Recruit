@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
-import { ROLE_TEMPLATES } from "../lib/mock-data";
 import { type DriveStatus } from "../lib/types";
 
 export const Route = createFileRoute("/drives")({
@@ -61,6 +60,7 @@ function DrivesPage() {
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
   const loading = useStore((s) => s.loading);
   const roleTemplates = useStore((s) => s.roleTemplates);
+  const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,8 +75,7 @@ function DrivesPage() {
   // Wizard State
   const [step, setStep] = useState(1);
   const [driveName, setDriveName] = useState("");
-  const [selectedRole, setSelectedRole] = useState("");
-  const [customRoleName, setCustomRoleName] = useState("");
+  const [role, setRole] = useState("");
   
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
@@ -107,17 +106,10 @@ function DrivesPage() {
   useEffect(() => {
     fetchQuestions();
     fetchDrives();
+    fetchRoleTemplates();
   }, []);
 
-  // Sync selectedRole with first template when templates load
-  useEffect(() => {
-    if (roleTemplates.length > 0 && selectedRole !== "rt-custom") {
-      const exists = roleTemplates.some((r) => r.id === selectedRole);
-      if (!exists) {
-        setSelectedRole(roleTemplates[0].id);
-      }
-    }
-  }, [roleTemplates, selectedRole]);
+
 
   // Concurrency Check calculations
   const durationHours = useMemo(() => {
@@ -190,8 +182,8 @@ function DrivesPage() {
     if (!driveName.trim()) {
       errors.push("Drive Name is required.");
     }
-    if (selectedRole === "rt-custom" && !customRoleName.trim()) {
-      errors.push("Custom Role Name is required.");
+    if (!role.trim()) {
+      errors.push("Role is required.");
     }
     
     const enabledModules = Object.keys(modulesConfig).filter(k => modulesConfig[k].enabled);
@@ -233,7 +225,7 @@ function DrivesPage() {
     }
     
     return errors;
-  }, [driveName, selectedRole, customRoleName, modulesConfig, selectedQuestionIds, questions, scheduleStart, scheduleEnd, candidateList, candidateErrors]);
+  }, [driveName, role, modulesConfig, selectedQuestionIds, questions, scheduleStart, scheduleEnd, candidateList, candidateErrors]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -250,10 +242,14 @@ function DrivesPage() {
       return;
     }
 
-    const effectiveRoleTemplateId =
-      selectedRole === "rt-custom"
-        ? (roleTemplates[0]?.id ?? "")
-        : selectedRole;
+    const matchedTemplate = roleTemplates.find(
+      (rt) =>
+        (rt.roleName || (rt as any).name || "").toLowerCase() ===
+        role.trim().toLowerCase()
+    );
+    const effectiveRoleTemplateId = matchedTemplate
+      ? matchedTemplate.id
+      : (roleTemplates[0]?.id ?? "");
 
     try {
       // 1. Create Drive
@@ -293,8 +289,7 @@ function DrivesPage() {
   const resetWizard = () => {
     setStep(1);
     setDriveName("");
-    setSelectedRole(roleTemplates[0]?.id || "");
-    setCustomRoleName("");
+    setRole("");
     setModulesConfig({
       MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
       SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
@@ -486,14 +481,14 @@ function DrivesPage() {
                 <h2 className="text-[16px] font-semibold text-[#0B0B0D]">Create New Drive</h2>
                 <p className="text-[12px] text-[#5B5B64] mt-0.5">Enter drive name and target role to begin configuration.</p>
               </div>
-              <button onClick={() => setShowWizard(false)} className="text-[#8B8B93] hover:text-[#0B0B0D]">
+              <button onClick={() => setShowWizard(false)} className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                <label className="block text-[14px] font-medium text-[#5B5B64] mb-1.5">
                   Drive Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -506,37 +501,17 @@ function DrivesPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                  Target Role Preset
+                <label className="block text-[14px] font-medium text-[#5B5B64] mb-1.5">
+                  Role <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="e.g. Software Developer"
                   className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                >
-                  {roleTemplates.map((rt) => (
-                    <option key={rt.id} value={rt.id}>
-                      {rt.name}
-                    </option>
-                  ))}
-                  <option value="rt-custom">+ Custom Role Name</option>
-                </select>
+                />
               </div>
-
-              {selectedRole === "rt-custom" && (
-                <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                    Custom Role Name
-                  </label>
-                  <input
-                    type="text"
-                    value={customRoleName}
-                    onChange={(e) => setCustomRoleName(e.target.value)}
-                    placeholder="e.g. Senior DevOps Specialist"
-                    className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                  />
-                </div>
-              )}
             </div>
 
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
@@ -553,9 +528,22 @@ function DrivesPage() {
                     return;
                   }
                   try {
+                    if (!role.trim()) {
+                      toast.error("Please enter a role.");
+                      return;
+                    }
+                    const matchedTemplate = roleTemplates.find(
+                      (rt) =>
+                        (rt.roleName || (rt as any).name || "").toLowerCase() ===
+                        role.trim().toLowerCase()
+                    );
+                    const effectiveRoleTemplateId = matchedTemplate
+                      ? matchedTemplate.id
+                      : (roleTemplates[0]?.id ?? "");
+
                     const res = await createDrive({
                       name: driveName.trim(),
-                      roleTemplateId: selectedRole === "rt-custom" ? (roleTemplates[0]?.id ?? "") : selectedRole,
+                      roleTemplateId: effectiveRoleTemplateId,
                       status: "DRAFT",
                     });
                     toast.success("Drive created! Opening configuration screen...");

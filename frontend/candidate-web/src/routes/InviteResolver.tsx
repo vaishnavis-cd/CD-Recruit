@@ -7,8 +7,9 @@ import { TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions'
 // FIXTURE_INVITE scheduledTime can be overridden by dev panel offset via TimeAuthorityPort
 // This component runs once on mount to resolve the invite and determine the time gate.
 
-export function InviteResolver() {
-  const { token = 'demo-token-2024' } = useParams<{ token: string }>()
+export function InviteResolver({ token: propToken }: { token?: string }) {
+  const { token: pathToken } = useParams<{ token?: string }>()
+  const token = propToken || pathToken || new URLSearchParams(window.location.search).get('token') || ''
   const { screen, transitionTo, devForceJump, setSession, setInviteToken, setCvMode, initAssessment, assessment } = useSessionStore()
   const resolved = useRef(false)
 

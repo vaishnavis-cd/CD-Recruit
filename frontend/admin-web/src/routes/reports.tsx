@@ -11,8 +11,8 @@ import {
   Loader2 
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
+import { type RoleTemplate } from "../lib/types";
 import { useStore } from "../lib/store";
-import { ROLE_TEMPLATES } from "../lib/mock-data";
 import {
   Select,
   SelectContent,
@@ -49,16 +49,26 @@ const RANGES = [
 function ReportsPage() {
   const sessions = useStore((s) => s.sessions);
   const fetchSessions = useStore((s) => s.fetchSessions);
+  const roleTemplates = useStore((s) => s.roleTemplates);
+  const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
 
   useEffect(() => {
     fetchSessions();
+    fetchRoleTemplates();
   }, []);
 
-  const [cohortA, setCohortA] = useState({ role: ROLE_TEMPLATES[0].id, range: "30d" });
-  const [cohortB, setCohortB] = useState({ role: ROLE_TEMPLATES[1].id, range: "30d" });
+  const [cohortA, setCohortA] = useState({ role: "", range: "30d" });
+  const [cohortB, setCohortB] = useState({ role: "", range: "30d" });
   const [variant, setVariant] = useState<"internal" | "candidate">("internal");
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
+
+  useEffect(() => {
+    if (roleTemplates.length >= 2) {
+      setCohortA((prev) => prev.role ? prev : { ...prev, role: roleTemplates[0].id });
+      setCohortB((prev) => prev.role ? prev : { ...prev, role: roleTemplates[1].id });
+    }
+  }, [roleTemplates]);
 
   const traceA = useMemo(
     () => buildAvgTrace(sessions, cohortA.role, cohortA.range),
@@ -141,9 +151,9 @@ function ReportsPage() {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
-              <CohortSelector label="Cohort A" tone="A" value={cohortA} onChange={setCohortA} />
+              <CohortSelector label="Cohort A" tone="A" value={cohortA} onChange={setCohortA} roleTemplates={roleTemplates} />
               <div className="hidden sm:flex items-center text-[#E6E6EA]">vs</div>
-              <CohortSelector label="Cohort B" tone="B" value={cohortB} onChange={setCohortB} />
+              <CohortSelector label="Cohort B" tone="B" value={cohortB} onChange={setCohortB} roleTemplates={roleTemplates} />
             </div>
           </div>
 
@@ -213,7 +223,7 @@ function ReportsPage() {
    UI Components & Data Views
 ========================================= */
 
-function CohortSelector({ label, tone, value, onChange }: any) {
+function CohortSelector({ label, tone, value, onChange, roleTemplates }: any) {
   const color = tone === "A" ? "#2F5CFF" : "#17C964";
   
   return (
@@ -228,7 +238,7 @@ function CohortSelector({ label, tone, value, onChange }: any) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-white border border-[#E6E6EA] rounded-xl shadow-lg p-1.5 min-w-[150px]">
-            {ROLE_TEMPLATES.map((rt) => (
+            {(roleTemplates || []).map((rt: any) => (
               <SelectItem key={rt.id} value={rt.id} className="text-[12px] rounded-lg hover:bg-[#F4F4F6] focus:bg-[#F4F4F6] transition-colors cursor-pointer">
                 {rt.roleName}
               </SelectItem>

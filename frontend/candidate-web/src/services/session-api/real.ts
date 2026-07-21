@@ -100,18 +100,17 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       return
     }
 
-    let eventType: any = 'TAB_SWITCH'
+    let eventType: any = 'SEAT_EXIT'
     let severity: 'MEDIUM' | 'HIGH' = 'MEDIUM'
-    const payload: any = signal.metadata || {}
 
     if (signal.kind === 'tab-switch' || signal.kind === 'window-blur') {
-      eventType = 'TAB_SWITCH'
+      eventType = 'LOOKING_AWAY'
       severity = 'MEDIUM'
     } else if (signal.kind === 'paste-anomaly') {
-      eventType = 'PASTE'
+      eventType = 'SEAT_EXIT'
       severity = 'HIGH'
     } else if (signal.kind === 'fullscreen-exit') {
-      eventType = 'FULLSCREEN_EXIT'
+      eventType = 'SEAT_EXIT'
       severity = 'HIGH'
     }
 
@@ -120,7 +119,6 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       eventType,
       severity,
       timestamp: signal.timestamp || new Date().toISOString(),
-      payload,
     })
   },
 
