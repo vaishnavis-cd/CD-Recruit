@@ -17,12 +17,17 @@ import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
 import { InviteStatus } from "@prisma/client";
 
+import { CandidateIngestionService } from "./candidate-ingestion.service";
+import { CsvIngestionService } from "./csv-ingestion.service";
+
 @Injectable()
 export class DriveService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-  ) { }
+    private readonly candidateIngestionService: CandidateIngestionService,
+    private readonly csvIngestionService: CsvIngestionService,
+  ) {}
 
   async create(dto: CreateDriveDto, staffId: string) {
     const {
@@ -130,53 +135,14 @@ export class DriveService {
 
       // Generate Invites/Roster
       if (candidates.length > 0) {
-        const crypto = require("crypto");
-        const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + ttlHours);
-
-        const emails = candidates.map((c) => c.candidateEmail);
-        const existingCandidates = await tx.candidate.findMany({
-          where: { email: { in: emails } },
-        });
-        const existingEmails = new Set(existingCandidates.map((c) => c.email));
-        const candidatesToCreate = [];
-        const invitesData = [];
-
-        for (const cand of candidates) {
-          const inviteId = crypto.randomUUID();
-          if (!existingEmails.has(cand.candidateEmail)) {
-            candidatesToCreate.push({
-              email: cand.candidateEmail,
-              name: cand.name,
-            });
-            existingEmails.add(cand.candidateEmail);
-          }
-
-          const token = this.authService.generateInviteToken(
-            inviteId,
-            cand.candidateEmail,
-            cand.name,
-            roleTemplateId,
-          );
-
-          invitesData.push({
-            id: inviteId,
-            candidateEmail: cand.candidateEmail,
-            candidateName: cand.name,
-            roleTemplateId,
-            driveId: createdDrive.id,
-            createdById: staffId,
-            expiresAt,
-            token,
-            status: InviteStatus.PENDING,
-          });
-        }
-
-        if (candidatesToCreate.length > 0) {
-          await tx.candidate.createMany({ data: candidatesToCreate });
-        }
-        await tx.invite.createMany({ data: invitesData });
+        await this.candidateIngestionService.processBulkCandidates(
+          tx,
+          createdDrive.id,
+          roleTemplateId,
+          candidates,
+          staffId,
+          true,
+        );
       }
 
       // Create Audit Log
@@ -687,53 +653,15 @@ export class DriveService {
       return { count: 0 };
     }
 
-    const emails = candidates.map((c) => c.candidateEmail);
-    const existingCandidates = await this.prisma.candidate.findMany({
-      where: { email: { in: emails } },
-    });
-    const existingEmails = new Set(existingCandidates.map((c) => c.email));
-
-    const crypto = require("crypto");
-    const invitesData: any[] = [];
-    const candidatesToCreate: any[] = [];
-
-    const expiresAt = new Date(); // Temporary placeholder, updated when links are generated
-
-    for (const cand of candidates) {
-      const inviteId = crypto.randomUUID();
-
-      if (!existingEmails.has(cand.candidateEmail)) {
-        candidatesToCreate.push({
-          email: cand.candidateEmail,
-          name: cand.name,
-        });
-        existingEmails.add(cand.candidateEmail);
-      }
-
-      invitesData.push({
-        id: inviteId,
-        candidateEmail: cand.candidateEmail,
-        candidateName: cand.name,
-        roleTemplateId: drive.roleTemplateId,
-        driveId: drive.id,
-        createdById: staffId,
-        expiresAt,
-        token: "draft_" + crypto.randomUUID(),
-        isGenerated: false,
-        status: "PENDING",
-      });
-    }
-
     await this.prisma.$transaction(async (tx) => {
-      if (candidatesToCreate.length > 0) {
-        await tx.candidate.createMany({
-          data: candidatesToCreate,
-        });
-      }
-
-      await tx.invite.createMany({
-        data: invitesData,
-      });
+      await this.candidateIngestionService.processBulkCandidates(
+        tx,
+        driveId,
+        drive.roleTemplateId,
+        candidates,
+        staffId,
+        false,
+      );
 
       await tx.auditLog.create({
         data: {
