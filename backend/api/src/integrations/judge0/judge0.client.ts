@@ -12,6 +12,12 @@ export class Judge0Client {
   constructor(private readonly configService: ConfigService<AppConfig, true>) {
     this.apiUrl = this.configService.get<string>("judge0ApiUrl", { infer: true });
     this.apiKey = this.configService.get<string>("judge0ApiKey", { infer: true });
+
+    if (!this.apiUrl || this.apiUrl.trim() === "") {
+      const errMsg = "FATAL: JUDGE0_API_URL is not set. Refusing to boot application.";
+      this.logger.error(errMsg);
+      throw new Error(errMsg);
+    }
   }
 
   private getHeaders(): Record<string, string> {
@@ -35,36 +41,58 @@ export class Judge0Client {
   ): Promise<string> {
     const url = `${this.apiUrl}/submissions?base64_encoded=true&wait=false`;
     const payload = {
-      source_code: sourceCodeCodeToSubmit(sourceCodeBase64),
+      source_code: sourceCodeBase64,
       language_id: languageId,
       stdin: stdinBase64 || null,
       expected_output: expectedOutputBase64 || null,
+      enable_per_process_and_thread_time_limit: true,
+      enable_per_process_and_thread_memory_limit: true,
     };
 
-    function sourceCodeCodeToSubmit(code: string): string {
-      return code;
-    }
+    let attempts = 0;
+    const maxAttempts = 3;
+    let delay = 500;
 
-    try {
-      this.logger.log(`Submitting code for language_id: ${languageId} to Judge0...`);
-      const response = await fetch(url, {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(payload),
-      });
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        this.logger.log(`Submitting code for language_id: ${languageId} to Judge0 (attempt ${attempts})...`);
+        const response = await fetch(url, {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify(payload),
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(`Judge0 submission failed: ${response.status} - ${errorText}`);
-        throw new Error(`Judge0 API error: ${response.statusText}`);
+        if (response.status === 429) {
+          if (attempts === maxAttempts) {
+            throw new Error(`Rate limit exceeded (HTTP 429) after ${maxAttempts} attempts.`);
+          }
+          this.logger.warn(`Judge0 rate limited (HTTP 429). Retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2;
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          this.logger.error(`Judge0 submission failed: ${response.status} - ${errorText}`);
+          throw new Error(`Judge0 API error: ${response.statusText}`);
+        }
+
+        const data = (await response.json()) as Judge0SubmissionResponse;
+        return data.token;
+      } catch (error: any) {
+        if (attempts === maxAttempts) {
+          this.logger.error(`Error connecting to Judge0 for submission: ${error.message}`);
+          throw error;
+        }
+        this.logger.warn(`Connection error on attempt ${attempts}: ${error.message}. Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2;
       }
-
-      const data = (await response.json()) as Judge0SubmissionResponse;
-      return data.token;
-    } catch (error: any) {
-      this.logger.error(`Error connecting to Judge0 for submission: ${error.message}`);
-      throw error;
     }
+
+    throw new Error("Failed to submit code to Judge0.");
   }
 
   async getSubmission(token: string): Promise<Judge0ExecutionResponse> {

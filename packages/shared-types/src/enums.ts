@@ -115,3 +115,5 @@ export enum StaffRole {
   RECRUITER = "RECRUITER",
   ADMIN = "ADMIN",
 }
+
+export const SUPPORTED_CODING_LANGUAGES = ["python", "javascript", "java", "cpp"] as const;

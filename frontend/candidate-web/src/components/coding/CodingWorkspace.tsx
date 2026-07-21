@@ -3,6 +3,10 @@ import Editor from "@monaco-editor/react";
 import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
 import { useSessionStore } from "@/store/sessionMachine";
+import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
+import { useTheme } from "@/theme/ThemeProvider";
+import { cdRecruitLightTheme, cdRecruitDarkTheme } from "@/theme/monacoTheme";
+import { DetectionEngineService } from "@/proctoring/detection-engine.service";
 
 interface CodingWorkspaceProps {
   question: {
@@ -28,13 +32,12 @@ interface CodingWorkspaceProps {
   updateStatus: (status: "unvisited" | "skipped" | "flagged" | "answered") => void;
 }
 
+// Restricted to SUPPORTED_CODING_LANGUAGES
 const LANGUAGES = [
   { value: "python", label: "Python 3", extension: "py", monacoLanguage: "python" },
   { value: "javascript", label: "JavaScript (Node.js)", extension: "js", monacoLanguage: "javascript" },
-  { value: "typescript", label: "TypeScript", extension: "ts", monacoLanguage: "typescript" },
   { value: "java", label: "Java (JDK)", extension: "java", monacoLanguage: "java" },
   { value: "cpp", label: "C++ (GCC)", extension: "cpp", monacoLanguage: "cpp" },
-  { value: "go", label: "Go", extension: "go", monacoLanguage: "go" },
 ];
 
 const LANGUAGE_VALUES = new Set(LANGUAGES.map((l) => l.value));
@@ -48,15 +51,19 @@ function validLanguage(lang: string | undefined): string | null {
 const DEFAULT_TEMPLATES: Record<string, string> = {
   python: "# Write your Python 3 code here\nimport sys\n\nfor line in sys.stdin:\n    # Process inputs here\n    pass\n",
   javascript: "// Write your JavaScript (Node.js) code here\nconst fs = require('fs');\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    // Process inputs here\n  }\n}\n",
-  typescript: "// Write your TypeScript code here\nconst fs = require('fs');\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    // Process inputs here\n  }\n}\n",
   java: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        while (scanner.hasNextLine()) {\n            String line = scanner.nextLine();\n            // Process input\n        }\n    }\n}\n",
   cpp: "#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string line;\n    while (getline(cin, line)) {\n        // Process input\n    }\n    return 0;\n}\n",
-  go: "package main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"os\"\n)\n\nfunc main() {\n\tscanner := bufio.NewScanner(os.Stdin)\n\tfor scanner.Scan() {\n\t\tline := scanner.Text()\n\t\t_ = line // Process input\n\t}\n}\n",
 };
 
 export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorkspaceProps) {
   const sessionId = useSessionStore((s: any) => s.assessment?.sessionId) || "";
   const starter = question.content?.starterCode || {};
+  const { theme } = useTheme();
+
+  // Monaco and proctoring state refs
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   // Setup initial language — always validate against our supported list
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -100,6 +107,28 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     latestLanguageRef.current = selectedLanguage;
   }, [selectedLanguage]);
 
+  // Reset editor states when changing questions
+  useEffect(() => {
+    const starter = question.content?.starterCode || {};
+    const savedLang = validLanguage(question.response?.responsePayload?.language);
+    const initialLang = savedLang || Object.keys(starter).find((k) => LANGUAGE_VALUES.has(k)) || "python";
+    
+    setSelectedLanguage(initialLang);
+    
+    const initialCode: Record<string, string> = {};
+    LANGUAGES.forEach((lang) => {
+      initialCode[lang.value] = starter[lang.value] || DEFAULT_TEMPLATES[lang.value] || "";
+    });
+    
+    if (savedLang && question.response?.responsePayload?.code) {
+      initialCode[savedLang] = question.response.responsePayload.code;
+    }
+    
+    setCodeByLanguage(initialCode);
+    setExecutionResult(null);
+    setErrorMsg(null);
+  }, [question.id]);
+
   // Terminal state
   const [isRunning, setIsRunning] = useState(false);
   const [runType, setRunType] = useState<"RUN" | "SUBMIT" | null>(null);
@@ -109,6 +138,24 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   const [activeTab, setActiveTab] = useState<"testCases" | "console">("testCases");
 
   const activePollRef = useRef<boolean>(false);
+
+  // Subscribe to proctoring active-flag state
+  useEffect(() => {
+    try {
+      const unsubscribe = DetectionEngineService.getInstance().subscribe((event) => {
+        if (event.eventType === "SEAT_EXIT" || event.eventType === "IDENTITY_MISMATCH") {
+          setIsReadOnly(true);
+          // Fallback auto-unlock after 5 seconds if no clear event signal is sent
+          setTimeout(() => {
+            setIsReadOnly(false);
+          }, 5000);
+        }
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn("[CodingWorkspace] Proctoring service not available or subscription failed:", err);
+    }
+  }, []);
 
   // Debounced autosave
   useEffect(() => {
@@ -152,6 +199,42 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
       ...prev,
       [selectedLanguage]: value,
     }));
+  };
+
+  const handleEditorMount = (editor: any, monaco: any) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    // Define Cd-Recruit themes
+    monaco.editor.defineTheme("cd-recruit-light", cdRecruitLightTheme);
+    monaco.editor.defineTheme("cd-recruit-dark", cdRecruitDarkTheme);
+    monaco.editor.setTheme(theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light");
+  };
+
+  const handleLanguageChange = (newLang: string) => {
+    const currentCode = codeByLanguage[selectedLanguage] || "";
+    const starterTemplate = starter[selectedLanguage] || DEFAULT_TEMPLATES[selectedLanguage] || "";
+
+    const isDirty = currentCode.trim() !== starterTemplate.trim();
+
+    if (isDirty) {
+      const confirmSwitch = window.confirm(
+        "Switching languages will keep your written code but switch the active editor template. Are you sure you want to proceed?"
+      );
+      if (!confirmSwitch) return;
+    }
+
+    setSelectedLanguage(newLang);
+
+    if (editorRef.current && monacoRef.current) {
+      const model = editorRef.current.getModel();
+      if (model) {
+        const targetConfig = LANGUAGES.find((l) => l.value === newLang);
+        if (targetConfig) {
+          monacoRef.current.editor.setModelLanguage(model, targetConfig.monacoLanguage);
+        }
+      }
+    }
   };
 
   const pollExecution = async (executionId: string, maxAttempts = 30) => {
@@ -242,8 +325,8 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   return (
     <div className="flex-1 flex flex-col bg-bg overflow-hidden h-full">
       {/* Top Bar */}
-      <div className="bg-surface border-b border-border-token px-4 py-2.5 flex items-center justify-between z-10 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="bg-surface border-b border-border-token px-3 py-2 flex items-center justify-between gap-2 z-10 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs font-bold text-text-secondary font-mono bg-bg/50 px-2 py-1 rounded border border-border-token/40">
             workspace.{activeLangConfig.extension}
           </span>
@@ -251,8 +334,8 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
           <div className="relative">
             <select
               value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="bg-bg text-text-primary text-xs font-semibold px-3 py-1.5 rounded border border-border-token focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer pr-8 appearance-none"
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="bg-bg text-text-primary text-xs font-semibold px-2.5 py-1 rounded border border-border-token focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer pr-7 appearance-none"
             >
               {LANGUAGES.map((lang) => (
                 <option key={lang.value} value={lang.value}>
@@ -260,30 +343,32 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-text-secondary">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleRun}
             disabled={isRunning || !activeCode.trim()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded-md transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            title="Run code against sample test cases"
           >
             {isRunning && runType === "RUN" ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
             ) : (
               <Play className="w-3.5 h-3.5 text-success" />
             )}
-            <span>Run Code (Sample Cases)</span>
+            <span>Run Code</span>
           </button>
           
           <button
             onClick={handleSubmit}
             disabled={isRunning || !activeCode.trim()}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-md transition-colors cursor-pointer disabled:opacity-50 shrink-0 shadow-sm"
+            title="Submit solution against all test cases"
           >
             {isRunning && runType === "SUBMIT" ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -301,8 +386,9 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
           height="100%"
           language={activeLangConfig.monacoLanguage}
           value={activeCode}
-          theme="vs-dark"
+          theme={theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light"}
           onChange={handleEditorChange}
+          onMount={handleEditorMount}
           options={{
             minimap: { enabled: false },
             fontSize: 13,
@@ -312,6 +398,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
             tabSize: selectedLanguage === "python" ? 4 : 2,
             wordWrap: "on",
             padding: { top: 12, bottom: 12 },
+            readOnly: isReadOnly,
           }}
         />
       </div>

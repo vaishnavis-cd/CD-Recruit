@@ -41,7 +41,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
   useEffect(() => {
     if (nowMs >= scheduledTimeMs) {
       if (!session) return
-      initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60)
+      initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, session.questions)
       transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: session.id })
     }
   }, [nowMs, scheduledTimeMs, session, initAssessment, transitionTo])

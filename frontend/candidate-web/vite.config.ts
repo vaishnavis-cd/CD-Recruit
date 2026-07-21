@@ -32,6 +32,7 @@ export default defineConfig({
     include: ["@cd-recruit/shared-types"],
     exclude: ["sql.js"],
   },
+  envDir: resolve(__dirname, "../../"),
   build: {
     commonjsOptions: {
       include: [/shared-types/, /node_modules/],
