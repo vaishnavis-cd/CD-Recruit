@@ -80,6 +80,22 @@ export class SessionController {
   }
 
   /**
+   * POST /api/v1/sessions/:sessionId/consent
+   *
+   * Persist candidate consent record in PostgreSQL.
+   */
+  @Post(":sessionId/consent")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async consent(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body("version") version?: string,
+    @Body("ipAddress") ipAddress?: string,
+  ): Promise<{ ok: boolean; consentRecordId: string }> {
+    return this.sessionService.recordConsent(sessionId, version, ipAddress);
+  }
+
+  /**
    * POST /api/v1/sessions/:sessionId/heartbeat
    *
    * Tab-alive signal.  Must be sent every 15 s.

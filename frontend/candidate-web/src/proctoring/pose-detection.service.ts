@@ -34,14 +34,26 @@ export class PoseDetectionService {
       );
 
       console.log("[PoseDetection] Loading Pose Landmarker task model from Google storage...");
-      this.landmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-          delegate: "GPU",
-        },
-        runningMode: "IMAGE",
-      });
+      try {
+        this.landmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+            delegate: "GPU",
+          },
+          runningMode: "IMAGE",
+        });
+      } catch (gpuErr) {
+        console.warn("[PoseDetection] GPU delegate failed for Pose Landmarker, falling back to CPU:", gpuErr);
+        this.landmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+            delegate: "CPU",
+          },
+          runningMode: "IMAGE",
+        });
+      }
 
       this.isLoaded = true;
       this.isLoading = false;

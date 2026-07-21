@@ -49,7 +49,7 @@ const TIME_WINDOWS = [
 
 export function FlowControlPanel() {
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<'screens' | 'time' | 'flags' | 'reset'>('screens')
+  const [tab, setTab] = useState<'screens' | 'time' | 'flags' | 'proctoring' | 'reset'>('screens')
   const { devForceJump, resetSession, initAssessment, setTimerStart, screen } = useSessionStore()
 
   const [webcamDenied, setWebcamDenied] = useState(false)
@@ -156,7 +156,7 @@ export function FlowControlPanel() {
 
           {/* Tabs */}
           <div className="flex border-b border-gray-800">
-            {(['screens', 'time', 'flags', 'reset'] as const).map(t => (
+            {(['screens', 'time', 'flags', 'proctoring', 'reset'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -170,6 +170,40 @@ export function FlowControlPanel() {
           </div>
 
           <div className="p-3">
+            {tab === 'proctoring' && (
+              <div className="space-y-2">
+                <div className="text-gray-400 uppercase tracking-wide text-xs mb-2">Simulate Proctoring Events</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    'FACE_MISSING',
+                    'LOOKING_AWAY',
+                    'MULTIPLE_FACES',
+                    'SEAT_EXIT',
+                    'EXCESSIVE_MOVEMENT',
+                    'PHONE_DETECTED',
+                    'HEADPHONES_DETECTED',
+                    'BOOK_DETECTED',
+                    'TAB_SWITCH',
+                    'PASTE',
+                    'FULLSCREEN_EXIT',
+                  ].map((evt) => (
+                    <button
+                      key={evt}
+                      onClick={() => {
+                        console.log(`[FlowControlPanel] Simulator triggering proctoring event: ${evt}`)
+                        import('../proctoring/detection-engine.service').then(({ DetectionEngineService }) => {
+                          DetectionEngineService.getInstance().triggerMockEvent(evt as any, 'simulator-v1')
+                        })
+                      }}
+                      className="px-2.5 py-1.5 bg-yellow-950/40 border border-yellow-600/40 hover:bg-yellow-900/60 text-yellow-200 rounded text-[11px] font-mono text-left truncate transition-colors"
+                    >
+                      {evt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {tab === 'screens' && (
               <div className="space-y-1">
                 {SCREEN_SHORTCUTS.map(({ label, state }) => (

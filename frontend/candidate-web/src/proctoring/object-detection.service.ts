@@ -31,15 +31,28 @@ export class ObjectDetectionService {
       );
 
       console.log("[ObjectDetection] Loading Object Detector task model from Google storage...");
-      this.detector = await ObjectDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
-          delegate: "GPU",
-        },
-        runningMode: "IMAGE",
-        scoreThreshold: 0.35,
-      });
+      try {
+        this.detector = await ObjectDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
+            delegate: "GPU",
+          },
+          runningMode: "IMAGE",
+          scoreThreshold: 0.35,
+        });
+      } catch (gpuErr) {
+        console.warn("[ObjectDetection] GPU delegate failed for Object Detector, falling back to CPU:", gpuErr);
+        this.detector = await ObjectDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.task",
+            delegate: "CPU",
+          },
+          runningMode: "IMAGE",
+          scoreThreshold: 0.35,
+        });
+      }
 
       this.isLoaded = true;
       this.isLoading = false;

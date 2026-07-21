@@ -1,5 +1,13 @@
-import type { AxiosError } from "axios";
-import apiClient from "./client";
+import axios, { type AxiosError } from "axios";
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+
+const apiClient = axios.create({
+  baseURL: apiBaseUrl,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
 export interface TestResultDetail {
   passed: boolean;

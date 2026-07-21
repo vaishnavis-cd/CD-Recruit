@@ -788,4 +788,39 @@ export class SessionService {
 
     return { ok: true };
   }
+
+  /**
+   * Persist candidate consent record in PostgreSQL.
+   */
+  async recordConsent(
+    sessionId: string,
+    version: string = "1.0",
+    ipAddress: string = "127.0.0.1",
+  ): Promise<{ ok: boolean; consentRecordId: string }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    const consentRecord = await this.prisma.consentRecord.create({
+      data: {
+        candidateId: session.candidateId,
+        version: version || "1.0",
+        ipAddress: ipAddress || "127.0.0.1",
+        consentedAt: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `[SessionService] Consent record created: ID=${consentRecord.id} for Candidate=${session.candidateId}`,
+    );
+
+    return { ok: true, consentRecordId: consentRecord.id };
+  }
 }

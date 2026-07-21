@@ -13,6 +13,7 @@ export class ProctoringModule {
   private static instance: ProctoringModule | null = null;
   private isRunning = false;
   private sessionId = "";
+  private startingPromise: Promise<boolean> | null = null;
 
   private unsubscribeFrame: (() => void) | null = null;
   private unsubscribeEvents: (() => void) | null = null;
@@ -33,9 +34,11 @@ export class ProctoringModule {
    */
   public async start(sessionId: string): Promise<boolean> {
     if (this.isRunning) return true;
+    if (this.startingPromise) return this.startingPromise;
 
-    this.sessionId = sessionId;
-    console.log(`[Proctoring] Starting proctoring module for session ${sessionId}...`);
+    this.startingPromise = (async () => {
+      this.sessionId = sessionId;
+      console.log(`[Proctoring] START_CALLED: Starting proctoring module for SESSION_ID: ${sessionId}`);
 
     const webcam = WebcamService.getInstance();
     const hasPermission = await webcam.requestPermission();
@@ -105,7 +108,12 @@ export class ProctoringModule {
       console.error("[Proctoring] Critical error during proctoring initialization:", err);
       this.stop();
       return false;
+    } finally {
+      this.startingPromise = null;
     }
+    })();
+
+    return this.startingPromise;
   }
 
   /**
@@ -113,6 +121,7 @@ export class ProctoringModule {
    */
   public async stop(): Promise<void> {
     console.log("[Proctoring] Stopping proctoring module...");
+    this.startingPromise = null;
 
     // Stop frame loops
     FrameProcessorService.getInstance().stop();
