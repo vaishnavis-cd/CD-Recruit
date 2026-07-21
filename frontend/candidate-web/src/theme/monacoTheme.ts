@@ -1,9 +1,4 @@
-import type * as Monaco from 'monaco-editor'
-
-// Custom Monaco themes using IBM Plex Mono + design tokens
-// NOT using Monaco's built-in vs / vs-dark themes per spec
-
-export const cdRecruitLightTheme: Monaco.editor.IStandaloneThemeData = {
+export const cdRecruitLightTheme: any = {
   base: 'vs',
   inherit: false,
   rules: [
@@ -39,7 +34,7 @@ export const cdRecruitLightTheme: Monaco.editor.IStandaloneThemeData = {
   },
 }
 
-export const cdRecruitDarkTheme: Monaco.editor.IStandaloneThemeData = {
+export const cdRecruitDarkTheme: any = {
   base: 'vs-dark',
   inherit: false,
   rules: [

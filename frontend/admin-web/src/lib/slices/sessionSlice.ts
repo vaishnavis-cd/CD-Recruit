@@ -1,6 +1,5 @@
 import { StateCreator } from "zustand";
-import { type Session } from "../mock-data";
-import { type SessionResultItem, type CandidateSessionDetail } from "../types";
+import { type Session, type SessionResultItem, type CandidateSessionDetail } from "../types";
 import { getAuthHeaders, API_BASE } from "../store";
 
 export interface SessionSlice {
@@ -122,70 +121,38 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     }
   },
 
-  fetchSessionDetail: async (sessionId: string): Promise<any> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, { headers });
-      if (res.ok) {
-        const detail = await res.json();
-        const mapped = {
-          id: detail.sessionId || detail.id || sessionId,
-          candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
-          candidateEmail: detail.candidate?.email || detail.candidateEmail || "candidate@example.com",
-          driveName: detail.driveName || "Software Developer Drive - July 2026",
-          roleTemplateName: detail.roleTemplateName || "Software Developer",
-          status: detail.status || "SUBMITTED",
-          startedAt: detail.startedAt || new Date().toISOString(),
-          submittedAt: detail.submittedAt || new Date().toISOString(),
-          deadlineAt: detail.deadlineAt || null,
-          scores: detail.score || {
-            compositeScore: 88,
-            sayDoConsistencyScore: 92,
-            sayDoRationale: "Candidate demonstrated strong consistency.",
-            moduleScores: { MCQ: 90, SQL: 85, CODING: 92 },
-          },
-          proctoringSummary: detail.proctoringSummary || {
-            flags: [],
-            totalTabSwitches: 0,
-            webcamClipsCount: 0,
-            overallRisk: "LOW",
-          },
-          submissions: detail.submissions || [],
-          reviewerDecision: detail.reviewerDecision || null,
-        };
-        set({ currentSessionDetail: mapped as any });
-        return mapped;
-      }
-    } catch (err) {
-      console.error("Failed to fetch session detail from API, using fallback:", err);
-    }
-    const mockDetail: CandidateSessionDetail = {
-      id: sessionId,
-      candidateName: "Sarah Jenkins",
-      candidateEmail: "sarah.j@example.com",
-      driveName: "Senior Frontend Engineer Drive - Q3",
-      roleTemplateName: "Senior Frontend Engineer",
-      status: "SUBMITTED",
-      startedAt: "2026-07-15T10:00:00Z",
-      submittedAt: "2026-07-15T11:45:00Z",
-      deadlineAt: "2026-07-15T12:00:00Z",
-      scores: {
+  fetchSessionDetail: async (sessionId: string): Promise<CandidateSessionDetail> => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, { headers });
+    if (!res.ok) throw new Error("Failed to fetch session detail");
+    const detail = await res.json();
+    const mapped = {
+      id: detail.sessionId || detail.id || sessionId,
+      candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
+      candidateEmail: detail.candidate?.email || detail.candidateEmail || "candidate@example.com",
+      driveName: detail.driveName || "Software Developer Drive - July 2026",
+      roleTemplateName: detail.roleTemplateName || "Software Developer",
+      status: detail.status || "SUBMITTED",
+      startedAt: detail.startedAt || new Date().toISOString(),
+      submittedAt: detail.submittedAt || new Date().toISOString(),
+      deadlineAt: detail.deadlineAt || null,
+      scores: detail.score || {
         compositeScore: 88,
         sayDoConsistencyScore: 92,
-        sayDoRationale: "High alignment between technical code quality and self-reported proficiency.",
-        moduleScores: { MCQ: 90, SQL: 85, CODING: 92, SIMULATION: 84 },
+        sayDoRationale: "Candidate demonstrated strong consistency.",
+        moduleScores: { MCQ: 90, SQL: 85, CODING: 92 },
       },
-      proctoringSummary: {
-        flags: [{ type: "TAB_SWITCH", timestamp: "2026-07-15T10:32:10Z", severity: "LOW", description: "Browser focus lost for 4s" }],
-        totalTabSwitches: 1,
-        webcamClipsCount: 12,
+      proctoringSummary: detail.proctoringSummary || {
+        flags: [],
+        totalTabSwitches: 0,
+        webcamClipsCount: 0,
         overallRisk: "LOW",
       },
-      submissions: [],
-      reviewerDecision: null,
+      submissions: detail.submissions || [],
+      reviewerDecision: detail.reviewerDecision || null,
     };
-    set({ currentSessionDetail: mockDetail });
-    return mockDetail;
+    set({ currentSessionDetail: mapped as any });
+    return mapped as any;
   },
 
   recordDecision: async (sessionId, outcome, note) => {

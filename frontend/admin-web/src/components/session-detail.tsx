@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { X, AlertTriangle, ShieldCheck, ExternalLink } from "lucide-react";
 import { ScopePanel } from "./scope-panel";
-import { useStore } from "../lib/store";
-import type { Session } from "../lib/mock-data";
+import type { Session } from "../lib/types";
 
 const STATUS_LABEL: Record<Session["status"], string> = {
   submitted: "Submitted",

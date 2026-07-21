@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { type RoleTemplate, ROLE_TEMPLATES } from "../mock-data";
+import { type RoleTemplate } from "../types";
 import { type ActionQueue, type AuditLog } from "../types";
 import { getAuthHeaders, API_BASE } from "../store";
 
@@ -22,7 +22,7 @@ export const createCommonSlice: StateCreator<any, [], [], CommonSlice> = (set, g
   actionQueue: null,
   loading: false,
   error: null,
-  roleTemplates: ROLE_TEMPLATES,
+  roleTemplates: [],
 
   fetchRoleTemplates: async () => {
     try {
