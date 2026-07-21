@@ -122,7 +122,7 @@ function IndividualResultPage() {
       actions={
         <Link
           to="/results"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] border border-[#E6E6EA] rounded-md hover:bg-[#2F5CFF] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] border border-[#2F5CFF] rounded-md hover:bg-[#0037FF] transition-colors cursor-pointer"
         >
           <ArrowLeft size={14} /> Back to Results
         </Link>

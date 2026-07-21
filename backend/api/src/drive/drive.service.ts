@@ -22,7 +22,7 @@ export class DriveService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   async create(dto: CreateDriveDto, staffId: string) {
     const {
@@ -701,7 +701,7 @@ export class DriveService {
 
     for (const cand of candidates) {
       const inviteId = crypto.randomUUID();
-      
+
       if (!existingEmails.has(cand.candidateEmail)) {
         candidatesToCreate.push({
           email: cand.candidateEmail,

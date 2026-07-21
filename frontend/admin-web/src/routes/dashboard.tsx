@@ -99,43 +99,40 @@ function DashboardPage() {
     <AppShell
       title="Dashboard"
       actions={
-        <div className="flex items-center gap-3">
-          {/* Filters grouped aesthetically */}
-          <div className="flex items-center bg-white border border-[#E6E6EA] rounded-lg p-0.5 shadow-sm">
-            <select
-              value={selectedDrive}
-              onChange={(e) => setSelectedDrive(e.target.value)}
-              className="px-3 py-1.5 bg-transparent text-[13px] font-medium text-[#5B5B64] focus:outline-none border-r border-[#E6E6EA] cursor-pointer hover:text-[#0B0B0D]"
-            >
-              <option value="all">All Drives</option>
-              {drives.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              className="px-3 py-1.5 bg-transparent text-[13px] font-medium text-[#5B5B64] focus:outline-none border-r border-[#E6E6EA] cursor-pointer hover:text-[#0B0B0D]"
-            >
-              <option value="all">All Roles</option>
-              {ROLE_TEMPLATES.map((rt) => (
-                <option key={rt.id} value={rt.id}>{rt.roleName}</option>
-              ))}
-            </select>
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="px-3 py-1.5 bg-transparent text-[13px] font-medium text-[#5B5B64] focus:outline-none cursor-pointer hover:text-[#0B0B0D]"
-            >
-              <option value="7">Last 7 Days</option>
-              <option value="30">Last 30 Days</option>
-              <option value="all">All Time</option>
-            </select>
-          </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedDrive}
+            onChange={(e) => setSelectedDrive(e.target.value)}
+            className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
+          >
+            <option value="all">All Drives</option>
+            {drives.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+          <select
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
+          >
+            <option value="all">All Roles</option>
+            {ROLE_TEMPLATES.map((rt) => (
+              <option key={rt.id} value={rt.id}>{rt.roleName}</option>
+            ))}
+          </select>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
+          >
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="all">All Time</option>
+          </select>
 
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold bg-[#2F5CFF] hover:bg-[#1E4DDF] text-white rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <FileDown size={14} />
             Export CSV

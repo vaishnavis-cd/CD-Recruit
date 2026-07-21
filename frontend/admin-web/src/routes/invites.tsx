@@ -221,7 +221,7 @@ function InvitesPage() {
 
           <button
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#2F5CFF] hover:bg-[#2448D9] text-white rounded-md text-[13px] font-medium cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded-md text-[13px] font-medium cursor-pointer shadow-sm transition-colors"
           >
             <Plus size={14} /> Create Invite
           </button>
@@ -439,7 +439,7 @@ function InvitesPage() {
                   <button
                     onClick={submit}
                     disabled={!name || !email || !selectedDriveId}
-                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#2448D9] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer"
+                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer transition-colors"
                   >
                     Generate invite link
                   </button>
@@ -455,7 +455,7 @@ function InvitesPage() {
                     </div>
                     <button
                       onClick={() => copy(created.link, created.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2448D9] text-white text-[12px] rounded cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] rounded cursor-pointer transition-colors"
                     >
                       {copiedId === created.id ? <Check size={13} /> : <Copy size={13} />}
                       {copiedId === created.id ? "Copied to clipboard" : "Copy link"}
@@ -543,7 +543,7 @@ function InvitesPage() {
               </button>
               <button
                 onClick={handleExtend}
-                className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] cursor-pointer"
+                className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] cursor-pointer transition-colors"
               >
                 Save Extensions
               </button>

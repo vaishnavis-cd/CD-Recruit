@@ -360,7 +360,7 @@ function DrivesPage() {
             resetWizard();
             setShowWizard(true);
           }}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#1E4DDF] shadow-sm transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
         >
           <Plus size={14} />
           Create Drive
@@ -565,7 +565,7 @@ function DrivesPage() {
                     toast.error("Failed to create drive: " + (err.message || err));
                   }
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#1E4DDF] rounded-md transition-colors cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
               >
                 Create & Configure Drive
                 <ArrowRight size={14} />
