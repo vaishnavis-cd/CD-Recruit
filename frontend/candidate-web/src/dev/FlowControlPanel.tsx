@@ -4,7 +4,6 @@ import type { ScreenState } from '../store/sessionMachine'
 import { services } from '../services'
 import { mockTimeAuthorityAdapter } from '../services/time/mock'
 import { setSimulateWebcamDenied, setSimulateWasmUnsupported } from '../services/cv/mock'
-import { setSimulateSandboxFailure } from '../services/execution/mock'
 import { FIXTURE_INVITE } from '../fixtures/invite'
 import { TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions'
 
@@ -70,7 +69,6 @@ export function FlowControlPanel() {
 
   function handleToggleSandbox(v: boolean) {
     setSandboxFailure(v)
-    setSimulateSandboxFailure(v)
   }
 
   function handleTimeWindow(offsetFromScheduled: number) {
@@ -107,7 +105,7 @@ export function FlowControlPanel() {
   function handleJump(state: ScreenState) {
     // Ensure assessment state exists for assessment screens
     if (state.type === 'assessment' || state.type === 'pre-submit-review' || state.type === 'syncing') {
-      initAssessment(DUMMY_SESSION_ID, TOTAL_ASSESSMENT_MINUTES * 60)
+      initAssessment(DUMMY_SESSION_ID, TOTAL_ASSESSMENT_MINUTES * 60, [])
       const nowMs = services.time.getServerNow()
       setTimerStart(nowMs - 10 * 60_000) // 10 minutes elapsed
       localStorage.setItem('cd-recruit-scheduled-ms', String(Date.now() - 5 * 60_000))

@@ -88,15 +88,22 @@ async function main() {
         prompt: "Write a program that reads two comma-separated numbers on each line from standard input (stdin) and prints their sum to standard output (stdout).",
         starterCode: {
           javascript:
-            "const fs = require('fs');\n\nfunction sum(a, b) {\n  // Write your code here\n  return 0;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const parts = line.trim().split(',');\n    const a = parseInt(parts[0].trim(), 10);\n    const b = parseInt(parts[1].trim(), 10);\n    console.log(sum(a, b));\n  }\n}",
+            "const fs = require('fs');\n\nfunction sum(a, b) {\n  // Write your code here\n  return a + b;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const parts = line.trim().split(',');\n    const a = parseInt(parts[0].trim(), 10);\n    const b = parseInt(parts[1].trim(), 10);\n    console.log(sum(a, b));\n  }\n}",
           python:
-            "import sys\n\ndef sum(a: int, b: int) -> int:\n    # Write your code here\n    return 0\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    parts = line.strip().split(',')\n    a = int(parts[0].strip())\n    b = int(parts[1].strip())\n    print(sum(a, b))",
+            "import sys\n\ndef sum(a: int, b: int) -> int:\n    # Write your code here\n    return a + b\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    parts = line.strip().split(',')\n    a = int(parts[0].strip())\n    b = int(parts[1].strip())\n    print(sum(a, b))",
+          java:
+            "import java.util.Scanner;\n\npublic class Main {\n    public static int sum(int a, int b) {\n        // Write your code here\n        return a + b;\n    }\n\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        while (sc.hasNextLine()) {\n            String line = sc.nextLine();\n            if (line.trim().isEmpty()) continue;\n            String[] parts = line.split(\",\");\n            int a = Integer.parseInt(parts[0].trim());\n            int b = Integer.parseInt(parts[1].trim());\n            System.out.println(sum(a, b));\n        }\n    }\n}",
+          cpp:
+            "#include <iostream>\n#include <string>\nusing namespace std;\n\nint sum(int a, int b) {\n    // Write your code here\n    return a + b;\n}\n\nint main() {\n    string line;\n    while (getline(cin, line)) {\n        if (line.empty()) continue;\n        size_t comma = line.find(',');\n        int a = stoi(line.substr(0, comma));\n        int b = stoi(line.substr(comma + 1));\n        cout << sum(a, b) << endl;\n    }\n    return 0;\n}"
         },
-        testCases: [
-          { input: "1, 2", expectedOutput: "3", isHidden: false },
-          { input: "-1, 5", expectedOutput: "4", isHidden: false },
-          { input: "10, 20", expectedOutput: "30", isHidden: true },
+        visibleTestCases: [
+          { input: "1, 2", expectedOutput: "3", label: "Example 1" },
+          { input: "-1, 5", expectedOutput: "4", label: "Example 2" }
         ],
+        hiddenTestCases: [
+          { input: "10, 20", expectedOutput: "30", label: "Hidden Case 1" },
+          { input: "100, 200", expectedOutput: "300", label: "Hidden Case 2" }
+        ]
       },
       scoringConfig: {},
     },
