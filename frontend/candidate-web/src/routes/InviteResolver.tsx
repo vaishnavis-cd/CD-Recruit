@@ -50,10 +50,11 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        const scheduledMs = new Date(invite.scheduledTime).getTime()
+        const rawScheduled = invite.scheduledTime ? new Date(invite.scheduledTime).getTime() : Date.now()
+        const scheduledMs = isNaN(rawScheduled) ? Date.now() : rawScheduled
         const nowMs = services.time.getServerNow()
-        const bufferMs = invite.bufferMinutes * 60 * 1000
-        const graceMs = invite.graceMinutes * 60 * 1000
+        const bufferMs = (invite.bufferMinutes || 30) * 60 * 1000
+        const graceMs = (invite.graceMinutes || 120) * 60 * 1000
 
         const tooEarlyBoundary = scheduledMs - bufferMs
         const graceBoundary = scheduledMs + graceMs

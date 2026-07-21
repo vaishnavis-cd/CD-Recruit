@@ -6,6 +6,7 @@ import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { MODULES } from '../fixtures/questions'
 import { useTheme } from '../theme/ThemeProvider'
+import { ProctoringModule } from '../proctoring/proctoring.module'
 
 interface ModuleShellProps {
   moduleIndex: number
@@ -59,6 +60,30 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
 
   const currentModule = MODULES[moduleIndex]
   const currentQuestion = questions[currentQuestionIndex]
+
+  // STEP 1: Start ProctoringModule when assessment session is active
+  useEffect(() => {
+    const sessionId = assessment?.sessionId
+    if (!sessionId) {
+      console.warn('[ModuleShell] STEP 1: sessionId is undefined, skipping ProctoringModule.start()')
+      return
+    }
+
+    console.log(`[ModuleShell] STEP 1: Active assessment session detected: ${sessionId}. Starting ProctoringModule...`)
+    ProctoringModule.getInstance()
+      .start(sessionId)
+      .then((started) => {
+        console.log(`[ModuleShell] STEP 1: ProctoringModule.start() returned: ${started}`)
+      })
+      .catch((err) => {
+        console.error('[ModuleShell] STEP 1: Exception thrown in ProctoringModule.start():', err)
+      })
+
+    return () => {
+      console.log('[ModuleShell] STEP 1: Cleaning up ProctoringModule...')
+      ProctoringModule.getInstance().stop().catch(() => {})
+    }
+  }, [assessment?.sessionId])
 
   // Silent integrity signals — no UI reaction per spec
   useEffect(() => {

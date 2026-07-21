@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { SessionRouter } from './routes/SessionRouter'
 
@@ -27,6 +28,12 @@ function TokenRouteHandler() {
   }
 
   return <SessionRouter token={actualToken} />
+}
+
+function LoginRedirect() {
+  const [params] = useSearchParams()
+  const token = params.get('token') || 'demo-token-2024'
+  return <Navigate to={`/invite/${token}`} replace />
 }
 
 export default function App() {

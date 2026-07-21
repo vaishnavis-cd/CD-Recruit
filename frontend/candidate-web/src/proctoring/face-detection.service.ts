@@ -30,16 +30,29 @@ export class FaceDetectionService {
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
       );
 
-      console.log("[FaceDetection] Loading Face Landmarker task model from Google storage...");
-      this.landmarker = await FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker_with_blendshapes/float16/1/face_landmarker_with_blendshapes.task",
-          delegate: "GPU",
-        },
-        runningMode: "IMAGE",
-        numFaces: 4,
-      });
+      console.log("[FaceDetection] Loading Face Landmarker task model from local /models/face_landmarker.task...");
+      try {
+        this.landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "/models/face_landmarker.task",
+            delegate: "GPU",
+          },
+          runningMode: "VIDEO",
+          numFaces: 4,
+          outputFaceBlendshapes: true,
+        });
+      } catch (gpuErr) {
+        console.warn("[FaceDetection] GPU delegate failed for Face Landmarker, falling back to CPU:", gpuErr);
+        this.landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "/models/face_landmarker.task",
+            delegate: "CPU",
+          },
+          runningMode: "VIDEO",
+          numFaces: 4,
+          outputFaceBlendshapes: true,
+        });
+      }
 
       this.isLoaded = true;
       this.isLoading = false;
@@ -64,7 +77,7 @@ export class FaceDetectionService {
     }
 
     try {
-      const result = this.landmarker.detect(videoElement);
+      const result = this.landmarker.detectForVideo(videoElement, performance.now());
 
       if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) {
         const fallbackRes: FaceDetectionResult = {

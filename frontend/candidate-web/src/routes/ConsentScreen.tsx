@@ -16,7 +16,7 @@ interface ConsentScreenProps {
 }
 
 export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
-  const { transitionTo } = useSessionStore()
+  const { transitionTo, cvMode } = useSessionStore()
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [biometricAccepted, setBiometricAccepted] = useState(false)
   const [selfieDataUrl, setSelfieDataUrl] = useState<string | null>(null)
@@ -96,9 +96,21 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     console.warn('[ConsentScreen] Non-mandatory consent path — not yet fully implemented')
   }
 
-  function handleProceedToTutorial() {
-    // ESCALATE compliance gap: halt flow here since ConsentRecord cannot be persisted on backend.
-    setComplianceHalt(true)
+  async function handleProceedToTutorial() {
+    try {
+      const session = useSessionStore.getState().session
+      if (session?.id) {
+        await services.sessionApi.recordConsent(session.id, '1.0')
+      }
+      transitionTo({
+        type: 'tutorial',
+        mode: cvMode === 'reduced' ? 'condensed' : 'full',
+        inviteToken,
+      })
+    } catch (err) {
+      console.error('[ConsentScreen] Failed to persist consent record:', err)
+      setComplianceHalt(true)
+    }
   }
 
   // Start live video preview when on liveness or selfie step
@@ -107,12 +119,22 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
     async function startPreview() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        console.log('[ConsentScreen] Requesting getUserMedia stream...')
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        })
         streamRef.current = stream
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          setStreamActive(true)
+          try {
+            await videoRef.current.play()
+            console.log('[ConsentScreen] Video playing successfully, videoWidth:', videoRef.current.videoWidth)
+          } catch (playErr) {
+            console.warn('[ConsentScreen] Video play error:', playErr)
+          }
         }
+        setStreamActive(true)
       } catch (err) {
         console.error('Failed to start video preview for consent/liveness:', err)
         setLivenessError('Could not access webcam. Please check permissions.')
@@ -130,6 +152,16 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     }
   }, [step, selfieDataUrl])
 
+  // Attach stream to videoRef whenever streamRef.current & videoRef.current are ready
+  useEffect(() => {
+    if (videoRef.current && streamRef.current && videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch((err) => {
+        console.warn('[ConsentScreen] Video play catch:', err)
+      })
+    }
+  }, [streamActive, step])
+
   // Liveness check detection loop
   useEffect(() => {
     if (step !== 'liveness' || !streamActive || !videoRef.current) return
@@ -146,26 +178,30 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
     const detectLoop = () => {
       if (!active || !videoRef.current) return
-      try {
-        const result = faceService.detect(videoRef.current)
-        if (result.faceDetected) {
-          if (result.blinkDetected) {
-            setLivenessBlink(true)
+      
+      const video = videoRef.current
+      if (video.readyState >= 2 && !video.paused) {
+        try {
+          const result = faceService.detect(video)
+          if (result.faceDetected) {
+            if (result.blinkDetected) {
+              setLivenessBlink(true)
+            }
+            if (result.headDirection === 'LEFT') {
+              setLivenessLeft(true)
+            }
+            if (result.headDirection === 'RIGHT') {
+              setLivenessRight(true)
+            }
           }
-          if (result.headDirection === 'LEFT') {
-            setLivenessLeft(true)
-          }
-          if (result.headDirection === 'RIGHT') {
-            setLivenessRight(true)
-          }
+        } catch (err) {
+          console.error('[ConsentScreen] Error in liveness detection:', err)
         }
-      } catch (err) {
-        console.error('[ConsentScreen] Error in liveness detection:', err)
       }
       requestAnimationFrame(detectLoop)
     }
 
-    const timer = setTimeout(detectLoop, 1000)
+    const timer = setTimeout(detectLoop, 500)
 
     return () => {
       active = false
@@ -377,16 +413,15 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           </p>
 
           <div className="relative mb-6 rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video flex items-center justify-center">
-            {streamActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-                aria-label="Liveness camera preview"
-              />
-            ) : (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover transform -scale-x-100 ${streamActive ? 'block' : 'hidden'}`}
+              aria-label="Liveness camera preview"
+            />
+            {!streamActive && (
               <span className="text-sm text-gray-400">Loading webcam preview…</span>
             )}
           </div>
@@ -458,25 +493,28 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
                 alt="Your baseline selfie"
                 className="w-full h-full object-cover"
               />
-            ) : streamActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-                aria-label="Live camera preview"
-              />
             ) : (
-              <div className="flex flex-col items-center gap-3 text-[var(--text-secondary)]">
-                {captureAttempts > 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-32 h-40 rounded-full border-2 border-dashed border-[var(--accent)] opacity-40" aria-hidden />
+              <>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover transform -scale-x-100 ${streamActive ? 'block' : 'hidden'}`}
+                  aria-label="Live camera preview"
+                />
+                {!streamActive && (
+                  <div className="flex flex-col items-center gap-3 text-[var(--text-secondary)]">
+                    {captureAttempts > 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-32 h-40 rounded-full border-2 border-dashed border-[var(--accent)] opacity-40" aria-hidden />
+                      </div>
+                    )}
+                    <span className="text-5xl opacity-40" aria-hidden>👤</span>
+                    <span className="text-sm">Starting camera...</span>
                   </div>
                 )}
-                <span className="text-5xl opacity-40" aria-hidden>👤</span>
-                <span className="text-sm">Starting camera...</span>
-              </div>
+              </>
             )}
           </div>
           {selfieDataUrl && (
