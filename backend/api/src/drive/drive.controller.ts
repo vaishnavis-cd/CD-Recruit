@@ -10,12 +10,12 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ParseUUIDPipe,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { UUIDValidationPipe } from "../common/pipes/uuid-validation.pipe";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { DriveService } from "./drive.service";
 import { CreateDriveDto, UpdateDriveDto, ListDrivesQueryDto, SaveDriveQuestionsDto, AddCandidatesBulkDto } from "../common/dto/drive.dto";
@@ -28,8 +28,8 @@ export class DriveController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateDriveDto, @CurrentUser() staff: any) {
-    return this.driveService.create(dto, staff.id);
+  async create(@Body() dto: CreateDriveDto, @CurrentUser() actor: any) {
+    return this.driveService.create(dto, actor.id);
   }
 
   @Get()
@@ -38,70 +38,66 @@ export class DriveController {
   }
 
   @Get(":driveId")
-  async findOne(@Param("driveId", UUIDValidationPipe) driveId: string) {
+  async findOne(@Param("driveId", ParseUUIDPipe) driveId: string) {
     return this.driveService.findOne(driveId);
   }
 
   @Patch(":driveId")
   async update(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
     @Body() dto: UpdateDriveDto,
-    @CurrentUser() staff: any,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.update(driveId, dto, staff.id);
+    return this.driveService.update(driveId, dto, actor.id);
   }
 
   @Post(":driveId/duplicate")
-  @HttpCode(HttpStatus.CREATED)
   async duplicate(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
-    @CurrentUser() staff: any,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.duplicate(driveId, staff.id);
+    return this.driveService.duplicate(driveId, actor.id);
   }
 
   @Post(":driveId/close")
   async closeEarly(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
-    @CurrentUser() staff: any,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.closeEarly(driveId, staff.id);
+    return this.driveService.closeEarly(driveId, actor.id);
   }
 
   @Delete(":driveId")
   async delete(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
-    @CurrentUser() staff: any,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.delete(driveId, staff.id);
+    return this.driveService.delete(driveId, actor.id);
   }
 
-  @Post(":driveId/questions")
-  @HttpCode(HttpStatus.OK)
+  @Patch(":driveId/questions")
   async saveQuestions(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
     @Body() dto: SaveDriveQuestionsDto,
-    @CurrentUser() staff: any,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.saveQuestions(driveId, dto.questionIds, staff.id);
+    return this.driveService.saveQuestions(driveId, dto.questionIds, actor.id);
   }
 
-  @Post(":driveId/invites/bulk")
-  @HttpCode(HttpStatus.OK)
+  @Post(":driveId/candidates/bulk")
   async addCandidatesBulk(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
     @Body() dto: AddCandidatesBulkDto,
-    @CurrentUser() staff: any,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.addCandidatesBulk(driveId, dto.candidates, staff.id);
+    return this.driveService.addCandidatesBulk(driveId, dto.candidates, actor.id);
   }
 
   @Post(":driveId/generate-links")
-  @HttpCode(HttpStatus.OK)
   async generateLinks(
-    @Param("driveId", UUIDValidationPipe) driveId: string,
-    @CurrentUser() staff: any,
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @CurrentUser() actor: any,
   ) {
-    return this.driveService.generateLinks(driveId, staff.id);
+    return this.driveService.generateLinks(driveId, actor.id);
   }
 }

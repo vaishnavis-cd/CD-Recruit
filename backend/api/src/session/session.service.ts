@@ -67,6 +67,10 @@ async function buildQuestionList(
   });
 }
 
+import { SessionLifecycleService } from "./session-lifecycle.service";
+import { SessionStateMachine } from "./session-state-machine";
+import { SessionScoringService } from "./session-scoring.service";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionService
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,6 +89,9 @@ export class SessionService {
     private readonly config: ConfigService<AppConfig, true>,
     private readonly minio: ObjectStoragePort,
     private readonly queueProvider: QueueProviderPort,
+    private readonly lifecycleService: SessionLifecycleService,
+    private readonly stateMachine: SessionStateMachine,
+    private readonly scoringService: SessionScoringService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,

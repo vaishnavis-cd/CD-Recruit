@@ -6,8 +6,11 @@ import { RunSqlDto, SubmitSqlDto, DraftSqlDto } from "./dto/sql.dto";
 import { SqlQuestionContentJson } from "./sql.types";
 import { SubmissionType, SqlExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 
+import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+
 @Injectable()
-export class SqlService {
+export class SqlService implements AssessmentModuleEngine {
+  readonly moduleType = ModuleType.SQL;
   private readonly logger = new Logger(SqlService.name);
 
   constructor(
@@ -15,6 +18,28 @@ export class SqlService {
     private readonly sandboxService: SqlSandboxService,
     private readonly comparatorService: ResultComparatorService,
   ) {}
+
+  async validateSubmission(submission: any): Promise<boolean> {
+    return !!(submission && submission.sql);
+  }
+
+  async evaluateSubmission(
+    sessionId: string,
+    questionId: string,
+    submission: any,
+  ): Promise<ModuleEvaluationResult> {
+    const res = await this.run({
+      sessionId,
+      questionId,
+      query: submission.sql,
+    });
+    return {
+      status: res.status as any,
+      score: res.passed ? 1.0 : 0.0,
+      scoreDetail: res,
+      evaluatedAt: new Date(),
+    };
+  }
 
   /**
    * Run candidate SQL query in sandbox and compare with expected output.
