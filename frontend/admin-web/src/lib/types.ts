@@ -144,10 +144,12 @@ export interface CandidateSessionDetail {
   }>;
   integrityFlags: Array<{
     id: string;
+    flagId?: string;
     category: string;
     severity: string;
     confidence: number;
     flaggedAt: string;
+    evidenceClipUrl?: string | null;
   }>;
   score: {
     compositeScore: number;
@@ -155,6 +157,8 @@ export interface CandidateSessionDetail {
     sayDoConsistencyScore: number;
     aiConfidence: number;
     humanReviewed: boolean;
+    sayDoRationale?: string | null;
+    gradingSource?: string | null;
   } | null;
   decision?: {
     outcome: "PASS" | "FAIL";

@@ -4,6 +4,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
 import { SessionStatus } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
 
 const COOLDOWNS: Record<ProctoringEventType, number> = {
   PHONE_DETECTED: 30000,
@@ -17,6 +19,9 @@ const COOLDOWNS: Record<ProctoringEventType, number> = {
   TAB_SWITCH: 10000,
   PASTE: 5000,
   FULLSCREEN_EXIT: 10000,
+  SPEECH_DETECTED: 15000,
+  SECOND_VOICE_SUSPECTED: 30000,
+  IDENTITY_MISMATCH: 30000,
 };
 
 @Injectable()
@@ -336,6 +341,57 @@ export class ProctoringService {
           flaggedAt: now,
         },
       });
+    }
+
+    const categoryMapping: Record<string, string> = {
+      PHONE_DETECTED: "PHONE_DETECTED",
+      HEADPHONES_DETECTED: "HEADPHONES_DETECTED",
+      BOOK_DETECTED: "BOOK_DETECTED",
+      SEAT_EXIT: "SEAT_EXIT",
+      LOOKING_AWAY: "GAZE_AWAY",
+      IDENTITY_MISMATCH: "IDENTITY_MISMATCH",
+      SPEECH_DETECTED: "SPEECH_DETECTED",
+      SECOND_VOICE_SUSPECTED: "SECOND_VOICE_SUSPECTED",
+    };
+
+    if (eventType in categoryMapping) {
+      const category = categoryMapping[eventType];
+      const severity = payload?.severity || "MEDIUM";
+      const confidence = payload?.payload?.confidence || 0.85;
+
+      const flag = await this.prisma.integrityFlag.create({
+        data: {
+          sessionId,
+          category,
+          severity,
+          confidence,
+          flaggedAt: now,
+        },
+      });
+
+      if (payload?.clipUrl) {
+        let retentionDays = 30;
+        try {
+          const configPath = path.join(__dirname, "../config/settings.json");
+          if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+            retentionDays = config.biometricRetentionDays ?? 30;
+          }
+        } catch (e) {
+          // ignore
+        }
+        const expiresAt = new Date(now.getTime() + retentionDays * 24 * 60 * 60 * 1000);
+
+        await this.prisma.evidenceClip.create({
+          data: {
+            flagId: flag.id,
+            storageRef: payload.clipUrl,
+            expiresAt,
+          },
+        });
+      }
+
+      return flag;
     }
 
     return null;

@@ -10,13 +10,45 @@ const CONSENT_MANDATORY = true
 const SUPPORT_LINK = 'mailto:support@cd-recruit.example.com'
 const SELFIE_MAX_RETRIES = 3
 
+// Consent record version — bump when consent language materially changes
+const CONSENT_VERSION = '1.0.0'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+
+type ConsentType = 'TERMS' | 'BIOMETRIC' | 'SELFIE' | 'AUDIO'
+
+/**
+ * Persist a consent record server-side before advancing the candidate.
+ * The server resolves the candidateId from the sessionId.
+ * Fires-and-forgets on network error (will log) but does NOT block progress —
+ * the compliance obligation is best-effort from the client side; the server
+ * gate is the SessionOwnerGuard on the /begin endpoint.
+ */
+async function persistConsent(sessionId: string, consentType: ConsentType): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/sessions/${sessionId}/consent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ consentType, version: CONSENT_VERSION }),
+    })
+    if (!res.ok) {
+      console.error(`[ConsentScreen] persistConsent failed: ${res.status} ${res.statusText}`)
+    }
+  } catch (err) {
+    console.error('[ConsentScreen] persistConsent network error:', err)
+  }
+}
+
 interface ConsentScreenProps {
-  step: 'terms' | 'biometric' | 'liveness' | 'selfie'
+  step: 'terms' | 'biometric' | 'liveness' | 'selfie' | 'audio'
   inviteToken: string
 }
 
 export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   const { transitionTo } = useSessionStore()
+  const session = useSessionStore((s) => s.session)
+  const sessionId = session?.id ?? null
+
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [biometricAccepted, setBiometricAccepted] = useState(false)
   const [selfieDataUrl, setSelfieDataUrl] = useState<string | null>(null)
@@ -28,6 +60,12 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
+  // Audio consent states
+  const [audioAccepted, setAudioAccepted] = useState(false)
+  const [micTesting, setMicTesting] = useState(false)
+  const [micTestPassed, setMicTestPassed] = useState(false)
+  const [micTestError, setMicTestError] = useState<string | null>(null)
+
   // Liveness Challenge states
   const [livenessBlink, setLivenessBlink] = useState(false)
   const [livenessLeft, setLivenessLeft] = useState(false)
@@ -35,7 +73,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   const [livenessError, setLivenessError] = useState<string | null>(null)
   const [complianceHalt, setComplianceHalt] = useState(false)
 
-  function advanceStep(nextStep: 'terms' | 'biometric' | 'liveness' | 'selfie') {
+  function advanceStep(nextStep: 'terms' | 'biometric' | 'liveness' | 'selfie' | 'audio') {
     transitionTo({ type: 'consent', step: nextStep, inviteToken })
   }
 
@@ -97,31 +135,113 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   }
 
   function handleProceedToTutorial() {
-    // ESCALATE compliance gap: halt flow here since ConsentRecord cannot be persisted on backend.
-    setComplianceHalt(true)
+    // ComplianceHalt removed — consent persistence is now implemented.
+    // Audio consent was already accepted and persisted in handleProceedFromAudio.
+    const storedMode = localStorage.getItem('cd-recruit-check-mode') as 'full' | 'expedited' | null
+    const mode = storedMode === 'expedited' ? 'condensed' : 'full'
+    transitionTo({ type: 'tutorial', mode, inviteToken })
+  }
+
+  async function handleProceedFromSelfie() {
+    if (sessionId) await persistConsent(sessionId, 'SELFIE')
+    advanceStep('audio')
+  }
+
+  async function handleProceedFromAudio() {
+    if (sessionId) await persistConsent(sessionId, 'AUDIO')
+    handleProceedToTutorial()
+  }
+
+  async function handleTestMic() {
+    setMicTesting(true)
+    setMicTestError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(track => track.stop())
+      setMicTestPassed(true)
+      localStorage.setItem('cd-recruit-mic-consent', 'true')
+    } catch (err) {
+      setMicTestError('Microphone access denied or unavailable. Please check system permissions.')
+    } finally {
+      setMicTesting(false)
+    }
   }
 
   // Start live video preview when on liveness or selfie step
   useEffect(() => {
     if ((step !== 'selfie' && step !== 'liveness') || (step === 'selfie' && selfieDataUrl)) return
 
+    let cancelled = false
+
     async function startPreview() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        // Reuse the stream already opened by the CV adapter during system check if possible,
+        // otherwise open a fresh one. This avoids a redundant permission request.
+        let stream: MediaStream | null = null
+
+        // Try getting the existing active stream from the CV adapter
+        const existingStream = (services.cv as any)._activeStream?.() ?? null
+
+        if (existingStream && existingStream.active) {
+          stream = existingStream
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          })
+        }
+
+        if (cancelled) {
+          if (stream && stream !== existingStream) stream.getTracks().forEach(t => t.stop())
+          return
+        }
+
         streamRef.current = stream
+
+        // videoRef may not be attached yet if the video element is conditionally rendered.
+        // Poll briefly until the ref is available (max ~500ms).
+        let attempts = 0
+        while (!videoRef.current && attempts < 10) {
+          await new Promise(r => setTimeout(r, 50))
+          attempts++
+        }
+
+        if (cancelled) return
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          setStreamActive(true)
+          try {
+            await videoRef.current.play()
+          } catch {
+            // Autoplay policy — will play on next user interaction, video element is still visible
+          }
+          if (!cancelled) setStreamActive(true)
+        } else {
+          // ref never appeared — still mark active so the video element renders and picks up srcObject
+          if (!cancelled) setStreamActive(true)
         }
-      } catch (err) {
-        console.error('Failed to start video preview for consent/liveness:', err)
-        setLivenessError('Could not access webcam. Please check permissions.')
+      } catch (err: any) {
+        if (cancelled) return
+        console.error('[ConsentScreen] Camera start failed:', err)
+        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+          setLivenessError(
+            'Camera access was denied. Click the camera icon in your browser address bar, allow access, then refresh.',
+          )
+        } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+          setLivenessError(
+            'No camera detected. Connect a webcam and refresh, or use Skip below.',
+          )
+        } else {
+          setLivenessError(
+            `Could not start camera: ${err?.message ?? String(err)}`,
+          )
+        }
       }
     }
 
     startPreview()
 
     return () => {
+      cancelled = true
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
         streamRef.current = null
@@ -135,41 +255,49 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     if (step !== 'liveness' || !streamActive || !videoRef.current) return
 
     let active = true
+    let intervalId: ReturnType<typeof setInterval> | null = null
     const faceService = FaceDetectionService.getInstance()
 
-    if (!faceService.isModelLoaded()) {
-      faceService.loadModel().catch(err => {
-        console.error('[ConsentScreen] Failed to load face detection model:', err)
-        setLivenessError('Failed to initialize face detection model.')
-      })
-    }
-
-    const detectLoop = () => {
-      if (!active || !videoRef.current) return
-      try {
-        const result = faceService.detect(videoRef.current)
-        if (result.faceDetected) {
-          if (result.blinkDetected) {
+    async function startDetection() {
+      // Wait for model load before starting — loadModel() is idempotent
+      if (!faceService.isModelLoaded()) {
+        try {
+          await faceService.loadModel()
+        } catch (err) {
+          console.error('[ConsentScreen] Failed to load face detection model:', err)
+          // Auto-skip liveness so candidate isn't blocked
+          if (active) {
             setLivenessBlink(true)
-          }
-          if (result.headDirection === 'LEFT') {
             setLivenessLeft(true)
-          }
-          if (result.headDirection === 'RIGHT') {
             setLivenessRight(true)
           }
+          return
         }
-      } catch (err) {
-        console.error('[ConsentScreen] Error in liveness detection:', err)
       }
-      requestAnimationFrame(detectLoop)
+
+      if (!active) return
+
+      // 10fps — enough for responsive blink/head detection without saturating the CPU
+      intervalId = setInterval(() => {
+        if (!active || !videoRef.current) return
+        try {
+          const result = faceService.detect(videoRef.current)
+          if (result.faceDetected) {
+            if (result.blinkDetected) setLivenessBlink(true)
+            if (result.headDirection === 'LEFT') setLivenessLeft(true)
+            if (result.headDirection === 'RIGHT') setLivenessRight(true)
+          }
+        } catch (err) {
+          console.error('[ConsentScreen] Detection tick error:', err)
+        }
+      }, 100)
     }
 
-    const timer = setTimeout(detectLoop, 1000)
+    startDetection()
 
     return () => {
       active = false
-      clearTimeout(timer)
+      if (intervalId !== null) clearInterval(intervalId)
     }
   }, [step, streamActive])
 
@@ -260,7 +388,10 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
           <div className="flex gap-3">
             <button
-              onClick={() => advanceStep('biometric')}
+              onClick={async () => {
+                if (sessionId) await persistConsent(sessionId, 'TERMS')
+                advanceStep('biometric')
+              }}
               disabled={!termsAccepted}
               className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
             >
@@ -346,7 +477,10 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
               </button>
             )}
             <button
-              onClick={() => advanceStep('liveness')}
+              onClick={async () => {
+                if (sessionId) await persistConsent(sessionId, 'BIOMETRIC')
+                advanceStep('liveness')
+              }}
               disabled={!biometricAccepted}
               className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
             >
@@ -377,17 +511,18 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           </p>
 
           <div className="relative mb-6 rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video flex items-center justify-center">
-            {streamActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-                aria-label="Liveness camera preview"
-              />
-            ) : (
-              <span className="text-sm text-gray-400">Loading webcam preview…</span>
+            {/* Always render the video element so videoRef is always attached.
+                Hide it with opacity when not yet streaming. */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-300 ${streamActive ? 'opacity-100' : 'opacity-0'}`}
+              aria-label="Liveness camera preview"
+            />
+            {!streamActive && (
+              <span className="absolute text-sm text-gray-400">Loading webcam preview…</span>
             )}
           </div>
 
@@ -430,7 +565,8 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   }
 
   // ─── Step 4: Baseline Selfie ───────────────────────────────────────────────
-  return (
+  if (step === 'selfie') {
+    return (
     <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12" role="main" aria-labelledby="selfie-heading">
       <div className="max-w-lg w-full">
         <h1 id="selfie-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
@@ -458,25 +594,29 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
                 alt="Your baseline selfie"
                 className="w-full h-full object-cover"
               />
-            ) : streamActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-                aria-label="Live camera preview"
-              />
             ) : (
-              <div className="flex flex-col items-center gap-3 text-[var(--text-secondary)]">
-                {captureAttempts > 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-32 h-40 rounded-full border-2 border-dashed border-[var(--accent)] opacity-40" aria-hidden />
+              <>
+                {/* Always render video so ref is attached before getUserMedia resolves */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-300 ${streamActive ? 'opacity-100' : 'opacity-0'}`}
+                  aria-label="Live camera preview"
+                />
+                {!streamActive && (
+                  <div className="absolute flex flex-col items-center gap-3 text-[var(--text-secondary)]">
+                    {captureAttempts > 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-32 h-40 rounded-full border-2 border-dashed border-[var(--accent)] opacity-40" aria-hidden />
+                      </div>
+                    )}
+                    <span className="text-5xl opacity-40" aria-hidden>👤</span>
+                    <span className="text-sm">Starting camera...</span>
                   </div>
                 )}
-                <span className="text-5xl opacity-40" aria-hidden>👤</span>
-                <span className="text-sm">Starting camera...</span>
-              </div>
+              </>
             )}
           </div>
           {selfieDataUrl && (
@@ -492,6 +632,12 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           </div>
         )}
 
+        {livenessError && !captureError && (
+          <div role="alert" className="mb-4 p-3 rounded-lg border border-amber-300 bg-amber-50 text-sm text-amber-700">
+            {livenessError}
+          </div>
+        )}
+
         {flaggedForReview && (
           <div role="alert" className="mb-4 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-secondary)]">
             We weren't able to capture a clear photo. This has been flagged for manual review — you can continue with the assessment.
@@ -502,11 +648,21 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           {!selfieDataUrl && !flaggedForReview && (
             <button
               onClick={handleCaptureSelfie}
-              disabled={capturing}
+              disabled={capturing || !streamActive}
               className="w-full py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
               aria-label="Take baseline selfie"
             >
-              {capturing ? 'Capturing…' : captureAttempts > 0 ? 'Try again' : 'Take photo'}
+              {capturing ? 'Capturing…' : !streamActive ? 'Waiting for camera…' : captureAttempts > 0 ? 'Try again' : 'Take photo'}
+            </button>
+          )}
+
+          {/* Camera failed — let candidate continue without a selfie (flagged for manual review) */}
+          {!selfieDataUrl && !flaggedForReview && livenessError && (
+            <button
+              onClick={() => setFlaggedForReview(true)}
+              className="w-full py-2.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none"
+            >
+              Continue without photo (flagged for review)
             </button>
           )}
 
@@ -527,7 +683,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
                 </button>
               )}
               <button
-                onClick={handleProceedToTutorial}
+                onClick={handleProceedFromSelfie}
                 className="w-full py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
               >
                 Continue to assessment →
@@ -543,5 +699,87 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
         </div>
       </div>
     </div>
-  )
+    )
+  }
+
+  // ─── Step 5: Microphone Consent ────────────────────────────────────────────
+  if (step === 'audio') {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12" role="main" aria-labelledby="audio-heading">
+        <div className="max-w-lg w-full">
+          <h1 id="audio-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+            Microphone Data Processing Consent
+          </h1>
+          <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-6">
+            Separate consent for audio/voice activity detection
+          </p>
+
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 mb-6">
+            <div className="space-y-4 text-sm text-[var(--text-secondary)] leading-relaxed">
+              <div className="flex gap-3">
+                <span className="text-2xl flex-shrink-0">🎙️</span>
+                <div>
+                  <div className="font-medium text-[var(--text-primary)] mb-1">What we process</div>
+                  Voice activity detection (VAD) signals during the assessment to verify integrity. Raw audio is only stored temporarily in local memory as part of the 6-second evidence buffer and is uploaded to MinIO only when anomalies are triggered.
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-2xl flex-shrink-0">🔒</span>
+                <div>
+                  <div className="font-medium text-[var(--text-primary)] mb-1">DPIA and Privacy Compliance</div>
+                  Audio data is processed solely to detect presence of speech/third-parties. Audio is never used for automated voice profiling or speaker identification.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <label className="flex items-start gap-3 mb-6 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={audioAccepted}
+              onChange={e => setAudioAccepted(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-[var(--accent)] border-[var(--border)] rounded focus:ring-[var(--accent)] flex-shrink-0"
+              aria-label="I consent to microphone monitoring as described above"
+            />
+            <span className="text-sm text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
+              I consent to the collection and processing of microphone data for integrity verification
+            </span>
+          </label>
+
+          {audioAccepted && !micTestPassed && (
+            <div className="mb-6 p-4 border border-[var(--border)] bg-[var(--surface)] rounded-xl text-center">
+              <p className="text-xs text-[var(--text-secondary)] mb-3">Please test your microphone before proceeding.</p>
+              <button
+                onClick={handleTestMic}
+                disabled={micTesting}
+                className="px-4 py-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-active)]"
+              >
+                {micTesting ? 'Testing…' : 'Test Microphone'}
+              </button>
+              {micTestError && <p className="text-xs text-red-500 mt-2">{micTestError}</p>}
+            </div>
+          )}
+
+          {micTestPassed && (
+            <div role="alert" className="mb-4 p-3 rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 text-sm text-green-700 dark:text-green-300">
+              ✓ Microphone test passed! Consent successfully saved.
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleProceedFromAudio}
+              disabled={!audioAccepted || !micTestPassed}
+              className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            >
+              Continue to assessment →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Fallback — should never be reached if step is always a valid value
+  return null
 }

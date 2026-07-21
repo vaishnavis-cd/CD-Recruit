@@ -18,8 +18,8 @@ export interface Session {
   candidate: Candidate;
   roleTemplate: RoleTemplate;
   status: SessionStatus;
-  compositeScore: number;
-  sayDoScore: number;
+  compositeScore: number | null;
+  sayDoScore: number | null;
   sayDoTrace: { t: number; said: number; did: number }[];
   moduleScores: Record<string, number>;
   mismatches: { said: string; did: string; impact: string }[];
@@ -46,6 +46,7 @@ export interface Invite {
   createdAt: string;
   expiresAt: string;
   redeemedAt?: string;
+  sessionId?: string | null;
 }
 
 export const ROLE_TEMPLATES: RoleTemplate[] = [
@@ -290,8 +291,9 @@ export function buildDashboardStats(sessions: Session[]) {
     const [lo, hi] = b.split("-").map(Number);
     return {
       bucket: b,
-      count: sessions.filter((s) => s.compositeScore >= lo && s.compositeScore < hi + 0.0001)
-        .length,
+      count: sessions.filter(
+        (s) => s.compositeScore !== null && s.compositeScore >= lo && s.compositeScore < hi + 0.0001,
+      ).length,
     };
   });
 

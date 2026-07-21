@@ -81,8 +81,13 @@ function DashboardPage() {
 
   const medianComposite = (() => {
     if (filteredSessions.length === 0) return 0;
-    const arr = [...filteredSessions.map((s) => s.compositeScore)].sort((a, b) => a - b);
-    return arr[Math.floor(arr.length / 2)];
+    // Exclude unscored sessions (null = not yet computed, sentinel -1 already mapped to null)
+    const scored = filteredSessions
+      .filter((s) => s.compositeScore !== null)
+      .map((s) => s.compositeScore as number)
+      .sort((a, b) => a - b);
+    if (scored.length === 0) return 0;
+    return scored[Math.floor(scored.length / 2)];
   })();
 
   const heroTrace = stats.sayDoTrace.map((p, i) => ({ t: i, said: p.said, did: p.did }));
@@ -391,13 +396,16 @@ function ScoreDistView({
 }) {
   const filtered =
     roleFilter === "all" ? sessions : sessions.filter((s) => s.roleTemplate.id === roleFilter);
+  // Exclude unscored sessions (null compositeScore) from the histogram entirely
+  const scoredSessions = filtered.filter((s) => s.compositeScore !== null);
   const buckets = ["0-40", "40-55", "55-70", "70-85", "85-100"];
   const dist = buckets.map((b) => {
     const [lo, hi] = b.split("-").map(Number);
     return {
       bucket: b,
-      count: filtered.filter((s) => s.compositeScore >= lo && s.compositeScore < hi + 0.0001)
-        .length,
+      count: scoredSessions.filter(
+        (s) => (s.compositeScore as number) >= lo && (s.compositeScore as number) < hi + 0.0001,
+      ).length,
     };
   });
   const max = Math.max(...dist.map((d) => d.count), 1);
@@ -442,7 +450,9 @@ function SayDoView({ sessions }: { sessions: ReturnType<typeof useStore.getState
     const [lo, hi] = b.split("-").map(Number);
     return {
       bucket: b,
-      count: sessions.filter((s) => s.sayDoScore >= lo && s.sayDoScore < hi + 0.0001).length,
+      count: sessions.filter(
+        (s) => s.sayDoScore !== null && s.sayDoScore >= lo && s.sayDoScore < hi + 0.0001,
+      ).length,
     };
   });
 
