@@ -316,14 +316,10 @@ function DrivesPage() {
     }
   };
 
-  if (!isExactDrives) {
-    return <Outlet />;
-  }
-
   // Filtered Questions for Step 3 selector
   const filteredQuestionsList = useMemo(() => {
     const s = questionSearch.toLowerCase().trim();
-    return questions.filter(q => {
+    return (questions || []).filter(q => {
       if (selectedModuleFilter !== "all" && q.moduleType !== selectedModuleFilter) return false;
       if (s) {
         const title = (q.content?.title || "").toLowerCase();
@@ -333,6 +329,10 @@ function DrivesPage() {
       return true;
     });
   }, [questions, selectedModuleFilter, questionSearch]);
+
+  if (!isExactDrives) {
+    return <Outlet />;
+  }
 
   return (
     <AppShell

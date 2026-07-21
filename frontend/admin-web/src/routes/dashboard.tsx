@@ -16,10 +16,13 @@ import { ScopePanel } from "../components/scope-panel";
 import { useStore } from "../lib/store";
 import { type RoleTemplate } from "../lib/types";
 
-function buildDashboardStats(sessions: any[], drives: any[]) {
-  const invitedCount = drives.reduce((sum, d) => sum + (d.invitedCount || 0), 0) || 100;
-  const startedCount = drives.reduce((sum, d) => sum + (d.startedCount || 0), 0) || 75;
-  const completedCount = drives.reduce((sum, d) => sum + (d.completedCount || 0), 0) || 50;
+function buildDashboardStats(sessions: any[] = [], drives: any[] = []) {
+  const safeDrives = Array.isArray(drives) ? drives : [];
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+
+  const invitedCount = safeDrives.reduce((sum, d) => sum + (d?.invitedCount || 0), 0) || 100;
+  const startedCount = safeDrives.reduce((sum, d) => sum + (d?.startedCount || 0), 0) || 75;
+  const completedCount = safeDrives.reduce((sum, d) => sum + (d?.completedCount || 0), 0) || 50;
 
   const funnel = [
     { stage: "Invited", count: invitedCount },
@@ -27,9 +30,9 @@ function buildDashboardStats(sessions: any[], drives: any[]) {
     { stage: "Completed", count: completedCount },
     {
       stage: "Reviewed",
-      count: sessions.filter((s) => s.status === "reviewed" || s.status === "decision").length,
+      count: safeSessions.filter((s) => s?.status === "reviewed" || s?.status === "decision").length,
     },
-    { stage: "Decided", count: sessions.filter((s) => s.status === "decision").length },
+    { stage: "Decided", count: safeSessions.filter((s) => s?.status === "decision").length },
   ];
 
   const buckets = ["0-40", "40-55", "55-70", "70-85", "85-100"];
@@ -37,21 +40,26 @@ function buildDashboardStats(sessions: any[], drives: any[]) {
     const [lo, hi] = b.split("-").map(Number);
     return {
       bucket: b,
-      count: sessions.filter((s) => (s.compositeScore || 0) >= lo && (s.compositeScore || 0) < hi + 0.0001)
+      count: safeSessions.filter((s) => (s?.compositeScore || 0) >= lo && (s?.compositeScore || 0) < hi + 0.0001)
         .length,
     };
   });
 
   const traceMap: Record<string, { sumSaid: number; sumDid: number; count: number }> = {};
-  sessions.forEach((s) => {
-    if (s.submittedAt) {
-      const dateStr = new Date(s.submittedAt).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
-      if (!traceMap[dateStr]) {
-        traceMap[dateStr] = { sumSaid: 0, sumDid: 0, count: 0 };
-      }
-      traceMap[dateStr].sumSaid += s.sayDoScore || 70;
-      traceMap[dateStr].sumDid += s.compositeScore || 70;
-      traceMap[dateStr].count += 1;
+  safeSessions.forEach((s) => {
+    if (s?.submittedAt) {
+      try {
+        const d = new Date(s.submittedAt);
+        if (!isNaN(d.getTime())) {
+          const dateStr = d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
+          if (!traceMap[dateStr]) {
+            traceMap[dateStr] = { sumSaid: 0, sumDid: 0, count: 0 };
+          }
+          traceMap[dateStr].sumSaid += s.sayDoScore || 70;
+          traceMap[dateStr].sumDid += s.compositeScore || 70;
+          traceMap[dateStr].count += 1;
+        }
+      } catch (err) {}
     }
   });
 
@@ -91,21 +99,21 @@ function buildDashboardStats(sessions: any[], drives: any[]) {
 
   categories.forEach((c) => {
     severities.forEach((sev) => {
-      const count = sessions.filter((s) =>
-        (s.integrityFlags || []).some(
+      const count = safeSessions.filter((s) =>
+        (s?.integrityFlags || []).some(
           (f: any) =>
-            (f.category || "").toLowerCase().includes(c.split(" ")[0].toLowerCase()) &&
-            (f.severity || "").toLowerCase() === sev.toLowerCase()
+            (f?.category || "").toLowerCase().includes(c.split(" ")[0].toLowerCase()) &&
+            (f?.severity || "").toLowerCase() === sev.toLowerCase()
         )
       ).length;
       integrityHeatmap.push({ category: c, severity: sev, count });
     });
   });
 
-  const humanReviewedCount = sessions.filter((s) => s.reviewer || s.decision).length;
-  const agreementCount = sessions.filter((s) => {
-    if (!s.decision) return false;
-    const scorePassed = s.compositeScore >= 70;
+  const humanReviewedCount = safeSessions.filter((s) => s?.reviewer || s?.decision).length;
+  const agreementCount = safeSessions.filter((s) => {
+    if (!s?.decision) return false;
+    const scorePassed = (s.compositeScore || 0) >= 70;
     const decPassed = s.decision.outcome === "advance" || s.decision.outcome === "PASS";
     return scorePassed === decPassed;
   }).length;
@@ -115,8 +123,8 @@ function buildDashboardStats(sessions: any[], drives: any[]) {
   const reviewerAgreement = {
     agreementRate,
     overrides: [
-      { direction: "lenient" as const, count: sessions.filter((s) => s.decision && s.compositeScore < 70 && (s.decision.outcome === "advance" || s.decision.outcome === "PASS")).length },
-      { direction: "harsh" as const, count: sessions.filter((s) => s.decision && s.compositeScore >= 70 && (s.decision.outcome === "reject" || s.decision.outcome === "FAIL")).length },
+      { direction: "lenient" as const, count: safeSessions.filter((s) => s?.decision && (s?.compositeScore || 0) < 70 && (s.decision.outcome === "advance" || s.decision.outcome === "PASS")).length },
+      { direction: "harsh" as const, count: safeSessions.filter((s) => s?.decision && (s?.compositeScore || 0) >= 70 && (s.decision.outcome === "reject" || s.decision.outcome === "FAIL")).length },
     ],
   };
 
@@ -144,10 +152,10 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
-  const sessions = useStore((s) => s.sessions);
-  const drives = useStore((s) => s.drives);
-  const actionQueue = useStore((s) => s.actionQueue);
-  const roleTemplates = useStore((s) => s.roleTemplates);
+  const sessions = useStore((s) => s.sessions) || [];
+  const drives = useStore((s) => s.drives) || [];
+  const actionQueue = useStore((s) => s.actionQueue) || [];
+  const roleTemplates = useStore((s) => s.roleTemplates) || [];
   const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
   const fetchActionQueue = useStore((s) => s.fetchActionQueue);
   const fetchSessions = useStore((s) => s.fetchSessions);
@@ -166,16 +174,24 @@ function DashboardPage() {
   }, []);
 
   const filteredSessions = useMemo(() => {
-    return sessions.filter((s) => {
-      if (selectedRole !== "all" && s.roleTemplate.id !== selectedRole) return false;
+    return (sessions || []).filter((s) => {
+      if (!s) return false;
+      if (
+        selectedRole !== "all" &&
+        s.roleTemplate?.id !== selectedRole &&
+        s.roleTemplate?.roleName?.toLowerCase() !== selectedRole.toLowerCase()
+      )
+        return false;
       if (selectedDrive !== "all" && s.driveId !== selectedDrive) return false;
       if (dateRange !== "all") {
         const days = parseInt(dateRange, 10);
         if (!isNaN(days) && s.submittedAt) {
-          const subDate = new Date(s.submittedAt);
-          const now = new Date();
-          const diffDays = (now.getTime() - subDate.getTime()) / (1000 * 3600 * 24);
-          if (diffDays > days) return false;
+          try {
+            const subDate = new Date(s.submittedAt);
+            const now = new Date();
+            const diffDays = (now.getTime() - subDate.getTime()) / (1000 * 3600 * 24);
+            if (diffDays > days) return false;
+          } catch (err) {}
         }
       }
       return true;
@@ -185,11 +201,11 @@ function DashboardPage() {
   const stats = useMemo(() => buildDashboardStats(filteredSessions, drives), [filteredSessions, drives]);
 
   const activePipeline = filteredSessions.filter(
-    (s) => s.status === "submitted" || s.status === "ai_scored" || s.status === "review",
+    (s) => s?.status === "submitted" || s?.status === "ai_scored" || s?.status === "review",
   ).length;
 
   const flagRate = Math.round(
-    (filteredSessions.filter((s) => s.integrityFlags.some((f) => f.severity === "critical"))
+    (filteredSessions.filter((s) => (s?.integrityFlags || []).some((f: any) => f?.severity === "critical"))
       .length /
       Math.max(filteredSessions.length, 1)) *
       100,
@@ -197,11 +213,11 @@ function DashboardPage() {
 
   const medianComposite = (() => {
     if (filteredSessions.length === 0) return 0;
-    const arr = [...filteredSessions.map((s) => s.compositeScore)].sort((a, b) => a - b);
+    const arr = [...filteredSessions.map((s) => s?.compositeScore || 0)].sort((a, b) => a - b);
     return arr[Math.floor(arr.length / 2)];
   })();
 
-  const heroTrace = stats.sayDoTrace.map((p, i) => ({ t: i, said: p.said, did: p.did }));
+  const heroTrace = (stats.sayDoTrace || []).map((p, i) => ({ t: i, said: p.said, did: p.did }));
 
   const handleExport = async () => {
     try {
@@ -262,70 +278,79 @@ function DashboardPage() {
         {/* ROW 1: Action Queue Cards (Audit Required, Expiring Soon, Closing Drives) */}
         {actionQueue && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ActionCard 
-              icon={<ShieldAlert size={16} />} 
-              title={`Audit Required (${actionQueue.pendingReviews.length})`}
-              tone="danger"
-              description="Low AI confidence requiring recruiter review"
-            >
-              {actionQueue.pendingReviews.length === 0 ? (
-                <EmptyState text="No pending manual audits." />
-              ) : (
-                actionQueue.pendingReviews.map((pr) => (
-                  <QueueItem 
-                    key={pr.sessionId} 
-                    title={pr.candidateName} 
-                    subtitle={pr.roleTemplateName} 
-                    link="/results/$id" 
-                    params={{ id: pr.sessionId }}
-                    linkText="Audit" 
-                  />
-                ))
-              )}
-            </ActionCard>
+            {(() => {
+              const pendingReviews = actionQueue.pendingReviews || [];
+              const expiringInvites = actionQueue.expiringInvites || [];
+              const closingDrives = actionQueue.closingDrives || [];
+              return (
+                <>
+                  <ActionCard
+                    icon={<ShieldAlert size={16} />}
+                    title={`Audit Required (${pendingReviews.length})`}
+                    tone="danger"
+                    description="Low AI confidence requiring recruiter review"
+                  >
+                    {pendingReviews.length === 0 ? (
+                      <EmptyState text="No pending manual audits." />
+                    ) : (
+                      pendingReviews.map((pr: any) => (
+                        <QueueItem
+                          key={pr.sessionId}
+                          title={pr.candidateName}
+                          subtitle={pr.roleTemplateName}
+                          link="/results/$id"
+                          params={{ id: pr.sessionId }}
+                          linkText="Audit"
+                        />
+                      ))
+                    )}
+                  </ActionCard>
 
-            <ActionCard 
-              icon={<Clock size={16} />} 
-              title={`Expiring Soon (${actionQueue.expiringInvites.length})`}
-              tone="warning"
-              description="Assessment invitations expiring in 24h"
-            >
-              {actionQueue.expiringInvites.length === 0 ? (
-                <EmptyState text="No invites expiring soon." />
-              ) : (
-                actionQueue.expiringInvites.map((ei) => (
-                  <QueueItem 
-                    key={ei.inviteId} 
-                    title={ei.candidateName} 
-                    subtitle={`Expires: ${ei.expiresAt.slice(11, 16)}`} 
-                    link="/invites" 
-                    linkText="Extend" 
-                  />
-                ))
-              )}
-            </ActionCard>
+                  <ActionCard
+                    icon={<Clock size={16} />}
+                    title={`Expiring Soon (${expiringInvites.length})`}
+                    tone="warning"
+                    description="Assessment invitations expiring in 24h"
+                  >
+                    {expiringInvites.length === 0 ? (
+                      <EmptyState text="No invites expiring soon." />
+                    ) : (
+                      expiringInvites.map((ei: any) => (
+                        <QueueItem
+                          key={ei.inviteId}
+                          title={ei.candidateName}
+                          subtitle={`Expires: ${(ei.expiresAt || "").slice(11, 16)}`}
+                          link="/invites"
+                          linkText="Extend"
+                        />
+                      ))
+                    )}
+                  </ActionCard>
 
-            <ActionCard 
-              icon={<Calendar size={16} />} 
-              title={`Closing Drives (${actionQueue.closingDrives.length})`}
-              tone="info"
-              description="Active drives ending in the next 24 hours"
-            >
-              {actionQueue.closingDrives.length === 0 ? (
-                <EmptyState text="No drives closing soon." />
-              ) : (
-                actionQueue.closingDrives.map((cd) => (
-                  <QueueItem 
-                    key={cd.driveId} 
-                    title={cd.driveName} 
-                    subtitle={cd.roleTemplateName} 
-                    link="/drives/$id" 
-                    params={{ id: cd.driveId }}
-                    linkText="View" 
-                  />
-                ))
-              )}
-            </ActionCard>
+                  <ActionCard
+                    icon={<Calendar size={16} />}
+                    title={`Closing Drives (${closingDrives.length})`}
+                    tone="info"
+                    description="Active drives ending in the next 24 hours"
+                  >
+                    {closingDrives.length === 0 ? (
+                      <EmptyState text="No drives closing soon." />
+                    ) : (
+                      closingDrives.map((cd: any) => (
+                        <QueueItem
+                          key={cd.driveId}
+                          title={cd.driveName}
+                          subtitle={cd.roleTemplateName}
+                          link="/drives/$id"
+                          params={{ id: cd.driveId }}
+                          linkText="View"
+                        />
+                      ))
+                    )}
+                  </ActionCard>
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -507,13 +532,15 @@ function FunnelView({ data }: { data: { stage: string; count: number }[] }) {
 }
 
 function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
-  const filtered = roleFilter === "all" ? sessions : sessions.filter((s: any) => s.roleTemplate.id === roleFilter);
+  const roleTemplates = useStore((s) => s.roleTemplates) || [];
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+  const filtered = roleFilter === "all" ? safeSessions : safeSessions.filter((s: any) => s?.roleTemplate?.id === roleFilter || s?.roleTemplate?.roleName?.toLowerCase() === roleFilter.toLowerCase());
   const buckets = ["0-40", "40-55", "55-70", "70-85", "85-100"];
   const dist = buckets.map((b) => {
     const [lo, hi] = b.split("-").map(Number);
     return {
       bucket: b,
-      count: filtered.filter((s: any) => s.compositeScore >= lo && s.compositeScore < hi + 0.0001).length,
+      count: filtered.filter((s: any) => (s?.compositeScore || 0) >= lo && (s?.compositeScore || 0) < hi + 0.0001).length,
     };
   });
   const max = Math.max(...dist.map((d) => d.count), 1);
@@ -529,7 +556,7 @@ function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
             className="text-[11px] font-medium border border-[#E6E6EA] rounded-md px-2 py-1 bg-[#F7F7F9] text-[#5B5B64]"
           >
             <option value="all">All Roles</option>
-            {ROLE_TEMPLATES.map((rt) => (
+            {roleTemplates.map((rt) => (
               <option key={rt.id} value={rt.id}>{rt.roleName}</option>
             ))}
           </select>
@@ -697,7 +724,7 @@ function ReviewerView({ data }: { data: any }) {
             <text x="100" y="85" textAnchor="middle" className="font-mono font-bold" fontSize="32" fill="#0B0B0D">
               {Math.round(data.agreementRate * 100)}%
             </text>
-            <text x="100" y="105" textAnchor="middle" fontSize="10" fontWeigth="600" fill="#8B8B93" letterSpacing="1.5">
+            <text x="100" y="105" textAnchor="middle" fontSize="10" fontWeight="600" fill="#8B8B93" letterSpacing="1.5">
               AGREEMENT
             </text>
           </svg>

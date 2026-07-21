@@ -42,10 +42,33 @@ function mapBackendStatus(
 }
 
 function mapBackendSession(session: any): Session {
+  if (!session) {
+    return {
+      id: "unknown",
+      driveId: "",
+      candidate: { id: "unknown", name: "Candidate", email: "", initials: "CN" },
+      roleTemplate: { id: "dev", roleName: "Software Developer", track: "Mid" },
+      status: "review",
+      compositeScore: 70,
+      sayDoScore: 80,
+      sayDoTrace: [],
+      moduleScores: {},
+      mismatches: [],
+      integrityFlags: [],
+      submittedAt: new Date().toISOString(),
+      gradingSource: "placeholder",
+      sayDoRationale: null,
+    };
+  }
+
   const compositeScore =
-    session.compositeScore !== null ? Math.round(session.compositeScore * 100) : 70;
+    session.compositeScore !== null && session.compositeScore !== undefined
+      ? Math.round(session.compositeScore * 100)
+      : 70;
   const sayDoScore =
-    session.sayDoConsistencyScore !== null ? Math.round(session.sayDoConsistencyScore * 100) : 80;
+    session.sayDoConsistencyScore !== null && session.sayDoConsistencyScore !== undefined
+      ? Math.round(session.sayDoConsistencyScore * 100)
+      : 80;
 
   const initials = session.candidateName
     ? session.candidateName
@@ -55,37 +78,38 @@ function mapBackendSession(session: any): Session {
         .toUpperCase()
     : "CN";
 
+  const roleName = session.roleTemplateName || session.roleName || "Software Developer";
+
   const status = mapBackendStatus(
-    session.status,
-    session.compositeScore !== null,
+    session.status || "SUBMITTED",
+    session.compositeScore !== null && session.compositeScore !== undefined,
     !session.humanReviewRequired,
     0.85,
     false,
   );
 
   return {
-    id: session.sessionId,
+    id: session.sessionId || session.id || "sess",
+    driveId: session.driveId || "",
     candidate: {
-      id: session.candidateEmail,
-      name: session.candidateName,
-      email: session.candidateEmail,
+      id: session.candidateEmail || "cand",
+      name: session.candidateName || "Candidate",
+      email: session.candidateEmail || "candidate@example.com",
       initials,
     },
     roleTemplate: {
-      id: session.roleTemplateName.toLowerCase().replace(" ", "-"),
-      roleName: session.roleTemplateName,
+      id: roleName.toLowerCase().replace(/\s+/g, "-"),
+      roleName: roleName,
       track: "Mid",
     },
     status,
     compositeScore,
     sayDoScore,
     sayDoTrace: [],
-    moduleScores: {},
+    moduleScores: session.moduleScores || {},
     mismatches: [],
-    integrityFlags: [],
-    submittedAt: session.submittedAt
-      ? session.submittedAt.slice(0, 10)
-      : new Date().toISOString().slice(0, 10),
+    integrityFlags: session.integrityFlags || [],
+    submittedAt: session.submittedAt ? session.submittedAt : new Date().toISOString(),
     gradingSource: session.score?.gradingSource || "placeholder",
     sayDoRationale: session.score?.sayDoRationale || null,
   };
