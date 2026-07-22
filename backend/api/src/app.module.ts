@@ -21,6 +21,9 @@ import { SqlModule } from "./sql/sql.module";
 import { ProctoringModule } from "./proctoring/proctoring.module";
 import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
+import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
+import { McqModule } from "./mcq/mcq.module";
+
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -30,7 +33,13 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, configuration],
-      envFilePath: ["../.env", "../../.env"],
+      envFilePath: [
+        require("path").resolve(process.cwd(), ".env"),
+        require("path").resolve(process.cwd(), "../../.env"),
+        "../.env",
+        "../../.env",
+        ".env",
+      ],
     }),
 
     PrismaModule,
@@ -77,6 +86,9 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     ProctoringModule,
     AiEvaluationModule,
     SimulationModule,
+    AiPromptingModule,
+    McqModule,
+
   ],
 })
 export class AppModule {}

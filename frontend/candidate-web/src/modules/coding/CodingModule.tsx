@@ -1,93 +1,154 @@
-import React, { useEffect, useState, useRef } from 'react'
-import Editor from '@monaco-editor/react'
-import type * as MonacoType from 'monaco-editor'
+import React, { useEffect, useState } from 'react'
 import { CODING_QUESTIONS } from '../../fixtures/questions'
-import { useSessionStore } from '../../store/sessionMachine'
+import { useSessionStore, QuestionStatus } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
-import { useTheme } from '../../theme/ThemeProvider'
-import { cdRecruitLightTheme, cdRecruitDarkTheme } from '../../theme/monacoTheme'
-import { services } from '../../services'
-import type { ExecutionResult } from '../../services/execution/port'
+import { CodingWorkspace } from '../../components/coding/CodingWorkspace'
+import apiClient from '../../api/client'
+import { Loader2, AlertCircle } from 'lucide-react'
+
+/** Simple UUID v4 check — NestJS ParseUUIDPipe rejects anything else with 400. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
 interface CodingModuleProps {
   moduleIndex: number
 }
 
-type RunState = 'idle' | 'running' | 'done' | 'infra-error'
-
 export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const assessment = useSessionStore(s => s.assessment)
-  const setResponse = useSessionStore(s => s.setResponse)
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
-  const { theme } = useTheme()
 
-  const questions = CODING_QUESTIONS
-  const question = questions[currentIndex]
+  // Only use real DB UUIDs — fixture IDs like 'code-1' are rejected by ParseUUIDPipe
+  const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING') ?? []
+  const questionId = codingQuestions[currentIndex]?.questionId ?? ''
+  const isValidUUID = UUID_RE.test(questionId)
 
-  const [code, setCode] = useState(question?.starterCode ?? '')
-  const [runState, setRunState] = useState<RunState>('idle')
-  const [runResult, setRunResult] = useState<ExecutionResult | null>(null)
-  const [lastMode, setLastMode] = useState<'run' | 'submit' | null>(null)
-  const [infraError, setInfraError] = useState<string | null>(null)
-  const retryCount = useRef(0)
+  const { handleNext: triggerNext } = useModuleNavigation(moduleIndex, currentIndex, codingQuestions.length || 1)
 
-  // Restore saved code
+  const [questionData, setQuestionData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Restore current question from persisted state on mount
   useEffect(() => {
-    const saved = assessment?.responses[question?.id]
-    setCode(typeof saved === 'string' ? saved : question?.starterCode ?? '')
-    setRunResult(null)
-    setRunState('idle')
-    setInfraError(null)
-    retryCount.current = 0
-  }, [currentIndex])
+    if (assessment?.currentModuleIndex === moduleIndex) {
+      setCurrentIndex(assessment.currentQuestionIndex)
+    }
+  }, [])
 
   useEffect(() => {
     setCurrentQuestion(moduleIndex, currentIndex)
-  }, [currentIndex])
+  }, [currentIndex, moduleIndex, setCurrentQuestion])
 
-  function handleCodeChange(value: string | undefined) {
-    const val = value ?? ''
-    setCode(val)
-    setResponse(question.id, val)
-  }
+  // Fetch question details from backend
+  useEffect(() => {
+    // Guard: need a session and a real UUID questionId from the DB.
+    // If assessment.questions is missing (stale localStorage before Phase 2),
+    // isValidUUID will be false and we surface a clear message instead of
+    // sending 'code-1' to ParseUUIDPipe which returns 400.
+    if (!assessment?.sessionId) return
 
-  async function handleExecute(mode: 'run' | 'submit') {
-    setRunState('running')
-    setInfraError(null)
-    setLastMode(mode)
-    try {
-      const result = await services.execution.runTests(code, question.id, mode)
-      setRunResult(result)
-      setRunState('done')
-      retryCount.current = 0
-    } catch (err: any) {
-      if (err?.type === 'infra-failure') {
-        // Visually distinct from "your code failed" per spec
-        setRunState('infra-error')
-        setInfraError(err.message)
-      } else {
-        setRunState('infra-error')
-        setInfraError('Something went wrong on our end — not a code error. Try again.')
-      }
+    if (!isValidUUID) {
+      // questions not yet loaded from server or stale state — not a fetch error
+      setLoading(false)
+      setError(
+        codingQuestions.length === 0
+          ? 'No coding questions found for this session. Please refresh or contact support.'
+          : `Invalid question ID (${questionId || 'empty'}). Please refresh the page.`
+      )
+      return
+    }
+
+    let isMounted = true
+    setLoading(true)
+    setError(null)
+
+    apiClient.get(`/sessions/${assessment.sessionId}/questions/${questionId}`)
+      .then(res => {
+        if (isMounted) {
+          setQuestionData(res.data)
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          const status = err?.response?.status
+          const msg = err?.response?.data?.message ?? err?.message ?? 'Unknown error'
+          console.error(`[CodingModule] Failed to fetch question ${questionId} (HTTP ${status}):`, msg, err)
+          setError(`Failed to load coding challenge (${status ?? 'network error'}): ${msg}`)
+          setLoading(false)
+        }
+      })
+
+    return () => { isMounted = false }
+  }, [assessment?.sessionId, questionId, isValidUUID])
+
+  const paletteItems = (codingQuestions.length > 0 ? codingQuestions : CODING_QUESTIONS).map((q, i) => ({
+    id: 'questionId' in q ? q.questionId : (q as any).id,
+    label: `Challenge ${i + 1}`,
+  }))
+
+  function handleUpdateStatus(status: QuestionStatus) {
+    if (questionId) {
+      setQuestionStatus(questionId, status)
     }
   }
 
-  async function handleRetry() {
-    if (retryCount.current >= 3) return
-    retryCount.current++
-    if (lastMode) await handleExecute(lastMode)
+  function handleNext() {
+    if (currentIndex < CODING_QUESTIONS.length - 1) {
+      setCurrentIndex(i => i + 1)
+    }
   }
 
-  function handleEditorMount(_editor: MonacoType.editor.IStandaloneCodeEditor, monaco: typeof MonacoType) {
-    monaco.editor.defineTheme('cd-recruit-light', cdRecruitLightTheme)
-    monaco.editor.defineTheme('cd-recruit-dark', cdRecruitDarkTheme)
-    monaco.editor.setTheme(theme === 'dark' ? 'cd-recruit-dark' : 'cd-recruit-light')
+  if (loading) {
+    return (
+      <ModuleShell
+        moduleIndex={moduleIndex}
+        questions={paletteItems}
+        currentQuestionIndex={currentIndex}
+        onNavigate={setCurrentIndex}
+      >
+        <div className="flex flex-col items-center justify-center h-full gap-3 py-16">
+          <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          <span className="text-sm text-text-secondary font-medium">Loading coding challenge...</span>
+        </div>
+      </ModuleShell>
+    )
   }
 
-  const paletteItems = questions.map((q, i) => ({ id: q.id, label: q.title }))
+  if (error || !questionData) {
+    return (
+      <ModuleShell
+        moduleIndex={moduleIndex}
+        questions={paletteItems}
+        currentQuestionIndex={currentIndex}
+        onNavigate={setCurrentIndex}
+      >
+        <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-critical" />
+          <span className="text-sm font-semibold text-text-primary">{error || "Failed to load question"}</span>
+        </div>
+      </ModuleShell>
+    )
+  }
 
-  if (!question) return null
+  // Map backend question response to shape expected by CodingWorkspace
+  const workspaceQuestion = {
+    id: questionId,
+    title: CODING_QUESTIONS[currentIndex]?.title || "Coding Challenge",
+    prompt: questionData.content?.prompt || "Write your solution",
+    content: {
+      starterCode: questionData.content?.starterCode,
+      // Map visibleTestCases to testCases in workspace
+      testCases: questionData.content?.visibleTestCases || questionData.content?.testCases || [],
+      constraints: questionData.content?.constraints || [],
+      difficulty: questionData.content?.difficulty || "medium",
+    },
+    response: questionData.response || null,
+  }
 
   return (
     <ModuleShell
@@ -96,165 +157,46 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex flex-col h-full">
-        {/* Problem statement */}
-        <div className="px-6 py-5 border-b border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
-              Problem {currentIndex + 1} of {questions.length}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-mono">
-              {question.language}
-            </span>
-          </div>
-          <h2 className="text-base font-semibold text-[var(--text-primary)] mb-3">{question.title}</h2>
-          <div className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-[inherit]">
-            {question.description}
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 h-full overflow-hidden">
+        {/* Left Panel: Description */}
+        <div className="lg:col-span-2 border-r border-border-token bg-surface overflow-y-auto flex flex-col h-full">
+          <div className="px-6 py-5 border-b border-border-token">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                Challenge {currentIndex + 1} of {CODING_QUESTIONS.length}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent/15 text-accent uppercase tracking-wider">
+                {workspaceQuestion.content.difficulty}
+              </span>
+            </div>
+            <h2 className="text-lg font-bold text-text-primary mb-3">
+              {workspaceQuestion.title}
+            </h2>
+            <div className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap font-sans">
+              {workspaceQuestion.prompt}
+            </div>
 
-          {/* Visible test cases */}
-          <div className="mt-4">
-            <div className="text-xs font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Example test cases (visible)
-            </div>
-            <div className="space-y-2">
-              {question.visibleTestCases.map((tc, i) => (
-                <div key={i} className="text-xs font-mono bg-[var(--bg)] rounded p-2.5 border border-[var(--border)]">
-                  <span className="text-[var(--text-secondary)] font-sans text-xs mr-2">{tc.label}:</span>
-                  <span className="text-[var(--text-primary)]">Input: {tc.input}</span>
-                  <span className="text-[var(--text-secondary)] mx-2">→</span>
-                  <span className="text-[var(--success)]">Expected: {tc.expectedOutput}</span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-2 italic">
-              Note: Submit also runs hidden test cases. Hidden-case results are not shown.
-            </p>
+            {workspaceQuestion.content.constraints.length > 0 && (
+              <div className="mt-5">
+                <h4 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-2">Constraints</h4>
+                <ul className="list-disc pl-4 space-y-1 text-xs text-text-secondary font-mono">
+                  {workspaceQuestion.content.constraints.map((c: string, idx: number) => (
+                    <li key={idx}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Code editor */}
-        <div className="flex-1 min-h-0" style={{ minHeight: '250px' }}>
-          <Editor
-            height="100%"
-            language={question.language}
-            value={code}
-            onChange={handleCodeChange}
-            onMount={handleEditorMount}
-            theme={theme === 'dark' ? 'cd-recruit-dark' : 'cd-recruit-light'}
-            options={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 13,
-              minimap: { enabled: false },
-              lineNumbers: 'on',
-              scrollBeyondLastLine: false,
-              tabSize: 4,
-              insertSpaces: true,
-              padding: { top: 16, bottom: 16 },
-              renderLineHighlight: 'line',
-            }}
+        {/* Right Panel: Monaco Workspace */}
+        <div className="lg:col-span-3 h-full flex flex-col overflow-hidden">
+          <CodingWorkspace
+            question={workspaceQuestion}
+            onNext={handleNext}
+            updateStatus={handleUpdateStatus}
           />
         </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]">
-          <button
-            onClick={() => handleExecute('run')}
-            disabled={runState === 'running'}
-            aria-label="Run code against visible test cases only"
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-          >
-            {runState === 'running' && lastMode === 'run' ? 'Running…' : 'Run'}
-          </button>
-          <button
-            onClick={() => handleExecute('submit')}
-            disabled={runState === 'running'}
-            aria-label="Submit code — runs visible and hidden test cases"
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-          >
-            {runState === 'running' && lastMode === 'submit' ? 'Submitting…' : 'Submit'}
-          </button>
-          <div className="flex-1" />
-          <button
-            onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-            disabled={currentIndex === 0}
-            className="px-3 py-1.5 rounded text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 border border-[var(--border)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-          >
-            ← Prev
-          </button>
-          <button
-            onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-            disabled={currentIndex === questions.length - 1}
-            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-          >
-            Next →
-          </button>
-        </div>
-
-        {/* Execution results */}
-        {(runState === 'done' || runState === 'infra-error') && (
-          <div className="border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 max-h-56 overflow-auto">
-            {runState === 'infra-error' ? (
-              // Visually distinct from "code failed" — amber not red per spec
-              <div role="alert" className="rounded-lg border border-[var(--warning)] bg-amber-50 dark:bg-amber-900/20 p-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-[var(--warning)] text-lg" aria-hidden>⚠</span>
-                  <div>
-                    <div className="text-sm font-medium text-[var(--warning)]">
-                      Something went wrong on our end — not a code error
-                    </div>
-                    <div className="text-xs text-[var(--text-secondary)] mt-1">{infraError}</div>
-                    <button
-                      onClick={handleRetry}
-                      disabled={retryCount.current >= 3}
-                      className="mt-2 text-xs text-[var(--accent)] underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded disabled:opacity-40"
-                    >
-                      {retryCount.current >= 3 ? 'Max retries reached' : 'Retry'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : runResult ? (
-              <div>
-                {runResult.compilationError && (
-                  <div role="alert" className="text-sm font-mono text-[var(--critical)] mb-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-[var(--critical)]">
-                    {runResult.compilationError}
-                  </div>
-                )}
-                <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">
-                  Visible test results
-                </div>
-                <div className="space-y-1.5">
-                  {runResult.visibleResults.map((tc, i) => (
-                    <div
-                      key={i}
-                      className={`flex items-center gap-2 text-xs p-2 rounded ${
-                        tc.passed
-                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                          : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                      }`}
-                    >
-                      <span aria-hidden>{tc.passed ? '✓' : '✗'}</span>
-                      <span className={tc.passed ? 'text-[var(--success)]' : 'text-[var(--critical)]'}>
-                        {tc.label}
-                      </span>
-                      {!tc.passed && (
-                        <span className="text-[var(--text-secondary)] font-mono ml-2">
-                          Got: {tc.actualOutput}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {runResult.mode === 'submit' && (
-                  <p className="text-xs text-[var(--text-secondary)] mt-2 italic">
-                    Hidden test case results are not shown — your submission has been recorded.
-                  </p>
-                )}
-              </div>
-            ) : null}
-          </div>
-        )}
       </div>
     </ModuleShell>
   )

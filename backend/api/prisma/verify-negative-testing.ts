@@ -1,10 +1,43 @@
 import axios from "axios";
+import { PrismaClient } from "@prisma/client";
+import * as dotenv from "dotenv";
+import * as path from "path";
 
+dotenv.config({ path: path.join(__dirname, "../../../.env") });
+dotenv.config({ path: path.join(__dirname, "../.env") });
+
+const prisma = new PrismaClient();
 const BASE_URL = "http://localhost:3001/api/v1/proctoring";
 const NON_EXISTENT_UUID = "00000000-0000-0000-0000-000000000000";
 const INVALID_UUID = "not-a-valid-uuid";
 
+async function getActiveSessionId() {
+  let session = await prisma.session.findFirst({
+    where: { status: { in: ["IN_PROGRESS", "NOT_STARTED"] } },
+  });
+  if (!session) {
+    const candidate = await prisma.candidate.upsert({
+      where: { email: "negative-test@example.com" },
+      update: {},
+      create: { email: "negative-test@example.com", name: "Negative Candidate" },
+    });
+    const roleTemplate = await prisma.roleTemplate.findFirst();
+    if (!roleTemplate) throw new Error("No RoleTemplate found. Please seed DB first.");
+    session = await prisma.session.create({
+      data: {
+        candidateId: candidate.id,
+        roleTemplateId: roleTemplate.id,
+        cvMode: "FULL",
+        status: "IN_PROGRESS",
+        startedAt: new Date(),
+      },
+    });
+  }
+  return session.id;
+}
+
 async function main() {
+  const VALID_SESSION_ID = await getActiveSessionId();
   console.log("🚀 Phase 9: Negative Testing Backend API...");
 
   // 1. Invalid Session ID (Nonexistent UUID) for event creation
@@ -20,9 +53,6 @@ async function main() {
   } catch (err: any) {
     console.log(`PASS: Received HTTP ${err?.response?.status} (${err?.response?.data?.message})`);
   }
-
-  const VALID_SESSION_ID = "d58c2ef4-e546-4a17-947c-77f47adfc651";
-
   // 2. Missing required fields (no eventType)
   console.log("\n[2] Testing POST /proctoring/events with missing eventType...");
   try {

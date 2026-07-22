@@ -16,7 +16,6 @@ import {
   Video,
   X,
   AlertTriangle,
-  FileText,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -56,7 +55,7 @@ function IndividualResultPage() {
     setLoading(true);
     try {
       const data = await fetchSessionDetail(id);
-      setDetail(data);
+      setDetail(data as CandidateSessionDetail);
     } catch (err: any) {
       toast.error("Failed to load candidate evaluation detail: " + (err.message || err));
     } finally {
@@ -198,7 +197,9 @@ function IndividualResultPage() {
               Say/Do Alignment
             </span>
             <span className="text-[24px] font-mono font-bold text-[#0C6B58]">
-              {score ? `${Math.round(score.sayDoConsistencyScore * 100)}%` : "N/A"}
+              {score && score.sayDoConsistencyScore >= 0
+                ? `${Math.round(score.sayDoConsistencyScore * 100)}%`
+                : "Pending"}
             </span>
           </div>
 
@@ -207,7 +208,9 @@ function IndividualResultPage() {
               AI Confidence
             </span>
             <span className="text-[24px] font-mono font-bold text-amber-700">
-              {score ? `${Math.round(score.aiConfidence * 100)}%` : "N/A"}
+              {score && score.aiConfidence >= 0
+                ? `${Math.round(score.aiConfidence * 100)}%`
+                : "Pending"}
             </span>
           </div>
 
@@ -353,12 +356,139 @@ function IndividualResultPage() {
         )}
 
         {/* AI PROMPTING TAB */}
-        {activeTab === "AI_PROMPTING" && (
-          <div className="space-y-4">
-            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">AI Prompting Conversation Trace</h3>
-            <p className="text-[13px] text-[#8B8B93]">Evaluates prompt engineering efficiency, clarity, and context utilization.</p>
-          </div>
-        )}
+        {activeTab === "AI_PROMPTING" && (() => {
+          const aiPromptingResponses = (detail.moduleResponses || []).filter(
+            (r) => r.responsePayload?.moduleType === "AI_PROMPTING" || r.responsePayload?.prompt
+          );
+
+          const jailbreakCount = aiPromptingResponses.filter((r) => r.responsePayload?.isJailbreakAttempt).length;
+          const verbatimCount = aiPromptingResponses.filter((r) => r.responsePayload?.isVerbatimCopy).length;
+          const greetingCount = aiPromptingResponses.filter((r) => r.responsePayload?.isMinimalOrGreeting).length;
+
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">AI Prompting Evaluation & Conversation Trace</h3>
+                  <p className="text-[13px] text-[#8B8B93]">Reviews prompt engineering structure, clarity, and anti-cheating guardrail flags.</p>
+                </div>
+              </div>
+
+              {aiPromptingResponses.length === 0 ? (
+                <div className="p-8 text-center bg-white border border-[#E6E6EA] rounded-lg text-[#8B8B93] text-[13px]">
+                  No AI Prompting module responses recorded for this candidate session.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Header Badges */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3.5 bg-white border border-[#E6E6EA] rounded-lg flex items-center justify-between">
+                      <div className="text-[12px] text-[#5B5B64] font-medium">Prompts Evaluated</div>
+                      <div className="text-[16px] font-bold text-[#0B0B0D]">{aiPromptingResponses.length}</div>
+                    </div>
+                    <div className="p-3.5 bg-red-50/60 border border-red-200 rounded-lg flex items-center justify-between">
+                      <div className="text-[12px] text-red-700 font-medium flex items-center gap-1.5">
+                        <ShieldAlert size={14} className="text-red-500" /> Jailbreak / Injection Flags
+                      </div>
+                      <div className="text-[16px] font-bold text-red-700">{jailbreakCount}</div>
+                    </div>
+                    <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-lg flex items-center justify-between">
+                      <div className="text-[12px] text-amber-700 font-medium flex items-center gap-1.5">
+                        <AlertTriangle size={14} className="text-amber-500" /> Verbatim Copy Flags
+                      </div>
+                      <div className="text-[16px] font-bold text-amber-700">{verbatimCount}</div>
+                    </div>
+                  </div>
+
+                  {/* Individual Responses List */}
+                  {aiPromptingResponses.map((res, index) => {
+                    const payload = res.responsePayload || {};
+                    const isJailbreak = !!payload.isJailbreakAttempt;
+                    const isVerbatim = !!payload.isVerbatimCopy;
+                    const isGreeting = !!payload.isMinimalOrGreeting;
+                    const similarity = payload.promptSimilarity || 0;
+
+                    return (
+                      <div
+                        key={res.id || index}
+                        className={`p-5 bg-white border rounded-xl space-y-3 transition-shadow ${
+                          isJailbreak
+                            ? "border-red-300 bg-red-50/20"
+                            : isVerbatim
+                            ? "border-amber-300 bg-amber-50/20"
+                            : "border-[#E6E6EA]"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F0F4] pb-2.5">
+                          <span className="text-[13px] font-semibold text-[#0B0B0D]">
+                            Prompt Question {index + 1}
+                          </span>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {isJailbreak && (
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
+                                <ShieldAlert size={12} /> Jailbreak / Rule Bypass Attempt
+                              </span>
+                            )}
+                            {isVerbatim && (
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                                <AlertTriangle size={12} /> Verbatim Task Copy ({Math.round(similarity * 100)}% Match)
+                              </span>
+                            )}
+                            {isGreeting && (
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
+                                <Clock size={12} /> Minimal / Greeting Input
+                              </span>
+                            )}
+                            {!isJailbreak && !isVerbatim && !isGreeting && (
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                <CheckCircle2 size={12} /> Valid Prompt Structure
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Candidate Submitted Prompt Code Box */}
+                        <div>
+                          <div className="text-[11px] font-medium text-[#8B8B93] uppercase tracking-wider mb-1">
+                            Candidate Submitted Prompt
+                          </div>
+                          <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded-lg font-mono text-[12px] text-[#0B0B0D] whitespace-pre-wrap">
+                            {payload.prompt || "(No prompt submitted)"}
+                          </div>
+                        </div>
+
+                        {/* Admin Guardrail Status Banner */}
+                        {isJailbreak ? (
+                          <div className="p-3 bg-red-100/70 border border-red-200 rounded-lg text-[12px] text-red-800 flex items-start gap-2">
+                            <ShieldAlert size={15} className="text-red-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong>Integrity Violation:</strong> Candidate attempted an instruction override or jailbreak prompt (*"forget previous instructions"*). The AI Assistant intercepted the attack and refused execution.
+                            </div>
+                          </div>
+                        ) : isVerbatim ? (
+                          <div className="p-3 bg-amber-100/70 border border-amber-200 rounded-lg text-[12px] text-amber-800 flex items-start gap-2">
+                            <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong>Guardrail Active:</strong> Candidate copy-pasted the task prompt verbatim ({Math.round(similarity * 100)}% token overlap). The AI Assistant responded in Socratic mode to evaluate prompt construction skills.
+                            </div>
+                          </div>
+                        ) : isGreeting ? (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-[12px] text-blue-800 flex items-start gap-2">
+                            <Clock size={15} className="text-blue-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong>Minimal Prompt:</strong> Candidate submitted a simple greeting or minimal text. The AI Assistant returned a neutral prompt instruction request without leaking scenario secrets.
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* SIMULATION TAB */}
         {activeTab === "SIMULATION" && (
@@ -369,48 +499,70 @@ function IndividualResultPage() {
         )}
 
         {/* INTEGRITY TAB */}
-        {activeTab === "INTEGRITY" && (
-          <div className="space-y-4">
-            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Integrity Telemetry & Proctoring Flags</h3>
-            {flags.length === 0 ? (
-              <div className="p-6 bg-[#E3F9F2] border border-[#A3EED7] rounded-md text-center text-[#0C6B58] text-[13px]">
-                <ShieldCheck size={24} className="mx-auto mb-1.5" />
-                No proctoring anomalies or integrity flags recorded. Assessment passed automated integrity validation.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {flags.map((flag) => (
-                  <div key={flag.id} className="p-4 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-semibold text-[#0B0B0D]">{flag.category}</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
-                            flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"
-                          }`}>
-                            {flag.severity}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
-                          Confidence: {Math.round(flag.confidence * 100)}% • Flagged At: {flag.flaggedAt.slice(0, 19).replace("T", " ")}
-                        </p>
-                      </div>
-                    </div>
+        {activeTab === "INTEGRITY" && (() => {
+          const aiPromptingFlags = (detail.moduleResponses || [])
+            .filter((r) => r.responsePayload?.isJailbreakAttempt || r.responsePayload?.isVerbatimCopy)
+            .map((r) => ({
+              id: r.id,
+              category: r.responsePayload?.isJailbreakAttempt ? "AI Prompting Jailbreak Attempt" : "AI Prompting Verbatim Copy",
+              severity: r.responsePayload?.isJailbreakAttempt ? "CRITICAL" : "MEDIUM",
+              confidence: r.responsePayload?.promptSimilarity || 0.95,
+              flaggedAt: new Date().toISOString(),
+              promptText: r.responsePayload?.prompt,
+            }));
 
-                    <button
-                      onClick={() => setActiveClipUrl(`/proctoring/clips/${flag.id}.webm`)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <Video size={13} />
-                      View Clip
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          const combinedFlags = [...flags, ...aiPromptingFlags];
+
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Integrity Telemetry & Proctoring Flags</h3>
+              {combinedFlags.length === 0 ? (
+                <div className="p-6 bg-[#E3F9F2] border border-[#A3EED7] rounded-md text-center text-[#0C6B58] text-[13px]">
+                  <ShieldCheck size={24} className="mx-auto mb-1.5" />
+                  No proctoring anomalies or integrity flags recorded. Assessment passed automated integrity validation.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {combinedFlags.map((flag) => (
+                    <div key={flag.id} className="p-4 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13px] font-semibold text-[#0B0B0D]">{flag.category}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
+                              flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"
+                            }`}>
+                              {flag.severity}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
+                            Confidence: {Math.round(flag.confidence * 100)}% • Flagged At: {flag.flaggedAt.slice(0, 19).replace("T", " ")}
+                          </p>
+                          {(flag as any).promptText && (
+                            <p className="text-[11px] text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">
+                              Prompt: "{(flag as any).promptText}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {!(flag as any).promptText && (
+                        <button
+                          onClick={() => setActiveClipUrl(`/proctoring/clips/${flag.id}.webm`)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                        >
+                          <Video size={13} />
+                          View Clip
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Decision Confirmation Modal */}
@@ -479,8 +631,13 @@ function IndividualResultPage() {
               </button>
             </div>
 
-            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center text-white text-[13px] font-mono">
-              [Proctoring Evidence Video Stream Player]
+            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
+              <video
+                src={activeClipUrl}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+              />
             </div>
 
             <div className="flex justify-end">

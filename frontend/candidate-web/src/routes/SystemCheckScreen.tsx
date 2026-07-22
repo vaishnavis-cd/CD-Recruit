@@ -97,7 +97,9 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     setShowCameraExplainer(false)
     updateCheck('webcam-explainer', { status: 'checking', label: 'Camera access — waiting for permission…' })
 
+    // Subscribe BEFORE calling start() so we never miss the permission-granted/denied event
     const cameraPromise = new Promise<void>(resolve => {
+
       const unsub = services.cv.onDetectionEvent(event => {
         if (event.type === 'permission-granted') {
           updateCheck('webcam-explainer', { status: 'pass', label: 'Camera access' })
@@ -133,7 +135,25 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
           resolve()
         }
       })
-      setTimeout(() => { unsub(); resolve() }, 8000) // timeout fallback
+
+      // Start the CV pipeline now that the subscriber is registered
+      services.cv.start().catch(() => {
+        // start() itself threw — treat as denied
+        updateCheck('webcam-explainer', {
+          status: 'fail',
+          label: 'Camera access',
+          errorMessage: 'Camera access was denied.',
+          allowRetry: true,
+        })
+        unsub()
+        resolve()
+      })
+
+      // Safety timeout — if no event fires within 10s, unblock
+      setTimeout(() => {
+        unsub()
+        resolve()
+      }, 10000)
     })
 
     // Start CV service AFTER setting up listener so permission-granted event is never missed

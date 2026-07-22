@@ -1,6 +1,26 @@
 import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, IntegritySignalType, SyncEventPayload } from './port'
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
+import { ALL_QUESTIONS } from '../../fixtures/questions'
+import { realSessionApiAdapter } from './real'
+
+const MOCK_QUESTIONS = (() => {
+  const counts: Record<string, number> = {}
+  return ALL_QUESTIONS.map(q => {
+    const type = q.type.toUpperCase() as any
+    if (counts[type] === undefined) {
+      counts[type] = 0
+    } else {
+      counts[type]++
+    }
+    return {
+      questionId: q.id,
+      moduleType: type,
+      moduleIndex: counts[type]
+    }
+  })
+})()
+
 
 // Configurable failure rate for retry-path testing (0 = never fail, 1 = always fail)
 const MOCK_FAILURE_RATE = 0.1
@@ -54,12 +74,13 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       localStorage.removeItem('cd-recruit-selfie-data');
     }
     const session: Session = {
-      id: `session_${Math.random().toString(36).substr(2, 9)}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'd58c2ef4-e546-4a17-947c-77f47adfc651',
       cvMode,
       tutorialMode,
       startedAt: new Date().toISOString(),
       submittedAt: null,
       status: 'active',
+      questions: MOCK_QUESTIONS,
     }
     mockSession = session
     localStorage.setItem('cd-recruit-session', JSON.stringify(session))
@@ -105,5 +126,9 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       return { success: false, retryAfterMs: 3000 }
     }
     return { success: true }
+  },
+
+  async runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string> {
+    return realSessionApiAdapter.runAiPrompt(payload)
   },
 }

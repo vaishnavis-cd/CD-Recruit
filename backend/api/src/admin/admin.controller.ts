@@ -57,9 +57,14 @@ export class AdminController {
     return this.adminService.listSessions(query);
   }
 
+  @Get("results")
+  async listResults(@Query() query: ListSessionsQueryDto) {
+    return this.adminService.listSessions(query);
+  }
+
   @Get("sessions/:sessionId")
   async getSessionDetail(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
   ) {
     return this.adminService.getSessionDetail(sessionId);
   }
@@ -67,7 +72,7 @@ export class AdminController {
   @Post("sessions/:sessionId/decision")
   @HttpCode(HttpStatus.CREATED)
   async recordDecision(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
     @Body() dto: RecordDecisionDto,
     @CurrentUser() staff: any,
   ) {

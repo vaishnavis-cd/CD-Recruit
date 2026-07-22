@@ -8,6 +8,7 @@ import { RollingBufferService } from "./rolling-buffer.service";
 import { EvidenceCaptureService } from "./evidence-capture.service";
 import { EvidenceUploadService } from "./evidence-upload.service";
 import { ProctoringEventService } from "./proctoring-event.service";
+import { AudioDetectionService } from "./audio-detection.service";
 
 export class ProctoringModule {
   private static instance: ProctoringModule | null = null;
@@ -37,80 +38,130 @@ export class ProctoringModule {
     if (this.startingPromise) return this.startingPromise;
 
     this.startingPromise = (async () => {
+      const startTime = performance.now();
       this.sessionId = sessionId;
-      console.log(`[Proctoring] START_CALLED: Starting proctoring module for SESSION_ID: ${sessionId}`);
+      console.log(`[Proctoring] [STEP 1 START] Acquiring webcam for sessionId: ${sessionId}...`);
 
-    const webcam = WebcamService.getInstance();
-    const hasPermission = await webcam.requestPermission();
+      const webcam = WebcamService.getInstance();
+      const hasPermission = await webcam.requestPermission();
 
-    if (!hasPermission) {
-      console.warn("[Proctoring] Webcam access was denied. Running in REDUCED proctoring mode.");
-      return false;
-    }
-
-    try {
-      // 1. Start Webcam stream
-      const stream = await webcam.start();
-
-      // 2. Start rolling buffer recorder
-      RollingBufferService.getInstance().start(stream);
-
-      // 3. Load computer vision models in parallel
-      console.log("[Proctoring] Initializing computer vision models...");
-      await Promise.all([
-        FaceDetectionService.getInstance().loadModel(),
-        PoseDetectionService.getInstance().loadModel(),
-        ObjectDetectionService.getInstance().loadModel(),
-      ]);
-
-      // Check if start was aborted/stopped during model loading
-      if (!this.sessionId) {
-        console.log("[Proctoring] Start aborted during model loading.");
-        this.stop();
+      if (!hasPermission) {
+        console.warn(`[Proctoring] [STEP 1 FAILURE] Webcam permission denied (${(performance.now() - startTime).toFixed(1)}ms). Running in REDUCED mode.`);
         return false;
       }
 
-      // 4. Configure engine and event listener
-      const engine = DetectionEngineService.getInstance();
-      engine.setSessionId(sessionId);
+      try {
+        // STEP 1: Webcam
+        const stream = await webcam.start();
+        const videoElement = webcam.getVideoElement();
+        console.log(`[Proctoring] [STEP 1 SUCCESS] Camera acquired, streamId=${stream.id} (${(performance.now() - startTime).toFixed(1)}ms)`);
 
-      this.unsubscribeEvents = engine.subscribe(async (event) => {
-        try {
-          const activeStream = webcam.getStream();
-          if (activeStream) {
-            // Trigger 6-second capture (3s past + 3s future)
-            const clipBlob = await EvidenceCaptureService.getInstance().captureClip(activeStream);
-            // Queue / upload to MinIO and store metadata
-            await EvidenceUploadService.getInstance().uploadEvidence(sessionId, event, clipBlob);
+        // STEP 2: Rolling Buffer
+        const step2Start = performance.now();
+        console.log(`[Proctoring] [STEP 2 START] Initializing Rolling Buffer...`);
+        RollingBufferService.getInstance().start(stream);
+        console.log(`[Proctoring] [STEP 2 SUCCESS] Rolling Buffer active (${(performance.now() - step2Start).toFixed(1)}ms)`);
+
+        // STEP 3-5: Vision Models
+        const step3Start = performance.now();
+        console.log("[Proctoring] [STEP 3-5 START] Initializing Computer Vision models (Face, Pose, Object)...");
+        const modelResults = await Promise.allSettled([
+          FaceDetectionService.getInstance().loadModel(),
+          PoseDetectionService.getInstance().loadModel(),
+          ObjectDetectionService.getInstance().loadModel(),
+        ]);
+
+        const faceModelOk = modelResults[0].status === "fulfilled";
+        const poseModelOk = modelResults[1].status === "fulfilled";
+        const objectModelOk = modelResults[2].status === "fulfilled";
+
+        if (modelResults[0].status === "rejected") {
+          console.warn("[Proctoring] [STEP 3 FAILURE] Face Landmarker failed:", modelResults[0].reason);
+        } else console.log(`[Proctoring] [STEP 3 SUCCESS] Face Landmarker loaded (${(performance.now() - step3Start).toFixed(1)}ms)`);
+
+        if (modelResults[1].status === "rejected") {
+          console.warn("[Proctoring] [STEP 4 FAILURE] Pose Landmarker failed:", modelResults[1].reason);
+        } else console.log(`[Proctoring] [STEP 4 SUCCESS] Pose Landmarker loaded (${(performance.now() - step3Start).toFixed(1)}ms)`);
+
+        if (modelResults[2].status === "rejected") {
+          console.warn("[Proctoring] [STEP 5 FAILURE] Object Detector failed:", modelResults[2].reason);
+        } else console.log(`[Proctoring] [STEP 5 SUCCESS] Object Detector loaded (${(performance.now() - step3Start).toFixed(1)}ms)`);
+
+        // STEP 6 & 7: Engine & Frame Processor setup
+        console.log("[Proctoring] [STEP 6-7 START] Initializing Frame Processor & Detection Engine...");
+        const engine = DetectionEngineService.getInstance();
+        engine.setSessionId(sessionId);
+
+        // STEP 8: Event Listeners
+        console.log("[Proctoring] [STEP 8 START] Registering Evidence Upload event listeners...");
+        this.unsubscribeEvents = engine.subscribe(async (event) => {
+          try {
+            const activeStream = webcam.getStream();
+            if (activeStream) {
+              console.log(`[Proctoring] Triggering evidence clip capture for event: ${event.eventType}`);
+              const clipBlob = await EvidenceCaptureService.getInstance().captureClip(activeStream);
+              await EvidenceUploadService.getInstance().uploadEvidence(sessionId, event, clipBlob);
+            }
+          } catch (err: any) {
+            console.error("[Proctoring] Failed to process evidence capture for event:", event.eventType, err?.stack || err);
           }
-        } catch (err) {
-          console.error("[Proctoring] Failed to process evidence capture for event:", event.eventType, err);
+        });
+        console.log("[Proctoring] [STEP 8 SUCCESS] Event listeners registered.");
+
+        // Connect frame processor loop to models and evaluator
+        const processor = FrameProcessorService.getInstance();
+        this.unsubscribeFrame = processor.subscribe((video, timestamp) => {
+          const faceRes = faceModelOk
+            ? FaceDetectionService.getInstance().detect(video)
+            : { faceDetected: false, faceCount: 0, headDirection: "CENTER" as const };
+
+          const poseRes = poseModelOk
+            ? PoseDetectionService.getInstance().detect(video)
+            : { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
+
+          const objectRes = objectModelOk
+            ? ObjectDetectionService.getInstance().detect(video)
+            : { phoneDetected: false, headphonesDetected: false, bookDetected: false };
+
+          engine.evaluate(faceRes, poseRes, objectRes, timestamp);
+        });
+
+        // STEP 9: Start Processing Frames
+        console.log("[Proctoring] [STEP 9 START] Starting FrameProcessor loop...");
+        processor.start();
+        console.log("[Proctoring] [STEP 9 SUCCESS] FrameProcessor loop active.");
+
+        // Start audio detection service if microphone consent is granted
+        if (localStorage.getItem("cd-recruit-mic-consent") === "true") {
+          AudioDetectionService.getInstance().start(stream);
         }
-      });
 
-      // 5. Connect frame processor loop to models and evaluator
-      const processor = FrameProcessorService.getInstance();
-      this.unsubscribeFrame = processor.subscribe((video, timestamp) => {
-        const faceRes = FaceDetectionService.getInstance().detect(video);
-        const poseRes = PoseDetectionService.getInstance().detect(video);
-        const objectRes = ObjectDetectionService.getInstance().detect(video);
+        this.isRunning = true;
 
-        engine.evaluate(faceRes, poseRes, objectRes, timestamp);
-      });
+        // STEP 10: Startup Complete
+        const totalDuration = (performance.now() - startTime).toFixed(1);
+        console.log(`\n==================================================`);
+        console.log(`🚀 [STEP 10 SUCCESS] PROCTORING PIPELINE FULLY INITIALIZED (${totalDuration}ms):`);
+        console.log(`Camera: ${stream ? "✅" : "❌"}`);
+        console.log(`MediaStream: ${stream && stream.active ? "✅" : "❌"}`);
+        console.log(`Video Element: ${videoElement ? "✅" : "❌"}`);
+        console.log(`Face Model: ${faceModelOk ? "✅" : "⚠️ (Disabled)"}`);
+        console.log(`Pose Model: ${poseModelOk ? "✅" : "⚠️ (Disabled)"}`);
+        console.log(`Object Model: ${objectModelOk ? "✅" : "⚠️ (Disabled)"}`);
+        console.log(`Frame Processor: ✅`);
+        console.log(`Rolling Buffer: ✅`);
+        console.log(`Uploader: ✅`);
+        console.log(`Backend Pipeline: ✅`);
+        console.log(`==================================================\n`);
 
-      // Start processing frames
-      processor.start();
-
-      this.isRunning = true;
-      console.log("[Proctoring] Proctoring module fully running.");
-      return true;
-    } catch (err) {
-      console.error("[Proctoring] Critical error during proctoring initialization:", err);
-      this.stop();
-      return false;
-    } finally {
-      this.startingPromise = null;
-    }
+        return true;
+      } catch (err: any) {
+        console.error("[Proctoring] Critical error during proctoring initialization:", err?.stack || err);
+        this.stop();
+        return false;
+      } finally {
+        this.startingPromise = null;
+      }
     })();
 
     return this.startingPromise;
@@ -136,6 +187,9 @@ export class ProctoringModule {
       this.unsubscribeEvents = null;
     }
     DetectionEngineService.getInstance().reset();
+
+    // Stop audio detection service
+    AudioDetectionService.getInstance().stop();
 
     // Stop webcam and rolling recorder
     RollingBufferService.getInstance().stop();

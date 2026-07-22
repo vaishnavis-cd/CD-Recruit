@@ -115,7 +115,7 @@ export class Judge0Service {
 
     this.logger.warn(`Polling exceeded max attempts (${JUDGE0_POLLING.MAX_ATTEMPTS}) for token: ${token}`);
     return {
-      status: { id: JUDGE0_STATUS.INTERNAL_ERROR, description: "Internal Error (Polling Timeout)" },
+      status: { id: JUDGE0_STATUS.TIME_LIMIT_EXCEEDED, description: "Time Limit Exceeded (Polling Timeout)" },
       stdout: null,
       stderr: null,
       compile_output: null,
@@ -198,6 +198,7 @@ export class Judge0Service {
       }
 
       const response = await this.pollSubmission(sub.token);
+      this.logger.warn(`RAW JUDGE0 RESPONSE: ${JSON.stringify(response)}`);
       const mappedStatus = this.mapStatus(response.status.id, response.status.description);
 
       const decodedStdout = this.decodeBase64(response.stdout).trim();

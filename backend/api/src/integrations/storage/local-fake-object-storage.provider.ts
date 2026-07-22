@@ -10,9 +10,9 @@ export class LocalFakeObjectStorageProvider extends ObjectStoragePort {
     key: string,
     _ttlSeconds?: number,
   ): Promise<string | null> {
-    const fakeUrl = process.env.FAKE_EVIDENCE_URL || null;
+    const fakeUrl = process.env.FAKE_EVIDENCE_URL || `http://localhost:9000/${bucket}/${key}`;
     this.logger.debug(
-      `[local-fake-storage] getSignedUrl(${bucket}, ${key}) -> ${fakeUrl ?? "null"}`,
+      `[local-fake-storage] getSignedUrl(${bucket}, ${key}) -> ${fakeUrl}`,
     );
     return fakeUrl;
   }
@@ -25,6 +25,13 @@ export class LocalFakeObjectStorageProvider extends ObjectStoragePort {
   ): Promise<boolean> {
     this.logger.debug(
       `[local-fake-storage] putObject(${bucketName}, ${objectKey}) -> buffer length: ${buffer.length}`,
+    );
+    return true;
+  }
+
+  async deleteObject(bucketName: string, objectKey: string): Promise<boolean> {
+    this.logger.debug(
+      `[local-fake-storage] deleteObject(${bucketName}, ${objectKey}) -> success`,
     );
     return true;
   }

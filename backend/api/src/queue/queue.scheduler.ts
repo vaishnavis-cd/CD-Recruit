@@ -20,8 +20,16 @@ export class QueueScheduler implements OnModuleInit {
       "heartbeat-scan",
     );
 
+    await this.queueProvider.upsertRepeatable(
+      "heartbeat-monitor",
+      "retention-cleanup",
+      {},
+      60_000, // every 60 seconds
+      "biometric-retention-cleanup",
+    );
+
     this.logger.log(
-      `Heartbeat monitor registered: scanning every ${QueueScheduler.SCAN_INTERVAL_MS / 1000} s`,
+      `Heartbeat monitor registered: scanning every ${QueueScheduler.SCAN_INTERVAL_MS / 1000} s, retention cleanup scanning every 60 s`,
     );
   }
 }

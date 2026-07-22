@@ -7,7 +7,8 @@ import {
 } from "@nestjs/common";
 import { GoneException } from "@app/common/exceptions/app.exceptions";
 import { ConfigService } from "@nestjs/config";
-import { CvMode, Session, SessionStatus, InviteStatus } from "@prisma/client";
+import { CvMode, Session, SessionStatus, InviteStatus, ConsentType } from "@prisma/client";
+
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
@@ -63,6 +64,7 @@ async function buildQuestionList(
       questionId: dq.questionId,
       moduleType: dq.moduleType,
       moduleIndex: counts[type],
+      content: dq.question ? dq.question.content : null,
     };
   });
 }
@@ -115,7 +117,7 @@ export class SessionService {
    */
   async startSession(inviteToken: string): Promise<StartSessionResponse> {
     // 1. Verify token (throws 401/410 on failure)
-    const payload = this.auth.verifyInviteToken(inviteToken);
+    const payload = await this.auth.verifyInviteToken(inviteToken);
 
     // 2. Validate roleTemplate exists
     const roleTemplate = await this.prisma.roleTemplate.findUnique({
@@ -725,10 +727,10 @@ export class SessionService {
     }
 
     if (moduleType === "CODING") {
-      const { hiddenTests: _ht, ...rest } = c;
-      const visibleTestCases = Array.isArray(rest.testCases)
+      const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
+      const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
         ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
-        : [];
+        : []);
       return { ...rest, testCases: visibleTestCases };
     }
 
@@ -803,6 +805,7 @@ export class SessionService {
     sessionId: string,
     version: string = "1.0",
     ipAddress: string = "127.0.0.1",
+    rawConsentType?: string | ConsentType,
   ): Promise<{ ok: boolean; consentRecordId: string }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -815,9 +818,12 @@ export class SessionService {
       });
     }
 
+    const consentType = (rawConsentType as ConsentType) || ConsentType.TERMS;
+
     const consentRecord = await this.prisma.consentRecord.create({
       data: {
         candidateId: session.candidateId,
+        consentType: "TERMS" as any,
         version: version || "1.0",
         ipAddress: ipAddress || "127.0.0.1",
         consentedAt: new Date(),
@@ -831,3 +837,4 @@ export class SessionService {
     return { ok: true, consentRecordId: consentRecord.id };
   }
 }
+

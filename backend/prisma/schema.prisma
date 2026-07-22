@@ -92,7 +92,14 @@ enum SqlExecutionStatus {
   FAILED
 }
 
-// ---------- Models ----------
+enum ConsentType {
+  TERMS
+  BIOMETRIC
+  SELFIE
+  AUDIO
+}
+
+
 
 model RoleTemplate {
   id              String   @id @default(uuid())
@@ -177,11 +184,12 @@ model Candidate {
 }
 
 model ConsentRecord {
-  id           String   @id @default(uuid())
-  candidateId  String   @map("candidate_id")
+  id           String      @id @default(uuid())
+  candidateId  String      @map("candidate_id")
+  consentType  ConsentType @map("consent_type")
   version      String
-  consentedAt  DateTime @default(now()) @map("consented_at")
-  ipAddress    String   @map("ip_address")
+  consentedAt  DateTime    @default(now()) @map("consented_at")
+  ipAddress    String      @map("ip_address")
 
   candidate Candidate @relation(fields: [candidateId], references: [id])
 
@@ -207,6 +215,7 @@ model Session {
   disconnectedAt    DateTime? @map("disconnected_at")       // set when heartbeat goes stale
   activeTabId       String?   @map("active_tab_id")         // single-active-session enforcement
   disconnectCount   Int       @default(0) @map("disconnect_count") // incremented on each DISCONNECTED event; AUTO_SUBMITTED when ≥ 3
+  workspaceStatus   String?   @default("provisioning") @map("workspace_status")
 
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
@@ -299,6 +308,7 @@ model Score {
   aiConfidence           Float   @map("ai_confidence")
   humanReviewed          Boolean @default(false) @map("human_reviewed")
   sayDoRationale         String? @map("say_do_rationale")
+  sayDoMismatches        Json?   @map("say_do_mismatches")
   gradingSource          String  @default("placeholder") @map("grading_source")
 
   session Session @relation(fields: [sessionId], references: [id])
@@ -433,6 +443,9 @@ enum ProctoringEventType {
   PHONE_DETECTED
   HEADPHONES_DETECTED
   BOOK_DETECTED
+  SPEECH_DETECTED
+  SECOND_VOICE_SUSPECTED
+  IDENTITY_MISMATCH
   // PROPOSED shape — pending Track B confirmation, coordinate before backend correlation logic is built against this
   TAB_SWITCH
   PASTE

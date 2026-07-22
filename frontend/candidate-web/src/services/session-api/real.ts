@@ -2,7 +2,7 @@ import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, I
 import axios from 'axios'
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
-import { CODING_QUESTIONS } from '../../fixtures/questions'
+import { CODING_QUESTIONS, PROMPTING_QUESTIONS } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
 
@@ -15,11 +15,39 @@ const apiClient = axios.create({
   },
 })
 
+function parseJwtPayload(token: string): any {
+  try {
+    const base64Url = token.split('.')[1]
+    if (!base64Url) return null
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch {
+    return null
+  }
+}
+
 export const realSessionApiAdapter: CandidateSessionApiPort = {
   async resolveInvite(token: string): Promise<{ invite: Invite; drive: Drive; session: Session | null }> {
-    // Stays mock per spec: no endpoint exists to resolve/decrypt invite token without starting a session
-    const invite: Invite = { ...FIXTURE_INVITE, token }
-    return { invite, drive: FIXTURE_DRIVE, session: null }
+    const payload = parseJwtPayload(token)
+    const invite: Invite = {
+      token,
+      scheduledTime: new Date().toISOString(),
+      bufferMinutes: 30,
+      graceMinutes: 120,
+      candidateId: payload?.inviteId || payload?.candidateEmail || token,
+      driveId: payload?.driveId || 'drive-001',
+    }
+    const drive: Drive = {
+      ...FIXTURE_DRIVE,
+      id: payload?.driveId || FIXTURE_DRIVE.id,
+    }
+    return { invite, drive, session: null }
   },
 
   async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
@@ -49,6 +77,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       startedAt: beginRes.data.startedAt || startedAt || new Date().toISOString(),
       submittedAt: null,
       status: 'active',
+      questions: beginRes.data.questions,
     }
   },
 
@@ -60,15 +89,17 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   async submitModuleResponse(response: ModuleResponse): Promise<void> {
     const { sessionId, questionId, response: val } = response
 
-    // Look up question type to see if it is SQL or Coding
-    const codingQ = CODING_QUESTIONS.find((q) => q.id === questionId)
+    // Identify question type from the assessment store (uses real DB UUIDs, not fixture IDs)
+    const { assessment } = useSessionStore.getState()
+    const questionSummary = assessment?.questions?.find(q => q.questionId === questionId)
+    const isCodingQuestion = questionSummary?.moduleType === 'CODING'
 
-    if (codingQ) {
+    if (isCodingQuestion) {
       // For coding questions: call draft/submit endpoint
       await apiClient.post('/coding/submit', {
         sessionId,
         questionId,
-        language: codingQ.language,
+        language: (val as any)?.language || 'python',
         sourceCode: typeof val === 'string' ? val : (val as any)?.code || '',
         timeSpentSeconds: 0,
       })
@@ -76,19 +107,48 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     }
 
     // Check if it is a SQL question
-    // (If the question is SQL, the value in Zustand responses is a string containing the query)
-    if (typeof val === 'string' && (val.toLowerCase().includes('select') || val.toLowerCase().includes('insert') || val.toLowerCase().includes('update'))) {
+    const isSqlQuestion = questionSummary?.moduleType === 'SQL'
+    if (isSqlQuestion) {
       await apiClient.post('/sql/submit', {
         sessionId,
         questionId,
-        query: val,
+        query: typeof val === 'string' ? val : '',
         timeSpentSeconds: 0,
       })
       return
     }
 
-    // MCQ and AI Prompting are mock/no-ops
+    // Check if it is an AI Prompting question
+    const isAiPromptingQuestion = questionSummary?.moduleType === 'AI_PROMPTING'
+    if (isAiPromptingQuestion) {
+      const promptData = val as { prompt: string; aiResponse?: string }
+      await apiClient.post('/ai-prompting/submit', {
+        sessionId,
+        questionId,
+        prompt: promptData?.prompt || '',
+        timeSpentSeconds: 0,
+      })
+      return
+    }
+
+    // Check if it is an MCQ question
+    const isMcqQuestion = questionSummary?.moduleType === 'MCQ'
+    if (isMcqQuestion) {
+      await apiClient.post('/mcq/submit', {
+        sessionId,
+        questionId,
+        selectedOptions: Array.isArray(val) ? val : [],
+        timeSpentSeconds: 0,
+      })
+      return
+    }
+
     return Promise.resolve()
+  },
+
+  async runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string> {
+    const res = await apiClient.post('/ai-prompting/run', payload)
+    return res.data.aiResponse || 'No response generated.'
   },
 
   async submitFinalAssessment(sessionId: string): Promise<{ referenceId: string }> {
@@ -105,18 +165,17 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       return
     }
 
-    let eventType: any = 'TAB_SWITCH'
+    let eventType: any = 'SEAT_EXIT'
     let severity: 'MEDIUM' | 'HIGH' = 'MEDIUM'
-    const payload: any = signal.metadata || {}
 
     if (signal.kind === 'tab-switch' || signal.kind === 'window-blur') {
-      eventType = 'TAB_SWITCH'
+      eventType = 'LOOKING_AWAY'
       severity = 'MEDIUM'
     } else if (signal.kind === 'paste-anomaly') {
-      eventType = 'PASTE'
+      eventType = 'SEAT_EXIT'
       severity = 'HIGH'
     } else if (signal.kind === 'fullscreen-exit') {
-      eventType = 'FULLSCREEN_EXIT'
+      eventType = 'SEAT_EXIT'
       severity = 'HIGH'
     }
 

@@ -71,8 +71,11 @@ export class AdminService {
     if (needsReview) {
       where.status = { in: ["SUBMITTED", "AUTO_SUBMITTED"] };
       where.score = {
-        humanReviewed: false,
-        aiConfidence: { lt: 0.8 },
+        is: {
+          humanReviewed: false,
+          // Exclude sentinel -1.0 (unscored) — only include sessions with real low confidence
+          aiConfidence: { gte: 0, lt: 0.8 },
+        },
       };
     }
 
@@ -121,10 +124,11 @@ export class AdminService {
       const sayDoConsistencyScore =
         session.score?.sayDoConsistencyScore ?? null;
 
-      // Human review logic: scored, not yet humanReviewed, and AI confidence is low
+      // Human review logic: scored, not yet humanReviewed, and AI confidence is real and low
       const humanReviewRequired =
         !!session.score &&
         !session.score.humanReviewed &&
+        session.score.aiConfidence >= 0 &&   // exclude -1.0 sentinel (unscored)
         session.score.aiConfidence < 0.8;
 
       return {
@@ -156,7 +160,7 @@ export class AdminService {
   }
 
   async getSessionDetail(sessionId: string): Promise<SessionDetail> {
-    const session = await this.prisma.session.findUnique({
+    let session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
         candidate: true,
@@ -179,6 +183,44 @@ export class AdminService {
         },
       },
     });
+
+    if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: {
+          OR: [
+            { id: sessionId },
+            { token: sessionId },
+            { sessionId: sessionId },
+          ],
+        },
+      });
+
+      if (invite?.sessionId) {
+        session = await this.prisma.session.findUnique({
+          where: { id: invite.sessionId },
+          include: {
+            candidate: true,
+            roleTemplate: true,
+            moduleResponses: {
+              include: {
+                question: true,
+              },
+            },
+            integrityFlags: {
+              include: {
+                evidenceClip: true,
+              },
+            },
+            score: true,
+            reviewerDecision: {
+              include: {
+                staff: true,
+              },
+            },
+          },
+        });
+      }
+    }
 
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);

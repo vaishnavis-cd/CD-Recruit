@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search } from "lucide-react";
+import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
-import { ROLE_TEMPLATES, type Invite } from "../lib/mock-data";
+import { type Invite } from "../lib/types";
 
 export const Route = createFileRoute("/invites")({
   component: InvitesPage,

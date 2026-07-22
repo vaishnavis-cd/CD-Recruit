@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { X, AlertTriangle, ShieldCheck, ExternalLink } from "lucide-react";
 import { ScopePanel } from "./scope-panel";
-import { useStore } from "../lib/store";
-import type { Session } from "../lib/mock-data";
+import type { Session } from "../lib/types";
 
 const STATUS_LABEL: Record<Session["status"], string> = {
   submitted: "Submitted",
@@ -88,10 +87,16 @@ export function SessionDetailBody({
           <div className="flex gap-4 mt-2 text-[11px] font-mono text-[#5B5B64]">
             <span>{session.id}</span>
             <span>
-              composite <span className="text-[#0B0B0D]">{session.compositeScore}</span>
+              composite{" "}
+              <span className="text-[#0B0B0D]">
+                {session.compositeScore !== null ? session.compositeScore : "—"}
+              </span>
             </span>
             <span>
-              say-do <span className="text-[#0B0B0D]">{session.sayDoScore}</span>
+              say-do{" "}
+              <span className="text-[#0B0B0D]">
+                {session.sayDoScore !== null ? session.sayDoScore : "—"}
+              </span>
             </span>
             <span className={criticalCount ? "text-[#9A2A2E]" : ""}>
               integrity: {integritySummary}

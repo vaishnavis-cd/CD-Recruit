@@ -119,6 +119,7 @@ export interface QuestionSummary {
   moduleType: ModuleType;
   /** Index within the module (0-based), used for free-navigation addressing. */
   moduleIndex: number;
+  content?: any;
 }
 
 /** Full question payload returned by GET /sessions/:id/questions/:questionId. */

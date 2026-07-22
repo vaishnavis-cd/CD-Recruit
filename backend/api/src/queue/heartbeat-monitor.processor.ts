@@ -9,6 +9,10 @@ export class HeartbeatMonitorProcessor extends WorkerHost {
   }
 
   async process(job: Job): Promise<void> {
-    await this.heartbeatService.scanAndMarkStale();
+    if (job.name === "scan") {
+      await this.heartbeatService.scanAndMarkStale();
+    } else if (job.name === "retention-cleanup") {
+      await this.heartbeatService.cleanupExpiredBiometrics();
+    }
   }
 }

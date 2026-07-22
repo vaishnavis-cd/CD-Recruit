@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../common/prisma.service";
+import { PrismaService } from "@app/prisma/prisma.service";
 import {
   SessionLogService,
   SimulationSession,
@@ -9,9 +9,12 @@ import { eventTemplates, EventTemplate } from "./event-template-library";
 import { EventGenerationService } from "./event-generation.service";
 import { CompetencyEngine, EventScoreDetail } from "./competency-engine";
 import { CorrelationEngineClient } from "../common/correlation-engine.client";
+import { CorrelationGradingService } from "./correlation-grading.service";
 
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
+
+import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 
 @Injectable()
 export class SimulationService implements AssessmentModuleEngine {
@@ -23,7 +26,21 @@ export class SimulationService implements AssessmentModuleEngine {
     private eventGenerationService: EventGenerationService,
     private competencyEngine: CompetencyEngine,
     private correlationClient: CorrelationEngineClient,
+    private correlationGradingService: CorrelationGradingService,
+    private sandboxOrchestrator: SandboxOrchestratorService,
   ) {}
+
+  async executeTerminalCommand(sessionId: string, command: string) {
+    const result = await this.sandboxOrchestrator.executeCommand(sessionId, command);
+    await this.sessionLogService.logAction(
+      sessionId,
+      "terminal_command",
+      "EXECUTED",
+      command,
+      result,
+    );
+    return result;
+  }
 
   async validateSubmission(submission: any): Promise<boolean> {
     return !!(submission && submission.eventId && submission.action);
@@ -240,9 +257,20 @@ export class SimulationService implements AssessmentModuleEngine {
     }
 
     const eventId = session.eventsList[index];
-    const template = eventTemplates.find((t) => t.id === eventId);
-    if (!template) {
-      throw new Error(`Template ${eventId} not found`);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+    const question = isUuid
+      ? await this.prisma.question.findUnique({ where: { id: eventId } })
+      : null;
+
+    let competencies = ["Technical"];
+    if (question) {
+      competencies = question.tags || ["Technical"];
+    } else {
+      const template = eventTemplates.find((t) => t.id === eventId);
+      if (!template) {
+        throw new NotFoundException(`Template ${eventId} not found`);
+      }
+      competencies = template.competencies;
     }
 
     // Transition state from ACTING/INVESTIGATING to SUBMITTED
@@ -279,7 +307,7 @@ export class SimulationService implements AssessmentModuleEngine {
     eventState.response = response;
     eventState.resolutionSubmitted =
       typeof response === "string" ? response : JSON.stringify(response);
-    eventState.competenciesImpacted = template.competencies;
+    eventState.competenciesImpacted = competencies;
     eventState.state = "COMPLETED";
 
     // Advance event index
@@ -330,10 +358,10 @@ export class SimulationService implements AssessmentModuleEngine {
         },
       });
       
-      // Trigger Say-Do correlation engine asynchronously
-      this.correlationClient.triggerCorrelation(sessionId).catch((err) => {
-        console.error(`Failed to trigger correlation asynchronously: ${err.message}`);
-      });
+      // Enqueue Say-Do correlation scoring via BullMQ (3 retries, exponential backoff)
+      // Falls back to local retry in non-full infra mode.
+      // On final failure, ORPHANED_UNSCORED_SESSION is logged — session stays at -1.0 sentinel.
+      await this.correlationGradingService.enqueue(sessionId);
     }
 
     // Save final state

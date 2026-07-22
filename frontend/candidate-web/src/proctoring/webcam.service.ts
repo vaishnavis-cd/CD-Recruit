@@ -20,6 +20,7 @@ export class WebcamService {
       return true;
     }
 
+    const hasMicConsent = localStorage.getItem("cd-recruit-mic-consent") === "true";
     try {
       console.log("[WebcamService] CAMERA_PERMISSION_REQUEST initiated");
       const tempStream = await navigator.mediaDevices.getUserMedia({
@@ -28,7 +29,7 @@ export class WebcamService {
           height: { ideal: 480 },
           frameRate: { ideal: 15 },
         },
-        audio: false,
+        audio: hasMicConsent,
       });
       this.stream = tempStream;
       console.log("[WebcamService] CAMERA_PERMISSION_SUCCESS: permission granted");
@@ -44,19 +45,21 @@ export class WebcamService {
    */
   public async start(): Promise<MediaStream> {
     if (!this.stream || !this.stream.active) {
-      console.log("[WebcamService] Creating media stream (getUserMedia)...");
+      const hasMicConsent = localStorage.getItem("cd-recruit-mic-consent") === "true";
+      console.log(`[WebcamService] Creating media stream (getUserMedia, mic=${hasMicConsent})...`);
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
           frameRate: { ideal: 15 },
         },
-        audio: false,
+        audio: hasMicConsent,
       });
       console.log("[WebcamService] STREAM_CREATED successfully:", this.stream.id);
     } else {
       console.log("[WebcamService] Reusing active stream:", this.stream.id);
     }
+
 
     try {
       const video = this.getVideoElement();

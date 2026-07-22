@@ -4,7 +4,24 @@ import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "path";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Serve mediapipe WASM files with the correct MIME type
+    {
+      name: "mediapipe-wasm-mime",
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.includes("/mediapipe/") && req.url.endsWith(".wasm")) {
+            res.setHeader("Content-Type", "application/wasm");
+            // Allow WASM to load under COEP credentialless
+            res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+          }
+          next();
+        });
+      },
+    },
+  ],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
@@ -15,8 +32,8 @@ export default defineConfig({
     include: ["@cd-recruit/shared-types"],
     exclude: ["sql.js"],
   },
+  envDir: resolve(__dirname, "../../"),
   build: {
-    // Tell Rollup's built-in CommonJS plugin to handle shared-types CJS output
     commonjsOptions: {
       include: [/shared-types/, /node_modules/],
     },
@@ -24,7 +41,9 @@ export default defineConfig({
   server: {
     port: 3000,
     headers: {
-      "Cross-Origin-Embedder-Policy": "require-corp",
+      // credentialless allows cross-origin isolation for WASM/SharedArrayBuffer
+      // while still permitting getUserMedia camera access
+      "Cross-Origin-Embedder-Policy": "credentialless",
       "Cross-Origin-Opener-Policy": "same-origin",
     },
     proxy: {

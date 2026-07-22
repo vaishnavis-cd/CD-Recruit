@@ -11,4 +11,6 @@ export abstract class ObjectStoragePort {
     buffer: Buffer,
     metaData?: any,
   ): Promise<boolean>;
+
+  abstract deleteObject(bucketName: string, objectKey: string): Promise<boolean>;
 }

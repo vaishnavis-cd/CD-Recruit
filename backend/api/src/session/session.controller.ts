@@ -91,9 +91,11 @@ export class SessionController {
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Body("version") version?: string,
     @Body("ipAddress") ipAddress?: string,
+    @Body("consentType") consentType?: string,
   ): Promise<{ ok: boolean; consentRecordId: string }> {
-    return this.sessionService.recordConsent(sessionId, version, ipAddress);
+    return this.sessionService.recordConsent(sessionId, version, ipAddress, consentType);
   }
+
 
   /**
    * POST /api/v1/sessions/:sessionId/heartbeat

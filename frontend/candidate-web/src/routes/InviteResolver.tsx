@@ -7,8 +7,9 @@ import { TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions'
 // FIXTURE_INVITE scheduledTime can be overridden by dev panel offset via TimeAuthorityPort
 // This component runs once on mount to resolve the invite and determine the time gate.
 
-export function InviteResolver() {
-  const { token = 'demo-token-2024' } = useParams<{ token: string }>()
+export function InviteResolver({ token: propToken }: { token?: string }) {
+  const { token: pathToken } = useParams<{ token?: string }>()
+  const token = propToken || pathToken || new URLSearchParams(window.location.search).get('token') || ''
   const { screen, transitionTo, devForceJump, setSession, setInviteToken, setCvMode, initAssessment, assessment } = useSessionStore()
   const resolved = useRef(false)
 
@@ -35,11 +36,24 @@ export function InviteResolver() {
           return
         }
 
-        // If active session exists AND we have local assessment state, resume it
-        if (session?.status === 'active' && assessment) {
-          setSession(session)
-          initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60)
-          devForceJump({ type: 'assessment', moduleIndex: assessment.currentModuleIndex, sessionId: session.id })
+        // Detect if token changed or new candidate link opened
+        const storedToken = localStorage.getItem('cd-recruit-session-token')
+        if (storedToken && storedToken !== token) {
+          console.log('[InviteResolver] New candidate token detected! Clearing stale local session.')
+          localStorage.removeItem('cd-recruit-session')
+          localStorage.removeItem('cd-recruit-autosave')
+          localStorage.removeItem('cd-recruit-session-token')
+          useSessionStore.setState({ session: null, assessment: null })
+        }
+
+        // If active session exists for THIS token AND we have local assessment state, resume it.
+        const persistedSession = useSessionStore.getState().session
+        if (persistedSession?.status === 'active' && assessment && localStorage.getItem('cd-recruit-session-token') === token) {
+          // Ensure the session store has the latest session object
+          setSession(persistedSession)
+          // Refresh questions from persisted session (they were saved in localStorage)
+          initAssessment(persistedSession.id, TOTAL_ASSESSMENT_MINUTES * 60, persistedSession.questions)
+          devForceJump({ type: 'assessment', moduleIndex: assessment.currentModuleIndex, sessionId: persistedSession.id })
           return
         }
 
@@ -49,10 +63,11 @@ export function InviteResolver() {
           return
         }
 
-        const scheduledMs = new Date(invite.scheduledTime).getTime()
+        const rawScheduled = invite.scheduledTime ? new Date(invite.scheduledTime).getTime() : Date.now()
+        const scheduledMs = isNaN(rawScheduled) ? Date.now() : rawScheduled
         const nowMs = services.time.getServerNow()
-        const bufferMs = invite.bufferMinutes * 60 * 1000
-        const graceMs = invite.graceMinutes * 60 * 1000
+        const bufferMs = (invite.bufferMinutes || 30) * 60 * 1000
+        const graceMs = (invite.graceMinutes || 120) * 60 * 1000
 
         const tooEarlyBoundary = scheduledMs - bufferMs
         const graceBoundary = scheduledMs + graceMs

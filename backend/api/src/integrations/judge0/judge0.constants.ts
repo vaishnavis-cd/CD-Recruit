@@ -19,6 +19,6 @@ export const JUDGE0_STATUS = {
 };
 
 export const JUDGE0_POLLING = {
-  INTERVAL_MS: 2000, // 2 seconds
-  MAX_ATTEMPTS: 15,
+  INTERVAL_MS: 1000, // 1 second interval
+  MAX_ATTEMPTS: 30,  // 30 attempts = 30s timeout
 };
