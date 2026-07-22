@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "@app/prisma/prisma.service";
 import { Judge0Service } from "../integrations/judge0/judge0.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { CodingQuestionContentJson } from "./coding.types";
