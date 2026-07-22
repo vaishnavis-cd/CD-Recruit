@@ -1,6 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom'
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useParams, useSearchParams, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { SessionRouter } from './routes/SessionRouter'
 
