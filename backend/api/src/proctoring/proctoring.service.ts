@@ -150,6 +150,8 @@ export class ProctoringService {
 
     return {
       storageRef,
+      // CRITICAL: clipUrl stored in DB must ALWAYS be the raw storageRef path (e.g. proctoring/uuid/event.webm),
+      // NEVER a full presigned URL. Presigned URLs expire and must only be generated on read via getSignedUrl().
       clipUrl: storageRef,
     };
   }
