@@ -271,10 +271,10 @@ function IndividualResultPage() {
         {activeTab === "CODING" && (
           <div className="space-y-4">
             <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Submitted Code & Unit Test Results</h3>
-            {detail.moduleResponses.filter(r => r.responsePayload?.code !== undefined).length === 0 ? (
+            {(detail.moduleResponses || []).filter(r => r.responsePayload?.code !== undefined).length === 0 ? (
               <p className="text-[13px] text-[#8B8B93] italic">No coding submissions recorded for this assessment.</p>
             ) : (
-              detail.moduleResponses
+              (detail.moduleResponses || [])
                 .filter(r => r.responsePayload?.code !== undefined)
                 .map((resp, idx) => (
                   <div key={resp.id} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
@@ -314,10 +314,10 @@ function IndividualResultPage() {
         {activeTab === "SQL" && (
           <div className="space-y-4">
             <h3 className="text-[15px] font-semibold text-[#0B0B0D]">SQL Query Submissions & Execution Results</h3>
-            {detail.moduleResponses.filter(r => r.responsePayload?.sqlQuery !== undefined).length === 0 ? (
+            {(detail.moduleResponses || []).filter(r => r.responsePayload?.sqlQuery !== undefined).length === 0 ? (
               <p className="text-[13px] text-[#8B8B93] italic">No SQL queries recorded for this assessment.</p>
             ) : (
-              detail.moduleResponses
+              (detail.moduleResponses || [])
                 .filter(r => r.responsePayload?.sqlQuery !== undefined)
                 .map((resp, idx) => (
                   <div key={resp.id} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
@@ -347,7 +347,7 @@ function IndividualResultPage() {
           <div className="space-y-4">
             <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Answers</h3>
             <div className="divide-y divide-[#EFF0F3]">
-              {detail.moduleResponses
+              {(detail.moduleResponses || [])
                 .filter(r => r.responsePayload?.selectedOption !== undefined)
                 .map((resp, idx) => (
                   <div key={resp.id} className="py-3 flex items-start justify-between">
