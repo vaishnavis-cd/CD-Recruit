@@ -98,6 +98,8 @@ export class CodingService implements AssessmentModuleEngine {
    * Run candidate code against sample test cases only.
    */
   async run(dto: RunCodingDto) {
+    this.validateSourceCodePayload(dto.sourceCode);
+
     // 1. Validate session
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
@@ -218,6 +220,8 @@ export class CodingService implements AssessmentModuleEngine {
    * Final submit of candidate code: runs all test cases (sample + hidden) and marks ModuleResponse as completed.
    */
   async submit(dto: SubmitCodingDto) {
+    this.validateSourceCodePayload(dto.sourceCode);
+
     // 1. Validate session
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
@@ -388,6 +392,37 @@ export class CodingService implements AssessmentModuleEngine {
       },
     });
 
-    return { success: true };
+    return { status: "saved" };
+  }
+
+  /**
+   * Security Guardrails: Validate candidate source code length and scan for blacklisted exfiltration patterns.
+   */
+  private validateSourceCodePayload(sourceCode: string): void {
+    if (!sourceCode) return;
+
+    // 1. Max Payload Length (64 KB)
+    if (sourceCode.length > 65536) {
+      throw new BadRequestException("Source code payload exceeds maximum allowable length of 64 KB.");
+    }
+
+    // 2. Scan for malicious system exfiltration attempts
+    const lower = sourceCode.toLowerCase();
+    const blacklisted = [
+      "process.env",
+      "os.environ",
+      "system.getenv",
+      "/etc/passwd",
+      "/etc/shadow",
+      "cat /etc",
+    ];
+
+    for (const token of blacklisted) {
+      if (lower.includes(token)) {
+        throw new BadRequestException(
+          `Submission rejected: Usage of forbidden system inspection keyword ("${token}") is restricted for platform security.`,
+        );
+      }
+    }
   }
 }

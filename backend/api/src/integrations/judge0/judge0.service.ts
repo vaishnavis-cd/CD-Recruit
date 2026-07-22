@@ -102,7 +102,6 @@ export class Judge0Service {
         const response = await this.client.getSubmission(token);
         const statusId = response.status.id;
 
-        // Status IDs 1 (In Queue) and 2 (Processing) mean execution is still pending.
         if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
           return response;
         }
@@ -125,8 +124,56 @@ export class Judge0Service {
   }
 
   /**
-   * Run coding code against a set of test cases.
-   * @param languageId Already-resolved Judge0 language ID (call getLanguageId first).
+   * Polls a batch of tokens in a single request until completion or timeout.
+   */
+  async pollBatchSubmissions(tokens: string[]): Promise<Map<string, Judge0ExecutionResponse>> {
+    let pendingTokens = [...tokens];
+    const resultsMap = new Map<string, Judge0ExecutionResponse>();
+    let attempts = 0;
+
+    while (pendingTokens.length > 0 && attempts < JUDGE0_POLLING.MAX_ATTEMPTS) {
+      attempts++;
+      try {
+        const responses = await this.client.getBatchSubmissions(pendingTokens);
+        const stillPending: string[] = [];
+
+        for (const resp of responses) {
+          if (!resp || !resp.token) continue;
+          const statusId = resp.status?.id;
+          if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
+            resultsMap.set(resp.token, resp);
+          } else {
+            stillPending.push(resp.token);
+          }
+        }
+        pendingTokens = stillPending;
+      } catch (err: any) {
+        this.logger.error(`Error polling batch tokens: ${err.message}`);
+      }
+
+      if (pendingTokens.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, JUDGE0_POLLING.INTERVAL_MS));
+      }
+    }
+
+    for (const token of pendingTokens) {
+      if (!resultsMap.has(token)) {
+        resultsMap.set(token, {
+          status: { id: JUDGE0_STATUS.TIME_LIMIT_EXCEEDED, description: "Time Limit Exceeded (Polling Timeout)" },
+          stdout: null,
+          stderr: null,
+          compile_output: null,
+          time: null,
+          memory: null,
+        });
+      }
+    }
+
+    return resultsMap;
+  }
+
+  /**
+   * Run coding code against a set of test cases using high-performance Batch APIs.
    */
   async runTests(
     sourceCode: string,
@@ -137,8 +184,8 @@ export class Judge0Service {
     status: ExecutionStatus;
     passedTests: number;
     totalTests: number;
-    executionTime: number; // in ms
-    memoryUsage: number; // in KB
+    executionTime: number;
+    memoryUsage: number;
     stdout: string;
     stderr: string;
     compileOutput: string;
@@ -169,45 +216,45 @@ export class Judge0Service {
     const wrappedCode = this.wrapCode(sourceCode, questionId);
     const sourceCodeBase64 = this.encodeBase64(wrappedCode);
 
-    // Submit all test cases to Judge0 in parallel
-    let isUnreachable = false;
-    const submissionPromises = testCases.map(async (tc) => {
-      const stdinBase64 = this.encodeBase64(tc.input);
-      try {
-        const token = await this.client.createSubmission(sourceCodeBase64, languageId, stdinBase64);
-        return { token, testCase: tc };
-      } catch (err: any) {
-        this.logger.warn(`Failed to connect to Judge0 API: ${err.message}`);
-        isUnreachable = true;
-        return { token: null, testCase: tc };
-      }
-    });
+    const batchItems = testCases.map((tc) => ({
+      sourceCodeBase64,
+      languageId,
+      stdinBase64: this.encodeBase64(tc.input),
+      expectedOutputBase64: this.encodeBase64(tc.expectedOutput),
+    }));
 
-    const submissions = await Promise.all(submissionPromises);
-
-    // If Judge0 endpoint is offline/unreachable, fallback gracefully to local evaluation
-    if (isUnreachable || submissions.every((s) => !s.token)) {
+    let tokens: string[] = [];
+    try {
+      tokens = await this.client.createBatchSubmissions(batchItems);
+    } catch (err: any) {
+      this.logger.warn(`Failed to connect to Judge0 API via batch submission: ${err.message}. Falling back...`);
       return this.runLocalFallback(sourceCode, languageId, questionId, testCases);
     }
 
-    // Poll submissions in parallel
-    const pollPromises = submissions.map(async (sub) => {
-      if (!sub.token) {
+    if (!tokens || tokens.length === 0 || tokens.length !== testCases.length) {
+      this.logger.warn(`Batch tokens count mismatch or empty response. Falling back...`);
+      return this.runLocalFallback(sourceCode, languageId, questionId, testCases);
+    }
+
+    const resultsMap = await this.pollBatchSubmissions(tokens);
+
+    const results = testCases.map((tc, idx) => {
+      const token = tokens[idx];
+      const response = resultsMap.get(token);
+
+      if (!response) {
         return {
           passed: false,
           status: ExecutionStatus.FAILED,
           time: 0,
           memory: 0,
           stdout: "",
-          stderr: "Failed to submit to Judge0",
+          stderr: "Failed to receive submission response",
           compileOutput: "",
         };
       }
 
-      const response = await this.pollSubmission(sub.token);
-      this.logger.warn(`RAW JUDGE0 RESPONSE: ${JSON.stringify(response)}`);
       const mappedStatus = this.mapStatus(response.status.id, response.status.description);
-
       const decodedStdout = this.decodeBase64(response.stdout).trim();
       const decodedStderr = this.decodeBase64(response.stderr).trim();
       const decodedCompile = this.decodeBase64(response.compile_output).trim();
@@ -219,7 +266,7 @@ export class Judge0Service {
       let passed = false;
       if (mappedStatus === ExecutionStatus.COMPLETED) {
         const normOut = this.normalizeOutput(decodedStdout);
-        const normExp = this.normalizeOutput(sub.testCase.expectedOutput);
+        const normExp = this.normalizeOutput(tc.expectedOutput);
         passed = normOut === normExp;
       }
 
@@ -233,8 +280,6 @@ export class Judge0Service {
         compileOutput: decodedCompile,
       };
     });
-
-    const results = await Promise.all(pollPromises);
 
     // Aggregate values
     let totalTime = 0;

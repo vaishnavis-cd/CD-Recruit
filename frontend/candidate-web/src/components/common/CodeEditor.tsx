@@ -112,7 +112,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         language={language}
         value={value}
         theme={theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light"}
-        onChange={(val) => onChange?.(val ?? "")}
+        onChange={(val) => {
+          const raw = val ?? "";
+          if (raw.length > 64000) {
+            onChange?.(raw.slice(0, 64000));
+          } else {
+            onChange?.(raw);
+          }
+        }}
         beforeMount={handleBeforeMount}
         onMount={handleEditorMount}
         options={defaultOptions}

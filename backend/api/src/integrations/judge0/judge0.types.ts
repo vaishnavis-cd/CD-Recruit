@@ -8,6 +8,7 @@ export interface Judge0Status {
 }
 
 export interface Judge0ExecutionResponse {
+  token?: string;
   status: Judge0Status;
   stdout: string | null;
   stderr: string | null;
