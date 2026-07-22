@@ -334,24 +334,29 @@ export class AdminService {
       );
     }
 
-    if (session.reviewerDecision) {
-      throw new AppException(
-        "DECISION_ALREADY_RECORDED",
-        "A decision already exists for this session",
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    // Record decision and update score flag in transaction
+    // Record decision (upsert if decision already recorded) and update score flag in transaction
     const decisionRow = await this.prisma.$transaction(async (tx) => {
-      const decisionCreated = await tx.reviewerDecision.create({
-        data: {
-          sessionId,
-          staffId,
-          decision: decision as any,
-          note,
-        },
-      });
+      let decisionCreated: any;
+      if (session.reviewerDecision) {
+        decisionCreated = await tx.reviewerDecision.update({
+          where: { id: session.reviewerDecision.id },
+          data: {
+            staffId,
+            decision: decision as any,
+            note,
+            decidedAt: new Date(),
+          },
+        });
+      } else {
+        decisionCreated = await tx.reviewerDecision.create({
+          data: {
+            sessionId,
+            staffId,
+            decision: decision as any,
+            note,
+          },
+        });
+      }
 
       if (session.score) {
         await tx.score.update({

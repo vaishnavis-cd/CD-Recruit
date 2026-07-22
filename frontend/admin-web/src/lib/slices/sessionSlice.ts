@@ -217,17 +217,19 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
   },
 
   recordCandidateDecision: async (sessionId, decision, note) => {
-    try {
-      const headers = await getAuthHeaders();
-      await fetch(`${API_BASE}/admin/sessions/${sessionId}/decision`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ decision, note }),
-      });
-      get().fetchResults();
-    } catch (err: any) {
-      console.error(err);
+    const headers = await getAuthHeaders();
+    const mappedDecision = decision === "PASS" ? "ADVANCE" : decision === "FAIL" ? "REJECT" : decision;
+    const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}/decision`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ decision: mappedDecision, note }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || `Failed to record decision (${res.status})`);
     }
+    get().fetchResults();
   },
 
   exportResultsCsv: async (driveId) => {
