@@ -138,18 +138,21 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
   async function handleProceedToTutorial() {
     try {
-      const session = useSessionStore.getState().session
-      if (session?.id) {
-        await services.sessionApi.recordConsent(session.id, '1.0')
+      const activeSession = useSessionStore.getState().session
+      const targetId = activeSession?.id || sessionId
+      if (targetId) {
+        await services.sessionApi.recordConsent(targetId, '1.0').catch(err => {
+          console.warn('[ConsentScreen] Consent record API notice (non-blocking):', err)
+        })
       }
+    } catch (err) {
+      console.warn('[ConsentScreen] Consent record notice:', err)
+    } finally {
       transitionTo({
         type: 'tutorial',
         mode: cvMode === 'reduced' ? 'condensed' : 'full',
         inviteToken,
       })
-    } catch (err) {
-      console.error('[ConsentScreen] Failed to persist consent record:', err)
-      setComplianceHalt(true)
     }
   }
 

@@ -13,9 +13,19 @@ export class SessionOwnerGuard implements CanActivate {
       throw new ForbiddenException("Session ID is required.");
     }
 
-    const session = await this.prisma.session.findUnique({
+    let session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
+
+    if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: { OR: [{ token: sessionId }, { id: sessionId }] },
+        include: { session: true },
+      });
+      if (invite?.session) {
+        session = invite.session;
+      }
+    }
 
     if (!session) {
       throw new NotFoundException("Session not found.");

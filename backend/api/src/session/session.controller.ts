@@ -59,7 +59,7 @@ export class SessionController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(SessionOwnerGuard)
   async begin(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
   ): Promise<StartSessionResponse> {
     return this.sessionService.beginSession(sessionId);
   }
@@ -73,7 +73,7 @@ export class SessionController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(SessionOwnerGuard)
   async selfie(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
     @Body("image") image: string,
   ): Promise<{ ok: boolean }> {
     return this.sessionService.uploadSelfie(sessionId, image);
@@ -88,7 +88,7 @@ export class SessionController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(SessionOwnerGuard)
   async consent(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
     @Body("version") version?: string,
     @Body("ipAddress") ipAddress?: string,
     @Body("consentType") consentType?: string,

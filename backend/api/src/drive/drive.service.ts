@@ -113,8 +113,8 @@ export class DriveService {
         },
       });
 
-      // Link published questions matching the template/enabled modules if creating active/scheduled
-      if ((status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) && enabledModules.length > 0) {
+      // Link published questions matching enabled modules
+      if (enabledModules.length > 0) {
         const questionsToLink = await tx.question.findMany({
           where: {
             moduleType: { in: enabledModules as any },
@@ -352,6 +352,45 @@ export class DriveService {
       where: { id: driveId },
       data,
     });
+
+    if (moduleConfig) {
+      const enabledModules = Object.entries(moduleConfig as Record<string, any>)
+        .filter(([_, conf]) => conf?.enabled)
+        .map(([mod]) => mod);
+
+      await this.prisma.driveQuestion.deleteMany({
+        where: {
+          driveId,
+          moduleType: { notIn: enabledModules as any },
+        },
+      });
+
+      if (enabledModules.length > 0) {
+        const questionsToLink = await this.prisma.question.findMany({
+          where: {
+            moduleType: { in: enabledModules as any },
+            status: "PUBLISHED",
+          },
+        });
+
+        for (const q of questionsToLink) {
+          await this.prisma.driveQuestion.upsert({
+            where: {
+              driveId_questionId: {
+                driveId,
+                questionId: q.id,
+              },
+            },
+            create: {
+              driveId,
+              questionId: q.id,
+              moduleType: q.moduleType,
+            },
+            update: {},
+          });
+        }
+      }
+    }
 
     // Create Audit Log
     await this.prisma.auditLog.create({

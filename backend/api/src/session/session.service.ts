@@ -807,9 +807,19 @@ export class SessionService {
     ipAddress: string = "127.0.0.1",
     rawConsentType?: string | ConsentType,
   ): Promise<{ ok: boolean; consentRecordId: string }> {
-    const session = await this.prisma.session.findUnique({
+    let session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
+
+    if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: { OR: [{ token: sessionId }, { id: sessionId }] },
+        include: { session: true },
+      });
+      if (invite?.session) {
+        session = invite.session;
+      }
+    }
 
     if (!session) {
       throw new NotFoundException({

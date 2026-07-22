@@ -193,6 +193,28 @@ function DriveDetailPage() {
     fetchQuestions();
   }, [driveId]);
 
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to update status");
+      }
+
+      toast.success(`Drive status updated to ${newStatus}!`);
+      setEditStatus(newStatus);
+      loadData();
+    } catch (err: any) {
+      toast.error("Failed to update drive status: " + (err.message || err));
+    }
+  };
+
   // Total Score Ceiling Calculation
   const totalWeightSum = useMemo(() => {
     return Object.entries(moduleConfig)
@@ -298,7 +320,7 @@ function DriveDetailPage() {
       a.download = "sample_questions.csv";
       a.click();
     } catch (err) {
-      toast.error("Failed downloading sample questions CSV");
+      toast.error("Failed to download sample questions template.");
     }
   };
 
@@ -313,7 +335,7 @@ function DriveDetailPage() {
       a.download = "sample_candidates.csv";
       a.click();
     } catch (err) {
-      toast.error("Failed downloading sample candidates CSV");
+      toast.error("Failed to download sample candidates template.");
     }
   };
 
@@ -347,38 +369,33 @@ function DriveDetailPage() {
     });
   }, [questionsBank, questionModuleFilter, questionSearch]);
 
-  if (loading) {
+  if (loading || !drive) {
     return (
       <AppShell title="Drive Configuration">
-        <div className="py-20 text-center text-[13px] text-[#8B8B93]">Loading drive settings…</div>
-      </AppShell>
-    );
-  }
-
-  if (!drive) {
-    return (
-      <AppShell title="Drive Configuration">
-        <div className="py-12 text-center text-[#C0392B] text-[14px]">Drive record not found.</div>
+        <div className="flex items-center justify-center py-20 text-[#5B5B64]">
+          Loading drive configuration details...
+        </div>
       </AppShell>
     );
   }
 
   return (
     <AppShell
-      title={`Drive: ${drive.name}`}
+      title={`Drive Configuration — ${drive.name}`}
       actions={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSaveConfiguration}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
+        <div className="flex items-center gap-3">
+          <Link
+            to="/drives"
+            className="px-3 py-1.5 text-[12px] font-semibold text-[#5B5B64] hover:text-[#0B0B0D] bg-white border border-[#E6E6EA] rounded-md transition-colors"
           >
-            <Check size={14} /> Save Configuration
-          </button>
+            ← Back to Drives
+          </Link>
           <button
             onClick={() => setConfirmGenerateLinks(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-[#0C6B58] bg-[#E3F9F2] hover:bg-[#C8F3E5] border border-[#A3EED7] rounded-md transition-colors cursor-pointer"
+            disabled={generating}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
           >
-            <Sparkles size={14} /> Schedule & Generate Links
+            <Sparkles size={14} /> Schedule &amp; Generate Links
           </button>
         </div>
       }
@@ -386,11 +403,28 @@ function DriveDetailPage() {
       {/* Top Banner Navigation */}
       <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-5 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-3 mb-1">
             <h2 className="text-[18px] font-semibold text-[#0B0B0D]">{drive.name}</h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-[#EAF0FF] text-[#15308F]">
-              {drive.status}
-            </span>
+            <div className="relative inline-flex items-center">
+              <select
+                value={drive.status}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                className={`
+                  appearance-none px-3 py-1 pr-7 rounded-full text-[11px] font-mono font-bold cursor-pointer transition-all border outline-none shadow-sm
+                  ${drive.status === 'ACTIVE' ? 'bg-[#E3F9F2] text-[#0C6B58] border-[#A3E6D5] hover:bg-[#D1F4E9]' : ''}
+                  ${drive.status === 'SCHEDULED' ? 'bg-[#EAF0FF] text-[#15308F] border-[#C5D7FE] hover:bg-[#D9E5FF]' : ''}
+                  ${drive.status === 'DRAFT' ? 'bg-[#FFF8E6] text-[#B7791F] border-[#FEEBC8] hover:bg-[#FEF0CD]' : ''}
+                  ${drive.status === 'CLOSED' ? 'bg-[#FFF5F5] text-[#C0392B] border-[#FEB2B2] hover:bg-[#FEE2E2]' : ''}
+                `}
+                title="Click to change Drive Status"
+              >
+                <option value="DRAFT">DRAFT</option>
+                <option value="SCHEDULED">SCHEDULED</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="CLOSED">CLOSED</option>
+              </select>
+              <span className="pointer-events-none absolute right-2 text-[9px] text-current opacity-70">▼</span>
+            </div>
           </div>
           <p className="text-[12px] text-[#5B5B64]">
             Role Track: <span className="font-semibold text-[#0B0B0D]">{drive.roleTemplateName}</span> • Total Roster: {drive.roster.length} candidates
@@ -727,6 +761,13 @@ function DriveDetailPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setConfirmGenerateLinks(true)}
+                  disabled={generating || drive.roster.length === 0}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#0C6B58] hover:bg-[#085243] rounded shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  <Sparkles size={14} /> Generate Links
+                </button>
                 <button
                   onClick={() => setShowAddCandidateModal(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded shadow-sm transition-colors cursor-pointer"
