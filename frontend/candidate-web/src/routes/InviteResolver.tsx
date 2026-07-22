@@ -46,14 +46,17 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           useSessionStore.setState({ session: null, assessment: null })
         }
 
-        // If active session exists for THIS token AND we have local assessment state, resume it.
+        // Always update session and questions from latest API resolution
+        if (session) {
+          setSession(session)
+          const sessionQuestions = session.questions || []
+          initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, sessionQuestions)
+        }
+
+        // If active session exists for THIS token, resume it
         const persistedSession = useSessionStore.getState().session
-        if (persistedSession?.status === 'active' && assessment && localStorage.getItem('cd-recruit-session-token') === token) {
-          // Ensure the session store has the latest session object
-          setSession(persistedSession)
-          // Refresh questions from persisted session (they were saved in localStorage)
-          initAssessment(persistedSession.id, TOTAL_ASSESSMENT_MINUTES * 60, persistedSession.questions)
-          devForceJump({ type: 'assessment', moduleIndex: assessment.currentModuleIndex, sessionId: persistedSession.id })
+        if (persistedSession?.status === 'active' && localStorage.getItem('cd-recruit-session-token') === token) {
+          devForceJump({ type: 'assessment', moduleIndex: assessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
           return
         }
 
