@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../common/prisma.service";
+import { PrismaService } from "@app/prisma/prisma.service";
 import {
   SessionLogService,
   SimulationSession,
@@ -242,9 +242,20 @@ export class SimulationService implements AssessmentModuleEngine {
     }
 
     const eventId = session.eventsList[index];
-    const template = eventTemplates.find((t) => t.id === eventId);
-    if (!template) {
-      throw new Error(`Template ${eventId} not found`);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+    const question = isUuid
+      ? await this.prisma.question.findUnique({ where: { id: eventId } })
+      : null;
+
+    let competencies = ["Technical"];
+    if (question) {
+      competencies = question.tags || ["Technical"];
+    } else {
+      const template = eventTemplates.find((t) => t.id === eventId);
+      if (!template) {
+        throw new NotFoundException(`Template ${eventId} not found`);
+      }
+      competencies = template.competencies;
     }
 
     // Transition state from ACTING/INVESTIGATING to SUBMITTED
@@ -281,7 +292,7 @@ export class SimulationService implements AssessmentModuleEngine {
     eventState.response = response;
     eventState.resolutionSubmitted =
       typeof response === "string" ? response : JSON.stringify(response);
-    eventState.competenciesImpacted = template.competencies;
+    eventState.competenciesImpacted = competencies;
     eventState.state = "COMPLETED";
 
     // Advance event index

@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "../common/prisma.service";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@app/prisma/prisma.service";
 
 export interface EventLogAction {
   timestamp: string;
@@ -85,7 +85,7 @@ export class SessionLogService
     });
 
     if (!session) {
-      throw new Error(`Session ${sessionId} not found`);
+      throw new NotFoundException(`Session ${sessionId} not found`);
     }
 
     const driveQuestion = session.drive?.questions[0];
@@ -97,7 +97,7 @@ export class SessionLogService
         where: { moduleType: "SIMULATION" },
       });
       if (!fallbackQuestion) {
-        throw new Error(
+        throw new NotFoundException(
           "No questions of type SIMULATION exist in the database. Please run the DB seed first.",
         );
       }
