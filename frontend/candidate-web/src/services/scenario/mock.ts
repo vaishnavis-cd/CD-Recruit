@@ -80,6 +80,14 @@ export const mockScenarioEngineAdapter: ScenarioEnginePort = {
     }
   },
 
+  async executeTerminalCommand(command: string): Promise<{ stdout: string; stderr: string; exitCode: number; infraError?: boolean }> {
+    await new Promise(resolve => setTimeout(resolve, 300)) // simulate container latency
+    if (command.includes('error') || command.includes('fail')) {
+      return { stdout: '', stderr: `bash: ${command}: command failed with status 1`, exitCode: 1 }
+    }
+    return { stdout: `[mock-sandbox] Executed command: ${command}\nOutput: Process completed successfully.`, stderr: '', exitCode: 0 }
+  },
+
   reset(scenarioId: string): void {
     for (const [key, timers] of scheduledTimers) {
       if (key.includes(`:${scenarioId}`)) {

@@ -67,18 +67,8 @@ JSON Schema:
   "emails": "Simulated customer/support email text if relevant"
 }`;
 
-    if (this.provider) {
-      try {
-        return await this.provider.generateScenario(request, systemPrompt);
-      } catch (error) {
-        console.warn(
-          `LLM provider (${this.providerName}) failed, falling back to static artifacts:`,
-          error,
-        );
-      }
-    }
-
-    // Static fallback strategy using predefined templates
+    // Candidate session events strictly use pre-authored static templates
+    // to guarantee 0 live LLM latency, 0 costs, and 100% pre-approved scenario content.
     return this.getStaticFallback(templateId);
   }
 

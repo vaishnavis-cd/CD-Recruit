@@ -1,21 +1,54 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
-import * as jwt from "jsonwebtoken";
+import { PrismaService } from "../prisma/prisma.service";
+import * as crypto from "crypto";
 
 @Injectable()
 export class AuthService {
   private readonly jwtSecret: string;
+  private readonly encryptionKey: Buffer;
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
-    this.jwtSecret = this.configService.get<string>("app.jwtSecret") ?? "";
+    this.jwtSecret = this.configService.get<string>("app.jwtSecret") ?? "cd-recruit-secret";
+    this.encryptionKey = crypto.createHash("sha256").update(this.jwtSecret).digest();
   }
 
   /**
-   * Generates a JWT for a staff member (used for dev auth).
+   * AES-256-CBC Encryption for sensitive values stored in database
+   */
+  encryptToken(plainText: string): string {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv("aes-256-cbc", this.encryptionKey, iv);
+    let encrypted = cipher.update(plainText, "utf8", "hex");
+    encrypted += cipher.final("hex");
+    return iv.toString("hex") + ":" + encrypted;
+  }
+
+  /**
+   * AES-256-CBC Decryption
+   */
+  decryptToken(encryptedText: string): string | null {
+    try {
+      const parts = encryptedText.split(":");
+      if (parts.length !== 2) return null;
+      const iv = Buffer.from(parts[0], "hex");
+      const encrypted = parts[1];
+      const decipher = crypto.createDecipheriv("aes-256-cbc", this.encryptionKey, iv);
+      let decrypted = decipher.update(encrypted, "hex", "utf8");
+      decrypted += decipher.final("utf8");
+      return decrypted;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Generates a staff JWT token (for recruiter/admin auth).
    */
   generateStaffToken(staffId: string, email: string, role: string): string {
     return this.jwtService.sign({
@@ -26,8 +59,8 @@ export class AuthService {
   }
 
   /**
-   * Generates a signed token for a candidate invite.
-   * Uses standard jsonwebtoken package to allow custom config or separate signing key later.
+   * Generates a clean, random Opaque Token for a candidate invite.
+   * Format: inv_<24_random_hex_chars> (e.g. inv_7a8f9b1c2d3e4f5a6b7c8d9e)
    */
   generateInviteToken(
     inviteId: string,
@@ -35,29 +68,47 @@ export class AuthService {
     candidateName: string,
     roleTemplateId: string,
   ): string {
-    const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
-    return jwt.sign(
-      {
-        inviteId,
-        candidateEmail,
-        candidateName,
-        roleTemplateId,
-      },
-      this.jwtSecret,
-      {
-        expiresIn: `${ttlHours}h`,
-      },
-    );
+    const randomBytes = crypto.randomBytes(12).toString("hex");
+    return `inv_${randomBytes}`;
   }
 
   /**
-   * Verifies and decodes an invite token.
+   * Verifies and decodes an invite token against PostgreSQL database.
    */
-  verifyInviteToken(token: string): any {
-    try {
-      return jwt.verify(token, this.jwtSecret);
-    } catch (err) {
-      throw new BadRequestException("INVITE_TOKEN_INVALID");
+  async verifyInviteToken(rawToken: string): Promise<any> {
+    if (!rawToken || typeof rawToken !== "string") {
+      throw new UnauthorizedException("INVITE_TOKEN_INVALID");
     }
+
+    // Look up in database by token, or by invite ID if rawToken is a UUID
+    const invite = await this.prisma.invite.findFirst({
+      where: {
+        OR: [
+          { token: rawToken },
+          { id: rawToken },
+        ],
+      },
+    });
+
+    if (!invite) {
+      throw new UnauthorizedException("INVITE_TOKEN_INVALID");
+    }
+
+    if (invite.status === "REVOKED") {
+      throw new UnauthorizedException("INVITE_TOKEN_REVOKED");
+    }
+
+    if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+      throw new UnauthorizedException("INVITE_TOKEN_EXPIRED");
+    }
+
+    return {
+      inviteId: invite.id,
+      candidateEmail: invite.candidateEmail,
+      candidateName: invite.candidateName,
+      roleTemplateId: invite.roleTemplateId,
+      driveId: invite.driveId,
+      cvMode: "FULL",
+    };
   }
 }

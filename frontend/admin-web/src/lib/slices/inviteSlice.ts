@@ -30,7 +30,9 @@ function mapBackendInvite(invite: any): Invite {
       track: "Mid",
     },
     status: invite.status,
-    link: invite.token ? `${window.location.origin}/start?token=${invite.token}` : "",
+    link: invite.token
+      ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:5174"}/start?token=${invite.token}`
+      : "",
     createdAt: invite.createdAt
       ? invite.createdAt.slice(0, 10)
       : new Date().toISOString().slice(0, 10),

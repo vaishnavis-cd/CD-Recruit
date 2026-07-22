@@ -36,11 +36,19 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // If active session exists AND we have local assessment state, resume it.
-        // NOTE: resolveInvite is mocked and always returns session: null, so we
-        // check the persisted session from localStorage (loaded at store startup).
+        // Detect if token changed or new candidate link opened
+        const storedToken = localStorage.getItem('cd-recruit-session-token')
+        if (storedToken && storedToken !== token) {
+          console.log('[InviteResolver] New candidate token detected! Clearing stale local session.')
+          localStorage.removeItem('cd-recruit-session')
+          localStorage.removeItem('cd-recruit-autosave')
+          localStorage.removeItem('cd-recruit-session-token')
+          useSessionStore.setState({ session: null, assessment: null })
+        }
+
+        // If active session exists for THIS token AND we have local assessment state, resume it.
         const persistedSession = useSessionStore.getState().session
-        if (persistedSession?.status === 'active' && assessment) {
+        if (persistedSession?.status === 'active' && assessment && localStorage.getItem('cd-recruit-session-token') === token) {
           // Ensure the session store has the latest session object
           setSession(persistedSession)
           // Refresh questions from persisted session (they were saved in localStorage)

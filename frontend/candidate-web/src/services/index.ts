@@ -23,13 +23,21 @@ export interface Services {
 }
 
 export function createServices(): Services {
-  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'mock'
+  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'auto'
   const timeMode = import.meta.env.VITE_TIME_MODE ?? 'mock'
   const scenarioMode = import.meta.env.VITE_SCENARIO_MODE ?? 'mock'
   const cvMode = import.meta.env.VITE_CV_MODE ?? 'mock'
 
+  const isRealToken = typeof window !== 'undefined' && (
+    window.location.search.includes('token=inv_') ||
+    window.location.search.includes('token=eyJ') ||
+    window.location.pathname.includes('/inv_') ||
+    window.location.pathname.includes('/eyJ')
+  )
+  const useRealApi = sessionApiMode === 'real' || (sessionApiMode === 'auto' && isRealToken) || isRealToken
+
   return {
-    sessionApi: sessionApiMode === 'real' ? realSessionApiAdapter : mockSessionApiAdapter,
+    sessionApi: useRealApi ? realSessionApiAdapter : mockSessionApiAdapter,
     time: timeMode === 'real' ? realTimeAuthorityAdapter : mockTimeAuthorityAdapter,
     scenario: scenarioMode === 'real' ? realScenarioEngineAdapter : mockScenarioEngineAdapter,
     cv: cvMode === 'real' ? realCvDetectionAdapter : mockCvDetectionAdapter,

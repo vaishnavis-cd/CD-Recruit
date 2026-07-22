@@ -58,7 +58,30 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge()
   const [networkDisconnected, setNetworkDisconnected] = React.useState(false)
 
-  const currentModule = MODULES[moduleIndex]
+  const activeModules = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) {
+      return MODULES
+    }
+    const MODULE_NAME_MAP: Record<string, { id: string; name: string }> = {
+      MCQ: { id: 'mcq', name: 'MCQ' },
+      SQL: { id: 'sql', name: 'SQL' },
+      CODING: { id: 'coding', name: 'Coding' },
+      AI_PROMPTING: { id: 'prompting', name: 'AI Prompting' },
+      SIMULATION: { id: 'simulation', name: 'Contextual Simulation' },
+      CONTEXTUAL: { id: 'simulation', name: 'Contextual Simulation' },
+    }
+    const types: string[] = []
+    for (const q of assessment.questions) {
+      const type = q.moduleType as string
+      if (type && !types.includes(type)) {
+        types.push(type)
+      }
+    }
+    if (types.length === 0) return MODULES
+    return types.map((t) => MODULE_NAME_MAP[t] || { id: t.toLowerCase(), name: t })
+  }, [assessment?.questions])
+
+  const currentModule = activeModules[moduleIndex] || activeModules[0]
   const currentQuestion = questions[currentQuestionIndex]
 
   // STEP 1: Start ProctoringModule when assessment session is active
@@ -174,9 +197,9 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
           <ProctoringIndicator cvMode={cvMode} />
           <Timer />
 
-          {/* Module navigation tabs */}
+          {/* Module navigation tabs — only show active modules assigned to drive */}
           <nav aria-label="Module navigation" className="hidden md:flex items-center gap-1">
-            {MODULES.map((mod, i) => (
+            {activeModules.map((mod, i) => (
               <button
                 key={i}
                 onClick={() => transitionTo({ type: 'assessment', moduleIndex: i, sessionId: assessment?.sessionId ?? '' })}
@@ -191,7 +214,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
                   }
                 `}
               >
-                {i + 1}
+                {mod.name}
               </button>
             ))}
           </nav>

@@ -3,6 +3,7 @@ import { MCQ_QUESTIONS } from '../../fixtures/questions'
 import type { MCQQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
 interface MCQModuleProps {
   moduleIndex: number
@@ -15,8 +16,33 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  const questions = MCQ_QUESTIONS
+  const assignedMcqQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) return MCQ_QUESTIONS
+    const filtered = assessment.questions.filter((q) => q.moduleType === 'MCQ')
+    if (filtered.length === 0) return []
+    return filtered.map((q, i) => {
+      const content = q.content || {}
+      const rawOptions = content.options || ['Option A', 'Option B', 'Option C', 'Option D']
+      const options = rawOptions.map((opt: any, optIdx: number) => {
+        if (typeof opt === 'string') return { id: `opt_${optIdx}`, text: opt }
+        return { id: opt.id || `opt_${optIdx}`, text: opt.text || opt.label || `Option ${optIdx + 1}` }
+      })
+      return {
+        id: q.questionId,
+        moduleIndex,
+        type: 'mcq' as const,
+        text: content.prompt || content.text || content.question || content.title || `MCQ Question ${i + 1}`,
+        options,
+        allowMultiple: Boolean(content.allowMultiple),
+        correctIds: [],
+      } as MCQQuestion
+    })
+  }, [assessment?.questions, moduleIndex])
+
+  const questions = assignedMcqQuestions
   const question = questions[currentIndex] as MCQQuestion
+
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
 
   // Restore current question from persisted state
   useEffect(() => {
@@ -29,33 +55,34 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
     setCurrentQuestion(moduleIndex, currentIndex)
   }, [currentIndex, moduleIndex, setCurrentQuestion])
 
-  const paletteItems = questions.map((q, i) => ({
-    id: q.id,
-    label: `Question ${i + 1}`,
-  }))
+  const currentSelection = (assessment?.responses[question?.id] as string[] | undefined) || []
 
-  const currentAnswer = (assessment?.responses[question?.id] ?? []) as string[]
-
-  function handleOptionToggle(optionId: string) {
+  function handleOptionSelect(optionId: string) {
     if (!question) return
-    let next: string[]
+    let nextSelection: string[]
     if (question.allowMultiple) {
-      next = currentAnswer.includes(optionId)
-        ? currentAnswer.filter(id => id !== optionId)
-        : [...currentAnswer, optionId]
+      nextSelection = currentSelection.includes(optionId)
+        ? currentSelection.filter(id => id !== optionId)
+        : [...currentSelection, optionId]
     } else {
-      next = [optionId]
+      nextSelection = [optionId]
     }
-    setResponse(question.id, next)
-    if (next.length > 0 && (assessment?.questionStatus[question.id] !== 'flagged')) {
-      setQuestionStatus(question.id, 'answered')
-    }
+    setResponse(question.id, nextSelection)
+    setQuestionStatus(question.id, 'answered')
   }
 
   function handleSkip() {
-    setQuestionStatus(question.id, 'skipped')
-    if (currentIndex < questions.length - 1) setCurrentIndex(i => i + 1)
+    if (!question) return
+    if (!assessment?.questionStatus[question.id] || assessment?.questionStatus[question.id] === 'unvisited') {
+      setQuestionStatus(question.id, 'skipped')
+    }
+    handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))
   }
+
+  const paletteItems = questions.map((q, i) => ({
+    id: q.id,
+    label: `Q${i + 1}`,
+  }))
 
   if (!question) return null
 
@@ -66,52 +93,68 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="mb-2 text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
-          Question {currentIndex + 1} of {questions.length}
+      <div className="max-w-3xl mx-auto py-8 px-6">
+        {/* Question Header */}
+        <div className="flex items-center justify-between mb-6">
+          <span className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] font-mono">
+            Question {currentIndex + 1} of {questions.length}
+          </span>
+          {question?.allowMultiple && (
+            <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+              Multiple select
+            </span>
+          )}
         </div>
 
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1 leading-relaxed">
-          {question.text}
+        {/* Question Text */}
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6 leading-relaxed">
+          {question?.text}
         </h2>
 
-        {question.allowMultiple && (
-          <p className="text-sm text-[var(--text-secondary)] mb-6">
-            Select all that apply.
-          </p>
-        )}
-
-        <fieldset className="mt-6" aria-label={`Options for question ${currentIndex + 1}`}>
-          <legend className="sr-only">{question.text}</legend>
+        {/* Options */}
+        <fieldset aria-label={`Question ${currentIndex + 1} options`}>
+          <legend className="sr-only">Options</legend>
           <div className="space-y-3">
-            {question.options.map(opt => {
-              const selected = currentAnswer.includes(opt.id)
+            {question?.options.map(option => {
+              const isSelected = currentSelection.includes(option.id)
               const inputType = question.allowMultiple ? 'checkbox' : 'radio'
-              const inputId = `opt-${question.id}-${opt.id}`
 
               return (
                 <label
-                  key={opt.id}
-                  htmlFor={inputId}
+                  key={option.id}
                   className={`
-                    flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all
-                    hover:border-[var(--accent)] hover:bg-[var(--accent)]/5
-                    focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:ring-offset-1
-                    ${selected
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/10'
-                      : 'border-[var(--border)] bg-[var(--surface)]'
+                    flex items-center gap-4 p-4 rounded-lg border text-sm transition-all cursor-pointer
+                    ${isSelected
+                      ? 'border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--text-primary)] font-medium'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }
                   `}
                 >
                   <input
-                    id={inputId}
                     type={inputType}
-                    name={question.allowMultiple ? `mcq-${question.id}-${opt.id}` : `mcq-${question.id}`}
-                    checked={selected}
-                    onChange={() => handleOptionToggle(opt.id)}
-                    className="mt-0.5 w-4 h-4 text-[var(--accent)] border-[var(--border)] focus:ring-[var(--accent)] flex-shrink-0"
+                    name={`question-${question.id}`}
+                    value={option.id}
+                    checked={isSelected}
+                    onChange={() => handleOptionSelect(option.id)}
+                    className="sr-only"
                   />
-                  <span className="text-[var(--text-primary)] text-sm leading-relaxed">{opt.text}</span>
+
+                  {/* Custom Indicator */}
+                  <span
+                    aria-hidden
+                    className={`
+                      w-5 h-5 rounded flex items-center justify-center border text-xs font-bold transition-colors shrink-0
+                      ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
+                      ${isSelected
+                        ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                        : 'border-[var(--border)] bg-[var(--bg)] text-[var(--text-secondary)]'
+                      }
+                    `}
+                  >
+                    {isSelected ? '✓' : option.id.toUpperCase()}
+                  </span>
+
+                  <span className="flex-1">{option.text}</span>
                 </label>
               )
             })}
@@ -123,7 +166,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
             aria-label="Previous question"
           >
             ← Previous
@@ -132,18 +175,17 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
           <div className="flex gap-2">
             <button
               onClick={handleSkip}
-              className="px-4 py-2 rounded text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="px-4 py-2 rounded text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
               aria-label="Skip this question"
             >
               Skip
             </button>
             <button
-              onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-              disabled={currentIndex === questions.length - 1}
-              className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-              aria-label="Next question"
+              onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+              className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
+              aria-label={nextButtonLabel}
             >
-              Next →
+              {nextButtonLabel}
             </button>
           </div>
         </div>
