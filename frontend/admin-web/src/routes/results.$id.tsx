@@ -618,7 +618,7 @@ function IndividualResultPage() {
 
                       {!(flag as any).promptText && (
                         <button
-                          onClick={() => setActiveClipUrl(`/proctoring/clips/${flag.id}.webm`)}
+                          onClick={() => setActiveClipUrl((flag as any).clipUrl || (flag as any).storageRef || `/proctoring/clips/${flag.id}.webm`)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           <Video size={13} />
