@@ -118,19 +118,31 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       return
     }
 
-    const promptingQ = PROMPTING_QUESTIONS.find((q) => q.id === questionId)
-    if (promptingQ) {
+    // Check if it is an AI Prompting question
+    const isAiPromptingQuestion = questionSummary?.moduleType === 'AI_PROMPTING'
+    if (isAiPromptingQuestion) {
       const promptData = val as { prompt: string; aiResponse?: string }
       await apiClient.post('/ai-prompting/submit', {
         sessionId,
         questionId,
-        prompt: promptData.prompt,
+        prompt: promptData?.prompt || '',
         timeSpentSeconds: 0,
       })
       return
     }
 
-    // MCQ is mock/no-ops
+    // Check if it is an MCQ question
+    const isMcqQuestion = questionSummary?.moduleType === 'MCQ'
+    if (isMcqQuestion) {
+      await apiClient.post('/mcq/submit', {
+        sessionId,
+        questionId,
+        selectedOptions: Array.isArray(val) ? val : [],
+        timeSpentSeconds: 0,
+      })
+      return
+    }
+
     return Promise.resolve()
   },
 
