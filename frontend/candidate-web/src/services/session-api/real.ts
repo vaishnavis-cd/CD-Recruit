@@ -49,6 +49,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       startedAt: beginRes.data.startedAt || startedAt || new Date().toISOString(),
       submittedAt: null,
       status: 'active',
+      questions: beginRes.data.questions,
     }
   },
 
@@ -60,15 +61,17 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   async submitModuleResponse(response: ModuleResponse): Promise<void> {
     const { sessionId, questionId, response: val } = response
 
-    // Look up question type to see if it is SQL or Coding
-    const codingQ = CODING_QUESTIONS.find((q) => q.id === questionId)
+    // Identify question type from the assessment store (uses real DB UUIDs, not fixture IDs)
+    const { assessment } = useSessionStore.getState()
+    const questionSummary = assessment?.questions?.find(q => q.questionId === questionId)
+    const isCodingQuestion = questionSummary?.moduleType === 'CODING'
 
-    if (codingQ) {
+    if (isCodingQuestion) {
       // For coding questions: call draft/submit endpoint
       await apiClient.post('/coding/submit', {
         sessionId,
         questionId,
-        language: codingQ.language,
+        language: (val as any)?.language || 'python',
         sourceCode: typeof val === 'string' ? val : (val as any)?.code || '',
         timeSpentSeconds: 0,
       })
@@ -76,12 +79,12 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     }
 
     // Check if it is a SQL question
-    // (If the question is SQL, the value in Zustand responses is a string containing the query)
-    if (typeof val === 'string' && (val.toLowerCase().includes('select') || val.toLowerCase().includes('insert') || val.toLowerCase().includes('update'))) {
+    const isSqlQuestion = questionSummary?.moduleType === 'SQL'
+    if (isSqlQuestion) {
       await apiClient.post('/sql/submit', {
         sessionId,
         questionId,
-        query: val,
+        query: typeof val === 'string' ? val : '',
         timeSpentSeconds: 0,
       })
       return
