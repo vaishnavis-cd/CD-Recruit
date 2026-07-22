@@ -1,6 +1,7 @@
 import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, IntegritySignalType, SyncEventPayload } from './port'
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
+import { realSessionApiAdapter } from './real'
 
 // Configurable failure rate for retry-path testing (0 = never fail, 1 = always fail)
 const MOCK_FAILURE_RATE = 0.1
@@ -105,5 +106,9 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       return { success: false, retryAfterMs: 3000 }
     }
     return { success: true }
+  },
+
+  async runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string> {
+    return realSessionApiAdapter.runAiPrompt(payload)
   },
 }

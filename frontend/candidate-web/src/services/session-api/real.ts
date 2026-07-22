@@ -2,7 +2,7 @@ import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, I
 import axios from 'axios'
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
-import { CODING_QUESTIONS } from '../../fixtures/questions'
+import { CODING_QUESTIONS, PROMPTING_QUESTIONS } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
 
@@ -87,8 +87,25 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       return
     }
 
-    // MCQ and AI Prompting are mock/no-ops
+    const promptingQ = PROMPTING_QUESTIONS.find((q) => q.id === questionId)
+    if (promptingQ) {
+      const promptData = val as { prompt: string; aiResponse?: string }
+      await apiClient.post('/ai-prompting/submit', {
+        sessionId,
+        questionId,
+        prompt: promptData.prompt,
+        timeSpentSeconds: 0,
+      })
+      return
+    }
+
+    // MCQ is mock/no-ops
     return Promise.resolve()
+  },
+
+  async runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string> {
+    const res = await apiClient.post('/ai-prompting/run', payload)
+    return res.data.aiResponse || 'No response generated.'
   },
 
   async submitFinalAssessment(sessionId: string): Promise<{ referenceId: string }> {
