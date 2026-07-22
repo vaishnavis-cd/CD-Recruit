@@ -22,6 +22,7 @@ import {
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { ModuleType } from "@cd-recruit/shared-types";
+import { CodeEditor } from "../components/common/CodeEditor";
 
 export const Route = createFileRoute("/questions")({
   component: QuestionBankPage,
@@ -916,13 +917,14 @@ function QuestionBankPage() {
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                       Starter Code
                     </label>
-                    <textarea
-                      value={starterCode}
-                      onChange={(e) => setStarterCode(e.target.value)}
-                      rows={4}
-                      placeholder="function solve(arr) { \n  // write code \n}"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
+                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={starterCode}
+                        onChange={(val) => setStarterCode(val)}
+                        language="javascript"
+                        theme="light"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
@@ -1259,13 +1261,14 @@ function QuestionBankPage() {
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                       Starter Code
                     </label>
-                    <textarea
-                      value={editStarterCode}
-                      onChange={(e) => setEditStarterCode(e.target.value)}
-                      rows={4}
-                      placeholder="function solve(arr) { \n  // write code \n}"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
+                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={editStarterCode}
+                        onChange={(val) => setEditStarterCode(val)}
+                        language="javascript"
+                        theme="light"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">

@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import Editor from "@monaco-editor/react";
+import { CodeEditor, PasteEventData } from "@/components/common/CodeEditor";
 import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
 import { useSessionStore } from "@/store/sessionMachine";
 import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
 import { useTheme } from "@/theme/ThemeProvider";
-import { cdRecruitLightTheme, cdRecruitDarkTheme } from "@/theme/monacoTheme";
 import { DetectionEngineService } from "@/proctoring/detection-engine.service";
+import { ProctoringEventService } from "@/proctoring/proctoring-event.service";
 
 interface CodingWorkspaceProps {
   question: {
@@ -204,11 +204,26 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   const handleEditorMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+  };
 
-    // Define Cd-Recruit themes
-    monaco.editor.defineTheme("cd-recruit-light", cdRecruitLightTheme);
-    monaco.editor.defineTheme("cd-recruit-dark", cdRecruitDarkTheme);
-    monaco.editor.setTheme(theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light");
+  const handlePaste = (data: PasteEventData) => {
+    if (sessionId) {
+      try {
+        ProctoringEventService.getInstance().createEvent({
+          sessionId,
+          eventType: "PASTE_DETECTED" as any,
+          severity: "MEDIUM" as any,
+          timestamp: new Date(data.timestamp).toISOString(),
+          metadata: {
+            charCount: data.length,
+            textSnippet: data.text.slice(0, 100),
+            questionId: question.id,
+          },
+        });
+      } catch (err) {
+        console.warn("Failed to record paste event:", err);
+      }
+    }
   };
 
   const handleLanguageChange = (newLang: string) => {
@@ -382,24 +397,14 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
 
       {/* Editor Panel */}
       <div className="flex-1 min-h-0 relative">
-        <Editor
-          height="100%"
+        <CodeEditor
           language={activeLangConfig.monacoLanguage}
           value={activeCode}
-          theme={theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light"}
+          theme={theme === "dark" ? "dark" : "light"}
           onChange={handleEditorChange}
           onMount={handleEditorMount}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 13,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            lineNumbers: "on",
-            tabSize: selectedLanguage === "python" ? 4 : 2,
-            wordWrap: "on",
-            padding: { top: 12, bottom: 12 },
-            readOnly: isReadOnly,
-          }}
+          onPaste={handlePaste}
+          readOnly={isReadOnly}
         />
       </div>
 

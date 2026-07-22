@@ -1,4 +1,6 @@
-export const cdRecruitLightTheme: any = {
+import type { editor } from "monaco-editor";
+
+export const cdRecruitLightTheme: editor.IStandaloneThemeData = {
   base: 'vs',
   inherit: true,
   rules: [
@@ -25,9 +27,9 @@ export const cdRecruitLightTheme: any = {
     'editorSuggestWidget.border': '#E4E6EB',
     'editorSuggestWidget.selectedBackground': '#F0F4FF',
   },
-}
+};
 
-export const cdRecruitDarkTheme: any = {
+export const cdRecruitDarkTheme: editor.IStandaloneThemeData = {
   base: 'vs-dark',
   inherit: false,
   rules: [
@@ -53,12 +55,11 @@ export const cdRecruitDarkTheme: any = {
     'editorLineNumber.activeForeground': '#F2F3F5',
     'editorCursor.foreground': '#5B7FFF',
     'editor.inactiveSelectionBackground': '#5B7FFF22',
-    'editorIndentGuide.background1': '#2A2E37',
-    'editorIndentGuide.activeBackground1': '#9CA3AF',
     'editorWidget.background': '#1A1D24',
     'editorWidget.border': '#2A2E37',
     'editorSuggestWidget.background': '#1A1D24',
     'editorSuggestWidget.border': '#2A2E37',
     'editorSuggestWidget.selectedBackground': '#2A2E37',
   },
-}
+};
+

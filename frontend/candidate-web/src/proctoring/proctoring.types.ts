@@ -42,5 +42,6 @@ export interface ProctoringEvent {
   clipUrl?: string | null;
   modelVersion?: string;
   uploadStatus?: "PENDING" | "UPLOADED" | "FAILED";
+  metadata?: Record<string, any>;
   createdAt?: string;
 }
