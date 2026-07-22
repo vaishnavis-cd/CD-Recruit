@@ -12,7 +12,9 @@ import { LocalFakeObjectStorageProvider } from "../storage/local-fake-object-sto
       provide: ObjectStoragePort,
       useFactory: (minioService: MinioService, fakeProvider: LocalFakeObjectStorageProvider) => {
         const mode = process.env.INFRA_MODE ?? "local";
-        return mode === "full" ? minioService : fakeProvider;
+        const active = mode === "mock" ? fakeProvider : minioService;
+        console.log(`[StorageProvider] ObjectStoragePort = ${active.constructor.name}`);
+        return active;
       },
       inject: [MinioService, LocalFakeObjectStorageProvider],
     },
