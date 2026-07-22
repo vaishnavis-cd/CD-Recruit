@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react'
-import { MCQ_QUESTIONS } from '../../fixtures/questions'
+import React, { useEffect, useState } from 'react'
 import type { MCQQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+import apiClient from '../../api/client'
 
 interface MCQModuleProps {
   moduleIndex: number
@@ -17,32 +17,19 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
   const assignedMcqQuestions = React.useMemo(() => {
-    if (!assessment?.questions || assessment.questions.length === 0) return MCQ_QUESTIONS
-    const filtered = assessment.questions.filter((q) => q.moduleType === 'MCQ')
-    if (filtered.length === 0) return []
-    return filtered.map((q, i) => {
-      const content = q.content || {}
-      const rawOptions = content.options || ['Option A', 'Option B', 'Option C', 'Option D']
-      const options = rawOptions.map((opt: any, optIdx: number) => {
-        if (typeof opt === 'string') return { id: `opt_${optIdx}`, text: opt }
-        return { id: opt.id || `opt_${optIdx}`, text: opt.text || opt.label || `Option ${optIdx + 1}` }
-      })
-      return {
-        id: q.questionId,
-        moduleIndex,
-        type: 'mcq' as const,
-        text: content.prompt || content.text || content.question || content.title || `MCQ Question ${i + 1}`,
-        options,
-        allowMultiple: Boolean(content.allowMultiple),
-        correctIds: [],
-      } as MCQQuestion
-    })
-  }, [assessment?.questions, moduleIndex])
+    if (!assessment?.questions || assessment.questions.length === 0) return []
+    return assessment.questions.filter((q) => q.moduleType === 'MCQ')
+  }, [assessment?.questions])
 
   const questions = assignedMcqQuestions
-  const question = questions[currentIndex] as MCQQuestion
+  const questionMetadata = questions[currentIndex]
+  const questionId = questionMetadata?.questionId ?? ''
 
   const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
+
+  const [questionData, setQuestionData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Restore current question from persisted state
   useEffect(() => {
@@ -55,7 +42,63 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
     setCurrentQuestion(moduleIndex, currentIndex)
   }, [currentIndex, moduleIndex, setCurrentQuestion])
 
-  const currentSelection = (assessment?.responses[question?.id] as string[] | undefined) || []
+  // Fetch question details and responses from backend
+  useEffect(() => {
+    if (!assessment?.sessionId || !questionId) {
+      setLoading(false)
+      return
+    }
+    let isMounted = true
+    setLoading(true)
+    setError(null)
+    apiClient.get(`/sessions/${assessment.sessionId}/questions/${questionId}`)
+      .then(res => {
+        if (isMounted) {
+          setQuestionData(res.data)
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          setError(err.message || 'Failed to load question details')
+          setLoading(false)
+        }
+      })
+    return () => { isMounted = false }
+  }, [assessment?.sessionId, questionId])
+
+  // Map to MCQQuestion structure
+  const question = React.useMemo(() => {
+    if (!questionData) return null
+    const content = questionData.content || {}
+    const rawOptions = content.options || []
+    const options = rawOptions.map((opt: any, optIdx: number) => {
+      if (typeof opt === 'string') return { id: `opt_${optIdx}`, text: opt }
+      return { id: opt.id || `opt_${optIdx}`, text: opt.text || opt.label || `Option ${optIdx + 1}` }
+    })
+    return {
+      id: questionId,
+      moduleIndex,
+      type: 'mcq' as const,
+      text: content.prompt || content.text || content.question || content.title || 'MCQ Question',
+      options,
+      allowMultiple: Boolean(content.allowMultiple),
+      correctIds: [],
+    } as MCQQuestion
+  }, [questionData, questionId, moduleIndex])
+
+  // Sync DB response to store
+  useEffect(() => {
+    if (questionData && questionId) {
+      const dbResponse = questionData.response?.responsePayload as { selectedOptions?: string[] } | undefined
+      if (dbResponse?.selectedOptions && !assessment?.responses[questionId]) {
+        setResponse(questionId, dbResponse.selectedOptions)
+        setQuestionStatus(questionId, 'answered')
+      }
+    }
+  }, [questionData, questionId])
+
+  const currentSelection = (assessment?.responses[questionId] as string[] | undefined) || []
 
   function handleOptionSelect(optionId: string) {
     if (!question) return
@@ -67,24 +110,42 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
     } else {
       nextSelection = [optionId]
     }
-    setResponse(question.id, nextSelection)
-    setQuestionStatus(question.id, 'answered')
+    setResponse(questionId, nextSelection)
+    setQuestionStatus(questionId, 'answered')
   }
 
   function handleSkip() {
-    if (!question) return
-    if (!assessment?.questionStatus[question.id] || assessment?.questionStatus[question.id] === 'unvisited') {
-      setQuestionStatus(question.id, 'skipped')
+    if (!questionId) return
+    if (!assessment?.questionStatus[questionId] || assessment?.questionStatus[questionId] === 'unvisited') {
+      setQuestionStatus(questionId, 'skipped')
     }
     handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))
   }
 
   const paletteItems = questions.map((q, i) => ({
-    id: q.id,
+    id: q.questionId,
     label: `Q${i + 1}`,
   }))
 
-  if (!question) return null
+  if (loading) {
+    return (
+      <ModuleShell moduleIndex={moduleIndex} questions={paletteItems} currentQuestionIndex={currentIndex} onNavigate={setCurrentIndex}>
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <span className="text-[var(--text-secondary)] text-sm animate-pulse">Loading question…</span>
+        </div>
+      </ModuleShell>
+    )
+  }
+
+  if (error || !question) {
+    return (
+      <ModuleShell moduleIndex={moduleIndex} questions={paletteItems} currentQuestionIndex={currentIndex} onNavigate={setCurrentIndex}>
+        <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-2">
+          <span className="text-[var(--warning)] text-sm">{error || 'No questions available for this module.'}</span>
+        </div>
+      </ModuleShell>
+    )
+  }
 
   return (
     <ModuleShell
