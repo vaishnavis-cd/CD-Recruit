@@ -9,6 +9,7 @@ import { eventTemplates, EventTemplate } from "./event-template-library";
 import { EventGenerationService } from "./event-generation.service";
 import { CompetencyEngine, EventScoreDetail } from "./competency-engine";
 import { CorrelationEngineClient } from "../common/correlation-engine.client";
+import { CorrelationGradingService } from "./correlation-grading.service";
 
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
@@ -23,6 +24,7 @@ export class SimulationService implements AssessmentModuleEngine {
     private eventGenerationService: EventGenerationService,
     private competencyEngine: CompetencyEngine,
     private correlationClient: CorrelationEngineClient,
+    private correlationGradingService: CorrelationGradingService,
   ) {}
 
   async validateSubmission(submission: any): Promise<boolean> {
@@ -341,10 +343,10 @@ export class SimulationService implements AssessmentModuleEngine {
         },
       });
       
-      // Trigger Say-Do correlation engine asynchronously
-      this.correlationClient.triggerCorrelation(sessionId).catch((err) => {
-        console.error(`Failed to trigger correlation asynchronously: ${err.message}`);
-      });
+      // Enqueue Say-Do correlation scoring via BullMQ (3 retries, exponential backoff)
+      // Falls back to local retry in non-full infra mode.
+      // On final failure, ORPHANED_UNSCORED_SESSION is logged — session stays at -1.0 sentinel.
+      await this.correlationGradingService.enqueue(sessionId);
     }
 
     // Save final state

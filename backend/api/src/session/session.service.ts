@@ -725,10 +725,10 @@ export class SessionService {
     }
 
     if (moduleType === "CODING") {
-      const { hiddenTests: _ht, ...rest } = c;
-      const visibleTestCases = Array.isArray(rest.testCases)
+      const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
+      const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
         ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
-        : [];
+        : []);
       return { ...rest, testCases: visibleTestCases };
     }
 
@@ -818,6 +818,7 @@ export class SessionService {
     const consentRecord = await this.prisma.consentRecord.create({
       data: {
         candidateId: session.candidateId,
+        consentType: "TERMS",
         version: version || "1.0",
         ipAddress: ipAddress || "127.0.0.1",
         consentedAt: new Date(),

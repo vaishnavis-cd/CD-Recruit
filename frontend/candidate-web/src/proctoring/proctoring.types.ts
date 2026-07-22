@@ -6,7 +6,10 @@ export type ProctoringEventType =
   | "EXCESSIVE_MOVEMENT"
   | "PHONE_DETECTED"
   | "HEADPHONES_DETECTED"
-  | "BOOK_DETECTED";
+  | "BOOK_DETECTED"
+  | "SPEECH_DETECTED"
+  | "SECOND_VOICE_SUSPECTED"
+  | "IDENTITY_MISMATCH";
 
 export type HeadDirection = "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN";
 

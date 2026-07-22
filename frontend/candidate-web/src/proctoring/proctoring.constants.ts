@@ -9,6 +9,9 @@ export const SEVERITY_MAPPING: Record<ProctoringEventType, "MEDIUM" | "HIGH"> = 
   PHONE_DETECTED: "HIGH",
   HEADPHONES_DETECTED: "HIGH",
   EXCESSIVE_MOVEMENT: "HIGH",
+  SPEECH_DETECTED: "MEDIUM",
+  SECOND_VOICE_SUSPECTED: "HIGH",
+  IDENTITY_MISMATCH: "HIGH",
 };
 
 export const COOLDOWN_MAPPING: Record<ProctoringEventType, number> = {
@@ -20,6 +23,9 @@ export const COOLDOWN_MAPPING: Record<ProctoringEventType, number> = {
   EXCESSIVE_MOVEMENT: 15000,
   MULTIPLE_FACES: 0,
   SEAT_EXIT: 0,
+  SPEECH_DETECTED: 15000,
+  SECOND_VOICE_SUSPECTED: 30000,
+  IDENTITY_MISMATCH: 30000,
 };
 
 // Recognition & tracking thresholds

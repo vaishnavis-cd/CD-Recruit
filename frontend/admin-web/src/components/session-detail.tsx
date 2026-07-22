@@ -88,10 +88,16 @@ export function SessionDetailBody({
           <div className="flex gap-4 mt-2 text-[11px] font-mono text-[#5B5B64]">
             <span>{session.id}</span>
             <span>
-              composite <span className="text-[#0B0B0D]">{session.compositeScore}</span>
+              composite{" "}
+              <span className="text-[#0B0B0D]">
+                {session.compositeScore !== null ? session.compositeScore : "—"}
+              </span>
             </span>
             <span>
-              say-do <span className="text-[#0B0B0D]">{session.sayDoScore}</span>
+              say-do{" "}
+              <span className="text-[#0B0B0D]">
+                {session.sayDoScore !== null ? session.sayDoScore : "—"}
+              </span>
             </span>
             <span className={criticalCount ? "text-[#9A2A2E]" : ""}>
               integrity: {integritySummary}

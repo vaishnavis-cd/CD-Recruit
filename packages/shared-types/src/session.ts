@@ -142,6 +142,7 @@ export interface CandidateSession {
   startedAt: string;
   submittedAt: string | null;
   status: "active" | "submitted" | "expired";
+  questions?: QuestionSummary[];
 }
 
 export interface CandidateModuleResponse {
