@@ -818,7 +818,7 @@ export class SessionService {
     const consentRecord = await this.prisma.consentRecord.create({
       data: {
         candidateId: session.candidateId,
-        consentType: "TERMS",
+        consentType: "TERMS" as any,
         version: version || "1.0",
         ipAddress: ipAddress || "127.0.0.1",
         consentedAt: new Date(),
