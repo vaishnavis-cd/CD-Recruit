@@ -9,12 +9,14 @@ import { EvidenceCaptureService } from "./evidence-capture.service";
 import { EvidenceUploadService } from "./evidence-upload.service";
 import { ProctoringEventService } from "./proctoring-event.service";
 import { AudioDetectionService } from "./audio-detection.service";
+import { runCapabilityCheck, CapabilityReport } from "./capability-check";
 
 export class ProctoringModule {
   private static instance: ProctoringModule | null = null;
   private isRunning = false;
   private sessionId = "";
   private startingPromise: Promise<boolean> | null = null;
+  private capabilityReport: CapabilityReport | null = null;
 
   private unsubscribeFrame: (() => void) | null = null;
   private unsubscribeEvents: (() => void) | null = null;
@@ -30,7 +32,7 @@ export class ProctoringModule {
 
   /**
    * Starts the on-device proctoring pipeline.
-   * Loads models, configures listeners, starts camera and rolling buffers.
+   * Runs pre-flight WASM capability check, initializes models, camera, and rolling buffers.
    * Returns true if successful, false if camera access is denied.
    */
   public async start(sessionId: string): Promise<boolean> {
@@ -40,7 +42,9 @@ export class ProctoringModule {
     this.startingPromise = (async () => {
       const startTime = performance.now();
       this.sessionId = sessionId;
-      console.log(`[Proctoring] [STEP 1 START] Acquiring webcam for sessionId: ${sessionId}...`);
+      console.log(`[Proctoring] [PRE-FLIGHT] Executing WASM benchmark & capability check for session: ${sessionId}...`);
+
+      this.capabilityReport = await runCapabilityCheck();
 
       const webcam = WebcamService.getInstance();
       const hasPermission = await webcam.requestPermission();

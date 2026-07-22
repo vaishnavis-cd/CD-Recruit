@@ -6,6 +6,7 @@ import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryRes
 import { SessionStatus } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 
 const COOLDOWNS: Record<string, number> = {
   PHONE_DETECTED: 30000,
@@ -175,9 +176,10 @@ export class ProctoringService {
       );
     }
 
+    const sha256Hash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
     const storageRef = `proctoring/${targetSessionId}/${filename}`;
     this.logger.log(
-      `[ProctoringService] MINIO_UPLOAD_START: filename=${filename}, bucket=${this.bucketBiometric}, storageRef=${storageRef}`,
+      `[ProctoringService] MINIO_UPLOAD_START: filename=${filename}, sha256=${sha256Hash}, bytes=${fileBuffer.length}, bucket=${this.bucketBiometric}, storageRef=${storageRef}`,
     );
 
     const success = await this.storage.putObject(
