@@ -36,7 +36,7 @@ export const Route = createFileRoute("/results/$id")({
 
 function IndividualResultPage() {
   const { id } = useParams({ from: "/results/$id" });
-  const fetchSessionDetail = useStore((s) => s.fetchSessionDetailForResults);
+  const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
   const recordCandidateDecision = useStore((s) => s.recordCandidateDecision);
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);

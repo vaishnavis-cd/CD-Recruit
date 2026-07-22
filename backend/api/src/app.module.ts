@@ -22,6 +22,8 @@ import { ProctoringModule } from "./proctoring/proctoring.module";
 import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
 import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
+import { McqModule } from "./mcq/mcq.module";
+
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -85,6 +87,8 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     AiEvaluationModule,
     SimulationModule,
     AiPromptingModule,
+    McqModule,
+
   ],
 })
 export class AppModule {}

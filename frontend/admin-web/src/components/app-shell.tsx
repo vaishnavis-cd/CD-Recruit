@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   BriefcaseBusiness,
@@ -37,15 +37,30 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const user = getUserProfile();
-  const userName = user?.name || "Rachel Brooks";
-  const userRole = user?.role ? user.role.toLowerCase() : "recruiter";
-  const initials = userName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
+  const [userInfo, setUserInfo] = useState<{ userName: string; userRole: string; initials: string }>({
+    userName: "Rachel Brooks",
+    userRole: "recruiter",
+    initials: "RB",
+  });
+
+  useEffect(() => {
+    const user = getUserProfile();
+    if (user) {
+      const name = user.name || "Rachel Brooks";
+      const role = user.role ? user.role.toLowerCase() : "recruiter";
+      const inits = name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+      setUserInfo({
+        userName: name,
+        userRole: role,
+        initials: inits,
+      });
+    }
+  }, []);
 
   const handleLogout = () => {
     clearStoredToken();
@@ -97,12 +112,12 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
 
         <div className="px-4 py-3 border-t border-[#E6E6EA] flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#2F5CFF] text-white flex items-center justify-center text-[11px] font-mono font-semibold">
-            {initials}
+            {userInfo.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] truncate text-[#0B0B0D] font-medium">{userName}</div>
+            <div className="text-[12px] truncate text-[#0B0B0D] font-medium">{userInfo.userName}</div>
             <div className="text-[10px] font-mono text-[#8B8B93] uppercase tracking-[0.14em]">
-              {userRole}
+              {userInfo.userRole}
             </div>
           </div>
           <button

@@ -215,6 +215,7 @@ model Session {
   disconnectedAt    DateTime? @map("disconnected_at")       // set when heartbeat goes stale
   activeTabId       String?   @map("active_tab_id")         // single-active-session enforcement
   disconnectCount   Int       @default(0) @map("disconnect_count") // incremented on each DISCONNECTED event; AUTO_SUBMITTED when ≥ 3
+  workspaceStatus   String?   @default("provisioning") @map("workspace_status")
 
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
@@ -307,6 +308,7 @@ model Score {
   aiConfidence           Float   @map("ai_confidence")
   humanReviewed          Boolean @default(false) @map("human_reviewed")
   sayDoRationale         String? @map("say_do_rationale")
+  sayDoMismatches        Json?   @map("say_do_mismatches")
   gradingSource          String  @default("placeholder") @map("grading_source")
 
   session Session @relation(fields: [sessionId], references: [id])

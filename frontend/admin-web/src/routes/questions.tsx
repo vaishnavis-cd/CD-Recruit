@@ -68,6 +68,8 @@ function QuestionBankPage() {
   // SQL specific (Create)
   const [sqlSchema, setSqlSchema] = useState("");
   const [sqlSeed, setSqlSeed] = useState("");
+  const [sqlExpectedQuery, setSqlExpectedQuery] = useState("");
+
 
   // Coding specific (Create)
   const [starterCode, setStarterCode] = useState("");
@@ -86,6 +88,8 @@ function QuestionBankPage() {
   const [editCorrectIndex, setEditCorrectIndex] = useState(0);
   const [editSqlSchema, setEditSqlSchema] = useState("");
   const [editSqlSeed, setEditSqlSeed] = useState("");
+  const [editSqlExpectedQuery, setEditSqlExpectedQuery] = useState("");
+
   const [editStarterCode, setEditStarterCode] = useState("");
   const [editTestCasesInput, setEditTestCasesInput] = useState("");
   const [editSimTriggers, setEditSimTriggers] = useState("");
@@ -147,6 +151,8 @@ function QuestionBankPage() {
     } else if (q.moduleType === "SQL") {
       setEditSqlSchema(q.content?.schema || "");
       setEditSqlSeed(q.content?.seedData || "");
+      setEditSqlExpectedQuery(q.content?.expectedQuery || "");
+
     } else if (q.moduleType === "CODING") {
       setEditStarterCode(q.content?.starterCode || "");
       setEditTestCasesInput(
@@ -178,6 +184,8 @@ function QuestionBankPage() {
       } else if (editingQuestion.moduleType === "SQL") {
         content.schema = editSqlSchema;
         content.seedData = editSqlSeed;
+        content.expectedQuery = editSqlExpectedQuery;
+
       } else if (editingQuestion.moduleType === "CODING") {
         content.starterCode = editStarterCode;
         content.testCases = editTestCasesInput ? JSON.parse(editTestCasesInput) : [];
@@ -219,6 +227,8 @@ function QuestionBankPage() {
       } else if (moduleType === "SQL") {
         content.schema = sqlSchema;
         content.seedData = sqlSeed;
+        content.expectedQuery = sqlExpectedQuery;
+
       } else if (moduleType === "CODING") {
         content.starterCode = starterCode;
         content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
@@ -255,6 +265,8 @@ function QuestionBankPage() {
     setCorrectIndex(0);
     setSqlSchema("");
     setSqlSeed("");
+    setSqlExpectedQuery("");
+
     setStarterCode("");
     setTestCasesInput("");
     setSimTriggers("");
@@ -881,6 +893,19 @@ function QuestionBankPage() {
                       className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Expected Query SQL (Used for validation)
+                    </label>
+                    <textarea
+                      value={sqlExpectedQuery}
+                      onChange={(e) => setSqlExpectedQuery(e.target.value)}
+                      rows={3}
+                      placeholder="SELECT * FROM users ORDER BY name;"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+
                 </div>
               )}
 
@@ -1211,6 +1236,19 @@ function QuestionBankPage() {
                       className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Expected Query SQL (Used for validation)
+                    </label>
+                    <textarea
+                      value={editSqlExpectedQuery}
+                      onChange={(e) => setEditSqlExpectedQuery(e.target.value)}
+                      rows={3}
+                      placeholder="SELECT * FROM users ORDER BY name;"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+
                 </div>
               )}
 

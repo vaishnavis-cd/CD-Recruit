@@ -22,6 +22,11 @@ export interface ScenarioEnginePort {
   sendReply(messageId: number, text: string): Promise<void>
 
   /**
+   * Execute a candidate terminal command in the isolated sandbox container.
+   */
+  executeTerminalCommand?(command: string): Promise<{ stdout: string; stderr: string; exitCode: number; infraError?: boolean }>
+
+  /**
    * Reset the scenario (for dev panel use).
    */
   reset(scenarioId: string): void
