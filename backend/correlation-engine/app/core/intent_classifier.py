@@ -35,31 +35,29 @@ class IntentClassifier:
     @staticmethod
     def extract_actual_explanations(session_data: Dict[str, Any]) -> str:
         """
-        Extract explanations of actual implementations (e.g. SQL, Coding written descriptions, final answers).
+        Extract code diffs, code implementations, and written explanations (SQL, Coding source code & comments).
         """
         explanations = []
         
         for q_id, response in session_data.get("responses", {}).items():
             payload = response.get("payload", {})
             
-            # Extract explanations or notes from Coding or SQL modules
-            # Let's check for explanation/complexity writeups
             explanation = payload.get("explanation") or payload.get("notes") or payload.get("rationale") or ""
             if explanation:
                 explanations.append(f"Q-{q_id} Explanation: {explanation}")
                 
-            # If it's SQL or Coding and they provided query or comments, extract them
             if "query" in payload:
                 explanations.append(f"SQL Query Q-{q_id}: {payload.get('query')}")
             
             if "code" in payload and isinstance(payload["code"], str):
-                # Extract comments from candidate code as a source of text descriptions
-                lines = payload["code"].split("\n")
+                code_text = payload["code"]
+                explanations.append(f"Coding Implementation Q-{q_id}:\n```\n{code_text[:1500]}\n```")
+                lines = code_text.split("\n")
                 comments = [line.strip() for line in lines if line.strip().startswith(("#", "//", "/*", "*"))]
                 if comments:
                     explanations.append(f"Code Comments Q-{q_id}: " + " | ".join(comments[:10]))
 
         if not explanations:
-            return "No actual explanations, queries or comments found in session responses."
+            return "No actual code implementations, queries, or comments found in session responses."
             
         return "\n\n".join(explanations)

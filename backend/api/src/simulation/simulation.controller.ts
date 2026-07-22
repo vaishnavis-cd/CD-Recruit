@@ -8,13 +8,21 @@ import { Roles } from "../common/decorators/roles.decorator";
 import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
 import { StaffRole } from "@cd-recruit/shared-types";
 
+import { ScenarioOrchestratorService } from "./scenario-orchestrator.service";
+
 @Controller("sessions")
 export class SimulationController {
   constructor(
     private simulationService: SimulationService,
     private sessionLogService: SessionLogService,
+    private scenarioOrchestrator: ScenarioOrchestratorService,
     private prisma: PrismaService,
   ) {}
+
+  @Get(":sessionId/simulation/triggered-messages")
+  async getTriggeredMessages(@Param("sessionId") sessionId: string) {
+    return this.scenarioOrchestrator.getTriggeredMessages(sessionId);
+  }
 
   @Get("admin/sessions")
   @UseGuards(JwtAuthGuard, RolesGuard)

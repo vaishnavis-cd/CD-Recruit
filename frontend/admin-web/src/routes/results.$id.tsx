@@ -504,8 +504,66 @@ function IndividualResultPage() {
         {/* SIMULATION TAB */}
         {activeTab === "SIMULATION" && (
           <div className="space-y-4">
-            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Recruiter Simulation Timeline & Actions</h3>
-            <p className="text-[13px] text-[#8B8B93]">Chronological record of candidate simulation responses and event triggers.</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Contextual Simulation & Say-Do Consistency</h3>
+                <p className="text-[13px] text-[#8B8B93]">Cross-referenced AI evaluation comparing candidate written statements against code diff actions.</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF0FF] text-[#15308F] border border-[#C5D7FF]">
+                Track: {detail.session?.roleTemplate?.roleName?.toLowerCase()?.includes("junior") || detail.session?.roleTemplate?.roleName?.toLowerCase()?.includes("fresher") ? "Fresher Track (Coachability)" : "Experienced Track (Judgment)"}
+              </span>
+            </div>
+
+            {/* Score & Rationale Card */}
+            <div className="border border-[#E6E6EA] rounded-md p-5 bg-white space-y-4">
+              <div className="flex items-center justify-between border-b border-[#F0F0F3] pb-3">
+                <div>
+                  <span className="text-[11px] font-mono uppercase text-[#8B8B93]">Say-Do Consistency Score</span>
+                  <div className="text-2xl font-bold text-[#0B0B0D] mt-0.5">
+                    {detail.score?.sayDoConsistencyScore ? `${Math.round(detail.score.sayDoConsistencyScore)}%` : "Pending Evaluation"}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] font-mono uppercase text-[#8B8B93]">AI Confidence</span>
+                  <div className="text-sm font-semibold text-[#0C6B58] mt-0.5">
+                    {detail.score?.aiConfidence ? `${Math.round(detail.score.aiConfidence * 100)}%` : "N/A"}
+                  </div>
+                </div>
+              </div>
+
+              {detail.score?.sayDoRationale && (
+                <div>
+                  <span className="text-[11px] font-mono uppercase text-[#8B8B93] block mb-1">AI Evaluation Rationale:</span>
+                  <p className="text-[13px] text-[#0B0B0D] leading-relaxed bg-[#F7F7F9] p-3 rounded border border-[#E6E6EA]">
+                    {detail.score.sayDoRationale}
+                  </p>
+                </div>
+              )}
+
+              {/* Mismatches List */}
+              {detail.score?.sayDoMismatches && Array.isArray(detail.score.sayDoMismatches) && detail.score.sayDoMismatches.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-mono uppercase text-red-600 font-semibold block">Detected Say-Do Mismatches:</span>
+                  <div className="space-y-2">
+                    {(detail.score.sayDoMismatches as any[]).map((m, idx) => (
+                      <div key={idx} className="p-3 bg-red-50/50 border border-red-200 rounded-md text-[12px] space-y-1">
+                        <div className="flex items-center gap-2 text-red-900 font-semibold">
+                          <span>Said:</span> <span className="font-normal">{m.said}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-red-900 font-semibold">
+                          <span>Did:</span> <span className="font-normal">{m.did}</span>
+                        </div>
+                        {m.impact && (
+                          <div className="text-[11px] text-red-700 italic">
+                            Impact: {m.impact}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
