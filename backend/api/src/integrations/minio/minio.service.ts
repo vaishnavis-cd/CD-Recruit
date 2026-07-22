@@ -78,23 +78,35 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
       throw new Error("MinIO client is not initialized.");
     }
 
-    try {
-      const buckets = [this.bucketBiometric, this.bucketGeneral];
-      for (const bucket of buckets) {
-        if (!bucket) continue;
+    const buckets = [this.bucketBiometric, this.bucketGeneral];
+    for (const bucket of buckets) {
+      if (!bucket) continue;
+      try {
         const exists = await this.minioClient.bucketExists(bucket);
         if (!exists) {
           await this.minioClient.makeBucket(bucket);
           this.logger.log(`Created MinIO bucket: ${bucket}`);
+        } else {
+          this.logger.log(`MinIO bucket exists: ${bucket}`);
         }
+      } catch (error: any) {
+        const msg = error.message || "";
+        const code = error.code || "";
+        if (
+          msg.includes("already own it") ||
+          code === "BucketAlreadyOwnedByYou" ||
+          code === "BucketAlreadyExists"
+        ) {
+          this.logger.log(`MinIO bucket already exists and owned: ${bucket}`);
+          continue;
+        }
+        this.storageHealthy = false;
+        this.logger.error(
+          `Could not ensure MinIO bucket "${bucket}" exists. Error: ${error.message}`,
+          error.stack,
+        );
+        throw new Error(`Bucket check/creation failed: ${error.message}`);
       }
-    } catch (error: any) {
-      this.storageHealthy = false;
-      this.logger.error(
-        `Could not ensure MinIO buckets exist. Make sure MinIO is online. Error: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`Bucket check/creation failed: ${error.message}`);
     }
   }
 

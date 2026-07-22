@@ -49,6 +49,8 @@ async function bootstrap(): Promise<void> {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  await app.init();
+
   const configService = app.get(ConfigService);
   const port = configService.get<number>("port") || 3001;
 
