@@ -36,11 +36,16 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // If active session exists AND we have local assessment state, resume it
-        if (session?.status === 'active' && assessment) {
-          setSession(session)
-          initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60)
-          devForceJump({ type: 'assessment', moduleIndex: assessment.currentModuleIndex, sessionId: session.id })
+        // If active session exists AND we have local assessment state, resume it.
+        // NOTE: resolveInvite is mocked and always returns session: null, so we
+        // check the persisted session from localStorage (loaded at store startup).
+        const persistedSession = useSessionStore.getState().session
+        if (persistedSession?.status === 'active' && assessment) {
+          // Ensure the session store has the latest session object
+          setSession(persistedSession)
+          // Refresh questions from persisted session (they were saved in localStorage)
+          initAssessment(persistedSession.id, TOTAL_ASSESSMENT_MINUTES * 60, persistedSession.questions)
+          devForceJump({ type: 'assessment', moduleIndex: assessment.currentModuleIndex, sessionId: persistedSession.id })
           return
         }
 

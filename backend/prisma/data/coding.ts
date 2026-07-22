@@ -1,4 +1,4 @@
-﻿import { ModuleType } from "@prisma/client";
+import { ModuleType } from "@prisma/client";
 
 export interface TestCase {
   input: string;
@@ -32,12 +32,18 @@ export const codingQuestions: CodingSeedEntry[] = [
           "const fs = require('fs');\n\nfunction twoSum(nums, target) {\n  // Write your code here\n  return [];\n}\n\n// Read from standard input\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const parts = line.trim().split('],');\n    const nums = JSON.parse(parts[0] + ']');\n    const target = parseInt(parts[1].trim(), 10);\n    const result = twoSum(nums, target);\n    console.log(JSON.stringify(result));\n  }\n}",
         python:
           "import sys\nimport json\n\ndef two_sum(nums: list[int], target: int) -> list[int]:\n    # Write your code here\n    return []\n\n# Read from standard input\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    parts = line.strip().split('],')\n    nums = json.loads(parts[0] + ']')\n    target = int(parts[1].strip())\n    result = two_sum(nums, target)\n    print(json.dumps(result))",
+        java:
+          "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static int[] twoSum(int[] nums, int target) {\n        // Write your code here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws Exception {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String line;\n        while ((line = br.readLine()) != null) {\n            if (line.trim().isEmpty()) continue;\n            String[] parts = line.trim().split(\"\\\\],\");\n            String numsStr = parts[0].replace(\"[\", \"\").replace(\"]\", \"\").trim();\n            String[] numsArr = numsStr.isEmpty() ? new String[0] : numsStr.split(\",\");\n            int[] nums = new int[numsArr.length];\n            for (int i = 0; i < numsArr.length; i++) {\n                nums[i] = Integer.parseInt(numsArr[i].trim());\n            }\n            int target = Integer.parseInt(parts[1].trim());\n            int[] result = twoSum(nums, target);\n            if (result.length >= 2) {\n                System.out.println(\"[\" + result[0] + \", \" + result[1] + \"]\");\n            } else {\n                System.out.println(\"[]\");\n            }\n        }\n    }\n}",
+        cpp:
+          "#include <iostream>\n#include <string>\n#include <vector>\n#include <sstream>\n#include <algorithm>\nusing namespace std;\nvector<int> twoSum(vector<int>& nums, int target) {\n    // Write your code here\n    return {};\n}\nint main() {\n    string line;\n    while (getline(cin, line)) {\n        if (line.empty()) continue;\n        size_t pos = line.find(\"],\");\n        string numsStr = line.substr(1, pos - 1);\n        string targetStr = line.substr(pos + 2);\n        vector<int> nums;\n        stringstream ss(numsStr);\n        string num;\n        while (getline(ss, num, ',')) {\n            if (!num.empty()) {\n                nums.push_back(stoi(num));\n            }\n        }\n        int target = stoi(targetStr);\n        vector<int> result = twoSum(nums, target);\n        if (result.size() >= 2) {\n            cout << \"[\" << result[0] << \", \" << result[1] << \"]\" << endl;\n        } else {\n            cout << \"[]\" << endl;\n        }\n    }\n    return 0;\n}"
       },
-      testCases: [
-        { input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", label: "Example 1", isHidden: false },
-        { input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", label: "Example 2", isHidden: false },
-        { input: "[3, 3], 6", expectedOutput: "[0, 1]", label: "Hidden Case 1", isHidden: true },
-        { input: "[1, 5, 8, 12, 14], 20", expectedOutput: "[2, 3]", label: "Hidden Case 2", isHidden: true },
+      visibleTestCases: [
+        { input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", label: "Example 1" },
+        { input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", label: "Example 2" }
+      ],
+      hiddenTestCases: [
+        { input: "[3, 3], 6", expectedOutput: "[0, 1]", label: "Hidden Case 1" },
+        { input: "[1, 5, 8, 12, 14], 20", expectedOutput: "[2, 3]", label: "Hidden Case 2" }
       ],
       constraints: [
         "2 <= nums.length <= 10^4",

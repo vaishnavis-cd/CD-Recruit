@@ -38,11 +38,11 @@ async function main() {
       data: {
         roleName: roleTemplateName,
         weightingPreset: {
-          MCQ: 0.25,
-          SQL: 0.25,
-          CODING: 0.30,
+          MCQ: 0.20,
+          SQL: 0.20,
+          CODING: 0.25,
           AI_PROMPTING: 0.20,
-          SIMULATION: 0.0,
+          SIMULATION: 0.15,
         },
         durationMinutes: 60,
       },
@@ -241,6 +241,30 @@ async function main() {
       },
       scoringConfig: {},
     },
+
+    // SIMULATION 1
+    {
+      moduleType: ModuleType.SIMULATION,
+      role: "QA",
+      difficulty: "medium",
+      tags: ["simulation-prod-outage"],
+      content: {
+        title: "Production Outage: High CPU Spike",
+        description: "A production incident occurs shortly after a recent deployment.",
+        triggers: [
+          {
+            type: "ticket",
+            from: "Datadog Alert Bot",
+            body: "CRITICAL: Database instance db-prod-primary CPU utilization has exceeded 95%.",
+            timestamp: "2026-07-14T10:00:00Z",
+          },
+        ],
+        rubric: [
+          { criterion: "Immediate Triaging", weight: 0.5, description: "Check logs and roll back deployment." },
+        ],
+      },
+      scoringConfig: {},
+    },
   ];
 
   const seededQuestions = [];
@@ -283,10 +307,11 @@ async function main() {
         name: driveName,
         roleTemplateId: roleTemplate.id,
         moduleConfig: {
-          MCQ: { enabled: true, weight: 0.25 },
-          SQL: { enabled: true, weight: 0.25 },
-          CODING: { enabled: true, weight: 0.30 },
+          MCQ: { enabled: true, weight: 0.20 },
+          SQL: { enabled: true, weight: 0.20 },
+          CODING: { enabled: true, weight: 0.25 },
           AI_PROMPTING: { enabled: true, weight: 0.20 },
+          SIMULATION: { enabled: true, weight: 0.15 },
         },
         status: DriveStatus.ACTIVE,
         createdById: staff.id,

@@ -29,7 +29,6 @@ The ports can be configured independently in `.env` or `.env.local` inside the w
 # Choose 'real' or 'mock' for each port adapter (default is 'mock')
 VITE_SESSION_API_MODE=real
 VITE_TIME_MODE=real
-VITE_EXECUTION_MODE=real
 VITE_SCENARIO_MODE=mock
 VITE_CV_MODE=mock
 ```

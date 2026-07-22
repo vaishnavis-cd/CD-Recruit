@@ -20,6 +20,9 @@ export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
       this.queueProvider.registerHandler("heartbeat-monitor", "scan", () =>
         this.heartbeatService.scanAndMarkStale(),
       );
+      this.queueProvider.registerHandler("heartbeat-monitor", "retention-cleanup", () =>
+        this.heartbeatService.cleanupExpiredBiometrics(),
+      );
     }
   }
 }

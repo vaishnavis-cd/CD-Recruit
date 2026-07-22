@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "@app/prisma/prisma.service";
 import { Judge0Service } from "../integrations/judge0/judge0.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { CodingQuestionContentJson } from "./coding.types";
@@ -39,24 +39,57 @@ export class CodingService implements AssessmentModuleEngine {
     };
   }
 
-  private getQuestionTestCases(content: any): Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }> {
+  private getQuestionTestCases(
+    content: any,
+    type: SubmissionType,
+  ): Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }> {
     let list: any[] = [];
-    if (Array.isArray(content.testCases)) {
-      list = content.testCases.map((tc: any) => ({
+    if (Array.isArray(content.visibleTestCases)) {
+      list = content.visibleTestCases.map((tc: any) => ({
         input: tc.input || "",
         expectedOutput: tc.expectedOutput || "",
-        isHidden: !!tc.isHidden,
-        label: tc.label,
+        isHidden: false,
+        label: tc.label || "Visible Test Case",
       }));
+    } else if (Array.isArray(content.testCases)) {
+      list = content.testCases
+        .filter((tc: any) => !tc.isHidden)
+        .map((tc: any) => ({
+          input: tc.input || "",
+          expectedOutput: tc.expectedOutput || "",
+          isHidden: false,
+          label: tc.label || "Visible Test Case",
+        }));
     }
-    if (Array.isArray(content.hiddenTests)) {
-      const hiddenMapped = content.hiddenTests.map((tc: any) => ({
-        input: tc.input || "",
-        expectedOutput: tc.expectedOutput || "",
-        isHidden: true,
-        label: tc.label || "Hidden Test Case",
-      }));
-      list = [...list, ...hiddenMapped];
+
+    if (type === SubmissionType.SUBMIT) {
+      if (Array.isArray(content.hiddenTestCases)) {
+        const hiddenMapped = content.hiddenTestCases.map((tc: any) => ({
+          input: tc.input || "",
+          expectedOutput: tc.expectedOutput || "",
+          isHidden: true,
+          label: tc.label || "Hidden Test Case",
+        }));
+        list = [...list, ...hiddenMapped];
+      } else if (Array.isArray(content.hiddenTests)) {
+        const hiddenMapped = content.hiddenTests.map((tc: any) => ({
+          input: tc.input || "",
+          expectedOutput: tc.expectedOutput || "",
+          isHidden: true,
+          label: tc.label || "Hidden Test Case",
+        }));
+        list = [...list, ...hiddenMapped];
+      } else if (Array.isArray(content.testCases)) {
+        const hiddenMapped = content.testCases
+          .filter((tc: any) => tc.isHidden)
+          .map((tc: any) => ({
+            input: tc.input || "",
+            expectedOutput: tc.expectedOutput || "",
+            isHidden: true,
+            label: tc.label || "Hidden Test Case",
+          }));
+        list = [...list, ...hiddenMapped];
+      }
     }
     return list;
   }
@@ -85,9 +118,7 @@ export class CodingService implements AssessmentModuleEngine {
     }
 
     const content = question.content as any;
-    const allTests = this.getQuestionTestCases(content);
-    // Only run visible (sample) tests
-    const visibleTests = allTests.filter((t) => !t.isHidden);
+    const visibleTests = this.getQuestionTestCases(content, SubmissionType.RUN);
 
     // 3. Create CodingExecution record as PENDING
     const languageId = this.judge0Service.getLanguageId(dto.language);
@@ -166,7 +197,7 @@ export class CodingService implements AssessmentModuleEngine {
     }
 
     const content = execution.question.content as any;
-    const allTests = this.getQuestionTestCases(content);
+    const allTests = this.getQuestionTestCases(content, execution.submissionType as SubmissionType);
     const targetTests = execution.submissionType === SubmissionType.RUN
       ? allTests.filter((t) => !t.isHidden)
       : allTests;
@@ -207,7 +238,7 @@ export class CodingService implements AssessmentModuleEngine {
     }
 
     const content = question.content as any;
-    const allTests = this.getQuestionTestCases(content);
+    const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
 
     // 3. Create CodingExecution record as PENDING
     const languageId = this.judge0Service.getLanguageId(dto.language);

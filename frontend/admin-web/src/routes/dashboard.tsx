@@ -213,8 +213,13 @@ function DashboardPage() {
 
   const medianComposite = (() => {
     if (filteredSessions.length === 0) return 0;
-    const arr = [...filteredSessions.map((s) => s?.compositeScore || 0)].sort((a, b) => a - b);
-    return arr[Math.floor(arr.length / 2)];
+    // Exclude unscored sessions (null = not yet computed, sentinel -1 already mapped to null)
+    const scored = filteredSessions
+      .filter((s) => s.compositeScore !== null)
+      .map((s) => s.compositeScore as number)
+      .sort((a, b) => a - b);
+    if (scored.length === 0) return 0;
+    return scored[Math.floor(scored.length / 2)];
   })();
 
   const heroTrace = (stats.sayDoTrace || []).map((p, i) => ({ t: i, said: p.said, did: p.did }));
@@ -590,7 +595,9 @@ function SayDoView({ sessions }: { sessions: any[] }) {
     const [lo, hi] = b.split("-").map(Number);
     return {
       bucket: b,
-      count: sessions.filter((s) => s.sayDoScore >= lo && s.sayDoScore < hi + 0.0001).length,
+      count: sessions.filter(
+        (s) => s.sayDoScore !== null && s.sayDoScore >= lo && s.sayDoScore < hi + 0.0001,
+      ).length,
     };
   });
   const max = Math.max(...dist.map((d) => d.count), 1);
