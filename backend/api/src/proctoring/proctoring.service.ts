@@ -7,7 +7,7 @@ import { SessionStatus } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
-const COOLDOWNS: Record<ProctoringEventType, number> = {
+const COOLDOWNS: Record<string, number> = {
   PHONE_DETECTED: 30000,
   HEADPHONES_DETECTED: 30000,
   BOOK_DETECTED: 30000,

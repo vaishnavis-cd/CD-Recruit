@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { type Invite, type RoleTemplate } from "../mock-data";
+import { type Invite, type RoleTemplate } from "../types";
 import { getAuthHeaders, API_BASE } from "../store";
 
 export interface InviteSlice {

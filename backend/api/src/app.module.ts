@@ -21,6 +21,7 @@ import { SqlModule } from "./sql/sql.module";
 import { ProctoringModule } from "./proctoring/proctoring.module";
 import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
+import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -83,6 +84,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     ProctoringModule,
     AiEvaluationModule,
     SimulationModule,
+    AiPromptingModule,
   ],
 })
 export class AppModule {}

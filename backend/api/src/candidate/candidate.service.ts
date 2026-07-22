@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { Candidate, ConsentType } from "@prisma/client";
+import { Candidate } from "@prisma/client";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { ConsentTypeEnum } from "./consent.dto";
 
@@ -55,7 +55,7 @@ export class CandidateService {
     const record = await this.prisma.consentRecord.create({
       data: {
         candidateId: session.candidateId,
-        consentType: consentType as unknown as ConsentType,
+        consentType: consentType as any,
         version,
         ipAddress,
       },

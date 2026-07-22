@@ -69,6 +69,61 @@ Respond ONLY in strict JSON format:
     return this.executeLlmEvaluation(systemPrompt, userContent, candidateActions);
   }
 
+  private getGroqApiKey(): string {
+    return (
+      this.groqApiKey ||
+      this.configService.get<string>("groqApiKey") ||
+      process.env.GROQ_API_KEY ||
+      ""
+    ).trim();
+  }
+
+  private getCerebrasApiKey(): string {
+    return (
+      this.cerebrasApiKey ||
+      this.configService.get<string>("cerebrasApiKey") ||
+      process.env.CEREBRAS_API_KEY ||
+      ""
+    ).trim();
+  }
+
+  /**
+   * Generate an open-ended assistant response without strict JSON parsing.
+   * Used for interactive AI prompting modules.
+   */
+  async generateAssistantResponse(
+    systemPrompt: string,
+    userContent: string,
+  ): Promise<string> {
+    const groqKey = this.getGroqApiKey();
+    const cerebrasKey = this.getCerebrasApiKey();
+
+    this.logger.log(`generateAssistantResponse invoked. GroqKey present: ${!!groqKey}, CerebrasKey present: ${!!cerebrasKey}`);
+
+    // 1. Try Groq API (Primary)
+    if (groqKey) {
+      try {
+        const groqResult = await this.callGroqApiText(systemPrompt, userContent);
+        if (groqResult) return groqResult;
+      } catch (err: any) {
+        this.logger.warn(`Groq API text generation failed: ${err.message}. Falling back to Cerebras...`);
+      }
+    }
+
+    // 2. Try Cerebras API (Fallback)
+    if (cerebrasKey) {
+      try {
+        const cerebrasResult = await this.callCerebrasApiText(systemPrompt, userContent);
+        if (cerebrasResult) return cerebrasResult;
+      } catch (err: any) {
+        this.logger.warn(`Cerebras API text generation failed: ${err.message}. Using Dev Fallback...`);
+      }
+    }
+
+    // 3. Dev Fallback
+    return "This is a fallback generated response. (No valid API keys or API error occurred).";
+  }
+
   private async executeLlmEvaluation(
     systemPrompt: string,
     userContent: string,
@@ -149,6 +204,64 @@ Respond ONLY in strict JSON format:
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content;
     return this.parseJsonResponse(content);
+  }
+
+  private async callGroqApiText(systemPrompt: string, userContent: string): Promise<string | null> {
+    const key = this.getGroqApiKey();
+    this.logger.log(`Executing Groq API call with key length: ${key.length}`);
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        temperature: 0.5,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      this.logger.error(`Groq API Error HTTP ${res.status}: ${errText}`);
+      throw new Error(`Groq API HTTP ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || null;
+  }
+
+  private async callCerebrasApiText(systemPrompt: string, userContent: string): Promise<string | null> {
+    const key = this.getCerebrasApiKey();
+    this.logger.log(`Executing Cerebras API call with key length: ${key.length}`);
+    const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama3.1-70b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        temperature: 0.5,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      this.logger.error(`Cerebras API Error HTTP ${res.status}: ${errText}`);
+      throw new Error(`Cerebras API HTTP ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || null;
   }
 
   private parseJsonResponse(content?: string) {
