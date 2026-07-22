@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
-import Editor from '@monaco-editor/react'
-type MonacoType = any
+import { CodeEditor } from '../../components/common/CodeEditor'
 import type { SQLQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { useTheme } from '../../theme/ThemeProvider'
-import { cdRecruitLightTheme, cdRecruitDarkTheme } from '../../theme/monacoTheme'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 
@@ -156,7 +154,9 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
   function handleQueryChange(value: string | undefined) {
     const val = value ?? ''
     setQuery(val)
-    setResponse(question.id, val)
+    if (question) {
+      setResponse(question.id, val)
+    }
   }
 
   function handleRun() {
@@ -183,13 +183,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }
 
-  function handleEditorMount(_editor: any, monaco: any) {
-    monaco.editor.defineTheme('cd-recruit-light', cdRecruitLightTheme)
-    monaco.editor.defineTheme('cd-recruit-dark', cdRecruitDarkTheme)
-    monaco.editor.setTheme(theme === 'dark' ? 'cd-recruit-dark' : 'cd-recruit-light')
-  }
-
-  const paletteItems = questions.map((q, i) => ({ id: q.id, label: `Query ${i + 1}` }))
+  const paletteItems = questions.map((q, i) => ({ id: q.questionId, label: `Query ${i + 1}` }))
 
   if (!question) return null
 
@@ -229,23 +223,11 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
               Loading SQL engine…
             </div>
           ) : (
-            <Editor
-              height="100%"
+            <CodeEditor
               language="sql"
               value={query}
               onChange={handleQueryChange}
-              onMount={handleEditorMount}
-              theme={theme === 'dark' ? 'cd-recruit-dark' : 'cd-recruit-light'}
-              options={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 13,
-                minimap: { enabled: false },
-                lineNumbers: 'on',
-                scrollBeyondLastLine: false,
-                wordWrap: 'on',
-                padding: { top: 16, bottom: 16 },
-                renderLineHighlight: 'line',
-              }}
+              theme={theme === 'dark' ? 'dark' : 'light'}
             />
           )}
         </div>

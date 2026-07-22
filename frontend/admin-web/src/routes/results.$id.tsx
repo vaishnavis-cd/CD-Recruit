@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
+import { CodeEditor } from "../components/common/CodeEditor";
 import { useStore } from "../lib/store";
 import type { CandidateSessionDetail } from "../lib/types";
 
@@ -286,8 +287,13 @@ function IndividualResultPage() {
                       </span>
                     </div>
 
-                    <div className="bg-[#0B0B0D] text-emerald-400 font-mono text-[12px] p-4 rounded-md overflow-x-auto leading-relaxed">
-                      <pre>{resp.responsePayload?.code || "// No code submitted"}</pre>
+                    <div className="h-48 border border-[#E6E6EA] rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={resp.responsePayload?.code || "// No code submitted"}
+                        language={resp.responsePayload?.language || "javascript"}
+                        readOnly={true}
+                        theme="dark"
+                      />
                     </div>
 
                     {resp.responsePayload?.stdout && (
@@ -322,8 +328,13 @@ function IndividualResultPage() {
                       </span>
                     </div>
 
-                    <div className="bg-[#0B0B0D] text-blue-300 font-mono text-[12px] p-4 rounded-md overflow-x-auto">
-                      <pre>{resp.responsePayload?.sqlQuery || "-- No query submitted"}</pre>
+                    <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={resp.responsePayload?.sqlQuery || "-- No query submitted"}
+                        language="sql"
+                        readOnly={true}
+                        theme="dark"
+                      />
                     </div>
                   </div>
                 ))
