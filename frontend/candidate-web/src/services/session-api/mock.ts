@@ -74,7 +74,7 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       localStorage.removeItem('cd-recruit-selfie-data');
     }
     const session: Session = {
-      id: `session_${Math.random().toString(36).substr(2, 9)}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'd58c2ef4-e546-4a17-947c-77f47adfc651',
       cvMode,
       tutorialMode,
       startedAt: new Date().toISOString(),

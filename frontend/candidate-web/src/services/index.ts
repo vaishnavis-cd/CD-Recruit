@@ -23,10 +23,10 @@ export interface Services {
 }
 
 export function createServices(): Services {
-  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'auto'
-  const timeMode = import.meta.env.VITE_TIME_MODE ?? 'mock'
-  const scenarioMode = import.meta.env.VITE_SCENARIO_MODE ?? 'mock'
-  const cvMode = import.meta.env.VITE_CV_MODE ?? 'mock'
+  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'real'
+  const timeMode = import.meta.env.VITE_TIME_MODE ?? 'real'
+  const scenarioMode = import.meta.env.VITE_SCENARIO_MODE ?? 'real'
+  const cvMode = import.meta.env.VITE_CV_MODE ?? 'real'
 
   const isRealToken = typeof window !== 'undefined' && (
     window.location.search.includes('token=inv_') ||

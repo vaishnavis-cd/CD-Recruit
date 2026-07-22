@@ -11,17 +11,12 @@ export class PrismaService
     const rawUrl =
       configService.get<string>("databaseUrl") ||
       process.env.DATABASE_URL ||
-      "postgresql://cdrecruit:cdrecruit123@localhost:5433/cdrecruit";
-
-    // Enforce port 5433 when connecting to localhost in dev environment
-    const dbUrl = rawUrl.includes("localhost:5432")
-      ? rawUrl.replace("localhost:5432", "localhost:5433")
-      : rawUrl;
+      "postgresql://cdrecruit:cdrecruit123@localhost:5432/cdrecruit";
 
     super({
       datasources: {
         db: {
-          url: dbUrl,
+          url: rawUrl,
         },
       },
       log:

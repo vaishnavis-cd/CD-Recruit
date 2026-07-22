@@ -27,7 +27,7 @@ services:
       POSTGRES_PASSWORD: cdrecruit123
       POSTGRES_DB: cdrecruit
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
@@ -80,7 +80,7 @@ services:
       # KC_DB_USERNAME: cdrecruit
       # KC_DB_PASSWORD: cdrecruit123
     ports:
-      - "8085:8080"
+      - "8080:8080"
     volumes:
       - ./keycloak:/opt/keycloak/data/import
     depends_on:
