@@ -30,7 +30,13 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, configuration],
-      envFilePath: ["../.env", "../../.env"],
+      envFilePath: [
+        require("path").resolve(process.cwd(), ".env"),
+        require("path").resolve(process.cwd(), "../../.env"),
+        "../.env",
+        "../../.env",
+        ".env",
+      ],
     }),
 
     PrismaModule,

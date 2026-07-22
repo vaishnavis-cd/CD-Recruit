@@ -8,6 +8,10 @@
  * — that requires the full MediaPipe wiring.
  */
 import type { CvDetectionPort, DetectionEvent } from './port'
+import { ProctoringModule } from '../../proctoring/proctoring.module'
+import { DetectionEngineService } from '../../proctoring/detection-engine.service'
+import { WebcamService } from '../../proctoring/webcam.service'
+import { useSessionStore } from '../../store/sessionMachine'
 
 const subscribers = new Set<(event: DetectionEvent) => void>()
 let activeStream: MediaStream | null = null
@@ -20,6 +24,43 @@ export const realCvDetectionAdapter: CvDetectionPort & { _activeStream: () => Me
   _activeStream: () => activeStream,
 
   async start(): Promise<void> {
+<<<<<<< HEAD
+    const sessionId = useSessionStore.getState().session?.id || 'demo-session'
+    await ProctoringModule.getInstance().start(sessionId)
+  },
+
+  async stop(): Promise<void> {
+    await ProctoringModule.getInstance().stop()
+  },
+
+  onDetectionEvent(callback: (event: DetectionEvent) => void): () => void {
+    return DetectionEngineService.getInstance().subscribe((evt) => {
+      const ts = new Date(evt.timestamp).getTime()
+      if (evt.eventType === 'FACE_MISSING') {
+        callback({ type: 'face-lost', timestamp: ts })
+      } else if (evt.eventType === 'MULTIPLE_FACES') {
+        callback({ type: 'multiple-faces', count: 2, timestamp: ts })
+      } else {
+        callback({ type: 'face-detected', confidence: 0.95, timestamp: ts })
+      }
+    })
+  },
+
+  async captureFrame(): Promise<string> {
+    const video = WebcamService.getInstance().getVideoElement()
+    if (!video || video.readyState < 2) return ""
+    const canvas = document.createElement("canvas")
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return ""
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL("image/jpeg", 0.7)
+  },
+
+  isWasmSupported(): boolean {
+    return typeof WebAssembly !== "undefined"
+=======
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -75,5 +116,6 @@ export const realCvDetectionAdapter: CvDetectionPort & { _activeStream: () => Me
     } catch {
       return false
     }
+>>>>>>> d66f48ebe9204de74f3b1459c107a613a171112f
   },
 }

@@ -13,6 +13,13 @@
  */
 
 import { PrismaClient, ModuleType, CvMode, DecisionType } from "@prisma/client";
+import * as dotenv from "dotenv";
+import * as path from "path";
+
+dotenv.config({ path: path.join(__dirname, "../../.env") });
+dotenv.config({ path: path.join(__dirname, "../.env") });
+dotenv.config({ path: path.join(__dirname, "../api/.env") });
+
 import { mcqQuestions } from "./data/mcq";
 import { sqlQuestions } from "./data/sql";
 import { codingQuestions } from "./data/coding";
@@ -116,19 +123,15 @@ async function main(): Promise<void> {
     const existingCount = await tx.question.count();
     const allQuestions = getAllQuestionSeedData();
 
-    if (existingCount > 0) {
-      console.log(
-        `  ↩ Found ${existingCount} existing question(s) — skipping question seed`,
-      );
-    } else if (allQuestions.length === 0) {
-      console.log(
-        "  ⚠ No question seed data found. " +
-          "Populate the arrays in backend/prisma/data/*.ts and re-run the seed.",
-      );
-    } else {
-      // Create questions
-      const createdQuestions = [];
-      for (const q of allQuestions) {
+    // Create questions
+    const createdQuestions = [];
+    for (const q of allQuestions) {
+      const existing = await tx.question.findFirst({
+        where: { moduleType: q.moduleType },
+      });
+      if (existing) {
+        createdQuestions.push(existing);
+      } else {
         const created = await tx.question.create({
           data: {
             moduleType: q.moduleType,
@@ -142,12 +145,15 @@ async function main(): Promise<void> {
         });
         createdQuestions.push(created);
       }
-      console.log(`  ✔ Created ${createdQuestions.length} independent question(s)`);
+    }
+    console.log(`  ✔ Ensured ${createdQuestions.length} independent question(s) exist`);
 
-      // ------------------------------------------------------------------
-      // 4. Create Default Drive
-      // ------------------------------------------------------------------
-      const drive = await tx.drive.create({
+    // 4. Create Default Drive if missing
+    let drive = await tx.drive.findFirst({
+      where: { name: "Software Developer Drive - July 2026" },
+    });
+    if (!drive) {
+      drive = await tx.drive.create({
         data: {
           name: "Software Developer Drive - July 2026",
           roleTemplateId: roleTemplate.id,
@@ -160,25 +166,31 @@ async function main(): Promise<void> {
           },
           status: "ACTIVE",
           scheduleStart: new Date(),
-          scheduleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          scheduleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           createdById: staff.id,
         },
       });
       console.log(`  ✔ Created Drive "${drive.name}" (id: ${drive.id})`);
-
-      // ------------------------------------------------------------------
-      // 5. Link Questions to the Drive
-      // ------------------------------------------------------------------
-      const driveQuestionsData = createdQuestions.map((q) => ({
-        driveId: drive.id,
-        questionId: q.id,
-        moduleType: q.moduleType,
-      }));
-      await tx.driveQuestion.createMany({
-        data: driveQuestionsData,
-      });
-      console.log(`  ✔ Linked ${driveQuestionsData.length} questions to Drive "${drive.name}"`);
     }
+
+    // 5. Link Questions to the Drive
+    for (const q of createdQuestions) {
+      await tx.driveQuestion.upsert({
+        where: {
+          driveId_questionId: {
+            driveId: drive.id,
+            questionId: q.id,
+          },
+        },
+        update: {},
+        create: {
+          driveId: drive.id,
+          questionId: q.id,
+          moduleType: q.moduleType,
+        },
+      });
+    }
+    console.log(`  ✔ Linked questions to Drive "${drive.name}"`);
 
     // ------------------------------------------------------------------
     // 6. Seed Candidates, Sessions, Scores, Flags, and Decisions
