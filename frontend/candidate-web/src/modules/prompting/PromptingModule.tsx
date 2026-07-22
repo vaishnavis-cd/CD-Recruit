@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { PROMPTING_QUESTIONS } from '../../fixtures/questions'
+import type { PromptingQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
+import { services } from '../../services'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
 interface PromptingModuleProps {
   moduleIndex: number
@@ -13,8 +16,27 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
   const setResponse = useSessionStore(s => s.setResponse)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  const questions = PROMPTING_QUESTIONS
+  const assignedPromptingQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) return PROMPTING_QUESTIONS
+    const filtered = assessment.questions.filter((q) => q.moduleType === 'AI_PROMPTING')
+    if (filtered.length === 0) return []
+    return filtered.map((q, i) => {
+      const content = q.content || {}
+      return {
+        id: q.questionId,
+        moduleIndex,
+        type: 'prompting' as const,
+        text: content.prompt || content.scenario || content.instructions || content.description || content.title || `AI Prompting Task ${i + 1}`,
+        systemContext: content.context || content.systemContext || 'You are an AI assistant helping with an engineering evaluation.',
+        suggestedResponse: content.idealResponseSummary || '',
+      } as PromptingQuestion
+    })
+  }, [assessment?.questions, moduleIndex])
+
+  const questions = assignedPromptingQuestions
   const question = questions[currentIndex]
+
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
 
   const [promptText, setPromptText] = useState('')
   const [aiResponse, setAiResponse] = useState<string | null>(null)
@@ -43,14 +65,25 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
     setLoading(true)
     setAiResponse(null)
 
-    // Mock: return scripted response after delay
-    await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800))
-
-    const response = question.suggestedResponse ?? 'Mock AI response: your prompt has been evaluated.'
-    setAiResponse(response)
-    setLoading(false)
-    setSubmitted(true)
-    setResponse(question.id, { prompt: promptText, aiResponse: response })
+    try {
+      const sessionId = assessment?.sessionId || ''
+      const aiRes = await services.sessionApi.runAiPrompt({
+        sessionId,
+        questionId: question.id,
+        prompt: promptText
+      })
+      setAiResponse(aiRes)
+      setSubmitted(true)
+      setResponse(question.id, { prompt: promptText, aiResponse: aiRes })
+    } catch (err) {
+      console.error('Failed to run AI prompt', err)
+      const fallback = question.suggestedResponse ?? 'Mock AI response: your prompt has been evaluated.'
+      setAiResponse(fallback)
+      setSubmitted(true)
+      setResponse(question.id, { prompt: promptText, aiResponse: fallback })
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleRevise() {
@@ -60,6 +93,23 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
   }
 
   const paletteItems = questions.map((q, i) => ({ id: q.id, label: `Prompt ${i + 1}` }))
+
+  // Check client-side verbatim similarity for real-time prompt guidance
+  const isVerbatimPrompt = React.useMemo(() => {
+    if (!promptText.trim() || !question?.text) return false
+    const cleanP = promptText.toLowerCase().replace(/[^\w\s]/g, "").trim()
+    const cleanT = question.text.toLowerCase().replace(/[^\w\s]/g, "").trim()
+    if (!cleanP || !cleanT) return false
+    if (cleanP === cleanT || cleanT.includes(cleanP) || cleanP.includes(cleanT)) {
+      if (Math.min(cleanP.length, cleanT.length) / Math.max(cleanP.length, cleanT.length) > 0.5) return true
+    }
+    const pTokens = new Set(cleanP.split(/\s+/).filter(t => t.length > 2))
+    const tTokens = new Set(cleanT.split(/\s+/).filter(t => t.length > 2))
+    if (tTokens.size === 0) return false
+    let intersection = 0
+    pTokens.forEach((t: string) => { if (tTokens.has(t)) intersection++ })
+    return (intersection / tTokens.size) >= 0.65
+  }, [promptText, question?.text])
 
   if (!question) return null
 
@@ -88,9 +138,16 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
 
         {/* Prompt input */}
         <div className="mb-4">
-          <label htmlFor={`prompt-${question.id}`} className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-            Your prompt to the AI assistant
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor={`prompt-${question.id}`} className="block text-sm font-medium text-[var(--text-primary)]">
+              Your prompt to the AI assistant
+            </label>
+            {isVerbatimPrompt && (
+              <span className="text-xs font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                Direct Copy Detected — Add Persona & Constraints
+              </span>
+            )}
+          </div>
           <textarea
             id={`prompt-${question.id}`}
             value={promptText}
@@ -101,6 +158,11 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             aria-label="Enter your prompt to the AI assistant"
             className="w-full px-3 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-sm font-mono placeholder:text-[var(--text-secondary)] placeholder:font-sans resize-y focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] disabled:opacity-60 transition-colors"
           />
+          {isVerbatimPrompt && (
+            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+              💡 <strong>Prompt Tip:</strong> Directly repeating the question will cause the AI assistant to ask for clarifying instructions rather than solving the task for you. Provide explicit persona framing, output formatting, or constraints.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 mb-8">
@@ -147,8 +209,15 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             aria-live="polite"
             className="p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]"
           >
-            <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-              AI Response
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+                AI Response
+              </div>
+              {isVerbatimPrompt && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  Socratic Mode Active
+                </span>
+              )}
             </div>
             <div className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-mono">
               {aiResponse}
@@ -166,11 +235,10 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             ← Previous
           </button>
           <button
-            onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-            disabled={currentIndex === questions.length - 1}
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
           >
-            Next →
+            {nextButtonLabel}
           </button>
         </div>
       </div>

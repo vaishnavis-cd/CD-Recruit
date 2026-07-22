@@ -64,6 +64,7 @@ async function buildQuestionList(
       questionId: dq.questionId,
       moduleType: dq.moduleType,
       moduleIndex: counts[type],
+      content: dq.question ? dq.question.content : null,
     };
   });
 }
@@ -116,7 +117,7 @@ export class SessionService {
    */
   async startSession(inviteToken: string): Promise<StartSessionResponse> {
     // 1. Verify token (throws 401/410 on failure)
-    const payload = this.auth.verifyInviteToken(inviteToken);
+    const payload = await this.auth.verifyInviteToken(inviteToken);
 
     // 2. Validate roleTemplate exists
     const roleTemplate = await this.prisma.roleTemplate.findUnique({
@@ -822,7 +823,7 @@ export class SessionService {
     const consentRecord = await this.prisma.consentRecord.create({
       data: {
         candidateId: session.candidateId,
-        consentType: "TERMS",
+        consentType: "TERMS" as any,
         version: version || "1.0",
         ipAddress: ipAddress || "127.0.0.1",
         consentedAt: new Date(),

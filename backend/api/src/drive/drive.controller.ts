@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -18,7 +19,13 @@ import { Roles } from "../common/decorators/roles.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { DriveService } from "./drive.service";
-import { CreateDriveDto, UpdateDriveDto, ListDrivesQueryDto, SaveDriveQuestionsDto, AddCandidatesBulkDto } from "../common/dto/drive.dto";
+import {
+  CreateDriveDto,
+  UpdateDriveDto,
+  ListDrivesQueryDto,
+  SaveDriveQuestionsDto,
+  AddCandidatesBulkDto,
+} from "../common/dto/drive.dto";
 
 @Controller("admin/drives")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -76,7 +83,16 @@ export class DriveController {
   }
 
   @Patch(":driveId/questions")
-  async saveQuestions(
+  async saveQuestionsPatch(
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @Body() dto: SaveDriveQuestionsDto,
+    @CurrentUser() actor: any,
+  ) {
+    return this.driveService.saveQuestions(driveId, dto.questionIds, actor.id);
+  }
+
+  @Put(":driveId/questions")
+  async saveQuestionsPut(
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @Body() dto: SaveDriveQuestionsDto,
     @CurrentUser() actor: any,

@@ -6,12 +6,14 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  redirect,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "../components/ui/sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { isAuthenticated } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -74,6 +76,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: ({ location }) => {
+    if (typeof window !== "undefined" && location.pathname !== "/login" && !isAuthenticated()) {
+      throw redirect({ to: "/login", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },

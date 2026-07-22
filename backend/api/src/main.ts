@@ -50,7 +50,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>("app.port") || 3001;
+  const port = configService.get<number>("port") || 3001;
 
   const infraMode = process.env.INFRA_MODE ?? "local";
   if (infraMode === "local" && process.env.NODE_ENV === "production") {
@@ -92,7 +92,7 @@ async function bootstrap(): Promise<void> {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("api-docs", app, swaggerDocument);
 
-  await app.listen(port);
+  await app.listen(port, "0.0.0.0");
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);
   logger.log(`Swagger UI: http://localhost:${port}/api-docs`);

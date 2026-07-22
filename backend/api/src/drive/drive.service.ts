@@ -690,11 +690,11 @@ export class DriveService {
     }
 
     const ungeneratedInvites = await this.prisma.invite.findMany({
-      where: { driveId, isGenerated: false },
+      where: { driveId },
     });
 
     if (ungeneratedInvites.length === 0) {
-      throw new BadRequestException("No ungenerated candidate invite links found for this drive.");
+      throw new BadRequestException("No candidate invites found for this drive. Please add candidates first.");
     }
 
     const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);

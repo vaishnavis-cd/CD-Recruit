@@ -5,10 +5,13 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { StaffRole } from "@cd-recruit/shared-types";
 import * as jwt from "jsonwebtoken";
+import * as crypto from "crypto";
 
 interface JwtPayload {
   sub: string;
-  email: string;
+  email?: string;
+  preferred_username?: string;
+  name?: string;
   role?: StaffRole;
   realm_access?: {
     roles: string[];
@@ -24,25 +27,46 @@ async function getJwksKeys(jwksUri: string) {
     return jwksCache;
   }
   
-  try {
-    const res = await fetch(jwksUri);
-    if (!res.ok) throw new Error(`Failed to fetch JWKS from ${jwksUri}`);
-    const data = await res.json();
-    jwksCache = data.keys || [];
-    jwksCacheTimestamp = now;
-    return jwksCache;
-  } catch (err) {
-    console.error("Error fetching JWKS keys:", err);
-    return jwksCache;
+  const urisToTry = Array.from(new Set([
+    jwksUri,
+    jwksUri.replace(":8080", ":8085"),
+    jwksUri.replace("localhost", "127.0.0.1"),
+    jwksUri.replace("localhost", "127.0.0.1").replace(":8080", ":8085"),
+    "http://127.0.0.1:8085/realms/cd-recruit/protocol/openid-connect/certs",
+    "http://localhost:8085/realms/cd-recruit/protocol/openid-connect/certs",
+  ]));
+
+  let lastError: any = null;
+  for (const uri of urisToTry) {
+    try {
+      const res = await fetch(uri);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.keys && data.keys.length > 0) {
+          jwksCache = data.keys;
+          jwksCacheTimestamp = now;
+          return jwksCache;
+        }
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
+  
+  console.error("Error fetching JWKS keys from endpoints:", urisToTry, lastError);
+  return jwksCache;
 }
 
-function jwkToPem(jwk: any) {
+function jwkToPem(jwk: any): string {
   if (jwk.x5c && jwk.x5c.length > 0) {
     const cert = jwk.x5c[0];
-    return `-----BEGIN CERTIFICATE-----\n${cert.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----`;
+    return `-----BEGIN CERTIFICATE-----\n${cert.match(/.{1,64}/g).join("\n")}\n-----END CERTIFICATE-----`;
   }
-  throw new Error("No x5c found in JWK");
+  try {
+    return crypto.createPublicKey({ key: jwk, format: "jwk" }).export({ type: "pkcs1", format: "pem" }).toString();
+  } catch (err) {
+    throw new Error(`Failed to convert JWK to PEM key: ${err}`);
+  }
 }
 
 @Injectable()
@@ -55,7 +79,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKeyProvider: async (request, rawJwtToken, done) => {
-        const infraMode = process.env.INFRA_MODE ?? "local";
+        const infraMode = process.env.INFRA_MODE ?? "keycloak";
         if (infraMode === "local") {
           const secret = configService.get<string>("app.jwtSecret") || process.env.JWT_SECRET;
           return done(null, secret);
@@ -64,7 +88,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         try {
           const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
           if (!decoded || !decoded.header || !decoded.header.kid) {
-            return done(new UnauthorizedException("Invalid token header"), null);
+            return done(new UnauthorizedException("Invalid Keycloak token header"), null);
           }
 
           const kid = decoded.header.kid;
@@ -84,17 +108,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         } catch (err) {
           done(err, null);
         }
-      }
+      },
     });
   }
 
   async validate(payload: JwtPayload) {
     const staffId = payload.sub;
-    const email = payload.email || "";
+    const email = payload.email || payload.preferred_username || `${staffId}@cdrecruit.local`;
+    const displayName = payload.name || payload.preferred_username || email.split("@")[0].toUpperCase();
 
     let role = payload.role;
     if (payload.realm_access?.roles) {
-      const roles = payload.realm_access.roles.map(r => r.toUpperCase());
+      const roles = payload.realm_access.roles.map((r) => r.toUpperCase());
       if (roles.includes("ADMIN")) {
         role = StaffRole.ADMIN;
       } else if (roles.includes("RECRUITER")) {
@@ -106,13 +131,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role = StaffRole.RECRUITER;
     }
 
-    // Check if staff exists in DB. If not, auto-create a mock staff for development convenience.
+    // Check if staff exists in DB by ID or email.
     let staff = await this.prisma.staff.findUnique({
       where: { id: staffId },
     });
 
     if (!staff) {
-      // Look up by email to avoid unique email constraint collision if id changed
       staff = await this.prisma.staff.findUnique({
         where: { email },
       });
@@ -122,9 +146,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           data: {
             id: staffId,
             email,
-            name: email.split("@")[0].toUpperCase() || "STAFF",
+            name: displayName,
             role: role || StaffRole.RECRUITER,
-            keycloakUserId: `mock-keycloak-${staffId}`,
+            keycloakUserId: `keycloak-${staffId}`,
           },
         });
       }
