@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Session } from '../services/session-api/port'
+import type { QuestionSummary } from '@cd-recruit/shared-types'
 
 // ─── Screen State Discriminated Union ────────────────────────────────────────
 
@@ -58,6 +59,7 @@ export interface AssessmentState {
   currentQuestionIndex: number
   timerStartMs: number | null // when Module 1 actually started
   totalSeconds: number // total assessment time budget in seconds
+  questions?: QuestionSummary[]
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -76,7 +78,7 @@ interface SessionStore {
   setCvMode: (mode: 'full' | 'reduced') => void
   setInviteToken: (token: string) => void
 
-  initAssessment: (sessionId: string, totalSeconds: number) => void
+  initAssessment: (sessionId: string, totalSeconds: number, questions?: QuestionSummary[]) => void
   setTimerStart: (ms: number) => void
   setResponse: (questionId: string, response: unknown) => void
   setQuestionStatus: (questionId: string, status: QuestionStatus) => void
@@ -97,6 +99,16 @@ function loadPersistedAssessment(): AssessmentState | null {
   }
 }
 
+function loadPersistedSession(): Session | null {
+  try {
+    const raw = localStorage.getItem('cd-recruit-session')
+    if (!raw) return null
+    return JSON.parse(raw) as Session
+  } catch {
+    return null
+  }
+}
+
 function persistAssessment(state: AssessmentState) {
   try {
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state))
@@ -107,7 +119,7 @@ function persistAssessment(state: AssessmentState) {
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   screen: { type: 'resolving' },
-  session: null,
+  session: loadPersistedSession(),  // restore from localStorage so InviteResolver can resume
   assessment: loadPersistedAssessment(),
   cvMode: 'full',
   inviteToken: '',
@@ -141,10 +153,20 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ inviteToken: token })
   },
 
-  initAssessment(sessionId: string, totalSeconds: number) {
+  initAssessment(sessionId: string, totalSeconds: number, questions?: QuestionSummary[]) {
     const existing = get().assessment
-    // If we're resuming an existing session, keep existing state
-    if (existing && existing.sessionId === sessionId) return
+    // If resuming an existing session, preserve user progress (responses,
+    // question statuses, timer) but always update `questions` with the fresh
+    // list from the server. Before Phase 2, persisted state had no `questions`
+    // field, so the stale localStorage would starve CodingModule of real UUIDs.
+    if (existing && existing.sessionId === sessionId) {
+      if (questions && questions.length > 0) {
+        const next = { ...existing, questions }
+        set({ assessment: next })
+        persistAssessment(next)
+      }
+      return
+    }
 
     const state: AssessmentState = {
       sessionId,
@@ -154,6 +176,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       currentQuestionIndex: 0,
       timerStartMs: null,
       totalSeconds,
+      questions,
     }
     set({ assessment: state })
     persistAssessment(state)
