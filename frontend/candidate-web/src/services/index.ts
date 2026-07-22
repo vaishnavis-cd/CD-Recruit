@@ -27,11 +27,11 @@ export interface Services {
 }
 
 export function createServices(): Services {
-  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'mock'
-  const timeMode = import.meta.env.VITE_TIME_MODE ?? 'mock'
-  const scenarioMode = import.meta.env.VITE_SCENARIO_MODE ?? 'mock'
-  const executionMode = import.meta.env.VITE_EXECUTION_MODE ?? 'mock'
-  const cvMode = import.meta.env.VITE_CV_MODE ?? 'mock'
+  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'real'
+  const timeMode = import.meta.env.VITE_TIME_MODE ?? 'real'
+  const scenarioMode = import.meta.env.VITE_SCENARIO_MODE ?? 'real'
+  const executionMode = import.meta.env.VITE_EXECUTION_MODE ?? 'real'
+  const cvMode = import.meta.env.VITE_CV_MODE ?? 'real'
 
   return {
     sessionApi: sessionApiMode === 'real' ? realSessionApiAdapter : mockSessionApiAdapter,
