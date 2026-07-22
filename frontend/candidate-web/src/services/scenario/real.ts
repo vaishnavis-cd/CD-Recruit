@@ -26,13 +26,16 @@ export const realScenarioEngineAdapter: ScenarioEnginePort = {
         const res = await apiClient.get(`/sessions/${sessionId}/simulation/current`)
         if (res.data && res.data.event && active) {
           const evt = res.data.event
+          const enriched = evt.enrichedContent || {}
+          const channelType: any = evt.type === 'ticket' ? 'ticket' : evt.type === 'email' ? 'email' : 'slack'
+
           onMessage({
-            id: Number(evt.id) || 1,
+            id: typeof evt.id === 'string' ? Math.abs(evt.id.split('-').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)) : (Number(evt.id) || 1),
             atSeconds: 0,
-            channel: 'slack',
-            from: evt.sender || '#eng-alerts',
-            subject: evt.title || 'Outage Alert',
-            body: evt.prompt || evt.description || 'System outage alert received.',
+            channel: channelType,
+            from: evt.sender || enriched.from || (channelType === 'ticket' ? 'Jira System' : channelType === 'email' ? 'Account Manager' : '#eng-alerts'),
+            subject: evt.title || enriched.context || 'Assessment Incident Scenario',
+            body: enriched.messages || enriched.tickets || enriched.emails || enriched.alerts || evt.prompt || evt.description || 'System outage scenario event.',
             expectsReply: true,
           })
         }
@@ -71,6 +74,18 @@ export const realScenarioEngineAdapter: ScenarioEnginePort = {
       action: 'REPLY',
       replyText: text,
     })
+  },
+
+  async executeTerminalCommand(command: string): Promise<{ stdout: string; stderr: string; exitCode: number; infraError?: boolean }> {
+    const assessment = useSessionStore.getState().assessment
+    const sessionId = assessment?.sessionId
+
+    if (!sessionId) {
+      throw new Error('No active assessment session available for terminal execution')
+    }
+
+    const res = await apiClient.post(`/sessions/${sessionId}/simulation/execute`, { command })
+    return res.data
   },
 
   reset(_scenarioId: string): void {},

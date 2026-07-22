@@ -1,12 +1,12 @@
 import { PrismaClient, ModuleType, InviteStatus, DriveStatus, QuestionStatus, CvMode } from "@prisma/client";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
 // Load .env file from workspace root or backend root
-dotenv.config({ path: path.join(__dirname, "../../.env") });
-dotenv.config({ path: path.join(__dirname, "../.env") });
-dotenv.config({ path: path.join(__dirname, "../api/.env") });
+dotenv.config({ path: path.join(process.cwd(), ".env") });
+dotenv.config({ path: path.join(process.cwd(), "backend/.env") });
+dotenv.config({ path: path.join(process.cwd(), "backend/api/.env") });
 
 const prisma = new PrismaClient();
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { PROMPTING_QUESTIONS } from '../../fixtures/questions'
+import type { PromptingQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { services } from '../../services'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+import apiClient from '../../api/client'
 
 interface PromptingModuleProps {
   moduleIndex: number
@@ -14,64 +16,133 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
   const setResponse = useSessionStore(s => s.setResponse)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  const questions = PROMPTING_QUESTIONS
-  const question = questions[currentIndex]
+  const assignedPromptingQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) return []
+    return assessment.questions.filter((q) => q.moduleType === 'AI_PROMPTING')
+  }, [assessment?.questions])
 
+  const questions = assignedPromptingQuestions
+  const questionMetadata = questions[currentIndex]
+  const questionId = questionMetadata?.questionId ?? ''
+
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
+
+  const [questionData, setQuestionData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [promptText, setPromptText] = useState('')
   const [aiResponse, setAiResponse] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingPrompt, setLoadingPrompt] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  // Restore
+  // Restore current question index on mount
   useEffect(() => {
-    const saved = assessment?.responses[question?.id] as { prompt?: string } | undefined
-    setPromptText(saved?.prompt ?? '')
-    setAiResponse(null)
-    setSubmitted(false)
-  }, [currentIndex])
+    if (assessment?.currentModuleIndex === moduleIndex) {
+      setCurrentIndex(assessment.currentQuestionIndex)
+    }
+  }, [])
 
   useEffect(() => {
     setCurrentQuestion(moduleIndex, currentIndex)
   }, [currentIndex])
 
+  // Fetch question details and responses from backend
+  useEffect(() => {
+    if (!assessment?.sessionId || !questionId) {
+      setLoading(false)
+      return
+    }
+    let isMounted = true
+    setLoading(true)
+    setError(null)
+    apiClient.get(`/sessions/${assessment.sessionId}/questions/${questionId}`)
+      .then(res => {
+        if (isMounted) {
+          setQuestionData(res.data)
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          setError(err.message || 'Failed to load prompting question details')
+          setLoading(false)
+        }
+      })
+    return () => { isMounted = false }
+  }, [assessment?.sessionId, questionId])
+
+  // Map to PromptingQuestion structure
+  const question = React.useMemo(() => {
+    if (!questionData) return null
+    const content = questionData.content || {}
+    return {
+      id: questionId,
+      moduleIndex,
+      type: 'prompting' as const,
+      text: content.prompt || content.scenario || content.instructions || content.description || content.title || 'AI Prompting Task',
+      systemContext: content.context || content.systemContext || 'You are an AI assistant helping with an engineering evaluation.',
+      suggestedResponse: content.idealResponseSummary || '',
+    } as PromptingQuestion
+  }, [questionData, questionId, moduleIndex])
+
+  // Sync DB response query to store & local state
+  useEffect(() => {
+    if (questionData && questionId) {
+      const dbResponse = questionData.response?.responsePayload as { prompt?: string; aiResponse?: string } | undefined
+      const savedResponse = (assessment?.responses[questionId] as { prompt?: string; aiResponse?: string } | undefined) ?? dbResponse
+      if (savedResponse?.prompt) {
+        setPromptText(savedResponse.prompt)
+        setAiResponse(savedResponse.aiResponse || null)
+        setSubmitted(!!savedResponse.aiResponse)
+        if (!assessment?.responses[questionId]) {
+          setResponse(questionId, savedResponse)
+        }
+      } else {
+        setPromptText('')
+        setAiResponse(null)
+        setSubmitted(false)
+      }
+    }
+  }, [questionData, questionId])
+
   function handlePromptChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setPromptText(e.target.value)
-    setResponse(question.id, { prompt: e.target.value, aiResponse })
+    setResponse(questionId, { prompt: e.target.value, aiResponse })
   }
 
   async function handleSubmitPrompt() {
     if (!promptText.trim()) return
-    setLoading(true)
+    setLoadingPrompt(true)
     setAiResponse(null)
 
     try {
       const sessionId = assessment?.sessionId || ''
       const aiRes = await services.sessionApi.runAiPrompt({
         sessionId,
-        questionId: question.id,
+        questionId: questionId,
         prompt: promptText
       })
       setAiResponse(aiRes)
       setSubmitted(true)
-      setResponse(question.id, { prompt: promptText, aiResponse: aiRes })
+      setResponse(questionId, { prompt: promptText, aiResponse: aiRes })
     } catch (err) {
       console.error('Failed to run AI prompt', err)
-      const fallback = question.suggestedResponse ?? 'Mock AI response: your prompt has been evaluated.'
+      const fallback = question?.suggestedResponse ?? 'Mock AI response: your prompt has been evaluated.'
       setAiResponse(fallback)
       setSubmitted(true)
-      setResponse(question.id, { prompt: promptText, aiResponse: fallback })
+      setResponse(questionId, { prompt: promptText, aiResponse: fallback })
     } finally {
-      setLoading(false)
+      setLoadingPrompt(false)
     }
   }
 
   async function handleRevise() {
     setAiResponse(null)
     setSubmitted(false)
-    setLoading(false)
+    setLoadingPrompt(false)
   }
 
-  const paletteItems = questions.map((q, i) => ({ id: q.id, label: `Prompt ${i + 1}` }))
+  const paletteItems = questions.map((q, i) => ({ id: q.questionId, label: `Prompt ${i + 1}` }))
 
   // Check client-side verbatim similarity for real-time prompt guidance
   const isVerbatimPrompt = React.useMemo(() => {
@@ -86,11 +157,29 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
     const tTokens = new Set(cleanT.split(/\s+/).filter(t => t.length > 2))
     if (tTokens.size === 0) return false
     let intersection = 0
-    pTokens.forEach(t => { if (tTokens.has(t)) intersection++ })
+    pTokens.forEach((t: string) => { if (tTokens.has(t)) intersection++ })
     return (intersection / tTokens.size) >= 0.65
   }, [promptText, question?.text])
 
-  if (!question) return null
+  if (loading) {
+    return (
+      <ModuleShell moduleIndex={moduleIndex} questions={paletteItems} currentQuestionIndex={currentIndex} onNavigate={setCurrentIndex}>
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <span className="text-[var(--text-secondary)] text-sm animate-pulse">Loading question…</span>
+        </div>
+      </ModuleShell>
+    )
+  }
+
+  if (error || !question) {
+    return (
+      <ModuleShell moduleIndex={moduleIndex} questions={paletteItems} currentQuestionIndex={currentIndex} onNavigate={setCurrentIndex}>
+        <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-2">
+          <span className="text-[var(--warning)] text-sm">{error || 'No questions available for this module.'}</span>
+        </div>
+      </ModuleShell>
+    )
+  }
 
   return (
     <ModuleShell
@@ -131,7 +220,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             id={`prompt-${question.id}`}
             value={promptText}
             onChange={handlePromptChange}
-            disabled={loading}
+            disabled={loadingPrompt}
             placeholder="Write your prompt here…"
             rows={6}
             aria-label="Enter your prompt to the AI assistant"
@@ -147,11 +236,11 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
         <div className="flex items-center gap-3 mb-8">
           <button
             onClick={handleSubmitPrompt}
-            disabled={loading || !promptText.trim()}
+            disabled={loadingPrompt || !promptText.trim()}
             aria-label="Submit prompt to AI assistant"
             className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
           >
-            {loading ? 'Getting response…' : submitted ? 'Resubmit' : 'Submit Prompt'}
+            {loadingPrompt ? 'Getting response…' : submitted ? 'Resubmit' : 'Submit Prompt'}
           </button>
           {submitted && (
             <button
@@ -164,7 +253,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
         </div>
 
         {/* AI response area */}
-        {loading && (
+        {loadingPrompt && (
           <div
             aria-live="polite"
             aria-label="AI response loading"
@@ -181,7 +270,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
           </div>
         )}
 
-        {aiResponse && !loading && (
+        {aiResponse && !loadingPrompt && (
           <div
             role="region"
             aria-label="AI assistant response"
@@ -214,11 +303,10 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             ← Previous
           </button>
           <button
-            onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-            disabled={currentIndex === questions.length - 1}
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
           >
-            Next →
+            {nextButtonLabel}
           </button>
         </div>
       </div>

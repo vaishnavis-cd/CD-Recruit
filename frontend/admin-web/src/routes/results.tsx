@@ -33,10 +33,6 @@ function ResultsPage() {
   const location = useLocation();
   const isExactResults = location.pathname === "/results" || location.pathname === "/results/";
 
-  if (!isExactResults) {
-    return <Outlet />;
-  }
-
   const resultsList = useStore((s) => s.resultsList);
   const fetchResults = useStore((s) => s.fetchResults);
   const exportResultsCsv = useStore((s) => s.exportResultsCsv);
@@ -48,9 +44,11 @@ function ResultsPage() {
   const [driveFilter, setDriveFilter] = useState<string>("all");
 
   useEffect(() => {
-    fetchResults();
-    fetchDrives();
-  }, []);
+    if (isExactResults) {
+      fetchResults();
+      fetchDrives();
+    }
+  }, [isExactResults]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -119,6 +117,10 @@ function ResultsPage() {
     }
   };
 
+  if (!isExactResults) {
+    return <Outlet />;
+  }
+
   return (
     <AppShell
       title="Candidate Results"
@@ -130,16 +132,16 @@ function ResultsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search candidate name or email…"
-            className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+            className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-[#F7F7F9] focus:outline-none focus:border-[#2F5CFF]"
           />
         </div>
       }
       actions={
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] border border-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] transition-colors cursor-pointer"
         >
-          <Download size={14} />
+          <Download size={13} />
           Export CSV
         </button>
       }

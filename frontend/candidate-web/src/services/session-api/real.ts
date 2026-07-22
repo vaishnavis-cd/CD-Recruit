@@ -15,11 +15,39 @@ const apiClient = axios.create({
   },
 })
 
+function parseJwtPayload(token: string): any {
+  try {
+    const base64Url = token.split('.')[1]
+    if (!base64Url) return null
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch {
+    return null
+  }
+}
+
 export const realSessionApiAdapter: CandidateSessionApiPort = {
   async resolveInvite(token: string): Promise<{ invite: Invite; drive: Drive; session: Session | null }> {
-    // Stays mock per spec: no endpoint exists to resolve/decrypt invite token without starting a session
-    const invite: Invite = { ...FIXTURE_INVITE, token }
-    return { invite, drive: FIXTURE_DRIVE, session: null }
+    const payload = parseJwtPayload(token)
+    const invite: Invite = {
+      token,
+      scheduledTime: new Date().toISOString(),
+      bufferMinutes: 30,
+      graceMinutes: 120,
+      candidateId: payload?.inviteId || payload?.candidateEmail || token,
+      driveId: payload?.driveId || 'drive-001',
+    }
+    const drive: Drive = {
+      ...FIXTURE_DRIVE,
+      id: payload?.driveId || FIXTURE_DRIVE.id,
+    }
+    return { invite, drive, session: null }
   },
 
   async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
@@ -90,19 +118,31 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       return
     }
 
-    const promptingQ = PROMPTING_QUESTIONS.find((q) => q.id === questionId)
-    if (promptingQ) {
+    // Check if it is an AI Prompting question
+    const isAiPromptingQuestion = questionSummary?.moduleType === 'AI_PROMPTING'
+    if (isAiPromptingQuestion) {
       const promptData = val as { prompt: string; aiResponse?: string }
       await apiClient.post('/ai-prompting/submit', {
         sessionId,
         questionId,
-        prompt: promptData.prompt,
+        prompt: promptData?.prompt || '',
         timeSpentSeconds: 0,
       })
       return
     }
 
-    // MCQ is mock/no-ops
+    // Check if it is an MCQ question
+    const isMcqQuestion = questionSummary?.moduleType === 'MCQ'
+    if (isMcqQuestion) {
+      await apiClient.post('/mcq/submit', {
+        sessionId,
+        questionId,
+        selectedOptions: Array.isArray(val) ? val : [],
+        timeSpentSeconds: 0,
+      })
+      return
+    }
+
     return Promise.resolve()
   },
 
