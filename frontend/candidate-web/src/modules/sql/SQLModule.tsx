@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import type * as MonacoType from 'monaco-editor'
+type MonacoType = any
 import { SQL_QUESTIONS } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
@@ -118,7 +118,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }
 
-  function handleEditorMount(_editor: MonacoType.editor.IStandaloneCodeEditor, monaco: typeof MonacoType) {
+  function handleEditorMount(_editor: any, monaco: any) {
     monaco.editor.defineTheme('cd-recruit-light', cdRecruitLightTheme)
     monaco.editor.defineTheme('cd-recruit-dark', cdRecruitDarkTheme)
     monaco.editor.setTheme(theme === 'dark' ? 'cd-recruit-dark' : 'cd-recruit-light')

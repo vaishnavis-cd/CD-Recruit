@@ -99,20 +99,28 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
 
   saveDriveQuestions: async (driveId: string, questionIds: string[]) => {
     const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/drives/${driveId}/questions`, {
+    const res = await fetch(`${API_BASE}/admin/drives/${driveId}/questions`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ questionIds }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to save questions to drive");
+    }
   },
 
   addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string }>) => {
     const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/bulk`, {
+    const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/bulk`, {
       method: "POST",
       headers,
       body: JSON.stringify({ candidates }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to add candidates to drive");
+    }
   },
 
   generateDriveLinks: async (driveId: string) => {

@@ -30,10 +30,12 @@ export interface CodingQuestion {
   moduleIndex: number
   type: 'coding'
   title: string
+  prompt?: string
   description: string
-  starterCode: string
-  language: 'python' | 'javascript' | 'typescript'
+  starterCode: string | Record<string, string>
+  language: string
   visibleTestCases: Array<{ input: string; expectedOutput: string; label: string }>
+  hiddenTestCases?: Array<{ input: string; expectedOutput: string; label: string }>
 }
 
 export interface PromptingQuestion {

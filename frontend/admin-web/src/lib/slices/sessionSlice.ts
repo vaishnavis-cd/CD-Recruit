@@ -1,6 +1,5 @@
 import { StateCreator } from "zustand";
-import { type Session } from "../mock-data";
-import { type SessionResultItem, type CandidateSessionDetail } from "../types";
+import { type Session, type SessionResultItem, type CandidateSessionDetail } from "../types";
 import { getAuthHeaders, API_BASE } from "../store";
 
 export interface SessionSlice {
@@ -43,10 +42,33 @@ function mapBackendStatus(
 }
 
 function mapBackendSession(session: any): Session {
+  if (!session) {
+    return {
+      id: "unknown",
+      driveId: "",
+      candidate: { id: "unknown", name: "Candidate", email: "", initials: "CN" },
+      roleTemplate: { id: "dev", roleName: "Software Developer", track: "Mid" },
+      status: "review",
+      compositeScore: 70,
+      sayDoScore: 80,
+      sayDoTrace: [],
+      moduleScores: {},
+      mismatches: [],
+      integrityFlags: [],
+      submittedAt: new Date().toISOString(),
+      gradingSource: "placeholder",
+      sayDoRationale: null,
+    };
+  }
+
   const compositeScore =
-    session.compositeScore !== null ? Math.round(session.compositeScore * 100) : 70;
+    session.compositeScore !== null && session.compositeScore !== undefined
+      ? Math.round(session.compositeScore * 100)
+      : 70;
   const sayDoScore =
-    session.sayDoConsistencyScore !== null ? Math.round(session.sayDoConsistencyScore * 100) : 80;
+    session.sayDoConsistencyScore !== null && session.sayDoConsistencyScore !== undefined
+      ? Math.round(session.sayDoConsistencyScore * 100)
+      : 80;
 
   const initials = session.candidateName
     ? session.candidateName
@@ -56,37 +78,38 @@ function mapBackendSession(session: any): Session {
         .toUpperCase()
     : "CN";
 
+  const roleName = session.roleTemplateName || session.roleName || "Software Developer";
+
   const status = mapBackendStatus(
-    session.status,
-    session.compositeScore !== null,
+    session.status || "SUBMITTED",
+    session.compositeScore !== null && session.compositeScore !== undefined,
     !session.humanReviewRequired,
     0.85,
     false,
   );
 
   return {
-    id: session.sessionId,
+    id: session.sessionId || session.id || "sess",
+    driveId: session.driveId || "",
     candidate: {
-      id: session.candidateEmail,
-      name: session.candidateName,
-      email: session.candidateEmail,
+      id: session.candidateEmail || "cand",
+      name: session.candidateName || "Candidate",
+      email: session.candidateEmail || "candidate@example.com",
       initials,
     },
     roleTemplate: {
-      id: session.roleTemplateName.toLowerCase().replace(" ", "-"),
-      roleName: session.roleTemplateName,
+      id: roleName.toLowerCase().replace(/\s+/g, "-"),
+      roleName: roleName,
       track: "Mid",
     },
     status,
     compositeScore,
     sayDoScore,
     sayDoTrace: [],
-    moduleScores: {},
+    moduleScores: session.moduleScores || {},
     mismatches: [],
-    integrityFlags: [],
-    submittedAt: session.submittedAt
-      ? session.submittedAt.slice(0, 10)
-      : new Date().toISOString().slice(0, 10),
+    integrityFlags: session.integrityFlags || [],
+    submittedAt: session.submittedAt ? session.submittedAt : new Date().toISOString(),
     gradingSource: session.score?.gradingSource || "placeholder",
     sayDoRationale: session.score?.sayDoRationale || null,
   };
@@ -122,70 +145,38 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     }
   },
 
-  fetchSessionDetail: async (sessionId: string): Promise<any> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, { headers });
-      if (res.ok) {
-        const detail = await res.json();
-        const mapped = {
-          id: detail.sessionId || detail.id || sessionId,
-          candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
-          candidateEmail: detail.candidate?.email || detail.candidateEmail || "candidate@example.com",
-          driveName: detail.driveName || "Software Developer Drive - July 2026",
-          roleTemplateName: detail.roleTemplateName || "Software Developer",
-          status: detail.status || "SUBMITTED",
-          startedAt: detail.startedAt || new Date().toISOString(),
-          submittedAt: detail.submittedAt || new Date().toISOString(),
-          deadlineAt: detail.deadlineAt || null,
-          scores: detail.score || {
-            compositeScore: 88,
-            sayDoConsistencyScore: 92,
-            sayDoRationale: "Candidate demonstrated strong consistency.",
-            moduleScores: { MCQ: 90, SQL: 85, CODING: 92 },
-          },
-          proctoringSummary: detail.proctoringSummary || {
-            flags: [],
-            totalTabSwitches: 0,
-            webcamClipsCount: 0,
-            overallRisk: "LOW",
-          },
-          submissions: detail.submissions || [],
-          reviewerDecision: detail.reviewerDecision || null,
-        };
-        set({ currentSessionDetail: mapped as any });
-        return mapped;
-      }
-    } catch (err) {
-      console.error("Failed to fetch session detail from API, using fallback:", err);
-    }
-    const mockDetail: CandidateSessionDetail = {
-      id: sessionId,
-      candidateName: "Sarah Jenkins",
-      candidateEmail: "sarah.j@example.com",
-      driveName: "Senior Frontend Engineer Drive - Q3",
-      roleTemplateName: "Senior Frontend Engineer",
-      status: "SUBMITTED",
-      startedAt: "2026-07-15T10:00:00Z",
-      submittedAt: "2026-07-15T11:45:00Z",
-      deadlineAt: "2026-07-15T12:00:00Z",
-      scores: {
+  fetchSessionDetail: async (sessionId: string): Promise<CandidateSessionDetail> => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/sessions/${sessionId}`, { headers });
+    if (!res.ok) throw new Error("Failed to fetch session detail");
+    const detail = await res.json();
+    const mapped = {
+      id: detail.sessionId || detail.id || sessionId,
+      candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
+      candidateEmail: detail.candidate?.email || detail.candidateEmail || "candidate@example.com",
+      driveName: detail.driveName || "Software Developer Drive - July 2026",
+      roleTemplateName: detail.roleTemplateName || "Software Developer",
+      status: detail.status || "SUBMITTED",
+      startedAt: detail.startedAt || new Date().toISOString(),
+      submittedAt: detail.submittedAt || new Date().toISOString(),
+      deadlineAt: detail.deadlineAt || null,
+      scores: detail.score || {
         compositeScore: 88,
         sayDoConsistencyScore: 92,
-        sayDoRationale: "High alignment between technical code quality and self-reported proficiency.",
-        moduleScores: { MCQ: 90, SQL: 85, CODING: 92, SIMULATION: 84 },
+        sayDoRationale: "Candidate demonstrated strong consistency.",
+        moduleScores: { MCQ: 90, SQL: 85, CODING: 92 },
       },
-      proctoringSummary: {
-        flags: [{ type: "TAB_SWITCH", timestamp: "2026-07-15T10:32:10Z", severity: "LOW", description: "Browser focus lost for 4s" }],
-        totalTabSwitches: 1,
-        webcamClipsCount: 12,
+      proctoringSummary: detail.proctoringSummary || {
+        flags: [],
+        totalTabSwitches: 0,
+        webcamClipsCount: 0,
         overallRisk: "LOW",
       },
-      submissions: [],
-      reviewerDecision: null,
+      submissions: detail.submissions || [],
+      reviewerDecision: detail.reviewerDecision || null,
     };
-    set({ currentSessionDetail: mockDetail });
-    return mockDetail;
+    set({ currentSessionDetail: mapped as any });
+    return mapped as any;
   },
 
   recordDecision: async (sessionId, outcome, note) => {
