@@ -216,6 +216,7 @@ model Session {
   activeTabId       String?   @map("active_tab_id")         // single-active-session enforcement
   disconnectCount   Int       @default(0) @map("disconnect_count") // incremented on each DISCONNECTED event; AUTO_SUBMITTED when ≥ 3
   workspaceStatus   String?   @default("provisioning") @map("workspace_status")
+  simulationSnapshot Json?    @map("simulation_snapshot")
 
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])

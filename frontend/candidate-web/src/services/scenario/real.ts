@@ -23,24 +23,46 @@ export const realScenarioEngineAdapter: ScenarioEnginePort = {
     async function pollCurrent() {
       if (!active) return
       try {
-        const res = await apiClient.get(`/sessions/${sessionId}/simulation/current`)
-        if (res.data && res.data.event && active) {
-          const evt = res.data.event
-          const enriched = evt.enrichedContent || {}
-          const channelType: any = evt.type === 'ticket' ? 'ticket' : evt.type === 'email' ? 'email' : 'slack'
+        const [currRes, trigRes] = await Promise.allSettled([
+          apiClient.get(`/sessions/${sessionId}/simulation/current`),
+          apiClient.get(`/sessions/${sessionId}/simulation/triggered-messages`),
+        ]);
+
+        if (trigRes.status === "fulfilled" && Array.isArray(trigRes.value.data)) {
+          for (const msg of trigRes.value.data) {
+            if (!active) break;
+            const numericId = typeof msg.id === "string" 
+              ? Math.abs(msg.id.split("-").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)) 
+              : (Number(msg.id) || 1);
+            onMessage({
+              id: numericId,
+              atSeconds: msg.timeOffsetSeconds || 0,
+              channel: msg.type || "slack",
+              from: msg.from || "Engineering Lead",
+              subject: msg.subject || "Scenario Message",
+              body: msg.body || "",
+              expectsReply: true,
+            });
+          }
+        }
+
+        if (currRes.status === "fulfilled" && currRes.value.data && currRes.value.data.event && active) {
+          const evt = currRes.value.data.event;
+          const enriched = evt.enrichedContent || {};
+          const channelType: any = evt.type === "ticket" ? "ticket" : evt.type === "email" ? "email" : "slack";
 
           onMessage({
-            id: typeof evt.id === 'string' ? Math.abs(evt.id.split('-').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)) : (Number(evt.id) || 1),
+            id: typeof evt.id === "string" ? Math.abs(evt.id.split("-").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)) : (Number(evt.id) || 1),
             atSeconds: 0,
             channel: channelType,
-            from: evt.sender || enriched.from || (channelType === 'ticket' ? 'Jira System' : channelType === 'email' ? 'Account Manager' : '#eng-alerts'),
-            subject: evt.title || enriched.context || 'Assessment Incident Scenario',
-            body: enriched.messages || enriched.tickets || enriched.emails || enriched.alerts || evt.prompt || evt.description || 'System outage scenario event.',
+            from: evt.sender || enriched.from || (channelType === "ticket" ? "Jira System" : channelType === "email" ? "Account Manager" : "#eng-alerts"),
+            subject: evt.title || enriched.context || "Assessment Incident Scenario",
+            body: enriched.messages || enriched.tickets || enriched.emails || enriched.alerts || evt.prompt || evt.description || "System outage scenario event.",
             expectsReply: true,
-          })
+          });
         }
       } catch (err) {
-        console.warn('[realScenarioEngineAdapter] Poll current event skipped/failed:', err)
+        console.warn("[realScenarioEngineAdapter] Poll current event skipped/failed:", err);
       }
     }
 
