@@ -160,7 +160,7 @@ export class AdminService {
   }
 
   async getSessionDetail(sessionId: string): Promise<SessionDetail> {
-    const session = await this.prisma.session.findUnique({
+    let session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
         candidate: true,
@@ -183,6 +183,44 @@ export class AdminService {
         },
       },
     });
+
+    if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: {
+          OR: [
+            { id: sessionId },
+            { token: sessionId },
+            { sessionId: sessionId },
+          ],
+        },
+      });
+
+      if (invite?.sessionId) {
+        session = await this.prisma.session.findUnique({
+          where: { id: invite.sessionId },
+          include: {
+            candidate: true,
+            roleTemplate: true,
+            moduleResponses: {
+              include: {
+                question: true,
+              },
+            },
+            integrityFlags: {
+              include: {
+                evidenceClip: true,
+              },
+            },
+            score: true,
+            reviewerDecision: {
+              include: {
+                staff: true,
+              },
+            },
+          },
+        });
+      }
+    }
 
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);

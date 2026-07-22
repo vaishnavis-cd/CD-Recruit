@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { PROMPTING_QUESTIONS } from '../../fixtures/questions'
+import type { PromptingQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { services } from '../../services'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
 interface PromptingModuleProps {
   moduleIndex: number
@@ -14,8 +16,27 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
   const setResponse = useSessionStore(s => s.setResponse)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  const questions = PROMPTING_QUESTIONS
+  const assignedPromptingQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) return PROMPTING_QUESTIONS
+    const filtered = assessment.questions.filter((q) => q.moduleType === 'AI_PROMPTING')
+    if (filtered.length === 0) return []
+    return filtered.map((q, i) => {
+      const content = q.content || {}
+      return {
+        id: q.questionId,
+        moduleIndex,
+        type: 'prompting' as const,
+        text: content.prompt || content.scenario || content.instructions || content.description || content.title || `AI Prompting Task ${i + 1}`,
+        systemContext: content.context || content.systemContext || 'You are an AI assistant helping with an engineering evaluation.',
+        suggestedResponse: content.idealResponseSummary || '',
+      } as PromptingQuestion
+    })
+  }, [assessment?.questions, moduleIndex])
+
+  const questions = assignedPromptingQuestions
   const question = questions[currentIndex]
+
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
 
   const [promptText, setPromptText] = useState('')
   const [aiResponse, setAiResponse] = useState<string | null>(null)
@@ -86,7 +107,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
     const tTokens = new Set(cleanT.split(/\s+/).filter(t => t.length > 2))
     if (tTokens.size === 0) return false
     let intersection = 0
-    pTokens.forEach(t => { if (tTokens.has(t)) intersection++ })
+    pTokens.forEach((t: string) => { if (tTokens.has(t)) intersection++ })
     return (intersection / tTokens.size) >= 0.65
   }, [promptText, question?.text])
 
@@ -214,11 +235,10 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             ← Previous
           </button>
           <button
-            onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-            disabled={currentIndex === questions.length - 1}
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
           >
-            Next →
+            {nextButtonLabel}
           </button>
         </div>
       </div>

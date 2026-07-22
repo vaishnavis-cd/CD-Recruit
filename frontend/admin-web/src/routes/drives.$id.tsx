@@ -32,6 +32,7 @@ import {
   Award,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
+import { SingleDateTimePicker } from "../components/single-date-time-picker";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
 
@@ -133,6 +134,24 @@ function DriveDetailPage() {
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
   const [candidateNameInput, setCandidateNameInput] = useState("");
   const [candidateEmailInput, setCandidateEmailInput] = useState("");
+
+  // Copy candidate link state
+  const [copiedCandidateId, setCopiedCandidateId] = useState<string | null>(null);
+
+  const copyCandidateLink = async (link: string, candidateId: string) => {
+    if (!link) {
+      toast.error("Invite link not yet generated. Click 'Generate Links' above.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedCandidateId(candidateId);
+      toast.success("Unique candidate assessment link copied to clipboard!");
+      setTimeout(() => setCopiedCandidateId(null), 2000);
+    } catch {
+      toast.error("Failed to copy link.");
+    }
+  };
 
   // Confirmation Modal States
   const [confirmGenerateLinks, setConfirmGenerateLinks] = useState(false);
@@ -320,7 +339,7 @@ function DriveDetailPage() {
       }
       if (questionSearch.trim()) {
         const s = questionSearch.toLowerCase().trim();
-        const title = (q.content?.title || q.content?.text || q.content?.question || "").toLowerCase();
+        const title = (q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || "").toLowerCase();
         const tags = (q.tags || []).join(" ").toLowerCase();
         if (!title.includes(s) && !tags.includes(s)) return false;
       }
@@ -408,94 +427,34 @@ function DriveDetailPage() {
       {/* CONFIGURATION TAB */}
       {activeTab === "configuration" && (
         <div className="space-y-6">
-          {/* SECTION 1: 12-Hour AM/PM Custom Theme Calendar & Time Picker */}
-          <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#EFF0F3] pb-3">
-              <CalendarDays size={18} className="text-[#2F5CFF]" />
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Schedule & Window Timing (12-Hour AM/PM)</h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-              {/* Start Time */}
-              <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-4 space-y-3">
-                <label className="block text-[12px] font-mono uppercase tracking-wider text-[#5B5B64] font-semibold">
-                  Assessment Start Date & Time
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="px-3 py-1.5 text-[13px] border border-[#E6E6EA] rounded bg-white font-mono focus:outline-none focus:border-[#2F5CFF]"
-                  />
-                  <div className="flex items-center gap-1 bg-white border border-[#E6E6EA] rounded px-2 py-1">
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={startHour}
-                      onChange={(e) => setStartHour(e.target.value)}
-                      className="w-7 text-center font-mono text-[13px] focus:outline-none"
-                    />
-                    <span>:</span>
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={startMinute}
-                      onChange={(e) => setStartMinute(e.target.value)}
-                      className="w-7 text-center font-mono text-[13px] focus:outline-none"
-                    />
-                    <select
-                      value={startAmPm}
-                      onChange={(e) => setStartAmPm(e.target.value)}
-                      className="ml-1 text-[12px] font-semibold text-[#2F5CFF] focus:outline-none cursor-pointer"
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* End Time */}
-              <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-4 space-y-3">
-                <label className="block text-[12px] font-mono uppercase tracking-wider text-[#5B5B64] font-semibold">
-                  Assessment End Date & Time
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="px-3 py-1.5 text-[13px] border border-[#E6E6EA] rounded bg-white font-mono focus:outline-none focus:border-[#2F5CFF]"
-                  />
-                  <div className="flex items-center gap-1 bg-white border border-[#E6E6EA] rounded px-2 py-1">
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={endHour}
-                      onChange={(e) => setEndHour(e.target.value)}
-                      className="w-7 text-center font-mono text-[13px] focus:outline-none"
-                    />
-                    <span>:</span>
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={endMinute}
-                      onChange={(e) => setEndMinute(e.target.value)}
-                      className="w-7 text-center font-mono text-[13px] focus:outline-none"
-                    />
-                    <select
-                      value={endAmPm}
-                      onChange={(e) => setEndAmPm(e.target.value)}
-                      className="ml-1 text-[12px] font-semibold text-[#2F5CFF] focus:outline-none cursor-pointer"
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
-                  </div>
-                </div>
+          {/* SECTION 1: Single Calendar Date & Start/End Time Window Picker */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Schedule Date & Assessment Window</h3>
+                <p className="text-[12px] text-[#5B5B64]">Select the drive date on the calendar, then set the start time and end time for the assessment.</p>
               </div>
             </div>
+
+            <SingleDateTimePicker
+              selectedDate={startDate || endDate || new Date().toISOString().slice(0, 10)}
+              startHour={startHour}
+              startMinute={startMinute}
+              startAmPm={startAmPm}
+              endHour={endHour}
+              endMinute={endMinute}
+              endAmPm={endAmPm}
+              onChange={(data) => {
+                setStartDate(data.date);
+                setEndDate(data.date);
+                setStartHour(data.startHour);
+                setStartMinute(data.startMinute);
+                setStartAmPm(data.startAmPm);
+                setEndHour(data.endHour);
+                setEndMinute(data.endMinute);
+                setEndAmPm(data.endAmPm);
+              }}
+            />
           </div>
 
           {/* SECTION 2: Module Selection & 100-Point Scoring Ceiling */}
@@ -685,7 +644,7 @@ function DriveDetailPage() {
               ) : (
                 filteredQuestionsList.map((q) => {
                   const isSelected = assignedQuestions.includes(q.id);
-                  const title = q.content?.title || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
+                  const title = q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
                   const difficulty = q.difficulty || "MEDIUM";
                   return (
                     <div
@@ -791,13 +750,14 @@ function DriveDetailPage() {
                     <th className="p-3">Candidate</th>
                     <th className="p-3">Email</th>
                     <th className="p-3">Status</th>
+                    <th className="p-3">Invite Link</th>
                     <th className="p-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EFF0F3]">
                   {drive.roster.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
+                      <td colSpan={5} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
                         No candidates added to roster yet. Click "Add Candidate" above to get started.
                       </td>
                     </tr>
@@ -806,13 +766,49 @@ function DriveDetailPage() {
                       <tr key={c.candidateId} className="hover:bg-[#F7F7F9]">
                         <td className="p-3 font-semibold text-[#0B0B0D]">{c.candidateName}</td>
                         <td className="p-3 font-mono text-[12px] text-[#5B5B64]">{c.candidateEmail}</td>
-                        <td className="p-3 font-mono text-[11px]">{c.inviteStatus}</td>
+                        <td className="p-3 font-mono text-[11px]">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase font-mono ${
+                              c.inviteStatus === "REDEEMED" || c.inviteStatus === "COMPLETED"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : c.isGenerated
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {c.isGenerated ? c.inviteStatus : "DRAFT"}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {c.isGenerated && c.inviteLink ? (
+                            <button
+                              onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium bg-[#F0F4FF] hover:bg-[#D9E4FF] text-[#2F5CFF] rounded border border-[#B3C5FF] transition-colors cursor-pointer"
+                            >
+                              {copiedCandidateId === c.candidateId ? (
+                                <>
+                                  <Check size={12} className="text-emerald-600" />
+                                  <span className="text-emerald-600 font-semibold">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={12} />
+                                  <span>Copy Unique Link</span>
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-[#8B8B93] italic">
+                              Click "Generate Links" to activate
+                            </span>
+                          )}
+                        </td>
                         <td className="p-3 text-right">
                           {c.sessionId && (
                             <Link
                               to="/results/$id"
                               params={{ id: c.sessionId }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded hover:bg-[#D9E4FF] transition-colors"
                             >
                               <Eye size={12} /> View Results
                             </Link>
@@ -862,7 +858,7 @@ function DriveDetailPage() {
             <div className="p-6 overflow-y-auto space-y-4">
               <div>
                 <h3 className="text-[16px] font-semibold text-[#0B0B0D] mb-2">
-                  {previewQuestion.content?.title || previewQuestion.content?.text || previewQuestion.content?.question || "Question Details"}
+                  {previewQuestion.content?.title || previewQuestion.content?.prompt || previewQuestion.content?.text || previewQuestion.content?.question || "Question Details"}
                 </h3>
                 {previewQuestion.content?.description && (
                   <p className="text-[13px] text-[#5B5B64] leading-relaxed">

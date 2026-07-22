@@ -3,6 +3,7 @@ import { CONTEXTUAL_QUESTIONS } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { InFictionInbox } from '../../components/InFictionInbox'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
 interface ContextualModuleProps {
   moduleIndex: number
@@ -13,8 +14,36 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
   const assessment = useSessionStore(s => s.assessment)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  const questions = CONTEXTUAL_QUESTIONS
+  const assignedSimQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) {
+      return CONTEXTUAL_QUESTIONS
+    }
+    const filtered = assessment.questions.filter(
+      (q) => q.moduleType === 'SIMULATION' || (q.moduleType as string) === 'CONTEXTUAL'
+    )
+    if (filtered.length === 0) return []
+
+    return filtered.map((q, i) => {
+      const content = q.content || {}
+      return {
+        id: q.questionId,
+        moduleIndex,
+        type: 'contextual' as const,
+        title: content.title || `Scenario ${i + 1}`,
+        instructions:
+          content.description ||
+          content.instructions ||
+          content.prompt ||
+          "You've just joined the on-call rotation. Respond to incoming messages as they arrive.",
+        scenarioId: content.scenarioId || q.questionId || 'api-incident',
+      }
+    })
+  }, [assessment?.questions, moduleIndex])
+
+  const questions = assignedSimQuestions
   const question = questions[currentIndex]
+
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
 
   useEffect(() => {
     setCurrentQuestion(moduleIndex, currentIndex)
@@ -63,11 +92,10 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
             ← Previous scenario
           </button>
           <button
-            onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-            disabled={currentIndex === questions.length - 1}
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
           >
-            Next scenario →
+            {nextButtonLabel}
           </button>
         </div>
       </div>
