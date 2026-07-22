@@ -10,9 +10,9 @@ export class LocalFakeObjectStorageProvider extends ObjectStoragePort {
     key: string,
     _ttlSeconds?: number,
   ): Promise<string | null> {
-    const fakeUrl = process.env.FAKE_EVIDENCE_URL || null;
+    const fakeUrl = process.env.FAKE_EVIDENCE_URL || `http://localhost:9000/${bucket}/${key}`;
     this.logger.debug(
-      `[local-fake-storage] getSignedUrl(${bucket}, ${key}) -> ${fakeUrl ?? "null"}`,
+      `[local-fake-storage] getSignedUrl(${bucket}, ${key}) -> ${fakeUrl}`,
     );
     return fakeUrl;
   }

@@ -24,63 +24,6 @@ export const realCvDetectionAdapter: CvDetectionPort & { _activeStream: () => Me
   _activeStream: () => activeStream,
 
   async start(): Promise<void> {
-<<<<<<< HEAD
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-      })
-      activeStream = stream
-      emit({ type: 'permission-granted' })
-    } catch (err: any) {
-      console.error('[realCvDetectionAdapter] getUserMedia failed:', err?.name, err?.message)
-      emit({ type: 'permission-denied' })
-    }
-  },
-
-  stop(): void {
-    if (activeStream) {
-      activeStream.getTracks().forEach(t => t.stop())
-      activeStream = null
-    }
-  },
-
-  onDetectionEvent(callback: (event: DetectionEvent) => void): () => void {
-    subscribers.add(callback)
-    return () => subscribers.delete(callback)
-  },
-
-  async captureFrame(): Promise<string> {
-    let stream = activeStream
-    if (!stream) {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-      activeStream = stream
-    }
-    const video = document.createElement('video')
-    video.srcObject = stream
-    video.autoplay = true
-    video.playsInline = true
-    await new Promise<void>((resolve, reject) => {
-      video.onloadedmetadata = () => video.play().then(resolve).catch(reject)
-      video.onerror = () => reject(new Error('Video load error'))
-    })
-    await new Promise(r => setTimeout(r, 400))
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth || 640
-    canvas.height = video.videoHeight || 480
-    const ctx = canvas.getContext('2d')
-    if (ctx) ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-    emit({ type: 'capture-ready', frameDataUrl: dataUrl })
-    return dataUrl
-  },
-
-  isWasmSupported(): boolean {
-    try {
-      return typeof WebAssembly === 'object' && typeof WebAssembly.instantiate === 'function'
-    } catch {
-      return false
-    }
-=======
     const sessionId = useSessionStore.getState().session?.id || 'demo-session'
     await ProctoringModule.getInstance().start(sessionId)
   },
@@ -116,6 +59,5 @@ export const realCvDetectionAdapter: CvDetectionPort & { _activeStream: () => Me
 
   isWasmSupported(): boolean {
     return typeof WebAssembly !== "undefined"
->>>>>>> 21244e02381e46ad3484446e32ab998e891db41f
   },
 }
