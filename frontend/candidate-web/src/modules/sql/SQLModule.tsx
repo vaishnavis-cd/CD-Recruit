@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 type MonacoType = any
-import { SQL_QUESTIONS } from '../../fixtures/questions'
 import type { SQLQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { useTheme } from '../../theme/ThemeProvider'
 import { cdRecruitLightTheme, cdRecruitDarkTheme } from '../../theme/monacoTheme'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+import apiClient from '../../api/client'
 
 // sql.js is loaded via CDN-style dynamic import for compatibility
 // This runs ENTIRELY client-side — no mock needed per spec
@@ -47,52 +47,100 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
   const { theme } = useTheme()
 
   const assignedSqlQuestions = React.useMemo(() => {
-    if (!assessment?.questions || assessment.questions.length === 0) return SQL_QUESTIONS
-    const filtered = assessment.questions.filter((q) => q.moduleType === 'SQL')
-    if (filtered.length === 0) return []
-    return filtered.map((q, i) => {
-      const content = q.content || {}
-      return {
-        id: q.questionId,
-        moduleIndex,
-        type: 'sql' as const,
-        text: content.prompt || content.instructions || content.description || content.title || `SQL Challenge ${i + 1}`,
-        schema: content.schema || `CREATE TABLE employees (id INT, name TEXT, salary INT);`,
-        seed: content.seedData || content.seed || `INSERT INTO employees VALUES (1, 'Alice', 90000), (2, 'Bob', 80000);`,
-        hint: content.hint || '',
-      } as SQLQuestion
-    })
-  }, [assessment?.questions, moduleIndex])
+    if (!assessment?.questions || assessment.questions.length === 0) return []
+    return assessment.questions.filter((q) => q.moduleType === 'SQL')
+  }, [assessment?.questions])
 
   const questions = assignedSqlQuestions
-  const question = questions[currentIndex]
+  const questionMetadata = questions[currentIndex]
+  const questionId = questionMetadata?.questionId ?? ''
+
   const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
 
+  const [questionData, setQuestionData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<QueryResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [dbReady, setDbReady] = useState(false)
   const dbRef = useRef<any>(null)
 
-  // Restore saved query
+  // Restore current question index on mount
   useEffect(() => {
-    const saved = assessment?.responses[question?.id]
-    if (typeof saved === 'string') setQuery(saved)
-    else setQuery('')
-    setResults(null)
-    setError(null)
+    if (assessment?.currentModuleIndex === moduleIndex) {
+      setCurrentIndex(assessment.currentQuestionIndex)
+    }
+  }, [])
+
+  useEffect(() => {
+    setCurrentQuestion(moduleIndex, currentIndex)
   }, [currentIndex])
+
+  // Fetch question details and responses from backend
+  useEffect(() => {
+    if (!assessment?.sessionId || !questionId) {
+      setLoading(false)
+      return
+    }
+    let isMounted = true
+    setLoading(true)
+    setError(null)
+    apiClient.get(`/sessions/${assessment.sessionId}/questions/${questionId}`)
+      .then(res => {
+        if (isMounted) {
+          setQuestionData(res.data)
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          setError(err.message || 'Failed to load SQL question details')
+          setLoading(false)
+        }
+      })
+    return () => { isMounted = false }
+  }, [assessment?.sessionId, questionId])
+
+  // Map to SQLQuestion structure
+  const question = React.useMemo(() => {
+    if (!questionData) return null
+    const content = questionData.content || {}
+    return {
+      id: questionId,
+      moduleIndex,
+      type: 'sql' as const,
+      text: content.prompt || content.instructions || content.description || content.title || 'SQL Challenge',
+      schema: content.schema || `CREATE TABLE employees (id INT, name TEXT, salary INT);`,
+      seed: content.seedData || content.seed || `INSERT INTO employees VALUES (1, 'Alice', 90000), (2, 'Bob', 80000);`,
+      hint: content.hint || '',
+    } as SQLQuestion
+  }, [questionData, questionId, moduleIndex])
+
+  // Sync DB response query to store & local state
+  useEffect(() => {
+    if (questionData && questionId) {
+      const dbResponse = questionData.response?.responsePayload as { query?: string } | undefined
+      const savedQuery = (assessment?.responses[questionId] as string) ?? dbResponse?.query
+      if (typeof savedQuery === 'string') {
+        setQuery(savedQuery)
+        if (!assessment?.responses[questionId]) {
+          setResponse(questionId, savedQuery)
+        }
+      } else {
+        setQuery('')
+      }
+      setResults(null)
+      setError(null)
+    }
+  }, [questionData, questionId])
 
   // Load sql.js DB
   useEffect(() => {
     if (!question) return
     setDbReady(false)
     getSqlDb(question.schema, question.seed)
-      .then(SQL => {
-        const db = new SQL.Database()
-        db.run(question.schema)
-        db.run(question.seed)
+      .then(db => {
         dbRef.current = db
         setDbReady(true)
       })
@@ -104,10 +152,6 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
       dbRef.current?.close?.()
     }
   }, [currentIndex, question?.id])
-
-  useEffect(() => {
-    setCurrentQuestion(moduleIndex, currentIndex)
-  }, [currentIndex])
 
   function handleQueryChange(value: string | undefined) {
     const val = value ?? ''
