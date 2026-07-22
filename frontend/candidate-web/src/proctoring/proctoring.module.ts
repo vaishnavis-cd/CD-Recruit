@@ -8,6 +8,7 @@ import { RollingBufferService } from "./rolling-buffer.service";
 import { EvidenceCaptureService } from "./evidence-capture.service";
 import { EvidenceUploadService } from "./evidence-upload.service";
 import { ProctoringEventService } from "./proctoring-event.service";
+import { AudioDetectionService } from "./audio-detection.service";
 
 export class ProctoringModule {
   private static instance: ProctoringModule | null = null;
@@ -124,6 +125,11 @@ export class ProctoringModule {
       // Start processing frames
       processor.start();
 
+      // Start audio detection service if microphone consent is granted
+      if (localStorage.getItem("cd-recruit-mic-consent") === "true") {
+        AudioDetectionService.getInstance().start(stream);
+      }
+
       this.isRunning = true;
 
       // Deterministic Startup Diagnostics Logging
@@ -174,6 +180,9 @@ export class ProctoringModule {
       this.unsubscribeEvents = null;
     }
     DetectionEngineService.getInstance().reset();
+
+    // Stop audio detection service
+    AudioDetectionService.getInstance().stop();
 
     // Stop webcam and rolling recorder
     RollingBufferService.getInstance().stop();

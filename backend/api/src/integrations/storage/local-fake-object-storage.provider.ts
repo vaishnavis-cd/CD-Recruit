@@ -28,4 +28,11 @@ export class LocalFakeObjectStorageProvider extends ObjectStoragePort {
     );
     return true;
   }
+
+  async deleteObject(bucketName: string, objectKey: string): Promise<boolean> {
+    this.logger.debug(
+      `[local-fake-storage] deleteObject(${bucketName}, ${objectKey}) -> success`,
+    );
+    return true;
+  }
 }

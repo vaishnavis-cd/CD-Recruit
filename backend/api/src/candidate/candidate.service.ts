@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Candidate } from "@prisma/client";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Candidate, ConsentType } from "@prisma/client";
 import { PrismaService } from "@app/prisma/prisma.service";
+import { ConsentTypeEnum } from "./consent.dto";
 
 @Injectable()
 export class CandidateService {
@@ -26,5 +27,47 @@ export class CandidateService {
 
     this.logger.debug(`findOrCreate: candidate ${candidate.id} (${email})`);
     return candidate;
+  }
+
+  /**
+   * Persist a consent record for a candidate, identified via their active session.
+   *
+   * Each consent step (TERMS, BIOMETRIC, SELFIE, AUDIO) must be recorded before
+   * the candidate is allowed to advance. This satisfies DPDP Act (2023) §6 requirements
+   * for explicit, granular consent records with timestamp and IP address.
+   */
+  async recordConsent(
+    sessionId: string,
+    consentType: ConsentTypeEnum,
+    version: string,
+    ipAddress: string,
+  ): Promise<{ id: string; consentedAt: string }> {
+    // Look up candidate via session
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { candidateId: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session not found: ${sessionId}`);
+    }
+
+    const record = await this.prisma.consentRecord.create({
+      data: {
+        candidateId: session.candidateId,
+        consentType: consentType as unknown as ConsentType,
+        version,
+        ipAddress,
+      },
+    });
+
+    this.logger.log(
+      `Consent recorded: candidateId=${session.candidateId} type=${consentType} version=${version}`,
+    );
+
+    return {
+      id: record.id,
+      consentedAt: record.consentedAt.toISOString(),
+    };
   }
 }

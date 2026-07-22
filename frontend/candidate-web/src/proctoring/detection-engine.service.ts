@@ -22,6 +22,9 @@ export class DetectionEngineService {
     PHONE_DETECTED: 0,
     HEADPHONES_DETECTED: 0,
     BOOK_DETECTED: 0,
+    SPEECH_DETECTED: 0,
+    SECOND_VOICE_SUSPECTED: 0,
+    IDENTITY_MISMATCH: 0,
   };
 
   private constructor() {}

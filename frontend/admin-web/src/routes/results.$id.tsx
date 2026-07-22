@@ -16,7 +16,6 @@ import {
   Video,
   X,
   AlertTriangle,
-  FileText,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -37,7 +36,7 @@ export const Route = createFileRoute("/results/$id")({
 
 function IndividualResultPage() {
   const { id } = useParams({ from: "/results/$id" });
-  const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
+  const fetchSessionDetail = useStore((s) => s.fetchSessionDetailForResults);
   const recordCandidateDecision = useStore((s) => s.recordCandidateDecision);
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
@@ -56,7 +55,7 @@ function IndividualResultPage() {
     setLoading(true);
     try {
       const data = await fetchSessionDetail(id);
-      setDetail(data);
+      setDetail(data as CandidateSessionDetail);
     } catch (err: any) {
       toast.error("Failed to load candidate evaluation detail: " + (err.message || err));
     } finally {
@@ -198,7 +197,9 @@ function IndividualResultPage() {
               Say/Do Alignment
             </span>
             <span className="text-[24px] font-mono font-bold text-[#0C6B58]">
-              {score ? `${Math.round(score.sayDoConsistencyScore * 100)}%` : "N/A"}
+              {score && score.sayDoConsistencyScore >= 0
+                ? `${Math.round(score.sayDoConsistencyScore * 100)}%`
+                : "Pending"}
             </span>
           </div>
 
@@ -207,7 +208,9 @@ function IndividualResultPage() {
               AI Confidence
             </span>
             <span className="text-[24px] font-mono font-bold text-amber-700">
-              {score ? `${Math.round(score.aiConfidence * 100)}%` : "N/A"}
+              {score && score.aiConfidence >= 0
+                ? `${Math.round(score.aiConfidence * 100)}%`
+                : "Pending"}
             </span>
           </div>
 
@@ -380,7 +383,7 @@ function IndividualResultPage() {
             ) : (
               <div className="space-y-3">
                 {flags.map((flag) => (
-                  <div key={flag.id} className="p-4 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
+                  <div key={flag.flagId || flag.id} className="p-4 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
                     <div className="flex items-start gap-3">
                       <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
                       <div>
@@ -398,13 +401,15 @@ function IndividualResultPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setActiveClipUrl(`/proctoring/clips/${flag.id}.webm`)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <Video size={13} />
-                      View Clip
-                    </button>
+                    {flag.evidenceClipUrl && (
+                      <button
+                        onClick={() => setActiveClipUrl(flag.evidenceClipUrl ?? null)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        <Video size={13} />
+                        View Clip
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -479,8 +484,13 @@ function IndividualResultPage() {
               </button>
             </div>
 
-            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center text-white text-[13px] font-mono">
-              [Proctoring Evidence Video Stream Player]
+            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
+              <video
+                src={activeClipUrl}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+              />
             </div>
 
             <div className="flex justify-end">
