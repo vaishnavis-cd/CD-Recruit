@@ -102,10 +102,8 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         console.error('[ModuleShell] STEP 1: Exception thrown in ProctoringModule.start():', err)
       })
 
-    return () => {
-      console.log('[ModuleShell] STEP 1: Cleaning up ProctoringModule...')
-      ProctoringModule.getInstance().stop().catch(() => {})
-    }
+    // ProctoringModule is a global singleton for the assessment session.
+    // Switching question tabs within the same session must NOT tear down the camera/proctoring pipeline.
   }, [assessment?.sessionId])
 
   // Silent integrity signals — no UI reaction per spec
