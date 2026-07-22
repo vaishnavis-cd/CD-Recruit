@@ -1,4 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   BriefcaseBusiness,
@@ -8,8 +9,10 @@ import {
   ClipboardCheck,
   Settings as SettingsIcon,
   Award,
+  AlertTriangle,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { getUserProfile, clearStoredToken } from "../lib/auth";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -31,6 +34,40 @@ export interface AppShellProps {
 
 export function AppShell({ title, count, actions, search, children }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const [userInfo, setUserInfo] = useState<{ userName: string; userRole: string; initials: string }>({
+    userName: "Rachel Brooks",
+    userRole: "recruiter",
+    initials: "RB",
+  });
+
+  useEffect(() => {
+    const user = getUserProfile();
+    if (user) {
+      const name = user.name || "Rachel Brooks";
+      const role = user.role ? user.role.toLowerCase() : "recruiter";
+      const inits = name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+      setUserInfo({
+        userName: name,
+        userRole: role,
+        initials: inits,
+      });
+    }
+  }, []);
+
+  const handleLogout = () => {
+    clearStoredToken();
+    setShowLogoutModal(false);
+    // Replace current location in history to prevent navigating back to protected route via browser Back button
+    window.location.replace("/login");
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F7F7F9] text-[#0B0B0D] font-sans">
@@ -41,13 +78,14 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
               CD
             </div>
             <div>
-              <div className="text-[13px] font-semibold tracking-tight text-[#0B0B0D]">CD-Recruit</div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#8B8B93]">
+              <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">CD-Recruit</div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
                 admin
               </div>
             </div>
           </div>
         </div>
+
         <nav className="flex-1 py-3">
           {NAV.map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
@@ -71,19 +109,24 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
             );
           })}
         </nav>
+
         <div className="px-4 py-3 border-t border-[#E6E6EA] flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#2F5CFF] text-white flex items-center justify-center text-[11px] font-mono font-semibold">
-            RB
+            {userInfo.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] truncate text-[#0B0B0D]">Rachel Brooks</div>
+            <div className="text-[12px] truncate text-[#0B0B0D] font-medium">{userInfo.userName}</div>
             <div className="text-[10px] font-mono text-[#8B8B93] uppercase tracking-[0.14em]">
-              recruiter
+              {userInfo.userRole}
             </div>
           </div>
-          <Link to="/login" className="text-[#8B8B93] hover:text-[#0B0B0D]">
-            <LogOut size={14} />
-          </Link>
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            title="Log out"
+            className="p-1.5 text-[#8B8B93] hover:text-[#DC2626] hover:bg-[#FFF5F5] rounded-md transition-colors cursor-pointer"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </aside>
 
@@ -102,6 +145,43 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
         </header>
         <main className="px-8 py-6">{children}</main>
       </div>
+
+      {/* Blurred Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 transition-all">
+          <div className="bg-white rounded-xl border border-[#E6E6EA] shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#FFF5F5] text-[#DC2626] flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Confirm Logout</h3>
+                <p className="text-[12px] text-[#5B5B64]">End active admin session</p>
+              </div>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to log out of the CD-Recruit Admin Console?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 text-[13px] font-medium text-[#5B5B64] hover:bg-[#EFF0F3] rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-[13px] font-medium text-white bg-[#DC2626] hover:bg-[#B91C1C] rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <LogOut size={14} />
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

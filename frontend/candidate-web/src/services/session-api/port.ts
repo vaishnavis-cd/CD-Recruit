@@ -21,6 +21,7 @@ export interface CandidateSessionApiPort {
   createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session>
   recordConsent(sessionId: string, version?: string): Promise<{ ok: boolean }>
   submitModuleResponse(response: ModuleResponse): Promise<void>
+  runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string>
   submitFinalAssessment(sessionId: string): Promise<{ referenceId: string }>
   reportIntegritySignal(signal: IntegritySignalType): Promise<void>
   syncEventLog(payload: SyncEventPayload): Promise<{ success: boolean; retryAfterMs?: number }>

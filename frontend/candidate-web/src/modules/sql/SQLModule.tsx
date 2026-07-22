@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import type * as MonacoType from 'monaco-editor'
+type MonacoType = any
 import { SQL_QUESTIONS } from '../../fixtures/questions'
+import type { SQLQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { useTheme } from '../../theme/ThemeProvider'
 import { cdRecruitLightTheme, cdRecruitDarkTheme } from '../../theme/monacoTheme'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
 // sql.js is loaded via CDN-style dynamic import for compatibility
 // This runs ENTIRELY client-side — no mock needed per spec
@@ -44,8 +46,27 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
   const { theme } = useTheme()
 
-  const questions = SQL_QUESTIONS
+  const assignedSqlQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) return SQL_QUESTIONS
+    const filtered = assessment.questions.filter((q) => q.moduleType === 'SQL')
+    if (filtered.length === 0) return []
+    return filtered.map((q, i) => {
+      const content = q.content || {}
+      return {
+        id: q.questionId,
+        moduleIndex,
+        type: 'sql' as const,
+        text: content.prompt || content.instructions || content.description || content.title || `SQL Challenge ${i + 1}`,
+        schema: content.schema || `CREATE TABLE employees (id INT, name TEXT, salary INT);`,
+        seed: content.seedData || content.seed || `INSERT INTO employees VALUES (1, 'Alice', 90000), (2, 'Bob', 80000);`,
+        hint: content.hint || '',
+      } as SQLQuestion
+    })
+  }, [assessment?.questions, moduleIndex])
+
+  const questions = assignedSqlQuestions
   const question = questions[currentIndex]
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<QueryResult | null>(null)
@@ -118,7 +139,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }
 
-  function handleEditorMount(_editor: MonacoType.editor.IStandaloneCodeEditor, monaco: typeof MonacoType) {
+  function handleEditorMount(_editor: any, monaco: any) {
     monaco.editor.defineTheme('cd-recruit-light', cdRecruitLightTheme)
     monaco.editor.defineTheme('cd-recruit-dark', cdRecruitDarkTheme)
     monaco.editor.setTheme(theme === 'dark' ? 'cd-recruit-dark' : 'cd-recruit-light')
@@ -204,11 +225,10 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             ← Prev
           </button>
           <button
-            onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}
-            disabled={currentIndex === questions.length - 1}
-            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
           >
-            Next →
+            {nextButtonLabel}
           </button>
         </div>
 

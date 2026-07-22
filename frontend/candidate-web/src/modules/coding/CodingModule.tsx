@@ -9,6 +9,8 @@ import { Loader2, AlertCircle } from 'lucide-react'
 /** Simple UUID v4 check — NestJS ParseUUIDPipe rejects anything else with 400. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+
 interface CodingModuleProps {
   moduleIndex: number
 }
@@ -23,6 +25,8 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING') ?? []
   const questionId = codingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
+
+  const { handleNext: triggerNext } = useModuleNavigation(moduleIndex, currentIndex, codingQuestions.length || 1)
 
   const [questionData, setQuestionData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -82,8 +86,8 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
     return () => { isMounted = false }
   }, [assessment?.sessionId, questionId, isValidUUID])
 
-  const paletteItems = CODING_QUESTIONS.map((q, i) => ({
-    id: q.id,
+  const paletteItems = (codingQuestions.length > 0 ? codingQuestions : CODING_QUESTIONS).map((q, i) => ({
+    id: 'questionId' in q ? q.questionId : (q as any).id,
     label: `Challenge ${i + 1}`,
   }))
 

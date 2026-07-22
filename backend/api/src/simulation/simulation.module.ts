@@ -12,6 +12,8 @@ import {
   CORRELATION_GRADING_QUEUE,
 } from "./correlation-grading.processor";
 
+import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
+
 const infraMode = process.env.INFRA_MODE ?? "local";
 const isFull = infraMode === "full";
 
@@ -29,8 +31,9 @@ const isFull = infraMode === "full";
     EventGenerationService,
     CorrelationEngineClient,
     CorrelationGradingService,
+    SandboxOrchestratorService,
     ...(isFull ? [CorrelationGradingProcessor] : []),
   ],
-  exports: [SimulationService, CorrelationEngineClient, CorrelationGradingService],
+  exports: [SimulationService, CorrelationEngineClient, CorrelationGradingService, SandboxOrchestratorService],
 })
 export class SimulationModule {}

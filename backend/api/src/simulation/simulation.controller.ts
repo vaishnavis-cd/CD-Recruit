@@ -172,6 +172,15 @@ export class SimulationController {
     return this.simulationService.submitEvent(sessionId, response);
   }
 
+  @Post(":id/simulation/execute")
+  @UseGuards(SessionOwnerGuard)
+  async executeTerminalCommand(
+    @Param("id") sessionId: string,
+    @Body() body: { command: string },
+  ) {
+    return this.simulationService.executeTerminalCommand(sessionId, body.command);
+  }
+
   @Post(":id/simulation/skip")
   @UseGuards(SessionOwnerGuard)
   async skipEvent(@Param("id") sessionId: string) {

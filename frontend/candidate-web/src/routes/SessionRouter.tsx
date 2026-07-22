@@ -28,14 +28,15 @@ function ResolvingScreen() {
   )
 }
 
-export function SessionRouter() {
-  const { token = 'demo-token-2024' } = useParams<{ token: string }>()
+export function SessionRouter({ token: propToken }: { token?: string }) {
+  const { token: pathToken } = useParams<{ token?: string }>()
+  const activeToken = propToken || pathToken || new URLSearchParams(window.location.search).get('token') || ''
   const screen = useSessionStore(s => s.screen)
 
   // Store scheduled time in localStorage for tutorial/waiting-room usage
   useEffect(() => {
     const scheduledMs = new Date(FIXTURE_INVITE.scheduledTime).getTime()
-    // Apply any dev time offset
+    // Apply any time offset
     const nowMs = services.time.getServerNow()
     const adjustedScheduled = scheduledMs
     localStorage.setItem('cd-recruit-scheduled-ms', String(adjustedScheduled))
@@ -51,7 +52,7 @@ export function SessionRouter() {
   return (
     <>
       {/* Resolver always runs — drives transitions, renders nothing */}
-      {screen.type === 'resolving' && <InviteResolver />}
+      {screen.type === 'resolving' && <InviteResolver token={activeToken} />}
 
       {/* Screen rendering based on current state */}
       {screen.type === 'resolving' && <ResolvingScreen />}

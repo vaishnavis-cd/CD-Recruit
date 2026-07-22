@@ -14,6 +14,8 @@ import { CorrelationGradingService } from "./correlation-grading.service";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 
+import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
+
 @Injectable()
 export class SimulationService implements AssessmentModuleEngine {
   readonly moduleType = ModuleType.SIMULATION;
@@ -25,7 +27,20 @@ export class SimulationService implements AssessmentModuleEngine {
     private competencyEngine: CompetencyEngine,
     private correlationClient: CorrelationEngineClient,
     private correlationGradingService: CorrelationGradingService,
+    private sandboxOrchestrator: SandboxOrchestratorService,
   ) {}
+
+  async executeTerminalCommand(sessionId: string, command: string) {
+    const result = await this.sandboxOrchestrator.executeCommand(sessionId, command);
+    await this.sessionLogService.logAction(
+      sessionId,
+      "terminal_command",
+      "EXECUTED",
+      command,
+      result,
+    );
+    return result;
+  }
 
   async validateSubmission(submission: any): Promise<boolean> {
     return !!(submission && submission.eventId && submission.action);

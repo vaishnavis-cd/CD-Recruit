@@ -2,6 +2,7 @@ import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, I
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
 import { ALL_QUESTIONS } from '../../fixtures/questions'
+import { realSessionApiAdapter } from './real'
 
 const MOCK_QUESTIONS = (() => {
   const counts: Record<string, number> = {}
@@ -125,5 +126,9 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       return { success: false, retryAfterMs: 3000 }
     }
     return { success: true }
+  },
+
+  async runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string> {
+    return realSessionApiAdapter.runAiPrompt(payload)
   },
 }

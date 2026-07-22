@@ -1,11 +1,4 @@
 {
-  "_comment": "⚠️  PLACEHOLDER DEFAULTS — Must be verified before Phase 4 (Auth) depends on this config.",
-  "_placeholders": {
-    "frontendPort": "3000 — confirm against actual candidate-web and admin-web Vite/Next dev server ports",
-    "apiPort": "3001 — confirm against actual NestJS API port",
-    "clientSecret": "cd-recruit-api-secret — CHANGE for any non-local environment",
-    "redirectUris": "http://localhost:3000/* covers candidate-web; add admin-web port if different"
-  },
   "realm": "cd-recruit",
   "displayName": "CD-Recruit",
   "enabled": true,
@@ -63,11 +56,11 @@
       "clientAuthenticatorType": "client-secret",
       "publicClient": true,
       "serviceAccountsEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "protocol": "openid-connect",
-      "redirectUris": ["http://localhost:3000/*", "http://localhost:3001/*"],
-      "webOrigins": ["http://localhost:3000", "http://localhost:3001"],
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:3001/*", "http://localhost:5174/*", "http://localhost:*/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:5174", "*"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "access.token.lifespan": "3600"
