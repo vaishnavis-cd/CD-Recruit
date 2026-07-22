@@ -364,7 +364,15 @@ export class Judge0Service {
       stdout: results[0]?.stdout || "",
       stderr: results[0]?.stderr || "",
       compileOutput: "",
-      results,
+      results: results.map((r) => ({
+        passed: r.passed,
+        status: r.status,
+        executionTime: r.time,
+        memoryUsage: r.memory,
+        stdout: r.stdout,
+        stderr: r.stderr,
+        compileOutput: r.compileOutput,
+      })),
     };
   }
 }

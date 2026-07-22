@@ -90,7 +90,7 @@ export class ProctoringController {
     description: "No file was attached, file type was invalid, or session is not active.",
   })
   async uploadEvidence(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
     @UploadedFile() file: any,
   ) {
     this.logger.log(`[ProctoringController] UPLOAD_RECEIVED: sessionId=${sessionId}, filename=${file?.originalname || "N/A"}, size=${file?.size || 0} bytes`);
@@ -123,7 +123,7 @@ export class ProctoringController {
     description: "Session ID was not found.",
   })
   async getSessionEvents(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
   ): Promise<ProctoringEventResponse[]> {
     this.logger.log(`[ProctoringController] GET_EVENTS_REQUESTED: sessionId=${sessionId}`);
     return this.proctoringService.getSessionEvents(sessionId);
@@ -143,7 +143,7 @@ export class ProctoringController {
     description: "Dynamic count aggregation of each proctoring event type.",
   })
   async getSessionSummary(
-    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
   ): Promise<ProctoringSummaryResponse> {
     this.logger.log(`[ProctoringController] GET_SUMMARY_REQUESTED: sessionId=${sessionId}`);
     return this.proctoringService.getSessionSummary(sessionId);

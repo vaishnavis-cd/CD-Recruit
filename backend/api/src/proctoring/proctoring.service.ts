@@ -40,16 +40,62 @@ export class ProctoringService {
   }
 
   /**
+   * Helper to resolve Session by raw Session.id, Invite.token, or Invite.id
+   */
+  private async resolveSession(sessionId: string) {
+    let session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: {
+          OR: [{ token: sessionId }, { id: sessionId }],
+        },
+        include: { session: true },
+      });
+      if (invite?.session) {
+        session = invite.session;
+      }
+    }
+
+    // Auto-create dev test session in development mode if session ID doesn't exist in DB
+    if (!session && (process.env.NODE_ENV === "development" || !process.env.NODE_ENV)) {
+      try {
+        let drive = await this.prisma.drive.findFirst();
+        let candidate = await this.prisma.candidate.findFirst();
+        let roleTemplate = await this.prisma.roleTemplate.findFirst();
+        if (candidate && roleTemplate) {
+          session = await this.prisma.session.create({
+            data: {
+              id: sessionId,
+              candidateId: candidate.id,
+              roleTemplateId: roleTemplate.id,
+              driveId: drive?.id ?? null,
+              cvMode: "FACE_ONLY" as any,
+              status: SessionStatus.IN_PROGRESS,
+            },
+          });
+          this.logger.log(`[ProctoringService] Created dev fallback session for testing: ${sessionId}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not auto-create dev fallback session: ${err.message}`);
+      }
+    }
+
+    return session;
+  }
+
+  /**
    * Persist Proctoring Event metadata after validation and duplicate checks.
    */
   async createEvent(dto: CreateProctoringEventDto) {
     // 1. Session Validation
-    const session = await this.prisma.session.findUnique({
-      where: { id: dto.sessionId },
-    });
+    const session = await this.resolveSession(dto.sessionId);
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${dto.sessionId}`);
     }
+    const targetSessionId = session.id;
 
     const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
     if (!activeStatuses.includes(session.status)) {
@@ -64,7 +110,7 @@ export class ProctoringService {
       const newTime = new Date(dto.timestamp).getTime();
       const existingEvents = await this.prisma.proctoringEvent.findMany({
         where: {
-          sessionId: dto.sessionId,
+          sessionId: targetSessionId,
           eventType: dto.eventType,
         },
       });
@@ -73,7 +119,7 @@ export class ProctoringService {
         const existingTime = existing.timestamp.getTime();
         if (Math.abs(newTime - existingTime) < cooldown) {
           this.logger.warn(
-            `Duplicate proctoring event blocked on backend: ${dto.eventType} for session ${dto.sessionId}`,
+            `Duplicate proctoring event blocked on backend: ${dto.eventType} for session ${targetSessionId}`,
           );
           throw new ConflictException(
             `Duplicate event of type ${dto.eventType} detected within the cooldown window.`,
@@ -88,12 +134,12 @@ export class ProctoringService {
       (dto.clipUrl ? ProctoringUploadStatus.UPLOADED : ProctoringUploadStatus.FAILED);
 
     this.logger.log(
-      `[ProctoringService] WRITING_TO_DB: sessionId=${dto.sessionId}, eventType=${dto.eventType}, uploadStatus=${uploadStatus}`,
+      `[ProctoringService] WRITING_TO_DB: sessionId=${targetSessionId}, eventType=${dto.eventType}, uploadStatus=${uploadStatus}`,
     );
 
     const createdEvent = await this.prisma.proctoringEvent.create({
       data: {
-        sessionId: dto.sessionId,
+        sessionId: targetSessionId,
         eventType: dto.eventType,
         severity: dto.severity,
         timestamp: new Date(dto.timestamp),
@@ -116,12 +162,11 @@ export class ProctoringService {
     fileBuffer: Buffer,
   ): Promise<{ storageRef: string; clipUrl: string }> {
     // Session Validation
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.resolveSession(sessionId);
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
+    const targetSessionId = session.id;
 
     const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
     if (!activeStatuses.includes(session.status)) {
@@ -130,7 +175,7 @@ export class ProctoringService {
       );
     }
 
-    const storageRef = `proctoring/${sessionId}/${filename}`;
+    const storageRef = `proctoring/${targetSessionId}/${filename}`;
     this.logger.log(
       `[ProctoringService] MINIO_UPLOAD_START: filename=${filename}, bucket=${this.bucketBiometric}, storageRef=${storageRef}`,
     );
@@ -160,15 +205,14 @@ export class ProctoringService {
    * Get all session events for recruiter review, generating signed GET URLs.
    */
   async getSessionEvents(sessionId: string): Promise<ProctoringEventResponse[]> {
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.resolveSession(sessionId);
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
+    const targetSessionId = session.id;
 
     const events = await this.prisma.proctoringEvent.findMany({
-      where: { sessionId },
+      where: { sessionId: targetSessionId },
       orderBy: { timestamp: "asc" },
     });
 
@@ -201,8 +245,11 @@ export class ProctoringService {
    * Generates summary dynamically using aggregation.
    */
   async getSessionSummary(sessionId: string): Promise<ProctoringSummaryResponse> {
+    const session = await this.resolveSession(sessionId);
+    const targetSessionId = session ? session.id : sessionId;
+
     const events = await this.prisma.proctoringEvent.findMany({
-      where: { sessionId },
+      where: { sessionId: targetSessionId },
     });
 
     const summary: ProctoringSummaryResponse = {
