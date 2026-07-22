@@ -15,6 +15,7 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
   },
+  envDir: "../../",
   server: {
     port: 5174,
   },
