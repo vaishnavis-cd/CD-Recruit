@@ -1,6 +1,25 @@
 import type { CandidateSessionApiPort, Invite, Drive, Session, ModuleResponse, IntegritySignalType, SyncEventPayload } from './port'
 import { FIXTURE_INVITE } from '../../fixtures/invite'
 import { FIXTURE_DRIVE } from '../../fixtures/drive'
+import { ALL_QUESTIONS } from '../../fixtures/questions'
+
+const MOCK_QUESTIONS = (() => {
+  const counts: Record<string, number> = {}
+  return ALL_QUESTIONS.map(q => {
+    const type = q.type.toUpperCase() as any
+    if (counts[type] === undefined) {
+      counts[type] = 0
+    } else {
+      counts[type]++
+    }
+    return {
+      questionId: q.id,
+      moduleType: type,
+      moduleIndex: counts[type]
+    }
+  })
+})()
+
 
 // Configurable failure rate for retry-path testing (0 = never fail, 1 = always fail)
 const MOCK_FAILURE_RATE = 0.1
@@ -60,6 +79,7 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       startedAt: new Date().toISOString(),
       submittedAt: null,
       status: 'active',
+      questions: MOCK_QUESTIONS,
     }
     mockSession = session
     localStorage.setItem('cd-recruit-session', JSON.stringify(session))
