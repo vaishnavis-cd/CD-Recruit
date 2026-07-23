@@ -26,7 +26,7 @@ async function getJwksKeys(jwksUri: string) {
   if (jwksCache.length > 0 && now - jwksCacheTimestamp < 300_000) {
     return jwksCache;
   }
-  
+
   const urisToTry = Array.from(new Set([
     jwksUri,
     jwksUri.replace(":8080", ":8085"),
@@ -52,7 +52,7 @@ async function getJwksKeys(jwksUri: string) {
       lastError = err;
     }
   }
-  
+
   console.error("Error fetching JWKS keys from endpoints:", urisToTry, lastError);
   return jwksCache;
 }
@@ -79,35 +79,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKeyProvider: async (request, rawJwtToken, done) => {
-        const infraMode = process.env.INFRA_MODE ?? "keycloak";
+        const secret = configService.get<string>("app.jwtSecret") || process.env.JWT_SECRET || "changeme-use-a-long-random-string";
+        const infraMode = process.env.INFRA_MODE ?? "auto";
+
         if (infraMode === "local") {
-          const secret = configService.get<string>("app.jwtSecret") || process.env.JWT_SECRET;
           return done(null, secret);
         }
 
         try {
           const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
-          if (!decoded || !decoded.header || !decoded.header.kid) {
-            return done(new UnauthorizedException("Invalid Keycloak token header"), null);
+          if (decoded?.header?.kid) {
+            const kid = decoded.header.kid;
+            const keycloakUrl = process.env.KEYCLOAK_URL || "http://localhost:8085";
+            const realm = process.env.KEYCLOAK_REALM || "cd-recruit";
+            const jwksUri = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`;
+
+            const keys = await getJwksKeys(jwksUri);
+            const signingKey = keys.find((key) => key.kid === kid);
+
+            if (signingKey) {
+              const pubKey = jwkToPem(signingKey);
+              return done(null, pubKey);
+            }
           }
-
-          const kid = decoded.header.kid;
-          const keycloakUrl = process.env.KEYCLOAK_URL || "http://localhost:8085";
-          const realm = process.env.KEYCLOAK_REALM || "cd-recruit";
-          const jwksUri = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`;
-
-          const keys = await getJwksKeys(jwksUri);
-          const signingKey = keys.find((key) => key.kid === kid);
-
-          if (!signingKey) {
-            return done(new UnauthorizedException("Signing key not found in JWKS"), null);
-          }
-
-          const pubKey = jwkToPem(signingKey);
-          done(null, pubKey);
         } catch (err) {
-          done(err, null);
+          // Fall through to local secret validation
         }
+
+        return done(null, secret);
       },
     });
   }

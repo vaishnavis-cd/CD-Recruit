@@ -13,6 +13,7 @@ export const configuration = () => ({
 
   // ── Database ─────────────────────────────────────────────────────────────
   databaseUrl: process.env.DATABASE_URL ?? "",
+  sandboxDatabaseUrl: process.env.SANDBOX_DB_URL ?? "",
 
   // ── Redis / BullMQ ───────────────────────────────────────────────────────
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
