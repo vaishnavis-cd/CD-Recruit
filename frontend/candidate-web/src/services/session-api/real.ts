@@ -115,12 +115,13 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     const isCodingQuestion = questionSummary?.moduleType === 'CODING'
 
     if (isCodingQuestion) {
-      // For coding questions: call draft/submit endpoint
+      const codeVal = typeof val === 'string' ? val : (val as any)?.code || (val as any)?.sourceCode || ''
+      const langVal = (val as any)?.language || 'python'
       await apiClient.post('/coding/submit', {
         sessionId,
         questionId,
-        language: (val as any)?.language || 'python',
-        sourceCode: typeof val === 'string' ? val : (val as any)?.code || '',
+        language: langVal,
+        sourceCode: codeVal,
         timeSpentSeconds: 0,
       })
       return
@@ -129,10 +130,11 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     // Check if it is a SQL question
     const isSqlQuestion = questionSummary?.moduleType === 'SQL'
     if (isSqlQuestion) {
+      const sqlVal = typeof val === 'string' ? val : (val as any)?.query || (val as any)?.code || ''
       await apiClient.post('/sql/submit', {
         sessionId,
         questionId,
-        query: typeof val === 'string' ? val : '',
+        query: sqlVal,
         timeSpentSeconds: 0,
       })
       return
@@ -141,11 +143,11 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     // Check if it is an AI Prompting question
     const isAiPromptingQuestion = questionSummary?.moduleType === 'AI_PROMPTING'
     if (isAiPromptingQuestion) {
-      const promptData = val as { prompt: string; aiResponse?: string }
+      const promptData = typeof val === 'string' ? val : (val as any)?.prompt || ''
       await apiClient.post('/ai-prompting/submit', {
         sessionId,
         questionId,
-        prompt: promptData?.prompt || '',
+        prompt: promptData,
         timeSpentSeconds: 0,
       })
       return
@@ -154,10 +156,16 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     // Check if it is an MCQ question
     const isMcqQuestion = questionSummary?.moduleType === 'MCQ'
     if (isMcqQuestion) {
+      let optionsArray: string[] = []
+      if (Array.isArray(val)) {
+        optionsArray = val.map(String)
+      } else if (typeof val === 'string' && val.trim().length > 0) {
+        optionsArray = [val.trim()]
+      }
       await apiClient.post('/mcq/submit', {
         sessionId,
         questionId,
-        selectedOptions: Array.isArray(val) ? val : [],
+        selectedOptions: optionsArray,
         timeSpentSeconds: 0,
       })
       return

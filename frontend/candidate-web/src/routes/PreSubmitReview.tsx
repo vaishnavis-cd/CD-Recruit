@@ -4,25 +4,71 @@ import { MODULES } from '../fixtures/questions'
 import { Timer } from '../components/Timer'
 import type { QuestionStatus } from '../store/sessionMachine'
 
+interface DynamicModuleSummary {
+  moduleType: string
+  name: string
+  index: number
+  questionIds: string[]
+}
+
+const MODULE_NAMES: Record<string, string> = {
+  MCQ: 'Multiple Choice Questions',
+  SQL: 'SQL Database Queries',
+  CODING: 'Coding Challenges',
+  AI_PROMPTING: 'AI Prompt Engineering',
+  SIMULATION: 'Interactive System Outage Scenario',
+  CONTEXTUAL: 'Interactive System Outage Scenario',
+}
+
+function deriveModules(assessmentQuestions?: any[]): DynamicModuleSummary[] {
+  if (!assessmentQuestions || assessmentQuestions.length === 0) {
+    return MODULES.map(m => ({
+      moduleType: m.type,
+      name: m.name,
+      index: m.index,
+      questionIds: m.questionIds,
+    }))
+  }
+
+  const map = new Map<string, string[]>()
+  for (const q of assessmentQuestions) {
+    const type = q.moduleType || 'MCQ'
+    if (!map.has(type)) {
+      map.set(type, [])
+    }
+    map.get(type)!.push(q.questionId)
+  }
+
+  const result: DynamicModuleSummary[] = []
+  let index = 0
+  for (const [type, questionIds] of map.entries()) {
+    result.push({
+      moduleType: type,
+      name: MODULE_NAMES[type] || type,
+      index: index++,
+      questionIds,
+    })
+  }
+  return result
+}
+
 export function PreSubmitReview() {
   const { screen, transitionTo, assessment } = useSessionStore()
 
   if (screen.type !== 'pre-submit-review' || !assessment) return null
 
   const { sessionId } = screen
+  const activeModules = deriveModules(assessment.questions)
 
-  function countStatus(moduleIndex: number, status: QuestionStatus): number {
-    const mod = MODULES[moduleIndex]
-    if (!mod) return 0
+  function countStatus(mod: DynamicModuleSummary, status: QuestionStatus): number {
     return mod.questionIds.filter(id => (assessment!.questionStatus[id] ?? 'unvisited') === status).length
   }
 
-  function countUnanswered(moduleIndex: number): number {
-    const mod = MODULES[moduleIndex]
-    if (!mod) return 0
+  function countUnanswered(mod: DynamicModuleSummary): number {
     return mod.questionIds.filter(id => {
       const s = assessment!.questionStatus[id] ?? 'unvisited'
-      return s === 'unvisited' || s === 'skipped'
+      const hasResponse = assessment!.responses[id] !== undefined && assessment!.responses[id] !== null && assessment!.responses[id] !== ''
+      return !hasResponse && (s === 'unvisited' || s === 'skipped')
     }).length
   }
 
@@ -54,10 +100,10 @@ export function PreSubmitReview() {
 
         {/* Per-module completion summary */}
         <div className="space-y-3 mb-8">
-          {MODULES.map(mod => {
-            const answered = countStatus(mod.index, 'answered')
-            const flagged = countStatus(mod.index, 'flagged')
-            const unanswered = countUnanswered(mod.index)
+          {activeModules.map(mod => {
+            const answered = countStatus(mod, 'answered')
+            const flagged = countStatus(mod, 'flagged')
+            const unanswered = countUnanswered(mod)
             const total = mod.questionIds.length
 
             return (
@@ -74,7 +120,7 @@ export function PreSubmitReview() {
                   </div>
                   <button
                     onClick={() => transitionTo({ type: 'assessment', moduleIndex: mod.index, sessionId })}
-                    className="text-xs text-[var(--accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded"
+                    className="text-xs text-[var(--accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded cursor-pointer"
                     aria-label={`Go back to ${mod.name}`}
                   >
                     Return to module →
@@ -102,7 +148,7 @@ export function PreSubmitReview() {
                 >
                   <div
                     className="h-full rounded-full bg-[var(--success)] transition-all"
-                    style={{ width: `${(answered / total) * 100}%` }}
+                    style={{ width: `${total > 0 ? (answered / total) * 100 : 0}%` }}
                   />
                 </div>
               </div>
@@ -111,7 +157,7 @@ export function PreSubmitReview() {
         </div>
 
         {/* Unanswered warning */}
-        {MODULES.some(m => countUnanswered(m.index) > 0) && (
+        {activeModules.some(m => countUnanswered(m) > 0) && (
           <div
             role="note"
             className="mb-6 p-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-sm text-amber-700 dark:text-amber-300"
@@ -124,13 +170,13 @@ export function PreSubmitReview() {
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={handleGoBack}
-            className="flex-1 py-3 rounded-lg text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="flex-1 py-3 rounded-lg text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
           >
             ← Return to assessment
           </button>
           <button
             onClick={handleSubmit}
-            className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
             aria-label="Submit final assessment — this action cannot be undone"
           >
             Submit Final Assessment →

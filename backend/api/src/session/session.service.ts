@@ -463,22 +463,12 @@ export class SessionService {
       },
     });
 
-    // Confidence Gating Safeguard:
-    // Route session to Human Review Queue by enforcing humanReviewed = false until Track C scoring is live
-    await this.prisma.score.upsert({
-      where: { sessionId },
-      create: {
-        sessionId,
-        compositeScore: 0.0,
-        moduleScores: {},
-        sayDoConsistencyScore: 0.0,
-        aiConfidence: 0.5,
-        humanReviewed: false,
-      },
-      update: {
-        humanReviewed: false,
-      },
-    });
+    // Calculate real module scores and composite score upon submission
+    try {
+      await this.scoringService.computeSessionScores(sessionId);
+    } catch (err: any) {
+      this.logger.error(`Failed to evaluate scores for session ${sessionId}: ${err.message}`);
+    }
 
     await this.prisma.eventLog.create({
       data: {
