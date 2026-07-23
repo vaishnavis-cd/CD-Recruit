@@ -50,64 +50,43 @@ export class EvidenceUploadService {
     const cleanEventType = event.eventType.toLowerCase();
     const filename = `${cleanEventType}_${Date.now()}.webm`;
 
-    let clipUrl: string | null = null;
-    let uploadStatus: "UPLOADED" | "FAILED" = "FAILED";
-
     try {
-      clipUrl = await this.performUpload(sessionId, blob, filename);
-      uploadStatus = "UPLOADED";
-      console.log(`[Proctoring] Video clip uploaded successfully: ${filename}`);
+      await this.performAtomicUpload(sessionId, event, blob, filename);
+      console.log(`[Proctoring] Atomic upload & event creation succeeded: ${filename}`);
     } catch (err: any) {
       console.warn(
-        `[Proctoring] Video upload failed for event ${event.eventType}. Will retry later.`,
+        `[Proctoring] Atomic upload failed for event ${event.eventType}. Adding to retry queue.`,
         err,
       );
-      // Queue video for retry, but still store event metadata
       this.addToRetryQueue(sessionId, event, blob, filename);
-    }
-
-    // ALWAYS store event metadata, regardless of upload status
-    try {
-      await ProctoringEventService.getInstance().createEvent({
-        ...event,
-        clipUrl,
-        uploadStatus,
-      });
-      console.log(
-        `[Proctoring] Event ${event.eventType} metadata persisted with status: ${uploadStatus}`
-      );
-    } catch (err: any) {
-      if (err?.response?.status === 409 || err?.status === 409) {
-        console.log(
-          `[Proctoring] Server-side duplicate filter rejected ${event.eventType}. Discarding duplicate.`
-        );
-        return;
-      }
-      console.error(
-        `[Proctoring] Failed to persist event metadata for ${event.eventType}:`,
-        err
-      );
-      throw err;
     }
   }
 
   /**
-   * Makes the actual multipart POST request to the backend.
+   * Makes the atomic multipart POST request to backend (upload clip + create event in single call).
    */
-  private async performUpload(
+  private async performAtomicUpload(
     sessionId: string,
+    event: ProctoringEvent,
     blob: Blob,
     filename: string,
   ): Promise<string> {
-    const url = `/proctoring/session/${sessionId}/upload`;
-    console.log(`[EvidenceUploadService] API_REQUEST: POST ${url}, filename=${filename}, size=${blob.size} bytes`);
+    const url = `/proctoring/session/${sessionId}/upload-evidence`;
+    console.log(`[EvidenceUploadService] ATOMIC_API_REQUEST: POST ${url}, eventType=${event.eventType}, filename=${filename}, size=${blob.size} bytes`);
 
     const formData = new FormData();
     const file = new File([blob], filename, { type: "video/webm" });
     formData.append("file", file);
+    formData.append("sessionId", sessionId);
+    formData.append("eventType", event.eventType);
+    formData.append("severity", event.severity);
+    formData.append("timestamp", new Date(event.timestamp).toISOString());
+    if (event.modelVersion) {
+      formData.append("modelVersion", event.modelVersion);
+    }
 
     try {
-      const response = await apiClient.post<{ storageRef: string; clipUrl: string }>(
+      const response = await apiClient.post<{ id: string; clipUrl: string }>(
         url,
         formData,
         {
@@ -117,12 +96,12 @@ export class EvidenceUploadService {
         },
       );
       console.log(
-        `[EvidenceUploadService] API_RESPONSE: POST ${url}, status=${response.status}, clipUrl=${response.data.clipUrl}`,
+        `[EvidenceUploadService] ATOMIC_API_RESPONSE: POST ${url}, status=${response.status}, eventId=${response.data.id}, clipUrl=${response.data.clipUrl}`,
       );
       return response.data.clipUrl;
     } catch (err: any) {
       console.error(
-        `[EvidenceUploadService] API_ERROR: POST ${url}, status=${err?.response?.status || "UNKNOWN"}, body=${JSON.stringify(
+        `[EvidenceUploadService] ATOMIC_API_ERROR: POST ${url}, status=${err?.response?.status || "UNKNOWN"}, body=${JSON.stringify(
           err?.response?.data || "No body",
         )}`,
       );

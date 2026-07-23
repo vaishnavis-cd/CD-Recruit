@@ -261,15 +261,16 @@ export function SessionDetailBody({
                       >
                         {row.flag.severity}
                       </span>
-                      {row.flag.hasEvidence && (
+                      {((row.flag as any).evidenceClipUrl || (row.flag as any).clipUrl || (row.flag as any).storageRef || row.flag.hasEvidence) && (
                         <button
                           onClick={() =>
                             setEvidenceOpen({
                               category: row.flag!.category,
                               timestamp: row.flag!.timestamp,
+                              url: (row.flag as any).evidenceClipUrl || (row.flag as any).clipUrl || (row.flag as any).storageRef,
                             })
                           }
-                          className="text-[11px] text-[#2F5CFF] hover:underline"
+                          className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer font-semibold"
                         >
                           View evidence clip
                         </button>
@@ -358,31 +359,33 @@ export function SessionDetailBody({
             className="bg-[#0B0B0D] border border-[#232327] rounded-lg max-w-2xl w-full p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 border-b border-[#232327] pb-2">
               <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-[#8B8B93]">
                 evidence · {evidenceOpen.category} · {evidenceOpen.timestamp}
               </div>
               <button
                 onClick={() => setEvidenceOpen(null)}
-                className="text-[#8B8B93] hover:text-white"
+                className="text-[#8B8B93] hover:text-white cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
-            <div className="aspect-video bg-[#18181C] rounded flex items-center justify-center text-[#5B5B64] text-[12px] font-mono relative overflow-hidden">
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(to right,#EDEDEF 1px,transparent 1px),linear-gradient(to bottom,#EDEDEF 1px,transparent 1px)",
-                  backgroundSize: "24px 24px",
-                }}
-              />
-              <div className="relative">[placeholder · screen capture 00:04 clip]</div>
+            <div className="aspect-video bg-black rounded flex items-center justify-center relative overflow-hidden">
+              {evidenceOpen.url ? (
+                <video
+                  src={evidenceOpen.url}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="text-[#8B8B93] text-[12px] font-mono p-4 text-center">
+                  No video recording clip available for this flag event.
+                </div>
+              )}
             </div>
             <div className="mt-3 text-[12px] text-[#EDEDEF]">
-              Recorded activity around <span className="font-mono">{evidenceOpen.timestamp}</span>:
-              paste event exceeded 800 chars in a code editor with no matching keystroke history.
+              Recorded evidence activity for <span className="font-mono font-semibold">{evidenceOpen.category}</span> at <span className="font-mono">{evidenceOpen.timestamp}</span>.
             </div>
           </div>
         </div>

@@ -5,13 +5,20 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 export { ProctoringEventType, ProctoringUploadStatus };
 
 export class CreateProctoringEventDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
+    description: "Optional pre-generated event ID (UUID)",
+  })
+  @IsUUID()
+  @IsOptional()
+  id?: string;
+
+  @ApiPropertyOptional({
     description: "Session ID (UUID) linked to the assessment session",
     example: "f7d79b94-8173-45c1-9d10-3882775a2d04",
   })
   @IsUUID()
-  @IsNotEmpty()
-  sessionId: string;
+  @IsOptional()
+  sessionId?: string;
 
   @ApiProperty({
     enum: ProctoringEventType,
