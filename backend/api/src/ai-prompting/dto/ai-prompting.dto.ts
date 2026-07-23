@@ -24,8 +24,8 @@ export class SubmitAiPromptDto {
   questionId: string;
 
   @IsString()
-  @IsNotEmpty()
-  prompt: string;
+  @IsOptional()
+  prompt?: string;
 
   @IsOptional()
   @IsNumber()
