@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
+import { StatusChip } from '../components/common/StatusChip'
+import { CheckCircle2, Loader2, AlertTriangle, Circle, RefreshCw, ShieldCheck } from 'lucide-react'
 
 interface SyncStep {
   id: string
@@ -67,7 +69,6 @@ export function SyncingScreen({ sessionId, auto }: SyncingScreenProps) {
         }
       }
 
-      // Steps 1 and 4 can fail (mapped to legal/important sync guarantee) in mock mode
       if (!isReal && (step.id === 'responses' || step.id === 'verify') && retryCount === 0 && Math.random() < 0.2) {
         updateStep(step.id, { status: 'error' })
         setError(`Sync step "${step.label}" failed. Retrying is safe — your data is preserved.`)
@@ -77,7 +78,6 @@ export function SyncingScreen({ sessionId, auto }: SyncingScreenProps) {
       updateStep(step.id, { status: 'done' })
     }
 
-    // Final submit
     try {
       const { referenceId } = await services.sessionApi.submitFinalAssessment(sessionId)
       useSessionStore.getState().transitionTo({ type: 'done', auto, referenceId, sessionId })
@@ -94,89 +94,109 @@ export function SyncingScreen({ sessionId, auto }: SyncingScreenProps) {
     await runSync()
   }
 
-  const allDone = steps.every(s => s.status === 'done')
   const hasError = steps.some(s => s.status === 'error') || !!error
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4"
+      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
       role="main"
       aria-labelledby="syncing-heading"
     >
-      <div className="max-w-md w-full">
-        <h1 id="syncing-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-3 text-center">
-          {auto ? 'Submitting your assessment…' : 'Saving your submission…'}
-        </h1>
+      <div className="max-w-md w-full space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/20 flex items-center justify-center mx-auto shadow-[var(--shadow-sm)]">
+            <ShieldCheck size={24} />
+          </div>
+          <h1 id="syncing-heading" className="text-2xl font-bold text-[var(--text-primary)]">
+            {auto ? 'Submitting Assessment…' : 'Finalizing Your Session'}
+          </h1>
+          <p className="text-xs text-[var(--warning)] font-semibold" role="alert" aria-live="polite">
+            Please keep this window open while data is secured.
+          </p>
+        </div>
 
         {auto && (
           <div
             role="alert"
-            className="mb-6 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-secondary)] text-center"
+            className="p-3.5 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-subtle)] text-xs text-[var(--warning)] text-center font-medium"
           >
-            Time's up — your last-saved answers are being submitted automatically.
+            Time limit reached — submitting your saved responses automatically.
           </div>
         )}
 
-        <p className="text-sm text-center text-[var(--warning)] font-medium mb-8" role="alert" aria-live="polite">
-          Please don't close this window
-        </p>
-
-        {/* Sync progress */}
-        <div className="space-y-3 mb-8" role="list" aria-label="Sync progress">
-          {steps.map(step => (
-            <div
-              key={step.id}
-              role="listitem"
-              className={`
-                flex items-center gap-3 p-3 rounded-lg border transition-colors
-                ${step.status === 'done' ? 'border-[var(--success)] bg-green-50 dark:bg-green-900/10' :
-                  step.status === 'error' ? 'border-[var(--warning)] bg-amber-50 dark:bg-amber-900/10' :
-                  step.status === 'syncing' ? 'border-[var(--accent)] bg-blue-50 dark:bg-blue-900/10' :
-                  'border-[var(--border)] bg-[var(--surface)]'
-                }
-              `}
-              aria-label={`${step.label}: ${step.status}`}
-            >
-              <span className="text-lg flex-shrink-0" aria-hidden>
-                {step.status === 'done' ? '✓' :
-                 step.status === 'error' ? '⚠' :
-                 step.status === 'syncing' ? (
-                   <span className="inline-block animate-spin">⟳</span>
-                 ) : '○'}
-              </span>
-              <span className={`text-sm ${
-                step.status === 'done' ? 'text-[var(--success)]' :
-                step.status === 'error' ? 'text-[var(--warning)]' :
-                step.status === 'syncing' ? 'text-[var(--accent)]' :
-                'text-[var(--text-secondary)]'
-              }`}>
-                {step.label}
-              </span>
+        {/* Connected step progress design */}
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-[var(--shadow-md)] space-y-4">
+          {steps.map((step, idx) => (
+            <div key={step.id} className="relative flex items-center gap-4">
+              {idx < steps.length - 1 && (
+                <div
+                  className={`absolute left-[13px] top-7 bottom-0 w-0.5 transition-colors ${
+                    step.status === 'done' ? 'bg-[var(--success)]' : 'bg-[var(--border)]'
+                  }`}
+                />
+              )}
+              <div className="shrink-0 z-10">
+                {step.status === 'done' ? (
+                  <CheckCircle2 size={24} className="text-[var(--success)]" />
+                ) : step.status === 'error' ? (
+                  <AlertTriangle size={24} className="text-[var(--warning)]" />
+                ) : step.status === 'syncing' ? (
+                  <Loader2 size={24} className="text-[var(--accent)] animate-spin" />
+                ) : (
+                  <Circle size={24} className="text-[var(--text-secondary)]/30" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 flex items-center justify-between">
+                <span className={`text-xs font-semibold ${
+                  step.status === 'done' ? 'text-[var(--text-primary)]' :
+                  step.status === 'error' ? 'text-[var(--warning)]' :
+                  step.status === 'syncing' ? 'text-[var(--accent)] font-bold' :
+                  'text-[var(--text-secondary)]'
+                }`}>
+                  {step.label}
+                </span>
+                <StatusChip
+                  variant={
+                    step.status === 'done' ? 'success' :
+                    step.status === 'error' ? 'warning' :
+                    step.status === 'syncing' ? 'accent' : 'neutral'
+                  }
+                  label={step.status.toUpperCase()}
+                  size="sm"
+                  pulsing={step.status === 'syncing'}
+                />
+              </div>
             </div>
           ))}
         </div>
 
         {/* Error + retry */}
         {hasError && !retrying && (
-          <div role="alert" className="mb-6 p-4 rounded-lg border border-[var(--warning)] bg-amber-50 dark:bg-amber-900/20">
-            <div className="text-sm font-medium text-[var(--warning)] mb-2">
-              Something went wrong during sync
+          <div role="alert" className="p-4 rounded-xl border border-[var(--warning)] bg-[var(--warning-subtle)] space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--warning)]">
+              <AlertTriangle size={16} />
+              <span>Sync Issue Encountered</span>
             </div>
-            <div className="text-xs text-[var(--text-secondary)] mb-3">{error}</div>
+            <div className="text-xs text-[var(--text-secondary)] leading-relaxed">{error}</div>
             <button
               onClick={handleRetry}
               disabled={retryCount >= 5}
-              className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+              className="w-full py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
             >
-              {retryCount >= 5 ? 'Contact support' : 'Retry sync'}
+              <RefreshCw size={14} />
+              <span>{retryCount >= 5 ? 'Contact Support' : 'Retry Sync Operation'}</span>
             </button>
           </div>
         )}
 
         {retrying && (
-          <div className="text-center text-sm text-[var(--text-secondary)] mb-4">Retrying…</div>
+          <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)] font-medium">
+            <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
+            <span>Retrying synchronization…</span>
+          </div>
         )}
       </div>
     </div>
   )
 }
+

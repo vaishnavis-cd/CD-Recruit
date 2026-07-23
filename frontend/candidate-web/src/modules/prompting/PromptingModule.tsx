@@ -5,6 +5,8 @@ import { ModuleShell } from '../../components/ModuleShell'
 import { services } from '../../services'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
+import { StatusChip } from '../../components/common/StatusChip'
+import { Loader2, Sparkles, Lightbulb } from 'lucide-react'
 
 interface PromptingModuleProps {
   moduleIndex: number
@@ -211,9 +213,11 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
               Your prompt to the AI assistant
             </label>
             {isVerbatimPrompt && (
-              <span className="text-xs font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                Direct Copy Detected — Add Persona & Constraints
-              </span>
+              <StatusChip
+                variant="warning"
+                label="Direct Copy Detected — Add Persona & Constraints"
+                size="sm"
+              />
             )}
           </div>
           <textarea
@@ -224,12 +228,13 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             placeholder="Write your prompt here…"
             rows={6}
             aria-label="Enter your prompt to the AI assistant"
-            className="w-full px-3 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-sm font-mono placeholder:text-[var(--text-secondary)] placeholder:font-sans resize-y focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] disabled:opacity-60 transition-colors"
+            className="w-full px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-xs font-mono placeholder:text-[var(--text-secondary)] placeholder:font-sans resize-y focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] disabled:opacity-60 transition-colors"
           />
           {isVerbatimPrompt && (
-            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-              💡 <strong>Prompt Tip:</strong> Directly repeating the question will cause the AI assistant to ask for clarifying instructions rather than solving the task for you. Provide explicit persona framing, output formatting, or constraints.
-            </p>
+            <div className="mt-2 text-xs text-[var(--warning)] flex items-start gap-1.5">
+              <Lightbulb size={14} className="shrink-0 mt-0.5" />
+              <span><strong>Prompt Tip:</strong> Directly repeating the question will cause the AI assistant to ask for clarifying instructions rather than solving the task for you. Provide explicit persona framing, output formatting, or constraints.</span>
+            </div>
           )}
         </div>
 
@@ -238,14 +243,23 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             onClick={handleSubmitPrompt}
             disabled={loadingPrompt || !promptText.trim()}
             aria-label="Submit prompt to AI assistant"
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 flex items-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
           >
-            {loadingPrompt ? 'Getting response…' : submitted ? 'Resubmit' : 'Submit Prompt'}
+            {loadingPrompt ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Getting response…</span>
+              </>
+            ) : submitted ? (
+              <span>Resubmit Prompt</span>
+            ) : (
+              <span>Submit Prompt</span>
+            )}
           </button>
           {submitted && (
             <button
               onClick={handleRevise}
-              className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
             >
               Revise prompt
             </button>
@@ -257,15 +271,11 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
           <div
             aria-live="polite"
             aria-label="AI response loading"
-            className="p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+            className="p-5 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-subtle)]"
           >
-            <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-[var(--text-secondary)] animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-[var(--text-secondary)] animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-[var(--text-secondary)] animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-              Generating response…
+            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--accent)]">
+              <Loader2 size={16} className="animate-spin" />
+              <span>Generating response from AI assistant…</span>
             </div>
           </div>
         )}
@@ -275,19 +285,22 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             role="region"
             aria-label="AI assistant response"
             aria-live="polite"
-            className="p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+            className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] space-y-3"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
-                AI Response
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles size={14} className="text-[var(--accent)]" />
+                <span>AI Response</span>
               </div>
               {isVerbatimPrompt && (
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  Socratic Mode Active
-                </span>
+                <StatusChip
+                  variant="warning"
+                  label="Socratic Mode Active"
+                  size="sm"
+                />
               )}
             </div>
-            <div className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-mono">
+            <div className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-mono bg-[var(--bg)] p-4 rounded-xl border border-[var(--border)]">
               {aiResponse}
             </div>
           </div>

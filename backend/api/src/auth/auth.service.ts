@@ -88,6 +88,7 @@ export class AuthService {
           { id: rawToken },
         ],
       },
+      include: { drive: true },
     });
 
     if (!invite) {
@@ -108,6 +109,9 @@ export class AuthService {
       candidateName: invite.candidateName,
       roleTemplateId: invite.roleTemplateId,
       driveId: invite.driveId,
+      scheduledTime: invite.drive?.scheduleStart?.toISOString() ?? null,
+      bufferMinutes: invite.drive?.bufferMinutes ?? 30,
+      graceMinutes: invite.drive?.graceMinutes ?? 120,
       cvMode: "FULL",
     };
   }

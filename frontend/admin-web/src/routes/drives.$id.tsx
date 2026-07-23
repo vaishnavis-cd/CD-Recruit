@@ -126,6 +126,8 @@ function DriveDetailPage() {
 
   // Question Assignments State
   const [assignedQuestions, setAssignedQuestions] = useState<string[]>([]);
+  const [savedAssignedQuestions, setSavedAssignedQuestions] = useState<string[]>([]);
+  const [pendingTabSwitch, setPendingTabSwitch] = useState<"roster" | "configuration" | null>(null);
   const [questionModuleFilter, setQuestionModuleFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
@@ -163,6 +165,7 @@ function DriveDetailPage() {
       setEditName(data.name);
       setEditStatus(data.status);
       setAssignedQuestions(data.questionIds || []);
+      setSavedAssignedQuestions(data.questionIds || []);
 
       // Parse schedule dates to 12-hour AM/PM controls
       const startParsed = isoToAmPm(data.scheduleStart);
@@ -272,9 +275,28 @@ function DriveDetailPage() {
     }
   };
 
+  const enabledModuleKeys = useMemo(() => {
+    return Object.keys(moduleConfig).filter((k) => moduleConfig[k]?.enabled);
+  }, [moduleConfig]);
+
+  const isQuestionsDirty = useMemo(() => {
+    const sortedCurrent = [...assignedQuestions].sort();
+    const sortedSaved = [...savedAssignedQuestions].sort();
+    return JSON.stringify(sortedCurrent) !== JSON.stringify(sortedSaved);
+  }, [assignedQuestions, savedAssignedQuestions]);
+
+  const handleTabSwitch = (targetTab: "configuration" | "questions" | "roster") => {
+    if (activeTab === "questions" && targetTab !== "questions" && isQuestionsDirty) {
+      setPendingTabSwitch(targetTab);
+      return;
+    }
+    setActiveTab(targetTab);
+  };
+
   const handleSaveQuestions = async () => {
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
+      setSavedAssignedQuestions([...assignedQuestions]);
       toast.success("Assigned questions saved!");
       loadData();
     } catch (err: any) {
@@ -343,7 +365,7 @@ function DriveDetailPage() {
     setGenerating(true);
     try {
       await generateDriveLinks(driveId);
-      toast.success("All candidate links generated and invitations created!");
+      toast.success("All candidate links generated and drive activated!");
       setConfirmGenerateLinks(false);
       loadData();
     } catch (err: any) {
@@ -353,12 +375,15 @@ function DriveDetailPage() {
     }
   };
 
-  // Filtered Questions Bank List
+  // Filtered Questions Bank List (Filtered to only modules enabled in drive configuration)
   const filteredQuestionsList = useMemo(() => {
     return questionsBank.filter((q) => {
-      if (questionModuleFilter !== "ALL" && q.moduleType !== questionModuleFilter) {
-        return false;
+      if (questionModuleFilter === "ALL") {
+        if (!enabledModuleKeys.includes(q.moduleType)) return false;
+      } else {
+        if (q.moduleType !== questionModuleFilter) return false;
       }
+
       if (questionSearch.trim()) {
         const s = questionSearch.toLowerCase().trim();
         const title = (q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || "").toLowerCase();
@@ -367,7 +392,7 @@ function DriveDetailPage() {
       }
       return true;
     });
-  }, [questionsBank, questionModuleFilter, questionSearch]);
+  }, [questionsBank, enabledModuleKeys, questionModuleFilter, questionSearch]);
 
   if (loading || !drive) {
     return (
@@ -445,7 +470,7 @@ function DriveDetailPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => handleTabSwitch(tab.id as any)}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-medium rounded transition-colors cursor-pointer ${
                   isActive ? "bg-white text-[#2F5CFF] shadow-sm font-semibold" : "text-[#5B5B64] hover:text-[#0B0B0D]"
                 }`}
@@ -634,27 +659,39 @@ function DriveDetailPage() {
             {/* Horizontal Module Filter Chips & Search Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F7F7F9] p-3 rounded-lg border border-[#E6E6EA]">
               <div className="flex flex-wrap items-center gap-1.5">
-                {[
-                  { id: "ALL", label: "All Modules" },
-                  { id: "MCQ", label: "MCQ" },
-                  { id: "SQL", label: "SQL" },
-                  { id: "CODING", label: "Coding" },
-                  { id: "DEBUGGING", label: "Debugging" },
-                  { id: "AI_PROMPTING", label: "AI Prompting" },
-                  { id: "SIMULATION", label: "Simulation" },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setQuestionModuleFilter(f.id)}
-                    className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
-                      questionModuleFilter === f.id
-                        ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                        : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setQuestionModuleFilter("ALL")}
+                  className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                    questionModuleFilter === "ALL"
+                      ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                      : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                  }`}
+                >
+                  All Selected Modules ({enabledModuleKeys.length})
+                </button>
+                {enabledModuleKeys.map((modKey) => {
+                  const labelMap: Record<string, string> = {
+                    MCQ: "MCQ",
+                    SQL: "SQL",
+                    CODING: "Coding",
+                    DEBUGGING: "Debugging",
+                    AI_PROMPTING: "AI Prompting",
+                    SIMULATION: "Simulation",
+                  };
+                  return (
+                    <button
+                      key={modKey}
+                      onClick={() => setQuestionModuleFilter(modKey)}
+                      className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                        questionModuleFilter === modKey
+                          ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                          : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                      }`}
+                    >
+                      {labelMap[modKey] || modKey}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="relative w-full sm:w-[220px]">
@@ -761,13 +798,6 @@ function DriveDetailPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setConfirmGenerateLinks(true)}
-                  disabled={generating || drive.roster.length === 0}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#0C6B58] hover:bg-[#085243] rounded shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  <Sparkles size={14} /> Generate Links
-                </button>
                 <button
                   onClick={() => setShowAddCandidateModal(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded shadow-sm transition-colors cursor-pointer"
@@ -1071,6 +1101,53 @@ function DriveDetailPage() {
                 className="px-4 py-2 text-[12px] font-semibold text-white bg-[#0C6B58] hover:bg-[#095445] rounded"
               >
                 {generating ? "Generating..." : "Generate Links"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Question Selection Warning Modal */}
+      {pendingTabSwitch && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[16px] w-full max-w-[460px] p-6 shadow-2xl space-y-4 border border-[#E6E6EA]">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Unsaved Question Assignments</h3>
+                <p className="text-[12px] text-[#5B5B64] mt-1 leading-relaxed">
+                  Selected questions are not saved. Do you want to save them before proceeding?
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-[#EFF0F3]">
+              <button
+                onClick={() => setPendingTabSwitch(null)}
+                className="px-3.5 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded-md transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setAssignedQuestions(savedAssignedQuestions);
+                  setActiveTab(pendingTabSwitch);
+                  setPendingTabSwitch(null);
+                }}
+                className="px-3.5 py-1.5 text-[12px] font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors cursor-pointer"
+              >
+                Leave Without Saving
+              </button>
+              <button
+                onClick={async () => {
+                  await handleSaveQuestions();
+                  setActiveTab(pendingTabSwitch);
+                  setPendingTabSwitch(null);
+                }}
+                className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md shadow-sm transition-colors cursor-pointer"
+              >
+                Save &amp; Continue
               </button>
             </div>
           </div>

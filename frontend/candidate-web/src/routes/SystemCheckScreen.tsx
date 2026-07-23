@@ -1,6 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
+import { StatusChip } from '../components/common/StatusChip'
+import { CheckCircle2, XCircle, AlertTriangle, Loader2, Circle, Camera, ShieldAlert, ArrowRight } from 'lucide-react'
 
 type CheckStatus = 'pending' | 'checking' | 'pass' | 'fail' | 'skipped'
 
@@ -90,23 +92,19 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     // 2. Camera explainer — show first, NEVER fire permission cold
     updateCheck('webcam-explainer', { status: 'checking' })
     setShowCameraExplainer(true)
-    // Wait for user to click "Request camera access" (handled below)
   }
 
   async function requestCameraAccess(isRetry = false) {
     setShowCameraExplainer(false)
     updateCheck('webcam-explainer', { status: 'checking', label: 'Camera access — waiting for permission…' })
 
-    // Subscribe BEFORE calling start() so we never miss the permission-granted/denied event
     const cameraPromise = new Promise<void>(resolve => {
-
       const unsub = services.cv.onDetectionEvent(event => {
         if (event.type === 'permission-granted') {
           updateCheck('webcam-explainer', { status: 'pass', label: 'Camera access' })
           unsub()
           resolve()
         } else if (event.type === 'permission-denied') {
-          // In Grace mode, skip retry and go straight to reduced mode
           if (mode === 'expedited' || (isRetry && webcamRetried)) {
             updateCheck('webcam-explainer', {
               status: 'skipped',
@@ -136,9 +134,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
         }
       })
 
-      // Start the CV pipeline now that the subscriber is registered
       services.cv.start().catch(() => {
-        // start() itself threw — treat as denied
         updateCheck('webcam-explainer', {
           status: 'fail',
           label: 'Camera access',
@@ -149,14 +145,12 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
         resolve()
       })
 
-      // Safety timeout — if no event fires within 10s, unblock
       setTimeout(() => {
         unsub()
         resolve()
       }, 10000)
     })
 
-    // Start CV service AFTER setting up listener so permission-granted event is never missed
     services.cv.start().catch((err) => {
       console.error('[SystemCheck] Error starting CV service:', err)
     })
@@ -167,10 +161,8 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
 
   async function runConnectivityCheck() {
     updateCheck('connectivity', { status: 'checking' })
-    // Simulated connectivity check — fake latency ping
     await sleep(600 + Math.random() * 400)
     updateCheck('connectivity', { status: 'pass' })
-
     await runFullscreenCheck()
   }
 
@@ -209,6 +201,8 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   const completedChecks = checks.filter(c => c.status !== 'pending' && c.status !== 'checking').length
   const totalChecks = checks.length
 
+  
+
   return (
     <div
       className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
@@ -216,21 +210,29 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
       aria-labelledby="system-check-heading"
     >
       <div className="max-w-lg w-full">
-        <h1 id="system-check-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
-          System Check
-        </h1>
-        {mode === 'expedited' && (
-          <div className="text-sm text-[var(--warning)] mb-4 font-medium">
-            You're in the grace window — we'll move quickly.
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-1">
+            <h1 id="system-check-heading" className="text-2xl font-bold text-[var(--text-primary)]">
+              System Check
+            </h1>
+            <StatusChip
+              variant={mode === 'expedited' ? 'warning' : 'accent'}
+              label={mode === 'expedited' ? 'Grace Mode' : 'Standard Check'}
+              size="sm"
+            />
           </div>
-        )}
-        <p className="text-[var(--text-secondary)] mb-8 text-sm">
-          Running {totalChecks} checks to make sure everything is set up for your assessment.
-        </p>
+          <p className="text-[var(--text-secondary)] text-sm">
+            Verifying your setup before proceeding to consent and assessment.
+          </p>
+        </div>
 
         {storageFull && (
-          <div role="alert" className="mb-4 p-3 rounded-lg border border-[var(--warning)] bg-amber-50 dark:bg-amber-900/20 text-sm text-[var(--warning)]">
-            Storage space is low. Your responses will sync directly — make sure you don't close the tab mid-assessment.
+          <div role="alert" className="mb-6 p-4 rounded-xl border border-[var(--warning)] bg-[var(--warning-subtle)] text-sm text-[var(--warning)] flex items-start gap-3">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold mb-0.5">Storage Space Low</div>
+              <div className="text-xs">Your responses will sync directly — make sure you keep your window open during the assessment.</div>
+            </div>
           </div>
         )}
 
@@ -241,52 +243,66 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
               key={check.id}
               role="listitem"
               className={`
-                p-4 rounded-lg border transition-colors
-                ${check.status === 'pass' ? 'border-[var(--success)] bg-green-50 dark:bg-green-900/10' :
-                  check.status === 'fail' ? 'border-[var(--critical)] bg-red-50 dark:bg-red-900/10' :
-                  check.status === 'skipped' ? 'border-[var(--warning)] bg-amber-50 dark:bg-amber-900/10' :
-                  check.status === 'checking' ? 'border-[var(--accent)] bg-blue-50 dark:bg-blue-900/10' :
+                p-4 rounded-2xl border transition-all duration-200
+                ${check.status === 'pass' ? 'border-[var(--success)]/30 bg-[var(--surface)] shadow-[var(--shadow-sm)]' :
+                  check.status === 'fail' ? 'border-[var(--critical)]/30 bg-[var(--critical-subtle)]' :
+                  check.status === 'skipped' ? 'border-[var(--warning)]/30 bg-[var(--warning-subtle)]' :
+                  check.status === 'checking' ? 'border-[var(--accent)] bg-[var(--accent-subtle)]' :
                   'border-[var(--border)] bg-[var(--surface)]'
                 }
               `}
               aria-label={`${check.label}: ${check.status}`}
             >
-              <div className="flex items-start gap-3">
-                <span className="text-lg flex-shrink-0 mt-0.5" aria-hidden>
-                  {check.status === 'pass' ? '✓' :
-                   check.status === 'fail' ? '✗' :
-                   check.status === 'skipped' ? '⚠' :
-                   check.status === 'checking' ? '⟳' : '○'}
-                </span>
+              <div className="flex items-start gap-3.5">
+                
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-[var(--text-primary)]">{check.label}</div>
-                  <div className="text-xs text-[var(--text-secondary)] mt-0.5">{check.description}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">{check.label}</span>
+                    <StatusChip
+                      variant={
+                        check.status === 'pass' ? 'success' :
+                        check.status === 'fail' ? 'critical' :
+                        check.status === 'skipped' ? 'warning' :
+                        check.status === 'checking' ? 'accent' : 'neutral'
+                      }
+                      label={check.status.toUpperCase()}
+                      size="sm"
+                      pulsing={check.status === 'checking'}
+                    />
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{check.description}</p>
                   {check.errorMessage && (
-                    <div className="text-xs mt-1.5 text-[var(--text-primary)]">{check.errorMessage}</div>
+                    <div className="text-xs mt-2 text-[var(--text-primary)] font-medium bg-[var(--bg)]/50 p-2.5 rounded-lg border border-[var(--border)]">
+                      {check.errorMessage}
+                    </div>
                   )}
                   {check.status === 'fail' && check.allowRetry && check.id === 'webcam-explainer' && (
                     <button
                       onClick={handleCameraRetry}
-                      className="mt-2 text-xs text-[var(--accent)] underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded"
+                      className="mt-3 text-xs font-semibold text-[var(--accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded"
                     >
-                      Try again
+                      Try requesting access again →
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Camera explainer prompt (shown before firing native permission dialog) */}
+              {/* Camera explainer prompt with strong visual weight */}
               {check.id === 'webcam-explainer' && showCameraExplainer && (
-                <div className="mt-3 pt-3 border-t border-[var(--border)]">
-                  <p className="text-sm text-[var(--text-primary)] mb-3">
-                    <strong>Before we continue:</strong> We need to request camera access. Your camera is used only for identity verification and integrity checks. The video feed is processed locally on your device — it does not get recorded or uploaded.
+                <div className="mt-4 pt-4 border-t border-[var(--accent)]/20 bg-[var(--bg)] p-4 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+                    <Camera size={18} className="text-[var(--accent)]" />
+                    <span>Camera Permission Request</span>
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    Camera access is required for identity verification and integrity monitoring. Your video feed is processed locally on your hardware and is never streamed continuously.
                   </p>
                   <button
                     onClick={() => requestCameraAccess(false)}
                     autoFocus
-                    className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
                   >
-                    Request camera access
+                    Allow &amp; Grant Camera Access
                   </button>
                 </div>
               )}
@@ -295,14 +311,14 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
         </div>
 
         {/* Progress indicator */}
-        <div className="mb-6">
-          <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+        <div className="mb-6 space-y-2">
+          <div className="flex justify-between text-xs text-[var(--text-secondary)] font-medium">
             <span>{completedChecks} of {totalChecks} checks complete</span>
             {cvMode === 'reduced' && (
-              <span className="text-[var(--warning)]">Running in reduced-proctoring mode</span>
+              <span className="text-[var(--warning)] font-semibold">Reduced-Proctoring Mode</span>
             )}
           </div>
-          <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden" role="progressbar" aria-valuenow={completedChecks} aria-valuemax={totalChecks}>
+          <div className="h-2 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden" role="progressbar" aria-valuenow={completedChecks} aria-valuemax={totalChecks}>
             <div
               className="h-full rounded-full bg-[var(--accent)] transition-all duration-500"
               style={{ width: `${(completedChecks / totalChecks) * 100}%` }}
@@ -313,10 +329,11 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
         <button
           onClick={handleContinue}
           disabled={!allDone}
-          className="w-full py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+          className="w-full py-3.5 rounded-xl text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 flex items-center justify-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
           aria-label="Continue to consent"
         >
-          {allDone ? 'Continue →' : 'Running checks…'}
+          <span>{allDone ? 'Continue to Consent' : 'Running Checks…'}</span>
+          {allDone && <ArrowRight size={16} />}
         </button>
       </div>
     </div>
@@ -324,3 +341,4 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
 }
 
 function sleep(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)) }
+

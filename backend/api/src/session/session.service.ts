@@ -637,6 +637,10 @@ export class SessionService {
     session: SessionWithTemplate,
     candidateId: string,
   ): Promise<StartSessionResponse> {
+    const drive = session.driveId
+      ? await this.prisma.drive.findUnique({ where: { id: session.driveId } })
+      : null;
+
     return {
       sessionId: session.id,
       candidateId,
@@ -649,6 +653,9 @@ export class SessionService {
         session.status as unknown as import("@cd-recruit/shared-types").SessionStatus,
       startedAt: session.startedAt?.toISOString() ?? null,
       deadlineAt: session.deadlineAt?.toISOString() ?? null,
+      scheduleStart: drive?.scheduleStart?.toISOString() ?? null,
+      bufferMinutes: drive?.bufferMinutes ?? 30,
+      graceMinutes: drive?.graceMinutes ?? 120,
       disconnectCount: session.disconnectCount,
       questions: await buildQuestionList(this.prisma, session),
     };

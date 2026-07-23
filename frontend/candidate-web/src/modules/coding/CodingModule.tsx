@@ -159,27 +159,27 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
     >
       <div className="grid grid-cols-1 lg:grid-cols-5 h-full overflow-hidden">
         {/* Left Panel: Description */}
-        <div className="lg:col-span-2 border-r border-border-token bg-surface overflow-y-auto flex flex-col h-full">
-          <div className="px-6 py-5 border-b border-border-token">
+        <div className="lg:col-span-2 border-r border-[var(--border)] bg-[var(--surface)] overflow-y-auto flex flex-col h-full">
+          <div className="px-6 py-5 border-b border-[var(--border)]">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+              <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                 Challenge {currentIndex + 1} of {CODING_QUESTIONS.length}
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent/15 text-accent uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent-subtle)] text-[var(--accent)] uppercase tracking-wider">
                 {workspaceQuestion.content.difficulty}
               </span>
             </div>
-            <h2 className="text-lg font-bold text-text-primary mb-3">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">
               {workspaceQuestion.title}
             </h2>
-            <div className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap font-sans">
+            <div className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-sans">
               {workspaceQuestion.prompt}
             </div>
 
             {workspaceQuestion.content.constraints.length > 0 && (
               <div className="mt-5">
-                <h4 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-2">Constraints</h4>
-                <ul className="list-disc pl-4 space-y-1 text-xs text-text-secondary font-mono">
+                <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Constraints</h4>
+                <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--text-secondary)] font-mono">
                   {workspaceQuestion.content.constraints.map((c: string, idx: number) => (
                     <li key={idx}>{c}</li>
                   ))}

@@ -1,12 +1,12 @@
 import React, { useRef } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
+import { AlertTriangle, ArrowRight } from 'lucide-react'
 
 export function SessionConflictScreen() {
   const { inviteToken, devForceJump, assessment } = useSessionStore()
   const myId = useRef(Math.random().toString(36).slice(2))
 
   function handleContinueHere() {
-    // Broadcast to other tabs that this one is claiming the session
     const channelName = `cd-recruit-session-${inviteToken}`
     if (typeof BroadcastChannel !== 'undefined') {
       const ch = new BroadcastChannel(channelName)
@@ -14,7 +14,6 @@ export function SessionConflictScreen() {
       ch.close()
     }
 
-    // Restore to assessment state
     if (assessment) {
       devForceJump({
         type: 'assessment',
@@ -22,41 +21,49 @@ export function SessionConflictScreen() {
         sessionId: assessment.sessionId,
       })
     } else {
-      // Fall back to resolving
       window.location.reload()
     }
   }
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4"
+      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
       role="main"
       aria-labelledby="conflict-heading"
     >
-      <div className="max-w-md w-full text-center">
-        <div className="text-6xl mb-6 opacity-60" aria-hidden>⚠️</div>
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-[var(--warning-subtle)] text-[var(--warning)] border border-[var(--warning)]/20 flex items-center justify-center mx-auto shadow-[var(--shadow-sm)]">
+          <AlertTriangle size={32} />
+        </div>
 
-        <h1 id="conflict-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-3">
-          Session active elsewhere
-        </h1>
+        <div>
+          <h1 id="conflict-heading" className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+            Session Active Elsewhere
+          </h1>
 
-        <p className="text-[var(--text-secondary)] text-sm mb-8 leading-relaxed">
-          This assessment session is open in another tab or window. To avoid data conflicts, only one tab should be active at a time.
-        </p>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+            This assessment session is currently open in another browser tab. Only one session tab can be active at a time to prevent response conflicts.
+          </p>
+        </div>
 
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 mb-6 text-left text-sm text-[var(--text-secondary)] space-y-2">
-          <p>• Close the other tab/window and continue here, or</p>
-          <p>• Switch back to the other tab and close this one</p>
-          <p className="text-xs mt-3">Your progress is preserved — whichever tab you continue in will pick up exactly where you left off.</p>
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 text-left text-xs text-[var(--text-secondary)] space-y-2 shadow-[var(--shadow-sm)]">
+          <div className="font-semibold text-[var(--text-primary)] mb-1">Options to proceed:</div>
+          <p>• Claim and continue session in this tab below</p>
+          <p>• Return to your original tab and close this window</p>
+          <p className="text-[11px] pt-2 border-t border-[var(--border)] leading-relaxed">
+            Your progress is continuously autosaved. Claiming session control in this tab will resume your state safely.
+          </p>
         </div>
 
         <button
           onClick={handleContinueHere}
-          className="w-full py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 mb-3"
+          className="w-full py-3.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] flex items-center justify-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
         >
-          Continue in this tab →
+          <span>Continue Session in This Tab</span>
+          <ArrowRight size={14} />
         </button>
       </div>
     </div>
   )
 }
+

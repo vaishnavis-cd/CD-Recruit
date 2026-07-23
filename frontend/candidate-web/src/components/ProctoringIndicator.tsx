@@ -131,10 +131,12 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
                 Initializing webcam stream…
               </div>
             )}
-            <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-white font-mono flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-              REC • LIVE
-            </div>
+            {hasStream && (
+              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-white font-mono flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                REC • LIVE
+              </div>
+            )}
           </div>
         </div>
       )}
