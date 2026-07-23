@@ -154,31 +154,33 @@ function IndividualResultPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            {!decision ? (
-              <>
-                <button
-                  onClick={() => setShowDecisionModal("FAIL")}
-                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-[#C0392B] bg-[#FFF5F5] border border-[#FECACA] hover:bg-[#FEE2E2] rounded-md transition-colors cursor-pointer shadow-sm"
-                >
-                  <XCircle size={15} />
-                  Reject Candidate
-                </button>
-                <button
-                  onClick={() => setShowDecisionModal("PASS")}
-                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-[#0C6B58] hover:bg-[#095445] rounded-md transition-colors cursor-pointer shadow-sm"
-                >
-                  <CheckCircle2 size={15} />
-                  Approve Candidate
-                </button>
-              </>
-            ) : (
-              <div className="text-right text-[12px] text-[#5B5B64]">
-                <span className="block font-semibold text-[#0B0B0D]">Decided by {decision.decidedBy}</span>
-                <span className="font-mono text-[11px] text-[#8B8B93]">{decision.decidedAt.slice(0, 10)}</span>
-                {decision.note && <p className="italic text-[11px] mt-0.5 text-[#5B5B64]">"{decision.note}"</p>}
+          <div className="flex items-center gap-3">
+            {decision && (
+              <div className="text-right text-[12px] text-[#5B5B64] mr-2">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold font-mono ${
+                  String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-[#E3F9F2] text-[#0C6B58]" : "bg-[#FFF5F5] text-[#C0392B]"
+                }`}>
+                  {String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "APPROVED" : "REJECTED"}
+                </span>
+                <span className="block font-mono text-[10px] text-[#8B8B93] mt-0.5">By {decision.decidedBy || "Recruiter"}</span>
               </div>
             )}
+            <button
+              onClick={() => setShowDecisionModal("FAIL")}
+              disabled={submittingDecision}
+              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-[#C0392B] bg-[#FFF5F5] border border-[#FECACA] hover:bg-[#FEE2E2] rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              <XCircle size={15} />
+              Reject Candidate
+            </button>
+            <button
+              onClick={() => setShowDecisionModal("PASS")}
+              disabled={submittingDecision}
+              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-[#0C6B58] hover:bg-[#095445] rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              <CheckCircle2 size={15} />
+              Approve Candidate
+            </button>
           </div>
         </div>
 
@@ -189,7 +191,9 @@ function IndividualResultPage() {
               Composite Score
             </span>
             <span className="text-[24px] font-mono font-bold text-[#2F5CFF]">
-              {score ? `${score.compositeScore}%` : "N/A"}
+              {score && score.compositeScore !== null && score.compositeScore !== undefined
+                ? `${score.compositeScore <= 1.0 ? Math.round(score.compositeScore * 100) : Math.round(score.compositeScore)}%`
+                : "N/A"}
             </span>
           </div>
 
@@ -198,8 +202,8 @@ function IndividualResultPage() {
               Say/Do Alignment
             </span>
             <span className="text-[24px] font-mono font-bold text-[#0C6B58]">
-              {score && score.sayDoConsistencyScore >= 0
-                ? `${Math.round(score.sayDoConsistencyScore * 100)}%`
+              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
+                ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
                 : "Pending"}
             </span>
           </div>
@@ -209,8 +213,8 @@ function IndividualResultPage() {
               AI Confidence
             </span>
             <span className="text-[24px] font-mono font-bold text-amber-700">
-              {score && score.aiConfidence >= 0
-                ? `${Math.round(score.aiConfidence * 100)}%`
+              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+                ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
                 : "Pending"}
             </span>
           </div>
@@ -268,103 +272,125 @@ function IndividualResultPage() {
       {/* Tab Contents */}
       <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm min-h-[400px]">
         {/* CODING TAB */}
-        {activeTab === "CODING" && (
-          <div className="space-y-4">
-            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Submitted Code & Unit Test Results</h3>
-            {(detail.moduleResponses || []).filter(r => r.responsePayload?.code !== undefined).length === 0 ? (
-              <p className="text-[13px] text-[#8B8B93] italic">No coding submissions recorded for this assessment.</p>
-            ) : (
-              (detail.moduleResponses || [])
-                .filter(r => r.responsePayload?.code !== undefined)
-                .map((resp, idx) => (
-                  <div key={resp.id} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">
-                        Problem #{idx + 1} ({resp.responsePayload?.language || "javascript"})
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58]">
-                        Passed {resp.responsePayload?.passedTests || 0} / {resp.responsePayload?.totalTests || 0} Tests
-                      </span>
-                    </div>
-
-                    <div className="h-48 border border-[#E6E6EA] rounded-md overflow-hidden">
-                      <CodeEditor
-                        value={resp.responsePayload?.code || "// No code submitted"}
-                        language={resp.responsePayload?.language || "javascript"}
-                        readOnly={true}
-                        theme="dark"
-                      />
-                    </div>
-
-                    {resp.responsePayload?.stdout && (
-                      <div>
-                        <span className="text-[11px] font-mono uppercase text-[#8B8B93] block mb-1">Standard Output:</span>
-                        <div className="bg-white border border-[#E6E6EA] p-2.5 rounded font-mono text-[11px] text-[#0B0B0D]">
-                          {resp.responsePayload.stdout}
-                        </div>
+        {activeTab === "CODING" && (() => {
+          const codingResponses = (detail.moduleResponses || []).filter(
+            r => r.moduleType === 'CODING' || r.responsePayload?.moduleType === 'CODING' || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined
+          )
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Submitted Code & Unit Test Results</h3>
+              {codingResponses.length === 0 ? (
+                <p className="text-[13px] text-[#8B8B93] italic">No coding submissions recorded for this assessment.</p>
+              ) : (
+                codingResponses.map((resp, idx) => {
+                  const codeText = resp.responsePayload?.sourceCode || resp.responsePayload?.code || "// No code submitted"
+                  const lang = resp.responsePayload?.language || "python"
+                  return (
+                    <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">
+                          Problem #{idx + 1} ({lang})
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58]">
+                          Passed {resp.responsePayload?.passedTests ?? 1} / {resp.responsePayload?.totalTests ?? 1} Tests
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))
-            )}
-          </div>
-        )}
+
+                      <div className="h-48 border border-[#E6E6EA] rounded-md overflow-hidden">
+                        <CodeEditor
+                          value={codeText}
+                          language={lang}
+                          readOnly={true}
+                          theme="dark"
+                        />
+                      </div>
+
+                      {resp.responsePayload?.stdout && (
+                        <div>
+                          <span className="text-[11px] font-mono uppercase text-[#8B8B93] block mb-1">Standard Output:</span>
+                          <div className="bg-white border border-[#E6E6EA] p-2.5 rounded font-mono text-[11px] text-[#0B0B0D]">
+                            {resp.responsePayload.stdout}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )
+        })()}
 
         {/* SQL TAB */}
-        {activeTab === "SQL" && (
-          <div className="space-y-4">
-            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">SQL Query Submissions & Execution Results</h3>
-            {(detail.moduleResponses || []).filter(r => r.responsePayload?.sqlQuery !== undefined).length === 0 ? (
-              <p className="text-[13px] text-[#8B8B93] italic">No SQL queries recorded for this assessment.</p>
-            ) : (
-              (detail.moduleResponses || [])
-                .filter(r => r.responsePayload?.sqlQuery !== undefined)
-                .map((resp, idx) => (
-                  <div key={resp.id} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">SQL Query #{idx + 1}</span>
-                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAF0FF] text-[#15308F]">
-                        {resp.responsePayload?.status || "EXECUTED"}
-                      </span>
-                    </div>
+        {activeTab === "SQL" && (() => {
+          const sqlResponses = (detail.moduleResponses || []).filter(
+            r => r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL' || r.responsePayload?.query !== undefined || r.responsePayload?.sqlQuery !== undefined
+          )
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">SQL Query Submissions & Execution Results</h3>
+              {sqlResponses.length === 0 ? (
+                <p className="text-[13px] text-[#8B8B93] italic">No SQL queries recorded for this assessment.</p>
+              ) : (
+                sqlResponses.map((resp, idx) => {
+                  const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted"
+                  return (
+                    <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">SQL Query #{idx + 1}</span>
+                        <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAF0FF] text-[#15308F]">
+                          {resp.responsePayload?.status || "EXECUTED"}
+                        </span>
+                      </div>
 
-                    <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
-                      <CodeEditor
-                        value={resp.responsePayload?.sqlQuery || "-- No query submitted"}
-                        language="sql"
-                        readOnly={true}
-                        theme="dark"
-                      />
+                      <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
+                        <CodeEditor
+                          value={queryText}
+                          language="sql"
+                          readOnly={true}
+                          theme="dark"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))
-            )}
-          </div>
-        )}
+                  )
+                })
+              )}
+            </div>
+          )
+        })()}
 
         {/* MCQ TAB */}
-        {activeTab === "MCQ" && (
-          <div className="space-y-4">
-            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Answers</h3>
-            <div className="divide-y divide-[#EFF0F3]">
-              {(detail.moduleResponses || [])
-                .filter(r => r.responsePayload?.selectedOption !== undefined)
-                .map((resp, idx) => (
-                  <div key={resp.id} className="py-3 flex items-start justify-between">
-                    <div>
-                      <span className="text-[12px] font-semibold text-[#0B0B0D]">Question #{idx + 1}</span>
-                      <p className="text-[12px] text-[#5B5B64] mt-0.5">Selected Option: <span className="font-mono font-semibold text-[#0B0B0D]">{resp.responsePayload?.selectedOption}</span></p>
-                    </div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium ${
-                      resp.responsePayload?.isCorrect ? "bg-[#E3F9F2] text-[#0C6B58]" : "bg-[#FFF5F5] text-[#C0392B]"
-                    }`}>
-                      {resp.responsePayload?.isCorrect ? "Correct (+1)" : "Incorrect (0)"}
-                    </span>
-                  </div>
-                ))}
+        {activeTab === "MCQ" && (() => {
+          const mcqResponses = (detail.moduleResponses || []).filter(
+            r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
+          )
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Answers</h3>
+              {mcqResponses.length === 0 ? (
+                <p className="text-[13px] text-[#8B8B93] italic">No MCQ responses recorded for this assessment.</p>
+              ) : (
+                <div className="divide-y divide-[#EFF0F3]">
+                  {mcqResponses.map((resp, idx) => {
+                    const opts = resp.responsePayload?.selectedOptions || resp.responsePayload?.selectedOption
+                    const displayOpts = Array.isArray(opts) ? opts.join(', ') : String(opts || 'None selected')
+                    return (
+                      <div key={resp.id || idx} className="py-3 flex items-start justify-between">
+                        <div>
+                          <span className="text-[12px] font-semibold text-[#0B0B0D]">Question #{idx + 1}</span>
+                          <p className="text-[12px] text-[#5B5B64] mt-0.5">Selected Option: <span className="font-mono font-semibold text-[#0B0B0D]">{displayOpts}</span></p>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#E3F9F2] text-[#0C6B58]">
+                          Recorded
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* AI PROMPTING TAB */}
         {activeTab === "AI_PROMPTING" && (() => {
@@ -510,7 +536,7 @@ function IndividualResultPage() {
                 <p className="text-[13px] text-[#8B8B93]">Cross-referenced AI evaluation comparing candidate written statements against code diff actions.</p>
               </div>
               <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF0FF] text-[#15308F] border border-[#C5D7FF]">
-                Track: {detail.session?.roleTemplate?.roleName?.toLowerCase()?.includes("junior") || detail.session?.roleTemplate?.roleName?.toLowerCase()?.includes("fresher") ? "Fresher Track (Coachability)" : "Experienced Track (Judgment)"}
+                Track: {detail.roleTemplateName?.toLowerCase()?.includes("junior") || detail.roleTemplateName?.toLowerCase()?.includes("fresher") ? "Fresher Track (Coachability)" : "Experienced Track (Judgment)"}
               </span>
             </div>
 
@@ -520,13 +546,13 @@ function IndividualResultPage() {
                 <div>
                   <span className="text-[11px] font-mono uppercase text-[#8B8B93]">Say-Do Consistency Score</span>
                   <div className="text-2xl font-bold text-[#0B0B0D] mt-0.5">
-                    {detail.score?.sayDoConsistencyScore ? `${Math.round(detail.score.sayDoConsistencyScore)}%` : "Pending Evaluation"}
+                    {detail.score?.sayDoConsistencyScore ? `${Math.round(detail.score.sayDoConsistencyScore <= 1.0 ? detail.score.sayDoConsistencyScore * 100 : detail.score.sayDoConsistencyScore)}%` : "Pending Evaluation"}
                   </div>
                 </div>
                 <div className="text-right">
                   <span className="text-[11px] font-mono uppercase text-[#8B8B93]">AI Confidence</span>
                   <div className="text-sm font-semibold text-[#0C6B58] mt-0.5">
-                    {detail.score?.aiConfidence ? `${Math.round(detail.score.aiConfidence * 100)}%` : "N/A"}
+                    {detail.score?.aiConfidence ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%` : "N/A"}
                   </div>
                 </div>
               </div>
@@ -541,11 +567,11 @@ function IndividualResultPage() {
               )}
 
               {/* Mismatches List */}
-              {detail.score?.sayDoMismatches && Array.isArray(detail.score.sayDoMismatches) && detail.score.sayDoMismatches.length > 0 && (
+              {(detail.score as any)?.sayDoMismatches && Array.isArray((detail.score as any).sayDoMismatches) && (detail.score as any).sayDoMismatches.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-[11px] font-mono uppercase text-red-600 font-semibold block">Detected Say-Do Mismatches:</span>
                   <div className="space-y-2">
-                    {(detail.score.sayDoMismatches as any[]).map((m, idx) => (
+                    {((detail.score as any).sayDoMismatches as any[]).map((m, idx) => (
                       <div key={idx} className="p-3 bg-red-50/50 border border-red-200 rounded-md text-[12px] space-y-1">
                         <div className="flex items-center gap-2 text-red-900 font-semibold">
                           <span>Said:</span> <span className="font-normal">{m.said}</span>
@@ -616,6 +642,7 @@ function IndividualResultPage() {
                         </div>
                       </div>
 
+<<<<<<< HEAD
                       {!(flag as any).promptText && (
                         <button
                           onClick={() => setActiveClipUrl((flag as any).evidenceClipUrl || (flag as any).clipUrl || (flag as any).storageRef || `/proctoring/clips/${flag.id}.webm`)}
@@ -625,6 +652,18 @@ function IndividualResultPage() {
                           View Clip
                         </button>
                       )}
+=======
+                      <button
+                        onClick={() => {
+                          const url = (flag as any).evidenceClipUrl || (flag as any).clipUrl || (flag as any).storageRef;
+                          if (url) setActiveClipUrl(url);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        <Video size={13} />
+                        View Clip
+                      </button>
+>>>>>>> 41bf1b6ad4a064ee4dbb26416ace4982a0e23664
                     </div>
                   ))}
                 </div>

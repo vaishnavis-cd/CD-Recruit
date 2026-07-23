@@ -244,6 +244,7 @@ export class ProctoringService {
       await this.storage.deleteObject(this.bucketBiometric, existingDuplicate.clipUrl).catch(() => null);
     }
 
+<<<<<<< HEAD
     const eventRecord = await this.prisma.proctoringEvent.upsert({
       where: { id: eventId },
       update: {
@@ -267,6 +268,44 @@ export class ProctoringService {
     return {
       ...eventRecord,
       clipUrl: presignedUrl,
+=======
+    // Create corresponding IntegrityFlag and EvidenceClip record in DB so Admin Web displays clip evidence
+    let category = "PROCTORING_EVIDENCE";
+    const lower = filename.toLowerCase();
+    if (lower.includes("face")) category = "IDENTITY_MISMATCH";
+    else if (lower.includes("phone")) category = "PHONE_DETECTED";
+    else if (lower.includes("audio") || lower.includes("voice")) category = "SPEECH_DETECTED";
+    else if (lower.includes("exit") || lower.includes("leave")) category = "SEAT_EXIT";
+
+    try {
+      const now = new Date();
+      const flag = await this.prisma.integrityFlag.create({
+        data: {
+          sessionId: targetSessionId,
+          category,
+          severity: "HIGH",
+          confidence: 0.9,
+          flaggedAt: now,
+        },
+      });
+
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      await this.prisma.evidenceClip.create({
+        data: {
+          flagId: flag.id,
+          storageRef,
+          expiresAt,
+        },
+      });
+      this.logger.log(`[ProctoringService] Created IntegrityFlag ${flag.id} and EvidenceClip for ${storageRef}`);
+    } catch (err: any) {
+      this.logger.error(`[ProctoringService] Failed to create IntegrityFlag for upload: ${err.message}`);
+    }
+
+    return {
+      storageRef,
+      clipUrl: storageRef,
+>>>>>>> 41bf1b6ad4a064ee4dbb26416ace4982a0e23664
     };
   }
 

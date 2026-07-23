@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { X, AlertTriangle, ShieldCheck, ExternalLink } from "lucide-react";
 import { ScopePanel } from "./scope-panel";
 import type { Session } from "../lib/types";
+import { useStore } from "../lib/store";
 
 const STATUS_LABEL: Record<Session["status"], string> = {
   submitted: "Submitted",

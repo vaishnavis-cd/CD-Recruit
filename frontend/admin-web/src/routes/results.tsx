@@ -65,13 +65,15 @@ function ResultsPage() {
       }
 
       if (statusFilter === "pending") {
-        return !item.decision && ["SUBMITTED", "AUTO_SUBMITTED"].includes(item.status);
+        return !item.decision;
       }
       if (statusFilter === "PASS") {
-        return item.decision?.outcome === "PASS";
+        const out = String(item.decision?.outcome || item.decision || "");
+        return out === "PASS" || out === "ADVANCE";
       }
       if (statusFilter === "FAIL") {
-        return item.decision?.outcome === "FAIL";
+        const out = String(item.decision?.outcome || item.decision || "");
+        return out === "FAIL" || out === "REJECT";
       }
 
       return true;
@@ -87,12 +89,14 @@ function ResultsPage() {
     let scoredCount = 0;
 
     resultsList.forEach((r: any) => {
-      if (r.decision?.outcome === "PASS") approved++;
-      else if (r.decision?.outcome === "FAIL") rejected++;
-      else if (["SUBMITTED", "AUTO_SUBMITTED"].includes(r.status)) pending++;
+      const out = String(r.decision?.outcome || r.decision || "");
+      if (out === "PASS" || out === "ADVANCE") approved++;
+      else if (out === "FAIL" || out === "REJECT") rejected++;
+      else pending++;
 
       if (r.compositeScore !== null && r.compositeScore !== undefined) {
-        totalScoreSum += r.compositeScore;
+        const val = r.compositeScore <= 1.0 ? r.compositeScore * 100 : r.compositeScore;
+        totalScoreSum += val;
         scoredCount++;
       }
     });
@@ -245,7 +249,8 @@ function ResultsPage() {
               </thead>
               <tbody className="divide-y divide-[#EFF0F3]">
                 {filtered.map((item: any) => {
-                  const scoreVal = item.compositeScore ?? 0;
+                  const rawScore = item.compositeScore;
+                  const scoreVal = rawScore !== null && rawScore !== undefined ? (rawScore <= 1.0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
                   const scoreColor =
                     scoreVal >= 75
                       ? "text-[#0C6B58] bg-[#E3F9F2]"
@@ -254,7 +259,9 @@ function ResultsPage() {
                       : "text-[#C0392B] bg-[#FFF5F5]";
 
                   const flagsCount = item.integrityFlagsCount ?? 0;
-                  const decision = item.decision;
+                  const decStr = String(item.decision?.outcome || item.decision || "");
+                  const isApproved = decStr === "PASS" || decStr === "ADVANCE";
+                  const isRejected = decStr === "FAIL" || decStr === "REJECT";
 
                   return (
                     <tr key={item.id || item.sessionId} className="hover:bg-[#F7F7F9] transition-colors">
@@ -292,12 +299,12 @@ function ResultsPage() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        {decision?.outcome === "PASS" ? (
+                        {isApproved ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58]">
                             <CheckCircle2 size={12} />
                             Approved
                           </span>
-                        ) : decision?.outcome === "FAIL" ? (
+                        ) : isRejected ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B]">
                             <XCircle size={12} />
                             Rejected

@@ -284,9 +284,10 @@ function DashboardPage() {
         {actionQueue && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(() => {
-              const pendingReviews = actionQueue.pendingReviews || [];
-              const expiringInvites = actionQueue.expiringInvites || [];
-              const closingDrives = actionQueue.closingDrives || [];
+              const queue = actionQueue as any;
+              const pendingReviews = queue?.pendingReviews || [];
+              const expiringInvites = queue?.expiringInvites || [];
+              const closingDrives = queue?.closingDrives || [];
               return (
                 <>
                   <ActionCard
