@@ -196,23 +196,23 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   },
 
   async reportIntegritySignal(signal: IntegritySignalType): Promise<void> {
-    const sessionId = useSessionStore.getState().session?.id || ''
+    const sessionId = useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId || ''
     if (!sessionId) {
       console.warn('[realSessionApiAdapter] reportIntegritySignal: No active sessionId found.')
       return
     }
 
-    let eventType: any = 'SEAT_EXIT'
+    let eventType: any = 'TAB_SWITCH'
     let severity: 'MEDIUM' | 'HIGH' = 'MEDIUM'
 
     if (signal.kind === 'tab-switch' || signal.kind === 'window-blur') {
-      eventType = 'LOOKING_AWAY'
+      eventType = 'TAB_SWITCH'
       severity = 'MEDIUM'
     } else if (signal.kind === 'paste-anomaly') {
-      eventType = 'SEAT_EXIT'
+      eventType = 'PASTE'
       severity = 'HIGH'
     } else if (signal.kind === 'fullscreen-exit') {
-      eventType = 'SEAT_EXIT'
+      eventType = 'FULLSCREEN_EXIT'
       severity = 'HIGH'
     }
 

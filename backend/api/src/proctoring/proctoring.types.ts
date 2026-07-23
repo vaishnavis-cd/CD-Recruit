@@ -69,6 +69,24 @@ export class CreateProctoringEventDto {
   @IsEnum(ProctoringUploadStatus)
   @IsOptional()
   uploadStatus?: ProctoringUploadStatus;
+
+  @ApiPropertyOptional({
+    description: "Additional telemetry metadata (charCount, textSnippet, questionId)",
+  })
+  @IsOptional()
+  metadata?: any;
+
+  @ApiPropertyOptional({
+    description: "Telemetry signal category",
+  })
+  @IsOptional()
+  category?: string;
+
+  @ApiPropertyOptional({
+    description: "Telemetry signal kind",
+  })
+  @IsOptional()
+  kind?: string;
 }
 
 export interface ProctoringEventResponse {
