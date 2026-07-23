@@ -1,78 +1,134 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AppConfig } from "../config/configuration";
-import { Client } from "pg";
+import { Pool, PoolClient } from "pg";
 import * as crypto from "crypto";
 import { SqlQueryResult } from "./sql.types";
 import { SQL_DEFAULTS } from "./sql.constants";
+import { SqlQuestionType } from "./sql-validator.service";
+
+export interface ExecutionOptions {
+  schemaSql: string;
+  seedSql: string;
+  query: string;
+  questionType?: SqlQuestionType;
+}
+
+export interface ExecutionResult {
+  queryResult: SqlQueryResult;
+  executionTimeMs: number;
+  poolWaitTimeMs: number;
+}
 
 @Injectable()
-export class SqlSandboxService {
+export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SqlSandboxService.name);
-  private readonly databaseUrl: string;
+  private pool: Pool | null = null;
 
-  constructor(private readonly configService: ConfigService<AppConfig, true>) {
-    this.databaseUrl = this.configService.get<string>("databaseUrl", { infer: true });
+  constructor(private readonly configService: ConfigService) {}
+
+  onModuleInit() {
+    const sandboxUrl =
+      this.configService.get<string>("sandboxDatabaseUrl") ||
+      this.configService.get<string>("app.sandboxDatabaseUrl") ||
+      process.env.SANDBOX_DB_URL;
+
+    if (!sandboxUrl) {
+      throw new InternalServerErrorException(
+        "SANDBOX_DB_URL is required for SqlSandboxService and cannot be empty.",
+      );
+    }
+
+    this.pool = new Pool({
+      connectionString: sandboxUrl,
+      max: SQL_DEFAULTS.POOL_MAX_CONNECTIONS,
+      connectionTimeoutMillis: SQL_DEFAULTS.POOL_CONNECTION_TIMEOUT_MS,
+      idleTimeoutMillis: SQL_DEFAULTS.POOL_IDLE_TIMEOUT_MS,
+    });
   }
 
-  async executeQuery(
-    schemaSql: string,
-    seedSql: string,
-    query: string,
-  ): Promise<SqlQueryResult> {
+  onModuleDestroy() {
+    if (this.pool) {
+      this.pool.end().catch(() => {});
+    }
+  }
+
+  /**
+   * Run query within an isolated, per-request schema.
+   */
+  async executeQuery(options: ExecutionOptions): Promise<ExecutionResult> {
+    if (!this.pool) {
+      throw new InternalServerErrorException("Sandbox DB connection pool is not initialized.");
+    }
+
+    const { schemaSql, seedSql, query, questionType = "SELECT_ONLY" } = options;
     const sandboxId = crypto.randomUUID().replace(/-/g, "_");
     const schemaName = `sandbox_${sandboxId}`;
 
-    const client = new Client({
-      connectionString: this.databaseUrl,
-    });
+    const poolWaitStart = Date.now();
+    const client: PoolClient = await this.pool.connect();
+    const poolWaitTimeMs = Date.now() - poolWaitStart;
 
-    await client.connect();
-
+    const execStart = Date.now();
     try {
-      // 1. Create temporary schema
+      // 1. Create temporary isolated schema
       await client.query(`CREATE SCHEMA "${schemaName}";`);
-
-      // 2. Set search path to point only to this schema
       await client.query(`SET search_path TO "${schemaName}";`);
 
-      // 3. Load question schema (DDL)
+      // 2. Load DDL (schema) & DML (seed)
       if (schemaSql && schemaSql.trim()) {
         await client.query(schemaSql);
       }
-
-      // 4. Load seed data (DML)
       if (seedSql && seedSql.trim()) {
         await client.query(seedSql);
       }
 
-      // 5. Set statement timeout to prevent infinite execution/hanging queries
-      await client.query(`SET statement_timeout = ${SQL_DEFAULTS.EXECUTION_TIMEOUT_MS};`);
+      // 3. Grant scoped access to runner role (or execute under strict session bounds)
+      try {
+        await client.query(`GRANT USAGE ON SCHEMA "${schemaName}" TO sql_sandbox_runner;`);
+        await client.query(`GRANT SELECT ON ALL TABLES IN SCHEMA "${schemaName}" TO sql_sandbox_runner;`);
+        if (questionType === "DML_ALLOWED") {
+          await client.query(`GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${schemaName}" TO sql_sandbox_runner;`);
+        }
+      } catch (grantErr: any) {
+        // Fallback: If roles aren't bootstrapped in dev environment, continue with current connection
+        this.logger.debug(`Grant to sql_sandbox_runner skipped or unneeded: ${grantErr.message}`);
+      }
 
-      // 6. Run candidate/expected query
+      // 4. Set strict session timeouts & memory caps
+      await client.query(`SET statement_timeout = '${SQL_DEFAULTS.STATEMENT_TIMEOUT_MS}ms';`);
+      await client.query(`SET lock_timeout = '${SQL_DEFAULTS.LOCK_TIMEOUT_MS}ms';`);
+      await client.query(`SET idle_in_transaction_session_timeout = '${SQL_DEFAULTS.IDLE_IN_TRANSACTION_TIMEOUT_MS}ms';`);
+      await client.query(`SET work_mem = '${SQL_DEFAULTS.WORK_MEM}';`);
+
+      // 5. Run candidate or expected query
       const res = await client.query(query);
 
-      // Extract columns and rows
+      const executionTimeMs = Date.now() - execStart;
+
       const columns = res.fields ? res.fields.map((f) => f.name) : [];
       const rows = res.rows || [];
 
       return {
-        columns,
-        rows,
-        rowCount: res.rowCount !== null ? res.rowCount : rows.length,
+        queryResult: {
+          columns,
+          rows,
+          rowCount: res.rowCount !== null && res.rowCount !== undefined ? res.rowCount : rows.length,
+        },
+        executionTimeMs,
+        poolWaitTimeMs,
       };
     } catch (err: any) {
-      this.logger.error(`Error executing query in sandbox schema ${schemaName}: ${err.message}`);
+      this.logger.error(`Sandbox execution error in schema ${schemaName}: ${err.message}`);
       throw err;
     } finally {
+      // 6. Always clean up isolated schema
       try {
-        // Reset search path and drop the temporary schema cascadingly
         await client.query(`RESET search_path;`);
         await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE;`);
       } catch (cleanupErr: any) {
-        this.logger.error(`Failed to clean up sandbox schema ${schemaName}: ${cleanupErr.message}`);
+        this.logger.error(`Failed to drop schema ${schemaName}: ${cleanupErr.message}`);
       }
-      await client.end();
+      client.release();
     }
   }
 }

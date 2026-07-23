@@ -38,7 +38,10 @@ export class ResultComparatorService {
    * We normalize all values before sorting.
    */
   private sortRows(rows: any[]): any[] {
+    if (!Array.isArray(rows)) return [];
     return [...rows].sort((a, b) => {
+      if (!a || typeof a !== "object") return -1;
+      if (!b || typeof b !== "object") return 1;
       const canonicalA = JSON.stringify(
         Object.keys(a)
           .sort()
@@ -61,20 +64,21 @@ export class ResultComparatorService {
 
   /**
    * Compares the candidate dataset against the expected dataset.
+   * Performs explicit column-set checking, row-count checking, and normalized canonical row comparison.
    */
   compare(candidateResult: SqlQueryResult, expectedResult: SqlQueryResult): boolean {
     try {
-      // 1. Row counts must match
-      if (candidateResult.rowCount !== expectedResult.rowCount) {
-        this.logger.debug(
-          `Comparison failed: row count mismatch (candidate: ${candidateResult.rowCount}, expected: ${expectedResult.rowCount})`,
-        );
+      if (!candidateResult || !expectedResult) {
+        this.logger.debug("Comparison failed: missing candidate or expected query result object");
         return false;
       }
 
-      // 2. Columns must match (ignoring case of column names)
-      const candCols = candidateResult.columns.map((c) => c.toLowerCase()).sort();
-      const expCols = expectedResult.columns.map((c) => c.toLowerCase()).sort();
+      // 1. Explicit Column-Set Comparison
+      const candColsRaw = candidateResult.columns || [];
+      const expColsRaw = expectedResult.columns || [];
+
+      const candCols = candColsRaw.map((c) => String(c).toLowerCase()).sort();
+      const expCols = expColsRaw.map((c) => String(c).toLowerCase()).sort();
 
       if (candCols.length !== expCols.length) {
         this.logger.debug(
@@ -86,20 +90,33 @@ export class ResultComparatorService {
       for (let i = 0; i < candCols.length; i++) {
         if (candCols[i] !== expCols[i]) {
           this.logger.debug(
-            `Comparison failed: column mismatch at index ${i} (candidate: ${candCols[i]}, expected: ${expCols[i]})`,
+            `Comparison failed: column mismatch at index ${i} (candidate: '${candCols[i]}', expected: '${expCols[i]}')`,
           );
           return false;
         }
       }
 
-      // 3. Sort rows of both datasets to make comparison order-insensitive
-      const sortedCandidate = this.sortRows(candidateResult.rows);
-      const sortedExpected = this.sortRows(expectedResult.rows);
+      // 2. Row count short-circuit check
+      const candRows = candidateResult.rows || [];
+      const expRows = expectedResult.rows || [];
+      const candRowCount = candidateResult.rowCount !== undefined ? candidateResult.rowCount : candRows.length;
+      const expRowCount = expectedResult.rowCount !== undefined ? expectedResult.rowCount : expRows.length;
 
-      // 4. Compare row by row
+      if (candRowCount !== expRowCount) {
+        this.logger.debug(
+          `Comparison failed: row count mismatch (candidate: ${candRowCount}, expected: ${expRowCount})`,
+        );
+        return false;
+      }
+
+      // 3. Sort rows of both datasets for order-insensitive comparison
+      const sortedCandidate = this.sortRows(candRows);
+      const sortedExpected = this.sortRows(expRows);
+
+      // 4. Row-by-row canonical value comparison
       for (let i = 0; i < sortedCandidate.length; i++) {
-        const candRow = sortedCandidate[i];
-        const expRow = sortedExpected[i];
+        const candRow = sortedCandidate[i] || {};
+        const expRow = sortedExpected[i] || {};
 
         const candKeys = Object.keys(candRow).sort();
         const expKeys = Object.keys(expRow).sort();
@@ -122,7 +139,7 @@ export class ResultComparatorService {
 
       return true;
     } catch (err: any) {
-      this.logger.error(`Error comparing datasets: ${err.message}`);
+      this.logger.error(`Error in ResultComparatorService: ${err.message}`);
       return false;
     }
   }
