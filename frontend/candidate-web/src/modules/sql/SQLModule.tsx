@@ -6,6 +6,7 @@ import { ModuleShell } from '../../components/ModuleShell'
 import { useTheme } from '../../theme/ThemeProvider'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
+import { services } from '../../services'
 
 // sql.js is loaded via CDN-style dynamic import for compatibility
 // This runs ENTIRELY client-side — no mock needed per spec
@@ -183,6 +184,31 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }
 
+  const [submitting, setSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+
+  async function handleSubmitQuery() {
+    if (!question || !query.trim() || !assessment?.sessionId) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      setResponse(question.id, query)
+      await services.sessionApi.submitModuleResponse({
+        sessionId: assessment.sessionId,
+        questionId: question.id,
+        moduleIndex,
+        response: query,
+        savedAt: new Date().toISOString(),
+      })
+      setSubmitSuccess(true)
+      setTimeout(() => setSubmitSuccess(false), 3000)
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit SQL answer')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const paletteItems = questions.map((q, i) => ({ id: q.questionId, label: `Query ${i + 1}` }))
 
   if (!question) return null
@@ -238,10 +264,20 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             onClick={handleRun}
             disabled={!dbReady || running || !query.trim()}
             aria-label="Run SQL query against visible test data"
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            className="px-4 py-2 rounded text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
-            {running ? 'Running…' : 'Run Query'}
+            {running ? 'Running…' : '▶ Run Query'}
           </button>
+
+          <button
+            onClick={handleSubmitQuery}
+            disabled={!dbReady || submitting || !query.trim()}
+            aria-label="Submit SQL query answer"
+            className="px-4 py-2 rounded text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
+          >
+            {submitting ? 'Submitting…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}
+          </button>
+
           <div className="flex-1" />
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}

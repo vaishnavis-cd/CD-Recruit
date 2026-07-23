@@ -28,12 +28,12 @@ export class SubmitCodingDto {
   questionId: string;
 
   @IsString()
-  @IsNotEmpty()
-  language: string;
+  @IsOptional()
+  language?: string;
 
   @IsString()
-  @IsNotEmpty()
-  sourceCode: string;
+  @IsOptional()
+  sourceCode?: string;
 
   @IsNumber()
   @IsOptional()
@@ -51,12 +51,12 @@ export class DraftCodingDto {
   questionId: string;
 
   @IsString()
-  @IsNotEmpty()
-  language: string;
+  @IsOptional()
+  language?: string;
 
   @IsString()
-  @IsNotEmpty()
-  sourceCode: string;
+  @IsOptional()
+  sourceCode?: string;
 
   @IsNumber()
   @IsOptional()
