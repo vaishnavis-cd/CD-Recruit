@@ -34,6 +34,7 @@ function parseJwtPayload(token: string): any {
 
 export const realSessionApiAdapter: CandidateSessionApiPort = {
   async resolveInvite(token: string): Promise<{ invite: Invite; drive: Drive; session: Session | null }> {
+    localStorage.setItem('cd-recruit-session-token', token)
     const payload = parseJwtPayload(token)
     const invite: Invite = {
       token,
@@ -47,7 +48,26 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       ...FIXTURE_DRIVE,
       id: payload?.driveId || FIXTURE_DRIVE.id,
     }
-    return { invite, drive, session: null }
+
+    let realSession: Session | null = null
+    try {
+      const startRes = await apiClient.post('/sessions/start', { inviteToken: token })
+      const data = startRes.data
+      realSession = {
+        id: data.sessionId,
+        cvMode: (data.cvMode as any) || 'full',
+        tutorialMode: 'full',
+        startedAt: data.startedAt,
+        submittedAt: null,
+        status: data.status === 'SUBMITTED' ? 'submitted' : 'active',
+        questions: data.questions,
+      }
+    } catch (err: any) {
+      const code = err?.response?.data?.code ?? err?.response?.data?.error
+      console.warn('[realSessionApiAdapter] resolveInvite start response:', code || err?.message)
+    }
+
+    return { invite, drive, session: realSession }
   },
 
   async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {

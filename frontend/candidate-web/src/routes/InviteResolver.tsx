@@ -38,25 +38,40 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
 
         // Detect if token changed or new candidate link opened
         const storedToken = localStorage.getItem('cd-recruit-session-token')
-        if (storedToken && storedToken !== token) {
+        if (!storedToken || storedToken !== token) {
           console.log('[InviteResolver] New candidate token detected! Clearing stale local session.')
           localStorage.removeItem('cd-recruit-session')
+          localStorage.removeItem('cd-recruit-assessment-state')
           localStorage.removeItem('cd-recruit-autosave')
-          localStorage.removeItem('cd-recruit-session-token')
+          localStorage.setItem('cd-recruit-session-token', token)
           useSessionStore.setState({ session: null, assessment: null })
+        } else {
+          localStorage.setItem('cd-recruit-session-token', token)
         }
 
         // Always update session and questions from latest API resolution
         if (session) {
+          const persistedSession = useSessionStore.getState().session
+          if (persistedSession && persistedSession.id !== session.id) {
+            console.log('[InviteResolver] Replacing mismatched local session:', persistedSession.id, 'with:', session.id)
+            localStorage.removeItem('cd-recruit-assessment-state')
+            useSessionStore.setState({ assessment: null })
+          }
           setSession(session)
           const sessionQuestions = session.questions || []
           initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, sessionQuestions)
         }
 
-        // If active session exists for THIS token, resume it
+        // If active session exists for THIS token AND assessment timer was already started, resume it
+        const currentAssessment = useSessionStore.getState().assessment
         const persistedSession = useSessionStore.getState().session
-        if (persistedSession?.status === 'active' && localStorage.getItem('cd-recruit-session-token') === token) {
-          devForceJump({ type: 'assessment', moduleIndex: assessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
+        if (
+          persistedSession?.status === 'active' &&
+          currentAssessment?.timerStartMs !== null &&
+          currentAssessment?.timerStartMs !== undefined &&
+          localStorage.getItem('cd-recruit-session-token') === token
+        ) {
+          devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
           return
         }
 
