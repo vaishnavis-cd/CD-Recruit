@@ -174,7 +174,6 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         webcamClipsCount: (detail.integrityFlags || []).filter((f: any) => f.evidenceClipUrl).length,
         overallRisk: (detail.integrityFlags || []).length > 2 ? "HIGH" : (detail.integrityFlags || []).length > 0 ? "MEDIUM" : "LOW",
       },
-<<<<<<< HEAD
       proctoringSummary: detail.proctoringSummary || {
         flags: [],
         totalTabSwitches: 0,
@@ -184,13 +183,6 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       integrityFlags: detail.integrityFlags || [],
       submissions: detail.submissions || [],
       reviewerDecision: detail.reviewerDecision || null,
-=======
-      submissions: detail.moduleResponses || [],
-      moduleResponses: detail.moduleResponses || [],
-      integrityFlags: detail.integrityFlags || [],
-      reviewerDecision: detail.decision || detail.reviewerDecision || null,
-      decision: detail.decision || detail.reviewerDecision || null,
->>>>>>> 41bf1b6ad4a064ee4dbb26416ace4982a0e23664
     };
     set({ currentSessionDetail: mapped as any });
     return mapped as any;

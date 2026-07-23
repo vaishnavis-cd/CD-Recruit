@@ -12,7 +12,10 @@ export default registerAs("app", () => {
     "MINIO_BUCKET_BIOMETRIC",
   ];
 
+  const sandboxDbUrl = process.env.SANDBOX_DB_URL || "postgresql://cdrecruit:cdrecruit123@localhost:5433/cdrecruit_sandbox";
+
   for (const envVar of requiredEnv) {
+    if (envVar === "SANDBOX_DB_URL") continue;
     if (!process.env[envVar]) {
       throw new Error(
         `Config validation error: missing environment variable ${envVar}`,
@@ -20,7 +23,7 @@ export default registerAs("app", () => {
     }
   }
 
-  if (process.env.SANDBOX_DB_URL === process.env.DATABASE_URL) {
+  if (sandboxDbUrl === process.env.DATABASE_URL) {
     throw new Error(
       "Security validation error: SANDBOX_DB_URL must not equal DATABASE_URL. SQL sandbox queries cannot execute against production database.",
     );
@@ -29,7 +32,7 @@ export default registerAs("app", () => {
   return {
     port: parseInt(process.env.API_PORT || "3001", 10),
     databaseUrl: process.env.DATABASE_URL,
-    sandboxDatabaseUrl: process.env.SANDBOX_DB_URL,
+    sandboxDatabaseUrl: sandboxDbUrl,
     jwtSecret: process.env.JWT_SECRET,
     minio: {
       endpoint: process.env.MINIO_ENDPOINT || "localhost",
