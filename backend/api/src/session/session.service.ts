@@ -141,19 +141,25 @@ export class SessionService {
       payload.candidateName,
     );
 
-    // 4. Guard against concurrent active sessions
-    const activeSession = await this.prisma.session.findFirst({
+    // 4. Reuse existing session if already created for this candidate
+    const existingSession = await this.prisma.session.findFirst({
       where: {
         candidateId: candidateRecord.id,
-        status: { in: [SessionStatus.IN_PROGRESS, SessionStatus.DISCONNECTED] },
+        status: { in: [SessionStatus.NOT_STARTED, SessionStatus.IN_PROGRESS, SessionStatus.DISCONNECTED] },
       },
+      orderBy: { lastActivityAt: "desc" },
     });
 
-    if (activeSession) {
-      throw new ConflictException({
-        code: "SESSION_ALREADY_ACTIVE",
-        message: "A session for this candidate is already active.",
+    if (existingSession) {
+      this.logger.log(`Reusing existing session ${existingSession.id} for candidate ${candidateRecord.email}`);
+      const fullExisting = await this.prisma.session.findUnique({
+        where: { id: existingSession.id },
+        include: { roleTemplate: true },
       });
+      return await this.buildStartResponse(
+        fullExisting as SessionWithTemplate,
+        candidateRecord.id,
+      );
     }
 
     // 5. Create the session (starts as NOT_STARTED, dates set upon /begin)

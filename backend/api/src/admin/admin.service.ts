@@ -112,14 +112,42 @@ export class AdminService {
           candidate: true,
           roleTemplate: true,
           score: true,
-          reviewerDecision: true,
+          reviewerDecision: {
+            include: { staff: true },
+          },
+          integrityFlags: true,
         },
       }),
       this.prisma.session.count({ where }),
     ]);
 
+    // Group items by candidate email & driveId to keep only the highest priority session per candidate
+    const sessionMap = new Map<string, typeof items[0]>();
+    const statusPriority: Record<string, number> = {
+      SUBMITTED: 3,
+      AUTO_SUBMITTED: 3,
+      EXPIRED: 2,
+      IN_PROGRESS: 1,
+      NOT_STARTED: 0,
+    };
+
+    for (const session of items) {
+      const key = `${session.candidate.email}_${session.driveId || "default"}`;
+      const existing = sessionMap.get(key);
+      if (!existing) {
+        sessionMap.set(key, session);
+      } else {
+        const existingPrio = statusPriority[existing.status] || 0;
+        const currentPrio = statusPriority[session.status] || 0;
+        if (currentPrio > existingPrio || (currentPrio === existingPrio && new Date(session.lastActivityAt || 0) > new Date(existing.lastActivityAt || 0))) {
+          sessionMap.set(key, session);
+        }
+      }
+    }
+    const deduplicatedItems = Array.from(sessionMap.values());
+
     // Map to SessionListItem interface
-    const mappedItems: SessionListItem[] = items.map((session) => {
+    const mappedItems: SessionListItem[] = deduplicatedItems.map((session) => {
       const compositeScore = session.score?.compositeScore ?? null;
       const sayDoConsistencyScore =
         session.score?.sayDoConsistencyScore ?? null;
@@ -148,6 +176,17 @@ export class AdminService {
         compositeScore,
         sayDoConsistencyScore,
         humanReviewRequired,
+        integrityFlagsCount: session.integrityFlags ? session.integrityFlags.length : 0,
+        decision: session.reviewerDecision
+          ? ({
+              outcome: session.reviewerDecision.decision as any,
+              decidedAt: session.reviewerDecision.decidedAt.toISOString(),
+              decidedBy: session.reviewerDecision.staff
+                ? session.reviewerDecision.staff.name
+                : "Recruiter",
+              note: session.reviewerDecision.note,
+            } as any)
+          : null,
       };
     });
 
@@ -321,17 +360,12 @@ export class AdminService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    const unreviewableStates = [
-      SessionStatus.NOT_STARTED,
-      SessionStatus.IN_PROGRESS,
-      SessionStatus.DISCONNECTED,
-    ];
-    if (unreviewableStates.includes(session.status as SessionStatus)) {
-      throw new AppException(
-        "SESSION_NOT_REVIEWABLE",
-        "Session is still active and cannot be reviewed",
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+    // If session is still active, transition to SUBMITTED upon decision
+    if (session.status === SessionStatus.NOT_STARTED || session.status === SessionStatus.IN_PROGRESS || session.status === SessionStatus.DISCONNECTED) {
+      await this.prisma.session.update({
+        where: { id: sessionId },
+        data: { status: SessionStatus.SUBMITTED, submittedAt: new Date() },
+      });
     }
 
     // Record decision (upsert if decision already recorded) and update score flag in transaction

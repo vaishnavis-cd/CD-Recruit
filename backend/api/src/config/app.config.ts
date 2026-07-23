@@ -3,6 +3,7 @@ import { registerAs } from "@nestjs/config";
 export default registerAs("app", () => {
   const requiredEnv = [
     "DATABASE_URL",
+    "SANDBOX_DB_URL",
     "JWT_SECRET",
     "MINIO_ENDPOINT",
     "MINIO_PORT",
@@ -19,9 +20,16 @@ export default registerAs("app", () => {
     }
   }
 
+  if (process.env.SANDBOX_DB_URL === process.env.DATABASE_URL) {
+    throw new Error(
+      "Security validation error: SANDBOX_DB_URL must not equal DATABASE_URL. SQL sandbox queries cannot execute against production database.",
+    );
+  }
+
   return {
     port: parseInt(process.env.API_PORT || "3001", 10),
     databaseUrl: process.env.DATABASE_URL,
+    sandboxDatabaseUrl: process.env.SANDBOX_DB_URL,
     jwtSecret: process.env.JWT_SECRET,
     minio: {
       endpoint: process.env.MINIO_ENDPOINT || "localhost",

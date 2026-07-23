@@ -8,10 +8,7 @@ import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 import { services } from '../../services'
 
-// sql.js is loaded via CDN-style dynamic import for compatibility
-// This runs ENTIRELY client-side — no mock needed per spec
 let sqlPromise: Promise<any> | null = null
-let sqlDb: any = null
 
 async function getSqlDb(schema: string, seed: string) {
   if (!sqlPromise) {
@@ -32,6 +29,13 @@ async function getSqlDb(schema: string, seed: string) {
 interface QueryResult {
   columns: string[]
   rows: any[][]
+}
+
+interface EvaluationResult {
+  passed: boolean
+  executionTime: number
+  status: string
+  error?: string
 }
 
 interface SQLModuleProps {
@@ -61,6 +65,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<QueryResult | null>(null)
+  const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null)
   const [running, setRunning] = useState(false)
   const [dbReady, setDbReady] = useState(false)
   const dbRef = useRef<any>(null)
@@ -130,6 +135,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         setQuery('')
       }
       setResults(null)
+      setEvalResult(null)
       setError(null)
     }
   }, [questionData, questionId])
@@ -160,28 +166,59 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }
 
-  function handleRun() {
-    if (!dbRef.current || !query.trim()) return
+  async function handleRun() {
+    if (!query.trim()) return
     setRunning(true)
     setError(null)
     setResults(null)
+    setEvalResult(null)
 
-    // Run SQL client-side with sql.js
-    try {
-      const result = dbRef.current.exec(query)
-      if (!result || result.length === 0) {
-        setResults({ columns: ['Result'], rows: [['Query executed, no rows returned']] })
-      } else {
-        setResults({
-          columns: result[0].columns,
-          rows: result[0].values,
-        })
+    // 1. Run local preview with a fresh, disposable sql.js WASM DB instance (stateless)
+    if (question) {
+      try {
+        const freshDb = await getSqlDb(question.schema, question.seed)
+        const result = freshDb.exec(query)
+        if (!result || result.length === 0) {
+          setResults({ columns: ['Result'], rows: [['Query executed, no rows returned']] })
+        } else {
+          setResults({
+            columns: result[0].columns,
+            rows: result[0].values,
+          })
+        }
+        freshDb.close?.()
+      } catch (err: any) {
+        setError(err.message ?? 'SQL syntax or execution error in local preview')
       }
-    } catch (err: any) {
-      setError(err.message ?? 'SQL error')
-    } finally {
-      setRunning(false)
     }
+
+    // 2. Execute server-side PostgreSQL evaluation
+    if (assessment?.sessionId && question) {
+      try {
+        const res = await apiClient.post('/sql/run', {
+          sessionId: assessment.sessionId,
+          questionId: question.id,
+          query,
+        })
+
+        if (res.data) {
+          setEvalResult({
+            passed: !!res.data.passed,
+            executionTime: res.data.executionTime || 0,
+            status: res.data.status || 'COMPLETED',
+            error: res.data.result?.error,
+          })
+          if (res.data.result?.error) {
+            setError(res.data.result.error)
+          }
+        }
+      } catch (err: any) {
+        const backendMsg = err.response?.data?.message || err.message
+        console.error('[SQLModule] Backend run error:', backendMsg)
+      }
+    }
+
+    setRunning(false)
   }
 
   const [submitting, setSubmitting] = useState(false)
@@ -193,17 +230,23 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     setError(null)
     try {
       setResponse(question.id, query)
-      await services.sessionApi.submitModuleResponse({
+      const res = await apiClient.post('/sql/submit', {
         sessionId: assessment.sessionId,
         questionId: question.id,
-        moduleIndex,
-        response: query,
-        savedAt: new Date().toISOString(),
+        query,
       })
+
+      if (res.data) {
+        setEvalResult({
+          passed: !!res.data.passed,
+          executionTime: res.data.executionTime || 0,
+          status: res.data.status || 'COMPLETED',
+        })
+      }
       setSubmitSuccess(true)
       setTimeout(() => setSubmitSuccess(false), 3000)
     } catch (err: any) {
-      setError(err?.message || 'Failed to submit SQL answer')
+      setError(err?.response?.data?.message || err?.message || 'Failed to submit SQL answer')
     } finally {
       setSubmitting(false)
     }
@@ -264,7 +307,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             onClick={handleRun}
             disabled={!dbReady || running || !query.trim()}
             aria-label="Run SQL query against visible test data"
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="px-4 py-2 rounded text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
           >
             {running ? 'Running…' : '▶ Run Query'}
           </button>
@@ -277,6 +320,18 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           >
             {submitting ? 'Submitting…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}
           </button>
+
+          {/* Official Evaluation Status Badge */}
+          {evalResult && (
+            <div className={`px-3 py-1.5 rounded text-xs font-mono font-medium flex items-center gap-1.5 ${
+              evalResult.passed 
+                ? 'bg-green-500/10 text-green-600 border border-green-500/30' 
+                : 'bg-red-500/10 text-red-600 border border-red-500/30'
+            }`}>
+              <span>{evalResult.passed ? '✓ Official Evaluation: PASSED' : '✗ Official Evaluation: FAILED'}</span>
+              <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
+            </div>
+          )}
 
           <div className="flex-1" />
           <button
@@ -305,38 +360,43 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                 {error}
               </div>
             ) : results ? (
-              <table className="w-full text-xs font-mono" aria-label="Query results">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    {results.columns.map(col => (
-                      <th key={col} scope="col" className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.rows.map((row, ri) => (
-                    <tr key={ri} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg)]/50">
-                      {row.map((cell, ci) => (
-                        <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
-                          {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
-                        </td>
+              <div>
+                <div className="px-3 py-1.5 bg-[var(--bg)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
+                  Local Preview — SQLite (not graded)
+                </div>
+                <table className="w-full text-xs font-mono" aria-label="Query results">
+                  <thead>
+                    <tr className="border-b border-[var(--border)]">
+                      {results.columns.map(col => (
+                        <th key={col} scope="col" className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
+                          {col}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                  {results.rows.length === 0 && (
-                    <tr>
-                      <td colSpan={results.columns.length} className="px-3 py-3 text-center text-[var(--text-secondary)]">
-                        No rows returned
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                <caption className="text-xs text-[var(--text-secondary)] py-1 caption-bottom">
-                  {results.rows.length} row{results.rows.length !== 1 ? 's' : ''} returned
-                </caption>
-              </table>
+                  </thead>
+                  <tbody>
+                    {results.rows.map((row, ri) => (
+                      <tr key={ri} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg)]/50">
+                        {row.map((cell, ci) => (
+                          <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
+                            {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    {results.rows.length === 0 && (
+                      <tr>
+                        <td colSpan={results.columns.length} className="px-3 py-3 text-center text-[var(--text-secondary)]">
+                          No rows returned
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  <caption className="text-xs text-[var(--text-secondary)] py-1 caption-bottom">
+                    {results.rows.length} row{results.rows.length !== 1 ? 's' : ''} returned
+                  </caption>
+                </table>
+              </div>
             ) : null}
           </div>
         )}
