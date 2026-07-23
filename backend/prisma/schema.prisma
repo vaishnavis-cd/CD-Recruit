@@ -469,7 +469,6 @@ enum ProctoringEventType {
   SPEECH_DETECTED
   SECOND_VOICE_SUSPECTED
   IDENTITY_MISMATCH
-  // PROPOSED shape — pending Track B confirmation, coordinate before backend correlation logic is built against this
   TAB_SWITCH
   PASTE
   FULLSCREEN_EXIT

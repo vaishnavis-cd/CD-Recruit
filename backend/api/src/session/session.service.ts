@@ -446,6 +446,13 @@ export class SessionService {
     ];
 
     if (!submittable.includes(session.status)) {
+      if (session.status === SessionStatus.SUBMITTED) {
+        return {
+          sessionId: session.id,
+          status: session.status as any,
+          submittedAt: (session.submittedAt || new Date()).toISOString(),
+        };
+      }
       throw new UnprocessableEntityException({
         code: "SESSION_NOT_SUBMITTABLE",
         message: `Session cannot be submitted in status: ${session.status}.`,
