@@ -140,6 +140,7 @@ export interface CandidateSessionDetail {
   moduleResponses: Array<{
     id: string;
     questionId: string;
+    moduleType?: string;
     responsePayload: any;
   }>;
   integrityFlags: Array<{
@@ -185,6 +186,7 @@ export type SessionStatus = "submitted" | "ai_scored" | "review" | "reviewed" | 
 
 export interface Session {
   id: string;
+  driveId?: string;
   candidate: Candidate;
   roleTemplate: RoleTemplate;
   status: SessionStatus;
@@ -208,6 +210,7 @@ export interface Session {
 
 export interface Invite {
   id: string;
+  sessionId?: string;
   candidateName: string;
   candidateEmail: string;
   roleTemplate: RoleTemplate;
