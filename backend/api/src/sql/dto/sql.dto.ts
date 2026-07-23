@@ -24,8 +24,8 @@ export class SubmitSqlDto {
   questionId: string;
 
   @IsString()
-  @IsNotEmpty()
-  query: string;
+  @IsOptional()
+  query?: string;
 
   @IsNumber()
   @IsOptional()
@@ -43,8 +43,8 @@ export class DraftSqlDto {
   questionId: string;
 
   @IsString()
-  @IsNotEmpty()
-  query: string;
+  @IsOptional()
+  query?: string;
 
   @IsNumber()
   @IsOptional()

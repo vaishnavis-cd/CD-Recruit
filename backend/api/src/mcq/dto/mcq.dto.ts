@@ -11,8 +11,8 @@ export class SubmitMcqDto {
 
   @IsArray()
   @IsString({ each: true })
-  @IsNotEmpty()
-  selectedOptions: string[];
+  @IsOptional()
+  selectedOptions?: string[];
 
   @IsNumber()
   @IsOptional()
@@ -31,8 +31,8 @@ export class DraftMcqDto {
 
   @IsArray()
   @IsString({ each: true })
-  @IsNotEmpty()
-  selectedOptions: string[];
+  @IsOptional()
+  selectedOptions?: string[];
 
   @IsNumber()
   @IsOptional()
