@@ -172,6 +172,7 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         webcamClipsCount: 0,
         overallRisk: "LOW",
       },
+      integrityFlags: detail.integrityFlags || [],
       submissions: detail.submissions || [],
       reviewerDecision: detail.reviewerDecision || null,
     };

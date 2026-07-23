@@ -61,48 +61,42 @@ export class ProctoringController {
   }
 
   /**
-   * POST /api/v1/proctoring/session/:sessionId/upload
+   * POST /api/v1/proctoring/session/:sessionId/upload-evidence
    * Upload evidence clip (WebM) via multipart/form-data
    */
-  @Post("session/:sessionId/upload")
+  @Post("session/:sessionId/upload-evidence")
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor("file"))
-  @ApiOperation({ summary: "Upload WebM evidence video clip using multipart/form-data" })
-  @ApiConsumes("multipart/form-data")
-  @ApiBody({
-    description: "WebM binary video file to upload as evidence",
-    schema: {
-      type: "object",
-      properties: {
-        file: {
-          type: "string",
-          format: "binary",
-        },
-      },
-    },
+  @ApiOperation({
+    summary: "Atomically upload proctoring video clip to MinIO and persist ProctoringEvent to database",
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: "Video clip uploaded successfully. Returns internal MinIO storage reference path.",
+    description: "Video clip uploaded to MinIO and ProctoringEvent persisted to database successfully.",
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: "No file was attached, file type was invalid, or session is not active.",
+    description: "No file attached, file invalid, or session is not active.",
   })
   async uploadEvidence(
     @Param("sessionId") sessionId: string,
     @UploadedFile() file: any,
+    @Body() dto: CreateProctoringEventDto,
   ) {
-    this.logger.log(`[ProctoringController] UPLOAD_RECEIVED: sessionId=${sessionId}, filename=${file?.originalname || "N/A"}, size=${file?.size || 0} bytes`);
+    this.logger.log(`[ProctoringController] ATOMIC_UPLOAD_RECEIVED: sessionId=${sessionId}, eventType=${dto?.eventType || "N/A"}, filename=${file?.originalname || "N/A"}, size=${file?.size || 0} bytes`);
     if (!file) {
       throw new BadRequestException("No video file uploaded in form field 'file'");
     }
 
-    const timestamp = Date.now();
-    const eventType = file.originalname.split("_")[0] || "event";
-    const filename = `${eventType}_${timestamp}.webm`;
+    const payloadDto: CreateProctoringEventDto = {
+      sessionId,
+      eventType: dto.eventType || (file.originalname?.split("_")[0]?.toUpperCase() as any) || ("MULTIPLE_FACES" as any),
+      severity: dto.severity || "HIGH",
+      timestamp: dto.timestamp || new Date().toISOString(),
+      modelVersion: dto.modelVersion,
+    };
 
-    return this.proctoringService.uploadEvidence(sessionId, filename, file.buffer);
+    return this.proctoringService.uploadEvidenceAndCreateEvent(sessionId, file, payloadDto);
   }
 
   /**
