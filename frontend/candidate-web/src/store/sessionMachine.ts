@@ -228,7 +228,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   resetSession() {
     localStorage.removeItem(AUTOSAVE_KEY)
+    localStorage.removeItem('cd-recruit-assessment-state')
+    localStorage.removeItem('cd-recruit-autosave')
     localStorage.removeItem('cd-recruit-session')
+    localStorage.removeItem('cd-recruit-session-token')
     set({
       screen: { type: 'resolving' },
       session: null,

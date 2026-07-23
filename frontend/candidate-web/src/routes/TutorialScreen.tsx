@@ -66,49 +66,39 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
   }
 
   async function proceedToAssessment() {
-    // Create session if not yet created
-    if (!session) {
-      try {
-        const selfieDataUrl = localStorage.getItem('cd-recruit-selfie-data')
-        const newSession = await services.sessionApi.createSession(
-          inviteToken,
-          cvMode,
-          mode,
-          selfieDataUrl
-        )
-        setSession(newSession)
-        const scheduledMs = parseInt(localStorage.getItem('cd-recruit-scheduled-ms') ?? '0')
-        const nowMs = services.time.getServerNow()
+    try {
+      const selfieDataUrl = localStorage.getItem('cd-recruit-selfie-data')
+      const newSession = await services.sessionApi.createSession(
+        inviteToken,
+        cvMode,
+        mode,
+        selfieDataUrl
+      )
+      setSession(newSession)
+      const scheduledMs = parseInt(localStorage.getItem('cd-recruit-scheduled-ms') ?? '0')
+      const nowMs = services.time.getServerNow()
 
-        if (mode === 'full' && scheduledMs > nowMs) {
-          // Still before T — go to waiting room
-          transitionTo({ type: 'waiting-room', scheduledTimeMs: scheduledMs, inviteToken })
-        } else {
-          // Grace path or T arrived: start assessment immediately
-          initAssessment(newSession.id, TOTAL_ASSESSMENT_MINUTES * 60, newSession.questions)
-          transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: newSession.id })
-        }
-      } catch (err: any) {
-        const code = err?.response?.data?.code ?? err?.response?.data?.error
-        console.error('[TutorialScreen] Failed to create session:', code, err)
-
-        // If session already active in DB (409), use the persisted session from localStorage
-        if (code === 'SESSION_ALREADY_ACTIVE' || err?.response?.status === 409) {
-          const persistedSession = useSessionStore.getState().session
-          if (persistedSession?.id) {
-            console.warn('[TutorialScreen] Resuming existing active session from localStorage:', persistedSession.id)
-            setSession(persistedSession)
-            initAssessment(persistedSession.id, TOTAL_ASSESSMENT_MINUTES * 60, persistedSession.questions)
-            transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: persistedSession.id })
-            return
-          }
-        }
-        // Other errors — surface to user (instead of silent swallow)
-        console.error('[TutorialScreen] Unrecoverable session create error:', err)
+      if (mode === 'full' && scheduledMs > nowMs) {
+        // Still before T — go to waiting room
+        transitionTo({ type: 'waiting-room', scheduledTimeMs: scheduledMs, inviteToken })
+      } else {
+        // Grace path or T arrived: start assessment immediately
+        initAssessment(newSession.id, TOTAL_ASSESSMENT_MINUTES * 60, newSession.questions)
+        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: newSession.id })
       }
-    } else {
-      initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, session.questions)
-      transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: session.id })
+    } catch (err: any) {
+      const code = err?.response?.data?.code ?? err?.response?.data?.error
+      console.error('[TutorialScreen] Failed to create session:', code, err)
+
+      // If session already active in DB (409) or session already exists in store, use existing session
+      const currentSession = session || useSessionStore.getState().session
+      if (currentSession?.id) {
+        console.warn('[TutorialScreen] Using active session:', currentSession.id)
+        initAssessment(currentSession.id, TOTAL_ASSESSMENT_MINUTES * 60, currentSession.questions)
+        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: currentSession.id })
+        return
+      }
+      console.error('[TutorialScreen] Unrecoverable session create error:', err)
     }
   }
 
