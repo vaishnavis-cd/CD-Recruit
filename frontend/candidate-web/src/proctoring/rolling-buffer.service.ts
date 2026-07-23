@@ -186,14 +186,14 @@ export class RollingBufferService {
       }
 
       const flushedBlob = await stopPromise;
-      if (flushedBlob && flushedBlob.size > 5000) {
+      if (flushedBlob && flushedBlob.size > 100) {
         console.log(`[RollingBufferService] RETURN_FLUSHED_BLOB: size=${flushedBlob.size} bytes (${(flushedBlob.size / 1024).toFixed(1)} KB)`);
         return flushedBlob;
       }
     }
 
     const latest = this.completedSegments[this.completedSegments.length - 1];
-    if (latest && latest.size > 5000) {
+    if (latest && latest.size > 100) {
       console.log(`[RollingBufferService] RETURNING_LATEST_COMPLETED_WEBM: size=${latest.size} bytes (${(latest.size / 1024).toFixed(1)} KB), type=${latest.type}`);
       return latest;
     }
@@ -202,7 +202,7 @@ export class RollingBufferService {
     await new Promise(r => setTimeout(r, 2000));
     const fallback = this.completedSegments[this.completedSegments.length - 1];
     console.log(`[RollingBufferService] RETURNING_FALLBACK_WEBM: size=${fallback?.size || 0} bytes`);
-    return fallback || new Blob([], { type: "video/webm" });
+    return (fallback && fallback.size > 100) ? fallback : (flushedBlob || new Blob([], { type: "video/webm" }));
   }
 
   public getPastBuffer(): Blob[] {

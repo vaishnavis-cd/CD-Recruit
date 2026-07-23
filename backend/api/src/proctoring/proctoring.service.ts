@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
 import { SessionStatus } from "@prisma/client";
+import { buildEvidenceKey } from "../common/utils/storage-key.util";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -46,6 +47,11 @@ export class ProctoringService {
   private async resolveSession(sessionId: string) {
     let session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: {
+        candidate: {
+          include: { organization: true },
+        },
+      },
     });
 
     if (!session) {
@@ -53,10 +59,10 @@ export class ProctoringService {
         where: {
           OR: [{ token: sessionId }, { id: sessionId }],
         },
-        include: { session: true },
+        include: { session: { include: { candidate: { include: { organization: true } } } } },
       });
       if (invite?.session) {
-        session = invite.session;
+        session = invite.session as any;
       }
     }
 
@@ -64,7 +70,7 @@ export class ProctoringService {
     if (!session && (process.env.NODE_ENV === "development" || !process.env.NODE_ENV)) {
       try {
         let drive = await this.prisma.drive.findFirst();
-        let candidate = await this.prisma.candidate.findFirst();
+        let candidate = await this.prisma.candidate.findFirst({ include: { organization: true } });
         let roleTemplate = await this.prisma.roleTemplate.findFirst();
         if (candidate && roleTemplate) {
           session = await this.prisma.session.create({
@@ -73,10 +79,14 @@ export class ProctoringService {
               candidateId: candidate.id,
               roleTemplateId: roleTemplate.id,
               driveId: drive?.id ?? null,
+              organizationId: candidate.organizationId ?? drive?.organizationId ?? null,
               cvMode: "FACE_ONLY" as any,
               status: SessionStatus.IN_PROGRESS,
             },
-          });
+            include: {
+              candidate: { include: { organization: true } },
+            },
+          }) as any;
           this.logger.log(`[ProctoringService] Created dev fallback session for testing: ${sessionId}`);
         }
       } catch (err: any) {
@@ -88,10 +98,34 @@ export class ProctoringService {
   }
 
   /**
+   * Check for duplicate event within cooldown window.
+   */
+  private async findRecentDuplicateEvent(sessionId: string, eventType: ProctoringEventType, timestamp: Date) {
+    const cooldown = COOLDOWNS[eventType] ?? 0;
+    if (cooldown <= 0) return null;
+
+    const newTime = timestamp.getTime();
+    const existingEvents = await this.prisma.proctoringEvent.findMany({
+      where: {
+        sessionId,
+        eventType,
+      },
+    });
+
+    for (const existing of existingEvents) {
+      const existingTime = existing.timestamp.getTime();
+      if (Math.abs(newTime - existingTime) < cooldown) {
+        return existing;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Persist Proctoring Event metadata after validation and duplicate checks.
    */
   async createEvent(dto: CreateProctoringEventDto) {
-    // 1. Session Validation
     const session = await this.resolveSession(dto.sessionId);
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${dto.sessionId}`);
@@ -105,41 +139,25 @@ export class ProctoringService {
       );
     }
 
-    // 2. Server-side Duplicate Protection
-    const cooldown = COOLDOWNS[dto.eventType] ?? 0;
-    if (cooldown > 0) {
-      const newTime = new Date(dto.timestamp).getTime();
-      const existingEvents = await this.prisma.proctoringEvent.findMany({
-        where: {
-          sessionId: targetSessionId,
-          eventType: dto.eventType,
-        },
-      });
-
-      for (const existing of existingEvents) {
-        const existingTime = existing.timestamp.getTime();
-        if (Math.abs(newTime - existingTime) < cooldown) {
-          this.logger.warn(
-            `Duplicate proctoring event blocked on backend: ${dto.eventType} for session ${targetSessionId}`,
-          );
-          throw new ConflictException(
-            `Duplicate event of type ${dto.eventType} detected within the cooldown window.`,
-          );
-        }
+    const existing = await this.findRecentDuplicateEvent(targetSessionId, dto.eventType, new Date(dto.timestamp));
+    if (existing) {
+      this.logger.warn(`[ProctoringService] Duplicate event within cooldown window for session ${targetSessionId}: ${dto.eventType}`);
+      if (dto.clipUrl) {
+        return this.prisma.proctoringEvent.update({
+          where: { id: existing.id },
+          data: { clipUrl: dto.clipUrl, uploadStatus: ProctoringUploadStatus.UPLOADED },
+        });
       }
+      return existing;
     }
 
-    // Resolve uploadStatus mapping
     const uploadStatus =
       dto.uploadStatus ??
       (dto.clipUrl ? ProctoringUploadStatus.UPLOADED : ProctoringUploadStatus.FAILED);
 
-    this.logger.log(
-      `[ProctoringService] WRITING_TO_DB: sessionId=${targetSessionId}, eventType=${dto.eventType}, uploadStatus=${uploadStatus}`,
-    );
-
-    const createdEvent = await this.prisma.proctoringEvent.create({
+    return this.prisma.proctoringEvent.create({
       data: {
+        id: dto.id ?? undefined,
         sessionId: targetSessionId,
         eventType: dto.eventType,
         severity: dto.severity,
@@ -149,25 +167,20 @@ export class ProctoringService {
         uploadStatus,
       },
     });
-
-    this.logger.log(`[ProctoringService] DB_WRITE_SUCCESS: eventId=${createdEvent.id}`);
-    return createdEvent;
   }
 
   /**
-   * Upload video clip to MinIO after validating session.
+   * Atomic handler: Upload video clip to MinIO AND create/update ProctoringEvent DB record in a single operation.
    */
-  async uploadEvidence(
+  async uploadEvidenceAndCreateEvent(
     sessionId: string,
-    filename: string,
-    fileBuffer: Buffer,
-  ): Promise<{ storageRef: string; clipUrl: string }> {
-    // Session Validation
+    file: { originalname: string; buffer: Buffer },
+    dto: CreateProctoringEventDto,
+  ): Promise<ProctoringEventResponse> {
     const session = await this.resolveSession(sessionId);
     if (!session) {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
-    const targetSessionId = session.id;
 
     const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
     if (!activeStatuses.includes(session.status)) {
@@ -176,16 +189,49 @@ export class ProctoringService {
       );
     }
 
-    const sha256Hash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
-    const storageRef = `proctoring/${targetSessionId}/${filename}`;
+    const clientSlug = (session as any).candidate?.organization?.slug ?? "default-org";
+    const candidateName = (session as any).candidate?.name ?? "unnamed";
+    const candidateId = session.candidateId;
+
+    const eventTimestamp = new Date(dto.timestamp || Date.now());
+
+    // 1. Check for duplicate event BEFORE uploading to MinIO using sliding window
+    const existingDuplicate = await this.findRecentDuplicateEvent(session.id, dto.eventType, eventTimestamp);
+
+    if (existingDuplicate && existingDuplicate.clipUrl && existingDuplicate.uploadStatus === ProctoringUploadStatus.UPLOADED) {
+      this.logger.log(
+        `[ProctoringService] DUPLICATE_EVENT_SKIP: event ${dto.eventType} already has clip ${existingDuplicate.clipUrl}. Returning existing event.`,
+      );
+      const presignedUrl = await this.storage.getSignedUrl(this.bucketBiometric, existingDuplicate.clipUrl);
+      return { ...existingDuplicate, clipUrl: presignedUrl };
+    }
+
+    const cooldownMs = COOLDOWNS[dto.eventType] ?? 15000;
+    const timeBucket = Math.floor(eventTimestamp.getTime() / Math.max(cooldownMs, 1000));
+    
+    // CRITICAL: If a duplicate row exists (e.g. status PENDING/FAILED or boundary overlap), target its exact ID so upsert operates on the SAME row
+    const eventId = dto.id ?? (existingDuplicate ? existingDuplicate.id : `evt_${session.id.slice(0, 8)}_${dto.eventType.toLowerCase()}_${timeBucket}`);
+
+    // 2. Build standardized MinIO key using central utility
+    const objectKey = buildEvidenceKey({
+      clientSlug,
+      candidateId,
+      candidateName,
+      sessionId: session.id,
+      eventType: dto.eventType,
+      eventId,
+      timestamp: eventTimestamp,
+    });
+
     this.logger.log(
-      `[ProctoringService] MINIO_UPLOAD_START: filename=${filename}, sha256=${sha256Hash}, bytes=${fileBuffer.length}, bucket=${this.bucketBiometric}, storageRef=${storageRef}`,
+      `[ProctoringService] ATOMIC_MINIO_UPLOAD_START: eventType=${dto.eventType}, key=${objectKey}, size=${file.buffer.length} bytes`,
     );
 
+    // 3. Put object in MinIO
     const success = await this.storage.putObject(
       this.bucketBiometric,
-      storageRef,
-      fileBuffer,
+      objectKey,
+      file.buffer,
       { "Content-Type": "video/webm" },
     );
 
@@ -193,8 +239,36 @@ export class ProctoringService {
       throw new BadRequestException("Failed to upload evidence clip to object storage.");
     }
 
-    this.logger.log(`[ProctoringService] MINIO_UPLOAD_SUCCESS: storageRef=${storageRef}`);
+    // 4. Atomic DB-level Upsert targeting exact eventId (updates existingDuplicate row in place if present)
+    if (existingDuplicate?.clipUrl && existingDuplicate.clipUrl !== objectKey) {
+      await this.storage.deleteObject(this.bucketBiometric, existingDuplicate.clipUrl).catch(() => null);
+    }
 
+<<<<<<< HEAD
+    const eventRecord = await this.prisma.proctoringEvent.upsert({
+      where: { id: eventId },
+      update: {
+        clipUrl: objectKey,
+        uploadStatus: ProctoringUploadStatus.UPLOADED,
+        timestamp: eventTimestamp,
+      },
+      create: {
+        id: eventId,
+        sessionId: session.id,
+        eventType: dto.eventType,
+        severity: dto.severity,
+        timestamp: eventTimestamp,
+        clipUrl: objectKey,
+        modelVersion: dto.modelVersion ?? null,
+        uploadStatus: ProctoringUploadStatus.UPLOADED,
+      },
+    });
+
+    const presignedUrl = await this.storage.getSignedUrl(this.bucketBiometric, objectKey);
+    return {
+      ...eventRecord,
+      clipUrl: presignedUrl,
+=======
     // Create corresponding IntegrityFlag and EvidenceClip record in DB so Admin Web displays clip evidence
     let category = "PROCTORING_EVIDENCE";
     const lower = filename.toLowerCase();
@@ -231,7 +305,26 @@ export class ProctoringService {
     return {
       storageRef,
       clipUrl: storageRef,
+>>>>>>> 41bf1b6ad4a064ee4dbb26416ace4982a0e23664
     };
+  }
+
+  /**
+   * Upload video clip to MinIO (legacy wrapper routing through atomic logic)
+   */
+  async uploadEvidence(
+    sessionId: string,
+    filename: string,
+    fileBuffer: Buffer,
+  ): Promise<{ storageRef: string; clipUrl: string }> {
+    const eventType = (filename.split("_")[0] || "MULTIPLE_FACES").toUpperCase() as ProctoringEventType;
+    const res = await this.uploadEvidenceAndCreateEvent(
+      sessionId,
+      { originalname: filename, buffer: fileBuffer },
+      { sessionId, eventType, severity: "HIGH", timestamp: new Date().toISOString() },
+    );
+    const rawStorageRef = res.clipUrl ? res.clipUrl.split("?")[0] : "";
+    return { storageRef: rawStorageRef, clipUrl: rawStorageRef };
   }
 
   /**

@@ -116,6 +116,7 @@ model RoleTemplate {
 
 model Drive {
   id             String      @id @default(uuid())
+  organizationId String?     @map("organization_id")
   name           String
   roleTemplateId String      @map("role_template_id")
   moduleConfig   Json        @map("module_config")
@@ -128,8 +129,9 @@ model Drive {
   graceMinutes   Int         @default(5) @map("grace_minutes")
   slotDistribution Json?     @map("slot_distribution")
 
-  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id])
-  createdBy      Staff        @relation(fields: [createdById], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
+  createdBy      Staff         @relation(fields: [createdById], references: [id])
   sessions       Session[]
   invites        Invite[]
   questions      DriveQuestion[]
@@ -171,14 +173,30 @@ model Question {
   @@map("question")
 }
 
-model Candidate {
+model Organization {
   id        String   @id @default(uuid())
-  email     String   @unique
   name      String
+  slug      String   @unique
   createdAt DateTime @default(now()) @map("created_at")
 
-  sessions        Session[]
-  consentRecords  ConsentRecord[]
+  candidates Candidate[]
+  drives     Drive[]
+  staff      Staff[]
+  sessions   Session[]
+
+  @@map("organization")
+}
+
+model Candidate {
+  id             String        @id @default(uuid())
+  organizationId String?       @map("organization_id")
+  email          String        @unique
+  name           String
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  sessions       Session[]
+  consentRecords ConsentRecord[]
 
   @@map("candidate")
 }
@@ -198,6 +216,7 @@ model ConsentRecord {
 
 model Session {
   id                 String        @id @default(uuid())
+  organizationId     String?       @map("organization_id")
   candidateId        String        @map("candidate_id")
   roleTemplateId     String        @map("role_template_id")
   driveId            String?       @map("drive_id")
@@ -218,6 +237,7 @@ model Session {
   workspaceStatus   String?   @default("provisioning") @map("workspace_status")
   simulationSnapshot Json?    @map("simulation_snapshot")
 
+  organization Organization? @relation(fields: [organizationId], references: [id])
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   drive        Drive?       @relation(fields: [driveId], references: [id])
@@ -319,12 +339,14 @@ model Score {
 
 model Staff {
   id              String    @id @default(uuid())
+  organizationId  String?   @map("organization_id")
   email           String    @unique
   name            String
   role            StaffRole @default(RECRUITER)
   keycloakUserId  String    @unique @map("keycloak_user_id")
   createdAt       DateTime  @default(now()) @map("created_at")
 
+  organization      Organization?    @relation(fields: [organizationId], references: [id])
   reviewerDecisions ReviewerDecision[]
   invites           Invite[]
   drives            Drive[]
