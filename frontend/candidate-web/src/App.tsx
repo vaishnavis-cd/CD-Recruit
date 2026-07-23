@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, useParams, useSearchParams, Navigate } fr
 import { ThemeProvider } from './theme/ThemeProvider'
 import { SessionRouter } from './routes/SessionRouter'
 
+import { ShieldAlert } from 'lucide-react'
+
 function TokenRouteHandler() {
   const { token: pathToken } = useParams<{ token?: string }>()
   const [searchParams] = useSearchParams()
@@ -12,14 +14,14 @@ function TokenRouteHandler() {
 
   if (!actualToken) {
     return (
-      <div className="min-h-screen bg-[#0B0B0D] text-white flex items-center justify-center p-6 text-center">
-        <div className="max-w-md bg-[#16161A] border border-[#26262E] p-8 rounded-xl space-y-4 shadow-2xl">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto text-xl font-bold border border-red-500/20">
-            !
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)] flex items-center justify-center p-6 text-center">
+        <div className="max-w-md bg-[var(--surface)] border border-[var(--border)] p-8 rounded-2xl space-y-4 shadow-[var(--shadow-lg)]">
+          <div className="w-12 h-12 rounded-full bg-[var(--critical-subtle)] text-[var(--critical)] flex items-center justify-center mx-auto border border-[var(--critical)]/20">
+            <ShieldAlert size={24} />
           </div>
-          <h1 className="text-xl font-semibold text-white">Invalid or Missing Candidate Link</h1>
-          <p className="text-sm text-gray-400 leading-relaxed">
-            No assessment invite token was found in your link. Please make sure you clicked the full assessment invitation link provided in your invitation.
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">Invalid or Missing Candidate Link</h1>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            No assessment invite token was found in your link. Please make sure you clicked the full assessment invitation link provided in your invitation email.
           </p>
         </div>
       </div>
@@ -27,12 +29,6 @@ function TokenRouteHandler() {
   }
 
   return <SessionRouter token={actualToken} />
-}
-
-function LoginRedirect() {
-  const [params] = useSearchParams()
-  const token = params.get('token') || 'demo-token-2024'
-  return <Navigate to={`/invite/${token}`} replace />
 }
 
 export default function App() {

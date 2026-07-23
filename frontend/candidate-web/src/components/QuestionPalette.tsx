@@ -11,9 +11,9 @@ interface QuestionPaletteProps {
 
 const STATUS_STYLES: Record<QuestionStatus, { bg: string; border: string; label: string }> = {
   unvisited:  { bg: 'bg-[var(--surface)]',          border: 'border-[var(--border)]',           label: 'Not yet visited' },
-  answered:   { bg: 'bg-[var(--success)]/20',        border: 'border-[var(--success)]',          label: 'Answered' },
-  skipped:    { bg: 'bg-[var(--text-secondary)]/15', border: 'border-[var(--text-secondary)]',   label: 'Skipped' },
-  flagged:    { bg: 'bg-amber-100 dark:bg-amber-900/30', border: 'border-[var(--warning)]',      label: 'Flagged for review' },
+  answered:   { bg: 'bg-[var(--success-subtle)]',    border: 'border-[var(--success)]/40',       label: 'Answered' },
+  skipped:    { bg: 'bg-[var(--surface)]',          border: 'border-[var(--text-secondary)]/40',label: 'Skipped' },
+  flagged:    { bg: 'bg-[var(--warning-subtle)]',    border: 'border-[var(--warning)]/40',       label: 'Flagged for review' },
 }
 
 export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, onNavigate }: QuestionPaletteProps) {

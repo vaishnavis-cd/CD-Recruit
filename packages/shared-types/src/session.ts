@@ -32,6 +32,9 @@ export interface StartSessionResponse {
   disconnectCount: number;
   /** All questions assigned to this session, ordered by moduleType then moduleIndex. */
   questions: QuestionSummary[];
+  scheduleStart?: string | null;
+  bufferMinutes?: number;
+  graceMinutes?: number;
 }
 
 // ---------------------------------------------------------------------------

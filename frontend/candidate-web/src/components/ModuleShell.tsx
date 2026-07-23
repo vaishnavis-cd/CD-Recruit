@@ -7,6 +7,7 @@ import { services } from '../services'
 import { MODULES } from '../fixtures/questions'
 import { useTheme } from '../theme/ThemeProvider'
 import { ProctoringModule } from '../proctoring/proctoring.module'
+import { Moon, Sun } from 'lucide-react'
 
 interface ModuleShellProps {
   moduleIndex: number
@@ -220,9 +221,9 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
           <button
             onClick={toggle}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
           >
-            {theme === 'light' ? '🌙' : '☀️'}
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </button>
 
           <button

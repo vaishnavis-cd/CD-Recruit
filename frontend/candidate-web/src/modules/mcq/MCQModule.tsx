@@ -4,6 +4,7 @@ import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
+import { Check } from 'lucide-react'
 
 interface MCQModuleProps {
   moduleIndex: number
@@ -204,7 +205,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                   <span
                     aria-hidden
                     className={`
-                      w-5 h-5 rounded flex items-center justify-center border text-xs font-bold transition-colors shrink-0
+                      w-5 h-5 flex items-center justify-center border text-xs font-bold transition-colors shrink-0
                       ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
                       ${isSelected
                         ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
@@ -212,7 +213,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                       }
                     `}
                   >
-                    {isSelected ? '✓' : option.id.toUpperCase()}
+                    {isSelected ? <Check size={12} strokeWidth={3} /> : option.id.toUpperCase()}
                   </span>
 
                   <span className="flex-1">{option.text}</span>

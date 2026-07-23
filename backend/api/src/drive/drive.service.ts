@@ -762,6 +762,12 @@ export class DriveService {
       // Execute all updates
       await Promise.all(updates);
 
+      // Shift drive status automatically to ACTIVE
+      await tx.drive.update({
+        where: { id: driveId },
+        data: { status: DriveStatus.ACTIVE },
+      });
+
       // Log audit
       await tx.auditLog.create({
         data: {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { services } from '../services'
 import { InFictionMessageItem, InboxMessage } from './InFictionMessageItem'
 import { InFictionThread, ReplyDraft } from './InFictionThread'
+import { Inbox, Loader2 } from 'lucide-react'
 
 interface InFictionInboxProps {
   sessionId: string
@@ -84,8 +85,14 @@ export function InFictionInbox({ sessionId, scenarioId }: InFictionInboxProps) {
           aria-label="Messages"
         >
           {messages.length === 0 && (
-            <div className="px-4 py-8 text-sm text-center text-[var(--text-secondary)]">
-              Waiting for messages…
+            <div className="px-6 py-12 text-center text-[var(--text-secondary)] space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mx-auto text-[var(--accent)]">
+                <Loader2 size={20} className="animate-spin" />
+              </div>
+              <div className="text-xs font-semibold text-[var(--text-primary)]">Waiting for incoming messages…</div>
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                Scenario events and team communications will arrive here dynamically.
+              </p>
             </div>
           )}
           {messages.map(msg => (

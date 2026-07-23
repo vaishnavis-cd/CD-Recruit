@@ -62,19 +62,6 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, sessionQuestions)
         }
 
-        // If active session exists for THIS token AND assessment timer was already started, resume it
-        const currentAssessment = useSessionStore.getState().assessment
-        const persistedSession = useSessionStore.getState().session
-        if (
-          persistedSession?.status === 'active' &&
-          currentAssessment?.timerStartMs !== null &&
-          currentAssessment?.timerStartMs !== undefined &&
-          localStorage.getItem('cd-recruit-session-token') === token
-        ) {
-          devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
-          return
-        }
-
         // Drive closed?
         if (drive.status === 'closed') {
           transitionTo({ type: 'expired', reason: 'drive-closed' })
@@ -83,6 +70,8 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
 
         const rawScheduled = invite.scheduledTime ? new Date(invite.scheduledTime).getTime() : Date.now()
         const scheduledMs = isNaN(rawScheduled) ? Date.now() : rawScheduled
+        localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
+
         const nowMs = services.time.getServerNow()
         const bufferMs = (invite.bufferMinutes || 30) * 60 * 1000
         const graceMs = (invite.graceMinutes || 120) * 60 * 1000
@@ -90,14 +79,33 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
         const tooEarlyBoundary = scheduledMs - bufferMs
         const graceBoundary = scheduledMs + graceMs
 
+        // If active session exists for THIS token AND assessment timer was already started AND nowMs >= scheduledMs, resume it
+        const currentAssessment = useSessionStore.getState().assessment
+        const persistedSession = useSessionStore.getState().session
+        if (
+          persistedSession?.status === 'active' &&
+          currentAssessment?.timerStartMs !== null &&
+          currentAssessment?.timerStartMs !== undefined &&
+          localStorage.getItem('cd-recruit-session-token') === token &&
+          nowMs >= scheduledMs
+        ) {
+          devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
+          return
+        }
+
         if (nowMs < tooEarlyBoundary) {
           // Too early
           transitionTo({ type: 'too-early', scheduledTimeMs: scheduledMs, inviteToken: token })
         } else if (nowMs < scheduledMs) {
-          // Buffer window
-          transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
+          // Buffer window — if consent was already done, go to waiting-room, else system-check
+          const consentDone = localStorage.getItem('cd-recruit-consent-audio') === 'true' || localStorage.getItem('cd-recruit-selfie-data')
+          if (consentDone && persistedSession) {
+            transitionTo({ type: 'waiting-room', scheduledTimeMs: scheduledMs, inviteToken: token })
+          } else {
+            transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
+          }
         } else if (nowMs < graceBoundary) {
-          // Grace window
+          // Grace window (assessment start time T has passed)
           transitionTo({ type: 'system-check', mode: 'expedited', inviteToken: token })
         } else {
           // Expired

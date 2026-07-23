@@ -16,13 +16,15 @@ import { SessionConflictScreen } from './SessionConflictScreen'
 import { services } from '../services'
 import { FIXTURE_INVITE } from '../fixtures/invite'
 
+import { Loader2 } from 'lucide-react'
+
 // Resolving skeleton
 function ResolvingScreen() {
   return (
     <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center" aria-label="Loading" aria-busy="true">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" aria-hidden />
-        <p className="text-sm text-[var(--text-secondary)]">Loading your assessment…</p>
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+        <p className="text-sm font-medium text-[var(--text-secondary)] tracking-wide">Loading your assessment…</p>
       </div>
     </div>
   )
@@ -35,11 +37,10 @@ export function SessionRouter({ token: propToken }: { token?: string }) {
 
   // Store scheduled time in localStorage for tutorial/waiting-room usage
   useEffect(() => {
-    const scheduledMs = new Date(FIXTURE_INVITE.scheduledTime).getTime()
-    // Apply any time offset
-    const nowMs = services.time.getServerNow()
-    const adjustedScheduled = scheduledMs
-    localStorage.setItem('cd-recruit-scheduled-ms', String(adjustedScheduled))
+    if (!localStorage.getItem('cd-recruit-scheduled-ms')) {
+      const scheduledMs = new Date(FIXTURE_INVITE.scheduledTime).getTime()
+      localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
+    }
   }, [])
 
   // Store system check mode for consent/tutorial
