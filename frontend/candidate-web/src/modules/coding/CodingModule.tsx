@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { CODING_QUESTIONS } from '../../fixtures/questions'
 import { useSessionStore, QuestionStatus } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { CodingWorkspace } from '../../components/coding/CodingWorkspace'
 import apiClient from '../../api/client'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, GripVertical } from 'lucide-react'
 
 /** Simple UUID v4 check — NestJS ParseUUIDPipe rejects anything else with 400. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -32,6 +32,36 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Adjustable Horizontal Resizer State (Left Pane width %)
+  const [leftWidthPct, setLeftWidthPct] = useState(40)
+  const isDraggingHorizontalRef = useRef(false)
+
+  const handleHorizontalMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingHorizontalRef.current = true
+
+    const startX = e.clientX
+    const startWidthPct = leftWidthPct
+    const containerWidth = window.innerWidth
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingHorizontalRef.current) return
+      const deltaX = moveEvent.clientX - startX
+      const deltaPct = (deltaX / containerWidth) * 100
+      const newPct = Math.max(20, Math.min(70, startWidthPct + deltaPct))
+      setLeftWidthPct(newPct)
+    }
+
+    const onMouseUp = () => {
+      isDraggingHorizontalRef.current = false
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }
+
   // Restore current question from persisted state on mount
   useEffect(() => {
     if (assessment?.currentModuleIndex === moduleIndex) {
@@ -45,14 +75,9 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
 
   // Fetch question details from backend
   useEffect(() => {
-    // Guard: need a session and a real UUID questionId from the DB.
-    // If assessment.questions is missing (stale localStorage before Phase 2),
-    // isValidUUID will be false and we surface a clear message instead of
-    // sending 'code-1' to ParseUUIDPipe which returns 400.
     if (!assessment?.sessionId) return
 
     if (!isValidUUID) {
-      // questions not yet loaded from server or stale state — not a fetch error
       setLoading(false)
       setError(
         codingQuestions.length === 0
@@ -135,17 +160,25 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
     )
   }
 
-  // Map backend question response to shape expected by CodingWorkspace
+  // Extract visible test cases for sample display
+  const testCasesList = questionData.content?.visibleTestCases || questionData.content?.testCases || [
+    { input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", label: "Example 1" },
+    { input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", label: "Example 2" }
+  ]
+
   const workspaceQuestion = {
     id: questionId,
-    title: CODING_QUESTIONS[currentIndex]?.title || "Coding Challenge",
-    prompt: questionData.content?.prompt || "Write your solution",
+    title: CODING_QUESTIONS[currentIndex]?.title || questionData.content?.title || "Sum of Two Numbers",
+    prompt: questionData.content?.prompt || questionData.content?.description || "Write a program that reads from standard input (stdin) containing an array of integers `nums` and a target integer `target`, and outputs to standard output (stdout) the indices of the two numbers such that they add up to `target`.",
     content: {
       starterCode: questionData.content?.starterCode,
-      // Map visibleTestCases to testCases in workspace
-      testCases: questionData.content?.visibleTestCases || questionData.content?.testCases || [],
-      constraints: questionData.content?.constraints || [],
-      difficulty: questionData.content?.difficulty || "medium",
+      testCases: testCasesList,
+      constraints: questionData.content?.constraints || [
+        "2 <= nums.length <= 10^4",
+        "-10^9 <= nums[i] <= 10^9",
+        "-10^9 <= target <= 10^9"
+      ],
+      difficulty: questionData.content?.difficulty || "easy",
     },
     response: questionData.response || null,
   }
@@ -157,28 +190,37 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-5 h-full overflow-hidden">
+      <div className="flex h-full w-full overflow-hidden select-none">
         {/* Left Panel: Description */}
-        <div className="lg:col-span-2 border-r border-[var(--border)] bg-[var(--surface)] overflow-y-auto flex flex-col h-full">
-          <div className="px-6 py-5 border-b border-[var(--border)]">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                Challenge {currentIndex + 1} of {CODING_QUESTIONS.length}
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent-subtle)] text-[var(--accent)] uppercase tracking-wider">
-                {workspaceQuestion.content.difficulty}
-              </span>
+        <div
+          style={{ width: `${leftWidthPct}%` }}
+          className="bg-[var(--surface)] overflow-y-auto flex flex-col h-full shrink-0 border-r border-[var(--border)]"
+        >
+          <div className="px-6 py-5 space-y-5">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
+                  CHALLENGE {currentIndex + 1} OF {CODING_QUESTIONS.length}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent-subtle)] text-[var(--accent)] uppercase tracking-wider font-mono">
+                  {workspaceQuestion.content.difficulty}
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
+                {workspaceQuestion.title}
+              </h2>
             </div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">
-              {workspaceQuestion.title}
-            </h2>
-            <div className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-sans">
+
+            <div className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-sans">
               {workspaceQuestion.prompt}
             </div>
 
+            {/* Constraints */}
             {workspaceQuestion.content.constraints.length > 0 && (
-              <div className="mt-5">
-                <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Constraints</h4>
+              <div className="pt-2">
+                <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2 font-mono">
+                  Constraints
+                </h4>
                 <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--text-secondary)] font-mono">
                   {workspaceQuestion.content.constraints.map((c: string, idx: number) => (
                     <li key={idx}>{c}</li>
@@ -186,11 +228,53 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
                 </ul>
               </div>
             )}
+
+            {/* Sample Test Cases (DB-backed) */}
+            {testCasesList.length > 0 && (
+              <div className="pt-4 border-t border-[var(--border)] space-y-3">
+                <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
+                  Sample Test Cases
+                </h4>
+                <div className="space-y-3">
+                  {testCasesList.map((tc: any, i: number) => (
+                    <div
+                      key={i}
+                      className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--background)] font-mono text-xs space-y-2 shadow-sm"
+                    >
+                      <div className="text-[11px] font-bold text-[var(--accent)] uppercase">
+                        {tc.label || `Example ${i + 1}`}
+                      </div>
+                      <div>
+                        <span className="text-[var(--text-secondary)]">Input:</span>
+                        <div className="mt-1 p-2 rounded bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] overflow-x-auto">
+                          {tc.input}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[var(--text-secondary)]">Expected Output:</span>
+                        <div className="mt-1 p-2 rounded bg-[var(--surface)] text-[var(--success)] border border-[var(--border)] overflow-x-auto">
+                          {tc.expectedOutput || tc.expected}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Horizontal Drag Resizer Slider Handle */}
+        <div
+          onMouseDown={handleHorizontalMouseDown}
+          className="w-2 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-col-resize flex items-center justify-center border-l border-r border-[var(--border)] group transition-colors shrink-0"
+          title="Drag left or right to adjust panel split"
+        >
+          <GripVertical className="w-3 h-5 text-[var(--muted-foreground)] group-hover:text-[var(--accent)] transition-colors" />
+        </div>
+
         {/* Right Panel: Monaco Workspace */}
-        <div className="lg:col-span-3 h-full flex flex-col overflow-hidden">
+        <div className="flex-1 h-full flex flex-col min-w-0 overflow-hidden">
           <CodingWorkspace
             question={workspaceQuestion}
             onNext={handleNext}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { CodeEditor, PasteEventData } from "@/components/common/CodeEditor";
-import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown } from "lucide-react";
+import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, GripHorizontal } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
 import { useSessionStore } from "@/store/sessionMachine";
 import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
@@ -335,22 +335,46 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     }
   };
 
+  // Terminal height resizing state
+  const [terminalHeight, setTerminalHeight] = useState(300);
+  const isDraggingVerticalRef = useRef(false);
+
+  const handleVerticalMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingVerticalRef.current = true;
+
+    const startY = e.clientY;
+    const startHeight = terminalHeight;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingVerticalRef.current) return;
+      const deltaY = startY - moveEvent.clientY;
+      const newHeight = Math.max(100, Math.min(650, startHeight + deltaY));
+      setTerminalHeight(newHeight);
+    };
+
+    const onMouseUp = () => {
+      isDraggingVerticalRef.current = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
   const activeLangConfig = LANGUAGES.find((l) => l.value === selectedLanguage) || LANGUAGES[0];
 
   return (
     <div className="flex-1 flex flex-col bg-bg overflow-hidden h-full">
       {/* Top Bar */}
-      <div className="bg-surface border-b border-border-token px-3 py-2 flex items-center justify-between gap-2 z-10 shrink-0 overflow-x-auto">
+      <div className="bg-[var(--surface)] border-b border-[var(--border)] px-4 py-2 flex items-center justify-between gap-2 z-10 shrink-0 overflow-x-auto">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-bold text-text-secondary font-mono bg-bg/50 px-2 py-1 rounded border border-border-token/40">
-            workspace.{activeLangConfig.extension}
-          </span>
-          
           <div className="relative">
             <select
               value={selectedLanguage}
               onChange={(e) => handleLanguageChange(e.target.value)}
-              className="bg-bg text-text-primary text-xs font-semibold px-2.5 py-1 rounded border border-border-token focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer pr-7 appearance-none"
+              className="bg-[var(--background)] text-[var(--foreground)] text-xs font-semibold px-3 py-1 rounded border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] cursor-pointer pr-7 appearance-none"
             >
               {LANGUAGES.map((lang) => (
                 <option key={lang.value} value={lang.value}>
@@ -358,7 +382,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--muted-foreground)]">
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -368,13 +392,13 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
           <button
             onClick={handleRun}
             disabled={isRunning || !activeCode.trim()}
-            className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface border border-border-token hover:bg-surface/80 text-text-primary text-xs font-semibold rounded-md transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            className="btn-secondary inline-flex items-center gap-1.5 text-xs cursor-pointer"
             title="Run code against sample test cases"
           >
             {isRunning && runType === "RUN" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
             ) : (
-              <Play className="w-3.5 h-3.5 text-success" />
+              <Play className="w-3.5 h-3.5 text-[var(--success)]" />
             )}
             <span>Run Code</span>
           </button>
@@ -382,7 +406,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
           <button
             onClick={handleSubmit}
             disabled={isRunning || !activeCode.trim()}
-            className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-md transition-colors cursor-pointer disabled:opacity-50 shrink-0 shadow-sm"
+            className="btn-primary inline-flex items-center gap-1.5 text-xs cursor-pointer"
             title="Submit solution against all test cases"
           >
             {isRunning && runType === "SUBMIT" ? (
@@ -408,8 +432,22 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
         />
       </div>
 
+      {/* Vertical Drag Resizer Slider Handle */}
+      {terminalOpen && (
+        <div
+          onMouseDown={handleVerticalMouseDown}
+          className="h-2 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-row-resize flex items-center justify-center border-t border-b border-[var(--border)] group transition-colors select-none shrink-0"
+          title="Drag up or down to adjust terminal height"
+        >
+          <GripHorizontal className="w-5 h-3 text-[var(--muted-foreground)] group-hover:text-[var(--accent)] transition-colors" />
+        </div>
+      )}
+
       {/* Terminal panel */}
-      <div className={`border-t border-border-token bg-surface flex flex-col transition-all duration-200 ${terminalOpen ? "h-80" : "h-10"} shrink-0`}>
+      <div
+        style={{ height: terminalOpen ? `${terminalHeight}px` : "40px" }}
+        className="border-t border-border-token bg-surface flex flex-col shrink-0 overflow-hidden"
+      >
         <div
           onClick={() => setTerminalOpen(!terminalOpen)}
           className="px-4 py-2 border-b border-border-token flex items-center justify-between bg-surface/80 hover:bg-surface cursor-pointer select-none"

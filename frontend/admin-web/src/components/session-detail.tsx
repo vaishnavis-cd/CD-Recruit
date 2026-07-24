@@ -44,7 +44,7 @@ export function SessionDetailBody({
   const recordDecision = useStore((s) => s.recordDecision);
   const [noteText, setNoteText] = useState("");
   const [tab, setTab] = useState<"saydo" | "overview" | "timeline">("saydo");
-  const [evidenceOpen, setEvidenceOpen] = useState<{ category: string; timestamp: string } | null>(
+  const [evidenceOpen, setEvidenceOpen] = useState<{ category: string; timestamp: string; url?: string } | null>(
     null,
   );
   const [highlightIdx, setHighlightIdx] = useState<number | null>(null);

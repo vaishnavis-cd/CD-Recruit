@@ -202,7 +202,7 @@ export class RollingBufferService {
     await new Promise(r => setTimeout(r, 2000));
     const fallback = this.completedSegments[this.completedSegments.length - 1];
     console.log(`[RollingBufferService] RETURNING_FALLBACK_WEBM: size=${fallback?.size || 0} bytes`);
-    return (fallback && fallback.size > 100) ? fallback : (flushedBlob || new Blob([], { type: "video/webm" }));
+    return (fallback && fallback.size > 100) ? fallback : new Blob([], { type: "video/webm" });
   }
 
   public getPastBuffer(): Blob[] {

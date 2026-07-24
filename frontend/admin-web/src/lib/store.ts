@@ -41,7 +41,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
         const data = await res.json();
         if (data.token) {
           token = data.token;
-          localStorage.setItem("admin_token", token);
+          localStorage.setItem("admin_token", token || "");
         }
       }
     } catch (err) {

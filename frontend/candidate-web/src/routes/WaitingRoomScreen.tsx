@@ -1,34 +1,67 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { MODULES, TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions'
-import { IllustrationContainer } from '../components/common/IllustrationContainer'
-import { Clock, HelpCircle, ChevronDown, LifeBuoy } from 'lucide-react'
+import { StatusChip } from '../components/common/StatusChip'
+import { Clock, Sparkles, LifeBuoy, CheckCircle2 } from 'lucide-react'
+import waitingRoomCalmImg from '../assets/waiting-room-calm.png'
 
 const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
+
+const MOTIVATIONAL_QUOTES = [
+  { quote: "Take a deep breath. You've prepared for this moment.", author: "Stay focused & confident" },
+  { quote: "Success is the sum of small efforts repeated day in and day out.", author: "Trust your process" },
+  { quote: "Focus on being productive instead of busy. One step at a time.", author: "Quality over speed" },
+]
 
 interface WaitingRoomScreenProps {
   scheduledTimeMs: number
   inviteToken: string
 }
 
-
 export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomScreenProps) {
-  const { transitionTo, session, initAssessment } = useSessionStore()
+  const { transitionTo, session, assessment, initAssessment } = useSessionStore()
   const [nowMs, setNowMs] = useState(() => services.time.getServerNow())
+
+  // Pick a consistent motivational quote
+  const currentQuote = useMemo(() => {
+    const idx = Math.abs(scheduledTimeMs) % MOTIVATIONAL_QUOTES.length
+    return MOTIVATIONAL_QUOTES[idx]
+  }, [scheduledTimeMs])
 
   useEffect(() => {
     return services.time.subscribe(setNowMs)
   }, [])
 
-  // When T arrives, start the assessment
+  // Dynamic allocated minutes
+  const allocatedMinutes = session?.durationMinutes
+    ? session.durationMinutes
+    : assessment?.totalSeconds
+    ? Math.round(assessment.totalSeconds / 60)
+    : TOTAL_ASSESSMENT_MINUTES
+
+  // Filter modules to assigned modules
+  const activeModules = useMemo(() => {
+    const questions = session?.questions || assessment?.questions
+    if (questions && questions.length > 0) {
+      const activeTypes = new Set(questions.map((q: any) => q.moduleType || q.type))
+      return MODULES.filter(m => activeTypes.has(m.type as any))
+    }
+    return MODULES
+  }, [session, assessment])
+
+  // When 1-minute countdown reaches 0, automatically start the assessment
   useEffect(() => {
     if (nowMs >= scheduledTimeMs) {
-      if (!session) return
-      initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, session.questions)
-      transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: session.id })
+      const currentSession = session || useSessionStore.getState().session
+      const sessionId = currentSession?.id || 'demo-session'
+      const questions = currentSession?.questions || assessment?.questions
+      const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60
+
+      initAssessment(sessionId, durationSeconds, questions)
+      transitionTo({ type: 'assessment', moduleIndex: 0, sessionId })
     }
-  }, [nowMs, scheduledTimeMs, session, initAssessment, transitionTo])
+  }, [nowMs, scheduledTimeMs, session, assessment, allocatedMinutes, initAssessment, transitionTo])
 
   const msRemaining = Math.max(0, scheduledTimeMs - nowMs)
   const minutes = Math.floor(msRemaining / 60000)
@@ -36,96 +69,107 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center p-4 md:p-8"
+      className="min-h-screen px-6 py-10 flex justify-center items-center"
       role="main"
       aria-labelledby="waiting-room-heading"
     >
-      <div className="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-        {/* Left Side: Dominant Hero Illustration Panel */}
-        <div className="lg:col-span-7 flex flex-col justify-center h-full">
-          <div className="w-full h-full min-h-[500px] lg:min-h-[600px] bg-[var(--surface)] rounded-3xl border border-[var(--border)] p-4 md:p-6 shadow-[var(--shadow-md)] flex flex-col items-center justify-center text-center space-y-4">
-            <IllustrationContainer
-              src="/src/assets/waiting-room-calm.png"
-              alt="Waiting Room Calm Illustration"
-              fallbackIcon={Clock}
-              aspectRatio=""
-              imgClassName="object-contain p-0 max-h-[520px] w-full"
-              className="w-full flex-1 border-none bg-transparent shadow-none"
+      <div className="w-full max-w-5xl animate-cd-fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+          {/* Left Side: ONLY the figure illustration */}
+          <div className="lg:col-span-5 flex items-center justify-center p-2">
+            <img
+              src={waitingRoomCalmImg}
+              alt="Calm candidate illustration"
+              className="w-full h-auto object-contain max-h-[380px]"
             />
-            <div className="pb-2">
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Sit Back &amp; Relax</h2>
-              <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
-                Take a moment to review the assessment format before your session begins automatically.
-              </p>
-            </div>
           </div>
-        </div>
 
-        {/* Right Side: Details, Countdown, Overview */}
-        <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
-            <div>
-              <h1 id="waiting-room-heading" className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">
-                You're All Set!
+          {/* Right Side: All Content, Timer, Quote & 1-Minute Tips */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Top Chip & Timer */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <StatusChip tone="accent" label="PREPARING YOUR ASSESSMENT" size="sm" loading />
+                <span className="text-[11px] font-mono text-[var(--muted-foreground)]">• {allocatedMinutes}m total time</span>
+              </div>
+              <h1 id="waiting-room-heading" className="text-[28px] font-bold tracking-tight text-[var(--foreground)]">
+                Take a deep breath
               </h1>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Your assessment begins automatically when the countdown reaches 00:00.
-              </p>
-            </div>
-
-            {/* Countdown display */}
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-sm)] flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Assessment Starts In</div>
-                <div className="text-xs text-[var(--text-secondary)] mt-0.5">No page refresh needed</div>
-              </div>
-              <div
-                className="text-4xl md:text-5xl font-mono font-bold text-[var(--accent)] tabular-nums tracking-tight"
-                role="timer"
-                aria-live="off"
-                aria-label={`Assessment starting in ${minutes} minutes and ${seconds} seconds`}
-              >
-                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-              </div>
-            </div>
-          </div>
-
-          {/* Module overview */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-sm)] space-y-3">
-            <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-              Assessment Overview — {TOTAL_ASSESSMENT_MINUTES} Minutes Budget
-            </h2>
-            <div className="space-y-2">
-              {MODULES.map(mod => (
-                <div key={mod.index} className="flex items-center justify-between text-xs p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)]">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[var(--accent-subtle)] text-[var(--accent)] text-xs flex items-center justify-center font-bold shrink-0">
-                      {mod.index + 1}
-                    </span>
-                    <span className="text-[var(--text-primary)] font-medium">{mod.name}</span>
+              
+              {/* Reverse Timer */}
+              <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between shadow-[var(--shadow-sm)]">
+                <div>
+                  <div className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
+                    Starting Automatically In
                   </div>
-                  <span className="text-[var(--text-secondary)] font-mono font-semibold">~{mod.suggestedMinutes} min</span>
+                  <div className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
+                    Your assessment begins as soon as the timer reaches 00:00.
+                  </div>
                 </div>
-              ))}
+                <div
+                  className="font-mono-data text-[44px] font-bold tabular-nums text-[var(--accent)] tracking-tight"
+                  role="timer"
+                  aria-live="off"
+                >
+                  {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] text-[var(--text-secondary)] pt-2 border-t border-[var(--border)] leading-relaxed">
-              Suggested module time allocations are for guidance only. You manage your total time budget.
-            </p>
-          </div>
 
-          <div className="pt-2 flex items-center justify-between border-t border-[var(--border)]">
-            <a
-              href={SUPPORT_EMAIL}
-              className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline font-medium"
-            >
-              <LifeBuoy size={14} />
-              <span>Contact Support</span>
-            </a>
-            <span className="text-[11px] text-[var(--text-secondary)]">CD-Recruit Proctoring Engine</span>
+            {/* Motivational Quote Box */}
+            <div className="p-4 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-subtle)]/40 space-y-1.5">
+              <div className="flex items-center gap-2 text-[var(--accent)] text-xs font-bold uppercase tracking-wider">
+                <Sparkles size={14} />
+                <span>Mindset Check</span>
+              </div>
+              <blockquote className="text-xs text-[var(--foreground)] italic leading-relaxed">
+                "{currentQuote.quote}"
+              </blockquote>
+              <div className="text-[11px] text-[var(--muted-foreground)] font-medium">
+                — {currentQuote.author}
+              </div>
+            </div>
+
+            {/* Quick 1-Minute Tips Box */}
+            <div className="card-base p-5 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">
+                <CheckCircle2 size={15} className="text-[var(--success)]" />
+                <span>Quick 1-Minute Tips</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-[var(--muted-foreground)]">
+                <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex items-start gap-2">
+                  <span className="shrink-0">🧘</span>
+                  <span><strong>Stay Calm:</strong> Focus on one problem at a time. Quality over speed.</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex items-start gap-2">
+                  <span className="shrink-0">⏱️</span>
+                  <span><strong>Manage Time:</strong> Monitor your total allocated time budget.</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex items-start gap-2">
+                  <span className="shrink-0">▶️</span>
+                  <span><strong>Run Code:</strong> Test your logic against sample test cases before submitting.</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex items-start gap-2">
+                  <span className="shrink-0">🚩</span>
+                  <span><strong>Flag & Return:</strong> Press <kbd className="px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[10px] font-mono">F</kbd> to mark tough questions for review.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-1 text-[11px] text-[var(--muted-foreground)]">
+              <a
+                href={SUPPORT_EMAIL}
+                className="inline-flex items-center gap-1.5 hover:text-[var(--foreground)] transition-colors"
+              >
+                <LifeBuoy size={13} />
+                <span>Need support?</span>
+              </a>
+              <span>CD-Recruit Candidate Environment</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   )
 }
-

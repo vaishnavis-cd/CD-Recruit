@@ -98,90 +98,97 @@ export function SyncingScreen({ sessionId, auto }: SyncingScreenProps) {
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen px-6 py-12 flex items-center justify-center"
       role="main"
       aria-labelledby="syncing-heading"
     >
-      <div className="max-w-md w-full space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/20 flex items-center justify-center mx-auto shadow-[var(--shadow-sm)]">
-            <ShieldCheck size={24} />
-          </div>
-          <h1 id="syncing-heading" className="text-2xl font-bold text-[var(--text-primary)]">
-            {auto ? 'Submitting Assessment…' : 'Finalizing Your Session'}
+      <div className="w-full max-w-lg animate-cd-fade-in text-center space-y-6">
+        <div>
+          <h1 id="syncing-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">
+            {hasError ? "Sync interrupted" : auto ? "Submitting assessment…" : "Finalising your submission"}
           </h1>
-          <p className="text-xs text-[var(--warning)] font-semibold" role="alert" aria-live="polite">
-            Please keep this window open while data is secured.
+          <p className="text-sm mt-2 text-[var(--muted-foreground)]" role="alert" aria-live="polite">
+            {hasError
+              ? "We hit a snag uploading your data. Retry to continue — your answers are safe locally."
+              : "Please keep this window open while your submission is secured."}
           </p>
         </div>
 
         {auto && (
           <div
             role="alert"
-            className="p-3.5 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-subtle)] text-xs text-[var(--warning)] text-center font-medium"
+            className="p-3.5 rounded-lg border border-[var(--warning)] bg-[var(--surface)] text-xs text-[var(--warning)] text-center font-medium"
           >
             Time limit reached — submitting your saved responses automatically.
           </div>
         )}
 
-        {/* Connected step progress design */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-[var(--shadow-md)] space-y-4">
-          {steps.map((step, idx) => (
-            <div key={step.id} className="relative flex items-center gap-4">
-              {idx < steps.length - 1 && (
-                <div
-                  className={`absolute left-[13px] top-7 bottom-0 w-0.5 transition-colors ${
-                    step.status === 'done' ? 'bg-[var(--success)]' : 'bg-[var(--border)]'
-                  }`}
-                />
-              )}
-              <div className="shrink-0 z-10">
-                {step.status === 'done' ? (
-                  <CheckCircle2 size={24} className="text-[var(--success)]" />
-                ) : step.status === 'error' ? (
-                  <AlertTriangle size={24} className="text-[var(--warning)]" />
-                ) : step.status === 'syncing' ? (
-                  <Loader2 size={24} className="text-[var(--accent)] animate-spin" />
-                ) : (
-                  <Circle size={24} className="text-[var(--text-secondary)]/30" />
+        {/* Horizontal steps design */}
+        <div className="mt-8 flex items-center justify-between">
+          {steps.map((s, i) => {
+            const done = s.status === 'done'
+            const syncing = s.status === 'syncing'
+            const isFail = s.status === 'error'
+
+            return (
+              <div key={s.id} className="flex-1 flex flex-col items-center relative">
+                {i > 0 && (
+                  <div
+                    className="absolute top-6 right-1/2 w-full h-0.5"
+                    style={{
+                      background: done || i <= steps.findIndex(st => st.status === 'syncing') ? "var(--accent)" : "var(--border)",
+                      transition: "background 400ms var(--ease-cd)",
+                    }}
+                  />
                 )}
+                <div
+                  className="relative w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0"
+                  style={{
+                    background: isFail
+                      ? "var(--surface)"
+                      : done
+                      ? "var(--accent)"
+                      : syncing
+                      ? "var(--surface)"
+                      : "var(--surface)",
+                    color: isFail
+                      ? "var(--critical)"
+                      : done
+                      ? "white"
+                      : syncing
+                      ? "var(--accent)"
+                      : "var(--muted-foreground)",
+                    border: `1px solid ${done ? "var(--accent)" : isFail ? "var(--critical)" : "var(--border)"}`,
+                  }}
+                >
+                  {isFail ? (
+                    <AlertTriangle size={20} />
+                  ) : syncing ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : done ? (
+                    <CheckCircle2 size={20} />
+                  ) : (
+                    <Circle size={20} />
+                  )}
+                </div>
+                <div className="text-xs mt-2 font-medium text-[var(--foreground)]">{s.label}</div>
               </div>
-              <div className="flex-1 min-w-0 flex items-center justify-between">
-                <span className={`text-xs font-semibold ${
-                  step.status === 'done' ? 'text-[var(--text-primary)]' :
-                  step.status === 'error' ? 'text-[var(--warning)]' :
-                  step.status === 'syncing' ? 'text-[var(--accent)] font-bold' :
-                  'text-[var(--text-secondary)]'
-                }`}>
-                  {step.label}
-                </span>
-                <StatusChip
-                  variant={
-                    step.status === 'done' ? 'success' :
-                    step.status === 'error' ? 'warning' :
-                    step.status === 'syncing' ? 'accent' : 'neutral'
-                  }
-                  label={step.status.toUpperCase()}
-                  size="sm"
-                  pulsing={step.status === 'syncing'}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Error + retry */}
         {hasError && !retrying && (
-          <div role="alert" className="p-4 rounded-xl border border-[var(--warning)] bg-[var(--warning-subtle)] space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-[var(--warning)]">
+          <div role="alert" className="mt-8 p-4 rounded-xl card-surface space-y-3 text-left">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--critical)]">
               <AlertTriangle size={16} />
               <span>Sync Issue Encountered</span>
             </div>
-            <div className="text-xs text-[var(--text-secondary)] leading-relaxed">{error}</div>
+            <div className="text-xs text-[var(--muted-foreground)] leading-relaxed font-mono-data">{error}</div>
             <button
               onClick={handleRetry}
               disabled={retryCount >= 5}
-              className="w-full py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
+              className="btn-primary w-full inline-flex items-center justify-center gap-2 cursor-pointer"
             >
               <RefreshCw size={14} />
               <span>{retryCount >= 5 ? 'Contact Support' : 'Retry Sync Operation'}</span>
@@ -190,7 +197,7 @@ export function SyncingScreen({ sessionId, auto }: SyncingScreenProps) {
         )}
 
         {retrying && (
-          <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)] font-medium">
+          <div className="flex items-center justify-center gap-2 text-xs text-[var(--muted-foreground)] font-medium font-mono-data">
             <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
             <span>Retrying synchronization…</span>
           </div>

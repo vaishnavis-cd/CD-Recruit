@@ -79,7 +79,7 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
         const tooEarlyBoundary = scheduledMs - bufferMs
         const graceBoundary = scheduledMs + graceMs
 
-        // If active session exists for THIS token AND assessment timer was already started AND nowMs >= scheduledMs, resume it
+        // If active session exists for THIS token AND assessment timer was already started AND NOT EXPIRED, resume it
         const currentAssessment = useSessionStore.getState().assessment
         const persistedSession = useSessionStore.getState().session
         if (
@@ -89,8 +89,12 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           localStorage.getItem('cd-recruit-session-token') === token &&
           nowMs >= scheduledMs
         ) {
-          devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
-          return
+          const elapsedMs = nowMs - currentAssessment.timerStartMs
+          const totalMs = (currentAssessment.totalSeconds || 1800) * 1000
+          if (elapsedMs < totalMs) {
+            devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
+            return
+          }
         }
 
         if (nowMs < tooEarlyBoundary) {

@@ -154,7 +154,7 @@ export class EvidenceUploadService {
         console.log(
           `[Proctoring] Retrying upload of ${item.filename} (Attempt ${item.attempts}/${CONFIG.MAX_RETRY_ATTEMPTS})`,
         );
-        const clipUrl = await this.performUpload(item.sessionId, item.blob, item.filename);
+        const clipUrl = await this.performAtomicUpload(item.sessionId, item.event, item.blob, item.filename);
 
         // Upload success -> save metadata with UPLOADED status
         await ProctoringEventService.getInstance().createEvent({

@@ -398,8 +398,10 @@ function QuestionBankPage() {
           } else if (importModuleType === "CODING") {
             content.prompt = getVal("prompt");
             content.starterCode = getVal("starterCode");
-            const tc = getVal("testCasesJSON");
-            content.testCases = tc ? JSON.parse(tc) : [];
+            const tcVal = getVal("testCasesJSON");
+            const tcParsed = tcVal ? JSON.parse(tcVal) : [];
+            content.testCases = tcParsed;
+            content.visibleTestCases = tcParsed;
           } else if (importModuleType === "AI_PROMPTING") {
             content.prompt = getVal("prompt");
             const rub = getVal("rubricJSON");

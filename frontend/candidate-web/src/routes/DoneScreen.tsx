@@ -38,163 +38,162 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen px-6 py-14 flex justify-center"
       role="main"
       aria-labelledby="done-heading"
     >
-      <div className="max-w-lg w-full space-y-6">
-        <div className="text-center space-y-3">
-          {/* Assessment complete illustration with graceful fallback */}
-          <IllustrationContainer
-            src="/src/assets/illustrations/assessment-complete.svg"
-            alt="Assessment Complete Illustration"
-            fallbackIcon={CheckCircle2}
-            aspectRatio="aspect-[16/9]"
-            className="max-w-xs mx-auto mb-4"
-          />
-
-          <h1 id="done-heading" className="text-2xl font-bold text-[var(--text-primary)]">
-            {auto ? 'Assessment Submitted' : 'Assessment Complete'}
-          </h1>
-          <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
-            {auto
-              ? 'Time limit reached — your last-saved answers were submitted automatically.'
-              : 'Your responses have been successfully recorded.'
-            }
-          </p>
-        </div>
-
-        {/* Reference ID card */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-sm)] space-y-2">
-          <div className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-            Session Reference ID
+      <div className="w-full max-w-4xl animate-cd-fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-10 items-start">
+          <div className="mx-auto md:mx-0 w-full">
+            <IllustrationContainer
+              src="/src/assets/assessment-complete.png"
+              alt="Assessment Complete Illustration"
+              fallbackIcon={CheckCircle2}
+              aspectRatio="aspect-square"
+              imgClassName="object-contain p-2 max-h-[220px] w-full"
+              className="w-full card-base border-none bg-transparent shadow-none"
+            />
           </div>
-          <div
-            className="text-xl font-mono font-bold text-[var(--accent)] tracking-wider"
-            aria-label={`Session reference ID: ${referenceId}`}
-          >
-            {referenceId}
-          </div>
-          <p className="text-[11px] text-[var(--text-secondary)]">
-            Save this reference ID for your records in case you need to contact support.
-          </p>
-        </div>
+          <div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent)]">
+              All done
+            </div>
+            <h1 id="done-heading" className="text-[36px] font-semibold tracking-tight mt-1 text-[var(--foreground)]">
+              {auto ? 'Assessment Submitted' : 'Thanks for completing your assessment'}
+            </h1>
+            <p className="mt-3 text-[15px] text-[var(--muted-foreground)]">
+              {auto
+                ? 'Time limit reached — your last-saved answers were submitted automatically.'
+                : 'Your responses have been securely sent for review. Keep the reference below handy if you need to contact support.'
+              }
+            </p>
 
-        {/* Camera release confirmation */}
-        <div className="bg-[var(--success-subtle)] rounded-2xl border border-[var(--success)]/30 p-4">
-          <div className="flex items-start gap-3">
-            <Unlock size={20} className="text-[var(--success)] shrink-0 mt-0.5" />
-            <div>
-              <div className="text-xs font-bold text-[var(--text-primary)] mb-0.5">
-                Camera &amp; Microphone Access Released
+            <div className="mt-6 card-base p-5 inline-flex items-center gap-5">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--muted-foreground)]">
+                  Reference ID
+                </div>
+                <div
+                  className="font-mono-data text-[36px] font-bold leading-tight text-[var(--accent)]"
+                  aria-label={`Session reference ID: ${referenceId}`}
+                >
+                  {referenceId}
+                </div>
               </div>
-              <div className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                Your hardware access has been fully terminated. All session processing is complete.
-              </div>
+            </div>
+
+            <div className="mt-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--muted-foreground)]">
+              <Unlock size={13} className="text-[var(--success)]" /> Camera &amp; microphone access released
             </div>
           </div>
         </div>
 
-        {/* What happens next */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-sm)] space-y-4">
-          <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">What Happens Next</h2>
-          <ol className="space-y-3 text-xs text-[var(--text-secondary)]">
-            <li className="flex gap-3">
-              <span className="w-5 h-5 rounded-full bg-[var(--accent-subtle)] text-[var(--accent)] text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">1</span>
-              <span>Your responses will be evaluated by the recruiting team within <strong className="text-[var(--text-primary)]">3–5 business days</strong>.</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="w-5 h-5 rounded-full bg-[var(--accent-subtle)] text-[var(--accent)] text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">2</span>
-              <span>You will receive an automated notification at your registered email address with review results.</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="w-5 h-5 rounded-full bg-[var(--accent-subtle)] text-[var(--accent)] text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">3</span>
-              <span>If you do not receive an update within 7 days, reach out with your reference ID above.</span>
-            </li>
-          </ol>
-        </div>
-
-        {/* Learning Hub with R-04 fix */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-sm)] space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-              <BookOpen size={16} className="text-[var(--accent)]" />
-              <span>Learning Hub</span>
-            </div>
-            <StatusChip variant="neutral" label="COMING SOON" size="sm" />
-          </div>
-          <p className="text-[11px] text-[var(--text-secondary)]">
-            Resource guides related to today's assessment topics will be published here:
-          </p>
-          <ul className="space-y-2 text-xs">
-            {LEARNING_HUB_LINKS.map(link => (
-              <li key={link.href} className="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] flex items-center justify-between">
-                <span className="text-[var(--text-primary)] font-medium">{link.label}</span>
-                <span className="text-[10px] text-[var(--text-secondary)] font-mono">Preview</span>
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="card-base p-6">
+            <div className="font-semibold mb-4 text-[var(--foreground)]">What happens next</div>
+            <ol className="space-y-4">
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono-data text-xs font-semibold shrink-0 bg-[var(--surface)] text-[var(--accent)] border border-[var(--border)]">
+                  1
+                </span>
+                <div>
+                  <div className="text-sm font-medium text-[var(--foreground)]">Scoring &amp; review</div>
+                  <div className="text-xs mt-0.5 text-[var(--muted-foreground)]">Our team reviews your submission within 3–5 business days.</div>
+                </div>
               </li>
-            ))}
-          </ul>
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono-data text-xs font-semibold shrink-0 bg-[var(--surface)] text-[var(--accent)] border border-[var(--border)]">
+                  2
+                </span>
+                <div>
+                  <div className="text-sm font-medium text-[var(--foreground)]">Recruiter follow-up</div>
+                  <div className="text-xs mt-0.5 text-[var(--muted-foreground)]">You'll receive an email notification with review results.</div>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono-data text-xs font-semibold shrink-0 bg-[var(--surface)] text-[var(--accent)] border border-[var(--border)]">
+                  3
+                </span>
+                <div>
+                  <div className="text-sm font-medium text-[var(--foreground)]">Support inquiry</div>
+                  <div className="text-xs mt-0.5 text-[var(--muted-foreground)]">Reach out with your reference ID if you have questions.</div>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <div className="card-base p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-semibold text-[var(--foreground)] flex items-center gap-2">
+                <BookOpen size={16} className="text-[var(--accent)]" />
+                <span>Learning hub</span>
+              </div>
+              <StatusChip tone="neutral" label="COMING SOON" size="sm" />
+            </div>
+            <div className="space-y-2">
+              {LEARNING_HUB_LINKS.map((l) => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] transition-colors hover:border-[var(--foreground)]"
+                >
+                  <span className="text-sm text-[var(--foreground)]">{l.label}</span>
+                  <span className="text-[10px] font-mono-data text-[var(--muted-foreground)]">Preview</span>
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Micro-survey */}
-        {!surveySent ? (
-          <form onSubmit={handleSurveySubmit} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-sm)] space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-              <Star size={16} className="text-[var(--warning)]" />
-              <span>Feedback (Optional)</span>
+        <div className="mt-6 card-base p-6">
+          <div className="font-semibold text-[var(--foreground)]">How was your experience?</div>
+          <p className="text-xs mt-1 text-[var(--muted-foreground)]">Optional candidate feedback</p>
+          {!surveySent ? (
+            <form onSubmit={handleSurveySubmit} className="mt-4 space-y-4">
+              <div className="flex items-center gap-2">
+                {EXPERIENCE_RATINGS.map((n) => {
+                  const active = surveyRating !== null && n <= surveyRating;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setSurveyRating(n)}
+                      className={`
+                        w-10 h-10 rounded-lg flex items-center justify-center transition-colors cursor-pointer
+                        ${active ? 'bg-[var(--surface)] text-[var(--accent)] border border-[var(--accent)] font-bold' : 'bg-[var(--surface)] text-[var(--muted-foreground)] border border-[var(--border)]'}
+                      `}
+                    >
+                      <Star size={18} fill={active ? 'currentColor' : 'none'} />
+                    </button>
+                  );
+                })}
+              </div>
+              {surveyRating !== null && (
+                <div className="space-y-3">
+                  <textarea
+                    value={surveyComment}
+                    onChange={e => setSurveyComment(e.target.value)}
+                    placeholder="Any additional feedback on the interface or process…"
+                    rows={2}
+                    className="w-full p-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] text-xs placeholder:text-[var(--muted-foreground)]"
+                  />
+                  <button type="submit" className="btn-primary text-xs cursor-pointer">
+                    Submit Feedback
+                  </button>
+                </div>
+              )}
+            </form>
+          ) : (
+            <div className="mt-4 text-xs font-semibold text-[var(--success)]">
+              Thank you for sharing your feedback!
             </div>
-            <p className="text-xs text-[var(--text-secondary)]">
-              How was your candidate assessment experience?
-            </p>
+          )}
+        </div>
 
-            <div className="flex gap-2" role="group" aria-label="Experience rating">
-              {EXPERIENCE_RATINGS.map(rating => (
-                <button
-                  key={rating}
-                  type="button"
-                  onClick={() => setSurveyRating(rating)}
-                  className={`
-                    w-10 h-10 rounded-xl border text-xs font-bold transition-all cursor-pointer
-                    ${surveyRating === rating
-                      ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]'
-                      : 'border-[var(--border)] bg-[var(--bg)] text-[var(--text-secondary)] hover:border-[var(--accent)]'
-                    }
-                  `}
-                >
-                  {rating}
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              value={surveyComment}
-              onChange={e => setSurveyComment(e.target.value)}
-              placeholder="Any additional feedback on the interface or process…"
-              rows={3}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-xs placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] resize-y"
-            />
-
-            <button
-              type="submit"
-              disabled={!surveyRating}
-              className="w-full py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer shadow-[var(--shadow-sm)]"
-            >
-              Submit Candidate Feedback
-            </button>
-          </form>
-        ) : (
-          <div className="bg-[var(--success-subtle)] border border-[var(--success)]/30 p-4 rounded-2xl text-center text-xs font-semibold text-[var(--success)]">
-            Thank you for sharing your feedback!
-          </div>
-        )}
-
-        <div className="text-center pt-2">
-          <a
-            href={SUPPORT_EMAIL}
-            className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline font-medium"
-          >
-            <LifeBuoy size={14} />
-            <span>Contact Support</span>
+        <div className="mt-8 text-center">
+          <a href={SUPPORT_EMAIL} className="inline-flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+            <LifeBuoy size={14} /> Contact support
           </a>
         </div>
       </div>

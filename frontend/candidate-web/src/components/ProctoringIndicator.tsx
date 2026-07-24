@@ -61,7 +61,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
       <div
         aria-label={`Integrity monitoring ${active ? 'active' : 'standby'}`}
         title="Live Camera & Proctoring Status"
-        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--text-secondary)] shadow-sm"
+        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] shadow-xs"
       >
         <div className="relative group cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           <video
@@ -69,11 +69,11 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
             autoPlay
             playsInline
             muted
-            className="w-16 h-12 rounded-md bg-black object-cover transform -scale-x-100 border border-slate-700 shadow-sm transition-transform group-hover:scale-105"
+            className="w-14 h-10 rounded-md bg-black object-cover transform -scale-x-100 border border-[var(--border)] shadow-xs transition-transform group-hover:scale-105"
           />
           {!hasStream && (
             <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center rounded-md text-[9px] text-slate-400">
-              <Camera size={14} className="mb-0.5 text-slate-500" />
+              <Camera size={12} className="mb-0.5 text-slate-500" />
               Off
             </div>
           )}
@@ -83,17 +83,17 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
         </div>
 
         <div className="flex flex-col text-[11px] leading-tight select-none">
-          <div className="flex items-center gap-1.5 font-medium text-[var(--text-primary)]">
+          <div className="flex items-center gap-1.5 font-medium text-[var(--foreground)]">
             <span
-              className={`w-2 h-2 rounded-full ${active ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}
+              className={`w-2 h-2 rounded-full ${hasStream ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--neutral-chip)]'}`}
               aria-hidden
             />
-            <span>{hasStream ? 'Live Camera On' : 'Camera Off'}</span>
+            <span>{hasStream ? 'Camera Live' : 'Camera Off'}</span>
           </div>
-          <span className="text-[10px] text-[var(--text-secondary)] mt-0.5 flex items-center gap-1">
+          <span className="text-[10px] text-[var(--muted-foreground)] mt-0.5 flex items-center gap-1 font-mono-data">
             <span>{cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}</span>
             {lastEventType && (
-              <span className="text-amber-500 font-mono font-semibold truncate max-w-[90px]">
+              <span className="text-[var(--warning)] font-semibold truncate max-w-[90px]">
                 • {lastEventType}
               </span>
             )}
@@ -103,15 +103,15 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
 
       {/* Expanded Floating Live Video Window */}
       {isExpanded && (
-        <div className="fixed bottom-5 right-5 z-50 bg-[var(--surface)] border-2 border-[var(--accent)] rounded-xl shadow-2xl p-2.5 w-72 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-1.5 px-0.5">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="fixed bottom-5 right-5 z-50 card-raised p-3 w-72 space-y-2 animate-cd-fade-in border-2 border-[var(--accent)]">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 px-0.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
               Candidate Live Feed
             </div>
             <button
               onClick={() => setIsExpanded(false)}
-              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="p-1 rounded text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
             >
               <Minimize2 size={13} />
             </button>
@@ -133,7 +133,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
             )}
             {hasStream && (
               <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-white font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--critical)] animate-pulse" />
                 REC • LIVE
               </div>
             )}
