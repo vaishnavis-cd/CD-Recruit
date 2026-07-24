@@ -56,7 +56,7 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
 };
 
 export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorkspaceProps) {
-  const sessionId = useSessionStore((s: any) => s.assessment?.sessionId) || "";
+  const sessionId = useSessionStore((s: any) => s.assessment?.sessionId || s.session?.id) || "";
   const starter = question.content?.starterCode || {};
   const { theme } = useTheme();
 
@@ -211,7 +211,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
       try {
         ProctoringEventService.getInstance().createEvent({
           sessionId,
-          eventType: "PASTE_DETECTED" as any,
+          eventType: "PASTE" as any,
           severity: "MEDIUM" as any,
           timestamp: new Date(data.timestamp).toISOString(),
           metadata: {

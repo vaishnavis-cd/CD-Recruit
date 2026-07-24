@@ -20,9 +20,9 @@ function buildDashboardStats(sessions: any[] = [], drives: any[] = []) {
   const safeDrives = Array.isArray(drives) ? drives : [];
   const safeSessions = Array.isArray(sessions) ? sessions : [];
 
-  const invitedCount = safeDrives.reduce((sum, d) => sum + (d?.invitedCount || 0), 0) || 100;
-  const startedCount = safeDrives.reduce((sum, d) => sum + (d?.startedCount || 0), 0) || 75;
-  const completedCount = safeDrives.reduce((sum, d) => sum + (d?.completedCount || 0), 0) || 50;
+  const invitedCount = safeDrives.reduce((sum, d) => sum + (d?.invitedCount || 0), 0);
+  const startedCount = safeDrives.reduce((sum, d) => sum + (d?.startedCount || 0), 0);
+  const completedCount = safeDrives.reduce((sum, d) => sum + (d?.completedCount || 0), 0);
 
   const funnel = [
     { stage: "Invited", count: invitedCount },
@@ -55,8 +55,8 @@ function buildDashboardStats(sessions: any[] = [], drives: any[] = []) {
           if (!traceMap[dateStr]) {
             traceMap[dateStr] = { sumSaid: 0, sumDid: 0, count: 0 };
           }
-          traceMap[dateStr].sumSaid += s.sayDoScore || 70;
-          traceMap[dateStr].sumDid += s.compositeScore || 70;
+          traceMap[dateStr].sumSaid += s.sayDoScore || 0;
+          traceMap[dateStr].sumDid += s.compositeScore || 0;
           traceMap[dateStr].count += 1;
         }
       } catch (err) {}
@@ -70,15 +70,6 @@ function buildDashboardStats(sessions: any[] = [], drives: any[] = []) {
       did: Math.round(val.sumDid / val.count),
     }))
     .slice(-30);
-
-  if (sayDoTrace.length === 0) {
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-      sayDoTrace.push({ date: dateStr, said: 80, did: 78 });
-    }
-  }
 
   const MODULES = ["MCQ", "SQL", "Coding / DSA", "AI Prompting", "Contextual Simulation"];
   const timeByModule = MODULES.map((m, i) => ({
