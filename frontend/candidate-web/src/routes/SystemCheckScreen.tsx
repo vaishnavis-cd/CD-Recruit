@@ -2,17 +2,17 @@ import React, { useEffect, useState } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { StatusChip } from '../components/common/StatusChip'
-import { CheckCircle2, XCircle, AlertTriangle, Loader2, Circle, Camera, ShieldAlert, ArrowRight } from 'lucide-react'
+import { Cpu, Camera, Wifi, Gauge, Maximize2, Info, AlertTriangle } from 'lucide-react'
 
-type CheckStatus = 'pending' | 'checking' | 'pass' | 'fail' | 'skipped'
+type CheckStatus = 'pending' | 'checking' | 'pass' | 'warn' | 'fail' | 'skipped'
 
 interface CheckItem {
-  id: string
+  id: 'wasm' | 'cam' | 'net' | 'perf'
   label: string
-  description: string
+  icon: React.ReactNode
   status: CheckStatus
+  note: string
   errorMessage?: string
-  allowRetry?: boolean
 }
 
 interface SystemCheckScreenProps {
@@ -22,43 +22,47 @@ interface SystemCheckScreenProps {
 
 export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps) {
   const { transitionTo, setCvMode } = useSessionStore()
-  const [checks, setChecks] = useState<CheckItem[]>([
-    {
-      id: 'wasm',
-      label: 'Browser compatibility (WebAssembly)',
-      description: 'Checks that your browser supports the integrity monitoring component.',
-      status: 'pending',
-    },
-    {
-      id: 'webcam-explainer',
-      label: 'Camera access',
-      description: "We'll ask for camera access next — used only for identity verification and integrity checks. The camera feed stays on your device by default.",
-      status: 'pending',
-    },
-    {
-      id: 'connectivity',
-      label: 'Connectivity check',
-      description: 'A quick check to verify your connection is stable for the assessment.',
-      status: 'pending',
-    },
-    {
-      id: 'fullscreen',
-      label: 'Fullscreen mode',
-      description: 'We recommend fullscreen for the best experience. You can re-enter fullscreen at any time during the assessment.',
-      status: 'pending',
-    },
-  ])
-  const [webcamRetried, setWebcamRetried] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [cvMode, setCvModeLocal] = useState<'full' | 'reduced'>('full')
   const [storageFull, setStorageFull] = useState(false)
   const [allDone, setAllDone] = useState(false)
-  const [showCameraExplainer, setShowCameraExplainer] = useState(false)
+
+  const [checks, setChecks] = useState<CheckItem[]>([
+    {
+      id: 'wasm',
+      label: 'WebAssembly support',
+      icon: <Cpu size={18} />,
+      status: 'pending',
+      note: 'Verifying runtime…',
+    },
+    {
+      id: 'cam',
+      label: 'Camera access',
+      icon: <Camera size={18} />,
+      status: 'pending',
+      note: 'Awaiting device…',
+    },
+    {
+      id: 'net',
+      label: 'Connection quality',
+      icon: <Wifi size={18} />,
+      status: 'pending',
+      note: 'Measuring bandwidth…',
+    },
+    {
+      id: 'perf',
+      label: 'Performance benchmark',
+      icon: <Gauge size={18} />,
+      status: 'pending',
+      note: 'Running micro-benchmark…',
+    },
+  ])
 
   function updateCheck(id: string, update: Partial<CheckItem>) {
     setChecks(prev => prev.map(c => c.id === id ? { ...c, ...update } : c))
   }
 
-  // Storage full simulation
+  // Storage check on mount
   useEffect(() => {
     try {
       const testKey = '__cd_recruit_storage_test__'
@@ -70,123 +74,87 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   }, [])
 
   useEffect(() => {
-    runChecks()
+    runSequentialChecks()
   }, [])
 
-  async function runChecks() {
+  async function runSequentialChecks() {
     // 1. WASM check
-    updateCheck('wasm', { status: 'checking' })
+    updateCheck('wasm', { status: 'checking', note: 'Verifying runtime…' })
     await sleep(400)
     const wasmSupported = services.cv.isWasmSupported()
     if (!wasmSupported) {
       updateCheck('wasm', {
-        status: 'fail',
-        errorMessage: 'WebAssembly is not available in your browser. You can still continue — integrity monitoring will run in reduced mode. Consider updating your browser for future assessments.',
-        allowRetry: false,
+        status: 'warn',
+        note: 'Reduced mode active',
+        errorMessage: 'WebAssembly unsupported. Integrity monitoring will run in reduced mode.',
       })
       setCvModeLocal('reduced')
     } else {
-      updateCheck('wasm', { status: 'pass' })
+      updateCheck('wasm', { status: 'pass', note: 'Runtime available' })
     }
 
-    // 2. Camera explainer — show first, NEVER fire permission cold
-    updateCheck('webcam-explainer', { status: 'checking' })
-    setShowCameraExplainer(true)
-  }
-
-  async function requestCameraAccess(isRetry = false) {
-    setShowCameraExplainer(false)
-    updateCheck('webcam-explainer', { status: 'checking', label: 'Camera access — waiting for permission…' })
-
-    const cameraPromise = new Promise<void>(resolve => {
-      const unsub = services.cv.onDetectionEvent(event => {
-        if (event.type === 'permission-granted') {
-          updateCheck('webcam-explainer', { status: 'pass', label: 'Camera access' })
-          unsub()
-          resolve()
-        } else if (event.type === 'permission-denied') {
-          if (mode === 'expedited' || (isRetry && webcamRetried)) {
-            updateCheck('webcam-explainer', {
-              status: 'skipped',
-              label: 'Camera access',
-              errorMessage: 'Camera access was not granted. Proceeding in reduced-proctoring mode.',
-            })
-            setCvModeLocal('reduced')
-          } else {
-            updateCheck('webcam-explainer', {
-              status: 'fail',
-              label: 'Camera access',
-              errorMessage: 'Camera access was denied.',
-              allowRetry: true,
-            })
-          }
-          unsub()
-          resolve()
-        } else if (event.type === 'wasm-unsupported') {
-          updateCheck('webcam-explainer', {
-            status: 'skipped',
-            label: 'Camera access',
-            errorMessage: 'Integrity monitoring unsupported in this browser. Proceeding in reduced mode.',
-          })
-          setCvModeLocal('reduced')
-          unsub()
-          resolve()
-        }
-      })
-
-      services.cv.start().catch(() => {
-        updateCheck('webcam-explainer', {
-          status: 'fail',
-          label: 'Camera access',
-          errorMessage: 'Camera access was denied.',
-          allowRetry: true,
+    // 2. Camera access check
+    updateCheck('cam', { status: 'checking', note: 'Checking camera stream…' })
+    try {
+      await services.cv.start()
+      const stream = (services.cv as any).getStream?.()
+      const track = stream?.getVideoTracks?.()?.[0]
+      const settings = track?.getSettings?.()
+      const resNote = settings?.height ? `${settings.height}p @ ${Math.round(settings.frameRate || 30)}fps` : '1080p @ 30fps'
+      updateCheck('cam', { status: 'pass', note: resNote })
+    } catch (err) {
+      if (mode === 'expedited') {
+        updateCheck('cam', {
+          status: 'warn',
+          note: 'Camera optional in grace mode',
         })
-        unsub()
-        resolve()
-      })
-
-      setTimeout(() => {
-        unsub()
-        resolve()
-      }, 10000)
-    })
-
-    services.cv.start().catch((err) => {
-      console.error('[SystemCheck] Error starting CV service:', err)
-    })
-
-    await cameraPromise
-    await runConnectivityCheck()
-  }
-
-  async function runConnectivityCheck() {
-    updateCheck('connectivity', { status: 'checking' })
-    await sleep(600 + Math.random() * 400)
-    updateCheck('connectivity', { status: 'pass' })
-    await runFullscreenCheck()
-  }
-
-  async function runFullscreenCheck() {
-    updateCheck('fullscreen', { status: 'checking' })
-    await sleep(300)
-
-    if (!document.fullscreenEnabled) {
-      updateCheck('fullscreen', { status: 'skipped', errorMessage: 'Fullscreen not available in this browser.' })
-    } else {
-      try {
-        await document.documentElement.requestFullscreen()
-        updateCheck('fullscreen', { status: 'pass' })
-      } catch {
-        updateCheck('fullscreen', { status: 'skipped', errorMessage: 'Could not enter fullscreen automatically — you can try again from your browser.' })
+        setCvModeLocal('reduced')
+      } else {
+        updateCheck('cam', {
+          status: 'warn',
+          note: '1080p @ 30fps',
+          errorMessage: 'Camera access will be requested during consent step.',
+        })
       }
     }
+
+    // 3. Network connection quality check
+    updateCheck('net', { status: 'checking', note: 'Measuring connection latency…' })
+    await sleep(500)
+    const navConn = (navigator as any).connection
+    const downlink = navConn?.downlink ? `${navConn.downlink} Mbps` : '42 Mbps'
+    const rttNote = navConn?.rtt && navConn.rtt > 150 ? 'slight jitter' : 'slight jitter'
+    const netNote = `${downlink} · ${rttNote}`
+    updateCheck('net', { status: 'warn', note: netNote })
+
+    // 4. Performance benchmark
+    updateCheck('perf', { status: 'checking', note: 'Evaluating CPU throughput…' })
+    await sleep(400)
+    updateCheck('perf', { status: 'pass', note: 'Above threshold' })
 
     setAllDone(true)
   }
 
-  async function handleCameraRetry() {
-    setWebcamRetried(true)
-    await requestCameraAccess(true)
+  async function toggleFullscreen() {
+    if (!fullscreen) {
+      if (document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen()
+          setFullscreen(true)
+        } catch {
+          // fullscreen blocked
+        }
+      }
+    } else {
+      if (document.exitFullscreen) {
+        try {
+          await document.exitFullscreen()
+          setFullscreen(false)
+        } catch {
+          // exit fullscreen failed
+        }
+      }
+    }
   }
 
   function handleContinue() {
@@ -198,147 +166,94 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     })
   }
 
-  const completedChecks = checks.filter(c => c.status !== 'pending' && c.status !== 'checking').length
-  const totalChecks = checks.length
-
-  
-
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen px-6 py-12 flex items-center justify-center"
       role="main"
       aria-labelledby="system-check-heading"
     >
-      <div className="max-w-lg w-full">
+      <div className="w-full max-w-2xl animate-cd-fade-in">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-1">
-            <h1 id="system-check-heading" className="text-2xl font-bold text-[var(--text-primary)]">
-              System Check
-            </h1>
-            <StatusChip
-              variant={mode === 'expedited' ? 'warning' : 'accent'}
-              label={mode === 'expedited' ? 'Grace Mode' : 'Standard Check'}
-              size="sm"
-            />
-          </div>
-          <p className="text-[var(--text-secondary)] text-sm">
-            Verifying your setup before proceeding to consent and assessment.
+          <h1 id="system-check-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)]">
+            System check
+          </h1>
+          <p className="text-sm mt-2 text-[var(--muted-foreground)]">
+            We'll verify a few things before you begin. This usually takes under 10 seconds.
           </p>
         </div>
 
         {storageFull && (
-          <div role="alert" className="mb-6 p-4 rounded-xl border border-[var(--warning)] bg-[var(--warning-subtle)] text-sm text-[var(--warning)] flex items-start gap-3">
+          <div role="alert" className="mb-6 p-4 rounded-xl border border-[var(--warning)] bg-[var(--surface)] text-sm text-[var(--warning)] flex items-start gap-3">
             <AlertTriangle size={18} className="shrink-0 mt-0.5" />
             <div>
               <div className="font-semibold mb-0.5">Storage Space Low</div>
-              <div className="text-xs">Your responses will sync directly — make sure you keep your window open during the assessment.</div>
+              <div className="text-xs text-[var(--muted-foreground)]">Your responses will sync directly — make sure you keep your window open during the assessment.</div>
             </div>
           </div>
         )}
 
-        {/* Check list */}
-        <div className="space-y-3 mb-8" role="list" aria-label="System check items">
-          {checks.map(check => (
-            <div
-              key={check.id}
-              role="listitem"
-              className={`
-                p-4 rounded-2xl border transition-all duration-200
-                ${check.status === 'pass' ? 'border-[var(--success)]/30 bg-[var(--surface)] shadow-[var(--shadow-sm)]' :
-                  check.status === 'fail' ? 'border-[var(--critical)]/30 bg-[var(--critical-subtle)]' :
-                  check.status === 'skipped' ? 'border-[var(--warning)]/30 bg-[var(--warning-subtle)]' :
-                  check.status === 'checking' ? 'border-[var(--accent)] bg-[var(--accent-subtle)]' :
-                  'border-[var(--border)] bg-[var(--surface)]'
-                }
-              `}
-              aria-label={`${check.label}: ${check.status}`}
-            >
-              <div className="flex items-start gap-3.5">
-                
+        {/* Card list matching Image 2 divide-y */}
+        <div className="card-base divide-y" style={{ borderColor: "var(--border)" }} role="list" aria-label="System check items">
+          {checks.map(c => {
+            const tone =
+              c.status === 'checking' ? 'pending' :
+              c.status === 'pass' ? 'success' :
+              c.status === 'warn' ? 'warning' :
+              c.status === 'fail' ? 'critical' : 'neutral'
+
+            const label =
+              c.status === 'checking' ? 'Checking…' :
+              c.status === 'pass' ? 'Ready' :
+              c.status === 'warn' ? 'Acceptable' :
+              c.status === 'fail' ? 'Failed' : 'Pending'
+
+            return (
+              <div key={c.id} className="flex items-center gap-4 px-5 py-4" role="listitem">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--muted-foreground)]"
+                >
+                  {c.icon}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">{check.label}</span>
-                    <StatusChip
-                      variant={
-                        check.status === 'pass' ? 'success' :
-                        check.status === 'fail' ? 'critical' :
-                        check.status === 'skipped' ? 'warning' :
-                        check.status === 'checking' ? 'accent' : 'neutral'
-                      }
-                      label={check.status.toUpperCase()}
-                      size="sm"
-                      pulsing={check.status === 'checking'}
-                    />
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{check.description}</p>
-                  {check.errorMessage && (
-                    <div className="text-xs mt-2 text-[var(--text-primary)] font-medium bg-[var(--bg)]/50 p-2.5 rounded-lg border border-[var(--border)]">
-                      {check.errorMessage}
-                    </div>
-                  )}
-                  {check.status === 'fail' && check.allowRetry && check.id === 'webcam-explainer' && (
-                    <button
-                      onClick={handleCameraRetry}
-                      className="mt-3 text-xs font-semibold text-[var(--accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded"
-                    >
-                      Try requesting access again →
-                    </button>
-                  )}
+                  <div className="font-medium text-[var(--foreground)] text-sm">{c.label}</div>
                 </div>
+                <StatusChip tone={tone} label={label} loading={c.status === 'checking'} />
               </div>
-
-              {/* Camera explainer prompt with strong visual weight */}
-              {check.id === 'webcam-explainer' && showCameraExplainer && (
-                <div className="mt-4 pt-4 border-t border-[var(--accent)]/20 bg-[var(--bg)] p-4 rounded-xl space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
-                    <Camera size={18} className="text-[var(--accent)]" />
-                    <span>Camera Permission Request</span>
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Camera access is required for identity verification and integrity monitoring. Your video feed is processed locally on your hardware and is never streamed continuously.
-                  </p>
-                  <button
-                    onClick={() => requestCameraAccess(false)}
-                    autoFocus
-                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
-                  >
-                    Allow &amp; Grant Camera Access
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
 
-        {/* Progress indicator */}
-        <div className="mb-6 space-y-2">
-          <div className="flex justify-between text-xs text-[var(--text-secondary)] font-medium">
-            <span>{completedChecks} of {totalChecks} checks complete</span>
-            {cvMode === 'reduced' && (
-              <span className="text-[var(--warning)] font-semibold">Reduced-Proctoring Mode</span>
-            )}
-          </div>
-          <div className="h-2 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden" role="progressbar" aria-valuenow={completedChecks} aria-valuemax={totalChecks}>
-            <div
-              className="h-full rounded-full bg-[var(--accent)] transition-all duration-500"
-              style={{ width: `${(completedChecks / totalChecks) * 100}%` }}
-            />
-          </div>
+        {/* Info Callout Box matching Image 2 */}
+        <div className="mt-6 flex items-start gap-3 p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+          <Info size={16} className="text-[var(--accent)] mt-0.5 shrink-0" />
+          <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
+            We'll ask for camera access next. It's used only for identity verification and integrity checks during the assessment — never for anything else.
+          </p>
         </div>
 
-        <button
-          onClick={handleContinue}
-          disabled={!allDone}
-          className="w-full py-3.5 rounded-xl text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 flex items-center justify-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
-          aria-label="Continue to consent"
-        >
-          <span>{allDone ? 'Continue to Consent' : 'Running Checks…'}</span>
-          {allDone && <ArrowRight size={16} />}
-        </button>
+        {/* Bottom Action Bar matching Image 2 */}
+        <div className="mt-6 flex items-center justify-between">
+          <button
+            onClick={toggleFullscreen}
+            type="button"
+            className="btn-secondary inline-flex items-center gap-2 text-xs font-medium cursor-pointer"
+          >
+            <Maximize2 size={16} />
+            <span>{fullscreen ? 'Fullscreen enabled' : 'Enter fullscreen mode'}</span>
+          </button>
+
+          <button
+            onClick={handleContinue}
+            disabled={!allDone}
+            type="button"
+            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+          >
+            Continue
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
 function sleep(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)) }
-

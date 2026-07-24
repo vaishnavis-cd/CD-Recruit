@@ -20,28 +20,27 @@ export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, 
   const questionStatus = useSessionStore(s => s.assessment?.questionStatus ?? {})
 
   return (
-    <nav aria-label="Question palette" className="p-3">
-      <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+    <nav aria-label="Question palette" className="p-4">
+      <div className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">
         Questions
       </div>
 
       {/* Legend */}
-      <div className="grid grid-cols-2 gap-1 mb-4 text-xs text-[var(--text-secondary)]">
+      <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-[var(--muted-foreground)]">
         {(Object.entries(STATUS_STYLES) as [QuestionStatus, typeof STATUS_STYLES[QuestionStatus]][]).map(([status, style]) => (
           <div key={status} className="flex items-center gap-1.5">
-            <div className={`w-3 h-3 rounded-sm border ${style.bg} ${style.border} flex-shrink-0`} />
-            <span>{style.label}</span>
+            <div className={`w-3 h-3 rounded border ${style.bg} ${style.border} flex-shrink-0`} />
+            <span className="text-[11px]">{style.label}</span>
           </div>
         ))}
       </div>
 
       {/* Question grid */}
-      <div className="flex flex-wrap gap-1.5" role="list">
+      <div className="flex flex-wrap gap-2" role="list">
         {questions.map((q, index) => {
           const status: QuestionStatus = questionStatus[q.id] ?? 'unvisited'
           const style = STATUS_STYLES[status]
           const isCurrent = index === currentQuestionIndex
-          const isCurrentModule = true // palette always shows current module
 
           return (
             <button
@@ -51,13 +50,12 @@ export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, 
               aria-label={`Question ${index + 1} — ${style.label}${isCurrent ? ', currently viewing' : ''}`}
               aria-current={isCurrent ? 'true' : undefined}
               className={`
-                w-8 h-8 rounded text-xs font-medium border transition-all
+                w-9 h-9 rounded-lg text-xs font-mono-data font-medium border transition-all cursor-pointer flex items-center justify-center
                 ${style.bg} ${style.border}
                 ${isCurrent
-                  ? 'ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--bg)] font-bold text-[var(--accent)]'
-                  : 'text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                  ? 'ring-2 ring-[var(--accent)] font-bold text-[var(--accent)] bg-[var(--surface)]'
+                  : 'text-[var(--foreground)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
                 }
-                focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1
               `}
             >
               {index + 1}
@@ -67,9 +65,9 @@ export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, 
       </div>
 
       {/* Flag toggle helper */}
-      <div className="mt-4 text-xs text-[var(--text-secondary)]">
-        <kbd className="px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] font-mono text-xs">F</kbd>
-        {' '}to flag/unflag current question
+      <div className="mt-6 pt-4 border-t border-[var(--border)] text-xs text-[var(--muted-foreground)] flex items-center gap-1.5 font-mono-data">
+        <kbd className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]">F</kbd>
+        <span>to flag question</span>
       </div>
     </nav>
   )

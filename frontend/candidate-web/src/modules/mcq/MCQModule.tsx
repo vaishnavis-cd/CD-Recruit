@@ -155,21 +155,21 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="max-w-3xl mx-auto py-8 px-6">
+      <div className="max-w-3xl mx-auto py-10 px-6 animate-cd-fade-in">
         {/* Question Header */}
         <div className="flex items-center justify-between mb-6">
-          <span className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] font-mono">
+          <span className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] font-mono-data">
             Question {currentIndex + 1} of {questions.length}
           </span>
           {question?.allowMultiple && (
-            <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--accent)] font-medium">
               Multiple select
             </span>
           )}
         </div>
 
         {/* Question Text */}
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6 leading-relaxed">
+        <h2 className="text-xl font-semibold text-[var(--foreground)] mb-6 leading-relaxed">
           {question?.text}
         </h2>
 
@@ -185,10 +185,10 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                 <label
                   key={option.id}
                   className={`
-                    flex items-center gap-4 p-4 rounded-lg border text-sm transition-all cursor-pointer
+                    flex items-center gap-4 p-4 rounded-xl border text-sm transition-all cursor-pointer select-none
                     ${isSelected
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--text-primary)] font-medium'
-                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      ? 'border-[var(--accent)] bg-[var(--surface)] text-[var(--foreground)] font-medium shadow-xs'
+                      : 'border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]'
                     }
                   `}
                 >
@@ -209,7 +209,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                       ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
                       ${isSelected
                         ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                        : 'border-[var(--border)] bg-[var(--bg)] text-[var(--text-secondary)]'
+                        : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted-foreground)]'
                       }
                     `}
                   >
@@ -228,23 +228,23 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+            className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1.5"
             aria-label="Previous question"
           >
             ← Previous
           </button>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <button
               onClick={handleSkip}
-              className="px-4 py-2 rounded text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+              className="btn-secondary text-xs cursor-pointer"
               aria-label="Skip this question"
             >
               Skip
             </button>
             <button
               onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-              className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
+              className="btn-primary text-xs cursor-pointer"
               aria-label={nextButtonLabel}
             >
               {nextButtonLabel}

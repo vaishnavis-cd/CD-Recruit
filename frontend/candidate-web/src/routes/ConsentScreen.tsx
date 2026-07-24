@@ -4,8 +4,7 @@ import { ConsentSimpleAgreementStep } from './consent/ConsentSimpleAgreementStep
 import { ConsentBiometricStep } from './consent/ConsentBiometricStep'
 import { ConsentLivenessStep } from './consent/ConsentLivenessStep'
 import { ConsentSelfieStep } from './consent/ConsentSelfieStep'
-import { StatusChip } from '../components/common/StatusChip'
-import { ShieldCheck, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle } from 'lucide-react'
 
 const CONSENT_VERSION = '1.0.0'
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
@@ -32,12 +31,12 @@ interface ConsentScreenProps {
   inviteToken: string
 }
 
-const STEPS: Array<{ key: ConsentScreenProps['step']; label: string }> = [
-  { key: 'terms', label: 'Terms' },
-  { key: 'biometric', label: 'Biometric' },
-  { key: 'liveness', label: 'Liveness' },
-  { key: 'selfie', label: 'Selfie' },
-  { key: 'audio', label: 'Audio' },
+const STEPS: Array<{ key: ConsentScreenProps['step']; label: string; title: string; subtitle?: string }> = [
+  { key: 'terms', label: 'Terms', title: 'Terms of Use', subtitle: 'Please read carefully before continuing.' },
+  { key: 'biometric', label: 'Biometric', title: 'Biometric consent', subtitle: 'A quick, transparent summary of what we collect and why.' },
+  { key: 'liveness', label: 'Liveness', title: 'Liveness challenge', subtitle: 'Follow the prompts. Each step confirms automatically.' },
+  { key: 'selfie', label: 'Selfie', title: 'Baseline selfie', subtitle: 'Position your face inside the guide, then capture.' },
+  { key: 'audio', label: 'Audio', title: 'Audio check', subtitle: 'Confirm your microphone is working.' },
 ]
 
 export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
@@ -46,12 +45,27 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   const sessionId = session?.id ?? null
   const [complianceHalt] = useState(false)
 
+  const currentStepIndex = STEPS.findIndex(s => s.key === step)
+  const currentStepMeta = STEPS[currentStepIndex] || STEPS[0]
+
   function advanceStep(nextStep: ConsentScreenProps['step']) {
     transitionTo({
       type: 'consent',
       step: nextStep,
       inviteToken,
     })
+  }
+
+  function handleBack() {
+    if (currentStepIndex > 0) {
+      advanceStep(STEPS[currentStepIndex - 1].key)
+    } else {
+      transitionTo({
+        type: 'system-check',
+        mode: 'full',
+        inviteToken,
+      })
+    }
   }
 
   function handleTermsComplete() {
@@ -84,7 +98,6 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     })
   }
 
-  // R-13: Sanitized compliance halt screen (no developer API route exposure)
   if (complianceHalt) {
     return (
       <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
@@ -101,55 +114,52 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
     )
   }
 
-  const currentStepIndex = STEPS.findIndex(s => s.key === step)
-
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen px-6 py-10 flex justify-center"
       role="main"
       aria-labelledby="consent-heading"
     >
-      <div className="max-w-2xl w-full">
-        {/* Outer Shell Header with Step Indicator */}
-        <div className="mb-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={20} className="text-[var(--accent)]" />
-              <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Candidate Verification</span>
-            </div>
-            <StatusChip
-              variant="accent"
-              label={`STEP ${currentStepIndex + 1} OF ${STEPS.length}`}
-              size="sm"
-            />
-          </div>
-
-          {/* Segmented Step Progress Bar */}
-          <div className="grid grid-cols-5 gap-2" role="progressbar" aria-valuenow={currentStepIndex + 1} aria-valuemax={STEPS.length}>
-            {STEPS.map((s, idx) => {
-              const isPast = idx < currentStepIndex
-              const isCurrent = idx === currentStepIndex
-
-              return (
-                <div key={s.key} className="space-y-1">
-                  <div
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      isPast ? 'bg-[var(--success)]' :
-                      isCurrent ? 'bg-[var(--accent)]' :
-                      'bg-[var(--border)]'
-                    }`}
-                  />
-                  <div className={`text-[10px] text-center font-medium ${isCurrent ? 'text-[var(--accent)] font-semibold' : 'text-[var(--text-secondary)]'}`}>
-                    {s.label}
-                  </div>
-                </div>
-              )
-            })}
+      <div className="w-full max-w-2xl animate-cd-fade-in">
+        {/* Navigation & Step Indicator Top Bar */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+          <div className="text-xs font-medium text-[var(--muted-foreground)] font-mono-data">
+            Step {currentStepIndex + 1} of {STEPS.length}
           </div>
         </div>
 
-        {/* Step Card Container */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-[var(--shadow-md)]">
+        {/* 5-segment thin progress bar */}
+        <div className="flex gap-1.5 mb-8" role="progressbar" aria-valuenow={currentStepIndex + 1} aria-valuemax={STEPS.length}>
+          {STEPS.map((s, idx) => (
+            <div
+              key={s.key}
+              className="h-1 flex-1 rounded-full transition-colors"
+              style={{
+                background: idx <= currentStepIndex ? "var(--accent)" : "var(--border)",
+                opacity: idx <= currentStepIndex ? 1 : 0.6,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Title & Subtitle */}
+        <h1 id="consent-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">
+          {currentStepMeta.title}
+        </h1>
+        {currentStepMeta.subtitle && (
+          <p className="text-sm mt-2 mb-6 text-[var(--muted-foreground)]">
+            {currentStepMeta.subtitle}
+          </p>
+        )}
+
+        {/* Step Content */}
+        <div className="mt-6">
           {step === 'terms' && <ConsentSimpleAgreementStep type="terms" onAgree={handleTermsComplete} />}
           {step === 'biometric' && <ConsentBiometricStep onConsent={handleBiometricComplete} />}
           {step === 'liveness' && <ConsentLivenessStep onComplete={handleLivenessComplete} />}

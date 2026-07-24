@@ -27,37 +27,37 @@ export function SessionConflictScreen() {
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen px-6 py-12 flex items-center justify-center"
       role="main"
       aria-labelledby="conflict-heading"
     >
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="w-16 h-16 rounded-2xl bg-[var(--warning-subtle)] text-[var(--warning)] border border-[var(--warning)]/20 flex items-center justify-center mx-auto shadow-[var(--shadow-sm)]">
-          <AlertTriangle size={32} />
+      <div className="w-full max-w-md text-center space-y-6 animate-cd-fade-in">
+        <div className="w-14 h-14 rounded-2xl bg-[var(--surface)] text-[var(--warning)] border border-[var(--border)] flex items-center justify-center mx-auto shadow-xs">
+          <AlertTriangle size={28} />
         </div>
 
         <div>
-          <h1 id="conflict-heading" className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+          <h1 id="conflict-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)] mb-2">
             Session Active Elsewhere
           </h1>
 
-          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+          <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
             This assessment session is currently open in another browser tab. Only one session tab can be active at a time to prevent response conflicts.
           </p>
         </div>
 
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 text-left text-xs text-[var(--text-secondary)] space-y-2 shadow-[var(--shadow-sm)]">
-          <div className="font-semibold text-[var(--text-primary)] mb-1">Options to proceed:</div>
+        <div className="card-base p-5 text-left text-xs text-[var(--muted-foreground)] space-y-2">
+          <div className="font-semibold text-[var(--foreground)] mb-1">Options to proceed:</div>
           <p>• Claim and continue session in this tab below</p>
           <p>• Return to your original tab and close this window</p>
-          <p className="text-[11px] pt-2 border-t border-[var(--border)] leading-relaxed">
+          <p className="text-[11px] pt-2 border-t border-[var(--border)] leading-relaxed font-mono-data">
             Your progress is continuously autosaved. Claiming session control in this tab will resume your state safely.
           </p>
         </div>
 
         <button
           onClick={handleContinueHere}
-          className="w-full py-3.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] flex items-center justify-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
+          className="btn-primary w-full inline-flex items-center justify-center gap-2 text-xs cursor-pointer"
         >
           <span>Continue Session in This Tab</span>
           <ArrowRight size={14} />

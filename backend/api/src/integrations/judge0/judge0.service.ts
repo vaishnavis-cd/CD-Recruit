@@ -213,6 +213,8 @@ export class Judge0Service {
       };
     }
 
+    this.logger.log(`Submitting code batch for languageId: ${languageId} to primary Judge0 API sandbox...`);
+
     const wrappedCode = this.wrapCode(sourceCode, questionId);
     const sourceCodeBase64 = this.encodeBase64(wrappedCode);
 

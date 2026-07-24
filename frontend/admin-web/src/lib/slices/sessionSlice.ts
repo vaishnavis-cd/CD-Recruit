@@ -168,17 +168,11 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         sayDoRationale: detail.score.sayDoRationale,
         moduleScores: detail.score.moduleScores || {},
       } : null,
-      proctoringSummary: {
+      proctoringSummary: detail.proctoringSummary || {
         flags: detail.integrityFlags || [],
         totalTabSwitches: (detail.integrityFlags || []).filter((f: any) => f.category === "GAZE_AWAY" || f.category === "LOOKING_AWAY").length,
         webcamClipsCount: (detail.integrityFlags || []).filter((f: any) => f.evidenceClipUrl).length,
         overallRisk: (detail.integrityFlags || []).length > 2 ? "HIGH" : (detail.integrityFlags || []).length > 0 ? "MEDIUM" : "LOW",
-      },
-      proctoringSummary: detail.proctoringSummary || {
-        flags: [],
-        totalTabSwitches: 0,
-        webcamClipsCount: 0,
-        overallRisk: "LOW",
       },
       integrityFlags: detail.integrityFlags || [],
       submissions: detail.submissions || [],

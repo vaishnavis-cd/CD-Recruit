@@ -553,7 +553,7 @@ function DriveDetailPage() {
                   { id: "CODING", name: "Coding / DSA", icon: Code2, desc: "Evaluated via Judge0" },
                   { id: "DEBUGGING", name: "Debugging (NEW)", icon: Bug, desc: "Evaluated via Judge0" },
                   { id: "AI_PROMPTING", name: "AI Prompting", icon: Bot, desc: "Evaluated via Groq/Cerebras" },
-                  { id: "SIMULATION", name: "Simulation Log", icon: Play, desc: "Evaluated via Groq/Cerebras" },
+                  { id: "SIMULATION", name: "Contextual Simulation", icon: Play, desc: "On-call incident & ticket simulation evaluated via LLM" },
                 ] as const
               ).map((mod) => {
                 const Icon = mod.icon;

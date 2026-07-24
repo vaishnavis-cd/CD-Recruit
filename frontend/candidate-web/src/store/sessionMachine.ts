@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Session } from '../services/session-api/port'
 import type { QuestionSummary } from '@cd-recruit/shared-types'
+import { services } from '../services'
 
 // ─── Screen State Discriminated Union ────────────────────────────────────────
 
@@ -155,17 +156,20 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   initAssessment(sessionId: string, totalSeconds: number, questions?: QuestionSummary[]) {
     const existing = get().assessment
-    // If resuming an existing session, preserve user progress (responses,
-    // question statuses, timer) but always update `questions` with the fresh
-    // list from the server. Before Phase 2, persisted state had no `questions`
-    // field, so the stale localStorage would starve CodingModule of real UUIDs.
     if (existing && existing.sessionId === sessionId) {
-      if (questions && questions.length > 0) {
-        const next = { ...existing, questions }
-        set({ assessment: next })
-        persistAssessment(next)
+      const nowMs = services.time.getServerNow()
+      const elapsedMs = existing.timerStartMs !== null ? nowMs - existing.timerStartMs : 0
+      const totalMs = (totalSeconds || existing.totalSeconds || 1800) * 1000
+
+      // Only preserve existing assessment state if timer is unstarted or NOT expired
+      if (existing.timerStartMs === null || elapsedMs < totalMs) {
+        if (questions && questions.length > 0) {
+          const next = { ...existing, questions, totalSeconds: totalSeconds || existing.totalSeconds }
+          set({ assessment: next })
+          persistAssessment(next)
+        }
+        return
       }
-      return
     }
 
     const state: AssessmentState = {

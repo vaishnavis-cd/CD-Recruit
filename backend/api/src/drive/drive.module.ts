@@ -5,6 +5,7 @@ import { DriveService } from "./drive.service";
 import { DriveRepository } from "./drive.repository";
 import { CsvIngestionService } from "./csv-ingestion.service";
 import { CandidateIngestionService } from "./candidate-ingestion.service";
+import { DriveShufflerService } from "./drive-shuffler.service";
 import { AuthModule } from "../auth/auth.module";
 
 @Module({
@@ -15,12 +16,14 @@ import { AuthModule } from "../auth/auth.module";
     DriveRepository,
     CsvIngestionService,
     CandidateIngestionService,
+    DriveShufflerService,
   ],
   exports: [
     DriveService,
     DriveRepository,
     CsvIngestionService,
     CandidateIngestionService,
+    DriveShufflerService,
   ],
 })
 export class DriveModule {}

@@ -36,6 +36,10 @@ type SessionWithTemplate = Session & {
  * Build the question list shape returned in session start/resume responses.
  * Phase 3 replaces this with real question fetching.
  */
+import { DriveShufflerService } from "../drive/drive-shuffler.service";
+
+const driveShuffler = new DriveShufflerService();
+
 async function buildQuestionList(
   prisma: PrismaService,
   session: Session,
@@ -52,21 +56,11 @@ async function buildQuestionList(
     ],
   });
 
-  const counts: Record<string, number> = {};
-  return driveQuestions.map((dq) => {
-    const type = dq.moduleType;
-    if (counts[type] === undefined) {
-      counts[type] = 0;
-    } else {
-      counts[type]++;
-    }
-    return {
-      questionId: dq.questionId,
-      moduleType: dq.moduleType,
-      moduleIndex: counts[type],
-      content: dq.question ? dq.question.content : null,
-    };
-  });
+  return driveShuffler.shuffleQuestionsForCandidate(
+    driveQuestions as any,
+    session.candidateId,
+    session.driveId
+  );
 }
 
 import { SessionLifecycleService } from "./session-lifecycle.service";

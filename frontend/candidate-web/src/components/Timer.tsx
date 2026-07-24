@@ -47,7 +47,7 @@ export function Timer() {
 
   return (
     <div
-      className={`timer-shell font-mono text-sm px-3 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] ${colorClass} tabular-nums`}
+      className={`timer-shell font-mono-data text-sm px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] ${colorClass} tabular-nums flex items-center gap-1.5`}
       role="timer"
       aria-label={label}
       aria-live="off"

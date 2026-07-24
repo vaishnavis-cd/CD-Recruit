@@ -73,75 +73,66 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen flex items-center justify-center px-6"
       role="main"
       aria-labelledby="too-early-heading"
     >
-      <div className="max-w-lg w-full text-center space-y-6">
-        {/* Lucide Clock Hero */}
-        <div className="w-16 h-16 rounded-2xl bg-[var(--accent-subtle)] border border-[var(--accent)]/20 flex items-center justify-center mx-auto text-[var(--accent)] shadow-[var(--shadow-sm)]">
-          <Clock size={32} />
+      <div className="w-full max-w-lg card-base p-10 animate-cd-fade-in text-center space-y-6">
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
+          style={{ background: 'var(--surface)', color: 'var(--muted-foreground)' }}
+        >
+          <Clock size={14} /> Scheduled
         </div>
 
         <div>
-          <h1 id="too-early-heading" className="text-2xl font-bold text-[var(--text-primary)] mb-2">
-            Your assessment hasn't opened yet
+          <h1 id="too-early-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] mb-2">
+            Your assessment opens soon
           </h1>
-
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            The link opens 30 minutes before your scheduled start time. Come back then to begin your system check.
+          <p className="text-sm text-[var(--muted-foreground)]">
+            The link opens 30 minutes before your scheduled start time. Keep this tab open — you'll be moved forward automatically.
           </p>
         </div>
 
-        {/* Scheduled time card */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--shadow-md)] text-left space-y-4">
-          <div className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-            Scheduled Start
+        <div className="space-y-2">
+          <div
+            className="font-mono-data text-[48px] font-bold tabular-nums text-[var(--accent)]"
+            aria-live="off"
+            aria-label={`Link opens in ${formatTimeRemaining(msUntilBuffer)}`}
+          >
+            {formatTimeRemaining(msUntilBuffer)}
           </div>
-          <div className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{formattedTime}</div>
-          <div className="text-sm text-[var(--text-secondary)]">{formattedDate}</div>
-
-          {timezoneDiffers && (
-            <div className="flex items-start gap-3 text-sm bg-[var(--accent-subtle)] rounded-xl p-3.5 border border-[var(--accent)]/20 text-[var(--text-primary)]">
-              <Globe size={18} className="text-[var(--accent)] shrink-0 mt-0.5" />
-              <div className="text-xs space-y-1">
-                <div className="font-semibold text-[var(--text-primary)]">Timezone Note</div>
-                <div><span className="text-[var(--text-secondary)]">Assessment timezone:</span> {serverTzName}</div>
-                <div><span className="text-[var(--text-secondary)]">Your local timezone:</span> {localTz}</div>
-                <div className="text-[var(--accent)] font-medium pt-0.5">
-                  Local start time: {scheduledDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: localTz, timeZoneName: 'short' })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="pt-4 border-t border-[var(--border)] flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Link opens in</span>
-            <span
-              className="text-3xl font-mono font-bold text-[var(--accent)] tabular-nums tracking-tight"
-              aria-live="off"
-              aria-label={`Link opens in ${formatTimeRemaining(msUntilBuffer)}`}
-            >
-              {formatTimeRemaining(msUntilBuffer)}
-            </span>
+          <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            Starts at {formattedTime} · {formattedDate}
           </div>
         </div>
 
-        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-          Assessment begins at T. The 30-minute pre-buffer gives you time to complete hardware checks and get comfortable.
-        </p>
+        {timezoneDiffers && (
+          <div className="flex items-start gap-3 text-sm bg-[var(--surface)] rounded-xl p-4 border border-[var(--border)] text-left">
+            <Globe size={18} className="text-[var(--accent)] shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <div className="font-semibold text-[var(--foreground)]">Timezone Comparison</div>
+              <div><span className="text-[var(--muted-foreground)]">Assessment TZ:</span> {serverTzName}</div>
+              <div><span className="text-[var(--muted-foreground)]">Your local TZ:</span> {localTz}</div>
+              <div className="text-[var(--accent)] font-medium pt-0.5">
+                Local start: {scheduledDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: localTz, timeZoneName: 'short' })}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col items-center gap-3 pt-2">
+          <button className="btn-primary" disabled={msUntilBuffer > 0}>
+            {msUntilBuffer > 0 ? "Waiting for start time" : "Continue"}
+          </button>
+
           <a
             href={SUPPORT_EMAIL}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
           >
             <LifeBuoy size={14} />
             <span>Contact Support</span>
           </a>
-          <p className="text-[11px] text-[var(--text-secondary)]">
-            This page will automatically update when the window opens — no refresh needed.
-          </p>
         </div>
       </div>
     </div>

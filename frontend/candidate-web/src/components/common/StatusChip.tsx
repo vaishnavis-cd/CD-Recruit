@@ -1,15 +1,17 @@
 import React from 'react'
 import type { LucideIcon } from 'lucide-react'
 
-export type StatusChipVariant = 'success' | 'warning' | 'critical' | 'neutral' | 'accent'
+export type StatusChipVariant = 'success' | 'warning' | 'critical' | 'neutral' | 'accent' | 'pending'
 export type StatusChipSize = 'sm' | 'md'
 
 interface StatusChipProps {
-  variant: StatusChipVariant
+  variant?: StatusChipVariant
+  tone?: StatusChipVariant
   label: string
   icon?: LucideIcon
   size?: StatusChipSize
   pulsing?: boolean
+  loading?: boolean
   className?: string
 }
 
@@ -44,6 +46,12 @@ const VARIANT_STYLES: Record<StatusChipVariant, { bg: string; text: string; bord
     border: 'border-[var(--accent)]/20',
     dot: 'bg-[var(--accent)]',
   },
+  pending: {
+    bg: 'bg-[var(--surface)]',
+    text: 'text-[var(--muted-foreground)]',
+    border: 'border-[var(--border)]',
+    dot: 'bg-[var(--accent)]',
+  },
 }
 
 const SIZE_STYLES: Record<StatusChipSize, { container: string; iconSize: number; text: string }> = {
@@ -61,14 +69,18 @@ const SIZE_STYLES: Record<StatusChipSize, { container: string; iconSize: number;
 
 export function StatusChip({
   variant,
+  tone,
   label,
   icon: Icon,
   size = 'md',
   pulsing = false,
+  loading = false,
   className = '',
 }: StatusChipProps) {
-  const styles = VARIANT_STYLES[variant]
+  const activeVariant = tone || variant || 'neutral'
+  const styles = VARIANT_STYLES[activeVariant]
   const sizeStyles = SIZE_STYLES[size]
+  const isPulsing = pulsing || loading
 
   return (
     <span
@@ -81,7 +93,7 @@ export function StatusChip({
         <Icon size={sizeStyles.iconSize} className="shrink-0" />
       ) : (
         <span
-          className={`w-1.5 h-1.5 rounded-full ${styles.dot} ${pulsing ? 'animate-pulse' : ''}`}
+          className={`w-1.5 h-1.5 rounded-full ${styles.dot} ${isPulsing ? 'animate-pulse' : ''}`}
           aria-hidden
         />
       )}

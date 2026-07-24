@@ -180,13 +180,13 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
       )}
 
       {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="font-semibold text-sm text-[var(--text-primary)]">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="font-semibold text-base text-[var(--foreground)] tracking-tight">
             {currentModule?.name ?? `Module ${moduleIndex + 1}`}
           </div>
           {currentModule && (
-            <span className="text-xs text-[var(--text-secondary)] hidden sm:block">
+            <span className="text-xs text-[var(--muted-foreground)] hidden sm:block font-mono-data">
               Q{currentQuestionIndex + 1} of {questions.length}
             </span>
           )}
@@ -197,7 +197,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
           <Timer />
 
           {/* Module navigation tabs — only show active modules assigned to drive */}
-          <nav aria-label="Module navigation" className="hidden md:flex items-center gap-1">
+          <nav aria-label="Module navigation" className="hidden md:flex items-center gap-1.5 bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
             {activeModules.map((mod, i) => (
               <button
                 key={i}
@@ -205,11 +205,10 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
                 aria-label={`Go to ${mod.name}`}
                 aria-current={i === moduleIndex ? 'page' : undefined}
                 className={`
-                  px-2.5 py-1 rounded text-xs font-medium transition-colors
-                  focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1
+                  px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
                   ${i === moduleIndex
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg)]'
+                    ? 'bg-[var(--accent)] text-white font-semibold'
+                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)]'
                   }
                 `}
               >
@@ -221,14 +220,14 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
           <button
             onClick={toggle}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+            className="p-2 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors border border-[var(--border)] cursor-pointer"
           >
             {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </button>
 
           <button
             onClick={handleSubmitAssessment}
-            className="px-3 py-1.5 rounded text-xs font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            className="btn-primary text-xs cursor-pointer"
             aria-label="Review and submit assessment"
           >
             Review &amp; Submit

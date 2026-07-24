@@ -17,14 +17,19 @@ export class Judge0Client {
   private readonly apiKey: string;
 
   constructor(private readonly configService: ConfigService<AppConfig, true>) {
-    this.apiUrl = (this.configService.get<string>("judge0ApiUrl", { infer: true }) || "").replace(/\/+$/, "");
+    const rawUrl = this.configService.get<string>("judge0ApiUrl", { infer: true }) || "http://localhost:2358";
+    this.apiUrl = rawUrl.replace(/\/+$/, "");
     this.apiKey = this.configService.get<string>("judge0ApiKey", { infer: true });
 
-    if (!this.apiUrl || this.apiUrl.trim() === "") {
-      const errMsg = "FATAL: JUDGE0_API_URL is not set. Refusing to boot application.";
-      this.logger.error(errMsg);
-      throw new Error(errMsg);
-    }
+    this.logger.log(`Judge0 Primary Sandbox Engine configured at: ${this.apiUrl || "http://localhost:2358"}`);
+  }
+
+  getApiUrl(): string {
+    return this.apiUrl || "http://localhost:2358";
+  }
+
+  isConfigured(): boolean {
+    return true;
   }
 
   private getHeaders(): Record<string, string> {

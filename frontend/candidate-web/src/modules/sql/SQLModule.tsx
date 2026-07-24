@@ -302,12 +302,12 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]">
+        <div className="flex items-center gap-3 px-6 py-3 border-t border-[var(--border)] bg-[var(--surface)]">
           <button
             onClick={handleRun}
             disabled={!dbReady || running || !query.trim()}
             aria-label="Run SQL query against visible test data"
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+            className="btn-secondary text-xs cursor-pointer"
           >
             {running ? 'Running…' : '▶ Run Query'}
           </button>
@@ -316,19 +316,19 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             onClick={handleSubmitQuery}
             disabled={!dbReady || submitting || !query.trim()}
             aria-label="Submit SQL query answer"
-            className="px-4 py-2 rounded text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
+            className="btn-primary text-xs cursor-pointer"
           >
             {submitting ? 'Submitting…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}
           </button>
 
           {/* Official Evaluation Status Badge */}
           {evalResult && (
-            <div className={`px-3 py-1.5 rounded text-xs font-mono font-medium flex items-center gap-1.5 ${
+            <div className={`px-3 py-1 rounded-full text-xs font-mono-data font-medium flex items-center gap-1.5 ${
               evalResult.passed 
-                ? 'bg-green-500/10 text-green-600 border border-green-500/30' 
-                : 'bg-red-500/10 text-red-600 border border-red-500/30'
+                ? 'bg-[var(--surface)] text-[var(--success)] border border-[var(--border)]' 
+                : 'bg-[var(--surface)] text-[var(--critical)] border border-[var(--border)]'
             }`}>
-              <span>{evalResult.passed ? '✓ Official Evaluation: PASSED' : '✗ Official Evaluation: FAILED'}</span>
+              <span>{evalResult.passed ? '✓ Evaluation: PASSED' : '✗ Evaluation: FAILED'}</span>
               <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
             </div>
           )}
@@ -337,13 +337,13 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-3 py-1.5 rounded text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed border border-[var(--border)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1"
           >
             ← Prev
           </button>
           <button
             onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
+            className="btn-primary text-xs cursor-pointer"
           >
             {nextButtonLabel}
           </button>

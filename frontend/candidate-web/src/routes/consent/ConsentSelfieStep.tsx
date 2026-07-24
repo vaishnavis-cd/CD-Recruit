@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Camera, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react'
+import { FaceDetectionService } from '../../proctoring/face-detection.service'
 import { StatusChip } from '../../components/common/StatusChip'
-
-const SELFIE_MAX_RETRIES = 3
 
 interface ConsentSelfieStepProps {
   onComplete: () => void
@@ -13,7 +11,9 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   const [hasStream, setHasStream] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
   const [selfieCaptured, setSelfieCaptured] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null)
+  const [isAligned, setIsAligned] = useState(false)
+  const [flash, setFlash] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -39,10 +39,36 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         streamRef.current.getTracks().forEach(t => t.stop())
       }
     }
-  }, [retryCount])
+  }, [])
+
+  // Poll face detection for circle alignment check
+  useEffect(() => {
+    if (selfieCaptured) return
+
+    const interval = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return
+      try {
+        const result = await FaceDetectionService.getInstance().detect(videoRef.current)
+        if (result && result.faceDetected && result.faceCount === 1) {
+          setIsAligned(true)
+        } else {
+          setIsAligned(false)
+        }
+      } catch {
+        setIsAligned(false)
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [selfieCaptured])
 
   function handleCapture() {
     if (!videoRef.current) return
+
+    // Trigger mild whitening camera shutter flash effect
+    setFlash(true)
+    setTimeout(() => setFlash(false), 450)
+
     const canvas = document.createElement('canvas')
     canvas.width = videoRef.current.videoWidth || 640
     canvas.height = videoRef.current.videoHeight || 480
@@ -53,90 +79,84 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
       localStorage.setItem('cd-recruit-selfie-data', dataUrl)
-      setSelfieCaptured(true)
+      setCapturedDataUrl(dataUrl)
+      setTimeout(() => setSelfieCaptured(true), 250)
     }
   }
 
-  function handleRetake() {
-    setSelfieCaptured(false)
-    setRetryCount(c => c + 1)
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[var(--accent-subtle)] text-[var(--accent)] flex items-center justify-center border border-[var(--accent)]/20">
-            <Camera size={20} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Baseline Verification Photo</h2>
-            <p className="text-xs text-[var(--text-secondary)]">Take a clear face photo to establish your baseline identity.</p>
-          </div>
-        </div>
-        <StatusChip
-          variant={selfieCaptured ? 'success' : 'accent'}
-          label={selfieCaptured ? 'PHOTO CAPTURED' : 'READY TO CAPTURE'}
-          size="sm"
-        />
-      </div>
-
-      <div className="max-w-md mx-auto space-y-4 text-center">
-        <div className={`relative rounded-2xl overflow-hidden bg-black aspect-video border-2 transition-all ${selfieCaptured ? 'border-[var(--success)] shadow-[var(--shadow-md)]' : 'border-[var(--border)] shadow-[var(--shadow-md)]'}`}>
+    <div>
+      {/* Video Container matching Image 2 */}
+      <div className="relative rounded-xl overflow-hidden aspect-video bg-[#1a1d24] border border-[var(--border)]">
+        {!selfieCaptured ? (
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className={`w-full h-full object-cover transform -scale-x-100 ${selfieCaptured ? 'hidden' : 'block'}`}
+            className="w-full h-full object-cover transform -scale-x-100"
           />
-
-          {!selfieCaptured && retryCount > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-48 h-60 rounded-full border-2 border-dashed border-[var(--accent)]/60 bg-[var(--accent-subtle)]/10" />
-            </div>
-          )}
-
-          {selfieCaptured && (
-            <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-xs text-[var(--success)] gap-2">
-              <CheckCircle2 size={40} />
-              <span className="font-semibold text-sm">Baseline Photo Saved!</span>
-            </div>
-          )}
-        </div>
-
-        {!selfieCaptured ? (
-          <button
-            onClick={handleCapture}
-            disabled={!hasStream}
-            className="px-6 py-3 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
-          >
-            <Camera size={16} />
-            <span>Take Baseline Photo</span>
-          </button>
         ) : (
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={handleRetake}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors inline-flex items-center gap-2 cursor-pointer"
-            >
-              <RefreshCw size={14} />
-              <span>Retake Photo</span>
-            </button>
-            <button
-              onClick={onComplete}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
-            >
-              <span>Confirm &amp; Continue</span>
-              <ArrowRight size={14} />
-            </button>
+          <img
+            src={capturedDataUrl || ''}
+            alt="Captured baseline selfie"
+            className="w-full h-full object-cover"
+          />
+        )}
+
+        {!hasStream && !selfieCaptured && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 bg-slate-900 font-mono-data">
+            Starting camera feed…
           </div>
         )}
 
-        {retryCount >= SELFIE_MAX_RETRIES && (
-          <p className="text-xs text-[var(--warning)] font-medium">
-            Note: Standard baseline review flag will be attached if retries exceed threshold.
-          </p>
+        {/* Mild camera shutter whitening flash overlay */}
+        {flash && (
+          <div className="absolute inset-0 bg-white/80 animate-cd-flash pointer-events-none z-10" />
+        )}
+
+        <div className="absolute top-3 left-3 z-20">
+          <StatusChip
+            tone={selfieCaptured ? 'success' : isAligned ? 'success' : 'accent'}
+            label={selfieCaptured ? 'Captured' : isAligned ? 'Face aligned' : 'Camera live'}
+          />
+        </div>
+
+        {/* Solid face guide circle matching Image 2 */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <div
+            className={`w-44 h-56 rounded-[50%] border-2 transition-all duration-300 ${
+              selfieCaptured || isAligned
+                ? 'border-[var(--success)] bg-[var(--success)]/10 scale-105'
+                : 'border-white/50'
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Action Bar matching Image 2 */}
+      <div className="mt-8 flex items-center justify-between">
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Neutral expression, good lighting, no hat or sunglasses.
+        </p>
+
+        {selfieCaptured ? (
+          <button
+            onClick={onComplete}
+            type="button"
+            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+          >
+            Continue
+          </button>
+        ) : (
+          <button
+            onClick={handleCapture}
+            disabled={!hasStream}
+            type="button"
+            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+          >
+            Capture
+          </button>
         )}
       </div>
     </div>

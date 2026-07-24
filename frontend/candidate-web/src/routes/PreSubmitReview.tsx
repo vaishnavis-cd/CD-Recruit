@@ -82,21 +82,22 @@ export function PreSubmitReview() {
 
   return (
     <div
-      className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-12"
+      className="min-h-screen px-6 py-12 flex flex-col items-center justify-center"
       role="main"
       aria-labelledby="review-heading"
     >
-      <div className="max-w-2xl w-full">
+      <div className="w-full max-w-2xl animate-cd-fade-in">
         <div className="flex items-center justify-between mb-6">
-          <h1 id="review-heading" className="text-2xl font-semibold text-[var(--text-primary)]">
-            Review your assessment
-          </h1>
+          <div>
+            <h1 id="review-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)]">
+              Review assessment
+            </h1>
+            <p className="text-sm mt-1 text-[var(--muted-foreground)]">
+              Check your completion status below before submitting.
+            </p>
+          </div>
           <Timer />
         </div>
-
-        <p className="text-[var(--text-secondary)] text-sm mb-8">
-          Check your completion status below before submitting. You can go back to any module to review or change your answers.
-        </p>
 
         {/* Per-module completion summary */}
         <div className="space-y-3 mb-8">
@@ -109,38 +110,38 @@ export function PreSubmitReview() {
             return (
               <div
                 key={mod.index}
-                className="p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+                className="card-base p-5"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[var(--bg)] border border-[var(--border)] text-xs flex items-center justify-center text-[var(--text-secondary)] font-medium">
+                    <span className="font-mono-data w-6 h-6 rounded-md bg-[var(--surface)] border border-[var(--border)] text-xs flex items-center justify-center text-[var(--muted-foreground)] font-medium">
                       {mod.index + 1}
                     </span>
-                    <span className="text-sm font-medium text-[var(--text-primary)]">{mod.name}</span>
+                    <span className="text-sm font-semibold text-[var(--foreground)]">{mod.name}</span>
                   </div>
                   <button
                     onClick={() => transitionTo({ type: 'assessment', moduleIndex: mod.index, sessionId })}
-                    className="text-xs text-[var(--accent)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded cursor-pointer"
+                    className="text-xs text-[var(--accent)] hover:underline focus:outline-none cursor-pointer"
                     aria-label={`Go back to ${mod.name}`}
                   >
                     Return to module →
                   </button>
                 </div>
 
-                <div className="flex gap-4 text-xs">
+                <div className="flex gap-4 text-xs font-mono-data">
                   <span className="text-[var(--success)] font-medium">{answered} answered</span>
                   {flagged > 0 && (
                     <span className="text-[var(--warning)] font-medium">{flagged} flagged</span>
                   )}
                   {unanswered > 0 && (
-                    <span className="text-[var(--text-secondary)]">{unanswered} unanswered</span>
+                    <span className="text-[var(--muted-foreground)]">{unanswered} unanswered</span>
                   )}
-                  <span className="text-[var(--text-secondary)] ml-auto">{total} total</span>
+                  <span className="text-[var(--muted-foreground)] ml-auto">{total} total</span>
                 </div>
 
                 {/* Completion bar */}
                 <div
-                  className="mt-2 h-1.5 rounded-full bg-[var(--border)] overflow-hidden"
+                  className="mt-3 h-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden"
                   role="progressbar"
                   aria-valuenow={answered}
                   aria-valuemax={total}
@@ -160,9 +161,9 @@ export function PreSubmitReview() {
         {activeModules.some(m => countUnanswered(m) > 0) && (
           <div
             role="note"
-            className="mb-6 p-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-sm text-amber-700 dark:text-amber-300"
+            className="mb-6 p-4 rounded-xl border border-[var(--warning)] bg-[var(--surface)] text-sm text-[var(--warning)]"
           >
-            Some questions have not been answered. You can still submit — unanswered questions will receive no score. If you want to complete them, use the "Return to module" links above.
+            Some questions have not been answered. You can still submit — unanswered questions will receive no score.
           </div>
         )}
 
@@ -170,20 +171,20 @@ export function PreSubmitReview() {
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={handleGoBack}
-            className="flex-1 py-3 rounded-lg text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+            className="btn-secondary flex-1 cursor-pointer"
           >
             ← Return to assessment
           </button>
           <button
             onClick={handleSubmit}
-            className="flex-1 py-3 rounded-lg text-sm font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer"
+            className="btn-primary flex-1 cursor-pointer"
             aria-label="Submit final assessment — this action cannot be undone"
           >
             Submit Final Assessment →
           </button>
         </div>
 
-        <p className="text-xs text-center text-[var(--text-secondary)] mt-3">
+        <p className="text-xs text-center text-[var(--muted-foreground)] mt-3 font-mono-data">
           This action cannot be undone. Your responses are already saved locally.
         </p>
       </div>

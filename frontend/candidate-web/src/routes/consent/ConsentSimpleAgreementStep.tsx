@@ -1,179 +1,234 @@
-import React from 'react'
-import { FileText, Mic, Lock, ArrowRight, LifeBuoy, CheckCircle2 } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Check, Mic } from 'lucide-react'
 import { StatusChip } from '../../components/common/StatusChip'
-
-const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
 
 interface ConsentSimpleAgreementStepProps {
   type: 'terms' | 'audio'
   onAgree: () => void
 }
 
+const NUM_BARS = 28
+
 export function ConsentSimpleAgreementStep({ type, onAgree }: ConsentSimpleAgreementStepProps) {
-  const [agreed, setAgreed] = React.useState(false)
-  const [micTested, setMicTested] = React.useState(false)
-  const [micTesting, setMicTesting] = React.useState(false)
+  const [agreed, setAgreed] = useState(false)
+  const [micTested, setMicTested] = useState(false)
+  const [micTesting, setMicTesting] = useState(false)
+  const [deviceName, setDeviceName] = useState('Default input · System Microphone')
+  const [barHeights, setBarHeights] = useState<number[]>(Array(NUM_BARS).fill(12))
+
+  const animFrameRef = useRef<number | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  useEffect(() => {
+    return () => {
+      stopAudioAnalysis()
+    }
+  }, [])
+
+  function stopAudioAnalysis() {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {})
+      audioContextRef.current = null
+    }
+  }
 
   async function handleTestMic() {
     setMicTesting(true)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(t => t.stop())
-      setMicTested(true)
-      localStorage.setItem('cd-recruit-mic-consent', 'true')
-    } catch {
+      streamRef.current = stream
+
+      const trackLabel = stream.getAudioTracks()[0]?.label
+      if (trackLabel) {
+        setDeviceName(`Default input · ${trackLabel}`)
+      }
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      const audioCtx = new AudioContextClass()
+      audioContextRef.current = audioCtx
+
+      const source = audioCtx.createMediaStreamSource(stream)
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 64
+      source.connect(analyser)
+
+      const freqData = new Uint8Array(analyser.frequencyBinCount)
+
+      const updateWaveform = () => {
+        analyser.getByteFrequencyData(freqData)
+
+        // Calculate overall ambient/voice volume level
+        let sum = 0
+        for (let k = 0; k < 12; k++) {
+          sum += freqData[k] || 0
+        }
+        const avgLevel = (sum / 12) / 255 // 0.0 to 1.0
+
+        // Generate dynamic 28-bar heights with center bell boost & organic wave motion
+        const now = Date.now()
+        const newHeights = Array.from({ length: NUM_BARS }, (_, i) => {
+          // Map index 0->27 to low-mid voice frequency bins 0->10
+          const binIdx = Math.floor((i / NUM_BARS) * 10)
+          const rawVal = (freqData[binIdx] || 0) / 255
+
+          // Center bell curve multiplier so center bars rise dynamically
+          const distFromCenter = Math.abs(i - NUM_BARS / 2) / (NUM_BARS / 2)
+          const bellBoost = 1 + (1 - distFromCenter) * 0.75 // Center gets up to 1.75x boost
+
+          // Organic ambient wave animation
+          const waveJitter = Math.sin(now / 90 + i * 0.35) * (avgLevel > 0.04 ? 16 : 8)
+
+          const heightPct = Math.max(
+            12,
+            Math.min(95, Math.round((rawVal * 75 * bellBoost) + (avgLevel * 35) + waveJitter))
+          )
+
+          return heightPct
+        })
+
+        setBarHeights(newHeights)
+        animFrameRef.current = requestAnimationFrame(updateWaveform)
+      }
+
+      animFrameRef.current = requestAnimationFrame(updateWaveform)
+
+      // Automatically complete mic verification after 3 seconds of live audio monitoring
+      setTimeout(() => {
+        stopAudioAnalysis()
+        setMicTesting(false)
+        setMicTested(true)
+        setBarHeights(Array(NUM_BARS).fill(25))
+        localStorage.setItem('cd-recruit-mic-consent', 'true')
+      }, 3000)
+
+    } catch (err) {
+      console.error('Microphone error:', err)
       alert('Microphone access denied. Please allow microphone access in your browser to proceed.')
-    } finally {
+      stopAudioAnalysis()
       setMicTesting(false)
     }
   }
 
   if (type === 'terms') {
     return (
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-[var(--accent-subtle)] text-[var(--accent)] flex items-center justify-center border border-[var(--accent)]/20">
-              <FileText size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">Terms of Use &amp; Evaluation Agreement</h2>
-              <p className="text-xs text-[var(--text-secondary)]">Please review the terms governing this assessment session.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Scrollable Terms Content */}
-        <div className="h-64 overflow-y-auto p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--text-secondary)] leading-relaxed space-y-3 font-sans shadow-[var(--shadow-sm)]">
-          <h3 className="font-semibold text-[var(--text-primary)] text-sm">1. Assessment Integrity</h3>
+      <div>
+        <div className="card-surface p-5 h-64 overflow-y-auto text-sm leading-relaxed text-[var(--muted-foreground)] border border-[var(--border)] rounded-xl space-y-3">
           <p>
-            By taking this assessment, you agree to complete all questions independently without unauthorized assistance, AI proxying, or external code submission on your behalf.
+            <strong className="text-[var(--foreground)]">1. Purpose.</strong> CD-Recruit provides a remote candidate assessment service on behalf of the employer named in your invitation. By continuing, you consent to participate in a monitored technical assessment.
           </p>
-          <h3 className="font-semibold text-[var(--text-primary)] text-sm">2. Data Privacy &amp; Handling</h3>
           <p>
-            Your responses, code submissions, audio/video signals, and event logs are collected solely for the purpose of evaluation by the hiring organization in compliance with applicable DPDP Act rules.
+            <strong className="text-[var(--foreground)]">2. Integrity.</strong> During the session, the platform will collect telemetry including keystroke rhythm, focus events, and periodic camera frames to detect anomalies. This data is retained only for the duration required by the employer and is not sold or shared with third parties.
           </p>
-          <h3 className="font-semibold text-[var(--text-primary)] text-sm">3. Session Safeguards</h3>
           <p>
-            Automated integrity indicators (tab switching, window focus changes, mouse presence) run client-side to ensure fairness across all candidates.
+            <strong className="text-[var(--foreground)]">3. Data.</strong> Raw video and audio remain on-device by default. Only signed integrity summaries are transmitted. You may request deletion of your assessment data at any time via the support link on the completion screen.
+          </p>
+          <p>
+            <strong className="text-[var(--foreground)]">4. Conduct.</strong> Use of unauthorised assistance — including third-party tools, other humans, or generative AI outside the AI Prompting module — constitutes grounds for disqualification.
+          </p>
+          <p>
+            <strong className="text-[var(--foreground)]">5. Support.</strong> Contact support@cd-recruit.com for questions before, during, or after your assessment.
           </p>
         </div>
 
-        <label className="flex items-start gap-3 p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-colors hover:border-[var(--text-secondary)] select-none">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={e => setAgreed(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
-          />
-          <span className="text-xs text-[var(--text-primary)] leading-normal">
-            I have read and agree to the Terms of Use and Assessment Integrity Guidelines.
-          </span>
-        </label>
-
-        <div className="flex items-center justify-between pt-2">
-          <a
-            href={SUPPORT_EMAIL}
-            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            <LifeBuoy size={14} />
-            <span>Need help?</span>
-          </a>
-
+        {/* AgreeBar matching Image 2 */}
+        <div className="mt-8 flex items-center justify-between">
+          <label className="inline-flex items-center gap-2.5 cursor-pointer select-none text-sm text-[var(--foreground)]">
+            <span
+              className={`w-5 h-5 rounded flex items-center justify-center transition-colors border ${
+                agreed ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--surface)] border-[var(--border)]'
+              }`}
+              onClick={() => setAgreed(v => !v)}
+            >
+              {agreed && <Check size={14} strokeWidth={3} />}
+            </span>
+            <span onClick={() => setAgreed(v => !v)}>I have read and agree to the Terms of Use</span>
+          </label>
           <button
-            onClick={onAgree}
+            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
             disabled={!agreed}
-            className="px-6 py-3 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] flex items-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
+            onClick={onAgree}
           >
-            <span>Agree &amp; Continue</span>
-            <ArrowRight size={14} />
+            Continue
           </button>
         </div>
       </div>
     )
   }
 
-  // Audio / Microphone Consent
+  // Audio Step matching Image 3
   const isAudioReady = agreed && micTested
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-[var(--accent-subtle)] text-[var(--accent)] flex items-center justify-center border border-[var(--accent)]/20">
-            <Mic size={20} />
+    <div>
+      <div className="card-surface p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--background)] text-[var(--accent)] border border-[var(--border)]">
+            <Mic size={18} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Audio Verification &amp; Consent</h2>
-            <p className="text-xs text-[var(--text-secondary)]">Verify microphone input for scenario and voice integrity checks.</p>
+            <div className="font-semibold text-sm text-[var(--foreground)]">Microphone</div>
+            <div className="text-xs text-[var(--muted-foreground)] font-mono-data">{deviceName}</div>
+          </div>
+          <div className="ml-auto">
+            <StatusChip tone={micTested ? 'success' : micTesting ? 'pending' : 'neutral'} label={micTested ? 'Verified' : micTesting ? 'Listening…' : 'Idle'} />
           </div>
         </div>
-      </div>
 
-      <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
-            <Lock size={14} className="text-[var(--accent)]" />
-            <span>Microphone Security &amp; Usage</span>
-          </div>
-          <StatusChip
-            variant={micTested ? 'success' : 'neutral'}
-            label={micTested ? 'MIC PASSED' : 'NOT TESTED'}
-            size="sm"
-          />
-        </div>
-
-        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-          Audio levels are monitored locally to verify environment ambient noise. No continuous raw audio stream is stored unless an anomaly triggers a short verification clip.
-        </p>
-
-        <div className="pt-2">
-          {!micTested ? (
-            <button
-              onClick={handleTestMic}
-              disabled={micTesting}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] hover:border-[var(--accent)] transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Mic size={14} className="text-[var(--accent)]" />
-              <span>{micTesting ? 'Testing Microphone…' : 'Test Microphone Input'}</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--success)] bg-[var(--success-subtle)] p-3 rounded-xl border border-[var(--success)]/20">
-              <CheckCircle2 size={16} />
-              <span>Microphone input successfully verified!</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <label className="flex items-start gap-3 p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-colors hover:border-[var(--text-secondary)] select-none">
-        <input
-          type="checkbox"
-          checked={agreed}
-          onChange={e => setAgreed(e.target.checked)}
-          className="mt-0.5 w-4 h-4 rounded text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
-        />
-        <span className="text-xs text-[var(--text-primary)] leading-normal">
-          I consent to local audio monitoring for environment integrity checking during the session.
-        </span>
-      </label>
-
-      <div className="flex items-center justify-between pt-2">
-        <a
-          href={SUPPORT_EMAIL}
-          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        {/* Compact, sleek real-time Audio Waveform Container */}
+        <div
+          className="h-16 rounded-xl flex items-end justify-center gap-1.5 px-6 py-2.5 bg-[var(--background)] border border-[var(--border)] mb-5 overflow-hidden"
         >
-          <LifeBuoy size={14} />
-          <span>Support</span>
-        </a>
+          {barHeights.map((h, i) => (
+            <div
+              key={i}
+              className="flex-1 max-w-[6px] rounded-full transition-all duration-75"
+              style={{
+                background: micTesting ? "var(--accent)" : micTested ? "var(--success)" : "var(--border)",
+                height: `${h}%`,
+                transformOrigin: "bottom",
+              }}
+            />
+          ))}
+        </div>
 
         <button
-          onClick={onAgree}
-          disabled={!isAudioReady}
-          className="px-6 py-3 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] flex items-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
+          onClick={handleTestMic}
+          disabled={micTesting}
+          type="button"
+          className="btn-secondary text-xs cursor-pointer"
         >
-          <span>Continue to Tutorial</span>
-          <ArrowRight size={14} />
+          {micTesting ? 'Listening…' : micTested ? 'Test again' : 'Test microphone'}
+        </button>
+      </div>
+
+      {/* AgreeBar matching Image 3 */}
+      <div className="mt-8 flex items-center justify-between">
+        <label className="inline-flex items-center gap-2.5 cursor-pointer select-none text-sm text-[var(--foreground)]">
+          <span
+            className={`w-5 h-5 rounded flex items-center justify-center transition-colors border ${
+              agreed ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--surface)] border-[var(--border)]'
+            }`}
+            onClick={() => setAgreed(v => !v)}
+          >
+            {agreed && <Check size={14} strokeWidth={3} />}
+          </span>
+          <span onClick={() => setAgreed(v => !v)}>I consent to microphone use during this assessment</span>
+        </label>
+        <button
+          className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+          disabled={!isAudioReady}
+          onClick={onAgree}
+        >
+          Continue
         </button>
       </div>
     </div>

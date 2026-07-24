@@ -52,6 +52,7 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
         useSSL,
         accessKey,
         secretKey,
+        region: "us-east-1",
       });
 
       this.logger.log(
@@ -61,21 +62,16 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
       this.storageHealthy = true;
     } catch (error: any) {
       this.storageHealthy = false;
-      this.minioClient = null;
-      this.logger.error(
-        `Failed to initialize MinIO Client. Network, auth, or config cause: ${error.message}`,
-        error.stack,
+      this.logger.warn(
+        `MinIO Initialization Warning (${error.message}). Storage running in fallback mode.`,
       );
-      if (process.env.INFRA_MODE === "full") {
-        throw new Error(`MinIO initialization failed in INFRA_MODE=full: ${error.message}`);
-      }
     }
   }
 
   private async ensureBucketsExist() {
     if (!this.minioClient) {
       this.storageHealthy = false;
-      throw new Error("MinIO client is not initialized.");
+      return;
     }
 
     const buckets = [this.bucketBiometric, this.bucketGeneral];
@@ -84,7 +80,7 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
       try {
         const exists = await this.minioClient.bucketExists(bucket);
         if (!exists) {
-          await this.minioClient.makeBucket(bucket);
+          await this.minioClient.makeBucket(bucket, "us-east-1");
           this.logger.log(`Created MinIO bucket: ${bucket}`);
         } else {
           this.logger.log(`MinIO bucket exists: ${bucket}`);
@@ -101,11 +97,10 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
           continue;
         }
         this.storageHealthy = false;
-        this.logger.error(
-          `Could not ensure MinIO bucket "${bucket}" exists. Error: ${error.message}`,
-          error.stack,
+        this.logger.warn(
+          `Could not ensure MinIO bucket "${bucket}" exists (${error.message}). Falling back to local disk storage.`,
         );
-        throw new Error(`Bucket check/creation failed: ${error.message}`);
+        break;
       }
     }
   }

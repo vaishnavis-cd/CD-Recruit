@@ -145,6 +145,7 @@ export interface CandidateSession {
   startedAt: string;
   submittedAt: string | null;
   status: "active" | "submitted" | "expired";
+  durationMinutes?: number;
   questions?: QuestionSummary[];
 }
 
