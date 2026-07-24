@@ -72,10 +72,10 @@ function mapBackendSession(session: any): Session {
 
   const initials = session.candidateName
     ? session.candidateName
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-        .toUpperCase()
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
     : "CN";
 
   const roleName = session.roleTemplateName || session.roleName || "Software Developer";
@@ -170,13 +170,16 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       } : null,
       proctoringSummary: detail.proctoringSummary || {
         flags: detail.integrityFlags || [],
-        totalTabSwitches: (detail.integrityFlags || []).filter((f: any) => f.category === "GAZE_AWAY" || f.category === "LOOKING_AWAY").length,
+        totalTabSwitches: (detail.integrityFlags || []).filter((f: any) =>
+          ["GAZE_AWAY", "LOOKING_AWAY", "TAB_SWITCH", "SEAT_EXIT"].includes(f.category)
+        ).length,
         webcamClipsCount: (detail.integrityFlags || []).filter((f: any) => f.evidenceClipUrl).length,
         overallRisk: (detail.integrityFlags || []).length > 2 ? "HIGH" : (detail.integrityFlags || []).length > 0 ? "MEDIUM" : "LOW",
       },
       integrityFlags: detail.integrityFlags || [],
-      submissions: detail.submissions || [],
-      reviewerDecision: detail.reviewerDecision || null,
+      submissions: detail.submissions || detail.moduleResponses || [],
+      moduleResponses: detail.moduleResponses || detail.submissions || [],
+      reviewerDecision: detail.reviewerDecision || detail.decision || null,
     };
     set({ currentSessionDetail: mapped as any });
     return mapped as any;

@@ -116,6 +116,7 @@ export class AdminService {
             include: { staff: true },
           },
           integrityFlags: true,
+          proctoringEvents: true,
         },
       }),
       this.prisma.session.count({ where }),
@@ -159,6 +160,9 @@ export class AdminService {
         session.score.aiConfidence >= 0 &&   // exclude -1.0 sentinel (unscored)
         session.score.aiConfidence < 0.8;
 
+      const flagCount = (session.integrityFlags ? session.integrityFlags.length : 0) +
+        ((session as any).proctoringEvents ? (session as any).proctoringEvents.length : 0);
+
       return {
         sessionId: session.id,
         candidateName: session.candidate.name,
@@ -176,7 +180,7 @@ export class AdminService {
         compositeScore,
         sayDoConsistencyScore,
         humanReviewRequired,
-        integrityFlagsCount: session.integrityFlags ? session.integrityFlags.length : 0,
+        integrityFlagsCount: flagCount,
         decision: session.reviewerDecision
           ? ({
               outcome: session.reviewerDecision.decision as any,
@@ -214,6 +218,7 @@ export class AdminService {
             evidenceClip: true,
           },
         },
+        proctoringEvents: true,
         score: true,
         reviewerDecision: {
           include: {
@@ -250,6 +255,7 @@ export class AdminService {
                 evidenceClip: true,
               },
             },
+            proctoringEvents: true,
             score: true,
             reviewerDecision: {
               include: {
@@ -265,9 +271,9 @@ export class AdminService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    // Map and fetch presigned URLs for evidence clips
-    const mappedFlags = await Promise.all(
-      session.integrityFlags.map(async (flag) => {
+    // Map and fetch presigned URLs for evidence clips (from both integrityFlags and proctoringEvents)
+    const mappedFlagsFromIntegrity = await Promise.all(
+      (session.integrityFlags || []).map(async (flag) => {
         let evidenceClipUrl: string | null = null;
         if (flag.evidenceClip) {
           evidenceClipUrl = await this.storage.getSignedUrl(
@@ -291,6 +297,32 @@ export class AdminService {
         };
       }),
     );
+
+    const mappedFlagsFromProctoring = await Promise.all(
+      ((session as any).proctoringEvents || []).map(async (event: any) => {
+        let evidenceClipUrl: string | null = null;
+        if (event.clipUrl) {
+          evidenceClipUrl = await this.storage.getSignedUrl(
+            this.bucketBiometric,
+            event.clipUrl,
+          );
+        }
+
+        return {
+          flagId: event.id,
+          category: event.eventType,
+          severity: (event.severity || "MEDIUM") as FlagSeverity,
+          confidence: 0.9,
+          flaggedAt: new Date(event.timestamp).toISOString(),
+          evidenceClipUrl,
+          disposition: null,
+          dispositionAt: null,
+          dispositionById: null,
+        };
+      }),
+    );
+
+    const mappedFlags = [...mappedFlagsFromIntegrity, ...mappedFlagsFromProctoring];
 
     const mappedResponses = session.moduleResponses.map((res) => ({
       moduleResponseId: res.id,

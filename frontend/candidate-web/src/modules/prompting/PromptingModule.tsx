@@ -3,6 +3,7 @@ import type { PromptingQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { services } from '../../services'
+import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 import { StatusChip } from '../../components/common/StatusChip'
@@ -106,6 +107,28 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
       }
     }
   }, [questionData, questionId])
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    const targetSessionId = assessment?.sessionId || useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId
+    if (targetSessionId && pastedText) {
+      try {
+        ProctoringEventService.getInstance().createEvent({
+          sessionId: targetSessionId,
+          eventType: 'PASTE' as any,
+          severity: 'MEDIUM' as any,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            charCount: pastedText.length,
+            textSnippet: pastedText.slice(0, 100),
+            questionId: questionId,
+          },
+        })
+      } catch (err) {
+        console.warn('Failed to record AI prompting paste event:', err)
+      }
+    }
+  }
 
   function handlePromptChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setPromptText(e.target.value)
@@ -224,6 +247,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             id={`prompt-${question.id}`}
             value={promptText}
             onChange={handlePromptChange}
+            onPaste={handlePaste}
             disabled={loadingPrompt}
             placeholder="Write your prompt here…"
             rows={6}
