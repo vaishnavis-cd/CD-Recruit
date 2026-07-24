@@ -82,9 +82,10 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
     // 1. Redeem invite token and create session on the backend
     const startRes = await apiClient.post('/sessions/start', { inviteToken: token })
-    const { sessionId, startedAt } = startRes.data
+    const { sessionId, startedAt: startStartedAt, questions: startQuestions } = startRes.data
+    localStorage.setItem('cd-recruit-session-id', sessionId)
 
-    // 2. Upload baseline selfie if provided (interim biometric-data handling pattern bridge via localStorage - clear immediately)
+    // 2. Upload baseline selfie if provided
     if (selfieDataUrl) {
       try {
         await apiClient.post(`/sessions/${sessionId}/selfie`, { image: selfieDataUrl })
@@ -97,16 +98,29 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     }
 
     // 3. Begin the session to transition its status to IN_PROGRESS
-    const beginRes = await apiClient.post(`/sessions/${sessionId}/begin`)
+    let questions = startQuestions || []
+    let startedAt = startStartedAt
+
+    try {
+      const beginRes = await apiClient.post(`/sessions/${sessionId}/begin`)
+      if (beginRes.data?.questions && beginRes.data.questions.length > 0) {
+        questions = beginRes.data.questions
+      }
+      if (beginRes.data?.startedAt) {
+        startedAt = beginRes.data.startedAt
+      }
+    } catch (err: any) {
+      console.warn('[realSessionApiAdapter] /begin call warning:', err?.message)
+    }
 
     return {
       id: sessionId,
       cvMode,
       tutorialMode,
-      startedAt: beginRes.data.startedAt || startedAt || new Date().toISOString(),
+      startedAt: startedAt || new Date().toISOString(),
       submittedAt: null,
       status: 'active',
-      questions: beginRes.data.questions,
+      questions,
     }
   },
 

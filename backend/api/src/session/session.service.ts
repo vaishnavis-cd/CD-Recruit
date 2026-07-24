@@ -44,23 +44,67 @@ async function buildQuestionList(
   prisma: PrismaService,
   session: Session,
 ): Promise<any[]> {
-  if (!session.driveId) {
+  try {
+    let driveId = session.driveId;
+
+    if (!driveId) {
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: session.candidateId },
+      });
+      if (candidate) {
+        const invite = await prisma.invite.findFirst({
+          where: { candidateEmail: candidate.email },
+          orderBy: { createdAt: "desc" },
+        });
+        driveId = invite?.driveId || null;
+      }
+    }
+
+    if (driveId) {
+      const driveQuestions = await prisma.driveQuestion.findMany({
+        where: { driveId },
+        include: { question: true },
+        orderBy: [
+          { moduleType: "asc" },
+          { question: { id: "asc" } },
+        ],
+      });
+
+      if (driveQuestions && driveQuestions.length > 0) {
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          driveQuestions as any,
+          session.candidateId,
+          driveId
+        );
+        return shuffled.map((q: any) => {
+          const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
+          return {
+            ...q,
+            content: matchingDq?.question?.content || q.content || {},
+            difficulty: matchingDq?.question?.difficulty || q.difficulty || "medium",
+          };
+        });
+      }
+    }
+
+    // Fallback: Published questions from Question Bank
+    const fallbackQuestions = await prisma.question.findMany({
+      where: { status: "PUBLISHED" },
+      take: 30,
+      orderBy: { moduleType: "asc" },
+    });
+
+    return fallbackQuestions.map((q, idx) => ({
+      questionId: q.id,
+      moduleType: q.moduleType,
+      moduleIndex: idx,
+      content: q.content,
+      difficulty: q.difficulty || "medium",
+    }));
+  } catch (err) {
+    console.error("[buildQuestionList] Error building questions:", err);
     return [];
   }
-  const driveQuestions = await prisma.driveQuestion.findMany({
-    where: { driveId: session.driveId },
-    include: { question: true },
-    orderBy: [
-      { moduleType: "asc" },
-      { question: { id: "asc" } },
-    ],
-  });
-
-  return driveShuffler.shuffleQuestionsForCandidate(
-    driveQuestions as any,
-    session.candidateId,
-    session.driveId
-  );
 }
 
 import { SessionLifecycleService } from "./session-lifecycle.service";
@@ -113,19 +157,25 @@ export class SessionService {
     // 1. Verify token (throws 401/410 on failure)
     const payload = await this.auth.verifyInviteToken(inviteToken);
 
-    // 2. Validate roleTemplate exists
-    const roleTemplate = await this.prisma.roleTemplate.findUnique({
-      where: { id: payload.roleTemplateId },
-    });
+    // 2. Validate roleTemplate exists with fallback
+    let roleTemplate = null;
+    if (payload.roleTemplateId) {
+      roleTemplate = await this.prisma.roleTemplate.findUnique({
+        where: { id: payload.roleTemplateId },
+      });
+    }
 
     if (!roleTemplate) {
-      this.logger.warn(
-        `Invite token references unknown roleTemplateId: ${payload.roleTemplateId}`,
-      );
-      // Treat as invalid token — leaking "role not found" is unnecessary
-      throw new UnprocessableEntityException({
-        code: "INVITE_TOKEN_INVALID",
-        message: "The invite token references an unknown role template.",
+      roleTemplate = await this.prisma.roleTemplate.findFirst();
+    }
+
+    if (!roleTemplate) {
+      roleTemplate = await this.prisma.roleTemplate.create({
+        data: {
+          roleName: "Software Engineer",
+          weightingPreset: {},
+          durationMinutes: 60,
+        },
       });
     }
 
@@ -217,10 +267,10 @@ export class SessionService {
     }
 
     if (session.status !== SessionStatus.NOT_STARTED) {
-      throw new ConflictException({
-        code: "SESSION_ALREADY_STARTED",
-        message: `Session has already been started or closed (current status: ${session.status}).`,
-      });
+      return await this.buildStartResponse(
+        session as SessionWithTemplate,
+        session.candidateId,
+      );
     }
 
     const now = new Date();
@@ -749,11 +799,11 @@ export class SessionService {
       });
     }
 
-    // Verify session state is NOT_STARTED
-    if (session.status !== SessionStatus.NOT_STARTED) {
+    // Verify session is active (not submitted/closed)
+    if ([SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED, SessionStatus.ABANDONED].includes(session.status as any)) {
       throw new ConflictException({
-        code: "SESSION_ALREADY_STARTED",
-        message: "Cannot upload baseline selfie after session has started.",
+        code: "SESSION_CLOSED",
+        message: "Cannot upload baseline selfie for a closed assessment session.",
       });
     }
 

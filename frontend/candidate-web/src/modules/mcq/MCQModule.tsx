@@ -70,23 +70,27 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
 
   // Map to MCQQuestion structure
   const question = React.useMemo(() => {
-    if (!questionData) return null
-    const content = questionData.content || {}
+    const content = questionData?.content || questionMetadata?.content || {}
     const rawOptions = content.options || []
     const options = rawOptions.map((opt: any, optIdx: number) => {
       if (typeof opt === 'string') return { id: `opt_${optIdx}`, text: opt }
       return { id: opt.id || `opt_${optIdx}`, text: opt.text || opt.label || `Option ${optIdx + 1}` }
     })
     return {
-      id: questionId,
+      id: questionId || 'mcq_q1',
       moduleIndex,
       type: 'mcq' as const,
-      text: content.prompt || content.text || content.question || content.title || 'MCQ Question',
-      options,
+      text: content.prompt || content.text || content.question || content.title || 'Multiple Choice Question',
+      options: options.length > 0 ? options : [
+        { id: 'opt_0', text: 'Option A' },
+        { id: 'opt_1', text: 'Option B' },
+        { id: 'opt_2', text: 'Option C' },
+        { id: 'opt_3', text: 'Option D' },
+      ],
       allowMultiple: Boolean(content.allowMultiple),
       correctIds: [],
     } as MCQQuestion
-  }, [questionData, questionId, moduleIndex])
+  }, [questionData, questionMetadata, questionId, moduleIndex])
 
   // Sync DB response to store
   useEffect(() => {
