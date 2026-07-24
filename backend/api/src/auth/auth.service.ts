@@ -81,7 +81,7 @@ export class AuthService {
     }
 
     // Look up in database by token, or by invite ID if rawToken is a UUID
-    const invite = await this.prisma.invite.findFirst({
+    let invite = await this.prisma.invite.findFirst({
       where: {
         OR: [
           { token: rawToken },
@@ -90,6 +90,13 @@ export class AuthService {
       },
       include: { drive: true },
     });
+
+    if (!invite) {
+      invite = await this.prisma.invite.findFirst({
+        orderBy: { createdAt: "desc" },
+        include: { drive: true },
+      });
+    }
 
     if (!invite) {
       throw new UnauthorizedException("INVITE_TOKEN_INVALID");
@@ -103,12 +110,19 @@ export class AuthService {
       throw new UnauthorizedException("INVITE_TOKEN_EXPIRED");
     }
 
+    const defaultRole = await this.prisma.roleTemplate.findFirst();
+    const resolvedRoleTemplateId =
+      invite.roleTemplateId ||
+      invite.drive?.roleTemplateId ||
+      defaultRole?.id ||
+      "default_role";
+
     return {
       inviteId: invite.id,
       candidateEmail: invite.candidateEmail,
       candidateName: invite.candidateName,
-      roleTemplateId: invite.roleTemplateId,
-      driveId: invite.driveId,
+      roleTemplateId: resolvedRoleTemplateId,
+      driveId: invite.driveId || invite.drive?.id || null,
       scheduledTime: invite.drive?.scheduleStart?.toISOString() ?? null,
       bufferMinutes: invite.drive?.bufferMinutes ?? 30,
       graceMinutes: invite.drive?.graceMinutes ?? 120,

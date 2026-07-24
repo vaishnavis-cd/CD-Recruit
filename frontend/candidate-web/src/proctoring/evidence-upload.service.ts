@@ -164,7 +164,12 @@ export class EvidenceUploadService {
         });
         console.log(`[Proctoring] Queued upload of ${item.filename} succeeded.`);
       } catch (err: any) {
-        if (err?.response?.status === 409 || err?.status === 409) {
+        const status = err?.response?.status || err?.status;
+        if (status === 404) {
+          console.warn(`[Proctoring] Session ${item.sessionId} not found (404). Discarding stale clip ${item.filename}.`);
+          continue;
+        }
+        if (status === 409) {
           console.log(`[Proctoring] Server-side duplicate filter rejected queued ${item.event.eventType}. Discarding duplicate.`);
           continue;
         }

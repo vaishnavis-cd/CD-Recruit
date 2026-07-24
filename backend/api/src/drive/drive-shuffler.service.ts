@@ -20,6 +20,7 @@ export class DriveShufflerService {
    */
   computeContentHash(moduleType: string, content: any): string {
     const promptRaw = (content?.prompt || content?.title || content?.text || "")
+      .toString()
       .toLowerCase()
       .trim()
       .replace(/\s+/g, " ");
@@ -27,13 +28,19 @@ export class DriveShufflerService {
     let extra = "";
     if (Array.isArray(content?.options)) {
       extra = content.options
-        .map((o: string) => o.toLowerCase().trim())
+        .map((o: any) => (typeof o === "string" ? o : o?.text || o?.label || "").toString().toLowerCase().trim())
         .sort()
         .join("|");
     } else if (content?.expectedQuery) {
-      extra = content.expectedQuery.toLowerCase().trim().replace(/\s+/g, " ");
+      const expQueryStr = typeof content.expectedQuery === "string" ? content.expectedQuery : JSON.stringify(content.expectedQuery);
+      extra = expQueryStr.toLowerCase().trim().replace(/\s+/g, " ");
     } else if (content?.starterCode) {
-      extra = content.starterCode.toLowerCase().trim().replace(/\s+/g, "");
+      const codeStr = typeof content.starterCode === "string"
+        ? content.starterCode
+        : typeof content.starterCode === "object"
+        ? JSON.stringify(content.starterCode)
+        : String(content.starterCode);
+      extra = codeStr.toLowerCase().trim().replace(/\s+/g, "");
     }
 
     return createHash("sha256")

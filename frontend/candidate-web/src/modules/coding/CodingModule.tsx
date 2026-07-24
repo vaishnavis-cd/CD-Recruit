@@ -160,25 +160,27 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
     )
   }
 
+  const rawContent = questionData?.content || {}
+
   // Extract visible test cases for sample display
-  const testCasesList = questionData.content?.visibleTestCases || questionData.content?.testCases || [
+  const testCasesList = rawContent.visibleTestCases || rawContent.testCases || [
     { input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", label: "Example 1" },
     { input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", label: "Example 2" }
   ]
 
   const workspaceQuestion = {
     id: questionId,
-    title: CODING_QUESTIONS[currentIndex]?.title || questionData.content?.title || "Sum of Two Numbers",
-    prompt: questionData.content?.prompt || questionData.content?.description || "Write a program that reads from standard input (stdin) containing an array of integers `nums` and a target integer `target`, and outputs to standard output (stdout) the indices of the two numbers such that they add up to `target`.",
+    title: rawContent.title || CODING_QUESTIONS[currentIndex]?.title || "Sum of Two Numbers",
+    prompt: rawContent.prompt || rawContent.description || "Write a program that reads from standard input (stdin) containing an array of integers `nums` and a target integer `target`, and outputs to standard output (stdout) the indices of the two numbers such that they add up to `target`.",
     content: {
-      starterCode: questionData.content?.starterCode,
+      starterCode: rawContent.starterCode,
       testCases: testCasesList,
-      constraints: questionData.content?.constraints || [
+      constraints: rawContent.constraints || [
         "2 <= nums.length <= 10^4",
         "-10^9 <= nums[i] <= 10^9",
         "-10^9 <= target <= 10^9"
       ],
-      difficulty: questionData.content?.difficulty || "easy",
+      difficulty: rawContent.difficulty || "easy",
     },
     response: questionData.response || null,
   }

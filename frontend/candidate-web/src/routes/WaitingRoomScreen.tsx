@@ -23,11 +23,35 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
   const { transitionTo, session, assessment, initAssessment } = useSessionStore()
   const [nowMs, setNowMs] = useState(() => services.time.getServerNow())
 
-  // Pick a consistent motivational quote
+  // Lock target preheat countdown time once on mount
+  const [targetTimeMs] = useState(() => {
+    const currentNow = services.time.getServerNow()
+    if (scheduledTimeMs && scheduledTimeMs > currentNow + 2000) {
+      return scheduledTimeMs
+    }
+    try {
+      const stored = localStorage.getItem('cd-recruit-scheduled-ms')
+      if (stored) {
+        const parsed = parseInt(stored, 10)
+        if (!isNaN(parsed) && parsed > currentNow) {
+          return parsed
+        }
+      }
+    } catch { /* ignore */ }
+
+    const preheatTarget = currentNow + 60 * 1000
+    localStorage.setItem('cd-recruit-scheduled-ms', String(preheatTarget))
+    return preheatTarget
+  })
+
+  // Pick a consistent motivational quote with safety fallback
   const currentQuote = useMemo(() => {
-    const idx = Math.abs(scheduledTimeMs) % MOTIVATIONAL_QUOTES.length
-    return MOTIVATIONAL_QUOTES[idx]
-  }, [scheduledTimeMs])
+    if (!targetTimeMs || isNaN(targetTimeMs)) {
+      return MOTIVATIONAL_QUOTES[0]
+    }
+    const idx = Math.abs(Math.floor(targetTimeMs)) % MOTIVATIONAL_QUOTES.length
+    return MOTIVATIONAL_QUOTES[idx] || MOTIVATIONAL_QUOTES[0]
+  }, [targetTimeMs])
 
   useEffect(() => {
     return services.time.subscribe(setNowMs)
@@ -44,26 +68,36 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
   const activeModules = useMemo(() => {
     const questions = session?.questions || assessment?.questions
     if (questions && questions.length > 0) {
-      const activeTypes = new Set(questions.map((q: any) => q.moduleType || q.type))
-      return MODULES.filter(m => activeTypes.has(m.type as any))
+      const activeTypes = new Set(questions.map((q: any) => (q.moduleType || q.type || '').toUpperCase()))
+      return MODULES.filter(m => activeTypes.has(m.type.toUpperCase() as any) || (m.type === 'coding' && activeTypes.has('DEBUGGING')))
     }
     return MODULES
   }, [session, assessment])
 
+  const handleStartNow = () => {
+    const storeState = useSessionStore.getState()
+    const currentSession = session || storeState.session
+    const validSessionId =
+      currentSession?.id ||
+      storeState.assessment?.sessionId ||
+      localStorage.getItem('cd-recruit-session-id') ||
+      'sess_candidate'
+
+    const questions = currentSession?.questions || assessment?.questions || storeState.assessment?.questions
+    const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60
+
+    initAssessment(validSessionId, durationSeconds, questions)
+    transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: validSessionId })
+  }
+
   // When 1-minute countdown reaches 0, automatically start the assessment
   useEffect(() => {
-    if (nowMs >= scheduledTimeMs) {
-      const currentSession = session || useSessionStore.getState().session
-      const sessionId = currentSession?.id || 'demo-session'
-      const questions = currentSession?.questions || assessment?.questions
-      const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60
-
-      initAssessment(sessionId, durationSeconds, questions)
-      transitionTo({ type: 'assessment', moduleIndex: 0, sessionId })
+    if (nowMs >= targetTimeMs) {
+      handleStartNow()
     }
-  }, [nowMs, scheduledTimeMs, session, assessment, allocatedMinutes, initAssessment, transitionTo])
+  }, [nowMs, targetTimeMs])
 
-  const msRemaining = Math.max(0, scheduledTimeMs - nowMs)
+  const msRemaining = Math.max(0, targetTimeMs - nowMs)
   const minutes = Math.floor(msRemaining / 60000)
   const seconds = Math.floor((msRemaining % 60000) / 1000)
 
@@ -96,25 +130,49 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 Take a deep breath
               </h1>
               
-              {/* Reverse Timer */}
-              <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between shadow-[var(--shadow-sm)]">
+              {/* Reverse Timer & Start Now CTA */}
+              <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-4 shadow-[var(--shadow-sm)]">
                 <div>
                   <div className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
                     Starting Automatically In
                   </div>
                   <div className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
-                    Your assessment begins as soon as the timer reaches 00:00.
+                    Workspace preheating active. Click below to enter immediately.
                   </div>
                 </div>
-                <div
-                  className="font-mono-data text-[44px] font-bold tabular-nums text-[var(--accent)] tracking-tight"
-                  role="timer"
-                  aria-live="off"
-                >
-                  {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                <div className="flex items-center gap-4">
+                  <div
+                    className="font-mono-data text-[40px] font-bold tabular-nums text-[var(--accent)] tracking-tight"
+                    role="timer"
+                    aria-live="off"
+                  >
+                    {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                  </div>
+                  <button
+                    onClick={handleStartNow}
+                    className="px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-xs font-semibold hover:bg-[var(--accent-hover)] transition-all cursor-pointer shadow-md flex items-center gap-1.5"
+                  >
+                    <span>Start Assessment Now</span>
+                    <span>→</span>
+                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Active Modules Badges */}
+            {activeModules.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-[var(--muted-foreground)]">Assigned Modules:</span>
+                {activeModules.map((m) => (
+                  <span
+                    key={m.type}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]"
+                  >
+                    {m.name}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Motivational Quote Box */}
             <div className="p-4 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-subtle)]/40 space-y-1.5">
