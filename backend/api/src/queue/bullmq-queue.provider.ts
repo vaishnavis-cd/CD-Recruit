@@ -1,15 +1,18 @@
 import { Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
+import { QueueProviderPort } from "./queue-provider.port";
 
 @Injectable()
-export class BullmqQueueProvider {
+export class BullmqQueueProvider extends QueueProviderPort {
   constructor(
     @InjectQueue("heartbeat-monitor")
     private readonly heartbeatQueue: Queue,
     @InjectQueue("grace-window")
     private readonly graceWindowQueue: Queue,
-  ) {}
+  ) {
+    super();
+  }
 
   private resolveQueue(queueName: string): Queue {
     switch (queueName) {

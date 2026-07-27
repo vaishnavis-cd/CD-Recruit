@@ -30,6 +30,7 @@ import {
   Play,
   Sparkles,
   Award,
+  Save,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker } from "../components/single-date-time-picker";
@@ -488,11 +489,19 @@ function DriveDetailPage() {
         <div className="space-y-6">
           {/* SECTION 1: Single Calendar Date & Start/End Time Window Picker */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between bg-white border border-[#E6E6EA] p-4 rounded-[16px] shadow-sm">
               <div>
                 <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Schedule Date & Assessment Window</h3>
-                <p className="text-[12px] text-[#5B5B64]">Select the drive date on the calendar, then set the start time and end time for the assessment.</p>
+                <p className="text-[12px] text-[#5B5B64]">Select the drive date on the calendar, set the start/end time, and save your schedule.</p>
               </div>
+              <button
+                type="button"
+                onClick={handleSaveConfiguration}
+                className="flex items-center gap-2 px-4 py-2 bg-[#2F5CFF] hover:bg-[#1A44D6] text-white font-semibold text-[13px] rounded-[10px] shadow-md transition-colors cursor-pointer"
+              >
+                <Save size={16} />
+                Save Schedule & Config
+              </button>
             </div>
 
             <SingleDateTimePicker
