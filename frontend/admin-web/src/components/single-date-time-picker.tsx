@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { ChevronLeft, ChevronRight, ChevronDown, Clock } from "lucide-react";
 
 interface SingleDateTimePickerProps {
@@ -31,6 +31,121 @@ const MONTH_NAMES = [
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
+interface TimeInputGroupProps {
+  hourValue: string;
+  minuteValue: string;
+  onChangeHour: (h: string) => void;
+  onChangeMinute: (m: string) => void;
+}
+
+function TimeInputGroup({
+  hourValue,
+  minuteValue,
+  onChangeHour,
+  onChangeMinute,
+}: TimeInputGroupProps) {
+  const minuteRef = useRef<HTMLInputElement>(null);
+  const hourRef = useRef<HTMLInputElement>(null);
+
+  const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.length > 2) val = val.slice(0, 2);
+
+    onChangeHour(val);
+
+    if (val.length === 2) {
+      setTimeout(() => {
+        minuteRef.current?.focus();
+        minuteRef.current?.select();
+      }, 0);
+    }
+  };
+
+  const handleHourBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "");
+    if (!raw) {
+      onChangeHour("09");
+      return;
+    }
+    const num = parseInt(raw, 10);
+    if (isNaN(num) || num < 1) {
+      onChangeHour("01");
+    } else if (num > 12) {
+      onChangeHour("12");
+    } else {
+      onChangeHour(String(num).padStart(2, "0"));
+    }
+  };
+
+  const handleHourKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowRight" || e.key === ":" || e.key === "Enter") {
+      e.preventDefault();
+      minuteRef.current?.focus();
+      minuteRef.current?.select();
+    }
+  };
+
+  const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.length > 2) val = val.slice(0, 2);
+    onChangeMinute(val);
+  };
+
+  const handleMinuteBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "");
+    if (!raw) {
+      onChangeMinute("00");
+      return;
+    }
+    const num = parseInt(raw, 10);
+    if (isNaN(num) || num < 0) {
+      onChangeMinute("00");
+    } else if (num > 59) {
+      onChangeMinute("59");
+    } else {
+      onChangeMinute(String(num).padStart(2, "0"));
+    }
+  };
+
+  const handleMinuteKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowLeft" || (e.key === "Backspace" && !minuteValue)) {
+      e.preventDefault();
+      hourRef.current?.focus();
+      hourRef.current?.select();
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1 font-mono text-[16px] text-[#0B0B0D]">
+      <input
+        ref={hourRef}
+        type="text"
+        maxLength={2}
+        value={hourValue}
+        onChange={handleHourChange}
+        onBlur={handleHourBlur}
+        onKeyDown={handleHourKeyDown}
+        onFocus={(e) => e.target.select()}
+        className="w-8 text-center focus:outline-none bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF] rounded py-0.5 transition-colors font-semibold"
+        placeholder="HH"
+      />
+      <span className="text-[#8B8B93] font-semibold">:</span>
+      <input
+        ref={minuteRef}
+        type="text"
+        maxLength={2}
+        value={minuteValue}
+        onChange={handleMinuteChange}
+        onBlur={handleMinuteBlur}
+        onKeyDown={handleMinuteKeyDown}
+        onFocus={(e) => e.target.select()}
+        className="w-8 text-center focus:outline-none bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF] rounded py-0.5 transition-colors font-semibold"
+        placeholder="MM"
+      />
+    </div>
+  );
+}
+
 export function SingleDateTimePicker({
   selectedDate,
   startHour,
@@ -43,7 +158,6 @@ export function SingleDateTimePicker({
   endAmPm,
   onChange,
 }: SingleDateTimePickerProps) {
-  // Parse initial selected date or default to today
   const initialDateObj = useMemo(() => {
     if (!selectedDate) return new Date();
     const d = new Date(selectedDate);
@@ -62,7 +176,6 @@ export function SingleDateTimePicker({
   const selectedMonth = initialDateObj.getMonth();
   const selectedDayNum = initialDateObj.getDate();
 
-  // Navigation handlers
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -81,18 +194,15 @@ export function SingleDateTimePicker({
     }
   };
 
-  // Generate calendar grid dates (Monday-start format matching spec Image 1)
   const calendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
 
-    // Get day of week (0 = Sun, 1 = Mon ... 6 = Sat)
     let firstDayIndex = firstDayOfMonth.getDay() - 1;
-    if (firstDayIndex === -1) firstDayIndex = 6; // Sunday becomes 6
+    if (firstDayIndex === -1) firstDayIndex = 6;
 
     const daysInMonth = lastDayOfMonth.getDate();
 
-    // Previous month padding days
     const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate();
     const prevDays: { day: number; currentMonth: boolean; dateStr: string }[] = [];
     for (let i = firstDayIndex - 1; i >= 0; i--) {
@@ -103,14 +213,12 @@ export function SingleDateTimePicker({
       prevDays.push({ day: d, currentMonth: false, dateStr });
     }
 
-    // Current month days
     const currDays: { day: number; currentMonth: boolean; dateStr: string }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       currDays.push({ day: d, currentMonth: true, dateStr });
     }
 
-    // Next month padding days to complete 35 or 42 grid cells
     const totalSoFar = prevDays.length + currDays.length;
     const totalGrid = totalSoFar > 35 ? 42 : 35;
     const nextDays: { day: number; currentMonth: boolean; dateStr: string }[] = [];
@@ -129,20 +237,19 @@ export function SingleDateTimePicker({
       date: dateStr,
       startHour,
       startMinute,
-      startSecond,
+      startSecond: "00",
       startAmPm,
       endHour,
       endMinute,
-      endSecond,
+      endSecond: "00",
       endAmPm,
     });
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      {/* LEFT COLUMN: Calendar Card (Image 1 Exact Style) */}
+      {/* LEFT COLUMN: Calendar Card */}
       <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-[20px] p-6 shadow-sm">
-        {/* Month Header Navigation */}
         <div className="flex items-center justify-between mb-6">
           <button
             type="button"
@@ -166,7 +273,6 @@ export function SingleDateTimePicker({
           </button>
         </div>
 
-        {/* Weekdays Header */}
         <div className="grid grid-cols-7 gap-1 text-center mb-3">
           {WEEKDAYS.map((wd) => (
             <div key={wd} className="text-[13px] font-medium text-[#8B8B93] py-1">
@@ -175,7 +281,6 @@ export function SingleDateTimePicker({
           ))}
         </div>
 
-        {/* Calendar Days Grid */}
         <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center">
           {calendarDays.map((cell, idx) => {
             const isSelected =
@@ -207,7 +312,6 @@ export function SingleDateTimePicker({
                 >
                   {cell.day}
                 </button>
-                {/* Blue dot indicator for today when not selected */}
                 {isToday && !isSelected && (
                   <span className="w-1.5 h-1.5 bg-[#2F5CFF] rounded-full absolute bottom-0"></span>
                 )}
@@ -217,7 +321,7 @@ export function SingleDateTimePicker({
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Start & End Time Scroll Pickers (Image 2 Exact Style) */}
+      {/* RIGHT COLUMN: Start & End Time (No seconds, smooth keyboard navigation & padding) */}
       <div className="lg:col-span-5 bg-white border border-[#E6E6EA] rounded-[20px] p-6 shadow-sm space-y-6">
         <div className="flex items-center gap-2 border-b border-[#EFF0F3] pb-3">
           <Clock size={18} className="text-[#2F5CFF]" />
@@ -230,67 +334,36 @@ export function SingleDateTimePicker({
             Start time
           </label>
           <div className="bg-white border border-[#E6E6EA] rounded-[12px] px-4 py-3 flex items-center justify-between focus-within:border-[#2F5CFF] focus-within:ring-2 focus-within:ring-[#2F5CFF]/10 transition-all">
-            <div className="flex items-center gap-1 font-mono text-[16px] text-[#0B0B0D]">
-              <input
-                type="text"
-                maxLength={2}
-                value={startHour}
-                onChange={(e) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour: e.target.value,
-                    startMinute,
-                    startSecond,
-                    startAmPm,
-                    endHour,
-                    endMinute,
-                    endSecond,
-                    endAmPm,
-                  })
-                }
-                className="w-7 text-center focus:outline-none bg-transparent"
-              />
-              <span className="text-[#8B8B93]">:</span>
-              <input
-                type="text"
-                maxLength={2}
-                value={startMinute}
-                onChange={(e) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour,
-                    startMinute: e.target.value,
-                    startSecond,
-                    startAmPm,
-                    endHour,
-                    endMinute,
-                    endSecond,
-                    endAmPm,
-                  })
-                }
-                className="w-7 text-center focus:outline-none bg-transparent"
-              />
-              <span className="text-[#8B8B93]">:</span>
-              <input
-                type="text"
-                maxLength={2}
-                value={startSecond}
-                onChange={(e) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour,
-                    startMinute,
-                    startSecond: e.target.value,
-                    startAmPm,
-                    endHour,
-                    endMinute,
-                    endSecond,
-                    endAmPm,
-                  })
-                }
-                className="w-7 text-center text-[#8B8B93] focus:outline-none bg-transparent text-[14px]"
-              />
-            </div>
+            <TimeInputGroup
+              hourValue={startHour}
+              minuteValue={startMinute}
+              onChangeHour={(h) =>
+                onChange({
+                  date: selectedDate,
+                  startHour: h,
+                  startMinute,
+                  startSecond: "00",
+                  startAmPm,
+                  endHour,
+                  endMinute,
+                  endSecond: "00",
+                  endAmPm,
+                })
+              }
+              onChangeMinute={(m) =>
+                onChange({
+                  date: selectedDate,
+                  startHour,
+                  startMinute: m,
+                  startSecond: "00",
+                  startAmPm,
+                  endHour,
+                  endMinute,
+                  endSecond: "00",
+                  endAmPm,
+                })
+              }
+            />
 
             <div className="relative flex items-center gap-1">
               <select
@@ -300,11 +373,11 @@ export function SingleDateTimePicker({
                     date: selectedDate,
                     startHour,
                     startMinute,
-                    startSecond,
+                    startSecond: "00",
                     startAmPm: e.target.value,
                     endHour,
                     endMinute,
-                    endSecond,
+                    endSecond: "00",
                     endAmPm,
                   })
                 }
@@ -324,67 +397,36 @@ export function SingleDateTimePicker({
             End time
           </label>
           <div className="bg-white border border-[#E6E6EA] rounded-[12px] px-4 py-3 flex items-center justify-between focus-within:border-[#2F5CFF] focus-within:ring-2 focus-within:ring-[#2F5CFF]/10 transition-all">
-            <div className="flex items-center gap-1 font-mono text-[16px] text-[#0B0B0D]">
-              <input
-                type="text"
-                maxLength={2}
-                value={endHour}
-                onChange={(e) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour,
-                    startMinute,
-                    startSecond,
-                    startAmPm,
-                    endHour: e.target.value,
-                    endMinute,
-                    endSecond,
-                    endAmPm,
-                  })
-                }
-                className="w-7 text-center focus:outline-none bg-transparent"
-              />
-              <span className="text-[#8B8B93]">:</span>
-              <input
-                type="text"
-                maxLength={2}
-                value={endMinute}
-                onChange={(e) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour,
-                    startMinute,
-                    startSecond,
-                    startAmPm,
-                    endHour,
-                    endMinute: e.target.value,
-                    endSecond,
-                    endAmPm,
-                  })
-                }
-                className="w-7 text-center focus:outline-none bg-transparent"
-              />
-              <span className="text-[#8B8B93]">:</span>
-              <input
-                type="text"
-                maxLength={2}
-                value={endSecond}
-                onChange={(e) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour,
-                    startMinute,
-                    startSecond,
-                    startAmPm,
-                    endHour,
-                    endMinute,
-                    endSecond: e.target.value,
-                    endAmPm,
-                  })
-                }
-                className="w-7 text-center text-[#8B8B93] focus:outline-none bg-transparent text-[14px]"
-              />
-            </div>
+            <TimeInputGroup
+              hourValue={endHour}
+              minuteValue={endMinute}
+              onChangeHour={(h) =>
+                onChange({
+                  date: selectedDate,
+                  startHour,
+                  startMinute,
+                  startSecond: "00",
+                  startAmPm,
+                  endHour: h,
+                  endMinute,
+                  endSecond: "00",
+                  endAmPm,
+                })
+              }
+              onChangeMinute={(m) =>
+                onChange({
+                  date: selectedDate,
+                  startHour,
+                  startMinute,
+                  startSecond: "00",
+                  startAmPm,
+                  endHour,
+                  endMinute: m,
+                  endSecond: "00",
+                  endAmPm,
+                })
+              }
+            />
 
             <div className="relative flex items-center gap-1">
               <select
@@ -394,11 +436,11 @@ export function SingleDateTimePicker({
                     date: selectedDate,
                     startHour,
                     startMinute,
-                    startSecond,
+                    startSecond: "00",
                     startAmPm,
                     endHour,
                     endMinute,
-                    endSecond,
+                    endSecond: "00",
                     endAmPm: e.target.value,
                   })
                 }
@@ -412,7 +454,7 @@ export function SingleDateTimePicker({
           </div>
         </div>
 
-        {/* Quick Time Window Preset Chips */}
+        {/* Quick Presets */}
         <div className="pt-2">
           <label className="block text-[11px] font-mono uppercase tracking-wider text-[#8B8B93] mb-2 font-semibold">
             Quick Duration Presets
