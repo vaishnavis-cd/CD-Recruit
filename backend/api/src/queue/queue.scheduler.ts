@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { QueueProviderPort } from "./queue-provider.port";
+import { BullmqQueueProvider } from "./bullmq-queue.provider";
 
 @Injectable()
 export class QueueScheduler implements OnModuleInit {
@@ -8,7 +8,7 @@ export class QueueScheduler implements OnModuleInit {
   private static readonly SCAN_INTERVAL_MS = 10_000;
 
   constructor(
-    private readonly queueProvider: QueueProviderPort,
+    private readonly queueProvider: BullmqQueueProvider,
   ) {}
 
   async onModuleInit(): Promise<void> {

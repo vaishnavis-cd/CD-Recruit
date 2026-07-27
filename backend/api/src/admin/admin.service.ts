@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
+import { MinioService } from "../integrations/minio/minio.service";
 import { ConfigService } from "@nestjs/config";
 import {
   SessionListItem,
@@ -28,7 +28,7 @@ export class AdminService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: ObjectStoragePort,
+    private readonly storage: MinioService,
     private readonly configService: ConfigService,
   ) {
     this.bucketBiometric = this.configService.get<string>(
@@ -265,7 +265,7 @@ export class AdminService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    // Map and fetch presigned URLs for evidence clips
+    // Map and fetch presigned URLs for integrityFlags
     const mappedFlags = await Promise.all(
       session.integrityFlags.map(async (flag) => {
         let evidenceClipUrl: string | null = null;
@@ -277,12 +277,15 @@ export class AdminService {
         }
 
         return {
+          id: flag.id,
           flagId: flag.id,
           category: flag.category,
           severity: flag.severity as FlagSeverity,
           confidence: flag.confidence,
           flaggedAt: flag.flaggedAt.toISOString(),
           evidenceClipUrl,
+          clipUrl: evidenceClipUrl,
+          storageRef: evidenceClipUrl,
           disposition: flag.disposition as FlagDisposition | null,
           dispositionAt: flag.dispositionAt
             ? flag.dispositionAt.toISOString()
@@ -291,6 +294,50 @@ export class AdminService {
         };
       }),
     );
+
+    // Fetch raw proctoring events with video evidence clips uploaded to MinIO
+    const proctoringEvents = await this.prisma.proctoringEvent.findMany({
+      where: { sessionId: session.id },
+      orderBy: { timestamp: "asc" },
+    });
+
+    const mappedEventFlags = await Promise.all(
+      proctoringEvents.map(async (evt) => {
+        let clipUrl: string | null = null;
+        if (evt.clipUrl) {
+          try {
+            clipUrl = await this.storage.getSignedUrl(
+              this.bucketBiometric,
+              evt.clipUrl,
+            );
+          } catch (err: any) {
+            console.warn(`Failed to get signed URL for clip ${evt.clipUrl}: ${err.message}`);
+          }
+        }
+        return {
+          id: evt.id,
+          flagId: evt.id,
+          category: evt.eventType,
+          severity: evt.severity || "MEDIUM",
+          confidence: 0.95,
+          flaggedAt: evt.timestamp.toISOString(),
+          evidenceClipUrl: clipUrl,
+          clipUrl: clipUrl,
+          storageRef: clipUrl,
+          disposition: null,
+          dispositionAt: null,
+          dispositionById: null,
+        };
+      }),
+    );
+
+    // Combine and deduplicate flags so all video evidence clips appear in candidate detail
+    const combinedFlags = [...mappedFlags];
+    for (const evtFlag of mappedEventFlags) {
+      if (!combinedFlags.some((f) => f.id === evtFlag.id || f.flagId === evtFlag.id)) {
+        combinedFlags.push(evtFlag as any);
+      }
+    }
 
     const mappedResponses = session.moduleResponses.map((res) => ({
       moduleResponseId: res.id,
@@ -321,7 +368,7 @@ export class AdminService {
       deadlineAt: session.deadlineAt ? session.deadlineAt.toISOString() : null,
       disconnectCount: session.disconnectCount,
       moduleResponses: mappedResponses,
-      integrityFlags: mappedFlags,
+      integrityFlags: combinedFlags,
       score: session.score
         ? {
             compositeScore: session.score.compositeScore,

@@ -14,8 +14,8 @@ import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
-import { ObjectStoragePort } from "@app/integrations/storage/object-storage.port";
-import { QueueProviderPort } from "@app/queue/queue-provider.port";
+import { MinioService } from "@app/integrations/minio/minio.service";
+import { BullmqQueueProvider } from "@app/queue/bullmq-queue.provider";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -127,8 +127,8 @@ export class SessionService {
     private readonly auth: AuthService,
     private readonly candidate: CandidateService,
     private readonly config: ConfigService<AppConfig, true>,
-    private readonly minio: ObjectStoragePort,
-    private readonly queueProvider: QueueProviderPort,
+    private readonly minio: MinioService,
+    private readonly queueProvider: BullmqQueueProvider,
     private readonly lifecycleService: SessionLifecycleService,
     private readonly stateMachine: SessionStateMachine,
     private readonly scoringService: SessionScoringService,

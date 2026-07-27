@@ -1,10 +1,9 @@
 import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as Minio from "minio";
-import { ObjectStoragePort } from "../storage/object-storage.port";
 
 @Injectable()
-export class MinioService extends ObjectStoragePort implements OnModuleInit {
+export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
   private minioClient: Minio.Client | null = null;
   private bucketBiometric: string;
@@ -12,7 +11,6 @@ export class MinioService extends ObjectStoragePort implements OnModuleInit {
   public storageHealthy = false;
 
   constructor(private readonly configService: ConfigService) {
-    super();
     this.bucketBiometric =
       this.configService.get<string>("minio.bucketBiometric") ??
       this.configService.get<string>("app.minio.bucketBiometric") ??
