@@ -4,7 +4,7 @@ import { SessionStatus } from "@prisma/client";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AppConfig } from "@app/config/configuration";
 import { SessionService } from "@app/session/session.service";
-import { ObjectStoragePort } from "@app/integrations/storage/object-storage.port";
+import { MinioService } from "@app/integrations/minio/minio.service";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -18,7 +18,7 @@ export class HeartbeatService {
     private readonly prisma: PrismaService,
     private readonly sessionService: SessionService,
     private readonly config: ConfigService<AppConfig, true>,
-    private readonly storage: ObjectStoragePort,
+    private readonly storage: MinioService,
   ) {
     this.staleThresholdSeconds = this.config.get(
       "heartbeatStaleThresholdSeconds",

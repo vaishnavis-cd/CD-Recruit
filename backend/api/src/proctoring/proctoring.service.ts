@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
-import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
+import { MinioService } from "../integrations/minio/minio.service";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
 import { SessionStatus } from "@prisma/client";
 import { buildEvidenceKey } from "../common/utils/storage-key.util";
@@ -33,7 +33,7 @@ export class ProctoringService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: ObjectStoragePort,
+    private readonly storage: MinioService,
     private readonly config: ConfigService,
   ) {
     this.bucketBiometric =
