@@ -116,6 +116,7 @@ export class AdminService {
             include: { staff: true },
           },
           integrityFlags: true,
+          proctoringEvents: true,
         },
       }),
       this.prisma.session.count({ where }),
@@ -159,6 +160,9 @@ export class AdminService {
         session.score.aiConfidence >= 0 &&   // exclude -1.0 sentinel (unscored)
         session.score.aiConfidence < 0.8;
 
+      const flagCount = (session.integrityFlags ? session.integrityFlags.length : 0) +
+        ((session as any).proctoringEvents ? (session as any).proctoringEvents.length : 0);
+
       return {
         sessionId: session.id,
         candidateName: session.candidate.name,
@@ -176,7 +180,7 @@ export class AdminService {
         compositeScore,
         sayDoConsistencyScore,
         humanReviewRequired,
-        integrityFlagsCount: session.integrityFlags ? session.integrityFlags.length : 0,
+        integrityFlagsCount: flagCount,
         decision: session.reviewerDecision
           ? ({
               outcome: session.reviewerDecision.decision as any,
@@ -214,6 +218,7 @@ export class AdminService {
             evidenceClip: true,
           },
         },
+        proctoringEvents: true,
         score: true,
         reviewerDecision: {
           include: {
@@ -250,6 +255,7 @@ export class AdminService {
                 evidenceClip: true,
               },
             },
+            proctoringEvents: true,
             score: true,
             reviewerDecision: {
               include: {
@@ -331,6 +337,7 @@ export class AdminService {
       }),
     );
 
+<<<<<<< HEAD
     // Combine and deduplicate flags so all video evidence clips appear in candidate detail
     const combinedFlags = [...mappedFlags];
     for (const evtFlag of mappedEventFlags) {
@@ -338,6 +345,9 @@ export class AdminService {
         combinedFlags.push(evtFlag as any);
       }
     }
+=======
+    const mappedFlags = [...mappedFlagsFromIntegrity, ...mappedFlagsFromProctoring];
+>>>>>>> final
 
     const mappedResponses = session.moduleResponses.map((res) => ({
       moduleResponseId: res.id,
