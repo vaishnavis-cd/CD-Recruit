@@ -7,6 +7,7 @@ import { useTheme } from '../../theme/ThemeProvider'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 import { services } from '../../services'
+import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
 
 let sqlPromise: Promise<any> | null = null
 
@@ -165,6 +166,27 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }
 
+  const handlePaste = (data: any) => {
+    const targetSessionId = assessment?.sessionId || useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId
+    if (targetSessionId) {
+      try {
+        ProctoringEventService.getInstance().createEvent({
+          sessionId: targetSessionId,
+          eventType: 'PASTE' as any,
+          severity: 'MEDIUM' as any,
+          timestamp: new Date(data.timestamp).toISOString(),
+          metadata: {
+            charCount: data.length,
+            textSnippet: data.text?.slice(0, 100),
+            questionId: questionId,
+          },
+        })
+      } catch (err) {
+        console.warn('Failed to record SQL paste event:', err)
+      }
+    }
+  }
+
   async function handleRun() {
     if (!query.trim()) return
     setRunning(true)
@@ -213,7 +235,11 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             error: res.data.result?.error,
           })
         }
-      }).catch(() => {})
+      } catch (err: any) {
+        const backendMsg = err.response?.data?.message || err.message
+        console.error('[SQLModule] Backend run error:', backendMsg)
+        setError(backendMsg)
+      }
     }
 
     setRunning(false)
@@ -289,6 +315,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
               language="sql"
               value={query}
               onChange={handleQueryChange}
+              onPaste={handlePaste}
               theme={theme === 'dark' ? 'dark' : 'light'}
             />
           )}
