@@ -7,7 +7,7 @@ import { ProctoringEventService } from '../../proctoring/proctoring-event.servic
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 import { StatusChip } from '../../components/common/StatusChip'
-import { Loader2, Sparkles, Lightbulb } from 'lucide-react'
+import { Loader2, Sparkles, Lightbulb, ChevronLeft } from 'lucide-react'
 
 interface PromptingModuleProps {
   moduleIndex: number
@@ -335,9 +335,10 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-1.5"
           >
-            ← Previous
+            <ChevronLeft size={14} />
+            <span>Previous</span>
           </button>
           <button
             onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}

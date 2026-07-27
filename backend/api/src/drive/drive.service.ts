@@ -15,7 +15,7 @@ import {
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
-import { InviteStatus } from "@prisma/client";
+import { InviteStatus, SessionStatus } from "@prisma/client";
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
@@ -113,11 +113,11 @@ export class DriveService {
         },
       });
 
-      // Link published questions matching enabled modules
-      if (enabledModules.length > 0) {
+      // Link explicitly selected questions if provided by admin
+      if (dto.questionIds && Array.isArray(dto.questionIds) && dto.questionIds.length > 0) {
         const questionsToLink = await tx.question.findMany({
           where: {
-            moduleType: { in: enabledModules as any },
+            id: { in: dto.questionIds },
             status: "PUBLISHED",
           },
         });
@@ -364,32 +364,6 @@ export class DriveService {
           moduleType: { notIn: enabledModules as any },
         },
       });
-
-      if (enabledModules.length > 0) {
-        const questionsToLink = await this.prisma.question.findMany({
-          where: {
-            moduleType: { in: enabledModules as any },
-            status: "PUBLISHED",
-          },
-        });
-
-        for (const q of questionsToLink) {
-          await this.prisma.driveQuestion.upsert({
-            where: {
-              driveId_questionId: {
-                driveId,
-                questionId: q.id,
-              },
-            },
-            create: {
-              driveId,
-              questionId: q.id,
-              moduleType: q.moduleType,
-            },
-            update: {},
-          });
-        }
-      }
     }
 
     // Create Audit Log
@@ -781,5 +755,100 @@ export class DriveService {
     });
 
     return { count: ungeneratedInvites.length };
+  }
+
+  async removeCandidateFromDrive(
+    driveId: string,
+    candidateId: string,
+    staffId: string,
+  ) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    // Find invites for this candidate in this drive
+    const invites = await this.prisma.invite.findMany({
+      where: {
+        driveId,
+        OR: [
+          { id: candidateId },
+          { candidateEmail: candidateId },
+        ],
+      },
+    });
+
+    let targetCandidateId = candidateId;
+    let candidateEmails: string[] = invites.map((i) => i.candidateEmail).filter(Boolean);
+
+    if (invites.length === 0) {
+      const candidateRecord = await this.prisma.candidate.findFirst({
+        where: { OR: [{ id: candidateId }, { email: candidateId }] },
+      });
+      if (candidateRecord) {
+        targetCandidateId = candidateRecord.id;
+        candidateEmails = [candidateRecord.email];
+        const matching = await this.prisma.invite.findMany({
+          where: { driveId, candidateEmail: candidateRecord.email },
+        });
+        invites.push(...matching);
+      }
+    }
+
+    if (invites.length === 0) {
+      throw new NotFoundException("No matching candidate invite found for this drive.");
+    }
+
+    const inviteIds = Array.from(new Set(invites.map((i) => i.id)));
+
+    // Resolve candidate IDs to update session statuses
+    const candidateRecords = await this.prisma.candidate.findMany({
+      where: {
+        OR: [
+          { id: targetCandidateId },
+          { email: { in: candidateEmails } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const candidateIds = Array.from(
+      new Set([targetCandidateId, ...candidateRecords.map((c) => c.id)].filter(Boolean))
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      // Abandon any active/unsubmitted sessions for these candidates in this drive
+      if (candidateIds.length > 0) {
+        await tx.session.updateMany({
+          where: {
+            driveId,
+            candidateId: { in: candidateIds },
+            status: { in: [SessionStatus.NOT_STARTED, SessionStatus.IN_PROGRESS, SessionStatus.DISCONNECTED] },
+          },
+          data: { status: SessionStatus.ABANDONED },
+        });
+      }
+
+      // Delete the invite records
+      await tx.invite.deleteMany({
+        where: { id: { in: inviteIds } },
+      });
+
+      // Log audit
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "DRIVE_CANDIDATE_REMOVED",
+          entityType: "Drive",
+          entityId: driveId,
+          metadata: { candidateId, inviteIds, candidateEmails },
+        },
+      });
+    });
+
+    return { success: true, count: inviteIds.length };
   }
 }

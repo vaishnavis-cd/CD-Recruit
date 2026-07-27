@@ -139,14 +139,16 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster
-        position="bottom-right"
+        position="top-center"
         duration={4000}
         toastOptions={{
+          style: { fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)' },
           classNames: {
-            toast: "!bg-white !text-[#0B0B0D] !border !border-[#E6E6EA] !shadow-lg !rounded-[10px] !text-[13px] !font-medium",
-            success: "!border-[#C6F4E7] !bg-[#F0FBF7]",
-            error: "!border-[#FECACA] !bg-[#FFF5F5]",
-            info: "!border-[#DBEAFE] !bg-[#EFF6FF]",
+            toast: "!bg-white !text-[#0B0B0D] !border-2 !shadow-xl !rounded-[12px] !text-[13px] !font-medium font-sans flex items-center gap-2",
+            success: "!border-[#12B76A] !bg-[#F0FDF4] !text-[#027A48]",
+            error: "!border-[#E5484D] !bg-[#FFF5F5] !text-[#B42318]",
+            warning: "!border-[#F59E0B] !bg-[#FFFBEB] !text-[#B45309]",
+            info: "!border-[#2F5CFF] !bg-[#EFF6FF] !text-[#1E40AF]",
             description: "!text-[#5B5B64] !text-[12px]",
           },
         }}

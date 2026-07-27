@@ -8,6 +8,7 @@ import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 import { services } from '../../services'
 import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
+import { ChevronLeft } from 'lucide-react'
 
 let sqlPromise: Promise<any> | null = null
 
@@ -222,11 +223,12 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
 
     if (assessment?.sessionId && question) {
-      apiClient.post('/sql/run', {
-        sessionId: assessment.sessionId,
-        questionId: question.id,
-        query,
-      }).then(res => {
+      try {
+        const res = await apiClient.post('/sql/run', {
+          sessionId: assessment.sessionId,
+          questionId: question.id,
+          query,
+        })
         if (res.data) {
           setEvalResult({
             passed: !!res.data.passed,
@@ -357,9 +359,10 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1"
+            className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1.5"
           >
-            ← Prev
+            <ChevronLeft size={14} />
+            <span>Prev</span>
           </button>
           <button
             onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}

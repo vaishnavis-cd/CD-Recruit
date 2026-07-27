@@ -116,4 +116,13 @@ export class DriveController {
   ) {
     return this.driveService.generateLinks(driveId, actor.id);
   }
+
+  @Delete(":driveId/candidates/:candidateId")
+  async removeCandidate(
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @Param("candidateId") candidateId: string,
+    @CurrentUser() actor: any,
+  ) {
+    return this.driveService.removeCandidateFromDrive(driveId, candidateId, actor.id);
+  }
 }
