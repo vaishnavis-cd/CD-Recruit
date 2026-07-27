@@ -42,7 +42,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
     ? session.durationMinutes
     : assessment?.totalSeconds
     ? Math.round(assessment.totalSeconds / 60)
-    : TOTAL_ASSESSMENT_MINUTES
+    : 60
 
   const formattedTimerDisplay = `${allocatedMinutes}:00`
 

@@ -337,7 +337,6 @@ export class AdminService {
       }),
     );
 
-<<<<<<< HEAD
     // Combine and deduplicate flags so all video evidence clips appear in candidate detail
     const combinedFlags = [...mappedFlags];
     for (const evtFlag of mappedEventFlags) {
@@ -345,21 +344,28 @@ export class AdminService {
         combinedFlags.push(evtFlag as any);
       }
     }
-=======
-    const mappedFlags = [...mappedFlagsFromIntegrity, ...mappedFlagsFromProctoring];
->>>>>>> final
 
-    const mappedResponses = session.moduleResponses.map((res) => ({
-      moduleResponseId: res.id,
-      questionId: res.questionId,
-      moduleType: res.question.moduleType as ModuleType,
-      responsePayload: res.responsePayload as any,
-      timeSpentSeconds: res.timeSpentSeconds,
-      isDraft: res.isDraft,
-      lastAutosavedAt: res.lastAutosavedAt
-        ? res.lastAutosavedAt.toISOString()
-        : null,
-    }));
+    const mappedResponses = session.moduleResponses.map((res) => {
+      const qContent = (res.question?.content as any) || {};
+      return {
+        moduleResponseId: res.id,
+        questionId: res.questionId,
+        moduleType: res.question.moduleType as ModuleType,
+        responsePayload: res.responsePayload as any,
+        timeSpentSeconds: res.timeSpentSeconds,
+        isDraft: res.isDraft,
+        lastAutosavedAt: res.lastAutosavedAt
+          ? res.lastAutosavedAt.toISOString()
+          : null,
+        question: {
+          id: res.question.id,
+          prompt: qContent.prompt || qContent.title || qContent.text || qContent.question || "Question",
+          options: qContent.options || [],
+          correctOption: qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? null,
+          content: qContent,
+        },
+      };
+    });
 
     return {
       sessionId: session.id,

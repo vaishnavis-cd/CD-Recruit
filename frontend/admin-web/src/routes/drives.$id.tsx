@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import {
@@ -28,6 +28,9 @@ import {
   Bug,
   Bot,
   Play,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
   Sparkles,
   Award,
   Save,
@@ -49,6 +52,37 @@ export const Route = createFileRoute("/drives/$id")({
     ],
   }),
 });
+
+// Helper to filter out module subtags and restrict drive tags to last 3
+export function processQuestionTags(tags?: string[], moduleType?: string) {
+  if (!tags || !Array.isArray(tags)) return { displayTags: [], hiddenDriveCount: 0 };
+  const modClean = (moduleType || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const filtered = tags.filter((t) => {
+    const clean = (t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    return clean !== modClean;
+  });
+
+  const driveTags: string[] = [];
+  const otherTags: string[] = [];
+
+  filtered.forEach((t) => {
+    const lower = t.toLowerCase();
+    if (lower.startsWith("#drive:") || lower.startsWith("drive:")) {
+      driveTags.push(t);
+    } else {
+      otherTags.push(t);
+    }
+  });
+
+  const visibleDriveTags = driveTags.slice(-3);
+  const hiddenDriveCount = Math.max(0, driveTags.length - 3);
+
+  return {
+    displayTags: [...otherTags, ...visibleDriveTags],
+    hiddenDriveCount,
+  };
+}
 
 // Helper functions for 12-hour AM/PM time conversions
 function isoToAmPm(isoString?: string | null) {
@@ -83,6 +117,7 @@ function amPmToIso(date: string, hour: string, minute: string, ampm: string) {
 
 function DriveDetailPage() {
   const { id: driveId } = Route.useParams();
+  const navigate = useNavigate();
   const fetchDriveDetail = useStore((s) => s.fetchDriveDetail);
   const revokeInvite = useStore((s) => s.revokeInvite);
   const extendExpiry = useStore((s) => s.extendExpiry);
@@ -92,6 +127,7 @@ function DriveDetailPage() {
   const saveDriveQuestions = useStore((s) => s.saveDriveQuestions);
   const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
+  const removeCandidateFromDrive = useStore((s) => s.removeCandidateFromDrive);
 
   const [drive, setDrive] = useState<DriveDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,12 +152,12 @@ function DriveDetailPage() {
   const [endAmPm, setEndAmPm] = useState("PM");
 
   // Module Config State (6 Modules)
-  const [moduleConfig, setModuleConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
+  const [moduleConfig, setModuleConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number; questionSource?: string }>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
     SQL: { enabled: true, durationMinutes: 20, weight: 20 },
     CODING: { enabled: true, durationMinutes: 30, weight: 25 },
     DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
-    AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10 },
+    AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, questionSource: "AI_DYNAMIC" },
     SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
   });
 
@@ -158,6 +194,23 @@ function DriveDetailPage() {
 
   // Confirmation Modal States
   const [confirmGenerateLinks, setConfirmGenerateLinks] = useState(false);
+  const [candidateToRemove, setCandidateToRemove] = useState<any | null>(null);
+  const [removingCandidate, setRemovingCandidate] = useState(false);
+
+  const handleConfirmRemoveCandidate = async () => {
+    if (!candidateToRemove || !driveId) return;
+    setRemovingCandidate(true);
+    try {
+      await removeCandidateFromDrive(driveId, candidateToRemove.candidateId);
+      toast.success(`Removed ${candidateToRemove.candidateName} from candidate roster.`);
+      setCandidateToRemove(null);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove candidate");
+    } finally {
+      setRemovingCandidate(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -246,10 +299,76 @@ function DriveDetailPage() {
     toast.success("Scoring weights auto-balanced to sum to 100 points!");
   };
 
-  const handleSaveConfiguration = async () => {
+  // Schedule & DateTime Edge Case Validations
+  const validateDateTimeConfig = (): { valid: boolean; error?: string } => {
+    if (!startDate) {
+      return { valid: false, error: "Please select a schedule date on the calendar." };
+    }
+    const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
+    const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
+
+    if (!startIso || !endIso) {
+      return { valid: false, error: "Invalid date or time selection." };
+    }
+
+    const startDateObj = new Date(startIso);
+    const endDateObj = new Date(endIso);
+    const now = new Date();
+
+    if (startDateObj < now) {
+      return {
+        valid: false,
+        error: "Schedule start date & time cannot be in the past. Please select a valid future date and time.",
+      };
+    }
+
+    if (endDateObj <= startDateObj) {
+      return {
+        valid: false,
+        error: "Schedule end time must be strictly after the start time.",
+      };
+    }
+
+    return { valid: true };
+  };
+
+  const isScheduleDateValid = useMemo(() => {
+    return validateDateTimeConfig().valid;
+  }, [startDate, endDate, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm]);
+
+  const hasQuestionsSelected = useMemo(() => {
+    return assignedQuestions.length > 0;
+  }, [assignedQuestions]);
+
+  const hasCandidatesSelected = useMemo(() => {
+    return (drive?.roster?.length || 0) > 0;
+  }, [drive]);
+
+  const isScheduleUnlocked = useMemo(() => {
+    return isScheduleDateValid && hasQuestionsSelected && hasCandidatesSelected;
+  }, [isScheduleDateValid, hasQuestionsSelected, hasCandidatesSelected]);
+
+  const handleSaveAndNext = async () => {
+    const val = validateDateTimeConfig();
+    if (!val.valid) {
+      toast.error(val.error);
+      return;
+    }
+
+    const enabledMods = Object.values(moduleConfig).filter((m) => m.enabled);
+    if (enabledMods.length === 0) {
+      toast.error("At least one assessment module must be enabled.");
+      return;
+    }
+
+    if (totalWeightSum !== 100) {
+      toast.error(`Module score weights currently sum to ${totalWeightSum} pts. Please click 'Auto-Balance Weights' so total equals 100 pts.`);
+      return;
+    }
+
     try {
       const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
-      const endIso = amPmToIso(endDate, endHour, endMinute, endAmPm);
+      const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
 
       const headers = await getAuthHeaders();
       const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
@@ -269,8 +388,9 @@ function DriveDetailPage() {
         throw new Error(err.message || "Failed to save configuration");
       }
 
-      toast.success("Drive configuration saved successfully!");
+      toast.success("Drive configuration saved! Moving to Questions page...");
       loadData();
+      setActiveTab("questions");
     } catch (err: any) {
       toast.error("Failed saving configuration: " + (err.message || err));
     }
@@ -300,6 +420,18 @@ function DriveDetailPage() {
       setSavedAssignedQuestions([...assignedQuestions]);
       toast.success("Assigned questions saved!");
       loadData();
+    } catch (err: any) {
+      toast.error("Failed saving questions: " + err.message);
+    }
+  };
+
+  const handleSaveQuestionsAndNext = async () => {
+    try {
+      await saveDriveQuestions(driveId, assignedQuestions);
+      setSavedAssignedQuestions([...assignedQuestions]);
+      toast.success("Assigned questions saved! Moving to Candidate Roster...");
+      loadData();
+      setActiveTab("roster");
     } catch (err: any) {
       toast.error("Failed saving questions: " + err.message);
     }
@@ -412,14 +544,34 @@ function DriveDetailPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/drives"
-            className="px-3 py-1.5 text-[12px] font-semibold text-[#5B5B64] hover:text-[#0B0B0D] bg-white border border-[#E6E6EA] rounded-md transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#5B5B64] hover:text-[#0B0B0D] bg-white border border-[#E6E6EA] rounded-md transition-colors"
           >
-            ← Back to Drives
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Back to Drives</span>
           </Link>
           <button
-            onClick={() => setConfirmGenerateLinks(true)}
+            onClick={() => {
+              if (isScheduleUnlocked) {
+                setConfirmGenerateLinks(true);
+              } else {
+                const reasons: string[] = [];
+                if (!isScheduleDateValid) reasons.push("valid future date & time");
+                if (!hasQuestionsSelected) reasons.push("at least 1 question assigned");
+                if (!hasCandidatesSelected) reasons.push("at least 1 candidate roster item");
+                toast.error(`Drive scheduling locked. Requirements needed: ${reasons.join(", ")}.`);
+              }
+            }}
             disabled={generating}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+            className={`flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold text-white rounded-md transition-all shadow-sm ${
+              isScheduleUnlocked && !generating
+                ? "bg-[#2F5CFF] hover:bg-[#0037FF] cursor-pointer"
+                : "bg-[#8B8B93] opacity-60 cursor-not-allowed"
+            }`}
+            title={
+              !isScheduleUnlocked
+                ? "Requires valid future date/time, at least 1 assigned question, and at least 1 candidate in roster"
+                : "Schedule drive and generate candidate links"
+            }
           >
             <Sparkles size={14} /> Schedule &amp; Generate Links
           </button>
@@ -449,7 +601,7 @@ function DriveDetailPage() {
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="CLOSED">CLOSED</option>
               </select>
-              <span className="pointer-events-none absolute right-2 text-[9px] text-current opacity-70">▼</span>
+              
             </div>
           </div>
           <p className="text-[12px] text-[#5B5B64]">
@@ -489,21 +641,7 @@ function DriveDetailPage() {
         <div className="space-y-6">
           {/* SECTION 1: Single Calendar Date & Start/End Time Window Picker */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between bg-white border border-[#E6E6EA] p-4 rounded-[16px] shadow-sm">
-              <div>
-                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Schedule Date & Assessment Window</h3>
-                <p className="text-[12px] text-[#5B5B64]">Select the drive date on the calendar, set the start/end time, and save your schedule.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleSaveConfiguration}
-                className="flex items-center gap-2 px-4 py-2 bg-[#2F5CFF] hover:bg-[#1A44D6] text-white font-semibold text-[13px] rounded-[10px] shadow-md transition-colors cursor-pointer"
-              >
-                <Save size={16} />
-                Save Schedule & Config
-              </button>
-            </div>
-
+      
             <SingleDateTimePicker
               selectedDate={startDate || endDate || new Date().toISOString().slice(0, 10)}
               startHour={startHour}
@@ -627,12 +765,43 @@ function DriveDetailPage() {
                             className="w-full px-2 py-1 border border-[#E6E6EA] rounded font-mono text-[12px]"
                           />
                         </div>
+
+                        {mod.id === "AI_PROMPTING" && (
+                          <div className="col-span-2 pt-2 border-t border-[#EFF0F3]">
+                            <label className="block text-[#5B5B64] font-medium mb-1 text-[11px]">Question &amp; Validation Source</label>
+                            <select
+                              value={(conf as any).questionSource || "AI_DYNAMIC"}
+                              onChange={(e) =>
+                                setModuleConfig({
+                                  ...moduleConfig,
+                                  [mod.id]: { ...conf, questionSource: e.target.value },
+                                })
+                              }
+                              className="w-full px-2 py-1.5 border border-[#E6E6EA] rounded font-sans text-[12px] bg-white text-[#0B0B0D] cursor-pointer"
+                            >
+                              <option value="AI_DYNAMIC">🤖 AI-Generated Questions &amp; Autonomous AI Validation</option>
+                              <option value="STATIC_BANK">📚 Static Question Bank (Pre-authored Questions &amp; Rules)</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
+          </div>
+
+          {/* BOTTOM ACTION BUTTON: Save & Next -> */}
+          <div className="flex justify-start pt-2">
+            <button
+              type="button"
+              onClick={handleSaveAndNext}
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#2F5CFF] hover:bg-[#1A44D6] text-white font-semibold text-[14px] rounded-[10px] shadow-md transition-colors cursor-pointer"
+            >
+              <span>Save &amp; Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
@@ -645,22 +814,25 @@ function DriveDetailPage() {
               <div>
                 <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Question Bank Assignment</h3>
                 <p className="text-[12px] text-[#5B5B64] mt-0.5">
-                  Select and assign questions from the central question library.
+                  Select and assign questions from the central question library or import via CSV.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleDownloadSampleQuestions}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded cursor-pointer"
+                  onClick={() => {
+                    navigate({
+                      to: "/questions",
+                      search: {
+                        fromDriveId: driveId,
+                        driveName: drive.name,
+                        autoBulk: "true",
+                      } as any,
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D9E4FF] border border-[#B3C5FF] rounded-md transition-colors cursor-pointer"
                 >
-                  <Download size={13} /> Sample Question CSV
-                </button>
-                <button
-                  onClick={handleSaveQuestions}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded shadow-sm transition-colors cursor-pointer"
-                >
-                  <Check size={14} /> Save Question Assignments ({assignedQuestions.length})
+                  <Upload size={14} /> Bulk Import Questions
                 </button>
               </div>
             </div>
@@ -726,6 +898,8 @@ function DriveDetailPage() {
                   const isSelected = assignedQuestions.includes(q.id);
                   const title = q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
                   const difficulty = q.difficulty || "MEDIUM";
+                  const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+
                   return (
                     <div
                       key={q.id}
@@ -752,13 +926,18 @@ function DriveDetailPage() {
                             >
                               {difficulty}
                             </span>
-                            {q.tags && q.tags.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                {q.tags.slice(0, 3).map((tag: string) => (
-                                  <span key={tag} className="text-[10px] text-[#8B8B93] bg-[#EFF0F3] px-1.5 py-0.2 rounded">
+                            {displayTags.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {displayTags.map((tag: string) => (
+                                  <span key={tag} className="text-[10px] text-[#8B8B93] bg-[#EFF0F3] px-1.5 py-0.2 rounded font-mono">
                                     #{tag}
                                   </span>
                                 ))}
+                                {hiddenDriveCount > 0 && (
+                                  <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-1.5 py-0.2 rounded font-semibold">
+                                    +{hiddenDriveCount} more drives
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -792,6 +971,18 @@ function DriveDetailPage() {
                 })
               )}
             </div>
+          </div>
+
+          {/* BOTTOM ACTION BUTTON: Save & Next -> */}
+          <div className="flex justify-start pt-2">
+            <button
+              type="button"
+              onClick={handleSaveQuestionsAndNext}
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#2F5CFF] hover:bg-[#1A44D6] text-white font-semibold text-[14px] rounded-[10px] shadow-md transition-colors cursor-pointer"
+            >
+              <span>Save &amp; Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
@@ -884,15 +1075,25 @@ function DriveDetailPage() {
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          {c.sessionId && (
-                            <Link
-                              to="/results/$id"
-                              params={{ id: c.sessionId }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded hover:bg-[#D9E4FF] transition-colors"
+                          <div className="flex items-center justify-end gap-2">
+                            {c.sessionId && (
+                              <Link
+                                to="/results/$id"
+                                params={{ id: c.sessionId }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded hover:bg-[#D9E4FF] transition-colors"
+                              >
+                                <Eye size={12} /> View Results
+                              </Link>
+                            )}
+                            <button
+                              onClick={() => setCandidateToRemove(c)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors cursor-pointer"
+                              title="Remove candidate & revoke access"
                             >
-                              <Eye size={12} /> View Results
-                            </Link>
-                          )}
+                              <Trash2 size={12} />
+                              <span>Remove</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -953,19 +1154,32 @@ function DriveDetailPage() {
                   <label className="text-[12px] font-mono uppercase tracking-wider text-[#5B5B64] font-semibold block">
                     Options:
                   </label>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {previewQuestion.content.options.map((opt: any, idx: number) => {
-                      const isCorrect = opt.isCorrect || previewQuestion.content.correctAnswer === idx || previewQuestion.content.correctOption === idx;
+                      const isCorrect = Boolean(
+                        opt.isCorrect ||
+                        previewQuestion.content?.correctAnswer === idx ||
+                        previewQuestion.content?.correctOption === idx ||
+                        previewQuestion.content?.correctIndex === idx ||
+                        previewQuestion.scoringConfig?.correctIndex === idx ||
+                        previewQuestion.scoringConfig?.correctAnswer === idx
+                      );
                       const optText = typeof opt === "string" ? opt : opt.text || opt.label;
                       return (
                         <div
                           key={idx}
-                          className={`p-2.5 rounded-md text-[13px] border flex items-center justify-between ${
-                            isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-900 font-medium" : "bg-[#F7F7F9] border-[#E6E6EA] text-[#0B0B0D]"
+                          className={`p-3 rounded-lg text-[13px] border flex items-center justify-between transition-colors ${
+                            isCorrect
+                              ? "bg-[#E3F9F2] border-[#A3E6D5] text-[#0C6B58] font-semibold shadow-xs"
+                              : "bg-[#F7F7F9] border-[#E6E6EA] text-[#0B0B0D]"
                           }`}
                         >
                           <span><strong className="font-mono mr-2">{String.fromCharCode(65 + idx)}.</strong> {optText}</span>
-                          {isCorrect && <span className="text-[11px] font-bold text-emerald-600 bg-white px-2 py-0.5 rounded border border-emerald-200">Correct Answer</span>}
+                          {isCorrect && (
+                            <span className="text-[11px] font-bold text-white bg-[#0C6B58] px-2.5 py-0.5 rounded shadow-xs flex items-center gap-1">
+                              Answer
+                            </span>
+                          )}
                         </div>
                       );
                     })}
@@ -986,16 +1200,25 @@ function DriveDetailPage() {
               )}
 
               {/* Tags */}
-              {previewQuestion.tags && previewQuestion.tags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#EFF0F3]">
-                  <span className="text-[11px] font-medium text-[#5B5B64]">Tags:</span>
-                  {previewQuestion.tags.map((tag: string) => (
-                    <span key={tag} className="text-[11px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded font-mono">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {previewQuestion.tags && previewQuestion.tags.length > 0 && (() => {
+                const { displayTags, hiddenDriveCount } = processQuestionTags(previewQuestion.tags, previewQuestion.moduleType);
+                if (displayTags.length === 0 && hiddenDriveCount === 0) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#EFF0F3]">
+                    <span className="text-[11px] font-medium text-[#5B5B64]">Tags:</span>
+                    {displayTags.map((tag: string) => (
+                      <span key={tag} className="text-[11px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded font-mono">
+                        #{tag}
+                      </span>
+                    ))}
+                    {hiddenDriveCount > 0 && (
+                      <span className="text-[11px] text-[#2F5CFF] bg-[#D9E4FF] px-2 py-0.5 rounded font-semibold">
+                        +{hiddenDriveCount} more drives
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Modal Footer */}
@@ -1157,6 +1380,50 @@ function DriveDetailPage() {
                 className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md shadow-sm transition-colors cursor-pointer"
               >
                 Save &amp; Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Removing Candidate */}
+      {candidateToRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-[12px] border border-[#E6E6EA] p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between border-b border-[#EFF0F3] pb-3">
+              <div className="flex items-center gap-2 text-rose-600 font-semibold text-[15px]">
+                <AlertTriangle size={18} />
+                <span>Remove Candidate</span>
+              </div>
+              <button
+                onClick={() => setCandidateToRemove(null)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D] p-1 rounded-md transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to remove <strong>{candidateToRemove.candidateName}</strong> (<code>{candidateToRemove.candidateEmail}</code>) from this assessment drive?
+            </p>
+            <p className="text-[12px] text-amber-700 bg-amber-50 p-2.5 rounded border border-amber-200">
+              ⚠️ This will revoke their invite link and expire any active assessment session.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setCandidateToRemove(null)}
+                disabled={removingCandidate}
+                className="px-3.5 py-1.5 text-[12px] font-semibold text-[#5B5B64] bg-[#F7F7F9] hover:bg-[#E6E6EA] rounded border border-[#E6E6EA] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRemoveCandidate}
+                disabled={removingCandidate}
+                className="px-3.5 py-1.5 text-[12px] font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {removingCandidate ? "Removing..." : "Remove & Revoke"}
               </button>
             </div>
           </div>

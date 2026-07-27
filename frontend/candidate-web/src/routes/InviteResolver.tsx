@@ -59,7 +59,8 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           }
           setSession(session)
           const sessionQuestions = session.questions || []
-          initAssessment(session.id, TOTAL_ASSESSMENT_MINUTES * 60, sessionQuestions)
+          const durationSeconds = (session.durationMinutes || 60) * 60
+          initAssessment(session.id, durationSeconds, sessionQuestions)
         }
 
         // Drive closed?

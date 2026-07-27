@@ -81,6 +81,7 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
       submittedAt: null,
       status: 'active',
       questions: MOCK_QUESTIONS,
+      durationMinutes: 60,
     }
     mockSession = session
     localStorage.setItem('cd-recruit-session', JSON.stringify(session))

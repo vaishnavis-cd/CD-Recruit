@@ -70,6 +70,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
         submittedAt: null,
         status: data.status === 'SUBMITTED' ? 'submitted' : 'active',
         questions: data.questions,
+        durationMinutes: data.durationMinutes || 60,
       }
     } catch (err: any) {
       const code = err?.response?.data?.code ?? err?.response?.data?.error
@@ -82,7 +83,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
     // 1. Redeem invite token and create session on the backend
     const startRes = await apiClient.post('/sessions/start', { inviteToken: token })
-    const { sessionId, startedAt: startStartedAt, questions: startQuestions } = startRes.data
+    const { sessionId, startedAt: startStartedAt, questions: startQuestions, durationMinutes } = startRes.data
     localStorage.setItem('cd-recruit-session-id', sessionId)
 
     // 2. Upload baseline selfie if provided
@@ -121,6 +122,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       submittedAt: null,
       status: 'active',
       questions,
+      durationMinutes: durationMinutes || 60,
     }
   },
 
