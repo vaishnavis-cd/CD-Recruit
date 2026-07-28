@@ -9,6 +9,10 @@ import { useTheme } from '../theme/ThemeProvider'
 import { ProctoringModule } from '../proctoring/proctoring.module'
 import { Moon, Sun } from 'lucide-react'
 
+import { WatermarkOverlay } from './common/WatermarkOverlay'
+import { IntegrityAlertBanner } from './common/IntegrityAlertBanner'
+import { useIntegrityEvents } from '../hooks/useIntegrityEvents'
+
 interface ModuleShellProps {
   moduleIndex: number
   questions: Array<{ id: string; label: string }>
@@ -51,6 +55,7 @@ function useFunctionalNudge() {
 }
 
 export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNavigate, children }: ModuleShellProps) {
+  const { alerts, dismissAlert } = useIntegrityEvents()
   const cvMode = useSessionStore(s => s.cvMode)
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const assessment = useSessionStore(s => s.assessment)
@@ -146,7 +151,10 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   }, [assessment, transitionTo])
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg)] overflow-hidden">
+    <div className="flex flex-col h-screen bg-[var(--bg)] overflow-hidden relative">
+      <WatermarkOverlay />
+      <IntegrityAlertBanner alerts={alerts} onDismiss={dismissAlert} />
+
       {/* Timer warning banners — amber, never red */}
       <TimerWarningBanner />
 

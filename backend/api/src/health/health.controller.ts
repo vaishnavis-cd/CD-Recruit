@@ -1,14 +1,13 @@
 import { Controller, Get, Res, HttpStatus } from "@nestjs/common";
 import { Response } from "express";
 import { PrismaService } from "../prisma/prisma.service";
-import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
 import { MinioService } from "../integrations/minio/minio.service";
 
 @Controller("health")
 export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: ObjectStoragePort,
+    private readonly storage: MinioService,
   ) {}
 
   @Get()

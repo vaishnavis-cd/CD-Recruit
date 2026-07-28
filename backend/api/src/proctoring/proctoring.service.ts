@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
-import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
+import { MinioService } from "../integrations/minio/minio.service";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
 import { SessionStatus } from "@prisma/client";
 import { buildEvidenceKey } from "../common/utils/storage-key.util";
@@ -33,7 +33,7 @@ export class ProctoringService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: ObjectStoragePort,
+    private readonly storage: MinioService,
     private readonly config: ConfigService,
   ) {
     this.bucketBiometric =
@@ -383,20 +383,22 @@ export class ProctoringService {
    * Evaluate proctoring telemetry for correlated integrity flags and provenance tagging.
    */
   async evaluateEvent(sessionId: string, eventType: string, payload: any) {
+    const session = await this.resolveSession(sessionId);
+    const targetSessionId = session ? session.id : sessionId;
     const now = new Date();
-    const tenSecondsAgo = new Date(now.getTime() - 10000);
+    const fortySecondsAgo = new Date(now.getTime() - 40000);
 
     if (eventType === "EXTERNAL_INSERT" || eventType === "PASTE") {
       const textSnippet = payload?.snippet || payload?.text || "";
       const textLength = payload?.textLength || textSnippet.length || 0;
 
-      // Rule 1: Tab Switch + External Insert within 10s
+      // Rule 1: Tab Switch + External Insert within 40s
       // First check EventLog table (server-side tracking)
       let recentTabSwitch = await this.prisma.eventLog.findFirst({
         where: {
-          sessionId,
+          sessionId: targetSessionId,
           eventType: "TAB_SWITCH",
-          occurredAt: { gte: tenSecondsAgo },
+          occurredAt: { gte: fortySecondsAgo },
         },
       });
 
@@ -404,9 +406,9 @@ export class ProctoringService {
       if (!recentTabSwitch) {
         const pe = await this.prisma.proctoringEvent.findFirst({
           where: {
-            sessionId,
+            sessionId: targetSessionId,
             eventType: "TAB_SWITCH" as any,
-            timestamp: { gte: tenSecondsAgo },
+            timestamp: { gte: fortySecondsAgo },
           },
         });
         if (pe) {
@@ -417,8 +419,8 @@ export class ProctoringService {
       // Rule 2: Provenance check (self-copied matching vs external insert)
       let isSelfCopied = false;
       if (textSnippet && textSnippet.length > 5) {
-        const session = await this.prisma.session.findUnique({
-          where: { id: sessionId },
+        const sessionObj = await this.prisma.session.findUnique({
+          where: { id: targetSessionId },
           include: {
             drive: {
               include: {
@@ -430,8 +432,8 @@ export class ProctoringService {
           },
         });
 
-        if (session?.drive?.questions) {
-          for (const dq of session.drive.questions) {
+        if (sessionObj?.drive?.questions) {
+          for (const dq of sessionObj.drive.questions) {
             const qStr = JSON.stringify(dq.question.content);
             if (qStr.includes(textSnippet)) {
               isSelfCopied = true;
@@ -457,7 +459,7 @@ export class ProctoringService {
 
       return this.prisma.integrityFlag.create({
         data: {
-          sessionId,
+          sessionId: targetSessionId,
           category,
           severity,
           confidence,
@@ -469,7 +471,7 @@ export class ProctoringService {
     if (eventType === "FULLSCREEN_EXIT") {
       return this.prisma.integrityFlag.create({
         data: {
-          sessionId,
+          sessionId: targetSessionId,
           category: "FULLSCREEN_EXIT_FLAG",
           severity: "HIGH",
           confidence: 0.9,

@@ -4,7 +4,7 @@ import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
-import { Check } from 'lucide-react'
+import { Check, ChevronLeft } from 'lucide-react'
 
 interface MCQModuleProps {
   moduleIndex: number
@@ -217,7 +217,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                       }
                     `}
                   >
-                    {isSelected ? <Check size={12} strokeWidth={3} /> : option.id.toUpperCase()}
+                    {isSelected ? <Check size={12} strokeWidth={3} /> : null}
                   </span>
 
                   <span className="flex-1">{option.text}</span>
@@ -235,7 +235,8 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
             className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1.5"
             aria-label="Previous question"
           >
-            ← Previous
+            <ChevronLeft size={14} />
+            <span>Previous</span>
           </button>
 
           <div className="flex gap-3">

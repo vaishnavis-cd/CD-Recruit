@@ -52,6 +52,7 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
     case 'SQL':
       return <SQLModule moduleIndex={moduleIndex} />
     case 'CODING':
+    case 'DEBUGGING':
       return <CodingModule moduleIndex={moduleIndex} />
     case 'AI_PROMPTING':
       return <PromptingModule moduleIndex={moduleIndex} />

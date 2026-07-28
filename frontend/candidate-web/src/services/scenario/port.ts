@@ -1,8 +1,12 @@
-import type { ScenarioMessage } from '../../fixtures/scenarios'
-
-// PORT: ScenarioEnginePort
-// Drives the in-fiction inbox/chat/ticket panel for Module 5.
-// Real implementation would be a WebSocket connection to a trigger-rule engine.
+export interface ScenarioMessage {
+  id: number
+  atSeconds: number
+  channel: 'slack' | 'email' | 'ticket'
+  from: string
+  subject: string
+  body: string
+  expectsReply: boolean
+}
 
 export interface ScenarioEnginePort {
   /**

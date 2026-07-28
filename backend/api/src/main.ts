@@ -11,7 +11,6 @@ import { ConfigService } from "@nestjs/config";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { ObjectStoragePort } from "./integrations/storage/object-storage.port";
 import { MinioService } from "./integrations/minio/minio.service";
 
 async function bootstrap(): Promise<void> {
@@ -61,7 +60,7 @@ async function bootstrap(): Promise<void> {
 
   if (infraMode === "full") {
     try {
-      const storage = app.get(ObjectStoragePort, { strict: false });
+      const storage = app.get(MinioService, { strict: false });
       if (storage instanceof MinioService) {
         let healthy = false;
         const delays = [1000, 2000, 4000];

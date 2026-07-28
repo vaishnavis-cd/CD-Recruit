@@ -1,17 +1,18 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { QueueProviderPort } from "./queue-provider.port";
 
-type Handler = (payload: Record<string, unknown>) => Promise<void> | void;
+type HandlerFn = (payload: Record<string, unknown>) => Promise<void>;
 
 @Injectable()
-export class LocalFakeQueueProvider extends QueueProviderPort implements OnModuleDestroy {
+export class LocalFakeQueueProvider extends QueueProviderPort {
   private readonly logger = new Logger(LocalFakeQueueProvider.name);
-  private delayedTimers = new Map<string, NodeJS.Timeout>();
-  private repeatableIntervals = new Map<string, NodeJS.Timeout>();
-  private handlers = new Map<string, Handler>();
+  private handlers = new Map<string, HandlerFn>();
+  private intervals = new Map<string, NodeJS.Timeout>();
 
-  registerHandler(queueName: string, jobName: string, handler: Handler) {
-    this.handlers.set(`${queueName}:${jobName}`, handler);
+  registerHandler(queueName: string, jobName: string, fn: HandlerFn) {
+    const key = `${queueName}:${jobName}`;
+    this.handlers.set(key, fn);
+    this.logger.log(`[LocalFakeQueueProvider] Registered handler for ${key}`);
   }
 
   async enqueueDelayed(
@@ -20,25 +21,23 @@ export class LocalFakeQueueProvider extends QueueProviderPort implements OnModul
     payload: Record<string, unknown>,
     opts: { delayMs: number; jobId?: string },
   ): Promise<void> {
-    if (opts.jobId && this.delayedTimers.has(opts.jobId)) {
-      this.logger.debug(`[local-fake-queue] dedupe: ${opts.jobId} already scheduled`);
-      return;
-    }
-    const key = opts.jobId ?? `${queueName}:${jobName}:${Date.now()}`;
-    const timer = setTimeout(async () => {
-      this.delayedTimers.delete(key);
-      const handler = this.handlers.get(`${queueName}:${jobName}`);
-      if (!handler) {
-        this.logger.warn(`[local-fake-queue] no handler for ${queueName}:${jobName}`);
-        return;
-      }
-      try {
-        await handler(payload);
-      } catch (err) {
-        this.logger.error(`[local-fake-queue] handler threw for ${queueName}:${jobName}`, err as Error);
+    const key = `${queueName}:${jobName}`;
+    this.logger.log(
+      `[LocalFakeQueueProvider] Scheduling delayed job "${key}" in ${opts.delayMs}ms`,
+    );
+
+    setTimeout(async () => {
+      const handler = this.handlers.get(key);
+      if (handler) {
+        try {
+          await handler(payload);
+        } catch (err: any) {
+          this.logger.error(
+            `[LocalFakeQueueProvider] Error in delayed job "${key}": ${err.message}`,
+          );
+        }
       }
     }, opts.delayMs);
-    this.delayedTimers.set(key, timer);
   }
 
   async upsertRepeatable(
@@ -48,22 +47,24 @@ export class LocalFakeQueueProvider extends QueueProviderPort implements OnModul
     everyMs: number,
     repeatKey: string,
   ): Promise<void> {
-    const existing = this.repeatableIntervals.get(repeatKey);
-    if (existing) clearInterval(existing);
+    const key = `${queueName}:${jobName}`;
+    if (this.intervals.has(repeatKey)) {
+      clearInterval(this.intervals.get(repeatKey)!);
+    }
+
     const interval = setInterval(async () => {
-      const handler = this.handlers.get(`${queueName}:${jobName}`);
-      if (!handler) return;
-      try {
-        await handler(payload);
-      } catch (err) {
-        this.logger.error(`[local-fake-queue] repeatable handler threw for ${queueName}:${jobName}`, err as Error);
+      const handler = this.handlers.get(key);
+      if (handler) {
+        try {
+          await handler(payload);
+        } catch (err: any) {
+          this.logger.error(
+            `[LocalFakeQueueProvider] Error in repeatable job "${key}": ${err.message}`,
+          );
+        }
       }
     }, everyMs);
-    this.repeatableIntervals.set(repeatKey, interval);
-  }
 
-  onModuleDestroy() {
-    this.delayedTimers.forEach(clearTimeout);
-    this.repeatableIntervals.forEach(clearInterval);
+    this.intervals.set(repeatKey, interval);
   }
 }

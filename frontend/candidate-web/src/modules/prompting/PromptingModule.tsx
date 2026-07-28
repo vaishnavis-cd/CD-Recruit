@@ -3,10 +3,11 @@ import type { PromptingQuestion } from '../../fixtures/questions'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { services } from '../../services'
+import { ProctoringEventService } from '../../proctoring/proctoring-event.service'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
 import { StatusChip } from '../../components/common/StatusChip'
-import { Loader2, Sparkles, Lightbulb } from 'lucide-react'
+import { Loader2, Sparkles, Lightbulb, ChevronLeft } from 'lucide-react'
 
 interface PromptingModuleProps {
   moduleIndex: number
@@ -106,6 +107,28 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
       }
     }
   }, [questionData, questionId])
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    const targetSessionId = assessment?.sessionId || useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId
+    if (targetSessionId && pastedText) {
+      try {
+        ProctoringEventService.getInstance().createEvent({
+          sessionId: targetSessionId,
+          eventType: 'PASTE' as any,
+          severity: 'MEDIUM' as any,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            charCount: pastedText.length,
+            textSnippet: pastedText.slice(0, 100),
+            questionId: questionId,
+          },
+        })
+      } catch (err) {
+        console.warn('Failed to record AI prompting paste event:', err)
+      }
+    }
+  }
 
   function handlePromptChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setPromptText(e.target.value)
@@ -224,6 +247,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
             id={`prompt-${question.id}`}
             value={promptText}
             onChange={handlePromptChange}
+            onPaste={handlePaste}
             disabled={loadingPrompt}
             placeholder="Write your prompt here…"
             rows={6}
@@ -311,9 +335,10 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-1.5"
           >
-            ← Previous
+            <ChevronLeft size={14} />
+            <span>Previous</span>
           </button>
           <button
             onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}

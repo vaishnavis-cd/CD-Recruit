@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { ObjectStoragePort } from "../integrations/storage/object-storage.port";
+import { MinioService } from "../integrations/minio/minio.service";
 import { ConfigService } from "@nestjs/config";
 import {
   SessionListItem,
@@ -28,7 +28,7 @@ export class AdminService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: ObjectStoragePort,
+    private readonly storage: MinioService,
     private readonly configService: ConfigService,
   ) {
     this.bucketBiometric = this.configService.get<string>(
@@ -116,6 +116,7 @@ export class AdminService {
             include: { staff: true },
           },
           integrityFlags: true,
+          proctoringEvents: true,
         },
       }),
       this.prisma.session.count({ where }),
@@ -159,6 +160,9 @@ export class AdminService {
         session.score.aiConfidence >= 0 &&   // exclude -1.0 sentinel (unscored)
         session.score.aiConfidence < 0.8;
 
+      const flagCount = (session.integrityFlags ? session.integrityFlags.length : 0) +
+        ((session as any).proctoringEvents ? (session as any).proctoringEvents.length : 0);
+
       return {
         sessionId: session.id,
         candidateName: session.candidate.name,
@@ -176,7 +180,7 @@ export class AdminService {
         compositeScore,
         sayDoConsistencyScore,
         humanReviewRequired,
-        integrityFlagsCount: session.integrityFlags ? session.integrityFlags.length : 0,
+        integrityFlagsCount: flagCount,
         decision: session.reviewerDecision
           ? ({
               outcome: session.reviewerDecision.decision as any,
@@ -214,6 +218,7 @@ export class AdminService {
             evidenceClip: true,
           },
         },
+        proctoringEvents: true,
         score: true,
         reviewerDecision: {
           include: {
@@ -250,6 +255,7 @@ export class AdminService {
                 evidenceClip: true,
               },
             },
+            proctoringEvents: true,
             score: true,
             reviewerDecision: {
               include: {
@@ -265,7 +271,7 @@ export class AdminService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    // Map and fetch presigned URLs for evidence clips
+    // Map and fetch presigned URLs for integrityFlags
     const mappedFlags = await Promise.all(
       session.integrityFlags.map(async (flag) => {
         let evidenceClipUrl: string | null = null;
@@ -277,12 +283,15 @@ export class AdminService {
         }
 
         return {
+          id: flag.id,
           flagId: flag.id,
           category: flag.category,
           severity: flag.severity as FlagSeverity,
           confidence: flag.confidence,
           flaggedAt: flag.flaggedAt.toISOString(),
           evidenceClipUrl,
+          clipUrl: evidenceClipUrl,
+          storageRef: evidenceClipUrl,
           disposition: flag.disposition as FlagDisposition | null,
           dispositionAt: flag.dispositionAt
             ? flag.dispositionAt.toISOString()
@@ -292,17 +301,71 @@ export class AdminService {
       }),
     );
 
-    const mappedResponses = session.moduleResponses.map((res) => ({
-      moduleResponseId: res.id,
-      questionId: res.questionId,
-      moduleType: res.question.moduleType as ModuleType,
-      responsePayload: res.responsePayload as any,
-      timeSpentSeconds: res.timeSpentSeconds,
-      isDraft: res.isDraft,
-      lastAutosavedAt: res.lastAutosavedAt
-        ? res.lastAutosavedAt.toISOString()
-        : null,
-    }));
+    // Fetch raw proctoring events with video evidence clips uploaded to MinIO
+    const proctoringEvents = await this.prisma.proctoringEvent.findMany({
+      where: { sessionId: session.id },
+      orderBy: { timestamp: "asc" },
+    });
+
+    const mappedEventFlags = await Promise.all(
+      proctoringEvents.map(async (evt) => {
+        let clipUrl: string | null = null;
+        if (evt.clipUrl) {
+          try {
+            clipUrl = await this.storage.getSignedUrl(
+              this.bucketBiometric,
+              evt.clipUrl,
+            );
+          } catch (err: any) {
+            console.warn(`Failed to get signed URL for clip ${evt.clipUrl}: ${err.message}`);
+          }
+        }
+        return {
+          id: evt.id,
+          flagId: evt.id,
+          category: evt.eventType,
+          severity: evt.severity || "MEDIUM",
+          confidence: 0.95,
+          flaggedAt: evt.timestamp.toISOString(),
+          evidenceClipUrl: clipUrl,
+          clipUrl: clipUrl,
+          storageRef: clipUrl,
+          disposition: null,
+          dispositionAt: null,
+          dispositionById: null,
+        };
+      }),
+    );
+
+    // Combine and deduplicate flags so all video evidence clips appear in candidate detail
+    const combinedFlags = [...mappedFlags];
+    for (const evtFlag of mappedEventFlags) {
+      if (!combinedFlags.some((f) => f.id === evtFlag.id || f.flagId === evtFlag.id)) {
+        combinedFlags.push(evtFlag as any);
+      }
+    }
+
+    const mappedResponses = session.moduleResponses.map((res) => {
+      const qContent = (res.question?.content as any) || {};
+      return {
+        moduleResponseId: res.id,
+        questionId: res.questionId,
+        moduleType: res.question.moduleType as ModuleType,
+        responsePayload: res.responsePayload as any,
+        timeSpentSeconds: res.timeSpentSeconds,
+        isDraft: res.isDraft,
+        lastAutosavedAt: res.lastAutosavedAt
+          ? res.lastAutosavedAt.toISOString()
+          : null,
+        question: {
+          id: res.question.id,
+          prompt: qContent.prompt || qContent.title || qContent.text || qContent.question || "Question",
+          options: qContent.options || [],
+          correctOption: qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? null,
+          content: qContent,
+        },
+      };
+    });
 
     return {
       sessionId: session.id,
@@ -321,7 +384,7 @@ export class AdminService {
       deadlineAt: session.deadlineAt ? session.deadlineAt.toISOString() : null,
       disconnectCount: session.disconnectCount,
       moduleResponses: mappedResponses,
-      integrityFlags: mappedFlags,
+      integrityFlags: combinedFlags,
       score: session.score
         ? {
             compositeScore: session.score.compositeScore,

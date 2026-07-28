@@ -4,6 +4,7 @@ import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
 import { InFictionInbox } from '../../components/InFictionInbox'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+import { ChevronLeft } from 'lucide-react'
 
 interface ContextualModuleProps {
   moduleIndex: number
@@ -87,9 +88,10 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-1.5"
           >
-            ← Previous scenario
+            <ChevronLeft size={14} />
+            <span>Previous scenario</span>
           </button>
           <button
             onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}

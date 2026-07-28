@@ -49,6 +49,11 @@ export class CreateDriveDto {
 
   @IsOptional()
   @IsArray()
+  @IsUUID("4", { each: true })
+  questionIds?: string[];
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DriveCandidateDto)
   candidates?: DriveCandidateDto[];

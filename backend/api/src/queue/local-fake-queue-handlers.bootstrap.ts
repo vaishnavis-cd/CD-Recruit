@@ -1,28 +1,43 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
-import { QueueProviderPort } from "./queue-provider.port";
+import { Injectable, OnModuleInit, Inject, forwardRef } from "@nestjs/common";
 import { LocalFakeQueueProvider } from "./local-fake-queue.provider";
-import { SessionService } from "../session/session.service";
+import { SessionService } from "@app/session/session.service";
 import { HeartbeatService } from "./heartbeat.service";
 
 @Injectable()
 export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
   constructor(
-    private readonly queueProvider: QueueProviderPort,
+    private readonly fakeQueue: LocalFakeQueueProvider,
+    @Inject(forwardRef(() => SessionService))
     private readonly sessionService: SessionService,
     private readonly heartbeatService: HeartbeatService,
   ) {}
 
   onModuleInit() {
-    if (this.queueProvider instanceof LocalFakeQueueProvider) {
-      this.queueProvider.registerHandler("grace-window", "auto-submit", (payload) =>
-        this.sessionService.autoSubmit(payload.sessionId as string),
-      );
-      this.queueProvider.registerHandler("heartbeat-monitor", "scan", () =>
-        this.heartbeatService.scanAndMarkStale(),
-      );
-      this.queueProvider.registerHandler("heartbeat-monitor", "retention-cleanup", () =>
-        this.heartbeatService.cleanupExpiredBiometrics(),
-      );
-    }
+    this.fakeQueue.registerHandler(
+      "grace-window",
+      "disconnect-grace-window",
+      async (payload) => {
+        const sessionId = payload.sessionId as string;
+        if (sessionId) {
+          await this.sessionService.autoSubmit(sessionId);
+        }
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "heartbeat-monitor",
+      "scan",
+      async () => {
+        await this.heartbeatService.scanAndMarkStale();
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "heartbeat-monitor",
+      "retention-cleanup",
+      async () => {
+        await this.heartbeatService.cleanupExpiredBiometrics();
+      },
+    );
   }
 }
