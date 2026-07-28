@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE } from "../lib/store";
 import type { CandidateSessionDetail } from "../lib/types";
 
 export const Route = createFileRoute("/results/$id")({
@@ -52,8 +52,18 @@ function resolveOptionText(rawVal: any, optionsList: any[]): string {
     return typeof opt === "string" ? opt : opt.text || opt.label || `Option ${rawVal + 1}`;
   }
   if (typeof rawVal === "string") {
+    if (/^opt_\d+$/i.test(rawVal) && Array.isArray(optionsList) && optionsList.length > 0) {
+      const idx = parseInt(rawVal.replace(/opt_/i, ""), 10);
+      const targetOpt = optionsList[idx] || optionsList[idx - 1];
+      if (targetOpt) {
+        return typeof targetOpt === "string" ? targetOpt : targetOpt.text || targetOpt.label || rawVal;
+      }
+    }
     if (optionsList && Array.isArray(optionsList)) {
-      const matched = optionsList.find((o) => (typeof o === "object" ? o.id === rawVal || o.text === rawVal : o === rawVal));
+      const matched = optionsList.find((o, index) => {
+        if (typeof o === "string") return o === rawVal || `opt_${index}` === rawVal || `opt_${index + 1}` === rawVal;
+        return o.id === rawVal || o.text === rawVal || o.label === rawVal || `opt_${index}` === rawVal;
+      });
       if (matched) {
         return typeof matched === "string" ? matched : matched.text || matched.label || rawVal;
       }
@@ -61,6 +71,29 @@ function resolveOptionText(rawVal: any, optionsList: any[]): string {
     return rawVal;
   }
   return String(rawVal);
+}
+
+function resolveClipUrl(rawUrl: string | null | undefined): string | undefined {
+  if (!rawUrl) return undefined;
+  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) return rawUrl;
+
+  let cleanKey = rawUrl;
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+    try {
+      const u = new URL(rawUrl);
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts[0] === "cd-recruit-biometric") {
+        cleanKey = parts.slice(1).join("/");
+      } else {
+        cleanKey = parts.join("/");
+      }
+    } catch {
+      cleanKey = rawUrl;
+    }
+  }
+
+  cleanKey = cleanKey.split("?")[0];
+  return `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
 }
 
 function getCategoryFilterIcon(filterKey: string) {
@@ -85,7 +118,7 @@ function getCategoryFilterIcon(filterKey: string) {
 }
 
 function IndividualResultPage() {
-  const { id } = useParams({ from: "/results/$id" });
+  const { id } = Route.useParams();
   const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
   const recordCandidateDecision = useStore((s) => s.recordCandidateDecision);
 
@@ -413,13 +446,40 @@ function IndividualResultPage() {
           const mcqResponses = (detail.moduleResponses || []).filter(
             r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
           )
+          const correctCount = mcqResponses.filter(r => {
+            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions;
+            const correctRaw = r.question?.correctOption ?? r.question?.content?.correctOption ?? r.question?.content?.correctAnswer;
+            if (r.responsePayload?.isCorrect !== undefined) return Boolean(r.responsePayload.isCorrect);
+            return selectedRaw !== undefined && correctRaw !== undefined && String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
+          }).length;
+
+          const skippedCount = mcqResponses.filter(r => {
+            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions;
+            return selectedRaw === undefined || selectedRaw === null || (Array.isArray(selectedRaw) && selectedRaw.length === 0);
+          }).length;
+
+          const incorrectCount = Math.max(0, mcqResponses.length - correctCount - skippedCount);
+
           return (
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E6EA] pb-3">
                 <div>
                   <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Responses & Accuracy Breakdown</h3>
                   <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate option selections, correctness, and correct reference answers.</p>
                 </div>
+                {mcqResponses.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Correct: {correctCount}
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-rose-50 text-rose-700 border border-rose-200">
+                      Incorrect: {incorrectCount}
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-slate-100 text-slate-700 border border-slate-200">
+                      Skipped: {skippedCount}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {mcqResponses.length === 0 ? (
@@ -700,7 +760,7 @@ function IndividualResultPage() {
           const filteredFlags = combinedFlags.filter((f: any) => {
             const cat = String(f.category || "").toUpperCase();
             if (integrityCategoryFilter === "ALL") return true;
-            if (integrityCategoryFilter === "CLIPS_ONLY") return Boolean(f.evidenceClipUrl || f.clipUrl);
+            if (integrityCategoryFilter === "CLIPS_ONLY") return Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef);
             
             if (integrityCategoryFilter === "UNAUTHORIZED_OBJECTS") return ["PHONE_DETECTED", "HEADPHONES_DETECTED", "BOOK_DETECTED"].includes(cat);
             if (integrityCategoryFilter === "VISUAL_GAZE") return ["LOOKING_AWAY", "EXCESSIVE_MOVEMENT", "GAZE_AWAY"].includes(cat);
@@ -712,9 +772,9 @@ function IndividualResultPage() {
             return cat === integrityCategoryFilter;
           });
 
-          // Separate video evidence clips (with valid MinIO presigned URL) from non-video telemetry logs
-          const videoClips = filteredFlags.filter((f: any) => f.evidenceClipUrl || (f.clipUrl && f.clipUrl.startsWith("http")));
-          const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && (!f.clipUrl || !f.clipUrl.startsWith("http")));
+          // Separate video evidence clips from non-video telemetry logs
+          const videoClips = filteredFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef));
+          const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && !f.clipUrl && !f.storageRef);
 
           return (
             <div className="space-y-6">
@@ -741,7 +801,7 @@ function IndividualResultPage() {
                       {getCategoryFilterIcon(integrityCategoryFilter)}
                       <span className="truncate">
                         {integrityCategoryFilter === "ALL" && `All Integrity Evidences (${combinedFlags.length})`}
-                        {integrityCategoryFilter === "CLIPS_ONLY" && `Video Clips Only (${combinedFlags.filter((f: any) => f.evidenceClipUrl || (f.clipUrl && f.clipUrl.startsWith("http"))).length})`}
+                        {integrityCategoryFilter === "CLIPS_ONLY" && `Video Clips Only (${combinedFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef)).length})`}
                         {integrityCategoryFilter === "UNAUTHORIZED_OBJECTS" && "Unauthorized Objects (Phone, Headphones, Book)"}
                         {integrityCategoryFilter === "VISUAL_GAZE" && "Visual & Gaze (Looking Away, Movement)"}
                         {integrityCategoryFilter === "FACE_SEAT" && "Face & Seat (Face Missing, Seat Exit)"}
@@ -759,7 +819,7 @@ function IndividualResultPage() {
                       <div className="absolute right-0 mt-2 w-[320px] bg-white border border-[#B3C5FF] rounded-[12px] shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
                         {[
                           { value: "ALL", label: `All Integrity Evidences (${combinedFlags.length})` },
-                          { value: "CLIPS_ONLY", label: `Video Clips Only (${combinedFlags.filter((f: any) => f.evidenceClipUrl || (f.clipUrl && f.clipUrl.startsWith("http"))).length})` },
+                          { value: "CLIPS_ONLY", label: `Video Clips Only (${combinedFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef)).length})` },
                           { value: "UNAUTHORIZED_OBJECTS", label: "Unauthorized Objects (Phone, Headphones, Book)" },
                           { value: "VISUAL_GAZE", label: "Visual & Gaze (Looking Away, Movement)" },
                           { value: "FACE_SEAT", label: "Face & Seat (Face Missing, Seat Exit)" },
@@ -971,20 +1031,11 @@ function IndividualResultPage() {
 
             <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
               <video
-                src={activeClipUrl}
+                src={resolveClipUrl(activeClipUrl)}
                 controls
                 autoPlay
                 className="w-full h-full object-contain"
               />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                onClick={() => setActiveClipUrl(null)}
-                className="px-4 py-1.5 text-[12px] font-medium border border-[#E6E6EA] rounded hover:bg-[#F7F7F9]"
-              >
-                Close Clip
-              </button>
             </div>
           </div>
         </div>

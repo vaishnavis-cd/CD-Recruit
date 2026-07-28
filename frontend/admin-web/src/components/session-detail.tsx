@@ -3,7 +3,30 @@ import { Link } from "@tanstack/react-router";
 import { X, AlertTriangle, ShieldCheck, ExternalLink } from "lucide-react";
 import { ScopePanel } from "./scope-panel";
 import type { Session } from "../lib/types";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE } from "../lib/store";
+
+function resolveClipUrl(rawUrl: string | null | undefined): string | undefined {
+  if (!rawUrl) return undefined;
+  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) return rawUrl;
+
+  let cleanKey = rawUrl;
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+    try {
+      const u = new URL(rawUrl);
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts[0] === "cd-recruit-biometric") {
+        cleanKey = parts.slice(1).join("/");
+      } else {
+        cleanKey = parts.join("/");
+      }
+    } catch {
+      cleanKey = rawUrl;
+    }
+  }
+
+  cleanKey = cleanKey.split("?")[0];
+  return `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+}
 
 const STATUS_LABEL: Record<Session["status"], string> = {
   submitted: "Submitted",
@@ -374,7 +397,7 @@ export function SessionDetailBody({
             <div className="aspect-video bg-black rounded flex items-center justify-center relative overflow-hidden">
               {evidenceOpen.url ? (
                 <video
-                  src={evidenceOpen.url}
+                  src={resolveClipUrl(evidenceOpen.url)}
                   controls
                   autoPlay
                   className="w-full h-full object-contain"

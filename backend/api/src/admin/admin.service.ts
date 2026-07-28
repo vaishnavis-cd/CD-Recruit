@@ -268,6 +268,42 @@ export class AdminService {
     }
 
     if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: {
+          OR: [
+            { id: sessionId },
+            { token: sessionId },
+            { sessionId: sessionId },
+          ],
+        },
+      });
+
+      if (invite) {
+        return {
+          sessionId: invite.id,
+          id: invite.id,
+          candidateName: invite.candidateName,
+          candidateEmail: invite.candidateEmail,
+          driveName: "Assessment Drive",
+          roleTemplateName: "Software Engineer",
+          status: invite.status || "INVITED",
+          startedAt: invite.createdAt.toISOString(),
+          submittedAt: null,
+          deadlineAt: invite.expiresAt ? invite.expiresAt.toISOString() : null,
+          score: null,
+          proctoringSummary: {
+            flags: [],
+            totalTabSwitches: 0,
+            webcamClipsCount: 0,
+            overallRisk: "LOW",
+          },
+          integrityFlags: [],
+          submissions: [],
+          moduleResponses: [],
+          reviewerDecision: null,
+        } as any;
+      }
+
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
@@ -282,6 +318,8 @@ export class AdminService {
           );
         }
 
+        const rawRef = flag.evidenceClip?.storageRef || null;
+        const finalUrl = evidenceClipUrl || rawRef;
         return {
           id: flag.id,
           flagId: flag.id,
@@ -289,9 +327,9 @@ export class AdminService {
           severity: flag.severity as FlagSeverity,
           confidence: flag.confidence,
           flaggedAt: flag.flaggedAt.toISOString(),
-          evidenceClipUrl,
-          clipUrl: evidenceClipUrl,
-          storageRef: evidenceClipUrl,
+          evidenceClipUrl: finalUrl,
+          clipUrl: finalUrl,
+          storageRef: rawRef,
           disposition: flag.disposition as FlagDisposition | null,
           dispositionAt: flag.dispositionAt
             ? flag.dispositionAt.toISOString()
@@ -320,6 +358,7 @@ export class AdminService {
             console.warn(`Failed to get signed URL for clip ${evt.clipUrl}: ${err.message}`);
           }
         }
+        const finalEventUrl = clipUrl || evt.clipUrl || null;
         return {
           id: evt.id,
           flagId: evt.id,
@@ -327,9 +366,9 @@ export class AdminService {
           severity: evt.severity || "MEDIUM",
           confidence: 0.95,
           flaggedAt: evt.timestamp.toISOString(),
-          evidenceClipUrl: clipUrl,
-          clipUrl: clipUrl,
-          storageRef: clipUrl,
+          evidenceClipUrl: finalEventUrl,
+          clipUrl: finalEventUrl,
+          storageRef: evt.clipUrl,
           disposition: null,
           dispositionAt: null,
           dispositionById: null,

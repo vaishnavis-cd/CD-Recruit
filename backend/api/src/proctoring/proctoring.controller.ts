@@ -6,15 +6,16 @@ import {
   Param,
   UploadedFile,
   UseInterceptors,
-  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
   BadRequestException,
   UseGuards,
   Logger,
+  Res,
+  Req,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from "@nestjs/swagger";
 import { ProctoringService } from "./proctoring.service";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse } from "./proctoring.types";
 import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
@@ -141,5 +142,33 @@ export class ProctoringController {
   ): Promise<ProctoringSummaryResponse> {
     this.logger.log(`[ProctoringController] GET_SUMMARY_REQUESTED: sessionId=${sessionId}`);
     return this.proctoringService.getSessionSummary(sessionId);
+  }
+
+  /**
+   * GET /api/v1/proctoring/stream/:bucket/*
+   * Video clip streaming proxy handling subpath object keys
+   */
+  @Get("stream/:bucket/*")
+  @HttpCode(HttpStatus.OK)
+  async streamClip(
+    @Param("bucket") bucket: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    try {
+      const rawPath = req.params[0] || "";
+      const objectKey = decodeURIComponent(rawPath.split("?")[0]).replace(/^\//, "");
+      this.logger.log(`[ProctoringController] STREAM_CLIP: bucket=${bucket}, objectKey=${objectKey}`);
+      const stream = await this.proctoringService.getObjectStream(bucket, objectKey);
+      if (!stream) {
+        return res.status(HttpStatus.NOT_FOUND).send("Evidence video clip not found");
+      }
+      res.setHeader("Content-Type", "video/webm");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      stream.pipe(res);
+    } catch (err: any) {
+      this.logger.error(`[ProctoringController] STREAM_ERROR: ${err.message}`);
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(err.message);
+    }
   }
 }

@@ -1106,9 +1106,20 @@ function DriveDetailPage() {
                               )}
                             </button>
                           ) : (
-                            <span className="text-[11px] text-[#8B8B93] italic">
-                              Click "Generate Links" to activate
-                            </span>
+                            <button
+                              onClick={async () => {
+                                await handleGenerateLinks();
+                                const updated = await fetchDriveDetail(driveId);
+                                const match = (updated.roster || []).find((item: any) => item.candidateId === c.candidateId || item.candidateEmail === c.candidateEmail);
+                                if (match?.inviteLink) {
+                                  copyCandidateLink(match.inviteLink, c.candidateId);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded transition-colors cursor-pointer shadow-xs"
+                            >
+                              <Sparkles size={12} />
+                              <span>Generate Link</span>
+                            </button>
                           )}
                         </td>
                         <td className="p-3 text-right">

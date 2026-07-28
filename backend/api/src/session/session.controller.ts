@@ -139,7 +139,7 @@ export class SessionController {
   @UseGuards(SessionOwnerGuard)
   async getQuestion(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
-    @Param("questionId", ParseUUIDPipe) questionId: string,
+    @Param("questionId") questionId: string,
   ) {
     return this.sessionService.getQuestion(sessionId, questionId);
   }

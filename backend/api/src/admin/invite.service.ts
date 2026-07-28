@@ -79,8 +79,8 @@ export class InviteService {
       },
     });
 
-    const baseUrl = process.env.VITE_API_BASE_URL ?? "http://localhost:3000/api/v1";
-    const inviteLink = `${baseUrl.replace("/api/v1", "")}/start?token=${token}`;
+    const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+    const inviteLink = `${candidateAppBase}/invite/${token}`;
 
     // Create Audit Log
     await this.prisma.auditLog.create({
@@ -271,8 +271,8 @@ export class InviteService {
       },
     });
 
-    const baseUrl = process.env.VITE_API_BASE_URL ?? "http://localhost:3000/api/v1";
-    const inviteLink = `${baseUrl.replace("/api/v1", "")}/start?token=${token}`;
+    const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+    const inviteLink = `${candidateAppBase}/invite/${token}`;
 
     // Create Audit Log
     await this.prisma.auditLog.create({

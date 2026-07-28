@@ -138,13 +138,6 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 >
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </div>
-                <button
-                  onClick={handleStartNow}
-                  className="px-6 py-3 rounded-xl bg-[var(--accent)] text-white text-xs font-semibold hover:bg-[var(--accent-hover)] transition-all cursor-pointer shadow-md flex items-center gap-2"
-                >
-                  <span>Start Assessment Now</span>
-                  <ArrowRight size={14} />
-                </button>
               </div>
             </div>
 
