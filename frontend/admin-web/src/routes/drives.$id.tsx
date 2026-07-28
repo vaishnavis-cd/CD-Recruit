@@ -39,6 +39,13 @@ import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker } from "../components/single-date-time-picker";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 export const Route = createFileRoute("/drives/$id")({
   component: DriveDetailPage,
@@ -85,10 +92,10 @@ export function processQuestionTags(tags?: string[], moduleType?: string) {
 }
 
 // Helper functions for 12-hour AM/PM time conversions
-function isoToAmPm(isoString?: string | null) {
-  if (!isoString) return { date: "", hour: "09", minute: "00", ampm: "AM" };
+function isoToAmPm(isoString?: string | null, defaultHour = "10", defaultMin = "00", defaultAmPm = "AM") {
+  if (!isoString) return { date: "", hour: defaultHour, minute: defaultMin, ampm: defaultAmPm };
   const d = new Date(isoString);
-  if (isNaN(d.getTime())) return { date: "", hour: "09", minute: "00", ampm: "AM" };
+  if (isNaN(d.getTime())) return { date: "", hour: defaultHour, minute: defaultMin, ampm: defaultAmPm };
 
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -142,14 +149,14 @@ function DriveDetailPage() {
 
   // 12-Hour AM/PM Schedule state
   const [startDate, setStartDate] = useState("");
-  const [startHour, setStartHour] = useState("09");
+  const [startHour, setStartHour] = useState("10");
   const [startMinute, setStartMinute] = useState("00");
   const [startAmPm, setStartAmPm] = useState("AM");
 
   const [endDate, setEndDate] = useState("");
-  const [endHour, setEndHour] = useState("05");
+  const [endHour, setEndHour] = useState("11");
   const [endMinute, setEndMinute] = useState("00");
-  const [endAmPm, setEndAmPm] = useState("PM");
+  const [endAmPm, setEndAmPm] = useState("AM");
 
   // Module Config State (6 Modules)
   const [moduleConfig, setModuleConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number; questionSource?: string }>>({
@@ -222,13 +229,13 @@ function DriveDetailPage() {
       setSavedAssignedQuestions(data.questionIds || []);
 
       // Parse schedule dates to 12-hour AM/PM controls
-      const startParsed = isoToAmPm(data.scheduleStart);
+      const startParsed = isoToAmPm(data.scheduleStart, "10", "00", "AM");
       setStartDate(startParsed.date);
       setStartHour(startParsed.hour);
       setStartMinute(startParsed.minute);
       setStartAmPm(startParsed.ampm);
 
-      const endParsed = isoToAmPm(data.scheduleEnd);
+      const endParsed = isoToAmPm(data.scheduleEnd, "11", "00", "AM");
       setEndDate(endParsed.date);
       setEndHour(endParsed.hour);
       setEndMinute(endParsed.minute);
@@ -508,9 +515,18 @@ function DriveDetailPage() {
     }
   };
 
+  const isAiPromptingDynamic = useMemo(() => {
+    const aiConf = moduleConfig["AI_PROMPTING"];
+    return !!(aiConf?.enabled && (aiConf?.questionSource || "AI_DYNAMIC") === "AI_DYNAMIC");
+  }, [moduleConfig]);
+
   // Filtered Questions Bank List (Filtered to only modules enabled in drive configuration)
   const filteredQuestionsList = useMemo(() => {
     return questionsBank.filter((q) => {
+      if (q.moduleType === "AI_PROMPTING" && isAiPromptingDynamic) {
+        return false;
+      }
+
       if (questionModuleFilter === "ALL") {
         if (!enabledModuleKeys.includes(q.moduleType)) return false;
       } else {
@@ -525,7 +541,7 @@ function DriveDetailPage() {
       }
       return true;
     });
-  }, [questionsBank, enabledModuleKeys, questionModuleFilter, questionSearch]);
+  }, [questionsBank, enabledModuleKeys, questionModuleFilter, questionSearch, isAiPromptingDynamic]);
 
   if (loading || !drive) {
     return (
@@ -698,7 +714,7 @@ function DriveDetailPage() {
                   { id: "MCQ", name: "Multiple Choice (MCQ)", icon: CheckCircle2, desc: "Evaluated deterministically" },
                   { id: "SQL", name: "SQL Queries", icon: Database, desc: "Evaluated via Judge0 DB" },
                   { id: "CODING", name: "Coding / DSA", icon: Code2, desc: "Evaluated via Judge0" },
-                  { id: "DEBUGGING", name: "Debugging (NEW)", icon: Bug, desc: "Evaluated via Judge0" },
+                  { id: "DEBUGGING", name: "Debugging", icon: Bug, desc: "Evaluated via Judge0" },
                   { id: "AI_PROMPTING", name: "AI Prompting", icon: Bot, desc: "Evaluated via Groq/Cerebras" },
                   { id: "SIMULATION", name: "Contextual Simulation", icon: Play, desc: "On-call incident & ticket simulation evaluated via LLM" },
                 ] as const
@@ -768,20 +784,34 @@ function DriveDetailPage() {
 
                         {mod.id === "AI_PROMPTING" && (
                           <div className="col-span-2 pt-2 border-t border-[#EFF0F3]">
-                            <label className="block text-[#5B5B64] font-medium mb-1 text-[11px]">Question &amp; Validation Source</label>
-                            <select
+                            <label className="block text-[#5B5B64] font-medium mb-1.5 text-[11px]">Question &amp; Validation Source</label>
+                            <Select
                               value={(conf as any).questionSource || "AI_DYNAMIC"}
-                              onChange={(e) =>
+                              onValueChange={(val) =>
                                 setModuleConfig({
                                   ...moduleConfig,
-                                  [mod.id]: { ...conf, questionSource: e.target.value },
+                                  [mod.id]: { ...conf, questionSource: val },
                                 })
                               }
-                              className="w-full px-2 py-1.5 border border-[#E6E6EA] rounded font-sans text-[12px] bg-white text-[#0B0B0D] cursor-pointer"
                             >
-                              <option value="AI_DYNAMIC">🤖 AI-Generated Questions &amp; Autonomous AI Validation</option>
-                              <option value="STATIC_BANK">📚 Static Question Bank (Pre-authored Questions &amp; Rules)</option>
-                            </select>
+                              <SelectTrigger className="w-full h-8 px-2.5 border border-[#E6E6EA] rounded-[6px] font-sans text-[12px] bg-white text-[#0B0B0D] cursor-pointer">
+                                <SelectValue placeholder="Select question source" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="AI_DYNAMIC">
+                                  <div className="flex items-center gap-1.5">
+                                    <Bot className="w-3.5 h-3.5 text-[#2F5CFF]" />
+                                    <span>AI-Generated Questions &amp; Autonomous AI Validation</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="STATIC_BANK">
+                                  <div className="flex items-center gap-1.5">
+                                    <BookOpen className="w-3.5 h-3.5 text-[#5B5B64]" />
+                                    <span>Static Question Bank (Pre-authored Questions &amp; Rules)</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         )}
                       </div>
@@ -888,6 +918,13 @@ function DriveDetailPage() {
             </div>
 
             {/* Question Selector List */}
+            {isAiPromptingDynamic && (questionModuleFilter === "ALL" || questionModuleFilter === "AI_PROMPTING") && (
+              <div className="p-3.5 bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[12px] italic text-[#8B8B93] flex items-center gap-2">
+                <Sparkles size={14} className="text-[#2F5CFF] shrink-0" />
+                <span>AI-Generated Mode Selected — Questions &amp; evaluation will be dynamically generated by AI during the candidate assessment.</span>
+              </div>
+            )}
+
             <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-md max-h-[460px] overflow-y-auto">
               {filteredQuestionsList.length === 0 ? (
                 <div className="p-8 text-center text-[12px] italic text-[#8B8B93]">
@@ -1069,9 +1106,20 @@ function DriveDetailPage() {
                               )}
                             </button>
                           ) : (
-                            <span className="text-[11px] text-[#8B8B93] italic">
-                              Click "Generate Links" to activate
-                            </span>
+                            <button
+                              onClick={async () => {
+                                await handleGenerateLinks();
+                                const updated = await fetchDriveDetail(driveId);
+                                const match = (updated.roster || []).find((item: any) => item.candidateId === c.candidateId || item.candidateEmail === c.candidateEmail);
+                                if (match?.inviteLink) {
+                                  copyCandidateLink(match.inviteLink, c.candidateId);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded transition-colors cursor-pointer shadow-xs"
+                            >
+                              <Sparkles size={12} />
+                              <span>Generate Link</span>
+                            </button>
                           )}
                         </td>
                         <td className="p-3 text-right">

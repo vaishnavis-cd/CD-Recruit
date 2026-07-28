@@ -46,11 +46,24 @@ const STATUS_COLOR: Record<DriveStatus, string> = {
   ACTIVE: "bg-[#E3F9F2] text-[#0C6B58]",
   CLOSED: "bg-[#FDF2E9] text-[#AD5B0B]",
 };
+
+function formatShortDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "22 Jul 26";
+  try {
+    const dt = new Date(dateStr);
+    if (isNaN(dt.getTime())) return "22 Jul 26";
+    const day = dt.getDate();
+    const month = dt.toLocaleString("en-US", { month: "short" });
+    const year = String(dt.getFullYear()).slice(-2);
+    return `${day} ${month} ${year}`;
+  } catch {
+    return "22 Jul 26";
+  }
+}
 function DrivesPage() {
   const drives = useStore((s) => s.drives);
   const fetchDrives = useStore((s) => s.fetchDrives);
   const createDrive = useStore((s) => s.createDrive);
-  const duplicateDrive = useStore((s) => s.duplicateDrive);
   const closeDrive = useStore((s) => s.closeDrive);
   const deleteDrive = useStore((s) => s.deleteDrive);
   const questions = useStore((s) => s.questions);
@@ -249,7 +262,7 @@ function DrivesPage() {
     );
     const effectiveRoleTemplateId = matchedTemplate
       ? matchedTemplate.id
-      : (roleTemplates[0]?.id ?? "");
+      : role.trim();
 
     try {
       // 1. Create Drive
@@ -370,11 +383,11 @@ function DrivesPage() {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
               statusFilter === s
-                ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
+                ? "text-black border-[#2F5CFF] border-2"
+                : "bg-white text-[#5B5B64] border-[#E6E6EA] border-2 hover:border-[#D6D7DC]"
             }`}
           >
-            {s === "all" ? "All Drives" : STATUS_LABEL[s]}
+            {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
           </button>
         ))}
       </div>
@@ -385,87 +398,49 @@ function DrivesPage() {
           <p className="text-[12px] italic text-[#8B8B93]">No Entries</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           {filtered.map((d) => (
             <div
               key={d.id}
-              className="bg-white border border-[#E6E6EA] rounded-[10px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+              className="bg-white border border-[#E6E6EA] rounded-[18px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
+              <div className="flex items-start justify-between gap-3 mb-6">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h3 className="text-[17px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
+                    {d.name}
+                  </h3>
+                  <p className="text-[13px] text-[#8B8B93] font-normal truncate">
+                    {d.roleTemplateName || "Software Developer"}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-wide font-medium ${STATUS_COLOR[d.status]}`}
+                    className={`px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
                   >
                     {STATUS_LABEL[d.status]}
                   </span>
-                  <span className="text-[11px] font-mono text-[#8B8B93]">
-                    {d.createdAt.slice(0, 10)}
-                  </span>
-                </div>
-                <h3 className="text-[15px] font-semibold text-[#0B0B0D] mb-1.5 line-clamp-1">
-                  {d.name}
-                </h3>
-                <p className="text-[12px] text-[#5B5B64] mb-4">Role: {d.roleTemplateName}</p>
-
-                <div className="grid grid-cols-3 gap-2 py-3 border-y border-[#EFF0F3] mb-4 text-center">
-                  <div>
-                    <div className="text-[15px] font-mono font-semibold text-[#0B0B0D]">
-                      {d.invitedCount}
-                    </div>
-                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93] mt-0.5">
-                      Invited
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[15px] font-mono font-semibold text-[#0B0B0D]">
-                      {d.startedCount}
-                    </div>
-                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93] mt-0.5">
-                      Started
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[15px] font-mono font-semibold text-[#0B0B0D]">
-                      {d.completedCount}
-                    </div>
-                    <div className="text-[9px] uppercase tracking-wider text-[#8B8B93] mt-0.5">
-                      Finished
-                    </div>
+                  <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#8B8B93]">
+                    <Calendar size={14} className="text-[#0B0B0D]" />
+                    <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <Link
                   to="/drives/$id"
                   params={{ id: d.id }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[12px] font-medium border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] transition-colors"
+                  className="flex-1 py-2.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] shadow-sm transition-all text-center cursor-pointer flex items-center justify-center"
                 >
-                  <Eye size={12} />
-                  View Details
+                  View Drive
                 </Link>
                 <button
-                  onClick={() => duplicateDrive(d.id)}
-                  className="p-2 border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors"
-                  title="Duplicate Drive"
-                >
-                  <Copy size={12} />
-                </button>
-                <button
                   onClick={() => setConfirmDeleteDrive(d)}
-                  className="p-2 border border-red-100 bg-red-50/50 hover:bg-red-50 text-red-500 rounded-md transition-colors cursor-pointer"
+                  className="p-2.5 bg-[#FFC0B8] hover:bg-[#FFAEA4] text-[#C0392B] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
                   title="Delete Drive"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={16} />
                 </button>
-                {d.status === "ACTIVE" && (
-                  <button
-                    onClick={() => setConfirmCloseDrive(d)}
-                    className="px-2.5 py-1.5 text-[12px] font-medium border border-[#FEE2E2] bg-[#FEF2F2] text-[#EF4444] rounded-md hover:bg-[#FEE2E2] transition-colors cursor-pointer"
-                  >
-                    Close
-                  </button>
-                )}
               </div>
             </div>
           ))}
@@ -539,7 +514,7 @@ function DrivesPage() {
                     );
                     const effectiveRoleTemplateId = matchedTemplate
                       ? matchedTemplate.id
-                      : (roleTemplates[0]?.id ?? "");
+                      : role.trim();
 
                     const res = await createDrive({
                       name: driveName.trim(),

@@ -55,6 +55,8 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           if (persistedSession && persistedSession.id !== session.id) {
             console.log('[InviteResolver] Replacing mismatched local session:', persistedSession.id, 'with:', session.id)
             localStorage.removeItem('cd-recruit-assessment-state')
+            localStorage.setItem('cd-recruit-theme', 'light')
+            document.documentElement.classList.remove('dark')
             useSessionStore.setState({ assessment: null })
           }
           setSession(session)
@@ -74,11 +76,8 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
         localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
 
         const nowMs = services.time.getServerNow()
-        const bufferMs = (invite.bufferMinutes || 30) * 60 * 1000
-        const graceMs = (invite.graceMinutes || 120) * 60 * 1000
-
-        const tooEarlyBoundary = scheduledMs - bufferMs
-        const graceBoundary = scheduledMs + graceMs
+        const systemCheckUnlockBoundary = scheduledMs - 15 * 60 * 1000 // System check unlocks at T-15m
+        const graceBoundary = scheduledMs + (invite.graceMinutes ? invite.graceMinutes * 60 * 1000 : 20 * 60 * 1000) // 20m probation window
 
         // If active session exists for THIS token AND assessment timer was already started AND NOT EXPIRED, resume it
         const currentAssessment = useSessionStore.getState().assessment
@@ -98,11 +97,11 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           }
         }
 
-        if (nowMs < tooEarlyBoundary) {
-          // Too early
-          transitionTo({ type: 'too-early', scheduledTimeMs: scheduledMs, inviteToken: token })
+        if (nowMs < systemCheckUnlockBoundary) {
+          // Arrived earlier than T - 15m (e.g. before 9:45 AM for 10:00 AM test)
+          transitionTo({ type: 'too-early', scheduledTimeMs: systemCheckUnlockBoundary, inviteToken: token })
         } else if (nowMs < scheduledMs) {
-          // Buffer window — if consent was already done, go to waiting-room, else system-check
+          // 15m preheat window (9:45 AM - 10:00 AM) — complete System Check then enter Waiting Room until T
           const consentDone = localStorage.getItem('cd-recruit-consent-audio') === 'true' || localStorage.getItem('cd-recruit-selfie-data')
           if (consentDone && persistedSession) {
             transitionTo({ type: 'waiting-room', scheduledTimeMs: scheduledMs, inviteToken: token })
@@ -110,10 +109,15 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
             transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
           }
         } else if (nowMs < graceBoundary) {
-          // Grace window (assessment start time T has passed)
-          transitionTo({ type: 'system-check', mode: 'expedited', inviteToken: token })
+          // Late arrival within 20-min probation window (10:00 AM - 10:20 AM)
+          const consentDone = localStorage.getItem('cd-recruit-consent-audio') === 'true' || localStorage.getItem('cd-recruit-selfie-data')
+          if (consentDone && persistedSession) {
+            devForceJump({ type: 'assessment', moduleIndex: 0, sessionId: persistedSession.id })
+          } else {
+            transitionTo({ type: 'system-check', mode: 'expedited', inviteToken: token })
+          }
         } else {
-          // Expired
+          // Expired (arrived after probation window)
           transitionTo({ type: 'expired', reason: 'never-started' })
         }
       } catch (err) {

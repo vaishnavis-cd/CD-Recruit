@@ -156,6 +156,21 @@ export class MinioService implements OnModuleInit {
   }
 
   /**
+   * Retrieves a readable stream for a biometric evidence clip.
+   */
+  async getObjectStream(bucketName: string, objectKey: string) {
+    if (!this.minioClient || !this.storageHealthy) {
+      return null;
+    }
+    try {
+      return await this.minioClient.getObject(bucketName, objectKey);
+    } catch (error: any) {
+      this.logger.error(`Error getting object stream ${bucketName}/${objectKey}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Uploads an object buffer to the specified bucket.
    */
   async putObject(

@@ -101,8 +101,7 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
   },
 
   async submitFinalAssessment(sessionId: string): Promise<{ referenceId: string }> {
-    await randomLatency(500, 1200)
-    maybeFail(MOCK_FAILURE_RATE)
+    await randomLatency(300, 600)
 
     if (mockSession) {
       mockSession = { ...mockSession, submittedAt: new Date().toISOString(), status: 'submitted' }
@@ -119,13 +118,7 @@ export const mockSessionApiAdapter: CandidateSessionApiPort = {
   },
 
   async syncEventLog(payload: SyncEventPayload): Promise<{ success: boolean; retryAfterMs?: number }> {
-    await randomLatency(600, 1500)
-    maybeFail(0.15) // slightly higher failure rate to exercise retry UI
-
-    // Simulate occasional retry-after
-    if (Math.random() < 0.05) {
-      return { success: false, retryAfterMs: 3000 }
-    }
+    await randomLatency(300, 600)
     return { success: true }
   },
 

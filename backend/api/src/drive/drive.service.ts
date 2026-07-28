@@ -40,13 +40,26 @@ export class DriveService {
       candidates = [],
     } = dto;
 
-    // 1. Verify RoleTemplate exists
-    const template = await this.prisma.roleTemplate.findUnique({
-      where: { id: roleTemplateId },
+    // 1. Verify RoleTemplate exists or auto-create custom role template
+    let template = await this.prisma.roleTemplate.findFirst({
+      where: {
+        OR: [
+          { id: roleTemplateId },
+          { roleName: { equals: roleTemplateId, mode: "insensitive" } },
+        ],
+      },
     });
+
     if (!template) {
-      throw new NotFoundException(`Role template not found with ID ${roleTemplateId}`);
+      template = await this.prisma.roleTemplate.create({
+        data: {
+          roleName: roleTemplateId.trim() || "Software Developer",
+          weightingPreset: { MCQ: 0.2, SQL: 0.2, CODING: 0.3, AI_PROMPTING: 0.15, SIMULATION: 0.15 },
+          durationMinutes: 90,
+        },
+      });
     }
+    const finalRoleTemplateId = template.id;
 
     const defaultModuleConfig = moduleConfig || {
       MCQ: { enabled: false, durationMinutes: 15, weight: 0.2 },
@@ -104,7 +117,7 @@ export class DriveService {
       const createdDrive = await tx.drive.create({
         data: {
           name,
-          roleTemplateId,
+          roleTemplateId: finalRoleTemplateId,
           moduleConfig: defaultModuleConfig as any,
           status: status as any,
           scheduleStart: scheduleStart ? new Date(scheduleStart) : null,
@@ -260,8 +273,8 @@ export class DriveService {
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
-      const baseUrl = process.env.VITE_API_BASE_URL ?? "http://localhost:3000/api/v1";
-      const inviteLink = `${baseUrl.replace("/api/v1", "")}/start?token=${invite.token}`;
+      const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+      const inviteLink = `${candidateAppBase}/invite/${invite.token}`;
       const session = invite.session;
 
       return {
@@ -331,13 +344,24 @@ export class DriveService {
     const data: any = {};
     if (name) data.name = name;
     if (roleTemplateId) {
-      const template = await this.prisma.roleTemplate.findUnique({
-        where: { id: roleTemplateId },
+      let template = await this.prisma.roleTemplate.findFirst({
+        where: {
+          OR: [
+            { id: roleTemplateId },
+            { roleName: { equals: roleTemplateId, mode: "insensitive" } },
+          ],
+        },
       });
       if (!template) {
-        throw new NotFoundException(`Role template not found with ID ${roleTemplateId}`);
+        template = await this.prisma.roleTemplate.create({
+          data: {
+            roleName: roleTemplateId.trim() || "Software Developer",
+            weightingPreset: { MCQ: 0.2, SQL: 0.2, CODING: 0.3, AI_PROMPTING: 0.15, SIMULATION: 0.15 },
+            durationMinutes: 90,
+          },
+        });
       }
-      data.roleTemplateId = roleTemplateId;
+      data.roleTemplateId = template.id;
     }
     if (moduleConfig) data.moduleConfig = moduleConfig;
     if (scheduleStart) data.scheduleStart = new Date(scheduleStart);
@@ -659,7 +683,12 @@ export class DriveService {
     });
 
     if (generatedInviteCount > 0) {
-      throw new BadRequestException("This drive has already generated invite links and is locked.");
+      const now = new Date();
+      const cutoffTime = drive.scheduleStart ? new Date(new Date(drive.scheduleStart).getTime() + 15 * 60 * 1000) : null;
+      const isWithinLateWindow = cutoffTime ? now <= cutoffTime : true;
+      if (!isWithinLateWindow) {
+        throw new BadRequestException("This drive candidate roster is locked. Late candidate additions are only allowed prior to 15 minutes past schedule start.");
+      }
     }
 
     if (candidates.length === 0) {

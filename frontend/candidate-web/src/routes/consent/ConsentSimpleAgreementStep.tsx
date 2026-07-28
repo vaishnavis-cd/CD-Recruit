@@ -121,7 +121,7 @@ export function ConsentSimpleAgreementStep({ type, onAgree }: ConsentSimpleAgree
   if (type === 'terms') {
     return (
       <div>
-        <div className="card-surface p-5 h-64 overflow-y-auto text-sm leading-relaxed text-[var(--muted-foreground)] border border-[var(--border)] rounded-xl space-y-3">
+        <div className="card-surface p-5 text-sm leading-relaxed text-[var(--muted-foreground)] border border-[var(--border)] rounded-xl space-y-3">
           <p>
             <strong className="text-[var(--foreground)]">1. Purpose.</strong> CD-Recruit provides a remote candidate assessment service on behalf of the employer named in your invitation. By continuing, you consent to participate in a monitored technical assessment.
           </p>

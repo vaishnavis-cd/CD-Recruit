@@ -77,7 +77,7 @@ async function buildQuestionList(
           session.candidateId,
           driveId
         );
-        return shuffled.map((q: any) => {
+        const resultList = shuffled.map((q: any) => {
           const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
           return {
             ...q,
@@ -85,6 +85,27 @@ async function buildQuestionList(
             difficulty: matchingDq?.question?.difficulty || q.difficulty || "medium",
           };
         });
+
+        const drive = await prisma.drive.findUnique({ where: { id: driveId } });
+        if (drive && drive.moduleConfig) {
+          const mc = drive.moduleConfig as Record<string, { enabled?: boolean }>;
+          if (mc.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
+          }
+        }
+        return resultList;
       }
     }
 
@@ -780,6 +801,32 @@ export class SessionService {
         code: "SESSION_NOT_FOUND",
         message: "Session not found.",
       });
+    }
+
+    if (questionId === "ai-prompting-dynamic") {
+      const response = await this.prisma.moduleResponse.findUnique({
+        where: {
+          sessionId_questionId: {
+            sessionId,
+            questionId,
+          },
+        },
+      });
+      return {
+        questionId,
+        roleTemplateId: session.roleTemplateId,
+        content: {
+          title: "AI Prompting Challenge",
+          prompt: "Engage in conversational problem solving with the AI assistant.",
+        },
+        response: response
+          ? {
+              responsePayload: response.responsePayload,
+              isDraft: response.isDraft,
+              timeSpentSeconds: response.timeSpentSeconds,
+            }
+          : null,
+      };
     }
 
     const question = await this.prisma.question.findUnique({
