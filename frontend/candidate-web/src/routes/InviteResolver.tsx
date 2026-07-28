@@ -55,6 +55,8 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           if (persistedSession && persistedSession.id !== session.id) {
             console.log('[InviteResolver] Replacing mismatched local session:', persistedSession.id, 'with:', session.id)
             localStorage.removeItem('cd-recruit-assessment-state')
+            localStorage.setItem('cd-recruit-theme', 'light')
+            document.documentElement.classList.remove('dark')
             useSessionStore.setState({ assessment: null })
           }
           setSession(session)

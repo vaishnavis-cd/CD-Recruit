@@ -85,9 +85,9 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
   const activePromptLabel = !tasks.blink
     ? 'Blink twice'
     : !tasks.turnLeft
-    ? 'Turn your head left'
-    : !tasks.turnRight
     ? 'Turn your head right'
+    : !tasks.turnRight
+    ? 'Turn your head left'
     : 'Liveness confirmed'
 
   return (
