@@ -533,4 +533,8 @@ export class ProctoringService {
 
     return null;
   }
+
+  async getObjectStream(bucketName: string, objectKey: string) {
+    return this.storage.getObjectStream(bucketName, objectKey);
+  }
 }
