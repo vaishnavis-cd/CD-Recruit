@@ -31,27 +31,25 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
     return services.time.subscribe(setNowMs)
   }, [])
 
-  // Auto-poll: check gate when nearing T-30 (within 5 minutes of Buffer start)
+  // Auto-poll: check gate when reaching T-15m
   useEffect(() => {
-    const bufferStartMs = scheduledTimeMs - 30 * 60 * 1000
-    const msToBuffer = bufferStartMs - nowMs
+    const msToUnlock = scheduledTimeMs - nowMs
 
-    if (msToBuffer <= 0) {
-      // We're now in the buffer window
+    if (msToUnlock <= 0) {
+      // System Check unlocks at T-15m
       transitionTo({ type: 'system-check', mode: 'full', inviteToken })
     }
-    // Poll every 5s when within 2min of buffer start to avoid missing it
-    if (msToBuffer < 2 * 60 * 1000) {
+    if (msToUnlock < 2 * 60 * 1000) {
       const timer = setTimeout(() => {
         setNowMs(services.time.getServerNow())
-      }, 5000)
+      }, 3000)
       return () => clearTimeout(timer)
     }
   }, [nowMs, scheduledTimeMs, inviteToken, transitionTo])
 
-  const scheduledDate = new Date(scheduledTimeMs)
-  const msUntilBuffer = (scheduledTimeMs - 30 * 60 * 1000) - nowMs
-  const { h, m, s } = formatHHMMSS(msUntilBuffer)
+  const scheduledDate = new Date(scheduledTimeMs + 15 * 60 * 1000) // Test start time T
+  const msUntilUnlock = scheduledTimeMs - nowMs
+  const { h, m, s } = formatHHMMSS(msUntilUnlock)
 
   const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
     hour: '2-digit',
@@ -87,20 +85,20 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
           <div className="lg:col-span-6 space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-[var(--surface)] text-[var(--muted-foreground)]">
-                <Clock size={14} /> Scheduled
+                <Clock size={14} /> Scheduled Test
               </div>
               <h1 id="too-early-heading" className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
                 Your assessment opens soon
               </h1>
               <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-                The link opens 30 minutes before your scheduled start time. Keep this tab open — you'll be moved forward automatically.
+                System check unlocks 15 minutes prior to test time. Keep this tab open — you'll be moved to System Check automatically.
               </p>
             </div>
 
             {/* Live Timer Hero Card */}
             <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-2 text-center shadow-[var(--shadow-sm)]">
               <div className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
-                Assessment Link Opens In
+                System Check Opens In
               </div>
               <div
                 className="font-mono-data text-4xl sm:text-5xl font-bold tabular-nums text-[var(--accent)] tracking-tight py-1"
@@ -110,14 +108,14 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
                 {h} : {m} : {s}
               </div>
               <div className="text-xs text-[var(--muted-foreground)]">
-                Starts at {formattedTime} · {formattedDate}
+                Test starts at {formattedTime} · {formattedDate}
               </div>
             </div>
 
             {/* Action & Support */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-              <button className="btn-primary w-full sm:w-auto px-6 py-2.5 cursor-pointer" disabled={msUntilBuffer > 0}>
-                {msUntilBuffer > 0 ? "Waiting for start time" : "Continue"}
+              <button className="btn-primary w-full sm:w-auto px-6 py-2.5 cursor-pointer" disabled={msUntilUnlock > 0}>
+                {msUntilUnlock > 0 ? "Waiting for system check unlock" : "Proceed to System Check"}
               </button>
 
               <a

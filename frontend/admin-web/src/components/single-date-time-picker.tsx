@@ -166,6 +166,7 @@ export function SingleDateTimePicker({
 
   const [currentMonth, setCurrentMonth] = useState<number>(initialDateObj.getMonth());
   const [currentYear, setCurrentYear] = useState<number>(initialDateObj.getFullYear());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
 
   const today = new Date();
   const todayYear = today.getFullYear();
@@ -259,9 +260,48 @@ export function SingleDateTimePicker({
             <ChevronLeft size={18} />
           </button>
 
-          <div className="flex items-center gap-1.5 text-[16px] font-semibold text-[#0B0B0D] cursor-pointer hover:opacity-80">
-            <span>{MONTH_NAMES[currentMonth]} {currentYear}</span>
-            <ChevronDown size={16} className="text-[#8B8B93]" />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMonthPicker((v) => !v)}
+              className="flex items-center gap-1.5 text-[16px] font-semibold text-[#0B0B0D] cursor-pointer hover:opacity-80 px-2.5 py-1 rounded-lg hover:bg-[#F7F7F9] transition-colors"
+            >
+              <span>{MONTH_NAMES[currentMonth]} {currentYear}</span>
+              <ChevronDown size={16} className={`text-[#8B8B93] transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showMonthPicker && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-[#E6E6EA] rounded-xl p-3 shadow-xl flex items-center gap-2 min-w-[250px]">
+                <select
+                  value={currentMonth}
+                  onChange={(e) => {
+                    setCurrentMonth(parseInt(e.target.value, 10));
+                    setShowMonthPicker(false);
+                  }}
+                  className="flex-1 px-2.5 py-1.5 text-[13px] font-medium bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[#0B0B0D] outline-none cursor-pointer hover:bg-white transition-colors"
+                >
+                  {MONTH_NAMES.map((name, idx) => (
+                    <option key={name} value={idx}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={currentYear}
+                  onChange={(e) => {
+                    setCurrentYear(parseInt(e.target.value, 10));
+                    setShowMonthPicker(false);
+                  }}
+                  className="px-2.5 py-1.5 text-[13px] font-medium bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[#0B0B0D] outline-none cursor-pointer hover:bg-white transition-colors"
+                >
+                  {Array.from({ length: 12 }, (_, i) => 2024 + i).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <button

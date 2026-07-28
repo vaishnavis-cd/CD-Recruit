@@ -29,7 +29,8 @@ export class CreateDriveDto {
   @IsNotEmpty()
   name: string;
 
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   roleTemplateId: string;
 
   @IsOptional()
@@ -66,7 +67,7 @@ export class UpdateDriveDto {
   name?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   roleTemplateId?: string;
 
   @IsOptional()

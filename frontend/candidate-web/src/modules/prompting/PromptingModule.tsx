@@ -76,13 +76,12 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
 
   // Map to PromptingQuestion structure
   const question = React.useMemo(() => {
-    if (!questionData) return null
-    const content = questionData.content || {}
+    const content = questionData?.content || {}
     return {
-      id: questionId,
+      id: questionId || 'ai-prompting-dynamic',
       moduleIndex,
       type: 'prompting' as const,
-      text: content.prompt || content.scenario || content.instructions || content.description || content.title || 'AI Prompting Task',
+      text: content.prompt || content.scenario || content.instructions || content.description || content.title || 'AI Prompting Challenge: Craft a structured system prompt and test cases to evaluate LLM output accuracy.',
       systemContext: content.context || content.systemContext || 'You are an AI assistant helping with an engineering evaluation.',
       suggestedResponse: content.idealResponseSummary || '',
     } as PromptingQuestion
