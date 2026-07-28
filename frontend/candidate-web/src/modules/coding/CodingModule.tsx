@@ -21,8 +21,8 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  // Only use real DB UUIDs — fixture IDs like 'code-1' are rejected by ParseUUIDPipe
-  const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING') ?? []
+  // Include CODING and DEBUGGING module questions
+  const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING' || q.moduleType === 'DEBUGGING') ?? []
   const questionId = codingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
 

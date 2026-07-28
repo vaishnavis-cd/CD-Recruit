@@ -70,6 +70,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
         submittedAt: null,
         status: data.status === 'SUBMITTED' ? 'submitted' : 'active',
         questions: data.questions,
+        durationMinutes: data.durationMinutes || 60,
       }
     } catch (err: any) {
       const code = err?.response?.data?.code ?? err?.response?.data?.error
@@ -82,7 +83,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   async createSession(token: string, cvMode: 'full' | 'reduced', tutorialMode: 'full' | 'condensed', selfieDataUrl?: string | null): Promise<Session> {
     // 1. Redeem invite token and create session on the backend
     const startRes = await apiClient.post('/sessions/start', { inviteToken: token })
-    const { sessionId, startedAt: startStartedAt, questions: startQuestions } = startRes.data
+    const { sessionId, startedAt: startStartedAt, questions: startQuestions, durationMinutes } = startRes.data
     localStorage.setItem('cd-recruit-session-id', sessionId)
 
     // 2. Upload baseline selfie if provided
@@ -121,6 +122,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       submittedAt: null,
       status: 'active',
       questions,
+      durationMinutes: durationMinutes || 60,
     }
   },
 
@@ -210,23 +212,23 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
   },
 
   async reportIntegritySignal(signal: IntegritySignalType): Promise<void> {
-    const sessionId = useSessionStore.getState().session?.id || ''
+    const sessionId = useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId || ''
     if (!sessionId) {
       console.warn('[realSessionApiAdapter] reportIntegritySignal: No active sessionId found.')
       return
     }
 
-    let eventType: any = 'SEAT_EXIT'
+    let eventType: any = 'TAB_SWITCH'
     let severity: 'MEDIUM' | 'HIGH' = 'MEDIUM'
 
     if (signal.kind === 'tab-switch' || signal.kind === 'window-blur') {
-      eventType = 'LOOKING_AWAY'
+      eventType = 'TAB_SWITCH'
       severity = 'MEDIUM'
     } else if (signal.kind === 'paste-anomaly') {
-      eventType = 'SEAT_EXIT'
+      eventType = 'PASTE'
       severity = 'HIGH'
     } else if (signal.kind === 'fullscreen-exit') {
-      eventType = 'SEAT_EXIT'
+      eventType = 'FULLSCREEN_EXIT'
       severity = 'HIGH'
     }
 

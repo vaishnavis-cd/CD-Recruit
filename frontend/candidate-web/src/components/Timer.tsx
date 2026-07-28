@@ -133,7 +133,8 @@ export function ModuleTimeBudgetIndicator({ moduleIndex, suggestedMinutes }: { m
   if (!assessment || assessment.timerStartMs === null) return null
 
   const elapsed = (nowMs - assessment.timerStartMs) / 1000 / 60
-  const previousModulesMinutes = TOTAL_ASSESSMENT_MINUTES - (TOTAL_ASSESSMENT_MINUTES - moduleIndex * (TOTAL_ASSESSMENT_MINUTES / 5))
+  const totalMinutes = Math.round(assessment.totalSeconds / 60) || 60
+  const previousModulesMinutes = moduleIndex * (totalMinutes / 5)
 
   const moduleElapsed = elapsed - previousModulesMinutes
   const budgetRemaining = suggestedMinutes - moduleElapsed

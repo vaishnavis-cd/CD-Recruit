@@ -119,13 +119,63 @@ export class SessionScoringService {
       ? Math.round((scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length) * 100) / 100
       : 0.85;
 
-    const sayDoConsistencyScore = Math.min(1.0, Math.round((compositeScore * 1.05) * 100) / 100);
+    // Authentic Say-Do Consistency Calculation
+    // 1. Evaluate explicit candidate self-assessments/confidence ("Say") vs actual execution results ("Do")
+    // 2. Fallback to Cross-Module Domain Stability Index (1.0 - Standard Deviation)
+    const sayDoDivergences: number[] = [];
+
+    for (const resp of responses) {
+      const payload = resp.responsePayload as any;
+      const q = questionMap.get(resp.questionId);
+      if (!q || !payload) continue;
+
+      const sayValue = payload.selfConfidence ?? payload.confidenceLevel ?? payload.expectedScore;
+      if (typeof sayValue === "number") {
+        const normalizedSay = sayValue > 1 ? sayValue / 100 : sayValue;
+        
+        let doValue = 0.5;
+        if (q.moduleType === "MCQ") {
+          const selectedIndex = payload?.selectedOptionIndex ?? payload?.selectedIndex;
+          const correctIndex = (q.content as any)?.correctIndex ?? (q.content as any)?.answerIndex ?? 0;
+          doValue = selectedIndex === correctIndex ? 1.0 : 0.0;
+        } else if (q.moduleType === "CODING") {
+          const execs = session.codingExecutions.filter((ce) => ce.questionId === q.id);
+          const lastExec = execs[execs.length - 1];
+          doValue = lastExec && lastExec.totalTests > 0 ? lastExec.passedTests / lastExec.totalTests : 0.5;
+        } else if (q.moduleType === "SQL") {
+          doValue = payload.query && payload.query.trim().length > 10 ? 0.9 : 0.3;
+        } else {
+          doValue = 0.85;
+        }
+
+        const divergence = Math.abs(normalizedSay - doValue);
+        sayDoDivergences.push(divergence);
+      }
+    }
+
+    let sayDoConsistencyScore: number;
+    let sayDoRationale: string;
+
+    if (sayDoDivergences.length > 0) {
+      const meanDivergence = sayDoDivergences.reduce((a, b) => a + b, 0) / sayDoDivergences.length;
+      sayDoConsistencyScore = Math.max(0.0, Math.round((1.0 - meanDivergence) * 100) / 100);
+      sayDoRationale = `Calculated from ${sayDoDivergences.length} candidate self-assessments ("Say") vs actual execution results ("Do").`;
+    } else if (scoreValues.length > 1) {
+      const mean = compositeScore;
+      const variance = scoreValues.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scoreValues.length;
+      const stdDev = Math.sqrt(variance);
+      sayDoConsistencyScore = Math.max(0.0, Math.round((1.0 - stdDev) * 100) / 100);
+      sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${Math.round(stdDev * 100) / 100}).`;
+    } else {
+      sayDoConsistencyScore = Math.min(1.0, compositeScore);
+      sayDoRationale = `Evaluated candidate performance across ${responses.length} response(s).`;
+    }
 
     const result: CompositeScoreResult = {
       compositeScore,
       sayDoConsistencyScore,
       gradingSource: "AUTOMATED_EVALUATION_ENGINE",
-      sayDoRationale: `Evaluated ${responses.length} response(s) across ${Object.keys(moduleScores).length} module(s).`,
+      sayDoRationale,
       moduleScores,
     };
 

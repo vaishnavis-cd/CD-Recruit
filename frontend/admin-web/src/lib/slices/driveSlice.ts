@@ -25,6 +25,7 @@ export interface DriveSlice {
     candidates: Array<{ name: string; candidateEmail: string }>,
   ) => Promise<void>;
   generateDriveLinks: (driveId: string) => Promise<void>;
+  removeCandidateFromDrive: (driveId: string, candidateId: string) => Promise<void>;
 }
 
 export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get) => ({
@@ -129,5 +130,17 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
       method: "POST",
       headers,
     });
+  },
+
+  removeCandidateFromDrive: async (driveId: string, candidateId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/${candidateId}`, {
+      method: "DELETE",
+      headers,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to remove candidate from drive");
+    }
   },
 });

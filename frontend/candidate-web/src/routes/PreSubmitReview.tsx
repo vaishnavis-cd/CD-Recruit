@@ -3,6 +3,7 @@ import { useSessionStore } from '../store/sessionMachine'
 import { MODULES } from '../fixtures/questions'
 import { Timer } from '../components/Timer'
 import type { QuestionStatus } from '../store/sessionMachine'
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 
 interface DynamicModuleSummary {
   moduleType: string
@@ -121,10 +122,11 @@ export function PreSubmitReview() {
                   </div>
                   <button
                     onClick={() => transitionTo({ type: 'assessment', moduleIndex: mod.index, sessionId })}
-                    className="text-xs text-[var(--accent)] hover:underline focus:outline-none cursor-pointer"
+                    className="text-xs text-[var(--accent)] hover:underline focus:outline-none cursor-pointer inline-flex items-center gap-1"
                     aria-label={`Go back to ${mod.name}`}
                   >
-                    Return to module →
+                    <span>Return to module</span>
+                    <ChevronRight size={13} />
                   </button>
                 </div>
 
@@ -171,16 +173,18 @@ export function PreSubmitReview() {
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={handleGoBack}
-            className="btn-secondary flex-1 cursor-pointer"
+            className="btn-secondary flex-1 cursor-pointer inline-flex items-center justify-center gap-1.5"
           >
-            ← Return to assessment
+            <ChevronLeft size={14} />
+            <span>Return to assessment</span>
           </button>
           <button
             onClick={handleSubmit}
-            className="btn-primary flex-1 cursor-pointer"
+            className="btn-primary flex-1 cursor-pointer inline-flex items-center justify-center gap-1.5"
             aria-label="Submit final assessment — this action cannot be undone"
           >
-            Submit Final Assessment →
+            <span>Submit Final Assessment</span>
+            <ArrowRight size={14} />
           </button>
         </div>
 

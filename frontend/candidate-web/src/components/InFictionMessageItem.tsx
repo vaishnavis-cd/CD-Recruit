@@ -1,5 +1,7 @@
 import React from 'react'
-import type { ScenarioMessage, Channel } from '../fixtures/scenarios'
+import type { ScenarioMessage } from '../services/scenario/port'
+
+export type Channel = ScenarioMessage['channel']
 
 export interface InboxMessage extends ScenarioMessage {
   read: boolean

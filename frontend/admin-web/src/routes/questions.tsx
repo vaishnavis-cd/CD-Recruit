@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
@@ -23,6 +23,7 @@ import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { ModuleType } from "@cd-recruit/shared-types";
 import { CodeEditor } from "../components/common/CodeEditor";
+import { processQuestionTags } from "./drives.$id";
 
 export const Route = createFileRoute("/questions")({
   component: QuestionBankPage,
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/questions")({
 });
 
 function QuestionBankPage() {
+  const navigate = useNavigate();
   const questions = useStore((s) => s.questions);
   const fetchQuestions = useStore((s) => s.fetchQuestions);
   const createQuestion = useStore((s) => s.createQuestion);
@@ -54,6 +56,21 @@ function QuestionBankPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const autoBulk = params.get("autoBulk") === "true";
+      const driveName = params.get("driveName");
+
+      if (driveName) {
+        setSelectedFolder(driveName);
+      }
+      if (autoBulk) {
+        setShowImportModal(true);
+      }
+    }
+  }, []);
 
   // Form State (Create)
   const [moduleType, setModuleType] = useState<string>("MCQ");
@@ -102,6 +119,7 @@ function QuestionBankPage() {
 
   // Confirmation Modal State
   const [confirmArchiveQuestion, setConfirmArchiveQuestion] = useState<any | null>(null);
+  const [confirmDeleteFolder, setConfirmDeleteFolder] = useState<string | null>(null);
 
   useEffect(() => {
     fetchQuestions({
@@ -352,6 +370,10 @@ function QuestionBankPage() {
       toast.error("Please select a CSV file first.");
       return;
     }
+    const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const fromDriveId = searchParams.get("fromDriveId");
+    const driveNameParam = searchParams.get("driveName");
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -379,6 +401,13 @@ function QuestionBankPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean);
+
+          if (driveNameParam) {
+            const driveTag = `Drive: ${driveNameParam}`;
+            if (!tags.some((t) => t.toLowerCase() === driveTag.toLowerCase())) {
+              tags.push(driveTag);
+            }
+          }
 
           const content: any = {};
           const scoringConfig: any = {};
@@ -423,10 +452,24 @@ function QuestionBankPage() {
           });
         }
 
-        await bulkUploadQuestions(importModuleType, parsedQuestions);
+        const created = await bulkUploadQuestions(importModuleType, parsedQuestions);
         toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
         setCsvFile(null);
         setShowImportModal(false);
+
+        if (fromDriveId) {
+          try {
+            const driveDetail = await useStore.getState().fetchDriveDetail(fromDriveId);
+            const existingIds = driveDetail.questionIds || [];
+            const newIds = Array.isArray(created) ? created.map((q: any) => q.id) : [];
+            const combinedIds = Array.from(new Set([...existingIds, ...newIds]));
+            await useStore.getState().saveDriveQuestions(fromDriveId, combinedIds);
+            toast.success(`Linked imported questions to drive. Redirecting back to Drive Config...`);
+          } catch (e) {
+            console.error("Auto linking questions to drive failed", e);
+          }
+          navigate({ to: `/drives/${fromDriveId}` as any });
+        }
       } catch (err: any) {
         toast.error("CSV Import failed: " + err.message);
       }
@@ -563,17 +606,27 @@ function QuestionBankPage() {
                   <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
                     {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                   </h4>
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {q.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
-                      >
-                        <Tag size={8} />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {q.tags && q.tags.length > 0 && (() => {
+                    const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {displayTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                          >
+                            <Tag size={8} />
+                            {tag}
+                          </span>
+                        ))}
+                        {hiddenDriveCount > 0 && (
+                          <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                            +{hiddenDriveCount} more drives
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-6 shrink-0">
                   <div className="text-center font-mono">
@@ -655,17 +708,27 @@ function QuestionBankPage() {
                   <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
                     {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                   </h4>
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {q.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
-                      >
-                        <Tag size={8} />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {q.tags && q.tags.length > 0 && (() => {
+                    const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {displayTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                          >
+                            <Tag size={8} />
+                            {tag}
+                          </span>
+                        ))}
+                        {hiddenDriveCount > 0 && (
+                          <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                            +{hiddenDriveCount} more drives
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-6 shrink-0">
                   <div className="text-center font-mono">
@@ -718,20 +781,34 @@ function QuestionBankPage() {
                 <div
                   key={tag}
                   onClick={() => setSelectedFolder(tag)}
-                  className="p-5 bg-white border border-[#E6E6EA] rounded-[12px] shadow-sm hover:shadow-md hover:border-[#2F5CFF] transition-all cursor-pointer flex flex-col justify-between group"
+                  className="p-5 bg-white border border-[#E6E6EA] rounded-[12px] shadow-sm hover:shadow-md hover:border-[#2F5CFF] transition-all cursor-pointer flex flex-col justify-between group relative"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-[#EFF4FF] text-[#2F5CFF] rounded-lg group-hover:bg-[#2F5CFF] group-hover:text-white transition-colors">
-                      <Folder size={20} />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#EFF4FF] text-[#2F5CFF] rounded-lg group-hover:bg-[#2F5CFF] group-hover:text-white transition-colors">
+                        <Folder size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate max-w-[120px] capitalize">
+                          {tag}
+                        </h4>
+                        <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                          {list.length} {list.length === 1 ? "question" : "questions"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate max-w-[120px] capitalize">
-                        {tag}
-                      </h4>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
-                        {list.length} {list.length === 1 ? "question" : "questions"}
-                      </p>
-                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteFolder(tag);
+                      }}
+                      className="p-1.5 text-[#8B8B93] hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer shrink-0"
+                      title="Delete folder"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                   <div className="flex justify-end pt-4">
                     <span className="text-[11px] font-medium text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
@@ -1366,6 +1443,52 @@ function QuestionBankPage() {
                 className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
               >
                 Archive Question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Folder Confirmation Modal */}
+      {confirmDeleteFolder && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Question Folder?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to delete the folder <strong className="text-[#0B0B0D]">"{confirmDeleteFolder}"</strong> containing{" "}
+              <strong className="text-[#0B0B0D]">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmDeleteFolder(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const tag = confirmDeleteFolder;
+                  const list = groupedQuestions[tag] || [];
+                  try {
+                    for (const q of list) {
+                      await archiveQuestion(q.id);
+                    }
+                    toast.success(`Deleted folder "${tag}" and archived ${list.length} questions`);
+                    setConfirmDeleteFolder(null);
+                  } catch (err: any) {
+                    toast.error("Failed deleting folder: " + (err.message || err));
+                  }
+                }}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete Folder &amp; Questions
               </button>
             </div>
           </div>

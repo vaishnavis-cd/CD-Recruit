@@ -7,9 +7,10 @@ import { SessionScoringService } from "./session-scoring.service";
 import { AuthModule } from "@app/auth/auth.module";
 import { CandidateModule } from "@app/candidate/candidate.module";
 import { QueueModule } from "@app/queue/queue.module";
+import { SimulationModule } from "../simulation/simulation.module";
 
 @Module({
-  imports: [AuthModule, CandidateModule, forwardRef(() => QueueModule)],
+  imports: [AuthModule, CandidateModule, forwardRef(() => QueueModule), SimulationModule],
   controllers: [SessionController],
   providers: [
     SessionService,

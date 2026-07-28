@@ -142,6 +142,7 @@ export interface CandidateSessionDetail {
     questionId: string;
     moduleType?: string;
     responsePayload: any;
+    question?: any;
   }>;
   integrityFlags: Array<{
     id: string;

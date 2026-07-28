@@ -27,14 +27,19 @@ async function getJwksKeys(jwksUri: string) {
     return jwksCache;
   }
 
-  const urisToTry = Array.from(new Set([
-    jwksUri,
-    jwksUri.replace(":8080", ":8085"),
-    jwksUri.replace("localhost", "127.0.0.1"),
-    jwksUri.replace("localhost", "127.0.0.1").replace(":8080", ":8085"),
-    "http://127.0.0.1:8085/realms/cd-recruit/protocol/openid-connect/certs",
-    "http://localhost:8085/realms/cd-recruit/protocol/openid-connect/certs",
-  ]));
+  const urisToTry = Array.from(
+    new Set([
+      jwksUri,
+      jwksUri.replace(":8080", ":8085"),
+      jwksUri.replace(":8085", ":8080"),
+      jwksUri.replace("localhost", "127.0.0.1"),
+      jwksUri.replace("127.0.0.1", "localhost"),
+      "http://localhost:8085/realms/cd-recruit/protocol/openid-connect/certs",
+      "http://127.0.0.1:8085/realms/cd-recruit/protocol/openid-connect/certs",
+      "http://localhost:8080/realms/cd-recruit/protocol/openid-connect/certs",
+      "http://127.0.0.1:8080/realms/cd-recruit/protocol/openid-connect/certs",
+    ]),
+  );
 
   let lastError: any = null;
   for (const uri of urisToTry) {
@@ -42,7 +47,7 @@ async function getJwksKeys(jwksUri: string) {
       const res = await fetch(uri);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.keys && data.keys.length > 0) {
+        if (data?.keys?.length > 0) {
           jwksCache = data.keys;
           jwksCacheTimestamp = now;
           return jwksCache;
@@ -53,7 +58,6 @@ async function getJwksKeys(jwksUri: string) {
     }
   }
 
-  console.error("Error fetching JWKS keys from endpoints:", urisToTry, lastError);
   return jwksCache;
 }
 

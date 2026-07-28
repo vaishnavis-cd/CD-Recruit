@@ -107,8 +107,16 @@ export class CodingService implements AssessmentModuleEngine {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
+    if (session.status === SessionStatus.NOT_STARTED) {
+      const now = new Date();
+      await this.prisma.session.update({
+        where: { id: dto.sessionId },
+        data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
+      });
+      session.status = SessionStatus.IN_PROGRESS;
+    }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
-      throw new BadRequestException("Session is not in progress");
+      throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
     }
 
     // 2. Validate question
@@ -229,8 +237,16 @@ export class CodingService implements AssessmentModuleEngine {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
+    if (session.status === SessionStatus.NOT_STARTED) {
+      const now = new Date();
+      await this.prisma.session.update({
+        where: { id: dto.sessionId },
+        data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
+      });
+      session.status = SessionStatus.IN_PROGRESS;
+    }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
-      throw new BadRequestException("Session is not in progress");
+      throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
     }
 
     // 2. Validate question

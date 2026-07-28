@@ -16,6 +16,16 @@ import {
   Video,
   X,
   AlertTriangle,
+  Smartphone,
+  Eye,
+  UserX,
+  Users,
+  Mic,
+  Monitor,
+  Filter,
+  Layers,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
@@ -35,6 +45,45 @@ export const Route = createFileRoute("/results/$id")({
   }),
 });
 
+function resolveOptionText(rawVal: any, optionsList: any[]): string {
+  if (rawVal === undefined || rawVal === null) return "None selected";
+  if (typeof rawVal === "number" && optionsList && optionsList[rawVal]) {
+    const opt = optionsList[rawVal];
+    return typeof opt === "string" ? opt : opt.text || opt.label || `Option ${rawVal + 1}`;
+  }
+  if (typeof rawVal === "string") {
+    if (optionsList && Array.isArray(optionsList)) {
+      const matched = optionsList.find((o) => (typeof o === "object" ? o.id === rawVal || o.text === rawVal : o === rawVal));
+      if (matched) {
+        return typeof matched === "string" ? matched : matched.text || matched.label || rawVal;
+      }
+    }
+    return rawVal;
+  }
+  return String(rawVal);
+}
+
+function getCategoryFilterIcon(filterKey: string) {
+  switch (filterKey) {
+    case "UNAUTHORIZED_OBJECTS":
+      return <Smartphone size={15} className="text-amber-500" />;
+    case "VISUAL_GAZE":
+      return <Eye size={15} className="text-blue-500" />;
+    case "FACE_SEAT":
+      return <UserX size={15} className="text-red-500" />;
+    case "MULTIPLE_PERSONS":
+      return <Users size={15} className="text-purple-500" />;
+    case "AUDIO_SPEECH":
+      return <Mic size={15} className="text-orange-500" />;
+    case "BROWSER_APP":
+      return <Monitor size={15} className="text-indigo-500" />;
+    case "CLIPS_ONLY":
+      return <Video size={15} className="text-red-500" />;
+    default:
+      return <Filter size={15} className="text-[#2F5CFF]" />;
+  }
+}
+
 function IndividualResultPage() {
   const { id } = useParams({ from: "/results/$id" });
   const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
@@ -43,6 +92,8 @@ function IndividualResultPage() {
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"CODING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
+  const [integrityCategoryFilter, setIntegrityCategoryFilter] = useState("ALL");
+  const [integrityFilterOpen, setIntegrityFilterOpen] = useState(false);
 
   // Decision Modal state
   const [showDecisionModal, setShowDecisionModal] = useState<"PASS" | "FAIL" | null>(null);
@@ -157,9 +208,8 @@ function IndividualResultPage() {
           <div className="flex items-center gap-3">
             {decision && (
               <div className="text-right text-[12px] text-[#5B5B64] mr-2">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold font-mono ${
-                  String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-[#E3F9F2] text-[#0C6B58]" : "bg-[#FFF5F5] text-[#C0392B]"
-                }`}>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold font-mono ${String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-[#E3F9F2] text-[#0C6B58]" : "bg-[#FFF5F5] text-[#C0392B]"
+                  }`}>
                   {String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "APPROVED" : "REJECTED"}
                 </span>
                 <span className="block font-mono text-[10px] text-[#8B8B93] mt-0.5">By {decision.decidedBy || "Recruiter"}</span>
@@ -256,11 +306,10 @@ function IndividualResultPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer ${
-                isActive
+              className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer ${isActive
                   ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
                   : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
-              }`}
+                }`}
             >
               <Icon size={16} />
               {tab.label}
@@ -366,30 +415,88 @@ function IndividualResultPage() {
           )
           return (
             <div className="space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Answers</h3>
+              <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Responses & Accuracy Breakdown</h3>
+                  <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate option selections, correctness, and correct reference answers.</p>
+                </div>
+              </div>
+
               {mcqResponses.length === 0 ? (
                 <p className="text-[13px] text-[#8B8B93] italic">No MCQ responses recorded for this assessment.</p>
               ) : (
-                <div className="divide-y divide-[#EFF0F3]">
+                <div className="space-y-3">
                   {mcqResponses.map((resp, idx) => {
-                    const opts = resp.responsePayload?.selectedOptions || resp.responsePayload?.selectedOption
-                    const displayOpts = Array.isArray(opts) ? opts.join(', ') : String(opts || 'None selected')
+                    const qObj = resp.question || {};
+                    const qContent = qObj.content || {};
+                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || resp.responsePayload?.questionText || `Question #${idx + 1}`;
+                    
+                    const optionsList: Array<any> = qObj.options || qContent.options || [];
+
+                    const selectedRaw = resp.responsePayload?.selectedOption ?? resp.responsePayload?.selectedOptions ?? resp.responsePayload?.selectedOptionIndex ?? resp.responsePayload?.selectedIndex;
+
+                    let selectedOptionText = "None selected";
+                    if (selectedRaw !== undefined && selectedRaw !== null) {
+                      if (Array.isArray(selectedRaw)) {
+                        selectedOptionText = selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ");
+                      } else {
+                        selectedOptionText = resolveOptionText(selectedRaw, optionsList);
+                      }
+                    }
+
+                    const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
+                    let correctAnswerText = "";
+                    if (correctRaw !== undefined && correctRaw !== null) {
+                      correctAnswerText = resolveOptionText(correctRaw, optionsList);
+                    }
+
+                    let isCorrect = false;
+                    if (resp.responsePayload?.isCorrect !== undefined) {
+                      isCorrect = Boolean(resp.responsePayload.isCorrect);
+                    } else if (selectedRaw !== undefined && correctRaw !== undefined) {
+                      isCorrect = String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
+                    }
+
                     return (
-                      <div key={resp.id || idx} className="py-3 flex items-start justify-between">
-                        <div>
-                          <span className="text-[12px] font-semibold text-[#0B0B0D]">Question #{idx + 1}</span>
-                          <p className="text-[12px] text-[#5B5B64] mt-0.5">Selected Option: <span className="font-mono font-semibold text-[#0B0B0D]">{displayOpts}</span></p>
+                      <div key={resp.id || idx} className="p-4 bg-white border border-[#E6E6EA] rounded-xl space-y-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#F0F4FF] text-[#2F5CFF] shrink-0">
+                                Q{idx + 1}
+                              </span>
+                              <h4 className="text-[13px] font-semibold text-[#0B0B0D] leading-snug">
+                                {promptText}
+                              </h4>
+                            </div>
+                          </div>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold font-mono shrink-0 ${
+                            isCorrect ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+                          }`}>
+                            {isCorrect ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                            <span>{isCorrect ? "Correct" : "Incorrect"}</span>
+                          </span>
                         </div>
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#E3F9F2] text-[#0C6B58]">
-                          Recorded
-                        </span>
+
+                        <div className="text-[12px] space-y-2 pt-2 border-t border-[#EFF0F3]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[#5B5B64]">Selected Option:</span>
+                            <span className="font-semibold text-[#0B0B0D] font-mono">{selectedOptionText}</span>
+                          </div>
+                          {!isCorrect && correctAnswerText && (
+                            <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-md text-emerald-900 text-[12px] space-y-0.5">
+                              <span className="font-semibold text-emerald-800">Correct Answer: </span>
+                              <span className="font-medium text-emerald-950">{correctAnswerText}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               )}
             </div>
-          )
+          );
         })()}
 
         {/* AI PROMPTING TAB */}
@@ -397,10 +504,6 @@ function IndividualResultPage() {
           const aiPromptingResponses = (detail.moduleResponses || []).filter(
             (r) => r.responsePayload?.moduleType === "AI_PROMPTING" || r.responsePayload?.prompt
           );
-
-          const jailbreakCount = aiPromptingResponses.filter((r) => r.responsePayload?.isJailbreakAttempt).length;
-          const verbatimCount = aiPromptingResponses.filter((r) => r.responsePayload?.isVerbatimCopy).length;
-          const greetingCount = aiPromptingResponses.filter((r) => r.responsePayload?.isMinimalOrGreeting).length;
 
           return (
             <div className="space-y-6">
@@ -417,44 +520,24 @@ function IndividualResultPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Summary Header Badges */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-3.5 bg-white border border-[#E6E6EA] rounded-lg flex items-center justify-between">
-                      <div className="text-[12px] text-[#5B5B64] font-medium">Prompts Evaluated</div>
-                      <div className="text-[16px] font-bold text-[#0B0B0D]">{aiPromptingResponses.length}</div>
-                    </div>
-                    <div className="p-3.5 bg-red-50/60 border border-red-200 rounded-lg flex items-center justify-between">
-                      <div className="text-[12px] text-red-700 font-medium flex items-center gap-1.5">
-                        <ShieldAlert size={14} className="text-red-500" /> Jailbreak / Injection Flags
-                      </div>
-                      <div className="text-[16px] font-bold text-red-700">{jailbreakCount}</div>
-                    </div>
-                    <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-lg flex items-center justify-between">
-                      <div className="text-[12px] text-amber-700 font-medium flex items-center gap-1.5">
-                        <AlertTriangle size={14} className="text-amber-500" /> Verbatim Copy Flags
-                      </div>
-                      <div className="text-[16px] font-bold text-amber-700">{verbatimCount}</div>
-                    </div>
-                  </div>
-
-                  {/* Individual Responses List */}
                   {aiPromptingResponses.map((res, index) => {
                     const payload = res.responsePayload || {};
                     const isJailbreak = !!payload.isJailbreakAttempt;
                     const isVerbatim = !!payload.isVerbatimCopy;
                     const isGreeting = !!payload.isMinimalOrGreeting;
                     const similarity = payload.promptSimilarity || 0;
+                    const structureScore = payload.promptStructureScore ?? (isJailbreak ? 0 : isVerbatim ? 30 : isGreeting ? 20 : 85);
+                    const aiScore = payload.aiValidationScore ?? structureScore;
 
                     return (
                       <div
                         key={res.id || index}
-                        className={`p-5 bg-white border rounded-xl space-y-3 transition-shadow ${
-                          isJailbreak
+                        className={`p-5 bg-white border rounded-xl space-y-4 transition-shadow ${isJailbreak
                             ? "border-red-300 bg-red-50/20"
                             : isVerbatim
-                            ? "border-amber-300 bg-amber-50/20"
-                            : "border-[#E6E6EA]"
-                        }`}
+                              ? "border-amber-300 bg-amber-50/20"
+                              : "border-[#E6E6EA]"
+                          }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F0F4] pb-2.5">
                           <span className="text-[13px] font-semibold text-[#0B0B0D]">
@@ -463,61 +546,67 @@ function IndividualResultPage() {
 
                           <div className="flex flex-wrap items-center gap-2">
                             {isJailbreak && (
-                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
-                                <ShieldAlert size={12} /> Jailbreak / Rule Bypass Attempt
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-red-100 text-red-700 border border-red-200 flex items-center gap-1 font-mono">
+                                <ShieldAlert size={12} /> Jailbreak Attempt (0%)
                               </span>
                             )}
                             {isVerbatim && (
-                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
-                                <AlertTriangle size={12} /> Verbatim Task Copy ({Math.round(similarity * 100)}% Match)
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1 font-mono">
+                                <AlertTriangle size={12} /> Verbatim Copy ({Math.round(similarity * 100)}% Match)
                               </span>
                             )}
-                            {isGreeting && (
-                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1">
-                                <Clock size={12} /> Minimal / Greeting Input
-                              </span>
-                            )}
-                            {!isJailbreak && !isVerbatim && !isGreeting && (
-                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                                <CheckCircle2 size={12} /> Valid Prompt Structure
+                            {!isJailbreak && !isVerbatim && (
+                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1 font-mono">
+                                <CheckCircle2 size={12} /> Structure Score: {structureScore}%
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Candidate Submitted Prompt Code Box */}
+                        {/* Scores Breakdown Badges */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#F8F9FB] p-3 rounded-lg border border-[#E6E6EA]">
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-[#8B8B93] block">Structure Correctness</span>
+                            <span className={`text-[14px] font-bold font-mono ${structureScore >= 70 ? "text-emerald-700" : "text-amber-700"}`}>
+                              {structureScore}% ({structureScore >= 70 ? "Correct" : "Needs Work"})
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-[#8B8B93] block">AI Validation Score</span>
+                            <span className="text-[14px] font-bold font-mono text-[#2F5CFF]">
+                              {aiScore}%
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-[#8B8B93] block">Jailbreak Flag</span>
+                            <span className={`text-[13px] font-semibold font-mono ${isJailbreak ? "text-rose-600" : "text-emerald-600"}`}>
+                              {isJailbreak ? "TRIGGERED" : "CLEAN"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-[#8B8B93] block">Verbatim Flag</span>
+                            <span className={`text-[13px] font-semibold font-mono ${isVerbatim ? "text-amber-600" : "text-emerald-600"}`}>
+                              {isVerbatim ? "FLAGGED" : "CLEAN"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Candidate Submitted Prompt */}
                         <div>
                           <div className="text-[11px] font-medium text-[#8B8B93] uppercase tracking-wider mb-1">
                             Candidate Submitted Prompt
                           </div>
-                          <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded-lg font-mono text-[12px] text-[#0B0B0D] whitespace-pre-wrap">
+                          <div className="p-3 bg-white border border-[#E6E6EA] rounded-lg font-mono text-[12px] text-[#0B0B0D] whitespace-pre-wrap">
                             {payload.prompt || "(No prompt submitted)"}
                           </div>
                         </div>
 
-                        {/* Admin Guardrail Status Banner */}
-                        {isJailbreak ? (
-                          <div className="p-3 bg-red-100/70 border border-red-200 rounded-lg text-[12px] text-red-800 flex items-start gap-2">
-                            <ShieldAlert size={15} className="text-red-600 shrink-0 mt-0.5" />
-                            <div>
-                              <strong>Integrity Violation:</strong> Candidate attempted an instruction override or jailbreak prompt (*"forget previous instructions"*). The AI Assistant intercepted the attack and refused execution.
-                            </div>
+                        {payload.aiReasoning && (
+                          <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-lg text-[12px] text-blue-900">
+                            <strong>AI Validation Rationale: </strong>
+                            <span>{payload.aiReasoning}</span>
                           </div>
-                        ) : isVerbatim ? (
-                          <div className="p-3 bg-amber-100/70 border border-amber-200 rounded-lg text-[12px] text-amber-800 flex items-start gap-2">
-                            <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-                            <div>
-                              <strong>Guardrail Active:</strong> Candidate copy-pasted the task prompt verbatim ({Math.round(similarity * 100)}% token overlap). The AI Assistant responded in Socratic mode to evaluate prompt construction skills.
-                            </div>
-                          </div>
-                        ) : isGreeting ? (
-                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-[12px] text-blue-800 flex items-start gap-2">
-                            <Clock size={15} className="text-blue-600 shrink-0 mt-0.5" />
-                            <div>
-                              <strong>Minimal Prompt:</strong> Candidate submitted a simple greeting or minimal text. The AI Assistant returned a neutral prompt instruction request without leaking scenario secrets.
-                            </div>
-                          </div>
-                        ) : null}
+                        )}
                       </div>
                     );
                   })}
@@ -608,53 +697,208 @@ function IndividualResultPage() {
 
           const combinedFlags = [...flags, ...aiPromptingFlags];
 
-          return (
-            <div className="space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Integrity Telemetry & Proctoring Flags</h3>
-              {combinedFlags.length === 0 ? (
-                <div className="p-6 bg-[#E3F9F2] border border-[#A3EED7] rounded-md text-center text-[#0C6B58] text-[13px]">
-                  <ShieldCheck size={24} className="mx-auto mb-1.5" />
-                  No proctoring anomalies or integrity flags recorded. Assessment passed automated integrity validation.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {combinedFlags.map((flag) => (
-                    <div key={flag.id} className="p-4 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13px] font-semibold text-[#0B0B0D]">{flag.category}</span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
-                              flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"
-                            }`}>
-                              {flag.severity}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
-                            Confidence: {Math.round(flag.confidence * 100)}% • Flagged At: {flag.flaggedAt.slice(0, 19).replace("T", " ")}
-                          </p>
-                          {(flag as any).promptText && (
-                            <p className="text-[11px] text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">
-                              Prompt: "{(flag as any).promptText}"
-                            </p>
-                          )}
-                        </div>
-                      </div>
+          const filteredFlags = combinedFlags.filter((f: any) => {
+            const cat = String(f.category || "").toUpperCase();
+            if (integrityCategoryFilter === "ALL") return true;
+            if (integrityCategoryFilter === "CLIPS_ONLY") return Boolean(f.evidenceClipUrl || f.clipUrl);
+            
+            if (integrityCategoryFilter === "UNAUTHORIZED_OBJECTS") return ["PHONE_DETECTED", "HEADPHONES_DETECTED", "BOOK_DETECTED"].includes(cat);
+            if (integrityCategoryFilter === "VISUAL_GAZE") return ["LOOKING_AWAY", "EXCESSIVE_MOVEMENT", "GAZE_AWAY"].includes(cat);
+            if (integrityCategoryFilter === "FACE_SEAT") return ["FACE_MISSING", "SEAT_EXIT", "NO_FACE"].includes(cat);
+            if (integrityCategoryFilter === "MULTIPLE_PERSONS") return ["MULTIPLE_FACES", "IDENTITY_MISMATCH", "SECOND_PERSON"].includes(cat);
+            if (integrityCategoryFilter === "AUDIO_SPEECH") return ["SPEECH_DETECTED", "SECOND_VOICE_SUSPECTED", "AUDIO_NOISE", "VOICE_DETECTED"].includes(cat);
+            if (integrityCategoryFilter === "BROWSER_APP") return ["TAB_SWITCH", "FULLSCREEN_EXIT", "PASTE"].includes(cat);
 
-                      {!(flag as any).promptText && (
+            return cat === integrityCategoryFilter;
+          });
+
+          // Separate video evidence clips (with valid MinIO presigned URL) from non-video telemetry logs
+          const videoClips = filteredFlags.filter((f: any) => f.evidenceClipUrl || (f.clipUrl && f.clipUrl.startsWith("http")));
+          const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && (!f.clipUrl || !f.clipUrl.startsWith("http")));
+
+          return (
+            <div className="space-y-6">
+              {/* Custom Styled Dropdown Component with Rounded Corners & Theme Blue (50%) */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-[#E6E6EA] rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-[#EAF0FF] rounded-[10px] border border-[#B3C5FF] text-[#2F5CFF]">
+                    {getCategoryFilterIcon(integrityCategoryFilter)}
+                  </div>
+                  <div>
+                    <h4 className="text-[13px] font-semibold text-[#0B0B0D]">Filter Integrity Evidences</h4>
+                    <p className="text-[11px] text-[#8B8B93]">Classify and view proctoring evidence by category.</p>
+                  </div>
+                </div>
+
+                {/* Custom Popover Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIntegrityFilterOpen((prev) => !prev)}
+                    className="inline-flex items-center justify-between gap-3 px-3.5 py-2 text-[12px] font-semibold bg-[#EAF0FF] hover:bg-[#D9E4FF] text-[#15308F] border border-[#B3C5FF] rounded-[10px] shadow-sm transition-all cursor-pointer min-w-[290px]"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {getCategoryFilterIcon(integrityCategoryFilter)}
+                      <span className="truncate">
+                        {integrityCategoryFilter === "ALL" && `All Integrity Evidences (${combinedFlags.length})`}
+                        {integrityCategoryFilter === "CLIPS_ONLY" && `Video Clips Only (${combinedFlags.filter((f: any) => f.evidenceClipUrl || (f.clipUrl && f.clipUrl.startsWith("http"))).length})`}
+                        {integrityCategoryFilter === "UNAUTHORIZED_OBJECTS" && "Unauthorized Objects (Phone, Headphones, Book)"}
+                        {integrityCategoryFilter === "VISUAL_GAZE" && "Visual & Gaze (Looking Away, Movement)"}
+                        {integrityCategoryFilter === "FACE_SEAT" && "Face & Seat (Face Missing, Seat Exit)"}
+                        {integrityCategoryFilter === "MULTIPLE_PERSONS" && "Multiple Persons & Identity Mismatch"}
+                        {integrityCategoryFilter === "AUDIO_SPEECH" && "Audio & Voice (Speech, Second Voice)"}
+                        {integrityCategoryFilter === "BROWSER_APP" && "Browser & App (Tab Switch, Fullscreen, Paste)"}
+                      </span>
+                    </div>
+                    <ChevronDown size={14} className={`text-[#2F5CFF] shrink-0 transition-transform ${integrityFilterOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {integrityFilterOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIntegrityFilterOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-[320px] bg-white border border-[#B3C5FF] rounded-[12px] shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                        {[
+                          { value: "ALL", label: `All Integrity Evidences (${combinedFlags.length})` },
+                          { value: "CLIPS_ONLY", label: `Video Clips Only (${combinedFlags.filter((f: any) => f.evidenceClipUrl || (f.clipUrl && f.clipUrl.startsWith("http"))).length})` },
+                          { value: "UNAUTHORIZED_OBJECTS", label: "Unauthorized Objects (Phone, Headphones, Book)" },
+                          { value: "VISUAL_GAZE", label: "Visual & Gaze (Looking Away, Movement)" },
+                          { value: "FACE_SEAT", label: "Face & Seat (Face Missing, Seat Exit)" },
+                          { value: "MULTIPLE_PERSONS", label: "Multiple Persons & Identity Mismatch" },
+                          { value: "AUDIO_SPEECH", label: "Audio & Voice (Speech, Second Voice)" },
+                          { value: "BROWSER_APP", label: "Browser & App (Tab Switch, Fullscreen, Paste)" },
+                        ].map((opt) => {
+                          const isSelected = integrityCategoryFilter === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setIntegrityCategoryFilter(opt.value);
+                                setIntegrityFilterOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-[8px] font-medium transition-colors cursor-pointer text-left ${
+                                isSelected
+                                  ? "bg-[#EAF0FF] text-[#15308F] font-semibold"
+                                  : "text-[#0B0B0D] hover:bg-[#F0F4FF]"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 truncate">
+                                {getCategoryFilterIcon(opt.value)}
+                                <span className="truncate">{opt.label}</span>
+                              </div>
+                              {isSelected && <Check size={14} className="text-[#2F5CFF] shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 1: Webcam Video Evidence Clips */}
+              <div className="space-y-3">
+                <h3 className="text-[15px] font-semibold text-[#0B0B0D] flex items-center gap-2">
+                  <Video size={16} className="text-red-500" />
+                  Webcam Video Evidence Clips ({videoClips.length})
+                </h3>
+                {videoClips.length === 0 ? (
+                  <p className="text-[12px] text-[#8B8B93] italic bg-[#F7F7F9] p-3 rounded border border-[#E6E6EA]">
+                    No video evidence clips recorded for this filter selection.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {videoClips.map((flag: any) => (
+                      <div key={flag.id || flag.flagId} className="p-3.5 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <Video size={16} className="text-red-500 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-semibold text-[#0B0B0D]">{flag.category}</span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"}`}>
+                                {flag.severity}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
+                              Confidence: {Math.round(flag.confidence * 100)}% • Timestamp: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                            </p>
+                          </div>
+                        </div>
                         <button
-                          onClick={() => setActiveClipUrl((flag as any).evidenceClipUrl || (flag as any).clipUrl || (flag as any).storageRef || `/proctoring/clips/${flag.id}.webm`)}
+                          onClick={() => setActiveClipUrl(flag.evidenceClipUrl || flag.clipUrl)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
                         >
-                          <Video size={13} />
-                          View Clip
+                          <Play size={13} />
+                          Play Video Clip
                         </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Non-Video Telemetry & Integrity Logs */}
+              <div className="space-y-3 pt-4 border-t border-[#E6E6EA]">
+                <h3 className="text-[15px] font-semibold text-[#0B0B0D] flex items-center gap-2">
+                  <ShieldAlert size={16} className="text-amber-600" />
+                  Telemetry & Integrity Signal Log ({telemetryLogs.length})
+                </h3>
+                {telemetryLogs.length === 0 ? (
+                  <p className="text-[12px] text-[#8B8B93] italic bg-[#F7F7F9] p-3 rounded border border-[#E6E6EA]">
+                    No tab switches, fullscreen exits, or paste anomalies logged.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {telemetryLogs
+                      .sort((a: any, b: any) => new Date(a.flaggedAt || 0).getTime() - new Date(b.flaggedAt || 0).getTime())
+                      .map((flag: any, idx: number) => {
+                        const cat = flag.category;
+                        const isCorrelatedPaste = cat === "CORRELATED_PASTE_ANOMALY" || cat === "PASTE_AFTER_TABSWITCH";
+                        const isFullscreenExit = cat === "FULLSCREEN_EXIT" || cat === "FULLSCREEN_EXITED" || cat === "FULLSCREEN_EXIT_FLAG";
+                        const isTabSwitch = cat === "TAB_SWITCH" || cat === "TAB_HIDDEN";
+                        const isPaste = cat === "PASTE" || cat === "EXTERNAL_INSERT_FLAG";
+
+                        const title = isCorrelatedPaste
+                          ? "Correlated Paste Anomaly (Pasted Code/Text within 40s of Tab-Switch)"
+                          : isFullscreenExit
+                          ? "Fullscreen Exit Detected"
+                          : isTabSwitch
+                          ? "Tab Switch / Window Blur"
+                          : isPaste
+                          ? "External Paste Anomaly"
+                          : cat;
+
+                        return (
+                          <div key={flag.id || flag.flagId || idx} className={`p-3.5 border rounded-md flex items-center justify-between ${
+                            isCorrelatedPaste ? "border-red-300 bg-red-50/70" : isFullscreenExit ? "border-amber-300 bg-amber-50/50" : "border-[#E6E6EA] bg-[#F7F7F9]"
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <AlertTriangle size={16} className={isCorrelatedPaste ? "text-red-600 shrink-0 mt-0.5" : "text-amber-600 shrink-0 mt-0.5"} />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13px] font-semibold text-[#0B0B0D]">{title}</span>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
+                                    flag.severity === "CRITICAL" ? "bg-red-600 text-white" : flag.severity === "HIGH" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-800"
+                                  }`}>
+                                    {flag.severity || "MEDIUM"}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
+                                  Confidence: {Math.round((flag.confidence || 0.9) * 100)}% • Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                                </p>
+                                {flag.promptText && (
+                                  <p className="text-[11px] text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">
+                                    Prompt: "{flag.promptText}"
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })()}
@@ -701,9 +945,8 @@ function IndividualResultPage() {
               <button
                 onClick={handleDecisionSubmit}
                 disabled={submittingDecision}
-                className={`px-4 py-2 text-[12px] font-semibold text-white rounded shadow-sm transition-colors ${
-                  showDecisionModal === "PASS" ? "bg-[#0C6B58] hover:bg-[#095445]" : "bg-[#C0392B] hover:bg-[#A93226]"
-                }`}
+                className={`px-4 py-2 text-[12px] font-semibold text-white rounded shadow-sm transition-colors ${showDecisionModal === "PASS" ? "bg-[#0C6B58] hover:bg-[#095445]" : "bg-[#C0392B] hover:bg-[#A93226]"
+                  }`}
               >
                 {submittingDecision ? "Saving..." : "Confirm Decision"}
               </button>

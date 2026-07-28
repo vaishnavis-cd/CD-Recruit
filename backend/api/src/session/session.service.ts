@@ -14,8 +14,9 @@ import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
-import { ObjectStoragePort } from "@app/integrations/storage/object-storage.port";
+import { MinioService } from "@app/integrations/minio/minio.service";
 import { QueueProviderPort } from "@app/queue/queue-provider.port";
+import { SandboxOrchestratorService } from "../simulation/sandbox/sandbox-orchestrator.service";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -127,11 +128,12 @@ export class SessionService {
     private readonly auth: AuthService,
     private readonly candidate: CandidateService,
     private readonly config: ConfigService<AppConfig, true>,
-    private readonly minio: ObjectStoragePort,
+    private readonly minio: MinioService,
     private readonly queueProvider: QueueProviderPort,
     private readonly lifecycleService: SessionLifecycleService,
     private readonly stateMachine: SessionStateMachine,
     private readonly scoringService: SessionScoringService,
+    private readonly sandboxOrchestrator: SandboxOrchestratorService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -273,9 +275,26 @@ export class SessionService {
       );
     }
 
+    let durationMinutes = session.roleTemplate.durationMinutes;
+    if (session.driveId) {
+      const drive = await this.prisma.drive.findUnique({
+        where: { id: session.driveId },
+      });
+      if (drive && drive.moduleConfig) {
+        const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+        const totalDriveMins = Object.values(mc)
+          .filter((conf) => conf?.enabled)
+          .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+
+        if (totalDriveMins > 0) {
+          durationMinutes = totalDriveMins;
+        }
+      }
+    }
+
     const now = new Date();
     const deadlineAt = new Date(
-      now.getTime() + session.roleTemplate.durationMinutes * 60 * 1000,
+      now.getTime() + durationMinutes * 60 * 1000,
     );
 
     const updated = await this.prisma.session.update({
@@ -291,6 +310,12 @@ export class SessionService {
     });
 
     this.logger.log(`Session ${sessionId} has begun.`);
+
+    try {
+      await this.sandboxOrchestrator.ensureWorkspace(sessionId);
+    } catch (err: any) {
+      this.logger.warn(`Workspace provisioning warning for session ${sessionId}: ${err.message}`);
+    }
 
     return await this.buildStartResponse(
       updated as SessionWithTemplate,
@@ -490,6 +515,13 @@ export class SessionService {
     ];
 
     if (!submittable.includes(session.status)) {
+      if (session.status === SessionStatus.SUBMITTED) {
+        return {
+          sessionId: session.id,
+          status: session.status as any,
+          submittedAt: (session.submittedAt || new Date()).toISOString(),
+        };
+      }
       throw new UnprocessableEntityException({
         code: "SESSION_NOT_SUBMITTABLE",
         message: `Session cannot be submitted in status: ${session.status}.`,
@@ -518,6 +550,13 @@ export class SessionService {
       await this.scoringService.computeSessionScores(sessionId);
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores for session ${sessionId}: ${err.message}`);
+    }
+
+    // Reap container sandbox workspace on session completion
+    try {
+      await this.sandboxOrchestrator.reapWorkspace(sessionId);
+    } catch (err: any) {
+      this.logger.warn(`Failed to reap workspace for session ${sessionId}: ${err.message}`);
     }
 
     await this.prisma.eventLog.create({
@@ -670,6 +709,18 @@ export class SessionService {
       },
     });
 
+    try {
+      await this.scoringService.computeSessionScores(sessionId);
+    } catch (err: any) {
+      this.logger.error(`Failed to evaluate scores on autoSubmit for session ${sessionId}: ${err.message}`);
+    }
+
+    try {
+      await this.sandboxOrchestrator.reapWorkspace(sessionId);
+    } catch (err: any) {
+      this.logger.warn(`Failed to reap workspace on autoSubmit for session ${sessionId}: ${err.message}`);
+    }
+
     this.logger.warn(
       `Session ${sessionId} AUTO_SUBMITTED — grace window expired`,
     );
@@ -685,12 +736,24 @@ export class SessionService {
       ? await this.prisma.drive.findUnique({ where: { id: session.driveId } })
       : null;
 
+    let durationMinutes = session.roleTemplate.durationMinutes;
+    if (drive && drive.moduleConfig) {
+      const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+      const totalDriveMins = Object.values(mc)
+        .filter((conf) => conf?.enabled)
+        .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+
+      if (totalDriveMins > 0) {
+        durationMinutes = totalDriveMins;
+      }
+    }
+
     return {
       sessionId: session.id,
       candidateId,
       roleTemplateId: session.roleTemplateId,
       roleTemplateName: session.roleTemplate.roleName,
-      durationMinutes: session.roleTemplate.durationMinutes,
+      durationMinutes,
       cvMode:
         session.cvMode as unknown as import("@cd-recruit/shared-types").CvMode,
       status:

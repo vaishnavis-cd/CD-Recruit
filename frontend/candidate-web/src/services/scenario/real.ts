@@ -1,5 +1,4 @@
-import type { ScenarioEnginePort } from './port'
-import type { ScenarioMessage } from '../../fixtures/scenarios'
+import type { ScenarioEnginePort, ScenarioMessage } from './port'
 import { useSessionStore } from '../../store/sessionMachine'
 import axios from 'axios'
 
