@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye } from "lucide-react";
+import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye, Trash2 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { type Invite } from "../lib/types";
@@ -63,14 +63,18 @@ function InvitesPage() {
   const fetchDrives = useStore((s) => s.fetchDrives);
   const createInvite = useStore((s) => s.createInvite);
   const revokeInvite = useStore((s) => s.revokeInvite);
+  const deleteInvite = useStore((s) => s.deleteInvite);
   const extendExpiry = useStore((s) => s.extendExpiry);
   const regenerateToken = useStore((s) => s.regenerateToken);
   const bulkRevoke = useStore((s) => s.bulkRevoke);
+  const bulkDelete = useStore((s) => s.bulkDelete);
   const bulkResend = useStore((s) => s.bulkResend);
 
   const [open, setOpen] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [confirmDeleteInvite, setConfirmDeleteInvite] = useState<Invite | null>(null);
   const [confirmBulkRevoke, setConfirmBulkRevoke] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [selectedDriveId, setSelectedDriveId] = useState<string>("");
@@ -177,6 +181,28 @@ function InvitesPage() {
     setExtendInviteId(null);
   };
 
+  const handleDeleteSingle = async () => {
+    if (!confirmDeleteInvite) return;
+    try {
+      await deleteInvite(confirmDeleteInvite.id);
+      toast.success(`Deleted invite for ${confirmDeleteInvite.candidateName}`);
+      setConfirmDeleteInvite(null);
+    } catch (err: any) {
+      toast.error("Failed to delete invite: " + (err.message || err));
+    }
+  };
+
+  const handleBulkDeleteAction = async () => {
+    try {
+      await bulkDelete(selectedIds);
+      toast.success(`Deleted ${selectedIds.length} invite(s)`);
+      setSelectedIds([]);
+      setConfirmBulkDelete(false);
+    } catch (err: any) {
+      toast.error("Failed to bulk delete invites: " + (err.message || err));
+    }
+  };
+
   const fmtExpires = (iso: string) => {
     const d = new Date(iso);
     const now = Date.now();
@@ -248,6 +274,13 @@ function InvitesPage() {
             >
               <XCircle size={12} />
               Revoke selected
+            </button>
+            <button
+              onClick={() => setConfirmBulkDelete(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 cursor-pointer"
+            >
+              <Trash2 size={12} />
+              Delete selected
             </button>
           </div>
         </div>
@@ -352,6 +385,13 @@ function InvitesPage() {
                   <RefreshCw size={12} />
                 </button>
               )}
+              <button
+                onClick={() => setConfirmDeleteInvite(inv)}
+                className="p-1 border border-red-200 bg-red-50 text-red-600 rounded hover:bg-red-100 cursor-pointer"
+                title="Delete Invite"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           </div>
         ))}
@@ -579,6 +619,75 @@ function InvitesPage() {
                 className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
               >
                 Revoke {selectedIds.length} Invite(s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Delete Confirmation Modal */}
+      {confirmDeleteInvite && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-600 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Invite?</h3>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to permanently delete the invite for{" "}
+              <span className="font-semibold text-[#0B0B0D]">{confirmDeleteInvite.candidateName}</span> ({confirmDeleteInvite.candidateEmail})?
+              This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmDeleteInvite(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSingle}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete Invite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-600 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Multiple Invites?</h3>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to permanently delete <span className="font-semibold text-[#0B0B0D]">{selectedIds.length} invite(s)</span>?
+              All selected invitation records will be deleted permanently.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmBulkDelete(false)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDeleteAction}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete {selectedIds.length} Invite(s)
               </button>
             </div>
           </div>

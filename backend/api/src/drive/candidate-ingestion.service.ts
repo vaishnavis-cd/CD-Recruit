@@ -31,11 +31,20 @@ export class CandidateIngestionService {
       return { count: 0, createdCount: 0 };
     }
 
-    const emails = candidates.map((c) => c.candidateEmail);
+    const emails = candidates.map((c) => c.candidateEmail.trim().toLowerCase());
     const existingCandidates = await tx.candidate.findMany({
       where: { email: { in: emails } },
     });
-    const existingEmails = new Set(existingCandidates.map((c: any) => c.email));
+    const existingEmails = new Set(existingCandidates.map((c: any) => c.email.toLowerCase()));
+
+    // Query existing invites for this drive to block duplicate candidate emails per drive
+    const existingDriveInvites = await tx.invite.findMany({
+      where: { driveId },
+      select: { candidateEmail: true },
+    });
+    const existingDriveEmails = new Set(
+      existingDriveInvites.map((i: any) => i.candidateEmail.toLowerCase()),
+    );
 
     const invitesData: any[] = [];
     const candidatesToCreate: any[] = [];
@@ -45,14 +54,22 @@ export class CandidateIngestionService {
     expiresAt.setHours(expiresAt.getHours() + ttlHours);
 
     for (const cand of candidates) {
+      const emailLower = cand.candidateEmail.trim().toLowerCase();
+
+      // Skip candidate if email already exists in this drive's roster
+      if (existingDriveEmails.has(emailLower)) {
+        continue;
+      }
+      existingDriveEmails.add(emailLower);
+
       const inviteId = crypto.randomUUID();
 
-      if (!existingEmails.has(cand.candidateEmail)) {
+      if (!existingEmails.has(emailLower)) {
         candidatesToCreate.push({
-          email: cand.candidateEmail,
-          name: cand.name,
+          email: cand.candidateEmail.trim(),
+          name: cand.name.trim(),
         });
-        existingEmails.add(cand.candidateEmail);
+        existingEmails.add(emailLower);
       }
 
       const token = isGenerated

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { CodeEditor, PasteEventData } from "@/components/common/CodeEditor";
-import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, GripHorizontal } from "lucide-react";
+import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, GripHorizontal, RotateCcw } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
 import { useSessionStore } from "@/store/sessionMachine";
 import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
@@ -64,6 +64,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Setup initial language — always validate against our supported list
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -98,6 +99,19 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   // Refs for tracking latest changes in unmount hook
   const latestCodeRef = useRef(activeCode);
   const latestLanguageRef = useRef(selectedLanguage);
+
+  const handleResetCode = () => {
+    const resetCode = starter[selectedLanguage] || DEFAULT_TEMPLATES[selectedLanguage] || "";
+    setCodeByLanguage((prev) => ({
+      ...prev,
+      [selectedLanguage]: resetCode,
+    }));
+    latestCodeRef.current = resetCode;
+    if (editorRef.current) {
+      editorRef.current.setValue(resetCode);
+    }
+    setShowResetModal(false);
+  };
 
   useEffect(() => {
     latestCodeRef.current = activeCode;
@@ -466,6 +480,16 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
 
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={() => setShowResetModal(true)}
+            disabled={isRunning}
+            className="btn-secondary inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
+            title="Reset code editor to starter boilerplate template"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Code</span>
+          </button>
+
+          <button
             onClick={handleRun}
             disabled={isRunning || !activeCode.trim()}
             className="btn-secondary inline-flex items-center gap-1.5 text-xs cursor-pointer"
@@ -731,6 +755,42 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
           </div>
         )}
       </div>
+
+      {/* Reset Code Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[var(--border)] pb-3">
+              <div className="p-2 bg-rose-500/10 text-rose-400 rounded-full">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-semibold text-[var(--foreground)]">Reset Code to Starter Template?</h3>
+            </div>
+
+            <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              Are you sure you want to reset your solution for <span className="font-semibold text-[var(--foreground)]">{activeLangConfig.label}</span>?
+              All current edits will be discarded and replaced with the original starter boilerplate template.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowResetModal(false)}
+                type="button"
+                className="btn-secondary text-xs px-4 py-2 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetCode}
+                type="button"
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors cursor-pointer shadow-sm"
+              >
+                Reset Code
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

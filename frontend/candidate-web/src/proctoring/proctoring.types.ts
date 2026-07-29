@@ -18,6 +18,13 @@ export interface FaceDetectionResult {
   faceCount: number;
   headDirection: HeadDirection;
   blinkDetected?: boolean;
+  alignment?: {
+    isAligned: boolean;
+    centerX: number;
+    centerY: number;
+    sizeRatio: number;
+    guideFeedback: string;
+  };
 }
 
 export interface PoseDetectionResult {

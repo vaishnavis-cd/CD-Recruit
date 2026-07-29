@@ -181,7 +181,55 @@ export class FaceDetectionService {
         }
       }
 
-      return { faceDetected: true, faceCount, headDirection, blinkDetected };
+      // ── Face Circle Alignment Calculations ──────────────────────────────
+      const centerX = nose.x;
+      const centerY = nose.y;
+      const faceWidth = Math.abs(rightBoundary.x - leftBoundary.x);
+      const faceHeight = Math.abs(chin.y - forehead.y);
+      const sizeRatio = faceWidth * faceHeight;
+
+      let guideFeedback = "Face aligned! Hold steady and capture baseline selfie.";
+      let isAligned = true;
+
+      if (faceCount > 1) {
+        isAligned = false;
+        guideFeedback = "Multiple faces detected — please ensure you are alone.";
+      } else if (centerX < 0.35) {
+        isAligned = false;
+        guideFeedback = "Move slightly to your right to center your face in the guide.";
+      } else if (centerX > 0.65) {
+        isAligned = false;
+        guideFeedback = "Move slightly to your left to center your face in the guide.";
+      } else if (centerY < 0.30) {
+        isAligned = false;
+        guideFeedback = "Move slightly down into the circle guide.";
+      } else if (centerY > 0.70) {
+        isAligned = false;
+        guideFeedback = "Move slightly up into the circle guide.";
+      } else if (faceWidth < 0.18) {
+        isAligned = false;
+        guideFeedback = "Move closer to the camera so your face fits the guide.";
+      } else if (faceWidth > 0.52) {
+        isAligned = false;
+        guideFeedback = "Move slightly back from the camera.";
+      } else if (headDirection !== "CENTER") {
+        isAligned = false;
+        guideFeedback = `Look directly at the camera (head turned ${headDirection.toLowerCase()}).`;
+      }
+
+      return {
+        faceDetected: true,
+        faceCount,
+        headDirection,
+        blinkDetected,
+        alignment: {
+          isAligned,
+          centerX,
+          centerY,
+          sizeRatio,
+          guideFeedback,
+        },
+      };
     } catch (err) {
       // Suppress noisy frame errors — only log occasionally
       if (this.detectCount % 30 === 1) {

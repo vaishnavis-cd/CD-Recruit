@@ -352,6 +352,38 @@ export class InviteService {
     });
   }
 
+  async deleteInvite(id: string, staffId: string): Promise<void> {
+    const invite = await this.prisma.invite.findUnique({ where: { id } });
+    if (!invite) throw new NotFoundException(`Invite not found with ID ${id}`);
+
+    await this.prisma.invite.delete({ where: { id } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "INVITE_DELETED",
+        entityType: "Invite",
+        entityId: id,
+        metadata: { candidateEmail: invite.candidateEmail },
+      },
+    });
+  }
+
+  async bulkDelete(inviteIds: string[], staffId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.invite.deleteMany({ where: { id: { in: inviteIds } } });
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "BULK_INVITE_DELETED",
+          entityType: "Invite",
+          entityId: "BULK",
+          metadata: { count: inviteIds.length },
+        },
+      });
+    });
+  }
+
   private mapToInviteListItem(invite: any): InviteListItem {
     return {
       id: invite.id,
