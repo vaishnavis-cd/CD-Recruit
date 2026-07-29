@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy, InternalServerErrorException } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, InternalServerErrorException, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Pool, PoolClient } from "pg";
 import * as crypto from "crypto";
@@ -82,6 +82,12 @@ export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
         await client.query(seedSql);
       }
 
+      // 4. Set strict session timeouts & memory caps
+      await client.query(`SET statement_timeout = '${SQL_DEFAULTS.STATEMENT_TIMEOUT_MS}ms';`);
+      await client.query(`SET lock_timeout = '${SQL_DEFAULTS.LOCK_TIMEOUT_MS}ms';`);
+      await client.query(`SET idle_in_transaction_session_timeout = '${SQL_DEFAULTS.IDLE_IN_TRANSACTION_TIMEOUT_MS}ms';`);
+      await client.query(`SET work_mem = '${SQL_DEFAULTS.WORK_MEM}';`);
+
       // 3. Grant scoped access to runner role (or execute under strict session bounds)
       try {
         await client.query(`GRANT USAGE ON SCHEMA "${schemaName}" TO sql_sandbox_runner;`);
@@ -89,24 +95,39 @@ export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
         if (questionType === "DML_ALLOWED") {
           await client.query(`GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${schemaName}" TO sql_sandbox_runner;`);
         }
+        await client.query(`SET ROLE sql_sandbox_runner;`);
       } catch (grantErr: any) {
         // Fallback: If roles aren't bootstrapped in dev environment, continue with current connection
-        this.logger.debug(`Grant to sql_sandbox_runner skipped or unneeded: ${grantErr.message}`);
+        this.logger.debug(`Grant/role switch to sql_sandbox_runner skipped or failed: ${grantErr.message}`);
       }
 
-      // 4. Set strict session timeouts & memory caps
-      await client.query(`SET statement_timeout = '${SQL_DEFAULTS.STATEMENT_TIMEOUT_MS}ms';`);
-      await client.query(`SET lock_timeout = '${SQL_DEFAULTS.LOCK_TIMEOUT_MS}ms';`);
-      await client.query(`SET idle_in_transaction_session_timeout = '${SQL_DEFAULTS.IDLE_IN_TRANSACTION_TIMEOUT_MS}ms';`);
-      await client.query(`SET work_mem = '${SQL_DEFAULTS.WORK_MEM}';`);
-
       // 5. Run candidate or expected query
-      const res = await client.query(query);
+      let res;
+      const isSelectOrWith = /^\s*(SELECT|WITH)\b/i.test(query);
+
+      if (isSelectOrWith) {
+        await client.query("BEGIN;");
+        try {
+          await client.query(`DECLARE candidate_cursor CURSOR FOR ${query};`);
+          res = await client.query("FETCH 1001 FROM candidate_cursor;");
+          await client.query("CLOSE candidate_cursor;");
+          await client.query("COMMIT;");
+        } catch (cursorErr) {
+          await client.query("ROLLBACK;");
+          throw cursorErr;
+        }
+      } else {
+        res = await client.query(query);
+      }
 
       const executionTimeMs = Date.now() - execStart;
 
       const columns = res.fields ? res.fields.map((f) => f.name) : [];
       const rows = res.rows || [];
+
+      if (rows.length > 1000) {
+        throw new BadRequestException("Query returned too many rows (exceeded limit of 1000). Please refine your query conditions.");
+      }
 
       return {
         queryResult: {
@@ -122,6 +143,12 @@ export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
       throw err;
     } finally {
       // 6. Always clean up isolated schema
+      try {
+        await client.query(`RESET ROLE;`);
+        await client.query(`RESET ALL;`);
+      } catch (resetErr: any) {
+        this.logger.debug(`RESET connection state failed: ${resetErr.message}`);
+      }
       try {
         await client.query(`RESET search_path;`);
         await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE;`);

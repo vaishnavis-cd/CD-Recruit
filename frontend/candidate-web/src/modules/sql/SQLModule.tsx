@@ -230,17 +230,39 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           query,
         })
         if (res.data) {
+          const isError = res.data.status === 'QUERY_ERROR' || res.data.status === 'TIMEOUT' || res.data.status === 'FAILED' || !!res.data.result?.error;
           setEvalResult({
             passed: !!res.data.passed,
             executionTime: res.data.executionTime || 4,
             status: res.data.status || 'COMPLETED',
             error: res.data.result?.error,
           })
+          if (isError) {
+            setError(res.data.result?.error || 'SQL execution failed')
+            setResults(null)
+          } else {
+            // Success! Set the results from the backend PostgreSQL execution
+            const backendColumns = res.data.result?.columns || []
+            const backendRows = res.data.result?.rows || []
+            const formattedRows = backendRows.map((rowObj: any) => {
+              return backendColumns.map((colName: string) => rowObj[colName])
+            })
+            setResults({
+              columns: backendColumns,
+              rows: formattedRows,
+            })
+          }
         }
       } catch (err: any) {
         const backendMsg = err.response?.data?.message || err.message
         console.error('[SQLModule] Backend run error:', backendMsg)
         setError(backendMsg)
+        setEvalResult({
+          passed: false,
+          executionTime: 0,
+          status: 'QUERY_ERROR',
+          error: backendMsg,
+        })
       }
     }
 
@@ -264,7 +286,6 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         }).catch(() => {})
       }
       setSubmitSuccess(true)
-      setEvalResult({ passed: true, executionTime: 6, status: 'SUBMITTED' })
       setTimeout(() => setSubmitSuccess(false), 3000)
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Failed to submit SQL answer')
@@ -350,7 +371,14 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                 ? 'bg-[var(--surface)] text-[var(--success)] border border-[var(--border)]' 
                 : 'bg-[var(--surface)] text-[var(--critical)] border border-[var(--border)]'
             }`}>
-              <span>{evalResult.passed ? '✓ Evaluation: PASSED' : '✗ Evaluation: FAILED'}</span>
+              <span>
+                {evalResult.passed 
+                  ? '✓ Evaluation: PASSED' 
+                  : (evalResult.status === 'QUERY_ERROR' || evalResult.status === 'TIMEOUT' || evalResult.status === 'FAILED' || evalResult.error)
+                    ? `✗ Evaluation: EXECUTION FAILED (${evalResult.error || 'Unknown error'})`
+                    : '✗ Evaluation: FAILED'
+                }
+              </span>
               <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
             </div>
           )}
@@ -385,7 +413,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             ) : results ? (
               <div>
                 <div className="px-3 py-1.5 bg-[var(--bg)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
-                  Local Preview — SQLite (not graded)
+                  Query Output
                 </div>
                 <table className="w-full text-xs font-mono" aria-label="Query results">
                   <thead>

@@ -35,6 +35,10 @@ export class SessionOwnerGuard implements CanActivate {
       throw new ForbiddenException(`Session is already ${session.status.toLowerCase()}.`);
     }
 
+    if (session.deadlineAt && new Date() > session.deadlineAt) {
+      throw new ForbiddenException("Assessment session has expired (past deadline).");
+    }
+
     // Attach to request
     request.session = session;
     return true;
