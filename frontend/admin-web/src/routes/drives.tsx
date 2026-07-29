@@ -23,7 +23,7 @@ export const Route = createFileRoute("/drives")({
   component: DrivesPage,
   head: () => ({
     meta: [
-      { title: "Drives — CD-Recruit" },
+      { title: "Drives — Proctora" },
       {
         name: "description",
         content:

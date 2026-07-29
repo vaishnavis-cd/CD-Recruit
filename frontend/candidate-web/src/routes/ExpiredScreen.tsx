@@ -1,7 +1,7 @@
 import React from 'react'
 import { Clock, Lock, LifeBuoy } from 'lucide-react'
 
-const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
+const SUPPORT_EMAIL = 'mailto:support@proctora.com'
 
 interface ExpiredScreenProps {
   reason: 'never-started' | 'drive-closed'
@@ -64,7 +64,7 @@ export function ExpiredScreen({ reason }: ExpiredScreenProps) {
             <span>Contact Support</span>
           </a>
 
-          <p className="text-[11px] text-[var(--muted-foreground)] font-mono-data">support@cd-recruit.com</p>
+          <p className="text-[11px] text-[var(--muted-foreground)] font-mono-data">support@proctora.com</p>
         </div>
       </div>
     </div>

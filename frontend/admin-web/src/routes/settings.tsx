@@ -10,7 +10,7 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
   head: () => ({
     meta: [
-      { title: "Settings & Administration — CD-Recruit" },
+      { title: "Settings & Administration — Proctora" },
       {
         name: "description",
         content:
@@ -52,17 +52,17 @@ function SettingsPage() {
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
       const DEFAULT_STAFF = [
-        { id: "staff-1", name: "Lead Recruiter (You)", email: "recruiter@cd-recruit.com", role: "ADMIN" },
-        { id: "staff-2", name: "Engineering Evaluator", email: "evaluator@cd-recruit.com", role: "RECRUITER" },
-        { id: "staff-3", name: "Talent Ops Admin", email: "talent-ops@cd-recruit.com", role: "ADMIN" },
+        { id: "staff-1", name: "Lead Recruiter (You)", email: "recruiter@proctora.com", role: "ADMIN" },
+        { id: "staff-2", name: "Engineering Evaluator", email: "evaluator@proctora.com", role: "RECRUITER" },
+        { id: "staff-3", name: "Talent Ops Admin", email: "talent-ops@proctora.com", role: "ADMIN" },
       ];
       setStaff(Array.isArray(data) && data.length > 0 ? data : DEFAULT_STAFF);
     } catch (err) {
       console.error("Failed to load staff list:", err);
       setStaff([
-        { id: "staff-1", name: "Lead Recruiter (You)", email: "recruiter@cd-recruit.com", role: "ADMIN" },
-        { id: "staff-2", name: "Engineering Evaluator", email: "evaluator@cd-recruit.com", role: "RECRUITER" },
-        { id: "staff-3", name: "Talent Ops Admin", email: "talent-ops@cd-recruit.com", role: "ADMIN" },
+        { id: "staff-1", name: "Lead Recruiter (You)", email: "recruiter@proctora.com", role: "ADMIN" },
+        { id: "staff-2", name: "Engineering Evaluator", email: "evaluator@proctora.com", role: "RECRUITER" },
+        { id: "staff-3", name: "Talent Ops Admin", email: "talent-ops@proctora.com", role: "ADMIN" },
       ]);
     } finally {
       setLoadingStaff(false);

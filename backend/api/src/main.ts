@@ -85,7 +85,7 @@ async function bootstrap(): Promise<void> {
 
   // ── Swagger Configuration ─────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("CD Recruit Proctoring API")
+    .setTitle("Proctora Proctoring API")
     .setDescription("Authoritative spec documentation for client-side proctoring engine backend")
     .setVersion("1.0")
     .addTag("proctoring")

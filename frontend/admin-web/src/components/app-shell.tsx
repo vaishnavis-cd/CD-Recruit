@@ -75,10 +75,10 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-[#2F5CFF] flex items-center justify-center font-mono text-[13px] font-semibold text-white">
-              CD
+              P
             </div>
             <div>
-              <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">CD-Recruit</div>
+              <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">Proctora</div>
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
                 admin
               </div>
@@ -161,7 +161,7 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
             </div>
 
             <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to log out of the CD-Recruit Admin Console?
+              Are you sure you want to log out of the Proctora Admin Console?
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">

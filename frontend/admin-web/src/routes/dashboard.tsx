@@ -133,7 +133,7 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
   head: () => ({
     meta: [
-      { title: "Dashboard — CD-Recruit" },
+      { title: "Dashboard — Proctora" },
       {
         name: "description",
         content: "Aggregate Say-Do consistency, funnel, integrity and reviewer signals.",

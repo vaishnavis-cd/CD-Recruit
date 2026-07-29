@@ -51,7 +51,7 @@ export const Route = createFileRoute("/drives/$id")({
   component: DriveDetailPage,
   head: () => ({
     meta: [
-      { title: "Drive Configuration — CD-Recruit" },
+      { title: "Drive Configuration — Proctora" },
       {
         name: "description",
         content: "Configure drive schedule, select assessment modules, assign questions, and manage candidate roster.",

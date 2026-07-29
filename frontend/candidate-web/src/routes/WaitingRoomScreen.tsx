@@ -6,7 +6,7 @@ import { StatusChip } from '../components/common/StatusChip'
 import { LifeBuoy, ArrowRight, ShieldCheck } from 'lucide-react'
 import waitingRoomCalmImg from '../assets/waiting-room-calm.png'
 
-const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
+const SUPPORT_EMAIL = 'mailto:support@proctora.com'
 
 interface WaitingRoomScreenProps {
   scheduledTimeMs: number
@@ -165,7 +165,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 <LifeBuoy size={14} />
                 <span>Need support?</span>
               </a>
-              <span>CD-Recruit Candidate Environment</span>
+              <span>Proctora Candidate Environment</span>
             </div>
           </div>
         </div>
