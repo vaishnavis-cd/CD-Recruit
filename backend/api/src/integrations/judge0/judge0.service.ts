@@ -349,6 +349,100 @@ export class Judge0Service {
   }
 
   /**
+   * Safe local code evaluator for dev fallback execution
+   */
+  private evaluateLocalCode(code: string, languageId: number, rawInput: string): { actual: string; error?: string } {
+    try {
+      const cleanInput = rawInput.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
+
+      if (languageId === 63 || languageId === 93 || code.includes("function ")) {
+        const cleanCode = code.replace(/module\.exports\s*=\s*{[^}]*};?/g, "");
+        const fn = new Function(`
+          ${cleanCode}
+          if (typeof validateUsername === 'function') return validateUsername;
+          if (typeof validate_username === 'function') return validate_username;
+          return null;
+        `)();
+        if (typeof fn === "function") {
+          const res = fn(cleanInput);
+          return { actual: String(Boolean(res)) };
+        }
+      }
+
+      const cleanPython = code
+        .replace(/#.*/g, "")
+        .replace(/:\s*str/g, "")
+        .replace(/:\s*bool/g, "")
+        .replace(/\s*->\s*bool/g, "")
+        .replace(/\s*->\s*str/g, "");
+
+      let jsEquivalent = cleanPython
+        .replace(/\bdef\s+validate_username\s*\(([^)]+)\):/g, "function validate_username($1) {")
+        .replace(/\bdef\s+validateUsername\s*\(([^)]+)\):/g, "function validateUsername($1) {")
+        .replace(/\.strip\(\)/g, ".trim()")
+        .replace(/\.lstrip\(\)/g, ".trimStart()")
+        .replace(/\.rstrip\(\)/g, ".trimEnd()")
+        .replace(/\.startswith\(/g, ".startsWith(")
+        .replace(/\.endswith\(/g, ".endsWith(")
+        .replace(/\bTrue\b/g, "true")
+        .replace(/\bFalse\b/g, "false")
+        .replace(/\bNone\b/g, "null")
+        .replace(/\band\b/g, "&&")
+        .replace(/\bor\b/g, "||")
+        .replace(/\bnot\b/g, "!");
+
+      const lines = jsEquivalent.split("\n");
+      const outLines: string[] = [];
+      const indents: number[] = [0];
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const ind = line.search(/\S/);
+        while (indents[indents.length - 1] > ind) {
+          indents.pop();
+          outLines.push("}");
+        }
+        let l = line.trim();
+        if (l.endsWith(":") && (l.startsWith("if ") || l.startsWith("elif ") || l.startsWith("else"))) {
+          l = l.slice(0, -1);
+          if (l.startsWith("if ")) l = `if (${l.slice(3)}) {`;
+          else if (l.startsWith("elif ")) l = `} else if (${l.slice(5)}) {`;
+          else if (l === "else") l = `} else {`;
+          indents.push(ind);
+        }
+        outLines.push(l);
+      }
+      while (indents.length > 1) {
+        indents.pop();
+        outLines.push("}");
+      }
+
+      const helperRuntime = `
+        const __isalnum = (s) => typeof s === 'string' && s.length > 0 && /^[a-zA-Z0-9]+$/.test(s);
+        const len = (s) => (s && typeof s.length === 'number' ? s.length : 0);
+      `;
+
+      let finalJs = outLines.join("\n").replace(/\b([a-zA-Z0-9_]+)\.isalnum\(\)/g, "__isalnum($1)");
+
+      const fn = new Function(`
+        ${helperRuntime}
+        ${finalJs}
+        if (typeof validate_username === 'function') return validate_username;
+        if (typeof validateUsername === 'function') return validateUsername;
+        return null;
+      `)();
+
+      if (typeof fn === "function") {
+        const res = fn(cleanInput);
+        return { actual: String(Boolean(res)) };
+      }
+    } catch (err: any) {
+      return { actual: "Error", error: err.message || "Runtime Error" };
+    }
+
+    return { actual: "false" };
+  }
+
+  /**
    * Local execution fallback for dev mode when Judge0 server container is not running locally.
    */
   private async runLocalFallback(
@@ -366,23 +460,17 @@ export class Judge0Service {
       let passed = false;
 
       try {
-        if (languageId === 63 || languageId === 93) { // JS / TS
-          const logs: string[] = [];
-          const customConsole = { log: (...args: any[]) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')) };
-          const sandboxFn = new Function('console', 'input', sourceCode);
-          sandboxFn(customConsole, tc.input);
-          stdout = logs.join('\n');
-        } else {
-          // Default stdout simulation for Python / Java / C++ in dev fallback
-          stdout = tc.expectedOutput || "Program executed successfully.";
-        }
+        const code = sourceCode || "";
+        const rawInput = tc.input || "";
+        const expectedNorm = (tc.expectedOutput || "").trim().toLowerCase();
 
-        const normOut = this.normalizeOutput(stdout);
-        const normExp = this.normalizeOutput(tc.expectedOutput);
-        passed = normOut === normExp || stdout.trim() === tc.expectedOutput.trim();
-        if (!passed && !stdout) {
-          stdout = tc.expectedOutput;
-          passed = true;
+        const evalRes = this.evaluateLocalCode(code, languageId, rawInput);
+        stdout = evalRes.actual;
+        if (evalRes.error) {
+          stderr = evalRes.error;
+          passed = false;
+        } else {
+          passed = stdout.toLowerCase() === expectedNorm;
         }
       } catch (err: any) {
         stderr = err.message || "Runtime error during execution";

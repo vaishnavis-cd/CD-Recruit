@@ -10,12 +10,17 @@ function TokenRouteHandler() {
   const [searchParams] = useSearchParams()
   const queryToken = searchParams.get('token')
 
-  const actualToken = pathToken || queryToken || ''
+  let actualToken = pathToken || queryToken || ''
+
+  // In development / local testing, default to 'demo' token if no token was supplied in URL
+  if (!actualToken && (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    actualToken = 'demo'
+  }
 
   if (!actualToken) {
     return (
       <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)] flex items-center justify-center p-6 text-center">
-        <div className="max-w-md bg-[var(--surface)] border border-[var(--border)] p-8 rounded-2xl space-y-4 shadow-[var(--shadow-lg)]">
+        <div className="max-w-md bg-[var(--surface)] border border-[var(--border)] p-8 rounded-2xl space-y-5 shadow-[var(--shadow-lg)]">
           <div className="w-12 h-12 rounded-full bg-[var(--critical-subtle)] text-[var(--critical)] flex items-center justify-center mx-auto border border-[var(--critical)]/20">
             <ShieldAlert size={24} />
           </div>
@@ -23,6 +28,14 @@ function TokenRouteHandler() {
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             No assessment invite token was found in your link. Please make sure you clicked the full assessment invitation link provided in your invitation email.
           </p>
+          <div className="pt-2">
+            <a
+              href="/invite/demo"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors shadow-sm"
+            >
+              Start Demo Candidate Assessment
+            </a>
+          </div>
         </div>
       </div>
     )
