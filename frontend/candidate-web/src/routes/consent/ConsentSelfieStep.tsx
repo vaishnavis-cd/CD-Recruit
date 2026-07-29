@@ -41,6 +41,9 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     }
   }, [])
 
+  const [guideFeedback, setGuideFeedback] = useState<string>("Position your face inside the circle guide")
+  const [faceDetected, setFaceDetected] = useState(false)
+
   // Poll face detection for circle alignment check
   useEffect(() => {
     if (selfieCaptured) return
@@ -49,13 +52,26 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       if (!videoRef.current || videoRef.current.readyState < 2) return
       try {
         const result = await FaceDetectionService.getInstance().detect(videoRef.current)
-        if (result && result.faceDetected && result.faceCount === 1) {
+        if (result && result.alignment) {
+          setFaceDetected(result.faceDetected)
+          setIsAligned(result.alignment.isAligned)
+          setGuideFeedback(result.alignment.guideFeedback)
+        } else if (result && result.faceDetected && result.faceCount === 1) {
+          setFaceDetected(true)
           setIsAligned(true)
-        } else {
+          setGuideFeedback("Face aligned! Hold steady and capture baseline selfie.")
+        } else if (result && result.faceCount > 1) {
+          setFaceDetected(true)
           setIsAligned(false)
+          setGuideFeedback("Multiple faces detected — please ensure you are alone.")
+        } else {
+          setFaceDetected(false)
+          setIsAligned(false)
+          setGuideFeedback("No face detected — center your face inside the guide.")
         }
       } catch {
         setIsAligned(false)
+        setGuideFeedback("Align your face inside the guide.")
       }
     }, 100)
 
@@ -63,7 +79,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   }, [selfieCaptured])
 
   function handleCapture() {
-    if (!videoRef.current) return
+    if (!videoRef.current || !isAligned) return
 
     // Trigger mild whitening camera shutter flash effect
     setFlash(true)
@@ -117,18 +133,35 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
 
         <div className="absolute top-3 left-3 z-20">
           <StatusChip
-            tone={selfieCaptured ? 'success' : isAligned ? 'success' : 'accent'}
-            label={selfieCaptured ? 'Captured' : isAligned ? 'Face aligned' : 'Camera live'}
+            tone={selfieCaptured ? 'success' : isAligned ? 'success' : faceDetected ? 'accent' : 'critical'}
+            label={selfieCaptured ? 'Captured' : isAligned ? 'Face aligned' : faceDetected ? 'Adjust position' : 'No face'}
           />
         </div>
 
-        {/* Solid face guide circle matching Image 2 */}
+        {/* Real-time guidance overlay banner */}
+        {!selfieCaptured && (
+          <div className="absolute bottom-3 left-3 right-3 z-20 flex justify-center pointer-events-none">
+            <div className={`px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all duration-300 shadow-md ${
+              isAligned
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
+                : faceDetected
+                ? 'bg-amber-950/80 text-amber-300 border-amber-500/50'
+                : 'bg-rose-950/80 text-rose-300 border-rose-500/50'
+            }`}>
+              {guideFeedback}
+            </div>
+          </div>
+        )}
+
+        {/* Solid face guide oval matching frame */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
           <div
             className={`w-44 h-56 rounded-[50%] border-2 transition-all duration-300 ${
               selfieCaptured || isAligned
-                ? 'border-[var(--success)] bg-[var(--success)]/10 scale-105'
-                : 'border-white/50'
+                ? 'border-emerald-400 bg-emerald-400/10 scale-105 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
+                : faceDetected
+                ? 'border-amber-400 bg-amber-400/10 shadow-[0_0_20px_rgba(251,191,36,0.3)]'
+                : 'border-rose-400 bg-rose-400/10 shadow-[0_0_20px_rgba(248,113,113,0.3)]'
             }`}
           />
         </div>
@@ -151,11 +184,15 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         ) : (
           <button
             onClick={handleCapture}
-            disabled={!hasStream}
+            disabled={!hasStream || !isAligned}
             type="button"
-            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+            className={`text-xs font-semibold px-6 py-2.5 rounded-lg transition-all ${
+              isAligned && hasStream
+                ? 'btn-primary cursor-pointer'
+                : 'bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed border border-slate-600'
+            }`}
           >
-            Capture
+            Capture Selfie
           </button>
         )}
       </div>

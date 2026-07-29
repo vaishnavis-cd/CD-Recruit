@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Download,
   Upload,
+  UploadCloud,
   Search,
   Eye,
   CheckCircle2,
@@ -180,6 +181,110 @@ function DriveDetailPage() {
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
   const [candidateNameInput, setCandidateNameInput] = useState("");
   const [candidateEmailInput, setCandidateEmailInput] = useState("");
+
+  // Bulk Import Modal State
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkCandidateInput, setBulkCandidateInput] = useState("");
+  const [bulkCandidateErrors, setBulkCandidateErrors] = useState<string[]>([]);
+  const [submittingBulkImport, setSubmittingBulkImport] = useState(false);
+
+  const parseBulkCandidates = (text: string) => {
+    const lines = text.split("\n");
+    const parsed: Array<{ name: string; candidateEmail: string }> = [];
+    const errors: string[] = [];
+    const emailsInInput = new Set<string>();
+    const existingRosterEmails = new Set((drive?.roster || []).map((c) => c.candidateEmail.toLowerCase()));
+
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      const parts = trimmed.split(/[,;\t]+/);
+      if (parts.length < 2) {
+        errors.push(`Line ${idx + 1}: Must contain name and email separated by a comma (e.g. "John Doe, john@example.com").`);
+        return;
+      }
+
+      const name = parts[0].trim();
+      const email = parts[1].trim().toLowerCase();
+
+      if (!name) {
+        errors.push(`Line ${idx + 1}: Name is missing.`);
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push(`Line ${idx + 1}: Invalid email address format "${email}".`);
+        return;
+      }
+
+      // Check if email already exists in current drive roster
+      if (existingRosterEmails.has(email)) {
+        errors.push(`Line ${idx + 1}: Candidate email "${email}" is ALREADY registered in this drive roster.`);
+        return;
+      }
+
+      // Check if email is duplicated within the input file lines
+      if (emailsInInput.has(email)) {
+        errors.push(`Line ${idx + 1}: Duplicate candidate email "${email}" found in input lines.`);
+        return;
+      }
+
+      emailsInInput.add(email);
+      parsed.push({ name, candidateEmail: email });
+    });
+
+    return { parsed, errors };
+  };
+
+  const handleFileUpload = (file: File) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv") && file.type !== "text/csv" && file.type !== "application/vnd.ms-excel") {
+      toast.error("Invalid file format. Please upload a .csv file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        setBulkCandidateInput(text);
+        const { errors } = parseBulkCandidates(text);
+        setBulkCandidateErrors(errors);
+        toast.success(`Loaded "${file.name}" into import box.`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkImportSubmit = async () => {
+    const { parsed, errors } = parseBulkCandidates(bulkCandidateInput);
+    setBulkCandidateErrors(errors);
+
+    if (errors.length > 0) {
+      toast.error(`Please fix ${errors.length} formatting error(s) before importing.`);
+      return;
+    }
+
+    if (parsed.length === 0) {
+      toast.error("No valid candidate entries found to import.");
+      return;
+    }
+
+    setSubmittingBulkImport(true);
+    try {
+      await addCandidatesBulk(driveId, parsed);
+      toast.success(`Successfully imported and assigned ${parsed.length} candidate(s) to this drive!`);
+      setShowBulkImportModal(false);
+      setBulkCandidateInput("");
+      setBulkCandidateErrors([]);
+      await loadData();
+    } catch (err: any) {
+      toast.error("Failed to bulk import candidates: " + (err.message || err));
+    } finally {
+      setSubmittingBulkImport(false);
+    }
+  };
 
   // Copy candidate link state
   const [copiedCandidateId, setCopiedCandidateId] = useState<string | null>(null);
@@ -538,16 +643,24 @@ function DriveDetailPage() {
       toast.error("Please enter candidate name and email.");
       return;
     }
+    const email = candidateEmailInput.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(candidateEmailInput.trim())) {
+    if (!emailRegex.test(email)) {
       toast.error("Please enter a valid email address.");
       return;
     }
+
+    const existingRosterEmails = new Set((drive?.roster || []).map((c) => c.candidateEmail.toLowerCase()));
+    if (existingRosterEmails.has(email)) {
+      toast.error(`Candidate with email "${email}" is already registered in this drive roster.`);
+      return;
+    }
+
     try {
       await addCandidatesBulk(driveId, [
         {
           name: candidateNameInput.trim(),
-          candidateEmail: candidateEmailInput.trim(),
+          candidateEmail: email,
         },
       ]);
       toast.success("Candidate added successfully!");
@@ -1141,10 +1254,10 @@ function DriveDetailPage() {
                   <Plus size={14} /> Add Candidate
                 </button>
                 <button
-                  onClick={handleDownloadSampleCandidates}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] hover:bg-[#F7F7F9] rounded cursor-pointer"
+                  onClick={() => setShowBulkImportModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] hover:bg-[#D6E4FF] rounded transition-colors cursor-pointer"
                 >
-                  <Download size={13} /> Sample Candidate CSV
+                  <Upload size={13} /> Bulk Import Candidates
                 </button>
               </div>
             </div>
@@ -1572,6 +1685,148 @@ function DriveDetailPage() {
               >
                 {removingCandidate ? "Removing..." : "Remove & Revoke"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Bulk Import Candidates Modal matching Image 1 & 2 */}
+      {showBulkImportModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col overflow-hidden">
+            {/* Modal Header matching Image 2 */}
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-start justify-between">
+              <div>
+                <h2 className="text-[18px] font-bold text-[#0B0B0D]">Bulk Import Candidates</h2>
+                <p className="text-[13px] text-[#5B5B64] mt-0.5">Import candidates and assign directly to test.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowBulkImportModal(false);
+                  setBulkCandidateInput("");
+                  setBulkCandidateErrors([]);
+                }}
+                className="text-[#8B8B93] hover:text-[#0B0B0D] p-1 rounded-md transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body matching Image 1 & 2 */}
+            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+              {/* Section 1: Manual Paste Entry */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[13px] font-semibold text-[#0B0B0D]">
+                    Paste CSV or Tab-Separated Data <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSampleCandidates}
+                    className="text-[12px] font-semibold text-[#2F5CFF] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Download size={12} /> Download Sample Template
+                  </button>
+                </div>
+                <p className="text-[12px] text-[#8B8B93]">
+                  Format: <span className="font-mono text-[#5B5B64]">Candidate Name, candidate.email@company.com</span> (one candidate per line)
+                </p>
+                <textarea
+                  rows={5}
+                  value={bulkCandidateInput}
+                  onChange={(e) => {
+                    setBulkCandidateInput(e.target.value);
+                    const { errors } = parseBulkCandidates(e.target.value);
+                    setBulkCandidateErrors(errors);
+                  }}
+                  placeholder={`John Doe, john@example.com\nJane Smith, jane@example.com\nAlex Rivera, alex@example.com`}
+                  className="w-full px-3.5 py-2.5 text-[12px] font-mono border border-[#E6E6EA] rounded-lg bg-white focus:outline-none focus:border-[#2F5CFF] focus:ring-1 focus:ring-[#2F5CFF]"
+                />
+              </div>
+
+              {/* Section 2: Drag & Drop CSV File Dropzone matching Image 1 */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-[13px] font-semibold text-[#0B0B0D]">
+                  Select CSV File
+                </label>
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleFileUpload(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  onClick={() => {
+                    const fileInput = document.getElementById("bulk-csv-file-input");
+                    if (fileInput) fileInput.click();
+                  }}
+                  className="border-2 border-dashed border-[#E6E6EA] hover:border-[#2F5CFF] rounded-[10px] p-6 text-center bg-[#FAFBFD] hover:bg-[#F4F7FF] transition-all cursor-pointer group"
+                >
+                  <UploadCloud className="w-9 h-9 text-[#8B8B93] group-hover:text-[#2F5CFF] mx-auto mb-2 transition-colors" />
+                  <p className="text-[13px] font-medium text-[#5B5B64] group-hover:text-[#0B0B0D]">
+                    Drag &amp; drop your CSV file here, or click to browse
+                  </p>
+                  <p className="text-[11px] text-[#8B8B93] mt-1">
+                    Accepts .csv format
+                  </p>
+                  <input
+                    id="bulk-csv-file-input"
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileUpload(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Error messages list */}
+              {bulkCandidateErrors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-32 overflow-y-auto space-y-1">
+                  <span className="text-[12px] font-semibold text-red-700 block">Formatting Errors Detected:</span>
+                  {bulkCandidateErrors.map((err, idx) => (
+                    <p key={idx} className="text-[11px] text-red-600 font-mono">• {err}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer matching Image 1 & 2 */}
+            <div className="px-6 py-4 bg-[#FAFBFD] border-t border-[#E6E6EA] flex items-center justify-between">
+              <span className="text-[13px] text-[#5B5B64] font-semibold">
+                {parseBulkCandidates(bulkCandidateInput).parsed.length} candidate(s) ready
+              </span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBulkImportModal(false);
+                    setBulkCandidateInput("");
+                    setBulkCandidateErrors([]);
+                  }}
+                  className="px-4 py-2 text-[13px] font-medium border border-[#E6E6EA] rounded-md hover:bg-[#EFF0F3] transition-colors cursor-pointer text-[#0B0B0D]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkImportSubmit}
+                  disabled={submittingBulkImport || parseBulkCandidates(bulkCandidateInput).parsed.length === 0 || bulkCandidateErrors.length > 0}
+                  className="px-4 py-2 text-[13px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {submittingBulkImport ? (
+                    "Importing..."
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      Import &amp; Assign Candidates
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

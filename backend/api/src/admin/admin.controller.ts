@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -144,6 +145,21 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async bulkResend(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
     return this.inviteService.bulkResend(dto.inviteIds, staff.id);
+  }
+
+  @Delete("invites/:inviteId")
+  @HttpCode(HttpStatus.OK)
+  async deleteInvite(
+    @Param("inviteId", ParseUUIDPipe) inviteId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.inviteService.deleteInvite(inviteId, staff.id);
+  }
+
+  @Post("invites/bulk-delete")
+  @HttpCode(HttpStatus.OK)
+  async bulkDelete(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
+    return this.inviteService.bulkDelete(dto.inviteIds, staff.id);
   }
 
   @Post("sessions/compare")

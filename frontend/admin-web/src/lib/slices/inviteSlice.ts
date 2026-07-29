@@ -13,9 +13,11 @@ export interface InviteSlice {
     driveId: string;
   }) => Promise<Invite>;
   revokeInvite: (id: string) => Promise<void>;
+  deleteInvite: (id: string) => Promise<void>;
   extendExpiry: (id: string, newExpiresAt: string) => Promise<void>;
   regenerateToken: (id: string) => Promise<string>;
   bulkRevoke: (ids: string[]) => Promise<void>;
+  bulkDelete: (ids: string[]) => Promise<void>;
   bulkResend: (ids: string[]) => Promise<void>;
 }
 
@@ -104,6 +106,18 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
     }
   },
 
+  deleteInvite: async (id) => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/admin/invites/${id}`, { method: "DELETE", headers });
+      set((state: any) => ({
+        invites: state.invites.filter((i: any) => i.id !== id),
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
   extendExpiry: async (id, newExpiresAt) => {
     try {
       const headers = await getAuthHeaders();
@@ -154,6 +168,22 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
         invites: state.invites.map((i: any) =>
           ids.includes(i.id) ? { ...i, status: "REVOKED" } : i,
         ),
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  bulkDelete: async (ids) => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/admin/invites/bulk-delete`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ inviteIds: ids }),
+      });
+      set((state: any) => ({
+        invites: state.invites.filter((i: any) => !ids.includes(i.id)),
       }));
     } catch (err) {
       console.error(err);
