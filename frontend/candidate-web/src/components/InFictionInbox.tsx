@@ -3,6 +3,7 @@ import { services } from '../services'
 import { InFictionMessageItem, InboxMessage } from './InFictionMessageItem'
 import { InFictionThread, ReplyDraft } from './InFictionThread'
 import { Inbox, Loader2 } from 'lucide-react'
+import apiClient from '@/api/client'
 
 interface InFictionInboxProps {
   sessionId: string
@@ -18,14 +19,67 @@ export function InFictionInbox({ sessionId, scenarioId }: InFictionInboxProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [unreadCount, setUnreadCount] = useState(0)
 
+  // Fetch persistent inbox messages from backend on mount and sync state
+  const loadBackendInbox = async () => {
+    try {
+      const res = await apiClient.get(`/sessions/${sessionId}/simulation/inbox`)
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        const replyMap: Record<number, string> = {}
+        const backendMsgs: InboxMessage[] = res.data.map((m: any) => {
+          const numId = typeof m.id === 'string' ? Math.abs(m.id.split('-').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)) : (Number(m.id) || 1)
+          if (m.replyText) {
+            replyMap[numId] = m.replyText
+          }
+          return {
+            id: numId,
+            atSeconds: 0,
+            channel: 'email',
+            from: m.from || m.role || 'Manager',
+            subject: m.subject || 'Incident Notification',
+            body: m.body || '',
+            expectsReply: m.expectsReply ?? true,
+            read: Boolean(m.read),
+          }
+        })
+
+        setReplies(prev => ({ ...prev, ...replyMap }))
+        setMessages(prev => {
+          const mergedMap = new Map<number, InboxMessage>()
+          // Put backend messages first
+          backendMsgs.forEach(m => mergedMap.set(m.id, m))
+          // Retain any live socket/subscribe messages
+          prev.forEach(p => {
+            if (!mergedMap.has(p.id)) {
+              mergedMap.set(p.id, p)
+            }
+          })
+          return Array.from(mergedMap.values())
+        })
+
+        const unread = backendMsgs.filter(m => !m.read && !m.replyText).length
+        setUnreadCount(unread)
+
+        // Auto-select first message if none selected
+        if (backendMsgs.length > 0) {
+          setSelected(prev => (prev === null ? backendMsgs[0].id : prev))
+        }
+      }
+    } catch (err) {
+      console.warn('[InFictionInbox] Error loading backend inbox:', err)
+    }
+  }
+
   useEffect(() => {
+    loadBackendInbox()
+
     const unsub = services.scenario.subscribe(sessionId, scenarioId, (msg) => {
       setMessages(prev => {
         const already = prev.find(m => m.id === msg.id)
         if (already) return prev
-        return [...prev, { ...msg, read: false }]
+        // Initial SAY Slack prompt is already viewed and replied to in Step 1 -> set read: true
+        const isInitialSayOrSlack = msg.channel === 'slack' || msg.from?.includes('#') || msg.subject?.includes('QA Bug Report')
+        return [...prev, { ...msg, read: isInitialSayOrSlack ? true : Boolean((msg as any).read) }]
       })
-      setUnreadCount(c => c + 1)
     })
     return unsub
   }, [sessionId, scenarioId])
@@ -34,13 +88,20 @@ export function InFictionInbox({ sessionId, scenarioId }: InFictionInboxProps) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages.length])
 
-  function handleSelectMessage(id: number) {
+  async function handleSelectMessage(id: number) {
     setSelected(id)
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m))
+    setMessages(prev => prev.map(m => (m.id === id ? { ...m, read: true } : m)))
     setUnreadCount(prev => {
       const msg = messages.find(m => m.id === id)
       return msg && !msg.read ? Math.max(0, prev - 1) : prev
     })
+
+    try {
+      await apiClient.post(`/sessions/${sessionId}/simulation/inbox/read`)
+    } catch (err) {
+      console.warn('[InFictionInbox] Error posting read status:', err)
+    }
+
     const msg = messages.find(m => m.id === id)
     if (msg?.expectsReply && !replies[id]) {
       setDraft({ messageId: id, text: '' })

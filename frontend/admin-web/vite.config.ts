@@ -18,5 +18,6 @@ export default defineConfig({
   envDir: "../../",
   server: {
     port: 5174,
+    strictPort: true,
   },
 });

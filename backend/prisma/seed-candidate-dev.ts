@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 
 const jwtSecret = process.env.JWT_SECRET || "dev-jwt-secret-key-12345!!!";
 const appPort = process.env.PORT || "3001";
-const frontendPort = "5173"; // Default Vite port for candidate-web
+const frontendPort = process.env.CANDIDATE_WEB_PORT || "3000";
 
 async function main() {
   console.log("🌱 Seeding Dev Candidate Invite…");
@@ -118,6 +118,32 @@ async function main() {
       },
       scoringConfig: {},
     },
+    {
+      moduleType: ModuleType.SIMULATION,
+      role: "QA",
+      difficulty: "medium",
+      tags: ["simulation", "bug-report"],
+      content: {
+        title: "QA Bug Report: Login Validation Error",
+        description: "During regression testing, QA discovered that login validation incorrectly accepts usernames with leading or trailing spaces.",
+        constraints: [
+          "Username length must be between 3 and 20 characters",
+          "Must NOT contain leading or trailing spaces",
+          "Alphanumeric characters and underscores only",
+        ],
+        starterCode: {
+          python: "def validate_username(username: str) -> bool:\n    if not username:\n        return False\n    if len(username) < 3 or len(username) > 20:\n        return False\n    return True\n",
+          javascript: "function validateUsername(username) {\n  if (!username) return false;\n  if (username.length < 3 || username.length > 20) return false;\n  return true;\n}\nmodule.exports = { validateUsername };\n",
+        },
+        testCases: [
+          { input: '"user123"', expectedOutput: "True", isHidden: false, label: "Valid Username" },
+          { input: '" user123 "', expectedOutput: "False", isHidden: false, label: "Leading/Trailing Space" },
+          { input: '"ab"', expectedOutput: "False", isHidden: true, label: "Too Short" },
+          { input: '"user_123"', expectedOutput: "True", isHidden: true, label: "Valid Underscore" },
+        ],
+      },
+      scoringConfig: {},
+    },
   ];
 
   const seededQuestions = [];
@@ -160,10 +186,11 @@ async function main() {
         name: driveName,
         roleTemplateId: roleTemplate.id,
         moduleConfig: {
-          MCQ: { enabled: true, weight: 0.25 },
-          SQL: { enabled: true, weight: 0.25 },
-          CODING: { enabled: true, weight: 0.30 },
-          AI_PROMPTING: { enabled: true, weight: 0.20 },
+          MCQ: { enabled: true, weight: 0.20 },
+          SQL: { enabled: true, weight: 0.20 },
+          CODING: { enabled: true, weight: 0.25 },
+          AI_PROMPTING: { enabled: true, weight: 0.15 },
+          SIMULATION: { enabled: true, weight: 0.20 },
         },
         status: DriveStatus.ACTIVE,
         createdById: staff.id,

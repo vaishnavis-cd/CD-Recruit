@@ -40,6 +40,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    strictPort: true,
     headers: {
       // credentialless allows cross-origin isolation for WASM/SharedArrayBuffer
       // while still permitting getUserMedia camera access
