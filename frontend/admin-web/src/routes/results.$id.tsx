@@ -36,7 +36,7 @@ export const Route = createFileRoute("/results/$id")({
   component: IndividualResultPage,
   head: () => ({
     meta: [
-      { title: "Candidate Evaluation — CD-Recruit" },
+      { title: "Candidate Evaluation — Proctora" },
       {
         name: "description",
         content: "Detailed candidate evaluation, code execution review, integrity flags, and hiring decision recording.",

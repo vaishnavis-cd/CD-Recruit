@@ -123,7 +123,7 @@ export function ConsentSimpleAgreementStep({ type, onAgree }: ConsentSimpleAgree
       <div>
         <div className="card-surface p-5 text-sm leading-relaxed text-[var(--muted-foreground)] border border-[var(--border)] rounded-xl space-y-3">
           <p>
-            <strong className="text-[var(--foreground)]">1. Purpose.</strong> CD-Recruit provides a remote candidate assessment service on behalf of the employer named in your invitation. By continuing, you consent to participate in a monitored technical assessment.
+            <strong className="text-[var(--foreground)]">1. Purpose.</strong> Proctora provides a remote candidate assessment service on behalf of the employer named in your invitation. By continuing, you consent to participate in a monitored technical assessment.
           </p>
           <p>
             <strong className="text-[var(--foreground)]">2. Integrity.</strong> During the session, the platform will collect telemetry including keystroke rhythm, focus events, and periodic camera frames to detect anomalies. This data is retained only for the duration required by the employer and is not sold or shared with third parties.
@@ -135,7 +135,7 @@ export function ConsentSimpleAgreementStep({ type, onAgree }: ConsentSimpleAgree
             <strong className="text-[var(--foreground)]">4. Conduct.</strong> Use of unauthorised assistance — including third-party tools, other humans, or generative AI outside the AI Prompting module — constitutes grounds for disqualification.
           </p>
           <p>
-            <strong className="text-[var(--foreground)]">5. Support.</strong> Contact support@cd-recruit.com for questions before, during, or after your assessment.
+            <strong className="text-[var(--foreground)]">5. Support.</strong> Contact support@proctora.com for questions before, during, or after your assessment.
           </p>
         </div>
 

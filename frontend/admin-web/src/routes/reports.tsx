@@ -46,7 +46,7 @@ export const Route = createFileRoute("/reports")({
   component: ReportsPage,
   head: () => ({
     meta: [
-      { title: "Reports & Analytics — CD-Recruit" },
+      { title: "Reports & Analytics — Proctora" },
       { name: "description", content: "Assessment performance metrics, integrity analytics, cohort comparison, and customizable report exports." },
     ],
   }),
@@ -138,7 +138,7 @@ export function ReportsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cd-recruit-report-${variant}-${Date.now()}.json`;
+    a.download = `proctora-report-${variant}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

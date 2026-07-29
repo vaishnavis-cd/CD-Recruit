@@ -54,7 +54,7 @@ export class EventGenerationService {
   async generateScenario(request: ScenarioRequest): Promise<ScenarioResponse> {
     const templateId = request.eventTemplateId;
 
-    const systemPrompt = `You are a technical scenario generator for CD Recruit.
+    const systemPrompt = `You are a technical scenario generator for Proctora.
 Your job is to enrich the context and text assets of a simulated engineering event.
 Return ONLY a valid JSON object matching the requested schema. Do not add markdown backticks or extra text outside JSON.
 JSON Schema:

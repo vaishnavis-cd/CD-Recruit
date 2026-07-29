@@ -29,7 +29,7 @@ export const Route = createFileRoute("/questions")({
   component: QuestionBankPage,
   head: () => ({
     meta: [
-      { title: "Question Bank — CD-Recruit" },
+      { title: "Question Bank — Proctora" },
       {
         name: "description",
         content:

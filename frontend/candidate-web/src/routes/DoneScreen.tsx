@@ -4,7 +4,7 @@ import { IllustrationContainer } from '../components/common/IllustrationContaine
 import { StatusChip } from '../components/common/StatusChip'
 import { CheckCircle2, Unlock, BookOpen, Star, LifeBuoy, Copy, Check } from 'lucide-react'
 
-const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
+const SUPPORT_EMAIL = 'mailto:support@proctora.com'
 const LEARNING_HUB_LINKS = [
   { label: 'Data Structures & Algorithms Refresher', href: '#learning-hub-dsa' },
   { label: 'SQL Fundamentals Guide', href: '#learning-hub-sql' },

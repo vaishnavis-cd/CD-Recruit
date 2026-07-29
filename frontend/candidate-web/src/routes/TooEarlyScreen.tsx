@@ -3,7 +3,7 @@ import { services } from '../services'
 import { useSessionStore } from '../store/sessionMachine'
 import { Clock, LifeBuoy } from 'lucide-react'
 
-const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
+const SUPPORT_EMAIL = 'mailto:support@proctora.com'
 
 function formatHHMMSS(ms: number) {
   if (ms <= 0) return { h: '00', m: '00', s: '00' }

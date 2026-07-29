@@ -10,7 +10,7 @@ export const Route = createFileRoute("/invites")({
   component: InvitesPage,
   head: () => ({
     meta: [
-      { title: "Invites — CD-Recruit" },
+      { title: "Invites — Proctora" },
       { name: "description", content: "Create and manage candidate assessment invites." },
     ],
   }),

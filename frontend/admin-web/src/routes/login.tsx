@@ -44,9 +44,14 @@ function LoginPage() {
     <div className="min-h-screen bg-[#F7F7F9] text-[#0B0B0D] font-sans flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-[420px]">
         <div className="flex items-center gap-2.5 mb-6 justify-center">
-          <img src="/cd-logo.png" alt="CD Logo" className="w-[50px] h-[50px] object-contain" />
+          <span className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #2563EB, #6366F1)' }}>
+            <svg width="20" height="20" viewBox="0 0 14 14" fill="none">
+              <path d="M1 9C2.5 9 3 4 5 4C7 4 7 9 9 9C11 9 11.5 4 13 4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </span>
           <div>
-            <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">CD-Recruit</div>
+            <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">Proctora</div>
             <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
               admin console
             </div>
