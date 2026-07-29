@@ -16,6 +16,6 @@ export const SQL_DEFAULTS = {
 export const SQL_VALIDATION_PATTERNS = {
   ALLOWED_START: /^\s*(SELECT|WITH)\b/i,
   FORBIDDEN_KEYWORDS:
-    /\b(DROP|TRUNCATE|ALTER|GRANT|REVOKE|CREATE\s+ROLE|CREATE\s+USER|COPY|pg_sleep|pg_terminate_backend|pg_read_file|dblink|lo_import|lo_export)\b/i,
+    /\b(DROP|TRUNCATE|ALTER|GRANT|REVOKE|CREATE ROLE|COPY|pg_sleep|pg_read_file|pg_read_binary_file|pg_stat_file|dblink|lo_import|lo_export)\b/i,
   MULTI_STATEMENT: /;.*\S/,
 };
