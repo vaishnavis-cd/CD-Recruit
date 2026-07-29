@@ -279,6 +279,71 @@ function DriveDetailPage() {
     }
   };
 
+  // Relative Module Time Complexity ratios for proportional split
+  const MODULE_TIME_COMPLEXITY: Record<string, number> = {
+    CODING: 3,
+    SIMULATION: 3,
+    SQL: 2,
+    DEBUGGING: 2,
+    MCQ: 1,
+    AI_PROMPTING: 1,
+  };
+
+  const computeTimeWindowMinutes = (
+    startHourStr: string,
+    startMinStr: string,
+    startAmPmStr: string,
+    endHourStr: string,
+    endMinStr: string,
+    endAmPmStr: string
+  ): number => {
+    let sHour = parseInt(startHourStr, 10) || 10;
+    if (startAmPmStr === "PM" && sHour < 12) sHour += 12;
+    if (startAmPmStr === "AM" && sHour === 12) sHour = 0;
+    const sMin = parseInt(startMinStr, 10) || 0;
+
+    let eHour = parseInt(endHourStr, 10) || 11;
+    if (endAmPmStr === "PM" && eHour < 12) eHour += 12;
+    if (endAmPmStr === "AM" && eHour === 12) eHour = 0;
+    const eMin = parseInt(endMinStr, 10) || 0;
+
+    const startTotalMins = sHour * 60 + sMin;
+    const endTotalMins = eHour * 60 + eMin;
+    let diff = endTotalMins - startTotalMins;
+
+    if (diff <= 0) diff += 24 * 60;
+    return diff > 0 ? diff : 60;
+  };
+
+  const autoAllocateModuleDurations = (
+    config: Record<string, any>,
+    totalWindowMins: number
+  ): Record<string, any> => {
+    const enabledKeys = Object.keys(config).filter((k) => config[k]?.enabled);
+    if (enabledKeys.length === 0) return config;
+
+    const totalRatioSum = enabledKeys.reduce(
+      (sum, k) => sum + (MODULE_TIME_COMPLEXITY[k] || 1),
+      0
+    );
+
+    let allocatedSum = 0;
+    const updated = { ...config };
+
+    enabledKeys.forEach((k, idx) => {
+      const ratio = MODULE_TIME_COMPLEXITY[k] || 1;
+      let allocated = Math.max(5, Math.floor(totalWindowMins * (ratio / totalRatioSum)));
+      if (idx === enabledKeys.length - 1) {
+        allocated = Math.max(5, totalWindowMins - allocatedSum);
+      } else {
+        allocatedSum += allocated;
+      }
+      updated[k] = { ...updated[k], durationMinutes: allocated };
+    });
+
+    return updated;
+  };
+
   // Total Score Ceiling Calculation
   const totalWeightSum = useMemo(() => {
     return Object.entries(moduleConfig)
@@ -286,7 +351,7 @@ function DriveDetailPage() {
       .reduce((sum, [_, conf]) => sum + (Number(conf.weight) || 0), 0);
   }, [moduleConfig]);
 
-  // Auto-Balance Weights tool ( Ceil: 100 )
+  // Auto-Balance Weights tool ( Ceil: 100 ) - Only balances score weights!
   const handleAutoBalanceWeights = () => {
     const enabledKeys = Object.keys(moduleConfig).filter((k) => moduleConfig[k].enabled);
     if (enabledKeys.length === 0) return;
@@ -355,6 +420,21 @@ function DriveDetailPage() {
     return isScheduleDateValid && hasQuestionsSelected && hasCandidatesSelected;
   }, [isScheduleDateValid, hasQuestionsSelected, hasCandidatesSelected]);
 
+  const validateCumulativeDuration = (): boolean => {
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
+    const cumulativeMins = Object.values(moduleConfig)
+      .filter((m) => m.enabled)
+      .reduce((sum, m) => sum + (Number(m.durationMinutes) || 0), 0);
+
+    if (cumulativeMins > windowMins) {
+      toast.error(
+        `Total module durations (${cumulativeMins} mins) exceed the scheduled test window (${windowMins} mins). Please adjust module durations or extend the schedule window.`
+      );
+      return false;
+    }
+    return true;
+  };
+
   const handleSaveAndNext = async () => {
     const val = validateDateTimeConfig();
     if (!val.valid) {
@@ -370,6 +450,10 @@ function DriveDetailPage() {
 
     if (totalWeightSum !== 100) {
       toast.error(`Module score weights currently sum to ${totalWeightSum} pts. Please click 'Auto-Balance Weights' so total equals 100 pts.`);
+      return;
+    }
+
+    if (!validateCumulativeDuration()) {
       return;
     }
 
@@ -414,6 +498,11 @@ function DriveDetailPage() {
   }, [assignedQuestions, savedAssignedQuestions]);
 
   const handleTabSwitch = (targetTab: "configuration" | "questions" | "roster") => {
+    if (activeTab === "configuration" && targetTab !== "configuration") {
+      if (!validateCumulativeDuration()) {
+        return;
+      }
+    }
     if (activeTab === "questions" && targetTab !== "questions" && isQuestionsDirty) {
       setPendingTabSwitch(targetTab);
       return;
@@ -725,10 +814,14 @@ function DriveDetailPage() {
                   <div
                     key={mod.id}
                     onClick={() => {
-                      setModuleConfig({
+                      const isNowEnabled = !conf.enabled;
+                      const nextConfig = {
                         ...moduleConfig,
-                        [mod.id]: { ...conf, enabled: !conf.enabled },
-                      });
+                        [mod.id]: { ...conf, enabled: isNowEnabled },
+                      };
+                      const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
+                      const reallocated = autoAllocateModuleDurations(nextConfig, winMins);
+                      setModuleConfig(reallocated);
                     }}
                     className={`border rounded-md p-4 space-y-3 transition-colors cursor-pointer select-none ${
                       conf.enabled ? "bg-white border-[#2F5CFF] shadow-sm" : "bg-[#F7F7F9] border-[#E6E6EA] opacity-60"
@@ -757,13 +850,16 @@ function DriveDetailPage() {
                           <label className="block text-[#5B5B64] font-medium mb-1">Duration (min)</label>
                           <input
                             type="number"
-                            value={conf.durationMinutes}
-                            onChange={(e) =>
+                            value={conf.durationMinutes === 0 ? "" : conf.durationMinutes}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                               setModuleConfig({
                                 ...moduleConfig,
-                                [mod.id]: { ...conf, durationMinutes: Number(e.target.value) },
-                              })
-                            }
+                                [mod.id]: { ...conf, durationMinutes: val },
+                              });
+                            }}
+                            onFocus={(e) => e.target.select()}
                             className="w-full px-2 py-1 border border-[#E6E6EA] rounded font-mono text-[12px]"
                           />
                         </div>
@@ -771,13 +867,16 @@ function DriveDetailPage() {
                           <label className="block text-[#5B5B64] font-medium mb-1">Score Weight (pts)</label>
                           <input
                             type="number"
-                            value={conf.weight}
-                            onChange={(e) =>
+                            value={conf.weight === 0 ? "" : conf.weight}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                               setModuleConfig({
                                 ...moduleConfig,
-                                [mod.id]: { ...conf, weight: Number(e.target.value) },
-                              })
-                            }
+                                [mod.id]: { ...conf, weight: val },
+                              });
+                            }}
+                            onFocus={(e) => e.target.select()}
                             className="w-full px-2 py-1 border border-[#E6E6EA] rounded font-mono text-[12px]"
                           />
                         </div>
