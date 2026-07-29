@@ -29,17 +29,65 @@ export class SqlService implements AssessmentModuleEngine {
     questionId: string,
     submission: any,
   ): Promise<ModuleEvaluationResult> {
-    const res = await this.run({
-      sessionId,
-      questionId,
-      query: submission.sql,
-    });
-    return {
-      status: res.status as any,
-      score: res.passed ? 1.0 : 0.0,
-      scoreDetail: res,
-      evaluatedAt: new Date(),
-    };
+    try {
+      const res = await this.run({
+        sessionId,
+        questionId,
+        query: submission.sql,
+      });
+
+      const question = await this.prisma.question.findUnique({
+        where: { id: questionId },
+      });
+      const content = question?.content as any;
+      const schemaSql = content?.schema || "";
+
+      // Calculate score with partial credit for non-empty, non-trivial
+      const query = (submission.sql || "").trim();
+      let score = 0.0;
+      if (res.passed) {
+        score = 1.0;
+      } else if (res.status === "COMPLETED") {
+        const cleanQuery = query
+          .replace(/--.*$/gm, "")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .trim();
+
+        // 1. Must contain FROM keyword case-insensitively
+        const hasFrom = /\bFROM\b/i.test(cleanQuery);
+
+        // 2. Extract table names from schema SQL and verify at least one is referenced
+        const tableMatches = [...schemaSql.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"([^"]+)"|([a-zA-Z_]\w*))/gi)];
+        const tableNames = tableMatches.map((m: any) => {
+          const name = m[1] || m[2];
+          return name ? name.toLowerCase() : "";
+        }).filter(Boolean);
+
+        const referencesTable = tableNames.length === 0 || tableNames.some((tableName: string) => {
+          const regex = new RegExp(`\\b${tableName}\\b`, "i");
+          return regex.test(cleanQuery);
+        });
+
+        if (hasFrom && referencesTable && cleanQuery.length >= 10) {
+          score = 0.2;
+        }
+      }
+
+      return {
+        status: res.status as any,
+        score,
+        scoreDetail: res,
+        evaluatedAt: new Date(),
+      };
+    } catch (err: any) {
+      this.logger.error(`Error evaluating submission: ${err.message}`);
+      return {
+        status: "FAILED" as any,
+        score: 0.0,
+        scoreDetail: { error: err.message },
+        evaluatedAt: new Date(),
+      };
+    }
   }
 
   /**

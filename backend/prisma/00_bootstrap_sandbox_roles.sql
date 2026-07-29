@@ -25,3 +25,7 @@ END $$;
 
 -- 3. Lock down runner role from default public permissions
 REVOKE ALL ON SCHEMA public FROM sql_sandbox_runner;
+
+-- 4. Grant runner role to admin role so admin can switch to it during execution
+GRANT sql_sandbox_runner TO sql_sandbox_admin;
+

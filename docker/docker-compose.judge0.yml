@@ -21,7 +21,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=cdrecruit
       - POSTGRES_PASSWORD=cdrecruit123
-      - POSTGRES_DB=cdrecruit
+      - POSTGRES_DB=cdrecruit_judge0
       # Security Guardrail Limits
       - CPU_TIME_LIMIT=5.0
       - MAX_CPU_TIME_LIMIT=10.0
@@ -44,7 +44,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=cdrecruit
       - POSTGRES_PASSWORD=cdrecruit123
-      - POSTGRES_DB=cdrecruit
+      - POSTGRES_DB=cdrecruit_judge0
       # Security Guardrail Limits
       - CPU_TIME_LIMIT=5.0
       - MAX_CPU_TIME_LIMIT=10.0
