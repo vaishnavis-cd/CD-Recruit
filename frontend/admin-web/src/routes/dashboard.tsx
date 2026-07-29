@@ -9,10 +9,12 @@ import {
   ShieldAlert,
   Sparkles,
   Calendar,
-  Activity
+  Activity,
+  Search
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
+import { ExportDropdown } from "../components/export-dropdown";
 import { useStore } from "../lib/store";
 import { type RoleTemplate } from "../lib/types";
 
@@ -157,6 +159,10 @@ function DashboardPage() {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("30");
 
+  // Roster search & filter state
+  const [rosterQuery, setRosterQuery] = useState("");
+  const [rosterStatus, setRosterStatus] = useState<string>("all");
+
   useEffect(() => {
     fetchActionQueue();
     fetchDrives();
@@ -189,6 +195,33 @@ function DashboardPage() {
     });
   }, [sessions, selectedRole, selectedDrive, dateRange]);
 
+  // Roster specific filter
+  const rosterSessions = useMemo(() => {
+    return filteredSessions.filter((s: any) => {
+      if (!s) return false;
+      const cName = s.candidate?.name || s.candidateName || "";
+      const cEmail = s.candidate?.email || s.candidateEmail || "";
+      const name = cName.toLowerCase();
+      const email = cEmail.toLowerCase();
+      const q = rosterQuery.toLowerCase().trim();
+
+      if (q && !name.includes(q) && !email.includes(q)) return false;
+
+      if (rosterStatus === "pending") {
+        return (
+          s.status === "ai_scored" ||
+          s.status === "submitted" ||
+          (s.integrityFlags || []).some((f: any) => f.severity === "critical")
+        );
+      }
+      if (rosterStatus === "ai_scored") return s.status === "ai_scored";
+      if (rosterStatus === "reviewed") return s.status === "reviewed" || s.status === "decision";
+      if (rosterStatus === "decided") return s.status === "decision";
+
+      return true;
+    });
+  }, [filteredSessions, rosterQuery, rosterStatus]);
+
   const stats = useMemo(() => buildDashboardStats(filteredSessions, drives), [filteredSessions, drives]);
 
   const activePipeline = filteredSessions.filter(
@@ -202,19 +235,6 @@ function DashboardPage() {
       100,
   );
 
-  const medianComposite = (() => {
-    if (filteredSessions.length === 0) return 0;
-    // Exclude unscored sessions (null = not yet computed, sentinel -1 already mapped to null)
-    const scored = filteredSessions
-      .filter((s) => s.compositeScore !== null)
-      .map((s) => s.compositeScore as number)
-      .sort((a, b) => a - b);
-    if (scored.length === 0) return 0;
-    return scored[Math.floor(scored.length / 2)];
-  })();
-
-  const heroTrace = (stats.sayDoTrace || []).map((p, i) => ({ t: i, said: p.said, did: p.did }));
-
   const handleExport = async () => {
     try {
       const exportDriveId = selectedDrive !== "all" ? selectedDrive : undefined;
@@ -226,52 +246,38 @@ function DashboardPage() {
 
   return (
     <AppShell
-      title="Dashboard"
+      title="Operational Command Center"
       actions={
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedDrive}
-            onChange={(e) => setSelectedDrive(e.target.value)}
-            className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
-          >
-            <option value="all">All Drives</option>
-            {drives.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-          <select
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
-          >
-            <option value="all">All Roles</option>
-            {roleTemplates.map((rt) => (
-              <option key={rt.id} value={rt.id}>{rt.roleName}</option>
-            ))}
-          </select>
+        <div className="flex items-center gap-2.5">
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-1.5 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-xl hover:border-[#D1D1D8]"
+            className="px-3 py-2 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-lg bg-white hover:border-[#D1D1D8] shadow-xs"
           >
             <option value="7">Last 7 Days</option>
             <option value="30">Last 30 Days</option>
             <option value="all">All Time</option>
           </select>
 
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded-lg shadow-sm transition-colors cursor-pointer"
-          >
-            <FileDown size={14} />
-            Export CSV
-          </button>
+          <ExportDropdown
+            data={filteredSessions}
+            filenamePrefix="proctora-candidate-roster"
+            title="Proctora Candidate Evaluation Roster"
+          />
         </div>
       }
     >
       <div className="max-w-[1400px] mx-auto pb-12 space-y-6">
         
-        {/* ROW 1: Action Queue Cards (Audit Required, Expiring Soon, Closing Drives) */}
+        {/* KPI READOUT BANNER */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ReadoutTile label="Total Candidates" value={filteredSessions.length} suffix="sessions" tone="ink" />
+          <ReadoutTile label="Active Pipeline" value={activePipeline} suffix="in progress" tone="brand" />
+          <ReadoutTile label="Pass Rate" value={Math.round((filteredSessions.filter(s => s?.status === 'reviewed' || (s?.compositeScore || 0) >= 70).length / Math.max(filteredSessions.length, 1)) * 100)} suffix="% benchmark" tone="ink" />
+          <ReadoutTile label="Critical Risk" value={flagRate} suffix="% flagged" tone="amber" />
+        </div>
+
+        {/* SECTION 1: Action Queue (Audit Required, Expiring Soon, Closing Drives) */}
         {actionQueue && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(() => {
@@ -351,51 +357,171 @@ function DashboardPage() {
           </div>
         )}
 
-        {/* ROW 2: Pipeline Funnel and Score Distribution */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <MetricCard><FunnelView data={stats.funnel} /></MetricCard>
-          <MetricCard>
-            <ScoreDistView sessions={filteredSessions} roleFilter={selectedRole} setRoleFilter={setSelectedRole} />
-          </MetricCard>
-        </div>
+        {/* SECTION 2: Pipeline Funnel and Live Event Stream */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm">
+            <FunnelView data={stats.funnel} />
+          </div>
 
-        {/* ROW 3: Say-Do Breakdown and AI / Human Agreement */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <MetricCard><SayDoView sessions={filteredSessions} /></MetricCard>
-          <MetricCard><ReviewerView data={stats.reviewerAgreement} /></MetricCard>
-        </div>
-
-        {/* ROW 4: Integrity Flags Matrix and Time per Module */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <MetricCard><IntegrityView data={stats.integrityHeatmap} /></MetricCard>
-          <MetricCard><TimeView data={stats.timeByModule} /></MetricCard>
-        </div>
-
-        {/* ROW 5: Aggregated Say-Do (Trace) & Side Readout Tiles Column */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
-          <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm flex flex-col justify-between">
-            <div className="mb-4">
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#5B5B64] mb-1">
-                <Activity size={14} /> Aggregated Say-Do Trace
-              </div>
-              <div className="text-[14px] text-[#0B0B0D]">
-                Candidate performance trace over the last {dateRange === "all" ? "30" : dateRange} days
+          <div className="lg:col-span-5 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-[14px] font-bold uppercase tracking-wider text-[#5B5B64] flex items-center gap-2">
+                  <Activity size={15} className="text-[#2F5CFF]" /> Live Session Stream
+                </h3>
+                <p className="text-[12px] text-[#8B8B93] mt-0.5">Real-time candidate assessment activities</p>
               </div>
             </div>
-            <ScopePanel data={heroTrace} height={200} />
-          </div>
 
-          <div className="grid grid-rows-3 gap-3">
-            <ReadoutTile label="Median Composite" value={medianComposite} suffix="/ 100" tone="ink" />
-            <ReadoutTile label="Active Pipeline" value={activePipeline} suffix="in progress" tone="brand" />
-            <ReadoutTile label="Flag Rate" value={flagRate} suffix="% critical" tone="amber" />
+            <div className="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+              {filteredSessions.slice(0, 5).map((s: any) => {
+                const isFlagged = (s.integrityFlags || []).some((f: any) => f.severity === 'critical');
+                return (
+                  <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[#EFF0F3] bg-[#F7F7F9]">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isFlagged ? 'bg-[#E5484D]' : s.status === 'submitted' ? 'bg-[#2F5CFF]' : 'bg-[#10B981]'}`} />
+                      <div>
+                        <div className="text-[13px] font-semibold text-[#0B0B0D]">{s.candidate?.name || s.candidateName || 'Candidate'}</div>
+                        <div className="text-[11px] text-[#8B8B93]">{s.roleTemplate?.roleName || 'Software Engineer'}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono text-[12px] font-bold text-[#0B0B0D]">{s.compositeScore !== null ? `${s.compositeScore}%` : 'In progress'}</span>
+                      <div className="text-[10px] text-[#8B8B93]">{s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active now'}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        {/* ROW 6: Predictive Validity */}
-        <MetricCard>
-          <PredictiveStub />
-        </MetricCard>
+        {/* SECTION 3: Candidate Evaluation Roster Table */}
+        <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-[16px] font-bold text-[#0B0B0D]">Candidate Evaluation Roster</h3>
+              <p className="text-[12px] text-[#8B8B93]">Actionable list of all assessment sessions requiring evaluation</p>
+            </div>
+
+            {/* Filter Tabs & Search */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={rosterQuery}
+                  onChange={(e) => setRosterQuery(e.target.value)}
+                  placeholder="Search candidate..."
+                  className="pl-8 pr-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-lg bg-[#F7F7F9] focus:outline-none focus:border-[#2F5CFF] w-48"
+                />
+                <Search size={14} className="absolute left-2.5 top-2.5 text-[#8B8B93]" />
+              </div>
+
+              <div className="flex border border-[#E6E6EA] rounded-lg p-0.5 bg-[#F7F7F9] text-[12px]">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "pending", label: "Needs Audit" },
+                  { id: "reviewed", label: "Reviewed" },
+                  { id: "decided", label: "Decided" },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setRosterStatus(t.id)}
+                    className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                      rosterStatus === t.id ? "bg-white text-[#2F5CFF] shadow-xs" : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Roster Table */}
+          <div className="overflow-x-auto border border-[#E6E6EA] rounded-lg">
+            <table className="w-full text-left text-[13px]">
+              <thead className="bg-[#F7F7F9] text-[#5B5B64] font-semibold text-[11px] uppercase tracking-wider border-b border-[#E6E6EA]">
+                <tr>
+                  <th className="py-3 px-4">Candidate</th>
+                  <th className="py-3 px-4">Role / Drive</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Composite Score</th>
+                  <th className="py-3 px-4">Say-Do Sync</th>
+                  <th className="py-3 px-4">Risk Flags</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E6E6EA]">
+                {rosterSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-[#8B8B93] text-[13px]">
+                      No candidate sessions found matching current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  rosterSessions.map((s: any) => {
+                    const flags = s.integrityFlags || [];
+                    const isCritical = flags.some((f: any) => f.severity === "critical");
+                    const isMedium = flags.some((f: any) => f.severity === "medium");
+
+                    return (
+                      <tr key={s.id} className="hover:bg-[#F7F7F9] transition-colors">
+                        <td className="py-3 px-4 font-medium text-[#0B0B0D]">
+                          <div>{s.candidate?.name || s.candidateName || "Candidate"}</div>
+                          <div className="text-[11px] text-[#8B8B93]">{s.candidate?.email || s.candidateEmail || "No email"}</div>
+                        </td>
+                        <td className="py-3 px-4 text-[#5B5B64]">
+                          <div>{s.roleTemplate?.roleName || "Software Engineer"}</div>
+                          <div className="text-[11px] text-[#8B8B93]">{s.driveName || "Drive Session"}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                            s.status === "decision" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                            s.status === "reviewed" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                            "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}>
+                            {s.status === "decision" ? "Decided" : s.status === "reviewed" ? "Reviewed" : "Needs Audit"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-semibold text-[#0B0B0D]">
+                          {s.compositeScore !== null ? `${s.compositeScore}%` : "—"}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[#5B5B64]">
+                          {s.sayDoScore !== null ? `${s.sayDoScore}%` : "—"}
+                        </td>
+                        <td className="py-3 px-4">
+                          {isCritical ? (
+                            <span className="text-xs font-semibold text-[#E5484D] flex items-center gap-1">
+                              <ShieldAlert size={14} /> Critical Risk
+                            </span>
+                          ) : isMedium ? (
+                            <span className="text-xs font-semibold text-[#F5A623] flex items-center gap-1">
+                              <AlertTriangle size={14} /> Medium Risk
+                            </span>
+                          ) : (
+                            <span className="text-xs text-emerald-600 flex items-center gap-1">
+                              <CheckCircle size={14} /> Clean
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Link
+                            to="/results/$id"
+                            params={{ id: s.id }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg transition-colors"
+                          >
+                            Evaluate <ArrowRight size={12} />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
       </div>
     </AppShell>
