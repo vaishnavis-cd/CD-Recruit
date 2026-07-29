@@ -31,6 +31,51 @@ export const simulationQuestions: SimulationSeedEntry[] = [
   {
     moduleType: "SIMULATION",
     content: {
+      title: "QA Bug Report: Login Validation Error",
+      description:
+        "During regression testing, QA discovered that login validation incorrectly accepts usernames with leading or trailing spaces. The issue has been reproduced consistently and marked as High Priority. Investigate the issue, implement a fix and verify that existing functionality is not affected.",
+      triggers: [
+        {
+          type: "ticket",
+          from: "QA Tester (Regression Suite)",
+          body: "HIGH PRIORITY: Login validation accepts leading and trailing whitespace in username field.",
+          timestamp: "2026-07-28T10:00:00Z",
+        },
+        {
+          type: "email",
+          from: "Rahul Sharma (Engineering Manager)",
+          subject: "Login Validation Bug – Deployment Status",
+          body: "Hi, I noticed you are working on the login validation issue reported by QA. We are planning today deployment shortly...",
+          timestamp: "2026-07-28T10:05:00Z",
+        },
+      ],
+      rubric: [
+        {
+          criterion: "Initial Debugging Plan",
+          weight: 0.2,
+          description: "Candidate submits clear initial debugging strategy before code modifications.",
+        },
+        {
+          criterion: "Manager Communication",
+          weight: 0.2,
+          description: "Candidate replies to manager email with ETA and deployment risk status.",
+        },
+        {
+          criterion: "DO Technical & Behaviour",
+          weight: 0.45,
+          description: "Candidate inspects files, modifies validation logic, and passes hidden test suite.",
+        },
+        {
+          criterion: "Say-Do Correlation",
+          weight: 0.15,
+          description: "Candidate workspace actions match initial stated plan.",
+        },
+      ],
+    },
+  },
+  {
+    moduleType: "SIMULATION",
+    content: {
       title: "Production Outage: High CPU Spike",
       description:
         "A production incident occurs shortly after a recent deployment. The database is experiencing a severe CPU spike, causing page load timeout alerts.",

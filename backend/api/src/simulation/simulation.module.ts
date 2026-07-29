@@ -14,12 +14,16 @@ import {
 
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { ScenarioOrchestratorService } from "./scenario-orchestrator.service";
+import { SimulationTelemetryService } from "./simulation-telemetry.service";
+import { ContextSimulationEvaluatorService } from "./context-simulation-evaluator.service";
+import { AiEvaluationModule } from "../integrations/ai/ai-evaluation.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 const isFull = infraMode === "full";
 
 @Module({
   imports: [
+    AiEvaluationModule,
     ...(isFull
       ? [BullModule.registerQueue({ name: CORRELATION_GRADING_QUEUE })]
       : []),
@@ -34,6 +38,8 @@ const isFull = infraMode === "full";
     CorrelationGradingService,
     SandboxOrchestratorService,
     ScenarioOrchestratorService,
+    SimulationTelemetryService,
+    ContextSimulationEvaluatorService,
     ...(isFull ? [CorrelationGradingProcessor] : []),
   ],
   exports: [
@@ -42,6 +48,8 @@ const isFull = infraMode === "full";
     CorrelationGradingService,
     SandboxOrchestratorService,
     ScenarioOrchestratorService,
+    SimulationTelemetryService,
+    ContextSimulationEvaluatorService,
   ],
 })
 export class SimulationModule {}
