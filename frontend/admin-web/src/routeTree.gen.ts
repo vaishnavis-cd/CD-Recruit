@@ -9,51 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DrivesRouteImport } from './routes/drives'
-import { Route as InvitesRouteImport } from './routes/invites'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as QuestionsRouteImport } from './routes/questions'
-import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as ResultsRouteImport } from './routes/results'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as DrivesIdRouteImport } from './routes/drives.$id'
+import { Route as ResultsRouteImport } from './routes/results'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as QuestionsRouteImport } from './routes/questions'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as InvitesRouteImport } from './routes/invites'
+import { Route as DrivesRouteImport } from './routes/drives'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultsIdRouteImport } from './routes/results.$id'
+import { Route as DrivesIdRouteImport } from './routes/drives.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DrivesRoute = DrivesRouteImport.update({
-  id: '/drives',
-  path: '/drives',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InvitesRoute = InvitesRouteImport.update({
-  id: '/invites',
-  path: '/invites',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QuestionsRoute = QuestionsRouteImport.update({
-  id: '/questions',
-  path: '/questions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResultsRoute = ResultsRouteImport.update({
@@ -61,20 +31,50 @@ const ResultsRoute = ResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DrivesIdRoute = DrivesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => DrivesRoute,
+const QuestionsRoute = QuestionsRouteImport.update({
+  id: '/questions',
+  path: '/questions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitesRoute = InvitesRouteImport.update({
+  id: '/invites',
+  path: '/invites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DrivesRoute = DrivesRouteImport.update({
+  id: '/drives',
+  path: '/drives',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ResultsIdRoute = ResultsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ResultsRoute,
+} as any)
+const DrivesIdRoute = DrivesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => DrivesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -173,53 +173,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/drives': {
-      id: '/drives'
-      path: '/drives'
-      fullPath: '/drives'
-      preLoaderRoute: typeof DrivesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invites': {
-      id: '/invites'
-      path: '/invites'
-      fullPath: '/invites'
-      preLoaderRoute: typeof InvitesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/questions': {
-      id: '/questions'
-      path: '/questions'
-      fullPath: '/questions'
-      preLoaderRoute: typeof QuestionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/results': {
@@ -229,19 +187,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/drives/$id': {
-      id: '/drives/$id'
-      path: '/$id'
-      fullPath: '/drives/$id'
-      preLoaderRoute: typeof DrivesIdRouteImport
-      parentRoute: typeof DrivesRoute
+    '/questions': {
+      id: '/questions'
+      path: '/questions'
+      fullPath: '/questions'
+      preLoaderRoute: typeof QuestionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invites': {
+      id: '/invites'
+      path: '/invites'
+      fullPath: '/invites'
+      preLoaderRoute: typeof InvitesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/drives': {
+      id: '/drives'
+      path: '/drives'
+      fullPath: '/drives'
+      preLoaderRoute: typeof DrivesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/results/$id': {
       id: '/results/$id'
@@ -249,6 +242,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/results/$id'
       preLoaderRoute: typeof ResultsIdRouteImport
       parentRoute: typeof ResultsRoute
+    }
+    '/drives/$id': {
+      id: '/drives/$id'
+      path: '/$id'
+      fullPath: '/drives/$id'
+      preLoaderRoute: typeof DrivesIdRouteImport
+      parentRoute: typeof DrivesRoute
     }
   }
 }
