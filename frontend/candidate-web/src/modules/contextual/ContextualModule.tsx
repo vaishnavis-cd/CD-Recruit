@@ -1,105 +1,132 @@
-import React, { useEffect } from 'react'
-import { CONTEXTUAL_QUESTIONS } from '../../fixtures/questions'
+import React, { useEffect, useState } from 'react'
 import { useSessionStore } from '../../store/sessionMachine'
 import { ModuleShell } from '../../components/ModuleShell'
-import { InFictionInbox } from '../../components/InFictionInbox'
-import { useModuleNavigation } from '../../hooks/useModuleNavigation'
-import { ChevronLeft } from 'lucide-react'
+import { InitialSayStep } from './components/InitialSayStep'
+import { ContextSimulationWorkspace } from './components/ContextSimulationWorkspace'
+import apiClient from '../../api/client'
+import { Loader2, CheckCircle } from 'lucide-react'
 
 interface ContextualModuleProps {
   moduleIndex: number
 }
 
+const DEFAULT_QA_BUG_SCENARIO = {
+  id: 'qa-bug-login-validation',
+  title: 'QA Bug Report: Login Validation Error',
+  description:
+    'During regression testing, QA discovered that login validation incorrectly accepts usernames with leading or trailing spaces. The issue has been reproduced consistently and marked as High Priority. Investigate the issue, implement a fix and verify that existing functionality is not affected.',
+  starterCode: {
+    python: `# login_validation.py\n\ndef validate_username(username: str) -> bool:\n    """\n    Validates a username for login.\n    Requirements:\n    - Must be between 3 and 20 characters long.\n    - Must NOT contain leading or trailing spaces.\n    - Must only contain alphanumeric characters or underscores.\n    """\n    if not username:\n        return False\n    \n    # QA BUG: Missing leading/trailing space validation!\n    if len(username) < 3 or len(username) > 20:\n        return False\n        \n    return all(c.isalnum() or c == '_' or c == ' ' for c in username)\n`,
+    javascript: `// login_validation.js\n\nfunction validateUsername(username) {\n  if (!username || typeof username !== 'string') {\n    return false;\n  }\n\n  // QA BUG: Missing leading/trailing space check!\n  if (username.length < 3 || username.length > 20) {\n    return false;\n  }\n\n  return /^[a-zA-Z0-9_ ]+$/.test(username);\n}\n\nmodule.exports = { validateUsername };\n`,
+  },
+  testCases: [
+    { input: '"valid_user"', expectedOutput: 'true', label: 'Sample Valid Username', isHidden: false },
+    { input: '" user_123"', expectedOutput: 'false', label: 'Leading Space Bug Check', isHidden: false },
+    { input: '"user_123 "', expectedOutput: 'false', label: 'Trailing Space Bug Check', isHidden: false },
+    { input: '" user_123 "', expectedOutput: 'false', label: 'Hidden Both Spaces Test', isHidden: true },
+    { input: '"ab"', expectedOutput: 'false', label: 'Hidden Length Short Test', isHidden: true },
+  ],
+}
+
 export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
-  const [currentIndex, setCurrentIndex] = React.useState(0)
   const assessment = useSessionStore(s => s.assessment)
-  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
+  const sessionId = assessment?.sessionId || ''
 
-  const assignedSimQuestions = React.useMemo(() => {
-    if (!assessment?.questions || assessment.questions.length === 0) {
-      return CONTEXTUAL_QUESTIONS
-    }
-    const filtered = assessment.questions.filter(
-      (q) => q.moduleType === 'SIMULATION' || (q.moduleType as string) === 'CONTEXTUAL'
-    )
-    if (filtered.length === 0) return []
+  const [step, setStep] = useState<'LOADING' | 'INITIAL_SAY' | 'WORKSPACE' | 'COMPLETED'>('LOADING')
+  const [scenario, setScenario] = useState(DEFAULT_QA_BUG_SCENARIO)
 
-    return filtered.map((q, i) => {
-      const content = q.content || {}
-      return {
-        id: q.questionId,
-        moduleIndex,
-        type: 'contextual' as const,
-        title: content.title || `Scenario ${i + 1}`,
-        instructions:
-          content.description ||
-          content.instructions ||
-          content.prompt ||
-          "You've just joined the on-call rotation. Respond to incoming messages as they arrive.",
-        scenarioId: content.scenarioId || q.questionId || 'api-incident',
-      }
-    })
-  }, [assessment?.questions, moduleIndex])
-
-  const questions = assignedSimQuestions
-  const question = questions[currentIndex]
-
-  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
-
+  // Fetch Scenario Config from backend
   useEffect(() => {
-    setCurrentQuestion(moduleIndex, currentIndex)
-  }, [currentIndex])
+    if (!sessionId) {
+      setStep('INITIAL_SAY')
+      return
+    }
 
-  const paletteItems = questions.map((q, i) => ({ id: q.id, label: `Scenario ${i + 1}` }))
+    apiClient.get(`/sessions/${sessionId}/simulation/scenario`)
+      .then(res => {
+        if (res.data) {
+          setScenario({
+            ...DEFAULT_QA_BUG_SCENARIO,
+            ...res.data,
+          })
+        }
+        setStep('INITIAL_SAY')
+      })
+      .catch(err => {
+        console.warn('[ContextualModule] Could not fetch remote scenario config, using default QA Bug scenario:', err)
+        setStep('INITIAL_SAY')
+      })
+  }, [sessionId])
 
-  if (!question || !assessment) return null
+  // Handle Initial SAY submission
+  const handleInitialSaySubmit = async (initialSayText: string) => {
+    if (sessionId) {
+      await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
+        text: initialSayText,
+      })
+    }
+    setStep('WORKSPACE')
+  }
+
+  // Handle final simulation submit
+  const handleSimulationSubmit = () => {
+    setStep('COMPLETED')
+  }
+
+  const paletteItems = [{ id: scenario.id, label: 'QA Bug Scenario' }]
+
+  if (step === 'LOADING') {
+    return (
+      <ModuleShell
+        moduleIndex={moduleIndex}
+        questions={paletteItems}
+        currentQuestionIndex={0}
+        onNavigate={() => {}}
+      >
+        <div className="flex flex-col items-center justify-center h-full gap-3 py-16">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+          <span className="text-sm font-medium text-[var(--text-secondary)]">Loading Context Simulation scenario...</span>
+        </div>
+      </ModuleShell>
+    )
+  }
 
   return (
     <ModuleShell
       moduleIndex={moduleIndex}
       questions={paletteItems}
-      currentQuestionIndex={currentIndex}
-      onNavigate={setCurrentIndex}
+      currentQuestionIndex={0}
+      onNavigate={() => {}}
     >
-      <div className="flex flex-col h-full">
-        {/* Instructions */}
-        <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
-          <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">
-            Scenario {currentIndex + 1} of {questions.length}
-          </div>
-          <p className="text-sm text-[var(--text-primary)] leading-relaxed">
-            {question.instructions}
-          </p>
-          <p className="mt-2 text-xs text-[var(--text-secondary)]">
-            Messages will arrive in real-time below. Read each one and reply where indicated.
-          </p>
-        </div>
-
-        {/* Inbox */}
-        <div className="flex-1 min-h-0 p-4">
-          <InFictionInbox
-            sessionId={assessment.sessionId}
-            scenarioId={question.scenarioId}
+      <div className="h-full w-full overflow-y-auto bg-[var(--background)]">
+        {step === 'INITIAL_SAY' && (
+          <InitialSayStep
+            scenarioTitle={scenario.title}
+            scenarioDescription={scenario.description}
+            prompt="What would you do to solve this issue?"
+            onSubmit={handleInitialSaySubmit}
           />
-        </div>
+        )}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
-          <button
-            onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-            disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-1.5"
-          >
-            <ChevronLeft size={14} />
-            <span>Previous scenario</span>
-          </button>
-          <button
-            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
-          >
-            {nextButtonLabel}
-          </button>
-        </div>
+        {step === 'WORKSPACE' && (
+          <ContextSimulationWorkspace
+            sessionId={sessionId}
+            scenario={scenario}
+            onSubmitSimulation={handleSimulationSubmit}
+          />
+        )}
+
+        {step === 'COMPLETED' && (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold text-[var(--text-primary)]">Context Simulation Complete</h2>
+            <p className="text-sm text-[var(--text-secondary)] max-w-md">
+              Your Initial SAY plan, DO workspace telemetry, manager email reply, and technical fix have been successfully evaluated.
+            </p>
+          </div>
+        )}
       </div>
     </ModuleShell>
   )

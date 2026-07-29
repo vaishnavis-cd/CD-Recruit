@@ -50,8 +50,14 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
   const activeModules = useMemo(() => {
     const questions = session?.questions || assessment?.questions
     if (questions && questions.length > 0) {
-      const activeTypes = new Set(questions.map((q: any) => q.moduleType || q.type))
-      return MODULES.filter(m => activeTypes.has(m.type as any))
+      const activeTypes = new Set(questions.map((q: any) => (q.moduleType || q.type || '').toUpperCase()))
+      return MODULES.filter(m => {
+        const mType = m.type.toUpperCase()
+        if (mType === 'CONTEXTUAL' || mType === 'SIMULATION') {
+          return activeTypes.has('CONTEXTUAL') || activeTypes.has('SIMULATION')
+        }
+        return activeTypes.has(mType as any) || (mType === 'CODING' && activeTypes.has('DEBUGGING'))
+      })
     }
     return MODULES
   }, [session, assessment])

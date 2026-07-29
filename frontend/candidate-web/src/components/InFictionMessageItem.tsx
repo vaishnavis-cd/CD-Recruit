@@ -5,6 +5,7 @@ export type Channel = ScenarioMessage['channel']
 
 export interface InboxMessage extends ScenarioMessage {
   read: boolean
+  replyText?: string
 }
 
 export const CHANNEL_LABELS: Record<Channel, { label: string; icon: string; color: string }> = {

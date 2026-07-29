@@ -27,6 +27,8 @@ const LEGAL_TRANSITIONS: Set<TransitionKey> = new Set([
   'resolving->too-early',
   'resolving->expired',
   'resolving->system-check',
+  'resolving->waiting-room',
+  'resolving->tutorial',
   'resolving->session-conflict',
   'resolving->assessment', // resuming existing session
   'resolving->pre-submit-review', // resuming at review stage
