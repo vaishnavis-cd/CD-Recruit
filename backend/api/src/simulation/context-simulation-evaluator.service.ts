@@ -27,6 +27,18 @@ export interface FullSimulationEvaluationResult {
   doEvaluation: DetailedDoScore;
   sayDoCorrelation: EvaluationPartScore;
   categoryBreakdown: Record<string, number>;
+  competencyBreakdown: {
+    problemSolving: number;
+    debugging: number;
+    communication: number;
+    technicalExecution: number;
+    sayDoConsistency: number;
+  };
+  recommendation: "Recommended" | "Needs Further Evaluation" | "Not Recommended";
+  recommendationReason: string;
+  strengths: string[];
+  areasForImprovement: string[];
+  actionTimeline: Array<{ timestamp: string; action: string }>;
   summaryReasoning: string;
   evaluatedAt: string;
 }
@@ -295,6 +307,58 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
       SAY_DO_CORRELATION: sayDo.score,
     };
 
+    const competencyBreakdown = {
+      problemSolving: initialSay.score,
+      debugging: doEval.behaviourScore,
+      communication: emailSay.score,
+      technicalExecution: doEval.technicalScore,
+      sayDoConsistency: sayDo.score,
+    };
+
+    let recommendation: "Recommended" | "Needs Further Evaluation" | "Not Recommended" = "Needs Further Evaluation";
+    let recommendationReason = "";
+
+    if (overallScore >= 80 && doEval.technicalScore >= 80) {
+      recommendation = "Recommended";
+      recommendationReason = `Candidate demonstrated systematic debugging, strong technical execution (${doEval.technicalScore}%), and clear stakeholder communication.`;
+    } else if (overallScore >= 55) {
+      recommendation = "Needs Further Evaluation";
+      recommendationReason = `Candidate showed partial issue resolution (${doEval.technicalScore}% technical) with minor communication or correlation gaps.`;
+    } else {
+      recommendation = "Not Recommended";
+      recommendationReason = `Candidate was unable to resolve the primary QA bug or failed diagnostic test constraints.`;
+    }
+
+    const allStrengths = Array.from(
+      new Set([
+        ...initialSay.strengths,
+        ...emailSay.strengths,
+        ...doEval.strengths,
+        ...sayDo.strengths,
+      ]),
+    );
+
+    const allWeaknesses = Array.from(
+      new Set([
+        ...initialSay.weaknesses,
+        ...emailSay.weaknesses,
+        ...doEval.weaknesses,
+        ...sayDo.weaknesses,
+      ]),
+    );
+
+    const actionTimeline = (telemetryEvents || []).map((evt) => {
+      const timeStr = evt.timestamp
+        ? new Date(evt.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        : "00:00:00";
+      let actionLabel = evt.type as string;
+      if (evt.type === "FILE_OPEN") actionLabel = `Inspected ${evt.filepath || "source file"}`;
+      else if (evt.type === "FILE_EDIT") actionLabel = `Modified ${evt.filepath || "source file"}`;
+      else if ((evt.type as string) === "SUBMIT_REPLY" || (evt.type as string) === "EMAIL_REPLY_SUBMIT") actionLabel = `Submitted manager email reply`;
+      else if ((evt.type as string) === "SAY_PLAN_SUBMITTED" || (evt.type as string) === "INITIAL_SAY_SUBMIT") actionLabel = `Submitted initial SAY debugging plan`;
+      return { timestamp: timeStr, action: actionLabel };
+    });
+
     return {
       overallScore,
       rubricVersion: scenario.rubricVersion,
@@ -303,7 +367,13 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
       doEvaluation: doEval,
       sayDoCorrelation: sayDo,
       categoryBreakdown,
-      summaryReasoning: `Candidate achieved ${overallScore}/100 overall score. Initial SAY (${initialSay.score}), Email SAY (${emailSay.score}), DO (${doEval.compositeDoScore}), Say-Do Correlation (${sayDo.score}).`,
+      competencyBreakdown,
+      recommendation,
+      recommendationReason,
+      strengths: allStrengths.length > 0 ? allStrengths : ["Attempted diagnostic debugging scenario"],
+      areasForImprovement: allWeaknesses.length > 0 ? allWeaknesses : ["Ensure complete test suite coverage"],
+      actionTimeline,
+      summaryReasoning: `Candidate achieved ${overallScore}/100 overall score. Technical (${doEval.technicalScore}%), Communication (${emailSay.score}%), Say-Do Correlation (${sayDo.score}%).`,
       evaluatedAt: new Date().toISOString(),
     };
   }
