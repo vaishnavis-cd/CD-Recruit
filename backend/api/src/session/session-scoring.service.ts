@@ -63,41 +63,87 @@ export class SessionScoringService {
 
       moduleTotals[mod].total += 1;
 
-      // Evaluation rules per module
+      // Robust Evaluation Rules per Module
       if (mod === "MCQ") {
         const payload = resp.responsePayload as any;
-        const qContent = q.content as any;
-        const selectedIndex = payload?.selectedOptionIndex ?? payload?.selectedIndex;
-        const correctIndex = qContent?.correctIndex ?? qContent?.answerIndex ?? 0;
+        const qContent = (q.content as any) || {};
 
-        if (selectedIndex !== undefined && selectedIndex === correctIndex) {
-          moduleTotals[mod].earned += 1;
-        } else if (payload?.selectedOption || payload?.answer !== undefined) {
-          moduleTotals[mod].earned += 0.8;
+        let selectedList: string[] = [];
+        if (Array.isArray(payload?.selectedOptions)) {
+          selectedList = payload.selectedOptions.map(String);
+        } else if (payload?.selectedOption !== undefined && payload?.selectedOption !== null) {
+          selectedList = [String(payload.selectedOption)];
+        } else if (payload?.selectedOptionIndex !== undefined) {
+          selectedList = [`opt_${payload.selectedOptionIndex}`, String(payload.selectedOptionIndex)];
+        } else if (payload?.selectedIndex !== undefined) {
+          selectedList = [`opt_${payload.selectedIndex}`, String(payload.selectedIndex)];
+        }
+
+        const correctTarget = qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? 0;
+        const options = Array.isArray(qContent.options) ? qContent.options : [];
+
+        let isCorrect = false;
+        if (selectedList.length > 0) {
+          isCorrect = selectedList.some((sel) => {
+            if (sel === String(correctTarget)) return true;
+            if (/^opt_\d+$/i.test(sel)) {
+              const idx = parseInt(sel.replace(/opt_/i, ""), 10);
+              if (idx === Number(correctTarget)) return true;
+            }
+            if (typeof correctTarget === "number" && options[correctTarget]) {
+              const optText = typeof options[correctTarget] === "string" ? options[correctTarget] : options[correctTarget].text || options[correctTarget].label;
+              if (optText && optText.trim().toLowerCase() === sel.trim().toLowerCase()) return true;
+            }
+            return false;
+          });
+        }
+
+        if (isCorrect) {
+          moduleTotals[mod].earned += 1.0;
+        } else if (selectedList.length > 0) {
+          moduleTotals[mod].earned += 0.0;
         }
       } else if (mod === "SQL") {
         const payload = resp.responsePayload as any;
-        const query = payload?.query || payload?.code || "";
-        if (query && query.trim().length > 10) {
-          moduleTotals[mod].earned += 0.9;
-        } else if (query && query.trim().length > 0) {
-          moduleTotals[mod].earned += 0.5;
-        }
-      } else if (mod === "CODING") {
-        const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
-        const latestExec = executions[executions.length - 1];
-        if (latestExec && latestExec.totalTests > 0) {
-          moduleTotals[mod].earned += latestExec.passedTests / latestExec.totalTests;
+        const execResult = payload?.executionResult;
+        if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
+          moduleTotals[mod].earned += 1.0;
         } else {
-          const payload = resp.responsePayload as any;
-          if (payload?.code && payload.code.trim().length > 15) {
-            moduleTotals[mod].earned += 0.85;
+          const query = payload?.query || payload?.code || "";
+          if (query && query.trim().length > 15) {
+            moduleTotals[mod].earned += 0.8;
+          } else if (query && query.trim().length > 0) {
+            moduleTotals[mod].earned += 0.4;
           }
         }
-      } else if (mod === "AI_PROMPTING" || mod === "SIMULATION") {
+      } else if (mod === "CODING" || mod === "DEBUGGING") {
+        const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
+        const latestExec = executions[executions.length - 1];
         const payload = resp.responsePayload as any;
-        if (payload?.prompt || payload?.messages || payload?.response) {
-          moduleTotals[mod].earned += 0.9;
+        const execResult = payload?.executionResult;
+
+        if (latestExec && latestExec.totalTests > 0) {
+          moduleTotals[mod].earned += latestExec.passedTests / latestExec.totalTests;
+        } else if (execResult && execResult.totalTests > 0) {
+          moduleTotals[mod].earned += execResult.passedTests / execResult.totalTests;
+        } else if (payload?.code && payload.code.trim().length > 15) {
+          moduleTotals[mod].earned += 0.85;
+        }
+      } else if (mod === "AI_PROMPTING") {
+        const payload = resp.responsePayload as any;
+        const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+        if (typeof evalScore === "number") {
+          moduleTotals[mod].earned += evalScore > 1 ? evalScore / 100 : evalScore;
+        } else if (payload?.prompt || payload?.messages || payload?.response) {
+          moduleTotals[mod].earned += 0.85;
+        }
+      } else if (mod === "SIMULATION") {
+        const payload = resp.responsePayload as any;
+        const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+        if (typeof evalScore === "number") {
+          moduleTotals[mod].earned += evalScore > 1 ? evalScore / 100 : evalScore;
+        } else if (payload?.messages || payload?.actionLog || payload?.response) {
+          moduleTotals[mod].earned += 0.85;
         }
       }
     }

@@ -447,14 +447,22 @@ function IndividualResultPage() {
             r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
           )
           const correctCount = mcqResponses.filter(r => {
-            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions;
-            const correctRaw = r.question?.correctOption ?? r.question?.content?.correctOption ?? r.question?.content?.correctAnswer;
+            const qObj = r.question || {};
+            const qContent = qObj.content || {};
+            const optionsList = qObj.options || qContent.options || [];
+            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
+            const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
+            
             if (r.responsePayload?.isCorrect !== undefined) return Boolean(r.responsePayload.isCorrect);
-            return selectedRaw !== undefined && correctRaw !== undefined && String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
+            if (selectedRaw === undefined || correctRaw === undefined) return false;
+            
+            const selText = Array.isArray(selectedRaw) ? selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ") : resolveOptionText(selectedRaw, optionsList);
+            const corrText = resolveOptionText(correctRaw, optionsList);
+            return selText.trim().toLowerCase() === corrText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
           }).length;
 
           const skippedCount = mcqResponses.filter(r => {
-            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions;
+            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
             return selectedRaw === undefined || selectedRaw === null || (Array.isArray(selectedRaw) && selectedRaw.length === 0);
           }).length;
 
@@ -514,7 +522,7 @@ function IndividualResultPage() {
                     if (resp.responsePayload?.isCorrect !== undefined) {
                       isCorrect = Boolean(resp.responsePayload.isCorrect);
                     } else if (selectedRaw !== undefined && correctRaw !== undefined) {
-                      isCorrect = String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
+                      isCorrect = selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
                     }
 
                     return (
