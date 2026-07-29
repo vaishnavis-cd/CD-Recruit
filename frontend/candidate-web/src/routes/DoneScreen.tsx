@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { services } from '../services'
 import { IllustrationContainer } from '../components/common/IllustrationContainer'
 import { StatusChip } from '../components/common/StatusChip'
-import { CheckCircle2, Unlock, BookOpen, Star, LifeBuoy } from 'lucide-react'
+import { CheckCircle2, Unlock, BookOpen, Star, LifeBuoy, Copy, Check } from 'lucide-react'
 
 const SUPPORT_EMAIL = 'mailto:support@cd-recruit.com'
 const LEARNING_HUB_LINKS = [
@@ -24,6 +24,14 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
   const [surveyRating, setSurveyRating] = useState<number | null>(null)
   const [surveyComment, setSurveyComment] = useState('')
   const [surveySent, setSurveySent] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  function handleCopyRef() {
+    navigator.clipboard.writeText(referenceId).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
 
   // Release camera/mic on mount
   useEffect(() => {
@@ -80,6 +88,21 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
                   {referenceId}
                 </div>
               </div>
+              <button
+                onClick={handleCopyRef}
+                title={copied ? 'Copied!' : 'Copy reference ID'}
+                aria-label={copied ? 'Copied' : 'Copy reference ID'}
+                className={`
+                  flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer
+                  ${copied
+                    ? 'bg-[var(--success-subtle)] border-[var(--success)] text-[var(--success)]'
+                    : 'bg-[var(--surface)] border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                  }
+                `}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
             </div>
 
             <div className="mt-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--muted-foreground)]">

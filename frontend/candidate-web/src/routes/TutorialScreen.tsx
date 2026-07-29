@@ -86,8 +86,20 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
   async function proceedToAssessment() {
     const nowMs = services.time.getServerNow()
-    // Architectural Change: Mandatory 1-minute (60-second) reverse countdown for server sandbox preheating
-    const preheatTargetMs = nowMs + 60 * 1000
+
+    // Derive the real scheduled start time in priority order:
+    // 1. localStorage value set by InviteResolver / TooEarlyScreen (contains the real schedule time)
+    // 2. Fallback: now + 60s preheat buffer
+    let preheatTargetMs: number
+
+    if (scheduledMs && scheduledMs > nowMs) {
+      // Real schedule time is still in the future — countdown to it
+      preheatTargetMs = scheduledMs
+    } else {
+      // Already past schedule (or no info) — short 60s preheat buffer
+      preheatTargetMs = nowMs + 60 * 1000
+    }
+
     localStorage.setItem('cd-recruit-scheduled-ms', preheatTargetMs.toString())
 
     try {
@@ -115,10 +127,11 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
         return
       }
 
-      // Mandatory fallback: push to 1-minute preheat waiting room
+      // Mandatory fallback: push to waiting room with computed target
       transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
     }
   }
+
 
   const StepContent = () => {
     switch (currentStep) {
