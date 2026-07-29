@@ -13,6 +13,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "seed:candidate": "ts-node prisma/seed-candidate-dev.ts",
+    "seed:load-test": "ts-node prisma/seed-load-test.ts",
     "prisma:studio": "prisma studio"
   },
   "prisma": {

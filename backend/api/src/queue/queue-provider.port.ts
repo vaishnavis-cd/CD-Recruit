@@ -13,4 +13,6 @@ export abstract class QueueProviderPort {
     everyMs: number,
     repeatKey: string,
   ): Promise<void>;
+
+  abstract removeJob(queueName: string, jobId: string): Promise<void>;
 }

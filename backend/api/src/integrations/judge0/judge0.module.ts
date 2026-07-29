@@ -4,6 +4,6 @@ import { Judge0Service } from "./judge0.service";
 
 @Module({
   providers: [Judge0Client, Judge0Service],
-  exports: [Judge0Service],
+  exports: [Judge0Client, Judge0Service],
 })
 export class Judge0Module {}

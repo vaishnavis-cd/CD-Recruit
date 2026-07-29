@@ -422,4 +422,15 @@ export class Judge0Service {
       })),
     };
   }
+
+  async getQueueSize(): Promise<number> {
+    try {
+      const workers = await this.client.getWorkers();
+      if (!workers || !Array.isArray(workers)) return 0;
+      return workers.reduce((sum, w) => sum + (w.size || 0), 0);
+    } catch (err: any) {
+      this.logger.error(`Failed to get Judge0 queue size: ${err.message}`);
+      return 0;
+    }
+  }
 }

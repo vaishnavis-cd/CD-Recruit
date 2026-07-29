@@ -19,6 +19,7 @@ import { InviteStatus, SessionStatus } from "@prisma/client";
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
+import { QueueProviderPort } from "../queue/queue-provider.port";
 
 @Injectable()
 export class DriveService {
@@ -27,6 +28,7 @@ export class DriveService {
     private readonly authService: AuthService,
     private readonly candidateIngestionService: CandidateIngestionService,
     private readonly csvIngestionService: CsvIngestionService,
+    private readonly queueProvider: QueueProviderPort,
   ) {}
 
   async create(dto: CreateDriveDto, staffId: string) {
@@ -171,6 +173,9 @@ export class DriveService {
 
       return createdDrive;
     });
+
+    // Schedule autoscaling jobs for the drive
+    await this.scheduleScalingJobsForDrive(drive);
 
     return {
       driveId: drive.id,
@@ -400,6 +405,9 @@ export class DriveService {
         metadata: { dto: dto as any },
       },
     });
+
+    // Schedule autoscaling jobs for the updated drive
+    await this.scheduleScalingJobsForDrive(updated);
 
     return {
       driveId: updated.id,
@@ -879,5 +887,51 @@ export class DriveService {
     });
 
     return { success: true, count: inviteIds.length };
+  }
+
+  private async scheduleScalingJobsForDrive(drive: any): Promise<void> {
+    if (!drive.scheduleStart || !drive.scheduleEnd) {
+      return;
+    }
+
+    if (drive.status !== "ACTIVE" && drive.status !== "SCHEDULED") {
+      return;
+    }
+
+    const now = Date.now();
+    // Scale up 30 minutes before drive start
+    const scaleUpTime = drive.scheduleStart.getTime() - 30 * 60 * 1000;
+    const scaleUpDelayMs = Math.max(scaleUpTime - now, 0);
+
+    // Scale down 15 minutes after drive end
+    const scaleDownTime = drive.scheduleEnd.getTime() + 15 * 60 * 1000;
+    const scaleDownDelayMs = Math.max(scaleDownTime - now, 0);
+
+    const scaleUpJobId = `scale-up-${drive.id}`;
+    const scaleDownJobId = `scale-down-${drive.id}`;
+
+    // Clean up existing jobs to prevent duplicates and enable clean rescheduled delay
+    await this.queueProvider.removeJob("infra-scaling", scaleUpJobId);
+    await this.queueProvider.removeJob("infra-scaling", scaleDownJobId);
+
+    await this.queueProvider.enqueueDelayed(
+      "infra-scaling",
+      "scale-up-judge0",
+      { driveId: drive.id },
+      {
+        delayMs: scaleUpDelayMs,
+        jobId: scaleUpJobId,
+      },
+    );
+
+    await this.queueProvider.enqueueDelayed(
+      "infra-scaling",
+      "scale-down-judge0",
+      { driveId: drive.id },
+      {
+        delayMs: scaleDownDelayMs,
+        jobId: scaleDownJobId,
+      },
+    );
   }
 }

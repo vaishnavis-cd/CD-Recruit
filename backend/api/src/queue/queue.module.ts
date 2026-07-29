@@ -8,7 +8,9 @@ import { QueueScheduler } from "./queue.scheduler";
 import { HeartbeatService } from "./heartbeat.service";
 import { HeartbeatMonitorProcessor } from "./heartbeat-monitor.processor";
 import { GraceWindowProcessor } from "./grace-window.processor";
+import { InfraScalingProcessor } from "./infra-scaling.processor";
 import { SessionModule } from "@app/session/session.module";
+import { Judge0Module } from "../integrations/judge0/judge0.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 const isFull = infraMode === "full";
@@ -21,20 +23,26 @@ const isFull = infraMode === "full";
           BullModule.registerQueue(
             { name: "heartbeat-monitor" },
             { name: "grace-window" },
+            { name: "infra-scaling" },
           ),
+          Judge0Module,
         ]
       : []),
     forwardRef(() => SessionModule),
   ],
   providers: [
     ...(isFull
-      ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor]
-      : [LocalFakeQueueProvider]),
+      ? [
+          BullmqQueueProvider,
+          HeartbeatMonitorProcessor,
+          GraceWindowProcessor,
+          InfraScalingProcessor,
+        ]
+      : [LocalFakeQueueProvider, LocalFakeQueueHandlersBootstrap]),
     {
       provide: QueueProviderPort,
       useExisting: isFull ? BullmqQueueProvider : LocalFakeQueueProvider,
     },
-    LocalFakeQueueHandlersBootstrap,
     QueueScheduler,
     HeartbeatService,
   ],

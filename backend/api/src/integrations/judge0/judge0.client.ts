@@ -240,4 +240,21 @@ export class Judge0Client {
       throw error;
     }
   }
+
+  async getWorkers(): Promise<Array<{ queue: string; size: number; available: number; idle: number; working: number; paused: number; failed: number }>> {
+    const url = `${this.apiUrl}/workers`;
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error(`Judge0 API error: ${response.statusText}`);
+      }
+      return await response.json() as any;
+    } catch (error: any) {
+      this.logger.error(`Error fetching workers status from Judge0: ${error.message}`);
+      throw error;
+    }
+  }
 }

@@ -47,7 +47,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (_config: ConfigService<AppConfig, true>) => ({
-        throttlers: [{ ttl: 60_000, limit: 10 }],
+        throttlers: [{ ttl: 60_000, limit: 10000 }],
       }),
     }),
 

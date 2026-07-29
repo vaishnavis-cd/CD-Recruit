@@ -8,6 +8,7 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
   private readonly logger = new Logger(LocalFakeQueueProvider.name);
   private handlers = new Map<string, HandlerFn>();
   private intervals = new Map<string, NodeJS.Timeout>();
+  private timeouts = new Map<string, NodeJS.Timeout>();
 
   registerHandler(queueName: string, jobName: string, fn: HandlerFn) {
     const key = `${queueName}:${jobName}`;
@@ -22,11 +23,16 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
     opts: { delayMs: number; jobId?: string },
   ): Promise<void> {
     const key = `${queueName}:${jobName}`;
+    const trackingKey = opts.jobId ? `${queueName}:${opts.jobId}` : null;
+
     this.logger.log(
-      `[LocalFakeQueueProvider] Scheduling delayed job "${key}" in ${opts.delayMs}ms`,
+      `[LocalFakeQueueProvider] Scheduling delayed job "${key}" in ${opts.delayMs}ms (jobId: ${opts.jobId ?? "N/A"})`,
     );
 
-    setTimeout(async () => {
+    const timer = setTimeout(async () => {
+      if (trackingKey) {
+        this.timeouts.delete(trackingKey);
+      }
       const handler = this.handlers.get(key);
       if (handler) {
         try {
@@ -38,6 +44,10 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
         }
       }
     }, opts.delayMs);
+
+    if (trackingKey) {
+      this.timeouts.set(trackingKey, timer);
+    }
   }
 
   async upsertRepeatable(
@@ -48,8 +58,10 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
     repeatKey: string,
   ): Promise<void> {
     const key = `${queueName}:${jobName}`;
-    if (this.intervals.has(repeatKey)) {
-      clearInterval(this.intervals.get(repeatKey)!);
+    const trackingKey = `${queueName}:${repeatKey}`;
+
+    if (this.intervals.has(trackingKey)) {
+      clearInterval(this.intervals.get(trackingKey)!);
     }
 
     const interval = setInterval(async () => {
@@ -65,6 +77,20 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
       }
     }, everyMs);
 
-    this.intervals.set(repeatKey, interval);
+    this.intervals.set(trackingKey, interval);
+  }
+
+  async removeJob(queueName: string, jobId: string): Promise<void> {
+    const trackingKey = `${queueName}:${jobId}`;
+    if (this.timeouts.has(trackingKey)) {
+      clearTimeout(this.timeouts.get(trackingKey)!);
+      this.timeouts.delete(trackingKey);
+      this.logger.log(`[LocalFakeQueueProvider] Cancelled delayed job: ${trackingKey}`);
+    }
+    if (this.intervals.has(trackingKey)) {
+      clearInterval(this.intervals.get(trackingKey)!);
+      this.intervals.delete(trackingKey);
+      this.logger.log(`[LocalFakeQueueProvider] Cancelled repeatable job: ${trackingKey}`);
+    }
   }
 }

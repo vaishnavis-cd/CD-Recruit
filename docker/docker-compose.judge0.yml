@@ -35,7 +35,7 @@ services:
 
   judge0-worker:
     image: judge0/judge0:1.13.1
-    container_name: cdrecruit_judge0_worker
+    command: ["./scripts/workers"]
     privileged: true
     environment:
       - REDIS_HOST=redis

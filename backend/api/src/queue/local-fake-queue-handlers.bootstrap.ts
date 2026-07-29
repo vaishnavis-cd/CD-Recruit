@@ -39,5 +39,29 @@ export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
         await this.heartbeatService.cleanupExpiredBiometrics();
       },
     );
+
+    this.fakeQueue.registerHandler(
+      "infra-scaling",
+      "scale-up-judge0",
+      async (payload) => {
+        console.log(`[LocalFakeQueue] scale-up-judge0 dummy handler triggered for drive ${payload.driveId}`);
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "infra-scaling",
+      "scale-down-judge0",
+      async (payload) => {
+        console.log(`[LocalFakeQueue] scale-down-judge0 dummy handler triggered for drive ${payload.driveId}`);
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "infra-scaling",
+      "check-queue-health",
+      async () => {
+        // no-op locally
+      },
+    );
   }
 }

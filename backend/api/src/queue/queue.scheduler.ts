@@ -28,8 +28,16 @@ export class QueueScheduler implements OnModuleInit {
       "biometric-retention-cleanup",
     );
 
+    await this.queueProvider.upsertRepeatable(
+      "infra-scaling",
+      "check-queue-health",
+      {},
+      120_000, // every 120 seconds (2 minutes)
+      "judge0-queue-health",
+    );
+
     this.logger.log(
-      `Heartbeat monitor registered: scanning every ${QueueScheduler.SCAN_INTERVAL_MS / 1000} s, retention cleanup scanning every 60 s`,
+      `Heartbeat monitor registered: scanning every ${QueueScheduler.SCAN_INTERVAL_MS / 1000} s, retention cleanup scanning every 60 s, and queue-health check scheduled every 120 s`,
     );
   }
 }
