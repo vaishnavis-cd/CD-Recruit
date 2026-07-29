@@ -16,6 +16,7 @@ import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.servi
 import { ScenarioOrchestratorService } from "./scenario-orchestrator.service";
 import { SimulationTelemetryService } from "./simulation-telemetry.service";
 import { ContextSimulationEvaluatorService } from "./context-simulation-evaluator.service";
+import { AIScenarioGeneratorService } from "./scenario-generator.service";
 import { AiEvaluationModule } from "../integrations/ai/ai-evaluation.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
@@ -40,6 +41,7 @@ const isFull = infraMode === "full";
     ScenarioOrchestratorService,
     SimulationTelemetryService,
     ContextSimulationEvaluatorService,
+    AIScenarioGeneratorService,
     ...(isFull ? [CorrelationGradingProcessor] : []),
   ],
   exports: [
@@ -50,6 +52,7 @@ const isFull = infraMode === "full";
     ScenarioOrchestratorService,
     SimulationTelemetryService,
     ContextSimulationEvaluatorService,
+    AIScenarioGeneratorService,
   ],
 })
 export class SimulationModule {}

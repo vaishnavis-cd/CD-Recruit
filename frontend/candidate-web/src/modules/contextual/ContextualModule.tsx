@@ -58,6 +58,9 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
       })
   }, [sessionId])
 
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
+  const setResponse = useSessionStore(s => s.setResponse)
+
   // Handle Initial SAY submission
   const handleInitialSaySubmit = async (initialSayText: string) => {
     if (sessionId) {
@@ -65,11 +68,15 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         text: initialSayText,
       })
     }
+    setQuestionStatus(scenario.id, 'answered')
+    setResponse(scenario.id, { initialSayText, completed: false })
     setStep('WORKSPACE')
   }
 
   // Handle final simulation submit
   const handleSimulationSubmit = () => {
+    setQuestionStatus(scenario.id, 'answered')
+    setResponse(scenario.id, { completed: true })
     setStep('COMPLETED')
   }
 

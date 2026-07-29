@@ -17,8 +17,8 @@ const MODULE_NAMES: Record<string, string> = {
   SQL: 'SQL Database Queries',
   CODING: 'Coding Challenges',
   AI_PROMPTING: 'AI Prompt Engineering',
-  SIMULATION: 'Interactive System Outage Scenario',
-  CONTEXTUAL: 'Interactive System Outage Scenario',
+  SIMULATION: 'Context Simulation',
+  CONTEXTUAL: 'Context Simulation',
 }
 
 function deriveModules(assessmentQuestions?: any[]): DynamicModuleSummary[] {
@@ -61,16 +61,32 @@ export function PreSubmitReview() {
   const { sessionId } = screen
   const activeModules = deriveModules(assessment.questions)
 
+  function isAnswered(id: string, modType?: string): boolean {
+    const status = assessment!.questionStatus[id]
+    if (status === 'answered') return true
+    const resp = assessment!.responses[id]
+    if (resp !== undefined && resp !== null && resp !== '' && JSON.stringify(resp) !== '{}') {
+      return true
+    }
+    if (modType === 'SIMULATION' || modType === 'CONTEXTUAL') {
+      const simKeys = Object.keys(assessment!.responses)
+      if (simKeys.length > 0 || (status as string) === 'answered') return true
+    }
+    return false
+  }
+
   function countStatus(mod: DynamicModuleSummary, status: QuestionStatus): number {
+    if (status === 'answered') {
+      return mod.questionIds.filter(id => isAnswered(id, mod.moduleType)).length
+    }
+    if (status === 'flagged') {
+      return mod.questionIds.filter(id => !isAnswered(id, mod.moduleType) && assessment!.questionStatus[id] === 'flagged').length
+    }
     return mod.questionIds.filter(id => (assessment!.questionStatus[id] ?? 'unvisited') === status).length
   }
 
   function countUnanswered(mod: DynamicModuleSummary): number {
-    return mod.questionIds.filter(id => {
-      const s = assessment!.questionStatus[id] ?? 'unvisited'
-      const hasResponse = assessment!.responses[id] !== undefined && assessment!.responses[id] !== null && assessment!.responses[id] !== ''
-      return !hasResponse && (s === 'unvisited' || s === 'skipped')
-    }).length
+    return mod.questionIds.filter(id => !isAnswered(id, mod.moduleType) && assessment!.questionStatus[id] !== 'flagged').length
   }
 
   function handleSubmit() {
