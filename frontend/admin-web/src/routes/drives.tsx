@@ -402,7 +402,7 @@ function DrivesPage() {
           {filtered.map((d) => (
             <div
               key={d.id}
-              className="bg-white border border-[#E6E6EA] rounded-[18px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+              className="bg-white border border-[#E6E6EA] rounded-[10px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
             >
               <div className="flex items-start justify-between gap-3 mb-6">
                 <div className="min-w-0 flex-1 space-y-1">
