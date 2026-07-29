@@ -126,6 +126,16 @@ export function SessionDetailBody({
               integrity: {integritySummary}
             </span>
           </div>
+          <div className="mt-1.5 flex items-center gap-2 text-[11px] font-mono text-[#5B5B64]">
+            <span className="uppercase tracking-[0.1em]">ref</span>
+            <span className="font-semibold text-[#0B0B0D] tracking-wider">
+              REF-{session.id.slice(-6).toUpperCase()}-
+              {(session.submittedAt
+                ? new Date(session.submittedAt).getTime()
+                : Date.now()
+              ).toString(36).slice(-4).toUpperCase()}
+            </span>
+          </div>
         </div>
         {onClose && (
           <button onClick={onClose} className="p-1.5 hover:bg-[#EFF0F3] rounded">

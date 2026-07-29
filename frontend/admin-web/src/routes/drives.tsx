@@ -430,13 +430,13 @@ function DrivesPage() {
                 <Link
                   to="/drives/$id"
                   params={{ id: d.id }}
-                  className="flex-1 py-2.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] shadow-sm transition-all text-center cursor-pointer flex items-center justify-center"
+                  className="flex-1 py-2.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[8px] shadow-sm transition-all text-center cursor-pointer flex items-center justify-center"
                 >
                   View Drive
                 </Link>
                 <button
                   onClick={() => setConfirmDeleteDrive(d)}
-                  className="p-2.5 bg-[#FFC0B8] hover:bg-[#FFAEA4] text-[#C0392B] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
+                  className="p-2.5 bg-[#FFE8E6] hover:bg-[#FFAEA4] text-[#C0392B] rounded-[8px] transition-all cursor-pointer flex items-center justify-center shrink-0"
                   title="Delete Drive"
                 >
                   <Trash2 size={16} />

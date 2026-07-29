@@ -1,7 +1,8 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, useParams, useSearchParams, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { SessionRouter } from './routes/SessionRouter'
+import { LandingPage } from './routes/LandingPage'
 
 import { ShieldAlert } from 'lucide-react'
 
@@ -31,6 +32,14 @@ function TokenRouteHandler() {
   return <SessionRouter token={actualToken} />
 }
 
+/** Root route: show landing page if no token in URL, else hand off to TokenRouteHandler */
+function RootHandler() {
+  const [searchParams] = useSearchParams()
+  const queryToken = searchParams.get('token')
+  if (queryToken) return <TokenRouteHandler />
+  return <LandingPage />
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -40,10 +49,11 @@ export default function App() {
           <Route path="/invite" element={<TokenRouteHandler />} />
           <Route path="/start/:token" element={<TokenRouteHandler />} />
           <Route path="/start" element={<TokenRouteHandler />} />
-          <Route path="/" element={<TokenRouteHandler />} />
+          <Route path="/" element={<RootHandler />} />
           <Route path="*" element={<TokenRouteHandler />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
   )
 }
+
