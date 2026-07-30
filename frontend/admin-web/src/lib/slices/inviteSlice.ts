@@ -21,6 +21,8 @@ export interface InviteSlice {
   bulkResend: (ids: string[]) => Promise<void>;
 }
 
+const CANDIDATE_BASE_URL = (import.meta as any).env?.VITE_CANDIDATE_URL || "http://localhost:3000";
+
 function mapBackendInvite(invite: any): Invite {
   return {
     id: invite.id,
@@ -33,7 +35,7 @@ function mapBackendInvite(invite: any): Invite {
     },
     status: invite.status,
     link: invite.token
-      ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:5174"}/start?token=${invite.token}`
+      ? `${CANDIDATE_BASE_URL}/start?token=${invite.token}`
       : "",
     createdAt: invite.createdAt
       ? invite.createdAt.slice(0, 10)

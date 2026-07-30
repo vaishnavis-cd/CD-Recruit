@@ -25,6 +25,24 @@ export class UpdateScoringConfigDto {
   @Min(0)
   @Max(1)
   passRateThreshold: number;
+
+  @IsOptional()
+  @IsString()
+  aiIntensity?: string;
+}
+
+export class UpdateSystemConfigDto {
+  @IsOptional()
+  @IsInt()
+  heartbeatStaleThresholdSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  graceWindowSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  maxDisconnectCount?: number;
 }
 
 export class UpdateRetentionConfigDto {

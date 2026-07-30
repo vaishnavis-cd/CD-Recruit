@@ -153,7 +153,11 @@ export function ConsentSimpleAgreementStep({ type, onAgree }: ConsentSimpleAgree
             <span onClick={() => setAgreed(v => !v)}>I have read and agree to the Terms of Use</span>
           </label>
           <button
-            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+            className={`btn-primary text-xs font-semibold px-6 py-2.5 transition-all duration-300 ${
+              agreed
+                ? 'ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
             disabled={!agreed}
             onClick={onAgree}
           >
@@ -224,7 +228,11 @@ export function ConsentSimpleAgreementStep({ type, onAgree }: ConsentSimpleAgree
           <span onClick={() => setAgreed(v => !v)}>I consent to microphone use during this assessment</span>
         </label>
         <button
-          className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+          className={`btn-primary text-xs font-semibold px-6 py-2.5 transition-all duration-300 ${
+            isAudioReady
+              ? 'ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
+              : 'opacity-50 cursor-not-allowed'
+          }`}
           disabled={!isAudioReady}
           onClick={onAgree}
         >

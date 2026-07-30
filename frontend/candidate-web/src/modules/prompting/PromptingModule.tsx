@@ -218,10 +218,12 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
         </div>
 
         {/* System context */}
-        <div className="mb-4 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs">
-          <span className="font-medium text-[var(--text-secondary)]">Context: </span>
-          <span className="text-[var(--text-secondary)]">{question.systemContext}</span>
-        </div>
+        {question.systemContext && (
+          <div className="mb-4 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs">
+            <span className="font-medium text-[var(--text-secondary)]">Context: </span>
+            <span className="text-[var(--text-secondary)]">{question.systemContext}</span>
+          </div>
+        )}
 
         {/* Task */}
         <div className="mb-6 p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
@@ -242,13 +244,14 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
               />
             )}
           </div>
+
           <textarea
             id={`prompt-${question.id}`}
             value={promptText}
             onChange={handlePromptChange}
             onPaste={handlePaste}
             disabled={loadingPrompt}
-            placeholder="Write your prompt here…"
+            placeholder="Write your prompt here..."
             rows={6}
             aria-label="Enter your prompt to the AI assistant"
             className="w-full px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-xs font-mono placeholder:text-[var(--text-secondary)] placeholder:font-sans resize-y focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] disabled:opacity-60 transition-colors"

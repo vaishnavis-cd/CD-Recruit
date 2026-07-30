@@ -63,7 +63,11 @@ export function ConsentBiometricStep({ onConsent }: ConsentBiometricStepProps) {
           <span onClick={() => setAgreed(v => !v)}>I consent to biometric processing as described</span>
         </label>
         <button
-          className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+          className={`btn-primary text-xs font-semibold px-6 py-2.5 transition-all duration-300 ${
+            agreed
+              ? 'ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
+              : 'opacity-50 cursor-not-allowed'
+          }`}
           disabled={!agreed}
           onClick={onConsent}
         >
