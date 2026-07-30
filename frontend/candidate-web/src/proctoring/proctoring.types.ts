@@ -9,7 +9,8 @@ export type ProctoringEventType =
   | "BOOK_DETECTED"
   | "SPEECH_DETECTED"
   | "SECOND_VOICE_SUSPECTED"
-  | "IDENTITY_MISMATCH";
+  | "IDENTITY_MISMATCH"
+  | "TAB_SWITCH";
 
 export type HeadDirection = "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN";
 

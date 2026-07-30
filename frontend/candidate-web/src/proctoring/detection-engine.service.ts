@@ -25,6 +25,7 @@ export class DetectionEngineService {
     SPEECH_DETECTED: 0,
     SECOND_VOICE_SUSPECTED: 0,
     IDENTITY_MISMATCH: 0,
+    TAB_SWITCH: 0,
   };
 
   private constructor() {}
