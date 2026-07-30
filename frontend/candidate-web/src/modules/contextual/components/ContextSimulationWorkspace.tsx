@@ -18,7 +18,7 @@ import {
   Bug,
   RefreshCw,
 } from 'lucide-react'
-import MonacoEditor from '@monaco-editor/react'
+import { CodeEditor } from '../../../components/common/CodeEditor'
 
 interface ContextSimulationWorkspaceProps {
   sessionId: string
@@ -389,20 +389,12 @@ export function ContextSimulationWorkspace({
               </div>
 
               <div className="flex-1 min-h-0">
-                <MonacoEditor
+                <CodeEditor
                   height="100%"
                   language={language}
-                  theme="vs-dark"
+                  theme="dark"
                   value={code}
                   onChange={handleCodeChange}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    automaticLayout: true,
-                    scrollBeyondLastLine: false,
-                    padding: { top: 12, bottom: 12 },
-                  }}
                 />
               </div>
             </div>

@@ -31,6 +31,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const isInternalChangeRef = useRef<boolean>(false);
+  const lastSyncedValueRef = useRef<string>(value);
 
   const handleBeforeMount: BeforeMount = (monaco) => {
     monaco.editor.defineTheme("cd-recruit-light", cdRecruitLightTheme);
@@ -55,6 +57,44 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       monacoRef.current.editor.setTheme(themeName);
     }
   }, [theme]);
+
+  // Focus-aware and non-destructive external value synchronization
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const model = editor.getModel();
+    if (!model) return;
+
+    if (isInternalChangeRef.current) {
+      isInternalChangeRef.current = false;
+      lastSyncedValueRef.current = value;
+      return;
+    }
+
+    const currentVal = model.getValue();
+    if (currentVal === value) {
+      lastSyncedValueRef.current = value;
+      return;
+    }
+
+    const isFocused = editor.hasTextFocus();
+    const position = isFocused ? editor.getPosition() : null;
+    const selections = isFocused ? editor.getSelections() : null;
+
+    editor.executeEdits("external-sync", [
+      {
+        range: model.getFullModelRange(),
+        text: value,
+      },
+    ]);
+
+    if (isFocused) {
+      if (position) editor.setPosition(position);
+      if (selections) editor.setSelections(selections);
+    }
+
+    lastSyncedValueRef.current = value;
+  }, [value]);
 
   const defaultOptions: editor.IStandaloneEditorConstructionOptions = {
     minimap: { enabled: false },
@@ -82,9 +122,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       <Editor
         height={height}
         language={language}
-        value={value}
+        defaultValue={value}
         theme={theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light"}
-        onChange={(val) => onChange?.(val ?? "")}
+        onChange={(val) => {
+          isInternalChangeRef.current = true;
+          onChange?.(val ?? "");
+        }}
         beforeMount={handleBeforeMount}
         onMount={handleEditorMount}
         options={defaultOptions}
