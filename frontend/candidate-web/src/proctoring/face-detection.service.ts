@@ -122,11 +122,22 @@ export class FaceDetectionService {
       const distToBottom = Math.abs(chin.y - nose.y);
       const verticalRatio = distToTop / (distToBottom || 0.001);
 
+      let rawHeadDirection: "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN" = "CENTER";
+      if (horizontalRatio < 0.75) rawHeadDirection = "LEFT";
+      else if (horizontalRatio > 1.30) rawHeadDirection = "RIGHT";
+      else if (verticalRatio < 0.75) rawHeadDirection = "UP";
+      else if (verticalRatio > 1.25) rawHeadDirection = "DOWN";
+
+      // Eye Gaze estimation via Iris landmarks (468, 473)
+      const eyeGaze = this.calcEyeGaze(landmarks);
+
+      // Final decision: trigger looking away if head turns OR eyes deviate
       let headDirection: "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN" = "CENTER";
-      if (horizontalRatio < 0.6) headDirection = "LEFT";
-      else if (horizontalRatio > 1.6) headDirection = "RIGHT";
-      else if (verticalRatio < 0.7) headDirection = "UP";
-      else if (verticalRatio > 1.35) headDirection = "DOWN";
+      if (rawHeadDirection !== "CENTER") {
+        headDirection = rawHeadDirection;
+      } else if (eyeGaze !== "CENTER") {
+        headDirection = eyeGaze;
+      }
 
       let blinkDetected = false;
 
@@ -221,6 +232,7 @@ export class FaceDetectionService {
         faceDetected: true,
         faceCount,
         headDirection,
+        eyeGaze,
         blinkDetected,
         alignment: {
           isAligned,
@@ -241,6 +253,59 @@ export class FaceDetectionService {
 
   public isModelLoaded(): boolean {
     return this.isLoaded;
+  }
+
+  /**
+   * Estimates Eye Gaze direction using Left & Right Iris centers (landmarks 468, 473)
+   * relative to eye corner boundaries (landmarks 362, 263, 133, 33).
+   * Small natural eye movements while reading code/text return "CENTER".
+   */
+  private calcEyeGaze(landmarks: any[]): "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN" {
+    if (!landmarks || landmarks.length < 474) return "CENTER";
+
+    try {
+      const leftIris = landmarks[468];
+      const rightIris = landmarks[473];
+      const leftInner = landmarks[362];
+      const leftOuter = landmarks[263];
+      const rightInner = landmarks[133];
+      const rightOuter = landmarks[33];
+      const leftTop = landmarks[386];
+      const leftBottom = landmarks[374];
+      const rightTop = landmarks[159];
+      const rightBottom = landmarks[145];
+
+      if (!leftIris || !rightIris || !leftInner || !leftOuter || !rightInner || !rightOuter) {
+        return "CENTER";
+      }
+
+      // Left Eye Horizontal ratio
+      const leftWidth = Math.abs(leftInner.x - leftOuter.x) || 0.001;
+      const leftRatioH = (leftIris.x - Math.min(leftOuter.x, leftInner.x)) / leftWidth;
+
+      // Right Eye Horizontal ratio
+      const rightWidth = Math.abs(rightInner.x - rightOuter.x) || 0.001;
+      const rightRatioH = (rightIris.x - Math.min(rightOuter.x, rightInner.x)) / rightWidth;
+
+      const avgRatioH = (leftRatioH + rightRatioH) / 2;
+
+      // Vertical ratios
+      const leftHeight = Math.abs(leftBottom.y - leftTop.y) || 0.001;
+      const leftRatioV = (leftIris.y - leftTop.y) / leftHeight;
+      const rightHeight = Math.abs(rightBottom.y - rightTop.y) || 0.001;
+      const rightRatioV = (rightIris.y - rightTop.y) / rightHeight;
+      const avgRatioV = (leftRatioV + rightRatioV) / 2;
+
+      // Sensitive eye gaze thresholds
+      if (avgRatioH < 0.35) return "LEFT";
+      if (avgRatioH > 0.65) return "RIGHT";
+      if (avgRatioV < 0.25) return "UP";
+      if (avgRatioV > 0.75) return "DOWN";
+
+      return "CENTER";
+    } catch {
+      return "CENTER";
+    }
   }
 
   /**

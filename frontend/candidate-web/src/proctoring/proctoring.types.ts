@@ -18,6 +18,7 @@ export interface FaceDetectionResult {
   faceDetected: boolean;
   faceCount: number;
   headDirection: HeadDirection;
+  eyeGaze?: HeadDirection;
   blinkDetected?: boolean;
   alignment?: {
     isAligned: boolean;

@@ -100,42 +100,48 @@ export class AudioDetectionService {
     this.lastCheckTime = now;
 
     // Speech frequency range: ~85Hz to ~2000Hz
-    // Bin frequency = (index * sampleRate) / fftSize
+    // High-frequency noise band (>4000Hz) for transient keyboard/mouse click suppression
     const sampleRate = this.audioContext.sampleRate;
     const fftSize = this.analyser.fftSize;
 
     let speechEnergySum = 0;
     let speechBinsCount = 0;
+    let noiseEnergySum = 0;
+    let noiseBinsCount = 0;
 
     for (let i = 0; i < bufferLength; i++) {
       const frequency = (i * sampleRate) / fftSize;
       if (frequency >= 85 && frequency <= 2000) {
         speechEnergySum += dataArray[i];
         speechBinsCount++;
+      } else if (frequency >= 4000) {
+        noiseEnergySum += dataArray[i];
+        noiseBinsCount++;
       }
     }
 
     const averageSpeechEnergy = speechBinsCount > 0 ? speechEnergySum / speechBinsCount : 0;
+    const averageNoiseEnergy = noiseBinsCount > 0 ? noiseEnergySum / noiseBinsCount : 0;
     
-    // Threshold for voice activity detection
-    // Value range for byte frequency data is 0 - 255
-    const VAD_ENERGY_THRESHOLD = 35; 
+    // Voice activity detection thresholds
+    const VAD_ENERGY_THRESHOLD = 40; 
+    const isVoiceHarmonic = averageSpeechEnergy > VAD_ENERGY_THRESHOLD &&
+      (averageSpeechEnergy / (averageNoiseEnergy || 1)) >= 1.3 &&
+      averageNoiseEnergy < (averageSpeechEnergy * 1.1);
 
-    if (averageSpeechEnergy > VAD_ENERGY_THRESHOLD) {
+    if (isVoiceHarmonic) {
       this.continuousSpeechDurationMs += deltaTime;
 
       // 1. Emit generic speech detection signal
       DetectionEngineService.getInstance().triggerMockEvent("SPEECH_DETECTED", "audio-detector-v1");
 
-      // 2. Heuristic: sustained overlapping speech suggests presence of a second speaker.
-      // True speaker diarization (distinguishing specific individual speakers) is explicitly deferred for MVP.
-      // Sustained speech over 3.5 seconds is used as a proxy flag.
+      // 2. Sustained continuous speech over 3.5 seconds triggers SECOND_VOICE_SUSPECTED
       if (this.continuousSpeechDurationMs >= 3500) {
         DetectionEngineService.getInstance().triggerMockEvent("SECOND_VOICE_SUSPECTED", "audio-detector-v1");
       }
     } else {
-      // Decay duration value quickly if silence is detected to reset the window
-      this.continuousSpeechDurationMs = Math.max(0, this.continuousSpeechDurationMs - deltaTime * 1.5);
+      // Decay duration value quickly if silence or transient noise is detected to reset window
+      this.continuousSpeechDurationMs = Math.max(0, this.continuousSpeechDurationMs - deltaTime * 1.8);
     }
 
     // Schedule next tick (200ms interval, matching vision frame loop)
