@@ -35,6 +35,8 @@ import {
   Sparkles,
   Award,
   Save,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker } from "../components/single-date-time-picker";
@@ -92,11 +94,43 @@ export function processQuestionTags(tags?: string[], moduleType?: string) {
   };
 }
 
+function getTodayIsoDate() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDefaultScheduleWindow() {
+  const now = new Date();
+  // Next rounded hour from now
+  const start = new Date(now.getTime() + 60 * 60 * 1000);
+  start.setMinutes(0, 0, 0);
+
+  // End time 1 hour after start
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+  const startParsed = isoToAmPm(start.toISOString());
+  const endParsed = isoToAmPm(end.toISOString());
+
+  return {
+    startDate: startParsed.date || getTodayIsoDate(),
+    startHour: startParsed.hour,
+    startMinute: startParsed.minute,
+    startAmPm: startParsed.ampm,
+    endDate: endParsed.date || getTodayIsoDate(),
+    endHour: endParsed.hour,
+    endMinute: endParsed.minute,
+    endAmPm: endParsed.ampm,
+  };
+}
+
 // Helper functions for 12-hour AM/PM time conversions
 function isoToAmPm(isoString?: string | null, defaultHour = "10", defaultMin = "00", defaultAmPm = "AM") {
-  if (!isoString) return { date: "", hour: defaultHour, minute: defaultMin, ampm: defaultAmPm };
+  if (!isoString) return { date: getTodayIsoDate(), hour: defaultHour, minute: defaultMin, ampm: defaultAmPm };
   const d = new Date(isoString);
-  if (isNaN(d.getTime())) return { date: "", hour: defaultHour, minute: defaultMin, ampm: defaultAmPm };
+  if (isNaN(d.getTime())) return { date: getTodayIsoDate(), hour: defaultHour, minute: defaultMin, ampm: defaultAmPm };
 
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -160,7 +194,7 @@ function DriveDetailPage() {
   const [endAmPm, setEndAmPm] = useState("AM");
 
   // Module Config State (6 Modules)
-  const [moduleConfig, setModuleConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number; questionSource?: string }>>({
+  const [moduleConfig, setModuleConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number; questionSource?: string; isFixed?: boolean }>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
     SQL: { enabled: true, durationMinutes: 20, weight: 20 },
     CODING: { enabled: true, durationMinutes: 30, weight: 25 },
@@ -334,21 +368,57 @@ function DriveDetailPage() {
       setSavedAssignedQuestions(data.questionIds || []);
 
       // Parse schedule dates to 12-hour AM/PM controls
-      const startParsed = isoToAmPm(data.scheduleStart, "10", "00", "AM");
-      setStartDate(startParsed.date);
-      setStartHour(startParsed.hour);
-      setStartMinute(startParsed.minute);
-      setStartAmPm(startParsed.ampm);
+      let sDate = "";
+      let sHour = "10";
+      let sMin = "00";
+      let sAmPm = "AM";
+      let eDate = "";
+      let eHour = "11";
+      let eMin = "00";
+      let eAmPm = "AM";
 
-      const endParsed = isoToAmPm(data.scheduleEnd, "11", "00", "AM");
-      setEndDate(endParsed.date);
-      setEndHour(endParsed.hour);
-      setEndMinute(endParsed.minute);
-      setEndAmPm(endParsed.ampm);
+      if (!data.scheduleStart || !data.scheduleEnd) {
+        const defaultWin = getDefaultScheduleWindow();
+        sDate = defaultWin.startDate;
+        sHour = defaultWin.startHour;
+        sMin = defaultWin.startMinute;
+        sAmPm = defaultWin.startAmPm;
+        eDate = defaultWin.endDate;
+        eHour = defaultWin.endHour;
+        eMin = defaultWin.endMinute;
+        eAmPm = defaultWin.endAmPm;
+      } else {
+        const startParsed = isoToAmPm(data.scheduleStart, "10", "00", "AM");
+        sDate = startParsed.date;
+        sHour = startParsed.hour;
+        sMin = startParsed.minute;
+        sAmPm = startParsed.ampm;
 
-      if (data.moduleConfig && Object.keys(data.moduleConfig).length > 0) {
-        setModuleConfig(data.moduleConfig);
+        const endParsed = isoToAmPm(data.scheduleEnd, "11", "00", "AM");
+        eDate = endParsed.date;
+        eHour = endParsed.hour;
+        eMin = endParsed.minute;
+        eAmPm = endParsed.ampm;
       }
+
+      setStartDate(sDate);
+      setStartHour(sHour);
+      setStartMinute(sMin);
+      setStartAmPm(sAmPm);
+      setEndDate(eDate);
+      setEndHour(eHour);
+      setEndMinute(eMin);
+      setEndAmPm(eAmPm);
+
+      const winMins = computeTimeWindowMinutes(sHour, sMin, sAmPm, eHour, eMin, eAmPm);
+      let initialConfig = data.moduleConfig && Object.keys(data.moduleConfig).length > 0 ? data.moduleConfig : moduleConfig;
+      
+      // Auto-fit default module durations to time window on initial load if needed
+      const confSum = Object.values(initialConfig).filter((m: any) => m.enabled).reduce((sum: number, m: any) => sum + (Number(m.durationMinutes) || 0), 0);
+      if (confSum !== winMins) {
+        initialConfig = autoAllocateModuleDurations(initialConfig, winMins);
+      }
+      setModuleConfig(initialConfig);
 
       setLoading(false);
     } catch (err) {
@@ -427,7 +497,19 @@ function DriveDetailPage() {
     const enabledKeys = Object.keys(config).filter((k) => config[k]?.enabled);
     if (enabledKeys.length === 0) return config;
 
-    const totalRatioSum = enabledKeys.reduce(
+    const fixedKeys = enabledKeys.filter((k) => config[k]?.isFixed);
+    const unfixedKeys = enabledKeys.filter((k) => !config[k]?.isFixed);
+
+    // If ALL enabled modules are fixed by admin, keep them untouched
+    if (unfixedKeys.length === 0) return config;
+
+    const sumFixedMins = fixedKeys.reduce(
+      (sum, k) => sum + (Number(config[k]?.durationMinutes) || 0),
+      0
+    );
+
+    const remainingMins = Math.max(0, totalWindowMins - sumFixedMins);
+    const unfixedRatioSum = unfixedKeys.reduce(
       (sum, k) => sum + (MODULE_TIME_COMPLEXITY[k] || 1),
       0
     );
@@ -435,11 +517,11 @@ function DriveDetailPage() {
     let allocatedSum = 0;
     const updated = { ...config };
 
-    enabledKeys.forEach((k, idx) => {
+    unfixedKeys.forEach((k, idx) => {
       const ratio = MODULE_TIME_COMPLEXITY[k] || 1;
-      let allocated = Math.max(5, Math.floor(totalWindowMins * (ratio / totalRatioSum)));
-      if (idx === enabledKeys.length - 1) {
-        allocated = Math.max(5, totalWindowMins - allocatedSum);
+      let allocated = Math.max(5, Math.floor(remainingMins * (ratio / unfixedRatioSum)));
+      if (idx === unfixedKeys.length - 1) {
+        allocated = Math.max(5, remainingMins - allocatedSum);
       } else {
         allocatedSum += allocated;
       }
@@ -447,6 +529,35 @@ function DriveDetailPage() {
     });
 
     return updated;
+  };
+
+  const handleAutoBalanceDurations = () => {
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
+    const enabledKeys = Object.keys(moduleConfig).filter((k) => moduleConfig[k]?.enabled);
+    if (enabledKeys.length === 0) return;
+
+    const fixedKeys = enabledKeys.filter((k) => moduleConfig[k]?.isFixed);
+    const unfixedKeys = enabledKeys.filter((k) => !moduleConfig[k]?.isFixed);
+
+    if (unfixedKeys.length === 0) {
+      const totalFixedMins = fixedKeys.reduce(
+        (sum, k) => sum + (Number(moduleConfig[k]?.durationMinutes) || 0),
+        0
+      );
+
+      if (totalFixedMins === windowMins) {
+        toast.success(`All module durations are manually fixed and match the total scheduled window (${windowMins} mins)!`);
+      } else {
+        toast.error(
+          `All enabled modules are manually fixed, but cumulative time (${totalFixedMins} mins) does not equal the selected time range (${windowMins} mins). Total is ${totalFixedMins} mins vs ${windowMins} mins.`
+        );
+      }
+      return;
+    }
+
+    const reallocated = autoAllocateModuleDurations(moduleConfig, windowMins);
+    setModuleConfig(reallocated);
+    toast.success("Module durations auto-balanced (preserving manually set module times)!");
   };
 
   // Total Score Ceiling Calculation
@@ -615,7 +726,18 @@ function DriveDetailPage() {
     setActiveTab(targetTab);
   };
 
+  const isQuestionsEditable = useMemo(() => {
+    const roster = drive?.roster || [];
+    if (roster.length === 0) return true;
+    const ungeneratedCount = roster.filter((c) => !c.isGenerated).length;
+    return ungeneratedCount >= 1;
+  }, [drive]);
+
   const handleSaveQuestions = async () => {
+    if (!isQuestionsEditable) {
+      toast.error("Drive questions are locked because all candidate links have already been generated.");
+      return;
+    }
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
@@ -627,6 +749,11 @@ function DriveDetailPage() {
   };
 
   const handleSaveQuestionsAndNext = async () => {
+    if (!isQuestionsEditable) {
+      toast.info("Questions are locked (all links generated). Moving to Candidate Roster...");
+      setActiveTab("roster");
+      return;
+    }
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
@@ -888,9 +1015,8 @@ function DriveDetailPage() {
                 <Award size={18} className="text-[#0C6B58]" />
                 <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Module Selection & 100-Point Scoring Ceiling</h3>
               </div>
-
               {/* Total Score Badge & Auto Balance */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <span
                   className={`px-3 py-1 rounded-full text-[12px] font-mono font-bold ${
                     totalWeightSum === 100
@@ -900,6 +1026,13 @@ function DriveDetailPage() {
                 >
                   Total Weight: {totalWeightSum} / 100 pts
                 </span>
+                <button
+                  onClick={handleAutoBalanceDurations}
+                  className="px-3 py-1 text-[11px] font-semibold text-[#0C6B58] bg-[#E3F9F2] hover:bg-[#D1F4E9] rounded border border-[#A3E6D5] transition-colors cursor-pointer flex items-center gap-1"
+                  title="Auto-balance module durations (preserves manually changed times)"
+                >
+                  <Clock size={12} /> Auto-Balance Time
+                </button>
                 <button
                   onClick={handleAutoBalanceWeights}
                   className="px-3 py-1 text-[11px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D6E4FF] rounded border border-[#B3C5FF] transition-colors cursor-pointer"
@@ -922,7 +1055,7 @@ function DriveDetailPage() {
                 ] as const
               ).map((mod) => {
                 const Icon = mod.icon;
-                const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15 };
+                const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isFixed: false };
                 return (
                   <div
                     key={mod.id}
@@ -960,7 +1093,24 @@ function DriveDetailPage() {
                         className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EFF0F3] text-[11px]"
                       >
                         <div>
-                          <label className="block text-[#5B5B64] font-medium mb-1">Duration (min)</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[#5B5B64] font-medium">Duration (min)</label>
+                            {conf.isFixed && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setModuleConfig({
+                                    ...moduleConfig,
+                                    [mod.id]: { ...conf, isFixed: false },
+                                  });
+                                }}
+                                title="Time manually fixed. Click to unfix and auto-balance"
+                                className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 flex items-center gap-0.5 cursor-pointer hover:bg-amber-100"
+                              >
+                                <Lock size={10} /> Fixed
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="number"
                             value={conf.durationMinutes === 0 ? "" : conf.durationMinutes}
@@ -969,11 +1119,13 @@ function DriveDetailPage() {
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                               setModuleConfig({
                                 ...moduleConfig,
-                                [mod.id]: { ...conf, durationMinutes: val },
+                                [mod.id]: { ...conf, durationMinutes: val, isFixed: true },
                               });
                             }}
                             onFocus={(e) => e.target.select()}
-                            className="w-full px-2 py-1 border border-[#E6E6EA] rounded font-mono text-[12px]"
+                            className={`w-full px-2 py-1 border rounded font-mono text-[12px] ${
+                              conf.isFixed ? "border-amber-400 bg-amber-50/30" : "border-[#E6E6EA]"
+                            }`}
                           />
                         </div>
                         <div>
@@ -1077,6 +1229,83 @@ function DriveDetailPage() {
                   <Upload size={14} /> Bulk Import Questions
                 </button>
               </div>
+            </div>
+
+            {!isQuestionsEditable && (
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-[12px] text-amber-800 flex items-center gap-2">
+                <Lock size={16} className="text-amber-600 shrink-0" />
+                <span>
+                  <strong>Questions Locked:</strong> All candidate invite links have already been generated for this drive. Questions are present below for review in read-only mode.
+                </span>
+              </div>
+            )}
+
+            {/* ASSIGNED QUESTIONS SECTION */}
+            <div className="bg-[#FAFBFD] border border-[#E6E6EA] rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-[#2F5CFF]" />
+                  <h4 className="text-[14px] font-semibold text-[#0B0B0D]">
+                    Assigned Questions for this Drive ({assignedQuestions.length})
+                  </h4>
+                </div>
+                {!isQuestionsEditable && (
+                  <span className="px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full flex items-center gap-1">
+                    <Lock size={12} /> Read-Only
+                  </span>
+                )}
+              </div>
+
+              {assignedQuestions.length === 0 ? (
+                <p className="text-[12px] text-[#8B8B93] italic">
+                  No questions assigned to this drive yet. Select and assign questions from the Question Bank below.
+                </p>
+              ) : (
+                <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-md bg-white max-h-[240px] overflow-y-auto">
+                  {assignedQuestions.map((qId) => {
+                    const q = questionsBank.find((item) => item.id === qId) || {
+                      id: qId,
+                      moduleType: "ASSIGNED",
+                      difficulty: "MEDIUM",
+                      content: { title: `Assigned Question (#${qId.slice(0, 8)})` },
+                    };
+                    const title = q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
+                    return (
+                      <div key={qId} className="p-3 flex items-center justify-between hover:bg-[#F0F4FF]/50 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
+                            {q.moduleType}
+                          </span>
+                          <span className="text-[13px] font-semibold text-[#0B0B0D] line-clamp-1">{title}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewQuestion(q)}
+                            className="text-[11px] text-[#2F5CFF] font-medium flex items-center gap-1 hover:underline cursor-pointer"
+                          >
+                            <Eye size={12} /> Preview
+                          </button>
+                          {isQuestionsEditable ? (
+                            <button
+                              type="button"
+                              onClick={() => setAssignedQuestions(assignedQuestions.filter((id) => id !== qId))}
+                              className="px-2.5 py-1 text-[11px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          ) : (
+                            <span className="px-2.5 py-1 text-[11px] font-medium text-[#8B8B93] bg-[#EFF0F3] rounded flex items-center gap-1 cursor-not-allowed">
+                              <Lock size={11} /> Locked
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Horizontal Module Filter Chips & Search Bar */}
@@ -1197,23 +1426,33 @@ function DriveDetailPage() {
                         <span className="text-[11px] text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity font-medium flex items-center gap-1">
                           <Eye size={12} /> Preview
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isSelected) {
-                              setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
-                            } else {
-                              setAssignedQuestions([...assignedQuestions, q.id]);
-                            }
-                          }}
-                          className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
-                            isSelected
-                              ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                              : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
-                          }`}
-                        >
-                          {isSelected ? "Remove" : "Assign"}
-                        </button>
+                        {isQuestionsEditable ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isSelected) {
+                                setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
+                              } else {
+                                setAssignedQuestions([...assignedQuestions, q.id]);
+                              }
+                            }}
+                            className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                              isSelected
+                                ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                                : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
+                            }`}
+                          >
+                            {isSelected ? "Remove" : "Assign"}
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="px-3 py-1 rounded text-[11px] font-medium bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed flex items-center gap-1"
+                            title="Locked: Candidate links already generated"
+                          >
+                            <Lock size={10} /> {isSelected ? "Assigned (Locked)" : "Locked"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

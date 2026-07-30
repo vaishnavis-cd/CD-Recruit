@@ -623,12 +623,15 @@ export class DriveService {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
     }
 
-    const generatedInviteCount = await this.prisma.invite.count({
-      where: { driveId, isGenerated: true },
+    const totalInvites = await this.prisma.invite.count({
+      where: { driveId },
+    });
+    const unGeneratedInviteCount = await this.prisma.invite.count({
+      where: { driveId, isGenerated: false },
     });
 
-    if (generatedInviteCount > 0) {
-      throw new BadRequestException("This drive questions mapping is locked because invite links have already been generated.");
+    if (totalInvites > 0 && unGeneratedInviteCount === 0) {
+      throw new BadRequestException("This drive questions mapping is locked because all candidate invite links have already been generated.");
     }
 
     const questions = await this.prisma.question.findMany({
