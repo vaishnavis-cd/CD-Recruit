@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { services } from '../services'
 import type { IntegrityAlert } from '../components/common/IntegrityAlertBanner'
+import { DetectionEngineService } from '../proctoring/detection-engine.service'
 
 export function useIntegrityEvents() {
   const [alerts, setAlerts] = useState<IntegrityAlert[]>([])
@@ -40,7 +41,7 @@ export function useIntegrityEvents() {
           category: 'silent',
           timestamp: new Date(now).toISOString(),
         })
-        addAlert('tab-switch', 'Tab switch detected — this has been logged.')
+        DetectionEngineService.getInstance().triggerMockEvent('TAB_SWITCH', 'browser-visibility-v1')
       }
     }
 
