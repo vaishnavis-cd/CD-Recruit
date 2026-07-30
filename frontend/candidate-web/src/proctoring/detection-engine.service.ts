@@ -1,5 +1,5 @@
 import { FaceDetectionResult, PoseDetectionResult, ObjectDetectionResult, ProctoringEventType, ProctoringEvent } from "./proctoring.types";
-import { CONFIG, COOLDOWN_MAPPING, SEVERITY_MAPPING } from "./proctoring.constants";
+import { CONFIG, COOLDOWN_MAPPING, SEVERITY_MAPPING, CONSECUTIVE_FRAMES_REQUIRED } from "./proctoring.constants";
 
 export type EventTriggerListener = (event: ProctoringEvent) => void;
 
@@ -11,6 +11,22 @@ export class DetectionEngineService {
   // Duration accumulation states
   private faceMissingStartTime: number | null = null;
   private lookingAwayStartTime: number | null = null;
+
+  // Track consecutive positive frame detections for noise/glitch suppression
+  private consecutiveFrameCounts: Record<ProctoringEventType, number> = {
+    FACE_MISSING: 0,
+    MULTIPLE_FACES: 0,
+    LOOKING_AWAY: 0,
+    SEAT_EXIT: 0,
+    EXCESSIVE_MOVEMENT: 0,
+    PHONE_DETECTED: 0,
+    HEADPHONES_DETECTED: 0,
+    BOOK_DETECTED: 0,
+    SPEECH_DETECTED: 0,
+    SECOND_VOICE_SUSPECTED: 0,
+    IDENTITY_MISMATCH: 0,
+    TAB_SWITCH: 0,
+  };
 
   // Track last triggered timestamp to enforce cooldowns
   private lastTriggeredEvents: Record<ProctoringEventType, number> = {
@@ -49,6 +65,22 @@ export class DetectionEngineService {
   }
 
   /**
+   * Helper to check consecutive frame counts before triggering events.
+   */
+  private verifyAndTrigger(eventType: ProctoringEventType, modelVersion: string, timestamp: number): void {
+    const requiredFrames = CONSECUTIVE_FRAMES_REQUIRED[eventType] ?? 1;
+    this.consecutiveFrameCounts[eventType]++;
+
+    if (this.consecutiveFrameCounts[eventType] >= requiredFrames) {
+      this.checkAndTrigger(eventType, modelVersion, timestamp);
+    }
+  }
+
+  private resetConsecutive(eventType: ProctoringEventType): void {
+    this.consecutiveFrameCounts[eventType] = 0;
+  }
+
+  /**
    * Evaluates outputs from all three detection sub-services and determines
    * if a suspicious event should be registered.
    */
@@ -65,51 +97,65 @@ export class DetectionEngineService {
       if (this.faceMissingStartTime === null) {
         this.faceMissingStartTime = timestamp;
       } else if (timestamp - this.faceMissingStartTime >= CONFIG.FACE_MISSING_THRESHOLD_MS) {
-        this.checkAndTrigger("FACE_MISSING", "mediapipe-face-v1", timestamp);
+        this.verifyAndTrigger("FACE_MISSING", "mediapipe-face-v1", timestamp);
       }
     } else {
       this.faceMissingStartTime = null;
+      this.resetConsecutive("FACE_MISSING");
     }
 
-    // 2. MULTIPLE_FACES (Face count > 1)
+    // 2. MULTIPLE_FACES (Face count > 1 verified across consecutive frames)
     if (face.faceDetected && face.faceCount > 1) {
-      this.checkAndTrigger("MULTIPLE_FACES", "mediapipe-face-v1", timestamp);
+      this.verifyAndTrigger("MULTIPLE_FACES", "mediapipe-face-v1", timestamp);
+    } else {
+      this.resetConsecutive("MULTIPLE_FACES");
     }
 
-    // 3. LOOKING_AWAY (Head direction not centered for configured threshold)
+    // 3. LOOKING_AWAY (Head pose + eye gaze direction not centered for configured threshold)
     if (face.faceDetected && face.headDirection !== "CENTER") {
       if (this.lookingAwayStartTime === null) {
         this.lookingAwayStartTime = timestamp;
       } else if (timestamp - this.lookingAwayStartTime >= CONFIG.LOOKING_AWAY_THRESHOLD_MS) {
-        this.checkAndTrigger("LOOKING_AWAY", "mediapipe-face-v1", timestamp);
+        this.verifyAndTrigger("LOOKING_AWAY", "mediapipe-face-v1", timestamp);
       }
     } else {
       this.lookingAwayStartTime = null;
+      this.resetConsecutive("LOOKING_AWAY");
     }
 
-    // 4. SEAT_EXIT (Body leaves frame)
+    // 4. SEAT_EXIT (Body leaves frame verified across consecutive frames)
     if (!pose.inFrame || pose.isLeavingSeat) {
-      this.checkAndTrigger("SEAT_EXIT", "mediapipe-pose-v1", timestamp);
+      this.verifyAndTrigger("SEAT_EXIT", "mediapipe-pose-v1", timestamp);
+    } else {
+      this.resetConsecutive("SEAT_EXIT");
     }
 
     // 5. EXCESSIVE_MOVEMENT (Abnormal continuous body motion)
     if (pose.inFrame && pose.movementMetric > CONFIG.EXCESSIVE_MOVEMENT_THRESHOLD) {
-      this.checkAndTrigger("EXCESSIVE_MOVEMENT", "mediapipe-pose-v1", timestamp);
+      this.verifyAndTrigger("EXCESSIVE_MOVEMENT", "mediapipe-pose-v1", timestamp);
+    } else {
+      this.resetConsecutive("EXCESSIVE_MOVEMENT");
     }
 
-    // 6. PHONE_DETECTED (Phone visible)
+    // 6. PHONE_DETECTED (Phone visible across 5 consecutive processed frames ~1s)
     if (object.phoneDetected) {
-      this.checkAndTrigger("PHONE_DETECTED", "object-detector-v1", timestamp);
+      this.verifyAndTrigger("PHONE_DETECTED", "object-detector-v1", timestamp);
+    } else {
+      this.resetConsecutive("PHONE_DETECTED");
     }
 
-    // 7. HEADPHONES_DETECTED (Headphones visible)
+    // 7. HEADPHONES_DETECTED (Headphones visible across consecutive frames)
     if (object.headphonesDetected) {
-      this.checkAndTrigger("HEADPHONES_DETECTED", "object-detector-v1", timestamp);
+      this.verifyAndTrigger("HEADPHONES_DETECTED", "object-detector-v1", timestamp);
+    } else {
+      this.resetConsecutive("HEADPHONES_DETECTED");
     }
 
-    // 8. BOOK_DETECTED (Book / notes visible)
+    // 8. BOOK_DETECTED (Book / notes visible across consecutive frames)
     if (object.bookDetected) {
-      this.checkAndTrigger("BOOK_DETECTED", "object-detector-v1", timestamp);
+      this.verifyAndTrigger("BOOK_DETECTED", "object-detector-v1", timestamp);
+    } else {
+      this.resetConsecutive("BOOK_DETECTED");
     }
   }
 

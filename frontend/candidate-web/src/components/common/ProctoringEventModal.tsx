@@ -2,21 +2,19 @@ import React, { useEffect, useState, useRef } from 'react'
 import { DetectionEngineService } from '../../proctoring/detection-engine.service'
 import { WebcamService } from '../../proctoring/webcam.service'
 import type { ProctoringEvent, ProctoringEventType } from '../../proctoring/proctoring.types'
-import { Users, Smartphone, ExternalLink, AlertTriangle, X, ShieldAlert } from 'lucide-react'
+import { Users, Smartphone, ExternalLink, AlertTriangle, X, ShieldAlert, UserX, EyeOff, BookOpen, Headphones, Activity, LogOut } from 'lucide-react'
 
-// SPEC REQUIREMENT:
-// ONLY include popup for:
-// - Multiple face (MULTIPLE_FACES)
-// - Tab switch (TAB_SWITCH)
-// - Phone detection (PHONE_DETECTED)
-// Explicitly exclude:
-// - Seat exit (SEAT_EXIT)
-// - Speech detection (SPEECH_DETECTED, SECOND_VOICE_SUSPECTED)
-// - Other events
+// All CV and integrity events trigger the 45% viewport modal alert
 const ALLOWED_POPUP_EVENTS: ProctoringEventType[] = [
   'MULTIPLE_FACES',
   'PHONE_DETECTED',
   'TAB_SWITCH',
+  'FACE_MISSING',
+  'LOOKING_AWAY',
+  'SEAT_EXIT',
+  'BOOK_DETECTED',
+  'HEADPHONES_DETECTED',
+  'EXCESSIVE_MOVEMENT',
 ]
 
 interface EventDetails {
@@ -53,11 +51,59 @@ function getEventDetails(eventType: ProctoringEventType): EventDetails {
         icon: <ExternalLink className="w-10 h-10 text-amber-500 animate-pulse" />,
         badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
       }
+    case 'FACE_MISSING':
+      return {
+        title: 'FACE NOT VISIBLE',
+        subtitle: 'No Face in Camera Frame',
+        message: 'Your face is no longer detected in the camera feed. Please position yourself clearly in front of the camera.',
+        icon: <UserX className="w-10 h-10 text-amber-500 animate-pulse" />,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+      }
+    case 'LOOKING_AWAY':
+      return {
+        title: 'LOOKING AWAY DETECTED',
+        subtitle: 'Gaze & Head Motion Away',
+        message: 'Your gaze or head orientation is directed away from the screen. Please keep your focus on your assessment.',
+        icon: <EyeOff className="w-10 h-10 text-amber-500 animate-pulse" />,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+      }
+    case 'SEAT_EXIT':
+      return {
+        title: 'SEAT EXIT DETECTED',
+        subtitle: 'Body Left Workspace',
+        message: 'You appear to have left your seat or camera field of view. Leaving the workstation during the exam is flagged.',
+        icon: <LogOut className="w-10 h-10 text-red-500 animate-pulse" />,
+        badgeColor: 'bg-red-500/20 text-red-400 border-red-500/40',
+      }
+    case 'BOOK_DETECTED':
+      return {
+        title: 'UNAUTHORIZED MATERIAL',
+        subtitle: 'Book / Notes Detected',
+        message: 'Physical reading material or books were detected in frame. External study materials are prohibited.',
+        icon: <BookOpen className="w-10 h-10 text-amber-500 animate-pulse" />,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+      }
+    case 'HEADPHONES_DETECTED':
+      return {
+        title: 'HEADPHONES DETECTED',
+        subtitle: 'Unauthorized Audio Hardware',
+        message: 'Earphones or headphones were detected. Listening devices are not permitted during proctored sessions.',
+        icon: <Headphones className="w-10 h-10 text-red-500 animate-pulse" />,
+        badgeColor: 'bg-red-500/20 text-red-400 border-red-500/40',
+      }
+    case 'EXCESSIVE_MOVEMENT':
+      return {
+        title: 'EXCESSIVE MOVEMENT',
+        subtitle: 'Abnormal Physical Motion',
+        message: 'Rapid or continuous body movement was detected. Please remain steady during the test.',
+        icon: <Activity className="w-10 h-10 text-amber-500 animate-pulse" />,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+      }
     default:
       return {
-        title: 'PROCTORING EVENT',
-        subtitle: 'Integrity Alert',
-        message: 'An integrity event was flagged.',
+        title: 'PROCTORING ALERT',
+        subtitle: 'Integrity Warning',
+        message: 'An integrity event was flagged by the proctoring pipeline.',
         icon: <AlertTriangle className="w-10 h-10 text-amber-500" />,
         badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
       }
@@ -65,7 +111,7 @@ function getEventDetails(eventType: ProctoringEventType): EventDetails {
 }
 
 export function ProctoringEventModal() {
-  const [activeEvent, setActiveEvent] = useState<ProctoringEvent | null>(null)
+  const [activeEvent, setActiveEvent] = useState<(ProctoringEvent & { _uniqueId?: string }) | null>(null)
   const [progress, setProgress] = useState(100)
   const videoRef = useRef<HTMLVideoElement>(null)
   const timerRef = useRef<any>(null)
@@ -82,7 +128,10 @@ export function ProctoringEventModal() {
       if (timerRef.current) clearTimeout(timerRef.current)
       if (intervalRef.current) clearInterval(intervalRef.current)
 
-      setActiveEvent(evt)
+      setActiveEvent({
+        ...evt,
+        _uniqueId: `${evt.eventType}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      })
       setProgress(100)
 
       const durationMs = 3000 // 3 seconds
@@ -127,6 +176,7 @@ export function ProctoringEventModal() {
 
   return (
     <div
+      key={(activeEvent as any)._uniqueId || activeEvent.eventType}
       aria-modal="true"
       role="alertdialog"
       aria-label="Proctoring Event Alert"

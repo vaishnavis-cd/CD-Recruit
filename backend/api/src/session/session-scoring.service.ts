@@ -116,7 +116,7 @@ export class SessionScoringService {
             moduleTotals[mod].earned += 0.4;
           }
         }
-      } else if (mod === "CODING" || mod === "DEBUGGING") {
+      } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
         const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
         const latestExec = executions[executions.length - 1];
         const payload = resp.responsePayload as any;
