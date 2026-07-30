@@ -45,7 +45,7 @@ export class ObjectDetectionService {
               delegate: "GPU",
             },
             runningMode: "IMAGE",
-            scoreThreshold: 0.35,
+            scoreThreshold: 0.25,
           });
           loaded = true;
           break;
@@ -58,7 +58,7 @@ export class ObjectDetectionService {
                 delegate: "CPU",
               },
               runningMode: "IMAGE",
-              scoreThreshold: 0.35,
+              scoreThreshold: 0.25,
             });
             loaded = true;
             break;
@@ -108,6 +108,8 @@ export class ObjectDetectionService {
           for (const category of detection.categories) {
             const label = category.categoryName.toLowerCase();
             const score = category.score;
+
+            if (score < 0.25) continue;
 
             if (
               label.includes("cell phone") ||
