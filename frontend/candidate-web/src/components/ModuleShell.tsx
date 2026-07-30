@@ -11,6 +11,7 @@ import { Moon, Sun } from 'lucide-react'
 
 import { WatermarkOverlay } from './common/WatermarkOverlay'
 import { IntegrityAlertBanner } from './common/IntegrityAlertBanner'
+import { ProctoringEventModal } from './common/ProctoringEventModal'
 import { useIntegrityEvents } from '../hooks/useIntegrityEvents'
 
 interface ModuleShellProps {
@@ -153,6 +154,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   return (
     <div className="flex flex-col h-screen bg-[var(--bg)] overflow-hidden relative">
       <WatermarkOverlay />
+      <ProctoringEventModal />
       <IntegrityAlertBanner alerts={alerts} onDismiss={dismissAlert} />
 
       {/* Timer warning banners — amber, never red */}
