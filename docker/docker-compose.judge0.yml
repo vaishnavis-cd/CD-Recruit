@@ -11,6 +11,9 @@ services:
   judge0-server:
     image: judge0/judge0:1.13.1
     container_name: cdrecruit_judge0_server
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
     ports:
       - "2358:2358"
     environment:
@@ -37,6 +40,8 @@ services:
     image: judge0/judge0:1.13.1
     container_name: cdrecruit_judge0_worker
     privileged: true
+    security_opt:
+      - seccomp:unconfined
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379

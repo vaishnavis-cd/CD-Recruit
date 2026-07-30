@@ -60,6 +60,8 @@ export class Judge0Client {
       language_id: languageId,
       stdin: stdinBase64 || null,
       expected_output: expectedOutputBase64 || null,
+      cpu_time_limit: 5.0,
+      wall_time_limit: 10.0,
       enable_per_process_and_thread_time_limit: true,
       enable_per_process_and_thread_memory_limit: true,
     };
@@ -132,6 +134,8 @@ export class Judge0Client {
         language_id: item.languageId,
         stdin: item.stdinBase64 || null,
         expected_output: item.expectedOutputBase64 || null,
+        cpu_time_limit: 5.0,
+        wall_time_limit: 10.0,
         enable_per_process_and_thread_time_limit: true,
         enable_per_process_and_thread_memory_limit: true,
       })),

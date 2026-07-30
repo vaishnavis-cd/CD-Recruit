@@ -41,67 +41,80 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F9] text-[#0B0B0D] font-sans flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-[420px]">
-        <div className="flex items-center gap-2.5 mb-6 justify-center">
-          <span className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #2563EB, #6366F1)' }}>
-            <svg width="20" height="20" viewBox="0 0 14 14" fill="none">
-              <path d="M1 9C2.5 9 3 4 5 4C7 4 7 9 9 9C11 9 11.5 4 13 4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </span>
+    <div
+      className="min-h-screen w-full text-[#0B0B0D] font-sans flex items-center justify-end px-6 md:px-16 lg:px-24 py-12 relative overflow-hidden bg-[#090d16]"
+      style={{
+        backgroundImage: "url('/Login-admin-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "right center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* Subtle overlay to ensure high contrast & legibility */}
+      <div className="absolute inset-0 bg-black/15 pointer-events-none" />
+
+      <div className="w-full max-w-[420px] relative z-10 bg-white/95 backdrop-blur-md border border-white/80 rounded-2xl p-8 shadow-2xl transition-all duration-300">
+        <div className="flex items-center gap-3 mb-6">
+
           <div>
-            <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">Proctora</div>
-            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
+            <div className="text-[19px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">
+              Proctora
+            </div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#6B7280] leading-none">
               admin console
             </div>
           </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-[10px] border border-[#E6E6EA] bg-white p-6 shadow-sm"
-        >
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="mb-4 p-3 rounded-md bg-[#FFF5F5] border border-[#FECACA] flex items-start gap-2.5 text-[#DC2626] text-[12px]">
+            <div className="p-3 rounded-lg bg-[#FFF5F5] border border-[#FECACA] flex items-start gap-2.5 text-[#DC2626] text-[12px] shadow-sm">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
-            email / username
-          </label>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="text"
-            placeholder="admin@cdrecruit.local or email"
-            disabled={loading}
-            className="w-full bg-white border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] mb-4 disabled:opacity-50"
-          />
-          <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
-            password
-          </label>
-          <input
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            type="password"
-            placeholder="••••••••"
-            disabled={loading}
-            className="w-full bg-white border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] mb-5 disabled:opacity-50"
-          />
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+              email / username
+            </label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              placeholder="admin@cdrecruit.local or email"
+              disabled={loading}
+              className="w-full bg-white border border-[#E6E6EA] rounded-lg px-3.5 py-2.5 text-[13px] text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] focus:ring-2 focus:ring-[#2F5CFF]/20 transition-all disabled:opacity-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+              password
+            </label>
+            <input
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              type="password"
+              placeholder="••••••••"
+              disabled={loading}
+              className="w-full bg-white border border-[#E6E6EA] rounded-lg px-3.5 py-2.5 text-[13px] text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] focus:ring-2 focus:ring-[#2F5CFF]/20 transition-all disabled:opacity-50"
+            />
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#2F5CFF] hover:bg-[#0037FF] text-white font-medium text-[13px] py-2.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-[#2F5CFF] hover:bg-[#0037FF] active:scale-[0.99] text-white font-medium text-[13px] py-2.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
           >
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? "Signing in..." : "Sign in"}
           </button>
 
           <div className="mt-4 pt-4 border-t border-[#E6E6EA] text-center text-[11px] text-[#8B8B93]">
-            Default Dev Credentials: <span className="font-mono text-[#0B0B0D]">admin@cdrecruit.local</span> / <span className="font-mono text-[#0B0B0D]">password</span>
+            Default Dev Credentials:{" "}
+            <span className="font-mono text-[#0B0B0D] font-semibold">admin@cdrecruit.local</span> /{" "}
+            <span className="font-mono text-[#0B0B0D] font-semibold">password</span>
           </div>
         </form>
       </div>
