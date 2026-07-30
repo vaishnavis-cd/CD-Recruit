@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { FaceDetectionService } from '../../proctoring/face-detection.service'
 import { StatusChip } from '../../components/common/StatusChip'
+import { RetryButton } from '../../components/common/RetryButton'
+import { useSessionStore } from '../../store/sessionMachine'
+import apiClient from '../../api/client'
 
 interface ConsentSelfieStepProps {
   onComplete: () => void
@@ -14,16 +17,14 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null)
   const [isAligned, setIsAligned] = useState(false)
   const [flash, setFlash] = useState(false)
+  const [guideFeedback, setGuideFeedback] = useState<string>("Position your face inside the circle guide")
+  const [faceDetected, setFaceDetected] = useState(false)
 
-  useEffect(() => {
-    let active = true
+  const sessionId = useSessionStore(s => s.session?.id || s.assessment?.sessionId)
 
+  const startWebcam = () => {
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
-        if (!active) {
-          stream.getTracks().forEach(t => t.stop())
-          return
-        }
         streamRef.current = stream
         setHasStream(true)
         if (videoRef.current) {
@@ -31,18 +32,21 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
           videoRef.current.play().catch(() => {})
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('[ConsentSelfieStep] Failed to start camera feed:', err)
+      })
+  }
+
+  useEffect(() => {
+    startWebcam()
 
     return () => {
-      active = false
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop())
+        streamRef.current = null
       }
     }
   }, [])
-
-  const [guideFeedback, setGuideFeedback] = useState<string>("Position your face inside the circle guide")
-  const [faceDetected, setFaceDetected] = useState(false)
 
   // Poll face detection for circle alignment check
   useEffect(() => {
@@ -78,10 +82,10 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     return () => clearInterval(interval)
   }, [selfieCaptured])
 
-  function handleCapture() {
+  async function handleCapture() {
     if (!videoRef.current || !isAligned) return
 
-    // Trigger mild whitening camera shutter flash effect
+    // Trigger shutter flash
     setFlash(true)
     setTimeout(() => setFlash(false), 450)
 
@@ -96,37 +100,58 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
       localStorage.setItem('cd-recruit-selfie-data', dataUrl)
       setCapturedDataUrl(dataUrl)
-      setTimeout(() => setSelfieCaptured(true), 250)
+      setSelfieCaptured(true)
+
+      // Upload baseline selfie directly to MinIO if sessionId available
+      if (sessionId) {
+        try {
+          await apiClient.post(`/sessions/${sessionId}/selfie`, { image: dataUrl })
+          console.log('[ConsentSelfieStep] Baseline selfie uploaded to MinIO storage.')
+        } catch (err) {
+          console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err)
+        }
+      }
+    }
+  }
+
+  function handleRetake() {
+    setSelfieCaptured(false)
+    setCapturedDataUrl(null)
+    localStorage.removeItem('cd-recruit-selfie-data')
+
+    // Re-attach video stream so element never turns black
+    if (streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch(() => {})
+    } else {
+      startWebcam()
     }
   }
 
   return (
-    <div>
-      {/* Video Container matching Image 2 */}
-      <div className="relative rounded-xl overflow-hidden aspect-video bg-[#1a1d24] border border-[var(--border)]">
-        {!selfieCaptured ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover transform -scale-x-100"
-          />
-        ) : (
+    <div className="space-y-4">
+      {/* Video Container */}
+      <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border border-[var(--border)]">
+        {/* Live Video (Always mounted to preserve stream ref) */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          aria-label="Webcam feed for liveness check"
+          className={`w-full h-full object-cover transform -scale-x-100 ${
+            selfieCaptured && capturedDataUrl ? 'hidden' : 'block'
+          }`}
+        />
+
+        {/* Captured Selfie Preview Image */}
+        {selfieCaptured && capturedDataUrl && (
           <img
-            src={capturedDataUrl || ''}
-            alt="Captured baseline selfie"
+            src={capturedDataUrl}
+            alt="Baseline selfie preview"
             className="w-full h-full object-cover"
           />
         )}
 
-        {!hasStream && !selfieCaptured && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 bg-slate-900 font-mono-data">
-            Starting camera feed…
-          </div>
-        )}
-
-        {/* Mild camera shutter whitening flash overlay */}
         {flash && (
           <div className="absolute inset-0 bg-white/80 animate-cd-flash pointer-events-none z-10" />
         )}
@@ -154,33 +179,38 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         )}
 
         {/* Solid face guide oval matching frame */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <div
-            className={`w-44 h-56 rounded-[50%] border-2 transition-all duration-300 ${
-              selfieCaptured || isAligned
-                ? 'border-emerald-400 bg-emerald-400/10 scale-105 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
-                : faceDetected
-                ? 'border-amber-400 bg-amber-400/10 shadow-[0_0_20px_rgba(251,191,36,0.3)]'
-                : 'border-rose-400 bg-rose-400/10 shadow-[0_0_20px_rgba(248,113,113,0.3)]'
-            }`}
-          />
-        </div>
+        {!selfieCaptured && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <div
+              className={`w-44 h-56 rounded-[50%] border-2 transition-all duration-300 ${
+                isAligned
+                  ? 'border-emerald-400 bg-emerald-400/10 scale-105 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
+                  : faceDetected
+                  ? 'border-amber-400 bg-amber-400/10 shadow-[0_0_20px_rgba(251,191,36,0.3)]'
+                  : 'border-rose-400 bg-rose-400/10 shadow-[0_0_20px_rgba(248,113,113,0.3)]'
+              }`}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Bottom Action Bar matching Image 2 */}
+      {/* Bottom Action Bar */}
       <div className="mt-8 flex items-center justify-between">
         <p className="text-xs text-[var(--muted-foreground)]">
           Neutral expression, good lighting, no hat or sunglasses.
         </p>
 
         {selfieCaptured ? (
-          <button
-            onClick={onComplete}
-            type="button"
-            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
-          >
-            Continue
-          </button>
+          <div className="flex items-center gap-3">
+            <RetryButton onClick={handleRetake} label="Retake Selfie" />
+            <button
+              onClick={onComplete}
+              type="button"
+              className="btn-primary text-xs font-semibold px-6 py-2.5 ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer"
+            >
+              Continue
+            </button>
+          </div>
         ) : (
           <button
             onClick={handleCapture}
@@ -188,7 +218,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
             type="button"
             className={`text-xs font-semibold px-6 py-2.5 rounded-lg transition-all ${
               isAligned && hasStream
-                ? 'btn-primary cursor-pointer'
+                ? 'btn-primary ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
                 : 'bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed border border-slate-600'
             }`}
           >

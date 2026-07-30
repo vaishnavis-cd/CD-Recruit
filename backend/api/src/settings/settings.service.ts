@@ -114,16 +114,25 @@ export class SettingsService {
   async getScoringConfig() {
     const config = this.readConfig();
     return {
-      aiConfidenceThreshold: config.aiConfidenceThreshold,
-      passRateThreshold: config.passRateThreshold,
+      aiConfidenceThreshold: config.aiConfidenceThreshold ?? 0.8,
+      passRateThreshold: config.passRateThreshold ?? 0.7,
+      aiIntensity: config.aiIntensity ?? "HIGH",
     };
   }
 
-  async updateScoringConfig(aiConfidenceThreshold: number, passRateThreshold: number, actorId: string) {
+  async updateScoringConfig(
+    aiConfidenceThreshold: number,
+    passRateThreshold: number,
+    actorId: string,
+    aiIntensity?: string
+  ) {
     const config = this.readConfig();
     const oldConfig = { ...config };
     config.aiConfidenceThreshold = aiConfidenceThreshold;
     config.passRateThreshold = passRateThreshold;
+    if (aiIntensity) {
+      config.aiIntensity = aiIntensity;
+    }
     this.writeConfig(config);
 
     // Audit log
@@ -133,7 +142,7 @@ export class SettingsService {
         action: "SCORING_CONFIG_UPDATED",
         entityType: "Config",
         entityId: "scoring",
-        metadata: { oldConfig, newConfig: { aiConfidenceThreshold, passRateThreshold } },
+        metadata: { oldConfig, newConfig: { aiConfidenceThreshold, passRateThreshold, aiIntensity: config.aiIntensity } },
       },
     });
 
@@ -201,6 +210,35 @@ export class SettingsService {
       graceWindowSeconds: config.graceWindowSeconds ?? 300,
       maxDisconnectCount: config.maxDisconnectCount ?? 3,
     };
+  }
+
+  async updateTimingThresholds(
+    dto: { heartbeatStaleThresholdSeconds?: number; graceWindowSeconds?: number; maxDisconnectCount?: number },
+    actorId: string
+  ) {
+    const config = this.readConfig();
+    if (dto.heartbeatStaleThresholdSeconds !== undefined) {
+      config.heartbeatStaleThresholdSeconds = dto.heartbeatStaleThresholdSeconds;
+    }
+    if (dto.graceWindowSeconds !== undefined) {
+      config.graceWindowSeconds = dto.graceWindowSeconds;
+    }
+    if (dto.maxDisconnectCount !== undefined) {
+      config.maxDisconnectCount = dto.maxDisconnectCount;
+    }
+    this.writeConfig(config);
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "SYSTEM_TIMING_UPDATED",
+        entityType: "Config",
+        entityId: "systemTiming",
+        metadata: { updated: dto },
+      },
+    });
+
+    return config;
   }
 
   async listAuditLogs(query: ListAuditLogQueryDto) {

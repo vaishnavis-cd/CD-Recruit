@@ -50,7 +50,21 @@ export class SettingsController {
       dto.aiConfidenceThreshold,
       dto.passRateThreshold,
       actor.id,
+      dto.aiIntensity,
     );
+  }
+
+  @Get("system")
+  async getSystemConfig() {
+    return this.settingsService.getTimingThresholds();
+  }
+
+  @Patch("system")
+  async updateSystemConfig(
+    @Body() dto: any,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateTimingThresholds(dto, actor.id);
   }
 
   @Get("retention")

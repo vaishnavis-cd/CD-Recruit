@@ -97,6 +97,11 @@ function QuestionBankPage() {
   const [simTriggers, setSimTriggers] = useState("");
   const [simRubric, setSimRubric] = useState("");
 
+  // AI Prompting specific (Create)
+  const [aiSystemContext, setAiSystemContext] = useState("");
+  const [aiTechStack, setAiTechStack] = useState("React/TypeScript");
+  const [aiIdealResponse, setAiIdealResponse] = useState("");
+
   // Edit Form State
   const [editPromptText, setEditPromptText] = useState("");
   const [editDifficulty, setEditDifficulty] = useState("medium");
@@ -112,6 +117,12 @@ function QuestionBankPage() {
   const [editTestCasesInput, setEditTestCasesInput] = useState("");
   const [editSimTriggers, setEditSimTriggers] = useState("");
   const [editSimRubric, setEditSimRubric] = useState("");
+  const [editAiSystemContext, setEditAiSystemContext] = useState("");
+  const [editAiTechStack, setEditAiTechStack] = useState("React/TypeScript");
+  const [editAiIdealResponse, setEditAiIdealResponse] = useState("");
+
+  // Preview Drawer State
+  const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
 
   // Bulk Import State
   const [importModuleType, setImportModuleType] = useState<string>("MCQ");
@@ -177,6 +188,10 @@ function QuestionBankPage() {
       setEditTestCasesInput(
         q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : ""
       );
+    } else if (q.moduleType === "AI_PROMPTING") {
+      setEditAiSystemContext(q.content?.context || q.content?.systemContext || "");
+      setEditAiTechStack(q.content?.techStack || "React/TypeScript");
+      setEditAiIdealResponse(q.content?.idealResponseSummary || "");
     } else if (q.moduleType === "SIMULATION") {
       setEditSimTriggers(
         q.content?.triggers ? JSON.stringify(q.content.triggers, null, 2) : ""
@@ -208,6 +223,10 @@ function QuestionBankPage() {
       } else if (editingQuestion.moduleType === "CODING") {
         content.starterCode = editStarterCode;
         content.testCases = editTestCasesInput ? JSON.parse(editTestCasesInput) : [];
+      } else if (editingQuestion.moduleType === "AI_PROMPTING") {
+        content.context = editAiSystemContext;
+        content.techStack = editAiTechStack;
+        content.idealResponseSummary = editAiIdealResponse;
       } else if (editingQuestion.moduleType === "SIMULATION") {
         content.title = editPromptText;
         content.triggers = editSimTriggers ? JSON.parse(editSimTriggers) : [];
@@ -251,6 +270,10 @@ function QuestionBankPage() {
       } else if (moduleType === "CODING") {
         content.starterCode = starterCode;
         content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
+      } else if (moduleType === "AI_PROMPTING") {
+        content.context = aiSystemContext;
+        content.techStack = aiTechStack;
+        content.idealResponseSummary = aiIdealResponse;
       } else if (moduleType === "SIMULATION") {
         content.title = promptText;
         content.triggers = simTriggers ? JSON.parse(simTriggers) : [];
@@ -290,6 +313,9 @@ function QuestionBankPage() {
     setTestCasesInput("");
     setSimTriggers("");
     setSimRubric("");
+    setAiSystemContext("");
+    setAiTechStack("React/TypeScript");
+    setAiIdealResponse("");
   };
 
   // CSV Parser Utility
@@ -1015,6 +1041,53 @@ function QuestionBankPage() {
                       rows={3}
                       placeholder='[{"input": "[1, 2]", "expected": "3"}]'
                       className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* AI Prompting Fields */}
+              {moduleType === "AI_PROMPTING" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Primary Technology / Stack Selection
+                    </label>
+                    <select
+                      value={aiTechStack}
+                      onChange={(e) => setAiTechStack(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    >
+                      <option value="React/TypeScript">React / TypeScript</option>
+                      <option value="Node.js/Express">Node.js / Express</option>
+                      <option value="Python/FastAPI">Python / FastAPI</option>
+                      <option value="SQL/PostgreSQL">SQL / PostgreSQL</option>
+                      <option value="Docker/Kubernetes">Docker / Kubernetes</option>
+                      <option value="AWS/Cloud Infrastructure">AWS / Cloud Infrastructure</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      AI System Context / Role Guidelines
+                    </label>
+                    <textarea
+                      value={aiSystemContext}
+                      onChange={(e) => setAiSystemContext(e.target.value)}
+                      rows={3}
+                      placeholder="Specify system instructions for the LLM assistant (e.g. You are an expert code reviewer evaluating Express middleware request signatures...)"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Expected Response Criteria / Ideal Summary
+                    </label>
+                    <textarea
+                      value={aiIdealResponse}
+                      onChange={(e) => setAiIdealResponse(e.target.value)}
+                      rows={3}
+                      placeholder="Outline key elements that the student's prompt should instruct the LLM to cover (e.g., must include error handling, TypeScript types, edge cases)..."
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
                     />
                   </div>
                 </div>

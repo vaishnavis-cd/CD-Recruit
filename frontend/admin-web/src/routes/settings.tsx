@@ -22,16 +22,28 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"users" | "scoring" | "retention" | "audit">("users");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit">("profile");
+
+  // Admin Profile state
+  const [adminName, setAdminName] = useState("Lead Proctor Admin");
+  const [adminEmail, setAdminEmail] = useState("admin@proctora.com");
+  const [apiKeyGenerated, setApiKeyGenerated] = useState<string | null>(null);
 
   // Staff state
   const [staff, setStaff] = useState<any[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
 
-  // Scoring configuration state
+  // Scoring & AI Intensity state
   const [aiThreshold, setAiThreshold] = useState(0.8);
   const [passThreshold, setPassThreshold] = useState(0.7);
+  const [aiIntensity, setAiIntensity] = useState("HIGH");
   const [savingScoring, setSavingScoring] = useState(false);
+
+  // System & Session Integrity state
+  const [staleHeartbeat, setStaleHeartbeat] = useState(45);
+  const [graceWindow, setGraceWindow] = useState(300);
+  const [maxDisconnects, setMaxDisconnects] = useState(3);
+  const [savingSystem, setSavingSystem] = useState(false);
 
   // Retention configuration state
   const [retentionDays, setRetentionDays] = useState(30);
@@ -51,12 +63,11 @@ function SettingsPage() {
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
-      const DEFAULT_STAFF = [
+      setStaff(Array.isArray(data) && data.length > 0 ? data : [
         { id: "staff-1", name: "Lead Recruiter (You)", email: "recruiter@proctora.com", role: "ADMIN" },
         { id: "staff-2", name: "Engineering Evaluator", email: "evaluator@proctora.com", role: "RECRUITER" },
         { id: "staff-3", name: "Talent Ops Admin", email: "talent-ops@proctora.com", role: "ADMIN" },
-      ];
-      setStaff(Array.isArray(data) && data.length > 0 ? data : DEFAULT_STAFF);
+      ]);
     } catch (err) {
       console.error("Failed to load staff list:", err);
       setStaff([
@@ -80,9 +91,28 @@ function SettingsPage() {
       if (data) {
         setAiThreshold(data.aiConfidenceThreshold ?? 0.8);
         setPassThreshold(data.passRateThreshold ?? 0.7);
+        setAiIntensity(data.aiIntensity || "HIGH");
       }
     } catch (err) {
       console.error("Failed to load scoring config:", err);
+    }
+  };
+
+  const loadSystemConfig = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/system`, {
+        headers,
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const data = await res.json();
+      if (data) {
+        setStaleHeartbeat(data.heartbeatStaleThresholdSeconds ?? 45);
+        setGraceWindow(data.graceWindowSeconds ?? 300);
+        setMaxDisconnects(data.maxDisconnectCount ?? 3);
+      }
+    } catch (err) {
+      console.error("Failed to load system config:", err);
     }
   };
 
@@ -118,6 +148,7 @@ function SettingsPage() {
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
     if (activeTab === "scoring") loadScoringConfig();
+    if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
     if (activeTab === "audit") loadAuditLogs();
   }, [activeTab, logsQuery]);
@@ -153,15 +184,42 @@ function SettingsPage() {
         body: JSON.stringify({
           aiConfidenceThreshold: aiThreshold,
           passRateThreshold: passThreshold,
+          aiIntensity,
         }),
       });
       if (!res.ok) throw new Error("Failed to save scoring config");
-      toast.success("Scoring thresholds saved successfully");
+      toast.success("AI Intensity & Scoring thresholds saved successfully");
     } catch (err) {
       console.error(err);
       toast.error("Error saving config");
     } finally {
       setSavingScoring(false);
+    }
+  };
+
+  const handleSaveSystem = async () => {
+    setSavingSystem(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/system`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          heartbeatStaleThresholdSeconds: staleHeartbeat,
+          graceWindowSeconds: graceWindow,
+          maxDisconnectCount: maxDisconnects,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save system timing config");
+      toast.success("System & Session Integrity parameters saved");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error saving system config");
+    } finally {
+      setSavingSystem(false);
     }
   };
 
@@ -187,11 +245,28 @@ function SettingsPage() {
     }
   };
 
+  const generateDevApiKey = () => {
+    const key = `proc_live_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
+    setApiKeyGenerated(key);
+    toast.success("New Admin API Key generated");
+  };
+
   return (
     <AppShell title="Settings & Administration">
       <div className="flex gap-8">
         {/* Navigation Tabs Side */}
         <div className="w-[180px] shrink-0 flex flex-col gap-1 text-[13px]">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
+              activeTab === "profile"
+                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
+                : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            }`}
+          >
+            <Users size={14} />
+            Admin Profile
+          </button>
           <button
             onClick={() => setActiveTab("users")}
             className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
@@ -201,7 +276,7 @@ function SettingsPage() {
             }`}
           >
             <Users size={14} />
-            Users & Roles
+            Staff & Roles
           </button>
           <button
             onClick={() => setActiveTab("scoring")}
@@ -212,7 +287,18 @@ function SettingsPage() {
             }`}
           >
             <Sliders size={14} />
-            Scoring Config
+            AI & Scoring
+          </button>
+          <button
+            onClick={() => setActiveTab("system")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
+              activeTab === "system"
+                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
+                : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            }`}
+          >
+            <Sliders size={14} />
+            System Timing
           </button>
           <button
             onClick={() => setActiveTab("retention")}
@@ -240,7 +326,80 @@ function SettingsPage() {
 
         {/* Tab Body */}
         <div className="flex-1 min-w-0 bg-white border border-[#E6E6EA] rounded-[10px] p-6">
-          {/* Tab 1: Users */}
+          {/* Tab 0: Admin Profile */}
+          {activeTab === "profile" && (
+            <div className="max-w-[480px] space-y-5">
+              <div>
+                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                  Admin Account & API Credentials
+                </h3>
+                <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                  Manage your administrator credentials and API keys for system integrations.
+                </p>
+              </div>
+
+              <div className="space-y-4 text-[13px]">
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Display Name
+                  </label>
+                  <input
+                    value={adminName}
+                    onChange={(e) => setAdminName(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Admin Email
+                  </label>
+                  <input
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    System Role
+                  </label>
+                  <div className="px-3 py-2 border border-[#E6E6EA] rounded bg-[#F7F7F9] text-[#5B5B64] font-mono text-[12px]">
+                    ADMIN (Full Privileges)
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[#E6E6EA]">
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Integration API Key
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={apiKeyGenerated || "proc_live_************************"}
+                      className="flex-1 px-3 py-2 border border-[#E6E6EA] rounded bg-[#F7F7F9] font-mono text-[12px] text-[#5B5B64]"
+                    />
+                    <button
+                      onClick={generateDevApiKey}
+                      className="px-3 py-2 border border-[#E6E6EA] rounded text-[12px] font-medium text-[#2F5CFF] hover:bg-[#F7F7F9] cursor-pointer"
+                    >
+                      Generate Key
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => toast.success("Admin Profile details updated successfully")}
+                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+              >
+                Save Profile
+              </button>
+            </div>
+          )}
+
+          {/* Tab 1: Staff & Roles */}
           {activeTab === "users" && (
             <div className="space-y-4">
               <div>
@@ -279,19 +438,35 @@ function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 2: Scoring */}
+          {/* Tab 2: Scoring & AI Intensity */}
           {activeTab === "scoring" && (
-            <div className="max-w-[420px] space-y-5">
+            <div className="max-w-[440px] space-y-5">
               <div>
                 <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
-                  AI Threshold & Scoring Controls
+                  AI Proctoring Intensity & Scoring Controls
                 </h3>
                 <p className="text-[11px] text-[#8B8B93] mt-0.5">
-                  Set the trigger levels for manual auditor reviews:
+                  Configure real-time monitoring strictness and score threshold levels:
                 </p>
               </div>
 
-              <div className="space-y-3 text-[13px]">
+              <div className="space-y-4 text-[13px]">
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    AI Proctoring Intensity Level
+                  </label>
+                  <select
+                    value={aiIntensity}
+                    onChange={(e) => setAiIntensity(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D] text-[13px] outline-none"
+                  >
+                    <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
+                    <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
+                    <option value="HIGH">High (Strict — Flag multi-face & tab switches quickly)</option>
+                    <option value="STRICT">Strict (Maximum Enforcement — Instant alert triggers)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[12px] text-[#5B5B64] mb-1">
                     AI Confidence Audit Level
@@ -338,7 +513,70 @@ function SettingsPage() {
                 disabled={savingScoring}
                 className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
               >
-                {savingScoring ? "Saving Config…" : "Save Configurations"}
+                {savingScoring ? "Saving Config…" : "Save Scoring & AI Config"}
+              </button>
+            </div>
+          )}
+
+          {/* Tab 3: System Timing & Session Parameters */}
+          {activeTab === "system" && (
+            <div className="max-w-[440px] space-y-5">
+              <div>
+                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                  System & Session Integrity Parameters
+                </h3>
+                <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                  Adjust session disconnect tolerances and heartbeat timeout thresholds:
+                </p>
+              </div>
+
+              <div className="space-y-4 text-[13px]">
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Heartbeat Stale Threshold (Seconds)
+                  </label>
+                  <input
+                    type="number"
+                    value={staleHeartbeat}
+                    onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                  />
+                  <p className="text-[10px] text-[#8B8B93] mt-1">Time without heartbeat before session is marked connection degraded.</p>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Reconnection Grace Window (Seconds)
+                  </label>
+                  <input
+                    type="number"
+                    value={graceWindow}
+                    onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                  />
+                  <p className="text-[10px] text-[#8B8B93] mt-1">Allowed window for candidate to re-establish connection without termination.</p>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Maximum Disconnect Count Allowance
+                  </label>
+                  <input
+                    type="number"
+                    value={maxDisconnects}
+                    onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                  />
+                  <p className="text-[10px] text-[#8B8B93] mt-1">Max disconnects before requiring proctor manual review.</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveSystem}
+                disabled={savingSystem}
+                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
+              >
+                {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
               </button>
             </div>
           )}

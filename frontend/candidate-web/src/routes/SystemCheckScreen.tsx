@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { StatusChip } from '../components/common/StatusChip'
+import { RetryButton } from '../components/common/RetryButton'
 import { Cpu, Camera, Wifi, Gauge, Maximize2, Info, AlertTriangle } from 'lucide-react'
 
 type CheckStatus = 'pending' | 'checking' | 'pass' | 'warn' | 'fail' | 'skipped'
@@ -73,11 +74,45 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     }
   }, [])
 
+  // Auto-fullscreen trigger on mount & click gesture
+  useEffect(() => {
+    const triggerAutoFullscreen = async () => {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen()
+          setFullscreen(true)
+        } catch {
+          // Will trigger on gesture
+        }
+      }
+    }
+    triggerAutoFullscreen()
+
+    const handleFirstGesture = async () => {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen()
+          setFullscreen(true)
+        } catch {}
+      }
+    }
+    window.addEventListener('click', handleFirstGesture, { once: true })
+    return () => window.removeEventListener('click', handleFirstGesture)
+  }, [])
+
   useEffect(() => {
     runSequentialChecks()
   }, [])
 
   async function runSequentialChecks() {
+    setAllDone(false)
+    setChecks([
+      { id: 'wasm', label: 'WebAssembly support', icon: <Cpu size={18} />, status: 'pending', note: 'Verifying runtime…' },
+      { id: 'cam', label: 'Camera access', icon: <Camera size={18} />, status: 'pending', note: 'Awaiting device…' },
+      { id: 'net', label: 'Connection quality', icon: <Wifi size={18} />, status: 'pending', note: 'Measuring bandwidth…' },
+      { id: 'perf', label: 'Performance benchmark', icon: <Gauge size={18} />, status: 'pending', note: 'Running micro-benchmark…' },
+    ])
+
     // 1. WASM check
     updateCheck('wasm', { status: 'checking', note: 'Verifying runtime…' })
     await sleep(400)
@@ -173,13 +208,16 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
       aria-labelledby="system-check-heading"
     >
       <div className="w-full max-w-2xl animate-cd-fade-in">
-        <div className="mb-8">
-          <h1 id="system-check-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)]">
-            System check
-          </h1>
-          <p className="text-sm mt-2 text-[var(--muted-foreground)]">
-            We'll verify a few things before you begin. This usually takes under 10 seconds.
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 id="system-check-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)]">
+              System check
+            </h1>
+            <p className="text-sm mt-2 text-[var(--muted-foreground)]">
+              We'll verify a few things before you begin. This usually takes under 10 seconds.
+            </p>
+          </div>
+          <RetryButton onClick={runSequentialChecks} label="Re-check System" />
         </div>
 
         {storageFull && (
@@ -246,7 +284,11 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
             onClick={handleContinue}
             disabled={!allDone}
             type="button"
-            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer"
+            className={`btn-primary text-xs font-semibold px-6 py-2.5 transition-all duration-300 ${
+              allDone
+                ? 'ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             Continue
           </button>
