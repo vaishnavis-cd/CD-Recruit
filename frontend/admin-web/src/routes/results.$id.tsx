@@ -271,13 +271,22 @@ function IndividualResultPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
           <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-3.5">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
-              Composite Score
+              Total Score
             </span>
-            <span className="text-[24px] font-mono font-bold text-[#2F5CFF]">
-              {score && score.compositeScore !== null && score.compositeScore !== undefined
-                ? `${score.compositeScore <= 1.0 ? Math.round(score.compositeScore * 100) : Math.round(score.compositeScore)}%`
-                : "N/A"}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-[24px] font-mono font-bold text-[#2F5CFF]">
+                {score && (score.totalScore !== null && score.totalScore !== undefined)
+                  ? `${Math.round(score.totalScore * 10) / 10}`
+                  : (score && score.compositeScore !== null && score.compositeScore !== undefined
+                      ? `${score.compositeScore <= 1.0 ? Math.round(score.compositeScore * 100) : Math.round(score.compositeScore)}`
+                      : "N/A")}
+              </span>
+              {score && (score.coreScore !== undefined || score.bonusScore !== undefined) && (
+                <span className="text-[11px] font-mono text-[#5B5B64] font-medium mt-0.5">
+                  Core: {score.coreScore ?? 0}/100 {score.bonusScore ? `· Bonus: +${score.bonusScore}` : ""}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-3.5">

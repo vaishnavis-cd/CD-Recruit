@@ -5,9 +5,9 @@ import {
   SessionStatus,
   FlagDisposition,
   InviteStatus,
-} from "./enums";
-import { ResponsePayload } from "./response";
-import { Score } from "./score";
+} from "./enums.js";
+import { ResponsePayload } from "./response.js";
+import { Score } from "./score.js";
 
 // ---------------------------------------------------------------------------
 // Admin session list

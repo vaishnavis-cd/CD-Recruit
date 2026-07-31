@@ -12,7 +12,7 @@ export default registerAs("app", () => {
     "MINIO_BUCKET_BIOMETRIC",
   ];
 
-  const sandboxDbUrl = process.env.SANDBOX_DB_URL || "postgresql://cdrecruit:cdrecruit123@localhost:5433/cdrecruit_sandbox";
+  const sandboxDbUrl = process.env.SANDBOX_DB_URL || "postgresql://cdrecruit:cdrecruit123@localhost:5434/cdrecruit_sandbox";
 
   for (const envVar of requiredEnv) {
     if (envVar === "SANDBOX_DB_URL") continue;

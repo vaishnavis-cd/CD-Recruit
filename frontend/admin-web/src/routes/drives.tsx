@@ -292,8 +292,10 @@ function DrivesPage() {
 
       toast.success("Drive scheduled successfully!");
       setShowWizard(false);
-      resetWizard();
-      navigate({ to: `/drives/${result.driveId}` });
+      const targetId = result?.driveId || result?.id;
+      if (targetId) {
+        navigate({ to: "/drives/$id", params: { id: targetId } });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to create Drive");
     }
@@ -521,9 +523,12 @@ function DrivesPage() {
                       roleTemplateId: effectiveRoleTemplateId,
                       status: "DRAFT",
                     });
+                    const targetId = res?.driveId || res?.id;
                     toast.success("Drive created! Opening configuration screen...");
                     setShowWizard(false);
-                    navigate({ to: "/drives/$id", params: { id: res.driveId } });
+                    if (targetId) {
+                      navigate({ to: "/drives/$id", params: { id: targetId } });
+                    }
                   } catch (err: any) {
                     toast.error("Failed to create drive: " + (err.message || err));
                   }
