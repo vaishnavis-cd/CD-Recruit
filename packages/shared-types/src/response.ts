@@ -1,4 +1,4 @@
-import { ExecutionStatus, ModuleType } from "./enums";
+import { ExecutionStatus, ModuleType } from "./enums.js";
 
 // ---------------------------------------------------------------------------
 // Per-module response payload shapes

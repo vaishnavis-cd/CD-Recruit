@@ -71,54 +71,16 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        const rawScheduled = invite.scheduledTime ? new Date(invite.scheduledTime).getTime() : Date.now()
-        const scheduledMs = isNaN(rawScheduled) ? Date.now() : rawScheduled
-        localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
-
-        const nowMs = services.time.getServerNow()
-        const systemCheckUnlockBoundary = scheduledMs - 15 * 60 * 1000 // System check unlocks at T-15m
-        const graceBoundary = scheduledMs + (invite.graceMinutes ? invite.graceMinutes * 60 * 1000 : 20 * 60 * 1000) // 20m probation window
-
-        // If active session exists for THIS token AND assessment timer was already started AND NOT EXPIRED, resume it
-        const currentAssessment = useSessionStore.getState().assessment
-        const persistedSession = useSessionStore.getState().session
-        if (
-          persistedSession?.status === 'active' &&
-          currentAssessment?.timerStartMs !== null &&
-          currentAssessment?.timerStartMs !== undefined &&
-          localStorage.getItem('cd-recruit-session-token') === token &&
-          nowMs >= scheduledMs
-        ) {
-          const elapsedMs = nowMs - currentAssessment.timerStartMs
-          const totalMs = (currentAssessment.totalSeconds || 1800) * 1000
-          if (elapsedMs < totalMs) {
-            devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: persistedSession.id })
-            return
-          }
-        }
-
-        if (nowMs < systemCheckUnlockBoundary) {
-          // Arrived earlier than T - 15m (e.g. before 9:45 AM for 10:00 AM test)
-          transitionTo({ type: 'too-early', scheduledTimeMs: systemCheckUnlockBoundary, inviteToken: token })
-        } else if (nowMs < scheduledMs) {
-          // 15m preheat window (9:45 AM - 10:00 AM) — complete System Check then enter Waiting Room until T
+        // If backend /sessions/start successfully returned an active session, allow assessment entry
+        if (session) {
+          const currentAssessment = useSessionStore.getState().assessment
           const consentDone = localStorage.getItem('cd-recruit-consent-audio') === 'true' || localStorage.getItem('cd-recruit-selfie-data')
-          if (consentDone && persistedSession) {
-            transitionTo({ type: 'waiting-room', scheduledTimeMs: scheduledMs, inviteToken: token })
-          } else {
-            transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
-          }
-        } else if (nowMs < graceBoundary) {
-          // Late arrival within 20-min probation window (10:00 AM - 10:20 AM)
-          const consentDone = localStorage.getItem('cd-recruit-consent-audio') === 'true' || localStorage.getItem('cd-recruit-selfie-data')
-          if (consentDone && persistedSession) {
-            devForceJump({ type: 'assessment', moduleIndex: 0, sessionId: persistedSession.id })
+          if (consentDone) {
+            devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: session.id })
           } else {
             transitionTo({ type: 'system-check', mode: 'expedited', inviteToken: token })
           }
-        } else {
-          // Expired (arrived after probation window)
-          transitionTo({ type: 'expired', reason: 'never-started' })
+          return
         }
       } catch (err) {
         console.error('[InviteResolver] Failed to resolve invite:', err)

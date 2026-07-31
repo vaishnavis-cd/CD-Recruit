@@ -88,7 +88,7 @@ export class DriveController {
     @Body() dto: SaveDriveQuestionsDto,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.saveQuestions(driveId, dto.questionIds, actor.id);
+    return this.driveService.saveQuestions(driveId, dto, actor.id);
   }
 
   @Put(":driveId/questions")
@@ -97,7 +97,7 @@ export class DriveController {
     @Body() dto: SaveDriveQuestionsDto,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.saveQuestions(driveId, dto.questionIds, actor.id);
+    return this.driveService.saveQuestions(driveId, dto, actor.id);
   }
 
   @Post(":driveId/candidates/bulk")

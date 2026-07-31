@@ -32,6 +32,11 @@ export class SessionScoringService {
         moduleResponses: true,
         codingExecutions: true,
         sqlExecutions: true,
+        drive: {
+          include: {
+            questions: true,
+          },
+        },
       },
     });
 
@@ -41,6 +46,9 @@ export class SessionScoringService {
 
     const responses = session.moduleResponses || [];
     const moduleScores: Record<string, number> = {};
+    const driveModuleConfig = (session.drive?.moduleConfig as unknown as Record<string, DriveModuleConfigEntry>) || {};
+    const driveQuestions = session.drive?.questions || [];
+    const dqMap = new Map(driveQuestions.map((dq) => [dq.questionId, dq]));
 
     // Group responses by module type via Question lookup
     const questionIds = responses.map((r) => r.questionId);
@@ -49,18 +57,21 @@ export class SessionScoringService {
     });
     const questionMap = new Map(questions.map((q) => [q.id, q]));
 
-    const moduleTotals: Record<string, { total: number; earned: number }> = {};
+    // Track question-level evaluation results: mod -> array of { questionId, accuracy (0-1), pointShare }
+    const moduleQuestionScores: Record<string, Array<{ questionId: string; accuracy: number; pointShare?: number }>> = {};
 
     for (const resp of responses) {
       const q: any = questionMap.get(resp.questionId);
       if (!q) continue;
 
-      const mod = q.moduleType;
-      if (!moduleTotals[mod]) {
-        moduleTotals[mod] = { total: 0, earned: 0 };
+      const mod: string = q.moduleType;
+      if (!moduleQuestionScores[mod]) {
+        moduleQuestionScores[mod] = [];
       }
 
-      moduleTotals[mod].total += 1;
+      const dq = dqMap.get(q.id);
+      const pointShare = dq?.pointShare !== null && dq?.pointShare !== undefined ? Number(dq.pointShare) : undefined;
+      let accuracy = 0.0;
 
       // Robust Evaluation Rules per Module
       if (mod === "MCQ") {
@@ -97,12 +108,9 @@ export class SessionScoringService {
           });
         }
 
-        if (isCorrect) {
-          moduleTotals[mod].earned += 1.0;
-        } else if (selectedList.length > 0) {
-          moduleTotals[mod].earned += 0.0;
-        }
+        accuracy = isCorrect ? 1.0 : 0.0;
       } else if (mod === "SQL") {
+        // Strict binary exact-match — no length-based partial credit
         const payload = resp.responsePayload as any;
         const execResult = payload?.executionResult;
         if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
@@ -122,34 +130,54 @@ export class SessionScoringService {
         const execResult = payload?.executionResult;
 
         if (latestExec && latestExec.totalTests > 0) {
-          moduleTotals[mod].earned += latestExec.passedTests / latestExec.totalTests;
+          accuracy = latestExec.passedTests / latestExec.totalTests;
         } else if (execResult && execResult.totalTests > 0) {
-          moduleTotals[mod].earned += execResult.passedTests / execResult.totalTests;
+          accuracy = execResult.passedTests / execResult.totalTests;
         } else if (payload?.code && payload.code.trim().length > 15) {
-          moduleTotals[mod].earned += 0.85;
+          accuracy = 0.85;
         }
       } else if (mod === "AI_PROMPTING") {
         const payload = resp.responsePayload as any;
         const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
         if (typeof evalScore === "number") {
-          moduleTotals[mod].earned += evalScore > 1 ? evalScore / 100 : evalScore;
+          accuracy = evalScore > 1 ? evalScore / 100 : evalScore;
         } else if (payload?.prompt || payload?.messages || payload?.response) {
-          moduleTotals[mod].earned += 0.85;
+          accuracy = 0.85;
         }
       } else if (mod === "SIMULATION") {
         const payload = resp.responsePayload as any;
         const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
         if (typeof evalScore === "number") {
-          moduleTotals[mod].earned += evalScore > 1 ? evalScore / 100 : evalScore;
+          accuracy = evalScore > 1 ? evalScore / 100 : evalScore;
         } else if (payload?.messages || payload?.actionLog || payload?.response) {
-          moduleTotals[mod].earned += 0.85;
+          accuracy = 0.85;
         }
       }
+
+      moduleQuestionScores[mod].push({
+        questionId: q.id,
+        accuracy: Math.max(0.0, Math.min(1.0, accuracy)),
+        pointShare,
+      });
     }
 
-    // Calculate normalized module scores
-    for (const [mod, stats] of Object.entries(moduleTotals)) {
-      moduleScores[mod] = stats.total > 0 ? Math.round((stats.earned / stats.total) * 100) / 100 : 0.8;
+    // Layer 1: Compute normalized score per module (0.0 to 1.0)
+    for (const [mod, qScores] of Object.entries(moduleQuestionScores)) {
+      if (qScores.length === 0) continue;
+
+      const conf = driveModuleConfig[mod];
+      const mode = conf?.questionWeighting?.mode || "equal";
+      const hasCustomShares = qScores.some((qs) => qs.pointShare !== undefined && qs.pointShare !== null);
+
+      if (mode === "difficulty" && hasCustomShares) {
+        const totalShareSum = qScores.reduce((sum, qs) => sum + (qs.pointShare || 0), 0);
+        const earnedShareSum = qScores.reduce((sum, qs) => sum + (qs.accuracy * (qs.pointShare || 0)), 0);
+        moduleScores[mod] = totalShareSum > 0 ? Math.round((earnedShareSum / totalShareSum) * 100) / 100 : 0.8;
+      } else {
+        // Equal split within module
+        const totalAcc = qScores.reduce((sum, qs) => sum + qs.accuracy, 0);
+        moduleScores[mod] = Math.round((totalAcc / qScores.length) * 100) / 100;
+      }
     }
 
     // Default fallback values if no module responses were recorded
@@ -158,15 +186,26 @@ export class SessionScoringService {
       moduleScores["CODING"] = 0.85;
     }
 
-    // Compute composite score as mean of module scores
-    const scoreValues = Object.values(moduleScores);
-    const compositeScore = scoreValues.length > 0
-      ? Math.round((scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length) * 100) / 100
-      : 0.85;
+    // Layer 2: Core vs Bonus composite weighted score calculation
+    let coreScore = 0;
+    let bonusScore = 0;
+
+    for (const [modKey, normalizedScore] of Object.entries(moduleScores)) {
+      const conf = driveModuleConfig[modKey];
+      if (!conf || !conf.enabled) continue;
+      if (conf.isBonus) {
+        bonusScore += normalizedScore * (conf.maxBonusPoints ?? 0);
+      } else {
+        coreScore += normalizedScore * (conf.weight ?? 0);
+      }
+    }
+
+    coreScore = Math.round(coreScore * 100) / 100;
+    bonusScore = Math.round(bonusScore * 100) / 100;
+    const totalScore = Math.round((coreScore + bonusScore) * 100) / 100;
+    const compositeScore = totalScore;
 
     // Authentic Say-Do Consistency Calculation
-    // 1. Evaluate explicit candidate self-assessments/confidence ("Say") vs actual execution results ("Do")
-    // 2. Fallback to Cross-Module Domain Stability Index (1.0 - Standard Deviation)
     const sayDoDivergences: number[] = [];
 
     for (const resp of responses) {
@@ -203,18 +242,19 @@ export class SessionScoringService {
     let sayDoConsistencyScore: number;
     let sayDoRationale: string;
 
+    const scoreValues = Object.values(moduleScores);
     if (sayDoDivergences.length > 0) {
       const meanDivergence = sayDoDivergences.reduce((a, b) => a + b, 0) / sayDoDivergences.length;
       sayDoConsistencyScore = Math.max(0.0, Math.round((1.0 - meanDivergence) * 100) / 100);
       sayDoRationale = `Calculated from ${sayDoDivergences.length} candidate self-assessments ("Say") vs actual execution results ("Do").`;
     } else if (scoreValues.length > 1) {
-      const mean = compositeScore;
+      const mean = scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length;
       const variance = scoreValues.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scoreValues.length;
       const stdDev = Math.sqrt(variance);
       sayDoConsistencyScore = Math.max(0.0, Math.round((1.0 - stdDev) * 100) / 100);
       sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${Math.round(stdDev * 100) / 100}).`;
     } else {
-      sayDoConsistencyScore = Math.min(1.0, compositeScore);
+      sayDoConsistencyScore = Math.min(1.0, compositeScore / 100);
       sayDoRationale = `Evaluated candidate performance across ${responses.length} response(s).`;
     }
 
@@ -228,6 +268,9 @@ export class SessionScoringService {
     }
 
     const result: CompositeScoreResult = {
+      coreScore,
+      bonusScore,
+      totalScore,
       compositeScore,
       sayDoConsistencyScore,
       aiConfidence,
@@ -255,6 +298,9 @@ export class SessionScoringService {
       create: {
         session: { connect: { id: sessionId } },
         compositeScore: scoreData.compositeScore,
+        coreScore: scoreData.coreScore,
+        bonusScore: scoreData.bonusScore,
+        totalScore: scoreData.totalScore,
         sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
         aiConfidence: scoreData.aiConfidence,
         humanReviewed: isAutoPublished,
@@ -264,6 +310,9 @@ export class SessionScoringService {
       },
       update: {
         compositeScore: scoreData.compositeScore,
+        coreScore: scoreData.coreScore,
+        bonusScore: scoreData.bonusScore,
+        totalScore: scoreData.totalScore,
         sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
         aiConfidence: scoreData.aiConfidence,
         humanReviewed: isAutoPublished,
