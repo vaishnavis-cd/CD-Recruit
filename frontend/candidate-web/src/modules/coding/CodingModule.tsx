@@ -162,25 +162,56 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
 
   const rawContent = questionData?.content || {}
 
-  // Extract visible test cases for sample display
-  const testCasesList = rawContent.visibleTestCases || rawContent.testCases || [
-    { input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", label: "Example 1" },
-    { input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", label: "Example 2" }
+  // Derive dynamic question title from DB question content
+  const questionTitle =
+    rawContent.title ||
+    (rawContent.prompt
+      ? rawContent.prompt
+          .split('\n')[0]
+          .replace(/^(DEBUGGING CHALLENGE:|PROBLEM:|\d+\.|\#+)\s*/i, '')
+          .slice(0, 65)
+          .trim()
+      : '') ||
+    (codingQuestions[currentIndex] as any)?.title ||
+    `Coding Challenge ${currentIndex + 1}`
+
+  // Extract visible sample test cases (strictly 2)
+  const rawVisible = Array.isArray(rawContent.visibleTestCases)
+    ? rawContent.visibleTestCases
+    : Array.isArray(rawContent.testCases)
+    ? rawContent.testCases.filter((tc: any) => !tc.isHidden)
+    : [
+        { input: "[2, 7, 11, 15], 9", expectedOutput: "[0, 1]", label: "Example 1" },
+        { input: "[3, 2, 4], 6", expectedOutput: "[1, 2]", label: "Example 2" }
+      ]
+
+  const testCasesList = rawVisible.slice(0, 2)
+
+  // Extract hidden test cases for submit evaluation (3-4 cases)
+  const rawHidden = Array.isArray(rawContent.hiddenTestCases)
+    ? rawContent.hiddenTestCases
+    : Array.isArray(rawContent.testCases)
+    ? rawContent.testCases.filter((tc: any) => tc.isHidden)
+    : []
+
+  const allTestCases = [
+    ...testCasesList.map((tc: any) => ({ ...tc, isHidden: false })),
+    ...rawHidden.map((tc: any) => ({ ...tc, isHidden: true })),
   ]
 
   const workspaceQuestion = {
     id: questionId,
-    title: rawContent.title || CODING_QUESTIONS[currentIndex]?.title || "Sum of Two Numbers",
-    prompt: rawContent.prompt || rawContent.description || "Write a program that reads from standard input (stdin) containing an array of integers `nums` and a target integer `target`, and outputs to standard output (stdout) the indices of the two numbers such that they add up to `target`.",
+    title: questionTitle,
+    prompt: rawContent.prompt || rawContent.description || "Write a program to solve the coding challenge.",
     content: {
       starterCode: rawContent.starterCode,
-      testCases: testCasesList,
+      testCases: allTestCases,
       constraints: rawContent.constraints || [
-        "2 <= nums.length <= 10^4",
-        "-10^9 <= nums[i] <= 10^9",
-        "-10^9 <= target <= 10^9"
+        "1 <= N <= 10^4",
+        "Memory limit: 256MB",
+        "Time limit: 3.0s"
       ],
-      difficulty: rawContent.difficulty || "easy",
+      difficulty: rawContent.difficulty || "medium",
     },
     response: questionData.response || null,
   }
@@ -202,7 +233,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
-                  CHALLENGE {currentIndex + 1} OF {CODING_QUESTIONS.length}
+                  CHALLENGE {currentIndex + 1} OF {codingQuestions.length || 1}
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent-subtle)] text-[var(--accent)] uppercase tracking-wider font-mono">
                   {workspaceQuestion.content.difficulty}
@@ -218,24 +249,24 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
             </div>
 
             {/* Constraints */}
-            {workspaceQuestion.content.constraints.length > 0 && (
-              <div className="pt-2">
-                <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2 font-mono">
+            {workspaceQuestion.content.constraints && workspaceQuestion.content.constraints.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+                <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
                   Constraints
                 </h4>
-                <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--text-secondary)] font-mono">
-                  {workspaceQuestion.content.constraints.map((c: string, idx: number) => (
-                    <li key={idx}>{c}</li>
+                <ul className="list-disc list-inside text-xs text-[var(--text-secondary)] space-y-1 font-mono">
+                  {workspaceQuestion.content.constraints.map((c: string, i: number) => (
+                    <li key={i}>{c}</li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {/* Sample Test Cases (DB-backed) */}
+            {/* Sample Test Cases (DB-backed - strictly 2 visible) */}
             {testCasesList.length > 0 && (
               <div className="pt-4 border-t border-[var(--border)] space-y-3">
                 <h4 className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
-                  Sample Test Cases
+                  Sample Test Cases (2 Visible)
                 </h4>
                 <div className="space-y-3">
                   {testCasesList.map((tc: any, i: number) => (
@@ -266,13 +297,17 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
           </div>
         </div>
 
-        {/* Horizontal Drag Resizer Slider Handle */}
+        {/* Horizontal Drag Resizer Slider Handle with Larger Dots */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="w-2 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-col-resize flex items-center justify-center border-l border-r border-[var(--border)] group transition-colors shrink-0"
+          className="w-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-col-resize flex items-center justify-center border-l border-r border-[var(--border)] group transition-colors shrink-0 select-none"
           title="Drag left or right to adjust panel split"
         >
-          <GripVertical className="w-3 h-5 text-[var(--muted-foreground)] group-hover:text-[var(--accent)] transition-colors" />
+          <div className="w-2 h-9 rounded-full bg-[var(--border)] group-hover:bg-[var(--accent)] transition-colors flex flex-col items-center justify-center gap-1.5 py-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
+          </div>
         </div>
 
         {/* Right Panel: Monaco Workspace */}

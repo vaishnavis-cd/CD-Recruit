@@ -217,29 +217,29 @@ export function ContextSimulationWorkspace({
   }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-[#0F172A] text-slate-100 font-sans">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--background)] text-[var(--text-primary)] font-sans">
       {/* Top Incident War Room Header */}
-      <div className="px-6 py-3 bg-[#1E293B] border-b border-slate-700/80 flex items-center justify-between z-10 shrink-0 shadow-md">
+      <div className="px-6 py-3 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between z-10 shrink-0 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold font-mono">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold font-mono">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
             <span>ACTIVE INCIDENT WAR ROOM</span>
           </div>
 
-          <h1 className="text-sm font-bold tracking-wide text-slate-100 flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
+          <h1 className="text-sm font-bold tracking-wide text-[var(--text-primary)] flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-500" />
             <span>{scenario.title}</span>
           </h1>
         </div>
 
         {/* Center Tabs: War Room Navigation */}
-        <div className="flex items-center bg-[#0F172A] p-1 rounded-xl border border-slate-700/60">
+        <div className="flex items-center bg-[var(--background)] p-1 rounded-xl border border-[var(--border)]">
           <button
             onClick={() => setActiveTab('brief')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer ${
               activeTab === 'brief'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[var(--accent)] text-white shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <Bug className="w-3.5 h-3.5" />
@@ -250,8 +250,8 @@ export function ContextSimulationWorkspace({
             onClick={() => setActiveTab('workspace')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer ${
               activeTab === 'workspace'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[var(--accent)] text-white shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <Code2 className="w-3.5 h-3.5" />
@@ -262,9 +262,9 @@ export function ContextSimulationWorkspace({
             onClick={handleOpenInboxTab}
             className={`relative px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer ${
               activeTab === 'inbox'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            } ${hasNewEmailPulse ? 'ring-2 ring-blue-400 animate-pulse' : ''}`}
+                ? 'bg-[var(--accent)] text-white shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            } ${hasNewEmailPulse ? 'ring-2 ring-[#2F5CFF] animate-pulse' : ''}`}
           >
             <Bell className="w-3.5 h-3.5" />
             <span>Notifications</span>
@@ -279,7 +279,7 @@ export function ContextSimulationWorkspace({
         <button
           onClick={handleFinalSubmit}
           disabled={submitting}
-          className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-lg hover:shadow-emerald-600/20 active:scale-95"
+          className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-sm hover:shadow-emerald-600/20 active:scale-95"
         >
           <CheckCircle2 className="w-4 h-4" />
           <span>{submitting ? 'Evaluating Solution...' : 'Resolve Incident & Submit'}</span>
@@ -290,27 +290,27 @@ export function ContextSimulationWorkspace({
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {activeTab === 'brief' && (
           <div className="flex-1 p-8 overflow-y-auto max-w-5xl mx-auto space-y-6">
-            <div className="p-6 rounded-2xl bg-[#1E293B] border border-slate-700/80 space-y-4 shadow-xl">
+            <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4 shadow-sm">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="px-2.5 py-1 rounded border border-rose-500/30 bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase font-mono">
+                  <span className="px-2.5 py-1 rounded border border-rose-500/30 bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase font-mono">
                     High Priority Ticket #QA-2026
                   </span>
-                  <h2 className="text-xl font-bold text-slate-100 mt-2">{scenario.title}</h2>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)] mt-2">{scenario.title}</h2>
                 </div>
-                <span className="text-xs text-slate-400 font-mono">Session ID: {sessionId.slice(0, 18)}...</span>
+                <span className="text-xs text-[var(--text-secondary)] font-mono">Session ID: {sessionId.slice(0, 18)}...</span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-sans whitespace-pre-wrap">
                 {scenario.description}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              <div className="p-6 rounded-2xl bg-[#1E293B] border border-slate-700/80 space-y-3">
-                <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">
+              <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
+                <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider font-mono">
                   Reproduction & Validation Constraints
                 </h3>
-                <ul className="list-disc pl-4 text-xs text-slate-300 space-y-2 font-mono">
+                <ul className="list-disc pl-4 text-xs text-[var(--text-secondary)] space-y-2 font-mono">
                   <li>Username must be 3–20 characters long</li>
                   <li>Must NOT accept leading or trailing spaces (e.g. " user ")</li>
                   <li>Only alphanumeric characters & underscores allowed</li>
@@ -318,15 +318,15 @@ export function ContextSimulationWorkspace({
               </div>
 
               {/* Real Backend Session Telemetry Log Feed */}
-              <div className="p-6 rounded-2xl bg-[#1E293B] border border-slate-700/80 space-y-3">
+              <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-xs font-bold text-[#2F5CFF] uppercase tracking-wider font-mono flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-[#2F5CFF]" />
                     <span>Real Candidate Session Action Log</span>
                   </h3>
                   <button
                     onClick={fetchActionHistory}
-                    className="p-1 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                     title="Refresh action log from database"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -336,13 +336,13 @@ export function ContextSimulationWorkspace({
                 <div className="space-y-2 max-h-56 overflow-y-auto font-mono text-[11px] pr-1">
                   {actionHistory.length > 0 ? (
                     actionHistory.map((act, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[#0F172A] border border-slate-800 text-slate-300">
+                      <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--text-primary)]">
                         <span className="truncate pr-2">{act.label}</span>
-                        <span className="text-[10px] text-slate-500 shrink-0">{act.timestamp}</span>
+                        <span className="text-[10px] text-[var(--text-secondary)] shrink-0">{act.timestamp}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="text-xs text-slate-500 py-4 text-center italic">
+                    <div className="text-xs text-[var(--text-secondary)] py-4 text-center italic">
                       No session telemetry events logged yet. Actions in War Room Editor will appear here in real time.
                     </div>
                   )}
@@ -354,12 +354,12 @@ export function ContextSimulationWorkspace({
 
         {activeTab === 'workspace' && (
           <div className="flex-1 flex min-h-0">
-            {/* Left: Code Editor (Monaco War Room Dark Mode) */}
-            <div className="w-1/2 h-full border-r border-slate-700/80 flex flex-col bg-[#0F172A]">
-              <div className="px-4 py-2.5 bg-[#1E293B] border-b border-slate-700/80 flex items-center justify-between shrink-0">
+            {/* Left: Code Editor */}
+            <div className="w-1/2 h-full border-r border-[var(--border)] flex flex-col bg-[var(--background)]">
+              <div className="px-4 py-2.5 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <FileCode className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs font-bold text-slate-200 font-mono">
+                  <FileCode className="w-4 h-4 text-[#2F5CFF]" />
+                  <span className="text-xs font-bold text-[var(--text-primary)] font-mono">
                     login_validation.{language === 'python' ? 'py' : 'js'}
                   </span>
                 </div>
@@ -371,7 +371,7 @@ export function ContextSimulationWorkspace({
                       setLanguage(l)
                       setCode(scenario.starterCode?.[l] || '')
                     }}
-                    className="bg-[#0F172A] border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1 font-mono focus:outline-none"
+                    className="bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-primary)] rounded-lg px-2.5 py-1 font-mono focus:outline-none"
                   >
                     <option value="python">Python 3</option>
                     <option value="javascript">JavaScript (Node.js)</option>
@@ -380,7 +380,7 @@ export function ContextSimulationWorkspace({
                   <button
                     onClick={handleRunDiagnostics}
                     disabled={isRunningTests}
-                    className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow"
+                    className="px-3 py-1 rounded-lg bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <Play className="w-3.5 h-3.5 fill-white" />
                     <span>{isRunningTests ? 'Running...' : 'Run Diagnostics'}</span>
@@ -400,16 +400,16 @@ export function ContextSimulationWorkspace({
             </div>
 
             {/* Right: Diagnostic Terminal & Test Suite */}
-            <div className="w-1/2 h-full flex flex-col bg-[#020617]">
+            <div className="w-1/2 h-full flex flex-col bg-[var(--background)]">
               {/* Test Cases Panel */}
-              <div className="p-4 bg-[#0F172A] border-b border-slate-800 space-y-3 shrink-0">
+              <div className="p-4 bg-[var(--surface)] border-b border-[var(--border)] space-y-3 shrink-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] font-mono flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-500" />
                     <span>Incident Reproduction Test Cases</span>
                   </span>
                   {testResults && (
-                    <span className="text-xs font-mono font-bold text-emerald-400">
+                    <span className="text-xs font-mono font-bold text-emerald-500">
                       {testResults.filter((r) => r.passed).length}/{testResults.length} Passed
                     </span>
                   )}
@@ -426,9 +426,9 @@ export function ContextSimulationWorkspace({
                           className={`p-3 rounded-xl border font-mono text-xs space-y-1 ${
                             res
                               ? res.passed
-                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                                : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                              : 'bg-[#1E293B] border-slate-700/60 text-slate-300'
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                              : 'bg-[var(--background)] border-[var(--border)] text-[var(--text-primary)]'
                           }`}
                         >
                           <div className="flex justify-between items-center text-[11px] font-bold">
@@ -437,8 +437,8 @@ export function ContextSimulationWorkspace({
                               <span>{res.passed ? '✓ PASSED' : '✕ FAILED'}</span>
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">Input: {tc.input}</div>
-                          <div className="text-[10px] text-slate-400">Expected: {tc.expectedOutput}</div>
+                          <div className="text-[10px] text-[var(--text-secondary)] truncate">Input: {tc.input}</div>
+                          <div className="text-[10px] text-[var(--text-secondary)]">Expected: {tc.expectedOutput}</div>
                         </div>
                       )
                     })}
@@ -446,26 +446,26 @@ export function ContextSimulationWorkspace({
               </div>
 
               {/* Terminal Logs */}
-              <div className="flex-1 flex flex-col min-h-0 bg-[#020617]">
-                <div className="px-4 py-2 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+              <div className="flex-1 flex flex-col min-h-0 bg-[var(--background)]">
+                <div className="px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
                   <span className="flex items-center gap-2">
-                    <TerminalIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <TerminalIcon className="w-3.5 h-3.5 text-emerald-500" />
                     <span>War Room Console Log</span>
                   </span>
                 </div>
 
-                <div className="flex-1 p-4 font-mono text-xs text-slate-300 overflow-y-auto space-y-1.5 leading-relaxed selection:bg-blue-500 selection:text-white">
+                <div className="flex-1 p-4 font-mono text-xs text-[var(--text-primary)] overflow-y-auto space-y-1.5 leading-relaxed selection:bg-[#2F5CFF] selection:text-white">
                   {terminalLogs.map((log, idx) => (
                     <div
                       key={idx}
                       className={
                         log.includes('PASSED') || log.includes('VERIFIED')
-                          ? 'text-emerald-400 font-bold'
+                          ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                           : log.includes('FAILED') || log.includes('REGRESSION')
-                          ? 'text-rose-400 font-bold'
+                          ? 'text-rose-600 dark:text-rose-400 font-bold'
                           : log.includes('🚀') || log.includes('===')
-                          ? 'text-blue-400 font-bold'
-                          : 'text-slate-300'
+                          ? 'text-[#2F5CFF] font-bold'
+                          : 'text-[var(--text-primary)]'
                       }
                     >
                       {log}
@@ -478,7 +478,7 @@ export function ContextSimulationWorkspace({
         )}
 
         {activeTab === 'inbox' && (
-          <div className="flex-1 p-6 bg-[#0F172A] overflow-hidden">
+          <div className="flex-1 p-6 bg-[var(--background)] overflow-hidden">
             <InFictionInbox sessionId={sessionId} scenarioId={scenario.id} />
           </div>
         )}

@@ -25,6 +25,7 @@ import { sqlQuestions } from "./data/sql";
 import { codingQuestions } from "./data/coding";
 import { aiPromptingQuestions } from "./data/aiPrompting";
 import { simulationQuestions } from "./data/simulation";
+import { debuggingQuestions } from "./data/debugging";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -67,6 +68,7 @@ function getAllQuestionSeedData(): Array<{
     ...mcqQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
     ...sqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
     ...codingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
+    ...debuggingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
     ...aiPromptingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
     ...simulationQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
   ];
@@ -126,10 +128,23 @@ async function main(): Promise<void> {
     // Create questions
     const createdQuestions = [];
     for (const q of allQuestions) {
+      const prompt = (q.content as any)?.prompt || (q.content as any)?.title || '';
       const existing = await tx.question.findFirst({
-        where: { moduleType: q.moduleType },
+        where: {
+          moduleType: q.moduleType,
+          content: { path: ['prompt'], equals: prompt },
+        },
       });
+      const isDebugging = prompt.toLowerCase().includes("debugging");
+      const tags = isDebugging ? ["debugging", "coding"] : [q.moduleType.toLowerCase()];
       if (existing) {
+        // Ensure tags include debugging
+        if (isDebugging && (!existing.tags || !existing.tags.includes("debugging"))) {
+          await tx.question.update({
+            where: { id: existing.id },
+            data: { tags: ["debugging", "coding"] },
+          });
+        }
         createdQuestions.push(existing);
       } else {
         const created = await tx.question.create({
@@ -137,7 +152,7 @@ async function main(): Promise<void> {
             moduleType: q.moduleType,
             content: q.content as any,
             difficulty: "medium",
-            tags: [q.moduleType.toLowerCase()],
+            tags,
             scoringConfig: {},
             version: 1,
             status: "PUBLISHED",

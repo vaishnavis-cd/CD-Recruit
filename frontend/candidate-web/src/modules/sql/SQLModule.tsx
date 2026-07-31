@@ -72,6 +72,9 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
   const [dbReady, setDbReady] = useState(false)
   const dbRef = useRef<any>(null)
 
+  const [schemaTables, setSchemaTables] = useState<Array<{ name: string; columns: string[]; rows: any[][] }>>([])
+  const [dialect, setDialect] = useState<'PostgreSQL' | 'MySQL' | 'SQLite'>('PostgreSQL')
+
   // Restore current question index on mount
   useEffect(() => {
     if (assessment?.currentModuleIndex === moduleIndex) {
@@ -141,14 +144,32 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }, [questionData, questionId])
 
-  // Load sql.js DB
+  // Load sql.js DB & extract visual tables
   useEffect(() => {
     if (!question) return
     setDbReady(false)
+    setSchemaTables([])
     getSqlDb(question.schema, question.seed)
       .then(db => {
         dbRef.current = db
         setDbReady(true)
+        try {
+          const tblRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+          if (tblRes.length > 0) {
+            const tableNames = tblRes[0].values.map((v: any) => v[0])
+            const tablesData = tableNames.map((tbl: string) => {
+              const data = db.exec(`SELECT * FROM "${tbl}" LIMIT 5;`)
+              return {
+                name: tbl,
+                columns: data[0]?.columns || [],
+                rows: data[0]?.values || [],
+              }
+            })
+            setSchemaTables(tablesData)
+          }
+        } catch (e) {
+          console.warn('Failed to extract schema tables:', e)
+        }
       })
       .catch(err => {
         setError(`Failed to initialize database: ${err.message}`)
@@ -241,7 +262,6 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             setError(res.data.result?.error || 'SQL execution failed')
             setResults(null)
           } else {
-            // Success! Set the results from the backend PostgreSQL execution
             const backendColumns = res.data.result?.columns || []
             const backendRows = res.data.result?.rows || []
             const formattedRows = backendRows.map((rowObj: any) => {
@@ -305,152 +325,193 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex flex-col h-full">
-        {/* Question text */}
-        <div className="px-6 py-5 border-b border-[var(--border)] bg-[var(--surface)]">
-          <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">
-            Query {currentIndex + 1} of {questions.length}
-          </div>
-          <p className="text-[var(--text-primary)] text-sm leading-relaxed">{question.text}</p>
-          {question.hint && (
-            <p className="mt-2 text-xs text-[var(--text-secondary)] italic">Hint: {question.hint}</p>
-          )}
-        </div>
-
-        {/* Schema reference */}
-        <details className="px-6 py-2 border-b border-[var(--border)] bg-[var(--bg)]">
-          <summary className="text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)] py-1 font-medium">
-            View schema reference
-          </summary>
-          <pre className="mt-2 text-xs font-mono text-[var(--text-secondary)] bg-[var(--surface)] p-3 rounded overflow-x-auto">
-            {question.schema}
-          </pre>
-        </details>
-
-        {/* Editor */}
-        <div className="flex-1 min-h-0" style={{ minHeight: '200px' }}>
-          {!dbReady ? (
-            <div className="flex items-center justify-center h-full text-[var(--text-secondary)] text-sm">
-              Loading SQL engine…
-            </div>
-          ) : (
-            <CodeEditor
-              language="sql"
-              value={query}
-              onChange={handleQueryChange}
-              onPaste={handlePaste}
-              theme={theme === 'dark' ? 'dark' : 'light'}
-            />
-          )}
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-3 px-6 py-3 border-t border-[var(--border)] bg-[var(--surface)]">
-          <button
-            onClick={handleRun}
-            disabled={!dbReady || running || !query.trim()}
-            aria-label="Run SQL query against visible test data"
-            className="btn-secondary text-xs cursor-pointer"
-          >
-            {running ? 'Running…' : '▶ Run Query'}
-          </button>
-
-          <button
-            onClick={handleSubmitQuery}
-            disabled={!dbReady || submitting || !query.trim()}
-            aria-label="Submit SQL query answer"
-            className="btn-primary text-xs cursor-pointer"
-          >
-            {submitting ? 'Submitting…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}
-          </button>
-
-          {/* Official Evaluation Status Badge */}
-          {evalResult && (
-            <div className={`px-3 py-1 rounded-full text-xs font-mono-data font-medium flex items-center gap-1.5 ${
-              evalResult.passed 
-                ? 'bg-[var(--surface)] text-[var(--success)] border border-[var(--border)]' 
-                : 'bg-[var(--surface)] text-[var(--critical)] border border-[var(--border)]'
-            }`}>
-              <span>
-                {evalResult.passed 
-                  ? '✓ Evaluation: PASSED' 
-                  : (evalResult.status === 'QUERY_ERROR' || evalResult.status === 'TIMEOUT' || evalResult.status === 'FAILED' || evalResult.error)
-                    ? `✗ Evaluation: EXECUTION FAILED (${evalResult.error || 'Unknown error'})`
-                    : '✗ Evaluation: FAILED'
-                }
+      <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden bg-[var(--background)]">
+        {/* Left Column: Problem Prompt & Visual Schema Tables */}
+        <div className="w-full lg:w-1/2 h-full border-r border-[var(--border)] flex flex-col overflow-y-auto bg-[var(--surface)] p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+            <div>
+              <span className="text-xs font-mono uppercase tracking-wider text-[var(--accent)] font-bold">
+                Query {currentIndex + 1} of {questions.length}
               </span>
-              <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
+              <h2 className="text-base font-bold text-[var(--text-primary)] mt-1">SQL Assessment Problem</h2>
             </div>
-          )}
 
-          <div className="flex-1" />
-          <button
-            onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-            disabled={currentIndex === 0}
-            className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1.5"
-          >
-            <ChevronLeft size={14} />
-            <span>Prev</span>
-          </button>
-          <button
-            onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-            className="btn-primary text-xs cursor-pointer"
-          >
-            {nextButtonLabel}
-          </button>
+            {/* Language/Dialect Dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-secondary)] font-mono">Dialect:</span>
+              <select
+                value={dialect}
+                onChange={(e) => setDialect(e.target.value as any)}
+                className="bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-primary)] rounded-lg px-2.5 py-1 font-mono focus:outline-none"
+              >
+                <option value="PostgreSQL">PostgreSQL</option>
+                <option value="MySQL">MySQL</option>
+                <option value="SQLite">SQLite</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-[var(--text-primary)] text-sm leading-relaxed whitespace-pre-wrap">{question.text}</p>
+            {question.hint && (
+              <div className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-secondary)] italic">
+                💡 Hint: {question.hint}
+              </div>
+            )}
+          </div>
+
+          {/* Visual Table Renderer (Schema & Seed Data Tables) */}
+          <div className="space-y-4 pt-2">
+            <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-secondary)] font-bold">
+              Database Schema & Table Data Preview
+            </div>
+
+            {schemaTables.length > 0 ? (
+              schemaTables.map((tbl) => (
+                <div key={tbl.name} className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--background)] shadow-sm space-y-0">
+                  <div className="px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] font-mono text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                    <span>Table: {tbl.name}</span>
+                    <span className="text-[10px] text-[var(--text-secondary)] font-normal">{tbl.columns.length} columns</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-[var(--border)] bg-[var(--surface)]/50">
+                          {tbl.columns.map((col) => (
+                            <th key={col} className="px-3 py-2 text-left font-semibold text-[var(--text-secondary)]">
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tbl.rows.map((row, ri) => (
+                          <tr key={ri} className="border-b border-[var(--border)]/40 hover:bg-[var(--surface)]/40">
+                            {row.map((cell: any, ci: number) => (
+                              <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
+                                {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <details className="border border-[var(--border)] rounded-xl p-3 bg-[var(--background)]">
+                <summary className="text-xs font-mono text-[var(--text-secondary)] cursor-pointer">View Raw DDL Schema</summary>
+                <pre className="mt-2 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto">{question.schema}</pre>
+              </details>
+            )}
+          </div>
         </div>
 
-        {/* Results */}
-        {(results || error) && (
-          <div className="border-t border-[var(--border)] bg-[var(--surface)] max-h-48 overflow-auto">
-            {error ? (
-              <div
-                role="alert"
-                className="px-4 py-3 text-sm font-mono text-[var(--critical)]"
-              >
-                {error}
+        {/* Right Column: SQL Editor & Output */}
+        <div className="w-full lg:w-1/2 h-full flex flex-col bg-[var(--background)]">
+          {/* Editor Area */}
+          <div className="flex-1 min-h-0 relative">
+            {!dbReady ? (
+              <div className="flex items-center justify-center h-full text-[var(--text-secondary)] text-sm font-mono">
+                Initializing {dialect} engine…
               </div>
-            ) : results ? (
-              <div>
-                <div className="px-3 py-1.5 bg-[var(--bg)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
-                  Query Output
+            ) : (
+              <CodeEditor
+                language="sql"
+                value={query}
+                onChange={handleQueryChange}
+                onPaste={handlePaste}
+                theme={theme === 'dark' ? 'dark' : 'light'}
+              />
+            )}
+          </div>
+
+          {/* Action Controls Bar */}
+          <div className="flex items-center gap-3 px-6 py-3 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
+            <button
+              onClick={handleRun}
+              disabled={!dbReady || running || !query.trim()}
+              className="px-4 py-2 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+            >
+              {running ? 'Running…' : '▶ Run Query'}
+            </button>
+
+            <button
+              onClick={handleSubmitQuery}
+              disabled={!dbReady || submitting || !query.trim()}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+            >
+              {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}
+            </button>
+
+            {evalResult && (
+              <div className={`px-3 py-1 rounded-full text-xs font-mono font-medium flex items-center gap-1.5 ${
+                evalResult.passed 
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+              }`}>
+                <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
+                <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
+              </div>
+            )}
+
+            <div className="flex-1" />
+            <button
+              onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+              disabled={currentIndex === 0}
+              className="p-2 rounded-xl border border-[var(--border)] bg-[var(--background)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 cursor-pointer"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+              className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] font-bold cursor-pointer hover:bg-[var(--background)]"
+            >
+              {nextButtonLabel}
+            </button>
+          </div>
+
+          {/* Results Output Panel */}
+          {(results || error) && (
+            <div className="border-t border-[var(--border)] bg-[var(--surface)] max-h-56 overflow-auto shrink-0">
+              {error ? (
+                <div role="alert" className="p-4 text-xs font-mono text-rose-500 bg-rose-500/10">
+                  {error}
                 </div>
-                <table className="w-full text-xs font-mono" aria-label="Query results">
-                  <thead>
-                    <tr className="border-b border-[var(--border)]">
-                      {results.columns.map(col => (
-                        <th key={col} scope="col" className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.rows.map((row, ri) => (
-                      <tr key={ri} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg)]/50">
-                        {row.map((cell, ci) => (
-                          <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
-                            {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
-                          </td>
+              ) : results ? (
+                <div>
+                  <div className="px-4 py-2 bg-[var(--background)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)] flex justify-between">
+                    <span>Query Output Results</span>
+                    <span>{results.rows.length} rows</span>
+                  </div>
+                  <table className="w-full text-xs font-mono">
+                    <thead>
+                      <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                        {results.columns.map(col => (
+                          <th key={col} className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
+                            {col}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                    {results.rows.length === 0 && (
-                      <tr>
-                        <td colSpan={results.columns.length} className="px-3 py-3 text-center text-[var(--text-secondary)]">
-                          No rows returned
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                  <caption className="text-xs text-[var(--text-secondary)] py-1 caption-bottom">
-                    {results.rows.length} row{results.rows.length !== 1 ? 's' : ''} returned
-                  </caption>
-                </table>
-              </div>
-            ) : null}
-          </div>
-        )}
+                    </thead>
+                    <tbody>
+                      {results.rows.map((row, ri) => (
+                        <tr key={ri} className="border-b border-[var(--border)]/40 hover:bg-[var(--background)]/50">
+                          {row.map((cell: any, ci: number) => (
+                            <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
+                              {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
     </ModuleShell>
   )

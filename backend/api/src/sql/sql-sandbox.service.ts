@@ -30,20 +30,25 @@ export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
     const sandboxUrl =
       this.configService.get<string>("sandboxDatabaseUrl") ||
       this.configService.get<string>("app.sandboxDatabaseUrl") ||
-      process.env.SANDBOX_DB_URL;
+      process.env.SANDBOX_DB_URL ||
+      process.env.DATABASE_URL;
 
     if (!sandboxUrl) {
-      throw new InternalServerErrorException(
-        "SANDBOX_DB_URL is required for SqlSandboxService and cannot be empty.",
-      );
+      this.logger.warn("Neither SANDBOX_DB_URL nor DATABASE_URL was found. SQL Sandbox pool won't be active.");
+      return;
     }
 
-    this.pool = new Pool({
-      connectionString: sandboxUrl,
-      max: SQL_DEFAULTS.POOL_MAX_CONNECTIONS,
-      connectionTimeoutMillis: SQL_DEFAULTS.POOL_CONNECTION_TIMEOUT_MS,
-      idleTimeoutMillis: SQL_DEFAULTS.POOL_IDLE_TIMEOUT_MS,
-    });
+    try {
+      this.pool = new Pool({
+        connectionString: sandboxUrl,
+        max: SQL_DEFAULTS.POOL_MAX_CONNECTIONS,
+        connectionTimeoutMillis: SQL_DEFAULTS.POOL_CONNECTION_TIMEOUT_MS,
+        idleTimeoutMillis: SQL_DEFAULTS.POOL_IDLE_TIMEOUT_MS,
+      });
+      this.logger.log("SQL Sandbox database pool successfully initialized.");
+    } catch (err: any) {
+      this.logger.error(`Failed to initialize SQL Sandbox connection pool: ${err.message}`);
+    }
   }
 
   onModuleDestroy() {

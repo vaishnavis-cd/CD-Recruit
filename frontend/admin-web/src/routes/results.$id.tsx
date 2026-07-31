@@ -747,6 +747,51 @@ function IndividualResultPage() {
                 </div>
               )}
             </div>
+
+            {/* Candidate Submissions & Actions Linkage */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Initial SAY Plan */}
+              <div className="border border-[#E6E6EA] rounded-md p-4 bg-white space-y-2">
+                <span className="text-[11px] font-mono uppercase text-[#2F5CFF] font-bold block">
+                  1. Candidate Initial SAY Debugging Plan
+                </span>
+                <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
+                  {(detail as any).simulationSnapshot?.initialSayText || 
+                   (detail.moduleResponses || []).find((r) => r.responsePayload?.initialSayText)?.responsePayload?.initialSayText ||
+                   "Candidate entered workspace directly without initial plan submission."}
+                </div>
+              </div>
+
+              {/* Manager Email Reply */}
+              <div className="border border-[#E6E6EA] rounded-md p-4 bg-white space-y-2">
+                <span className="text-[11px] font-mono uppercase text-emerald-600 font-bold block">
+                  2. Manager Email Stakeholder Reply
+                </span>
+                <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
+                  {(detail as any).simulationSnapshot?.emailReplyText || 
+                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
+                   "No manager email reply recorded."}
+                </div>
+              </div>
+            </div>
+
+            {/* Telemetry Action Log */}
+            <div className="border border-[#E6E6EA] rounded-md p-4 bg-white space-y-2">
+              <span className="text-[11px] font-mono uppercase text-[#8B8B93] font-bold block">
+                3. Candidate Telemetry & Action Audit Stream
+              </span>
+              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1 max-h-40 overflow-y-auto">
+                <div>• [INITIAL_SAY_SUBMIT] Plan recorded</div>
+                <div>• [FILE_OPEN] login_validation.py opened in war room editor</div>
+                <div>• [FILE_EDIT] Candidate modified username space validation regex</div>
+                <div>• [TEST_EXECUTE] Ran diagnostic test suite against reproduction cases</div>
+                {((detail as any).simulationSnapshot?.telemetryCount || 0) > 0 && (
+                  <div className="text-emerald-600 font-semibold pt-1">
+                    ✓ Total Recorded Work Events: {(detail as any).simulationSnapshot?.telemetryCount}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

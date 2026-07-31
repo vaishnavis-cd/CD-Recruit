@@ -532,14 +532,18 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
         />
       </div>
 
-      {/* Vertical Drag Resizer Slider Handle */}
+      {/* Vertical Drag Resizer Slider Handle with Larger Dots */}
       {terminalOpen && (
         <div
           onMouseDown={handleVerticalMouseDown}
-          className="h-2 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-row-resize flex items-center justify-center border-t border-b border-[var(--border)] group transition-colors select-none shrink-0"
+          className="h-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-row-resize flex items-center justify-center border-t border-b border-[var(--border)] group transition-colors select-none shrink-0"
           title="Drag up or down to adjust terminal height"
         >
-          <GripHorizontal className="w-5 h-3 text-[var(--muted-foreground)] group-hover:text-[var(--accent)] transition-colors" />
+          <div className="h-2 w-10 rounded-full bg-[var(--border)] group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center gap-1.5 px-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
+          </div>
         </div>
       )}
 
