@@ -35,10 +35,20 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
   const [step, setStep] = useState<'LOADING' | 'INITIAL_SAY' | 'WORKSPACE' | 'COMPLETED'>('LOADING')
   const [scenario, setScenario] = useState(DEFAULT_QA_BUG_SCENARIO)
 
-  // Fetch Scenario Config from backend
+  // Fetch Scenario Config & restore step state from session store / backend DB
   useEffect(() => {
+    const savedResponse = assessment?.responses[scenario.id] as { initialSayText?: string; completed?: boolean } | undefined
+
+    if (savedResponse?.completed) {
+      setStep('COMPLETED')
+    } else if (savedResponse?.initialSayText) {
+      setStep('WORKSPACE')
+    }
+
     if (!sessionId) {
-      setStep('INITIAL_SAY')
+      if (!savedResponse?.initialSayText && !savedResponse?.completed) {
+        setStep('INITIAL_SAY')
+      }
       return
     }
 
@@ -49,14 +59,24 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
             ...DEFAULT_QA_BUG_SCENARIO,
             ...res.data,
           })
+          const isCompleted = res.data.completed || savedResponse?.completed
+          const hasSay = res.data.hasInitialSay || !!res.data.initialSayText || !!savedResponse?.initialSayText
+          if (isCompleted) {
+            setStep('COMPLETED')
+          } else if (hasSay) {
+            setStep('WORKSPACE')
+          } else if (!savedResponse?.completed && !savedResponse?.initialSayText) {
+            setStep('INITIAL_SAY')
+          }
         }
-        setStep('INITIAL_SAY')
       })
       .catch(err => {
         console.warn('[ContextualModule] Could not fetch remote scenario config, using default QA Bug scenario:', err)
-        setStep('INITIAL_SAY')
+        if (!savedResponse?.initialSayText && !savedResponse?.completed) {
+          setStep('INITIAL_SAY')
+        }
       })
-  }, [sessionId])
+  }, [sessionId, scenario.id])
 
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setResponse = useSessionStore(s => s.setResponse)
@@ -68,15 +88,22 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         text: initialSayText,
       })
     }
+    const currentResp = (assessment?.responses[scenario.id] as any) || {}
     setQuestionStatus(scenario.id, 'answered')
-    setResponse(scenario.id, { initialSayText, completed: false })
+    setResponse(scenario.id, { ...currentResp, initialSayText, completed: false })
     setStep('WORKSPACE')
   }
 
   // Handle final simulation submit
-  const handleSimulationSubmit = () => {
+  const handleSimulationSubmit = async () => {
+    if (sessionId) {
+      await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
+        completed: true,
+      }).catch(() => {})
+    }
+    const currentResp = (assessment?.responses[scenario.id] as any) || {}
     setQuestionStatus(scenario.id, 'answered')
-    setResponse(scenario.id, { completed: true })
+    setResponse(scenario.id, { ...currentResp, completed: true })
     setStep('COMPLETED')
   }
 

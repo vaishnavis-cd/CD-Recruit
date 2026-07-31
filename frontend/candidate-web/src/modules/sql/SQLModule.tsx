@@ -129,6 +129,61 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
   const [schemaTables, setSchemaTables] = useState<Array<{ name: string; columns: string[]; rows: any[][] }>>([])
   const [dialect, setDialect] = useState<'PostgreSQL' | 'MySQL' | 'SQLite'>('PostgreSQL')
 
+  // Resizer States (Horizontal left panel width & Vertical terminal height)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(42) // percentage
+  const isDraggingHorizontalRef = useRef(false)
+
+  const handleHorizontalMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingHorizontalRef.current = true
+    const startX = e.clientX
+    const startWidth = leftPanelWidth
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingHorizontalRef.current) return
+      const containerWidth = window.innerWidth
+      const deltaX = moveEvent.clientX - startX
+      const deltaPercentage = (deltaX / containerWidth) * 100
+      const newWidth = Math.max(20, Math.min(75, startWidth + deltaPercentage))
+      setLeftPanelWidth(newWidth)
+    }
+
+    const onMouseUp = () => {
+      isDraggingHorizontalRef.current = false
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }
+
+  const [resultsHeight, setResultsHeight] = useState(240) // pixels
+  const isDraggingVerticalRef = useRef(false)
+
+  const handleVerticalMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingVerticalRef.current = true
+    const startY = e.clientY
+    const startHeight = resultsHeight
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingVerticalRef.current) return
+      const deltaY = startY - moveEvent.clientY
+      const newHeight = Math.max(100, Math.min(600, startHeight + deltaY))
+      setResultsHeight(newHeight)
+    }
+
+    const onMouseUp = () => {
+      isDraggingVerticalRef.current = false
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }
+
   // Restore current question index on mount
   useEffect(() => {
     if (assessment?.currentModuleIndex === moduleIndex) {
@@ -388,9 +443,12 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden bg-[var(--background)]">
+      <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden bg-[var(--background)] select-none">
         {/* Left Column: Problem Prompt & Visual Schema Tables */}
-        <div className="w-full lg:w-1/2 h-full border-r border-[var(--border)] flex flex-col overflow-y-auto bg-[var(--surface)] p-6 space-y-6">
+        <div
+          style={{ width: `${leftPanelWidth}%` }}
+          className="w-full lg:w-auto h-full border-r border-[var(--border)] flex flex-col overflow-y-auto bg-[var(--surface)] p-6 space-y-6 shrink-0 select-text"
+        >
           <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
             <div>
               <span className="text-xs font-mono uppercase tracking-wider text-[var(--accent)] font-bold">
@@ -471,8 +529,21 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           </div>
         </div>
 
+        {/* Horizontal Resizer handle with grip dots */}
+        <div
+          onMouseDown={handleHorizontalMouseDown}
+          className="hidden lg:flex w-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 border-x border-[var(--border)] cursor-col-resize items-center justify-center transition-colors group select-none shrink-0"
+          title="Drag horizontally to adjust panel widths"
+        >
+          <div className="w-1.5 h-8 flex flex-col justify-between items-center opacity-60 group-hover:opacity-100">
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
+          </div>
+        </div>
+
         {/* Right Column: SQL Editor & Output */}
-        <div className="w-full lg:w-1/2 h-full flex flex-col bg-[var(--background)]">
+        <div className="flex-1 h-full flex flex-col min-w-0 bg-[var(--background)] select-text">
           {/* Editor Area */}
           <div className="flex-1 min-h-0 relative">
             <CodeEditor
@@ -529,44 +600,62 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             </button>
           </div>
 
-          {/* Results Output Panel */}
+          {/* Results Output Panel & Vertical Resizer */}
           {(results || error) && (
-            <div className="border-t border-[var(--border)] bg-[var(--surface)] max-h-56 overflow-auto shrink-0">
-              {error ? (
-                <div role="alert" className="p-4 text-xs font-mono text-rose-500 bg-rose-500/10">
-                  {error}
+            <>
+              {/* Vertical Resizer handle with grip dots */}
+              <div
+                onMouseDown={handleVerticalMouseDown}
+                className="h-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 border-y border-[var(--border)] cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
+                title="Drag vertically to adjust results terminal height"
+              >
+                <div className="h-1.5 w-8 flex justify-between items-center opacity-60 group-hover:opacity-100">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
                 </div>
-              ) : results ? (
-                <div>
-                  <div className="px-4 py-2 bg-[var(--background)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)] flex justify-between">
-                    <span>Query Output Results</span>
-                    <span>{results.rows.length} rows</span>
+              </div>
+
+              <div
+                style={{ height: `${resultsHeight}px` }}
+                className="bg-[var(--surface)] overflow-auto shrink-0"
+              >
+                {error ? (
+                  <div role="alert" className="p-4 text-xs font-mono text-rose-500 bg-rose-500/10">
+                    {error}
                   </div>
-                  <table className="w-full text-xs font-mono">
-                    <thead>
-                      <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
-                        {results.columns.map(col => (
-                          <th key={col} className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.rows.map((row, ri) => (
-                        <tr key={ri} className="border-b border-[var(--border)]/40 hover:bg-[var(--background)]/50">
-                          {row.map((cell: any, ci: number) => (
-                            <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
-                              {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
-                            </td>
+                ) : results ? (
+                  <div>
+                    <div className="px-4 py-2 bg-[var(--background)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)] flex justify-between">
+                      <span>Query Output Results</span>
+                      <span>{results.rows.length} rows</span>
+                    </div>
+                    <table className="w-full text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                          {results.columns.map(col => (
+                            <th key={col} className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
+                              {col}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
-            </div>
+                      </thead>
+                      <tbody>
+                        {results.rows.map((row, ri) => (
+                          <tr key={ri} className="border-b border-[var(--border)]/40 hover:bg-[var(--background)]/50">
+                            {row.map((cell: any, ci: number) => (
+                              <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
+                                {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       </div>
