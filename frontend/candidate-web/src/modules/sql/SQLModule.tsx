@@ -13,19 +13,73 @@ import { ChevronLeft } from 'lucide-react'
 let sqlPromise: Promise<any> | null = null
 
 async function getSqlDb(schema: string, seed: string) {
-  if (!sqlPromise) {
-    sqlPromise = (async () => {
-      const SQL = await (window as any).initSqlJs({
-        locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`,
-      })
-      return SQL
-    })()
+  try {
+    if (!sqlPromise) {
+      sqlPromise = (async () => {
+        if (typeof (window as any).initSqlJs !== 'function') {
+          return null
+        }
+        const SQL = await (window as any).initSqlJs({
+          locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`,
+        })
+        return SQL
+      })()
+    }
+    const SQL = await sqlPromise
+    if (!SQL) return null
+    const db = new SQL.Database()
+    if (schema) db.run(schema)
+    if (seed) db.run(seed)
+    return db
+  } catch (err) {
+    console.warn('[SQLModule] getSqlDb failed:', err)
+    return null
   }
-  const SQL = await sqlPromise
-  const db = new SQL.Database()
-  db.run(schema)
-  db.run(seed)
-  return db
+}
+
+function parseTablesFromDdl(schema: string, seed: string) {
+  const tables: Array<{ name: string; columns: string[]; rows: any[][] }> = []
+  if (!schema) return tables
+
+  const cleanSchema = schema.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
+  const tableMatches = [...cleanSchema.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`]?(\w+)["`]?\s*\(([^;]+)\)/gi)]
+
+  for (const match of tableMatches) {
+    const tableName = match[1]
+    const body = match[2]
+    const columns: string[] = []
+
+    const lines = body.split(',').map((l) => l.trim())
+    for (const line of lines) {
+      if (/^(PRIMARY\s+KEY|FOREIGN\s+KEY|CONSTRAINT|UNIQUE|INDEX|KEY)\b/i.test(line)) continue
+      const colNameMatch = line.match(/^["`]?(\w+)["`]?/)
+      if (colNameMatch && !['PRIMARY', 'FOREIGN', 'CONSTRAINT', 'UNIQUE', 'CHECK'].includes(colNameMatch[1].toUpperCase())) {
+        columns.push(colNameMatch[1])
+      }
+    }
+
+    const rows: any[][] = []
+    if (seed) {
+      const cleanSeed = seed.replace(/--.*$/gm, '')
+      const seedRegex = new RegExp(`INSERT\\s+INTO\\s+["\`]?${tableName}["\`]?\\s*(?:\\([^)]+\\))?\\s*VALUES\\s*([^;]+);?`, 'gi')
+      const seedMatch = seedRegex.exec(cleanSeed)
+      if (seedMatch && seedMatch[1]) {
+        const valGroups = [...seedMatch[1].matchAll(/\(([^)]+)\)/g)]
+        for (const vg of valGroups) {
+          const vals = vg[1].split(',').map((v) => {
+            const tr = v.trim()
+            if (tr.startsWith("'") && tr.endsWith("'")) return tr.slice(1, -1)
+            if (!isNaN(Number(tr))) return Number(tr)
+            return tr
+          })
+          rows.push(vals)
+        }
+      }
+    }
+
+    tables.push({ name: tableName, columns, rows })
+  }
+  return tables
 }
 
 interface QueryResult {
@@ -144,41 +198,49 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     }
   }, [questionData, questionId])
 
-  // Load sql.js DB & extract visual tables
+  // Load SQL tables & extract visual schema
   useEffect(() => {
     if (!question) return
-    setDbReady(false)
-    setSchemaTables([])
+    setDbReady(true)
+
+    // Extract table preview immediately via DDL parsing
+    const parsed = parseTablesFromDdl(question.schema, question.seed)
+    if (parsed.length > 0) {
+      setSchemaTables(parsed)
+    }
+
+    // Attempt sql.js in background for local preview if available
     getSqlDb(question.schema, question.seed)
-      .then(db => {
-        dbRef.current = db
-        setDbReady(true)
-        try {
-          const tblRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
-          if (tblRes.length > 0) {
-            const tableNames = tblRes[0].values.map((v: any) => v[0])
-            const tablesData = tableNames.map((tbl: string) => {
-              const data = db.exec(`SELECT * FROM "${tbl}" LIMIT 5;`)
-              return {
-                name: tbl,
-                columns: data[0]?.columns || [],
-                rows: data[0]?.values || [],
-              }
-            })
-            setSchemaTables(tablesData)
+      .then((db) => {
+        if (db) {
+          dbRef.current = db
+          try {
+            const tblRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+            if (tblRes.length > 0) {
+              const tableNames = tblRes[0].values.map((v: any) => v[0])
+              const tablesData = tableNames.map((tbl: string) => {
+                const data = db.exec(`SELECT * FROM "${tbl}" LIMIT 5;`)
+                return {
+                  name: tbl,
+                  columns: data[0]?.columns || [],
+                  rows: data[0]?.values || [],
+                }
+              })
+              setSchemaTables(tablesData)
+            }
+          } catch (e) {
+            // ignore
           }
-        } catch (e) {
-          console.warn('Failed to extract schema tables:', e)
         }
       })
-      .catch(err => {
-        setError(`Failed to initialize database: ${err.message}`)
+      .catch((err) => {
+        console.warn('[SQLModule] sql.js background load skipped:', err.message)
       })
 
     return () => {
       dbRef.current?.close?.()
     }
-  }, [currentIndex, question?.id])
+  }, [currentIndex, question?.id, question?.schema, question?.seed])
 
   function handleQueryChange(value: string | undefined) {
     const val = value ?? ''
@@ -217,10 +279,11 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
     setEvalResult(null)
 
     const startTime = performance.now()
-    if (question) {
+    let localPreviewSuccess = false
+
+    if (dbRef.current && question) {
       try {
-        const freshDb = await getSqlDb(question.schema, question.seed)
-        const result = freshDb.exec(query)
+        const result = dbRef.current.exec(query)
         const endTime = performance.now()
         const execTimeMs = Math.max(1, Math.round(endTime - startTime))
 
@@ -234,12 +297,9 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           })
           setEvalResult({ passed: true, executionTime: execTimeMs, status: 'COMPLETED' })
         }
-        freshDb.close?.()
+        localPreviewSuccess = true
       } catch (err: any) {
-        const endTime = performance.now()
-        const execTimeMs = Math.max(1, Math.round(endTime - startTime))
-        setError(err.message ?? 'SQL syntax or execution error')
-        setEvalResult({ passed: false, executionTime: execTimeMs, status: 'QUERY_ERROR', error: err.message })
+        // local preview error, fallback to backend
       }
     }
 
@@ -251,7 +311,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           query,
         })
         if (res.data) {
-          const isError = res.data.status === 'QUERY_ERROR' || res.data.status === 'TIMEOUT' || res.data.status === 'FAILED' || !!res.data.result?.error;
+          const isError = res.data.status === 'QUERY_ERROR' || res.data.status === 'TIMEOUT' || res.data.status === 'FAILED' || !!res.data.result?.error
           setEvalResult({
             passed: !!res.data.passed,
             executionTime: res.data.executionTime || 4,
@@ -271,18 +331,21 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
               columns: backendColumns,
               rows: formattedRows,
             })
+            setError(null)
           }
         }
       } catch (err: any) {
         const backendMsg = err.response?.data?.message || err.message
         console.error('[SQLModule] Backend run error:', backendMsg)
-        setError(backendMsg)
-        setEvalResult({
-          passed: false,
-          executionTime: 0,
-          status: 'QUERY_ERROR',
-          error: backendMsg,
-        })
+        if (!localPreviewSuccess) {
+          setError(backendMsg)
+          setEvalResult({
+            passed: false,
+            executionTime: 0,
+            status: 'QUERY_ERROR',
+            error: backendMsg,
+          })
+        }
       }
     }
 
@@ -412,26 +475,20 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         <div className="w-full lg:w-1/2 h-full flex flex-col bg-[var(--background)]">
           {/* Editor Area */}
           <div className="flex-1 min-h-0 relative">
-            {!dbReady ? (
-              <div className="flex items-center justify-center h-full text-[var(--text-secondary)] text-sm font-mono">
-                Initializing {dialect} engine…
-              </div>
-            ) : (
-              <CodeEditor
-                language="sql"
-                value={query}
-                onChange={handleQueryChange}
-                onPaste={handlePaste}
-                theme={theme === 'dark' ? 'dark' : 'light'}
-              />
-            )}
+            <CodeEditor
+              language="sql"
+              value={query}
+              onChange={handleQueryChange}
+              onPaste={handlePaste}
+              theme={theme === 'dark' ? 'dark' : 'light'}
+            />
           </div>
 
           {/* Action Controls Bar */}
           <div className="flex items-center gap-3 px-6 py-3 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
             <button
               onClick={handleRun}
-              disabled={!dbReady || running || !query.trim()}
+              disabled={running || !query.trim()}
               className="px-4 py-2 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
             >
               {running ? 'Running…' : '▶ Run Query'}
@@ -439,7 +496,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
 
             <button
               onClick={handleSubmitQuery}
-              disabled={!dbReady || submitting || !query.trim()}
+              disabled={submitting || !query.trim()}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
             >
               {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}

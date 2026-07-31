@@ -9,8 +9,10 @@ import { CandidateModule } from "@app/candidate/candidate.module";
 import { QueueModule } from "@app/queue/queue.module";
 import { SimulationModule } from "../simulation/simulation.module";
 
+import { SettingsModule } from "../settings/settings.module";
+
 @Module({
-  imports: [AuthModule, CandidateModule, forwardRef(() => QueueModule), SimulationModule],
+  imports: [AuthModule, CandidateModule, forwardRef(() => QueueModule), SimulationModule, SettingsModule],
   controllers: [SessionController],
   providers: [
     SessionService,

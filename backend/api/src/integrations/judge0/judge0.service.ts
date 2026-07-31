@@ -1,4 +1,3 @@
-import { spawnSync } from "child_process";
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Judge0Client } from "./judge0.client";
 import { JUDGE0_POLLING, JUDGE0_STATUS } from "./judge0.constants";
@@ -245,19 +244,78 @@ export class Judge0Service {
     }));
 
     let tokens: string[] = [];
-    try {
-      tokens = await this.client.createBatchSubmissions(batchItems);
-    } catch (err: any) {
-      this.logger.warn(`Failed to connect to Judge0 API via batch submission: ${err.message}. Falling back...`);
-      return this.runLocalFallback(sourceCode, languageId, questionId, testCases);
+    let attempts = 0;
+    const maxAttempts = 3;
+    let delay = 1000;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        tokens = await this.client.createBatchSubmissions(batchItems);
+        if (tokens && tokens.length === testCases.length) {
+          break;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Attempt ${attempts}/${maxAttempts} - Failed to connect to Judge0 API: ${err.message}`);
+        if (attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2;
+        }
+      }
     }
 
     if (!tokens || tokens.length === 0 || tokens.length !== testCases.length) {
-      this.logger.warn(`Batch tokens count mismatch or empty response. Falling back...`);
-      return this.runLocalFallback(sourceCode, languageId, questionId, testCases);
+      this.logger.error(
+        `[INFRA_FAILURE_ALERT] Judge0 Sandboxed Execution Environment unavailable after ${maxAttempts} attempts. Flagging infra failure for ops intervention.`,
+      );
+      return {
+        status: ExecutionStatus.FAILED,
+        passedTests: 0,
+        totalTests: testCases.length,
+        executionTime: 0,
+        memoryUsage: 0,
+        stdout: "",
+        stderr: "Judge0 sandboxed execution environment unavailable (Infra error). Please retry or notify administrator.",
+        compileOutput: "",
+        results: testCases.map((tc) => ({
+          passed: false,
+          status: ExecutionStatus.FAILED,
+          executionTime: 0,
+          memoryUsage: 0,
+          stdout: "",
+          stderr: "Judge0 sandbox execution unavailable",
+          compileOutput: "",
+        })),
+      };
     }
 
-    const resultsMap = await this.pollBatchSubmissions(tokens);
+    let resultsMap: Map<string, Judge0ExecutionResponse>;
+    try {
+      resultsMap = await this.pollBatchSubmissions(tokens);
+    } catch (err: any) {
+      this.logger.error(
+        `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
+      );
+      return {
+        status: ExecutionStatus.FAILED,
+        passedTests: 0,
+        totalTests: testCases.length,
+        executionTime: 0,
+        memoryUsage: 0,
+        stdout: "",
+        stderr: "Judge0 sandboxed execution environment timed out or stalled (Infra error). Please retry or notify administrator.",
+        compileOutput: "",
+        results: testCases.map((tc) => ({
+          passed: false,
+          status: ExecutionStatus.FAILED,
+          executionTime: 0,
+          memoryUsage: 0,
+          stdout: "",
+          stderr: "Judge0 sandbox execution timed out",
+          compileOutput: "",
+        })),
+      };
+    }
 
     const results = testCases.map((tc, idx) => {
       const token = tokens[idx];
@@ -367,180 +425,9 @@ export class Judge0Service {
     };
   }
 
-  /**
-   * Safe universal local code evaluator using Node child_process spawnSync
+  /*
+   * NOTE: runLocalFallback and evaluateLocalCode were physically removed per P0 security requirements.
+   * Executing candidate-submitted code directly on the host process (bare child_process) under any
+   * failure condition is strictly prohibited. Infrastructure failures must surface ops alerts & infra errors.
    */
-  private evaluateLocalCode(code: string, languageId: number, rawInput: string): { actual: string; error?: string } {
-    try {
-      const cleanInput = rawInput.trim();
-
-      // Python 3 (Language ID 71)
-      if (languageId === 71) {
-        const pyCmd = process.platform === "win32" ? "python" : "python3";
-        let runnerCode = code;
-        if (!code.includes("sys.stdin") && (code.includes("def ") || code.includes("class "))) {
-          runnerCode = `import sys, json
-${code}
-__inp = sys.stdin.read().trim()
-def __parse(i):
-    if not i: return ""
-    try: return json.loads(i)
-    except: pass
-    if "," in i:
-        parts = [p.strip() for p in i.split(",")]
-        try: return [int(p) for p in parts]
-        except: return parts
-    try: return int(i)
-    except: return i
-
-__arg = __parse(__inp)
-__fns = ['maxArea', 'is_strictly_increasing', 'isStrictlyIncreasing', 'two_sum', 'twoSum', 'validate_username', 'validateUsername', 'solution', 'solve']
-for f_name in __fns:
-    if f_name in globals() and callable(globals()[f_name]):
-        f = globals()[f_name]
-        try:
-            res = f(*__arg) if isinstance(__arg, list) and f.__code__.co_argcount > 1 else f(__arg)
-            print(json.dumps(res) if isinstance(res, (dict, list)) else str(res))
-            break
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            break
-`;
-        }
-
-        const res = spawnSync(pyCmd, ["-c", runnerCode], {
-          input: cleanInput,
-          encoding: "utf-8",
-          timeout: 4000,
-        });
-
-        if (res.error) return { actual: "", error: res.error.message };
-        if (res.status !== 0 && res.stderr) return { actual: (res.stdout || "").trim(), error: res.stderr.trim() };
-        return { actual: (res.stdout || "").trim() };
-      }
-
-      // JavaScript (63) / TypeScript (93) / Default JS Fallback
-      let runnerCode = code;
-      if (!code.includes("fs.readFileSync") && !code.includes("process.stdin")) {
-        runnerCode = `
-          const fs = require('fs');
-          const rawInput = fs.readFileSync(0, 'utf-8').trim();
-          ${code}
-
-          function __parseArg(inp) {
-            if (!inp) return "";
-            try { return JSON.parse(inp); } catch(e) {}
-            if (inp.includes(',')) {
-              const parts = inp.split(',').map(s => s.trim());
-              if (parts.every(p => !isNaN(Number(p)))) return parts.map(Number);
-              return parts;
-            }
-            if (!isNaN(Number(inp))) return Number(inp);
-            return inp;
-          }
-
-          const parsedArg = __parseArg(rawInput);
-          let targetFn = null;
-
-          const candidates = ['maxArea', 'isStrictlyIncreasing', 'twoSum', 'solution', 'solve', 'validateUsername', 'validate_username', 'lengthOfLongestSubstring'];
-          for (const name of candidates) {
-            try {
-              if (typeof eval(name) === 'function') {
-                targetFn = eval(name);
-                break;
-              }
-            } catch(e) {}
-          }
-
-          if (targetFn) {
-            const res = Array.isArray(parsedArg) && targetFn.length > 1 && !Array.isArray(parsedArg[0])
-              ? targetFn(...parsedArg)
-              : targetFn(parsedArg);
-            console.log(typeof res === 'object' ? JSON.stringify(res) : String(res));
-          }
-        `;
-      }
-
-      const res = spawnSync("node", ["-e", runnerCode], {
-        input: cleanInput,
-        encoding: "utf-8",
-        timeout: 4000,
-      });
-
-      if (res.error) return { actual: "", error: res.error.message };
-      if (res.status !== 0 && res.stderr) return { actual: (res.stdout || "").trim(), error: res.stderr.trim() };
-      return { actual: (res.stdout || "").trim() };
-    } catch (err: any) {
-      return { actual: "", error: err.message || "Execution error" };
-    }
-  }
-
-  /**
-   * Local execution fallback for dev mode when Judge0 server container is not running locally.
-   */
-  private async runLocalFallback(
-    sourceCode: string,
-    languageId: number,
-    questionId: string,
-    testCases: Array<{ input: string; expectedOutput: string; label?: string }>,
-  ) {
-    this.logger.warn(`[Judge0Service] Running local execution fallback for dev mode.`);
-
-    const results = testCases.map((tc) => {
-      const startTime = Date.now();
-      let stdout = "";
-      let stderr = "";
-      let passed = false;
-
-      try {
-        const code = sourceCode || "";
-        const rawInput = tc.input || "";
-        const expectedNorm = (tc.expectedOutput || "").trim().toLowerCase();
-
-        const evalRes = this.evaluateLocalCode(code, languageId, rawInput);
-        stdout = evalRes.actual;
-        if (evalRes.error) {
-          stderr = evalRes.error;
-          passed = false;
-        } else {
-          passed = this.normalizeOutput(stdout) === this.normalizeOutput(expectedNorm);
-        }
-      } catch (err: any) {
-        stderr = err.message || "Runtime error during execution";
-      }
-
-      return {
-        passed,
-        status: passed ? ExecutionStatus.COMPLETED : ExecutionStatus.FAILED,
-        time: Date.now() - startTime + 8,
-        memory: 1024,
-        stdout,
-        stderr,
-        compileOutput: "",
-      };
-    });
-
-    const passedCount = results.filter((r) => r.passed).length;
-    const overallStatus = passedCount === testCases.length ? ExecutionStatus.COMPLETED : ExecutionStatus.FAILED;
-
-    return {
-      status: overallStatus,
-      passedTests: passedCount,
-      totalTests: testCases.length,
-      executionTime: results.reduce((a, b) => a + b.time, 0),
-      memoryUsage: 1024,
-      stdout: results[0]?.stdout || "",
-      stderr: results[0]?.stderr || "",
-      compileOutput: "",
-      results: results.map((r) => ({
-        passed: r.passed,
-        status: r.status,
-        executionTime: r.time,
-        memoryUsage: r.memory,
-        stdout: r.stdout,
-        stderr: r.stderr,
-        compileOutput: r.compileOutput,
-      })),
-    };
-  }
 }
