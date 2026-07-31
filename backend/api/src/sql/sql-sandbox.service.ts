@@ -106,6 +106,14 @@ export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug(`Grant/role switch to sql_sandbox_runner skipped or failed: ${grantErr.message}`);
       }
 
+      // 4. Sanitize query against session configuration overrides & security breaches
+      if (/\b(SET\s+search_path|SET\s+statement_timeout|SET\s+role|RESET\s+ROLE|ALTER\s+SYSTEM)\b/i.test(query)) {
+        throw new BadRequestException("Session configuration statements (SET/RESET/ALTER SYSTEM) are prohibited.");
+      }
+      if (/\b(dblink|pg_shadow|pg_authid)\b/i.test(query)) {
+        throw new BadRequestException("Access to system authentication tables or dblink extension is strictly prohibited.");
+      }
+
       // 5. Run candidate or expected query
       let res;
       const isSelectOrWith = /^\s*(SELECT|WITH)\b/i.test(query);

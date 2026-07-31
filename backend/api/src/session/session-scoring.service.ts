@@ -1,9 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { SettingsService } from "../settings/settings.service";
 
 export interface CompositeScoreResult {
   compositeScore: number;
   sayDoConsistencyScore: number;
+  aiConfidence: number;
   gradingSource: string;
   sayDoRationale: string;
   moduleScores: Record<string, number>;
@@ -13,7 +15,10 @@ export interface CompositeScoreResult {
 export class SessionScoringService {
   private readonly logger = new Logger(SessionScoringService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
   /**
    * Aggregate final scores for a session and compute composite metrics.
@@ -31,13 +36,7 @@ export class SessionScoringService {
     });
 
     if (!session) {
-      return {
-        compositeScore: 0.75,
-        sayDoConsistencyScore: 0.85,
-        gradingSource: "DEFAULT_EVALUATION_ENGINE",
-        sayDoRationale: "Session evaluation completed.",
-        moduleScores: { MCQ: 0.8, CODING: 0.75 },
-      };
+      throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
     const responses = session.moduleResponses || [];
@@ -53,7 +52,7 @@ export class SessionScoringService {
     const moduleTotals: Record<string, { total: number; earned: number }> = {};
 
     for (const resp of responses) {
-      const q = questionMap.get(resp.questionId);
+      const q: any = questionMap.get(resp.questionId);
       if (!q) continue;
 
       const mod = q.moduleType;
@@ -187,11 +186,13 @@ export class SessionScoringService {
         } else if (q.moduleType === "CODING") {
           const execs = session.codingExecutions.filter((ce) => ce.questionId === q.id);
           const lastExec = execs[execs.length - 1];
-          doValue = lastExec && lastExec.totalTests > 0 ? lastExec.passedTests / lastExec.totalTests : 0.5;
+          doValue = lastExec && lastExec.totalTests > 0 ? lastExec.passedTests / lastExec.totalTests : 0.0;
         } else if (q.moduleType === "SQL") {
-          doValue = payload.query && payload.query.trim().length > 10 ? 0.9 : 0.3;
+          const sqlExecs = session.sqlExecutions ? session.sqlExecutions.filter((se) => se.questionId === q.id) : [];
+          const lastSql = sqlExecs[sqlExecs.length - 1];
+          doValue = lastSql ? (lastSql.status === "COMPLETED" ? 1.0 : 0.0) : 0.0;
         } else {
-          doValue = 0.85;
+          doValue = 0.0;
         }
 
         const divergence = Math.abs(normalizedSay - doValue);
@@ -217,9 +218,19 @@ export class SessionScoringService {
       sayDoRationale = `Evaluated candidate performance across ${responses.length} response(s).`;
     }
 
+    // Calculate dynamic AI Confidence score based on evaluation data completeness and test executions
+    let aiConfidence = 0.0;
+    if (responses.length > 0) {
+      const completionRatio = Math.min(1.0, responses.length / Math.max(1, questionIds.length));
+      const hasExecutions = (session.codingExecutions && session.codingExecutions.length > 0) || (session.sqlExecutions && session.sqlExecutions.length > 0);
+      const executionBonus = hasExecutions ? 0.2 : 0.0;
+      aiConfidence = Math.min(1.0, Math.round((0.7 * completionRatio + executionBonus) * 100) / 100);
+    }
+
     const result: CompositeScoreResult = {
       compositeScore,
       sayDoConsistencyScore,
+      aiConfidence,
       gradingSource: "AUTOMATED_EVALUATION_ENGINE",
       sayDoRationale,
       moduleScores,
@@ -232,16 +243,21 @@ export class SessionScoringService {
   }
 
   /**
-   * Persist computed scores in database.
+   * Persist computed scores in database and route confidence gating.
    */
   async saveScores(sessionId: string, scoreData: CompositeScoreResult) {
+    const scoringConfig = await this.settingsService.getScoringConfig();
+    const threshold = scoringConfig.aiConfidenceThreshold ?? 0.8;
+    const isAutoPublished = scoreData.aiConfidence >= threshold;
+
     await this.prisma.score.upsert({
       where: { sessionId },
       create: {
         session: { connect: { id: sessionId } },
         compositeScore: scoreData.compositeScore,
         sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
-        aiConfidence: 0.85,
+        aiConfidence: scoreData.aiConfidence,
+        humanReviewed: isAutoPublished,
         gradingSource: scoreData.gradingSource,
         sayDoRationale: scoreData.sayDoRationale,
         moduleScores: scoreData.moduleScores as any,
@@ -249,6 +265,8 @@ export class SessionScoringService {
       update: {
         compositeScore: scoreData.compositeScore,
         sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
+        aiConfidence: scoreData.aiConfidence,
+        humanReviewed: isAutoPublished,
         gradingSource: scoreData.gradingSource,
         sayDoRationale: scoreData.sayDoRationale,
         moduleScores: scoreData.moduleScores as any,
