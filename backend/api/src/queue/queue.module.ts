@@ -29,12 +29,11 @@ const isFull = infraMode === "full";
   providers: [
     ...(isFull
       ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor]
-      : [LocalFakeQueueProvider]),
+      : [LocalFakeQueueProvider, LocalFakeQueueHandlersBootstrap]),
     {
       provide: QueueProviderPort,
       useExisting: isFull ? BullmqQueueProvider : LocalFakeQueueProvider,
     },
-    LocalFakeQueueHandlersBootstrap,
     QueueScheduler,
     HeartbeatService,
   ],

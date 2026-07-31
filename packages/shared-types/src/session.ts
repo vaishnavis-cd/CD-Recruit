@@ -1,5 +1,5 @@
-import { CvMode, SessionStatus, ModuleType } from "./enums";
-import { QuestionSummary } from "./question";
+import { CvMode, SessionStatus, ModuleType } from "./enums.js";
+import { QuestionSummary } from "./question.js";
 
 // ---------------------------------------------------------------------------
 // Session start

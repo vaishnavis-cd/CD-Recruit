@@ -98,12 +98,13 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
     get().fetchDrives();
   },
 
-  saveDriveQuestions: async (driveId: string, questionIds: string[]) => {
+  saveDriveQuestions: async (driveId: string, payload: string[] | { questionIds?: string[]; questionAssignments?: Array<{ questionId: string; pointShare?: number }> }) => {
     const headers = await getAuthHeaders();
+    const body = Array.isArray(payload) ? { questionIds: payload } : payload;
     const res = await fetch(`${API_BASE}/admin/drives/${driveId}/questions`, {
       method: "PUT",
       headers,
-      body: JSON.stringify({ questionIds }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

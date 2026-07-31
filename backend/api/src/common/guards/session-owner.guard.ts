@@ -15,15 +15,16 @@ export class SessionOwnerGuard implements CanActivate {
 
     let session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: { drive: true },
     });
 
     if (!session) {
       const invite = await this.prisma.invite.findFirst({
         where: { OR: [{ token: sessionId }, { id: sessionId }] },
-        include: { session: true },
+        include: { session: { include: { drive: true } } },
       });
       if (invite?.session) {
-        session = invite.session;
+        session = invite.session as any;
       }
     }
 
@@ -35,8 +36,17 @@ export class SessionOwnerGuard implements CanActivate {
       throw new ForbiddenException(`Session is already ${session.status.toLowerCase()}.`);
     }
 
-    if (session.deadlineAt && new Date() > session.deadlineAt) {
-      throw new ForbiddenException("Assessment session has expired (past deadline).");
+    const now = new Date();
+    if (session.deadlineAt && now > session.deadlineAt) {
+      if (session.drive?.scheduleEnd && now <= session.drive.scheduleEnd && session.drive.status !== "CLOSED") {
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: { deadlineAt: session.drive.scheduleEnd },
+        });
+        session.deadlineAt = session.drive.scheduleEnd;
+      } else {
+        throw new ForbiddenException("Assessment session has expired (past deadline).");
+      }
     }
 
     // Attach to request
