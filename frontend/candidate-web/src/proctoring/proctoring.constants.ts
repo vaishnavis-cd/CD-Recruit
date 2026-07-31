@@ -49,7 +49,7 @@ export const CONSECUTIVE_FRAMES_REQUIRED: Record<ProctoringEventType, number> = 
 // Recognition & tracking thresholds
 export const CONFIG = {
   FACE_MISSING_THRESHOLD_MS: 300,    // 0.3s instant threshold
-  LOOKING_AWAY_THRESHOLD_MS: 300,    // 0.3s instant threshold
+  LOOKING_AWAY_THRESHOLD_MS: 800,    // 0.8s balanced threshold (ignores brief screen glances, catches sustained looking away)
   EXCESSIVE_MOVEMENT_THRESHOLD: 0.15, // frame-to-frame shoulder deviation
   FRAME_INTERVAL_MS: 200,             // process 5 frames per second to keep CPU load low
   ROLLING_BUFFER_CHUNK_MS: 1000,      // 1-second chunks for MediaRecorder
