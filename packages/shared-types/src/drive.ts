@@ -1,12 +1,61 @@
-import { DriveStatus } from "./enums";
+import { DriveStatus } from "./enums.js";
 
-export interface DriveModuleConfigItem {
-  enabled: boolean;
-  durationMinutes: number;
-  weight: number;
+export interface QuestionWeightConfig {
+  mode: "equal" | "difficulty";
 }
 
-export type DriveModuleConfig = Record<string, DriveModuleConfigItem>;
+export interface DriveModuleConfigEntry {
+  enabled: boolean;
+  durationMinutes: number;
+  weight: number; // points, for CORE modules only — must sum to 100
+  isBonus?: boolean; // false/undefined = core, true = bonus
+  maxBonusPoints?: number; // for bonus modules — max sum capped at 20
+  isFixed?: boolean;
+  questionWeighting?: QuestionWeightConfig;
+}
+
+export type DriveModuleConfigItem = DriveModuleConfigEntry;
+
+export type DriveModuleConfig = Record<string, DriveModuleConfigEntry>;
+
+export interface ModuleWeightValidationResult {
+  valid: boolean;
+  coreSum: number;
+  bonusSum: number;
+  error?: string;
+}
+
+export function validateDriveModuleWeights(
+  moduleConfig: Record<string, DriveModuleConfigEntry>
+): ModuleWeightValidationResult {
+  let coreSum = 0;
+  let bonusSum = 0;
+  for (const [modKey, conf] of Object.entries(moduleConfig)) {
+    if (!conf || !conf.enabled) continue;
+    if (conf.isBonus) {
+      bonusSum += Number(conf.maxBonusPoints) || 0;
+    } else {
+      coreSum += Number(conf.weight) || 0;
+    }
+  }
+  if (coreSum !== 100) {
+    return {
+      valid: false,
+      coreSum,
+      bonusSum,
+      error: `Core module score weights currently sum to ${coreSum} pts. Core modules must sum to exactly 100 pts.`,
+    };
+  }
+  if (bonusSum > 20) {
+    return {
+      valid: false,
+      coreSum,
+      bonusSum,
+      error: `Total bonus points (${bonusSum} pts) exceed the maximum allowed limit of 20 pts.`,
+    };
+  }
+  return { valid: true, coreSum, bonusSum };
+}
 
 export interface DriveListItem {
   id: string;

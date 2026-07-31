@@ -86,10 +86,25 @@ export class UpdateDriveDto {
   scheduleEnd?: string;
 }
 
+export class DriveQuestionAssignmentDto {
+  @IsString()
+  questionId: string;
+
+  @IsOptional()
+  pointShare?: number;
+}
+
 export class SaveDriveQuestionsDto {
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  questionIds: string[];
+  questionIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DriveQuestionAssignmentDto)
+  questionAssignments?: DriveQuestionAssignmentDto[];
 }
 
 export class AddCandidatesBulkDto {

@@ -1,4 +1,4 @@
-import { ModuleType } from "./enums";
+import { ModuleType } from "./enums.js";
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
