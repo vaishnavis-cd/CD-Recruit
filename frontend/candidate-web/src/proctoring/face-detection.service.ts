@@ -123,10 +123,10 @@ export class FaceDetectionService {
       const verticalRatio = distToTop / (distToBottom || 0.001);
 
       let rawHeadDirection: "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN" = "CENTER";
-      if (horizontalRatio < 0.75) rawHeadDirection = "LEFT";
-      else if (horizontalRatio > 1.30) rawHeadDirection = "RIGHT";
-      else if (verticalRatio < 0.75) rawHeadDirection = "UP";
-      else if (verticalRatio > 1.25) rawHeadDirection = "DOWN";
+      if (horizontalRatio < 0.68) rawHeadDirection = "LEFT";
+      else if (horizontalRatio > 1.36) rawHeadDirection = "RIGHT";
+      else if (verticalRatio < 0.68) rawHeadDirection = "UP";
+      else if (verticalRatio > 1.35) rawHeadDirection = "DOWN";
 
       // Eye Gaze estimation via Iris landmarks (468, 473)
       const eyeGaze = this.calcEyeGaze(landmarks);
@@ -296,11 +296,11 @@ export class FaceDetectionService {
       const rightRatioV = (rightIris.y - rightTop.y) / rightHeight;
       const avgRatioV = (leftRatioV + rightRatioV) / 2;
 
-      // Sensitive eye gaze thresholds
-      if (avgRatioH < 0.35) return "LEFT";
-      if (avgRatioH > 0.65) return "RIGHT";
-      if (avgRatioV < 0.25) return "UP";
-      if (avgRatioV > 0.75) return "DOWN";
+      // Balanced eye gaze thresholds (allows full-screen UI navigation, triggers on clear eye turns)
+      if (avgRatioH < 0.28) return "LEFT";
+      if (avgRatioH > 0.72) return "RIGHT";
+      if (avgRatioV < 0.20) return "UP";
+      if (avgRatioV > 0.80) return "DOWN";
 
       return "CENTER";
     } catch {
