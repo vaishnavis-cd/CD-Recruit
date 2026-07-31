@@ -53,14 +53,14 @@ function LoginPage() {
       {/* Subtle overlay to ensure high contrast & legibility */}
       <div className="absolute inset-0 bg-black/15 pointer-events-none" />
 
-      <div className="w-full max-w-[420px] relative z-10 bg-white/95 backdrop-blur-md border border-white/80 rounded-2xl p-8 shadow-2xl transition-all duration-300">
+      <div className="w-full max-w-[420px] relative z-10 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-8 shadow-2xl transition-all duration-300">
         <div className="flex items-center gap-3 mb-6">
 
           <div>
             <div className="text-[19px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">
               Proctora
             </div>
-            <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#6B7280] leading-none">
+            <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#5B5B64] leading-none">
               admin console
             </div>
           </div>

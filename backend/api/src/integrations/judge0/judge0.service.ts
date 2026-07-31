@@ -1,3 +1,4 @@
+import { spawnSync } from "child_process";
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Judge0Client } from "./judge0.client";
 import { JUDGE0_POLLING, JUDGE0_STATUS } from "./judge0.constants";
@@ -125,29 +126,47 @@ export class Judge0Service {
 
   /**
    * Polls a batch of tokens in a single request until completion or timeout.
+   * Detects stuck queue workers (IN_QUEUE > 3s) and throws so fallback runner takes over.
    */
   async pollBatchSubmissions(tokens: string[]): Promise<Map<string, Judge0ExecutionResponse>> {
     let pendingTokens = [...tokens];
     const resultsMap = new Map<string, Judge0ExecutionResponse>();
     let attempts = 0;
+    let inQueueStallCount = 0;
 
     while (pendingTokens.length > 0 && attempts < JUDGE0_POLLING.MAX_ATTEMPTS) {
       attempts++;
       try {
         const responses = await this.client.getBatchSubmissions(pendingTokens);
         const stillPending: string[] = [];
+        let allInQueue = true;
 
         for (const resp of responses) {
           if (!resp || !resp.token) continue;
           const statusId = resp.status?.id;
           if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
             resultsMap.set(resp.token, resp);
+            allInQueue = false;
           } else {
             stillPending.push(resp.token);
+            if (statusId !== JUDGE0_STATUS.IN_QUEUE) {
+              allInQueue = false;
+            }
           }
         }
         pendingTokens = stillPending;
+
+        if (pendingTokens.length > 0 && allInQueue) {
+          inQueueStallCount++;
+          if (inQueueStallCount >= 3) {
+            this.logger.warn(`[Judge0Service] Queue worker is idle/stalled (tokens stuck IN_QUEUE for 3s). Failing over to local sandbox...`);
+            throw new Error("JUDGE0_QUEUE_STALLED");
+          }
+        } else {
+          inQueueStallCount = 0;
+        }
       } catch (err: any) {
+        if (err.message === "JUDGE0_QUEUE_STALLED") throw err;
         this.logger.error(`Error polling batch tokens: ${err.message}`);
       }
 
@@ -349,97 +368,111 @@ export class Judge0Service {
   }
 
   /**
-   * Safe local code evaluator for dev fallback execution
+   * Safe universal local code evaluator using Node child_process spawnSync
    */
   private evaluateLocalCode(code: string, languageId: number, rawInput: string): { actual: string; error?: string } {
     try {
-      const cleanInput = rawInput.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
+      const cleanInput = rawInput.trim();
 
-      if (languageId === 63 || languageId === 93 || code.includes("function ")) {
-        const cleanCode = code.replace(/module\.exports\s*=\s*{[^}]*};?/g, "");
-        const fn = new Function(`
-          ${cleanCode}
-          if (typeof validateUsername === 'function') return validateUsername;
-          if (typeof validate_username === 'function') return validate_username;
-          return null;
-        `)();
-        if (typeof fn === "function") {
-          const res = fn(cleanInput);
-          return { actual: String(Boolean(res)) };
+      // Python 3 (Language ID 71)
+      if (languageId === 71) {
+        const pyCmd = process.platform === "win32" ? "python" : "python3";
+        let runnerCode = code;
+        if (!code.includes("sys.stdin") && (code.includes("def ") || code.includes("class "))) {
+          runnerCode = `import sys, json
+${code}
+__inp = sys.stdin.read().trim()
+def __parse(i):
+    if not i: return ""
+    try: return json.loads(i)
+    except: pass
+    if "," in i:
+        parts = [p.strip() for p in i.split(",")]
+        try: return [int(p) for p in parts]
+        except: return parts
+    try: return int(i)
+    except: return i
+
+__arg = __parse(__inp)
+__fns = ['maxArea', 'is_strictly_increasing', 'isStrictlyIncreasing', 'two_sum', 'twoSum', 'validate_username', 'validateUsername', 'solution', 'solve']
+for f_name in __fns:
+    if f_name in globals() and callable(globals()[f_name]):
+        f = globals()[f_name]
+        try:
+            res = f(*__arg) if isinstance(__arg, list) and f.__code__.co_argcount > 1 else f(__arg)
+            print(json.dumps(res) if isinstance(res, (dict, list)) else str(res))
+            break
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            break
+`;
         }
+
+        const res = spawnSync(pyCmd, ["-c", runnerCode], {
+          input: cleanInput,
+          encoding: "utf-8",
+          timeout: 4000,
+        });
+
+        if (res.error) return { actual: "", error: res.error.message };
+        if (res.status !== 0 && res.stderr) return { actual: (res.stdout || "").trim(), error: res.stderr.trim() };
+        return { actual: (res.stdout || "").trim() };
       }
 
-      const cleanPython = code
-        .replace(/#.*/g, "")
-        .replace(/:\s*str/g, "")
-        .replace(/:\s*bool/g, "")
-        .replace(/\s*->\s*bool/g, "")
-        .replace(/\s*->\s*str/g, "");
+      // JavaScript (63) / TypeScript (93) / Default JS Fallback
+      let runnerCode = code;
+      if (!code.includes("fs.readFileSync") && !code.includes("process.stdin")) {
+        runnerCode = `
+          const fs = require('fs');
+          const rawInput = fs.readFileSync(0, 'utf-8').trim();
+          ${code}
 
-      let jsEquivalent = cleanPython
-        .replace(/\bdef\s+validate_username\s*\(([^)]+)\):/g, "function validate_username($1) {")
-        .replace(/\bdef\s+validateUsername\s*\(([^)]+)\):/g, "function validateUsername($1) {")
-        .replace(/\.strip\(\)/g, ".trim()")
-        .replace(/\.lstrip\(\)/g, ".trimStart()")
-        .replace(/\.rstrip\(\)/g, ".trimEnd()")
-        .replace(/\.startswith\(/g, ".startsWith(")
-        .replace(/\.endswith\(/g, ".endsWith(")
-        .replace(/\bTrue\b/g, "true")
-        .replace(/\bFalse\b/g, "false")
-        .replace(/\bNone\b/g, "null")
-        .replace(/\band\b/g, "&&")
-        .replace(/\bor\b/g, "||")
-        .replace(/\bnot\b/g, "!");
+          function __parseArg(inp) {
+            if (!inp) return "";
+            try { return JSON.parse(inp); } catch(e) {}
+            if (inp.includes(',')) {
+              const parts = inp.split(',').map(s => s.trim());
+              if (parts.every(p => !isNaN(Number(p)))) return parts.map(Number);
+              return parts;
+            }
+            if (!isNaN(Number(inp))) return Number(inp);
+            return inp;
+          }
 
-      const lines = jsEquivalent.split("\n");
-      const outLines: string[] = [];
-      const indents: number[] = [0];
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const ind = line.search(/\S/);
-        while (indents[indents.length - 1] > ind) {
-          indents.pop();
-          outLines.push("}");
-        }
-        let l = line.trim();
-        if (l.endsWith(":") && (l.startsWith("if ") || l.startsWith("elif ") || l.startsWith("else"))) {
-          l = l.slice(0, -1);
-          if (l.startsWith("if ")) l = `if (${l.slice(3)}) {`;
-          else if (l.startsWith("elif ")) l = `} else if (${l.slice(5)}) {`;
-          else if (l === "else") l = `} else {`;
-          indents.push(ind);
-        }
-        outLines.push(l);
-      }
-      while (indents.length > 1) {
-        indents.pop();
-        outLines.push("}");
+          const parsedArg = __parseArg(rawInput);
+          let targetFn = null;
+
+          const candidates = ['maxArea', 'isStrictlyIncreasing', 'twoSum', 'solution', 'solve', 'validateUsername', 'validate_username', 'lengthOfLongestSubstring'];
+          for (const name of candidates) {
+            try {
+              if (typeof eval(name) === 'function') {
+                targetFn = eval(name);
+                break;
+              }
+            } catch(e) {}
+          }
+
+          if (targetFn) {
+            const res = Array.isArray(parsedArg) && targetFn.length > 1 && !Array.isArray(parsedArg[0])
+              ? targetFn(...parsedArg)
+              : targetFn(parsedArg);
+            console.log(typeof res === 'object' ? JSON.stringify(res) : String(res));
+          }
+        `;
       }
 
-      const helperRuntime = `
-        const __isalnum = (s) => typeof s === 'string' && s.length > 0 && /^[a-zA-Z0-9]+$/.test(s);
-        const len = (s) => (s && typeof s.length === 'number' ? s.length : 0);
-      `;
+      const res = spawnSync("node", ["-e", runnerCode], {
+        input: cleanInput,
+        encoding: "utf-8",
+        timeout: 4000,
+      });
 
-      let finalJs = outLines.join("\n").replace(/\b([a-zA-Z0-9_]+)\.isalnum\(\)/g, "__isalnum($1)");
-
-      const fn = new Function(`
-        ${helperRuntime}
-        ${finalJs}
-        if (typeof validate_username === 'function') return validate_username;
-        if (typeof validateUsername === 'function') return validateUsername;
-        return null;
-      `)();
-
-      if (typeof fn === "function") {
-        const res = fn(cleanInput);
-        return { actual: String(Boolean(res)) };
-      }
+      if (res.error) return { actual: "", error: res.error.message };
+      if (res.status !== 0 && res.stderr) return { actual: (res.stdout || "").trim(), error: res.stderr.trim() };
+      return { actual: (res.stdout || "").trim() };
     } catch (err: any) {
-      return { actual: "Error", error: err.message || "Runtime Error" };
+      return { actual: "", error: err.message || "Execution error" };
     }
-
-    return { actual: "false" };
   }
 
   /**
@@ -470,7 +503,7 @@ export class Judge0Service {
           stderr = evalRes.error;
           passed = false;
         } else {
-          passed = stdout.toLowerCase() === expectedNorm;
+          passed = this.normalizeOutput(stdout) === this.normalizeOutput(expectedNorm);
         }
       } catch (err: any) {
         stderr = err.message || "Runtime error during execution";

@@ -132,6 +132,8 @@ function QuestionBankPage() {
   const [confirmArchiveQuestion, setConfirmArchiveQuestion] = useState<any | null>(null);
   const [confirmDeleteFolder, setConfirmDeleteFolder] = useState<string | null>(null);
 
+
+
   useEffect(() => {
     fetchQuestions({
       moduleType: modFilter !== "all" ? modFilter : undefined,
@@ -595,12 +597,14 @@ function QuestionBankPage() {
             <h3 className="text-[13px] font-semibold text-[#0B0B0D]">
               Search Results for "{query}" ({questions.length})
             </h3>
-            <button
-              onClick={() => setQuery("")}
-              className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer"
-            >
-              Clear search
-            </button>
+            {query.trim() !== "" && (
+              <button
+                onClick={() => setQuery("")}
+                className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer"
+              >
+                Clear search
+              </button>
+            )}
           </div>
           <div className="space-y-3">
             {questions.map((q) => (

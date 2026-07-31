@@ -58,9 +58,67 @@ export class SimulationService implements AssessmentModuleEngine {
   ) {}
 
   /**
-   * Return scenario configuration (QA Bug Report)
+   * Return scenario configuration dynamically from DB or fallback
    */
-  getScenarioConfig(): ContextSimulationScenarioConfig {
+  async getScenarioConfig(sessionId?: string): Promise<ContextSimulationScenarioConfig> {
+    try {
+      if (sessionId) {
+        const session = await this.prisma.session.findUnique({
+          where: { id: sessionId },
+          include: {
+            drive: {
+              include: {
+                questions: {
+                  where: { moduleType: "SIMULATION" },
+                  include: { question: true },
+                },
+              },
+            },
+          },
+        });
+
+        const driveSimQuestion = session?.drive?.questions?.[0]?.question;
+        if (driveSimQuestion && driveSimQuestion.content) {
+          const content = driveSimQuestion.content as any;
+          return {
+            id: driveSimQuestion.id,
+            title: content.title || QA_BUG_REPORT_SCENARIO.title,
+            description: content.description || QA_BUG_REPORT_SCENARIO.description,
+            track: content.track || QA_BUG_REPORT_SCENARIO.track,
+            rubricVersion: content.rubricVersion || QA_BUG_REPORT_SCENARIO.rubricVersion,
+            initialSayPrompt: content.initialSayPrompt || QA_BUG_REPORT_SCENARIO.initialSayPrompt,
+            managerEmail: content.managerEmail || QA_BUG_REPORT_SCENARIO.managerEmail,
+            starterCode: content.starterCode || QA_BUG_REPORT_SCENARIO.starterCode,
+            testCases: content.testCases || QA_BUG_REPORT_SCENARIO.testCases,
+            evaluationCriteria: content.evaluationCriteria || QA_BUG_REPORT_SCENARIO.evaluationCriteria,
+          };
+        }
+      }
+
+      // Query any published SIMULATION question from DB
+      const dbSimQuestion = await this.prisma.question.findFirst({
+        where: { moduleType: "SIMULATION", status: "PUBLISHED" },
+      });
+
+      if (dbSimQuestion && dbSimQuestion.content) {
+        const content = dbSimQuestion.content as any;
+        return {
+          id: dbSimQuestion.id,
+          title: content.title || QA_BUG_REPORT_SCENARIO.title,
+          description: content.description || QA_BUG_REPORT_SCENARIO.description,
+          track: content.track || QA_BUG_REPORT_SCENARIO.track,
+          rubricVersion: content.rubricVersion || QA_BUG_REPORT_SCENARIO.rubricVersion,
+          initialSayPrompt: content.initialSayPrompt || QA_BUG_REPORT_SCENARIO.initialSayPrompt,
+          managerEmail: content.managerEmail || QA_BUG_REPORT_SCENARIO.managerEmail,
+          starterCode: content.starterCode || QA_BUG_REPORT_SCENARIO.starterCode,
+          testCases: content.testCases || QA_BUG_REPORT_SCENARIO.testCases,
+          evaluationCriteria: content.evaluationCriteria || QA_BUG_REPORT_SCENARIO.evaluationCriteria,
+        };
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not load simulation question from DB: ${err.message}. Using default scenario.`);
+    }
+
     return QA_BUG_REPORT_SCENARIO;
   }
 
