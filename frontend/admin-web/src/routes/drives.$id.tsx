@@ -42,6 +42,7 @@ import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker } from "../components/single-date-time-picker";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
+import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
 import {
   Select,
   SelectContent,
@@ -165,7 +166,7 @@ function DriveDetailPage() {
   const extendExpiry = useStore((s) => s.extendExpiry);
   const regenerateToken = useStore((s) => s.regenerateToken);
   const fetchQuestions = useStore((s) => s.fetchQuestions);
-  const questionsBank = useStore((s) => s.questions);
+  const questionsBank = useStore((s) => s.questions) || [];
   const saveDriveQuestions = useStore((s) => s.saveDriveQuestions);
   const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
@@ -194,16 +195,17 @@ function DriveDetailPage() {
   const [endAmPm, setEndAmPm] = useState("AM");
 
   // Module Config State (6 Modules)
-  const [moduleConfig, setModuleConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number; questionSource?: string; isFixed?: boolean }>>({
-    MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
-    SQL: { enabled: true, durationMinutes: 20, weight: 20 },
-    CODING: { enabled: true, durationMinutes: 30, weight: 25 },
-    DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
-    AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, questionSource: "AI_DYNAMIC" },
-    SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
+  const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
+    MCQ: { enabled: true, durationMinutes: 15, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
+    SQL: { enabled: true, durationMinutes: 20, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
+    CODING: { enabled: true, durationMinutes: 30, weight: 25, isBonus: false, questionWeighting: { mode: "equal" } },
+    DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+    AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
+    SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
   });
 
-  // Question Assignments State
+  // Question Assignments & Point Shares State
+  const [questionPointShares, setQuestionPointShares] = useState<Record<string, number>>({});
   const [assignedQuestions, setAssignedQuestions] = useState<string[]>([]);
   const [savedAssignedQuestions, setSavedAssignedQuestions] = useState<string[]>([]);
   const [pendingTabSwitch, setPendingTabSwitch] = useState<"roster" | "configuration" | null>(null);
@@ -560,23 +562,26 @@ function DriveDetailPage() {
     toast.success("Module durations auto-balanced (preserving manually set module times)!");
   };
 
-  // Total Score Ceiling Calculation
-  const totalWeightSum = useMemo(() => {
-    return Object.entries(moduleConfig)
-      .filter(([_, conf]) => conf.enabled)
-      .reduce((sum, [_, conf]) => sum + (Number(conf.weight) || 0), 0);
+  // Total Weight Validation Result
+  const weightValidation = useMemo(() => {
+    return validateDriveModuleWeights(moduleConfig);
   }, [moduleConfig]);
 
-  // Auto-Balance Weights tool ( Ceil: 100 ) - Only balances score weights!
+  // Auto-Balance Weights tool ( Ceil: 100 ) - Only balances enabled Core module weights!
   const handleAutoBalanceWeights = () => {
-    const enabledKeys = Object.keys(moduleConfig).filter((k) => moduleConfig[k].enabled);
-    if (enabledKeys.length === 0) return;
+    const coreKeys = Object.keys(moduleConfig).filter(
+      (k) => moduleConfig[k].enabled && !moduleConfig[k].isBonus
+    );
+    if (coreKeys.length === 0) {
+      toast.error("No enabled Core modules found to auto-balance.");
+      return;
+    }
 
-    const equalWeight = Math.floor(100 / enabledKeys.length);
-    const remainder = 100 - equalWeight * enabledKeys.length;
+    const equalWeight = Math.floor(100 / coreKeys.length);
+    const remainder = 100 - equalWeight * coreKeys.length;
 
     const updated = { ...moduleConfig };
-    enabledKeys.forEach((k, idx) => {
+    coreKeys.forEach((k, idx) => {
       updated[k] = {
         ...updated[k],
         weight: equalWeight + (idx === 0 ? remainder : 0),
@@ -584,7 +589,7 @@ function DriveDetailPage() {
     });
 
     setModuleConfig(updated);
-    toast.success("Scoring weights auto-balanced to sum to 100 points!");
+    toast.success("Core scoring weights auto-balanced to sum to 100 points!");
   };
 
   // Schedule & DateTime Edge Case Validations
@@ -664,8 +669,9 @@ function DriveDetailPage() {
       return;
     }
 
-    if (totalWeightSum !== 100) {
-      toast.error(`Module score weights currently sum to ${totalWeightSum} pts. Please click 'Auto-Balance Weights' so total equals 100 pts.`);
+    const weightVal = validateDriveModuleWeights(moduleConfig);
+    if (!weightVal.valid) {
+      toast.error(weightVal.error || "Invalid module score weights configuration.");
       return;
     }
 
@@ -704,7 +710,7 @@ function DriveDetailPage() {
   };
 
   const enabledModuleKeys = useMemo(() => {
-    return Object.keys(moduleConfig).filter((k) => moduleConfig[k]?.enabled);
+    return Object.keys(moduleConfig || {}).filter((k) => moduleConfig[k]?.enabled);
   }, [moduleConfig]);
 
   const isQuestionsDirty = useMemo(() => {
@@ -1019,12 +1025,12 @@ function DriveDetailPage() {
               <div className="flex items-center gap-2.5">
                 <span
                   className={`px-3 py-1 rounded-full text-[12px] font-mono font-bold ${
-                    totalWeightSum === 100
+                    weightValidation.valid
                       ? "bg-[#E3F9F2] text-[#0C6B58]"
                       : "bg-[#FFF5F5] text-[#C0392B] border border-red-200"
                   }`}
                 >
-                  Total Weight: {totalWeightSum} / 100 pts
+                  Core: {weightValidation.coreSum} / 100 pts{weightValidation.bonusSum > 0 ? ` · Bonus: +${weightValidation.bonusSum} pts max` : ""}
                 </span>
                 <button
                   onClick={handleAutoBalanceDurations}
@@ -1055,7 +1061,7 @@ function DriveDetailPage() {
                 ] as const
               ).map((mod) => {
                 const Icon = mod.icon;
-                const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isFixed: false };
+                const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isBonus: false, isFixed: false };
                 return (
                   <div
                     key={mod.id}
@@ -1092,6 +1098,33 @@ function DriveDetailPage() {
                         onClick={(e) => e.stopPropagation()}
                         className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EFF0F3] text-[11px]"
                       >
+                        {/* Core vs Bonus Toggle */}
+                        <div className="col-span-2 flex items-center justify-between bg-[#F7F7F9] p-1.5 rounded border border-[#E6E6EA] mb-1">
+                          <span className="text-[10px] font-semibold text-[#5B5B64]">Category:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const isBonusNow = !conf.isBonus;
+                              setModuleConfig({
+                                ...moduleConfig,
+                                [mod.id]: {
+                                  ...conf,
+                                  isBonus: isBonusNow,
+                                  maxBonusPoints: isBonusNow ? (conf.maxBonusPoints || 10) : undefined,
+                                  weight: isBonusNow ? 0 : (conf.weight || 15),
+                                },
+                              });
+                            }}
+                            className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                              conf.isBonus
+                                ? "bg-[#FFF8E6] text-[#B7791F] border border-[#FEEBC8]"
+                                : "bg-[#EAF0FF] text-[#15308F] border border-[#C5D7FE]"
+                            }`}
+                          >
+                            {conf.isBonus ? "★ BONUS MODULE" : "CORE MODULE"}
+                          </button>
+                        </div>
+
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <label className="text-[#5B5B64] font-medium">Duration (min)</label>
@@ -1128,22 +1161,59 @@ function DriveDetailPage() {
                             }`}
                           />
                         </div>
+
                         <div>
-                          <label className="block text-[#5B5B64] font-medium mb-1">Score Weight (pts)</label>
+                          <label className="block text-[#5B5B64] font-medium mb-1">
+                            {conf.isBonus ? "Max Bonus (pts)" : "Core Weight (pts)"}
+                          </label>
                           <input
                             type="number"
-                            value={conf.weight === 0 ? "" : conf.weight}
+                            value={
+                              conf.isBonus
+                                ? (conf.maxBonusPoints === undefined || conf.maxBonusPoints === 0 ? "" : conf.maxBonusPoints)
+                                : (conf.weight === 0 ? "" : conf.weight)
+                            }
                             onChange={(e) => {
                               const raw = e.target.value;
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
-                              setModuleConfig({
-                                ...moduleConfig,
-                                [mod.id]: { ...conf, weight: val },
-                              });
+                              if (conf.isBonus) {
+                                setModuleConfig({
+                                  ...moduleConfig,
+                                  [mod.id]: { ...conf, maxBonusPoints: Math.min(20, val) },
+                                });
+                              } else {
+                                setModuleConfig({
+                                  ...moduleConfig,
+                                  [mod.id]: { ...conf, weight: val },
+                                });
+                              }
                             }}
                             onFocus={(e) => e.target.select()}
                             className="w-full px-2 py-1 border border-[#E6E6EA] rounded font-mono text-[12px]"
                           />
+                        </div>
+
+                        {/* Question Weighting Mode Selector */}
+                        <div className="col-span-2 pt-1 border-t border-[#EFF0F3]">
+                          <label className="block text-[#5B5B64] font-medium mb-1 text-[10px] uppercase tracking-wider">
+                            Internal Question Weighting
+                          </label>
+                          <select
+                            value={conf.questionWeighting?.mode || "equal"}
+                            onChange={(e) => {
+                              setModuleConfig({
+                                ...moduleConfig,
+                                [mod.id]: {
+                                  ...conf,
+                                  questionWeighting: { mode: e.target.value as "equal" | "difficulty" },
+                                },
+                              });
+                            }}
+                            className="w-full px-2 py-1 border border-[#E6E6EA] rounded text-[11px] bg-white cursor-pointer"
+                          >
+                            <option value="equal">Equal Split Across Questions</option>
+                            <option value="difficulty">Difficulty-Weighted (Custom Share)</option>
+                          </select>
                         </div>
 
                         {mod.id === "AI_PROMPTING" && (

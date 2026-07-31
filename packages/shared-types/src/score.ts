@@ -1,4 +1,7 @@
 export interface Score {
+  coreScore?: number;
+  bonusScore?: number;
+  totalScore?: number;
   compositeScore: number;
   /** Per-module raw scores keyed by ModuleType string, e.g. { MCQ: 0.85, CODING: 0.72, ... }. */
   moduleScores: Record<string, number>;
@@ -18,4 +21,15 @@ export interface Score {
   gradingSource?: 'placeholder' | 'deterministic' | 'ai_graded' | 'correlation_engine';
   /** Detected Mismatches between claims and actual actions. */
   mismatches?: Array<{ said: string; did: string; impact: string }>;
+}
+
+export interface CompositeScoreResult {
+  coreScore: number;
+  bonusScore: number;
+  totalScore: number;
+  compositeScore: number;
+  sayDoConsistencyScore: number;
+  gradingSource: string;
+  sayDoRationale: string;
+  moduleScores: Record<string, number>;
 }

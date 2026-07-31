@@ -1,23 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useSessionStore } from '../../store/sessionMachine'
 
 export function WatermarkOverlay() {
   const session = useSessionStore(s => s.session)
   const assessment = useSessionStore(s => s.assessment)
-  const candidateName = (session as any)?.candidateName || (assessment as any)?.candidateName || 'Candidate'
-  const candidateEmail = (session as any)?.candidateEmail || (assessment as any)?.candidateEmail || ''
-  const sessionId = session?.id?.slice(0, 8) || (assessment as any)?.sessionId?.slice(0, 8) || ''
-
-  const [timestamp, setTimestamp] = useState(() => new Date().toLocaleTimeString())
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimestamp(new Date().toLocaleTimeString())
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const watermarkText = `${candidateName} ${candidateEmail ? `(${candidateEmail})` : ''} • ID: ${sessionId} • ${timestamp}`
+  const inviteToken = useSessionStore(s => s.inviteToken)
+  
+  const candidateId = session?.id || assessment?.sessionId || inviteToken || ''
+  const watermarkText = candidateId ? `clouddestinations ${candidateId}` : 'clouddestinations'
 
   return (
     <div 
@@ -35,3 +25,4 @@ export function WatermarkOverlay() {
     </div>
   )
 }
+

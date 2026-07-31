@@ -227,13 +227,13 @@ export class DriveService {
         id: drive.id,
         name: drive.name,
         roleTemplateId: drive.roleTemplateId,
-        roleTemplateName: drive.roleTemplate.roleName,
+        roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
         moduleConfig: drive.moduleConfig as any,
         status: drive.status as any,
         scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
         scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
         createdById: drive.createdById,
-        createdByName: drive.createdBy.name,
+        createdByName: drive.createdBy?.name || "System Admin",
         createdAt: drive.createdAt.toISOString(),
         invitedCount,
         startedCount,
@@ -306,13 +306,13 @@ export class DriveService {
       id: drive.id,
       name: drive.name,
       roleTemplateId: drive.roleTemplateId,
-      roleTemplateName: drive.roleTemplate.roleName,
+      roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
       moduleConfig: drive.moduleConfig as any,
       status: drive.status as any,
       scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
       scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
       createdById: drive.createdById,
-      createdByName: drive.createdBy.name,
+      createdByName: drive.createdBy?.name || "System Admin",
       createdAt: drive.createdAt.toISOString(),
       roster,
       invitedCount,
@@ -615,7 +615,11 @@ export class DriveService {
     return { success: true };
   }
 
-  async saveQuestions(driveId: string, questionIds: string[], staffId: string) {
+  async saveQuestions(
+    driveId: string,
+    payload: string[] | { questionIds?: string[]; questionAssignments?: Array<{ questionId: string; pointShare?: number }> },
+    staffId: string,
+  ) {
     const drive = await this.prisma.drive.findUnique({
       where: { id: driveId },
     });
@@ -634,8 +638,26 @@ export class DriveService {
       throw new BadRequestException("This drive questions mapping is locked because all candidate invite links have already been generated.");
     }
 
+    let qIds: string[] = [];
+    const shareMap = new Map<string, number | undefined>();
+
+    if (Array.isArray(payload)) {
+      qIds = payload;
+    } else if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.questionAssignments) && payload.questionAssignments.length > 0) {
+        qIds = payload.questionAssignments.map((a) => a.questionId);
+        payload.questionAssignments.forEach((a) => {
+          if (a.pointShare !== undefined && a.pointShare !== null) {
+            shareMap.set(a.questionId, Number(a.pointShare));
+          }
+        });
+      } else if (Array.isArray(payload.questionIds)) {
+        qIds = payload.questionIds;
+      }
+    }
+
     const questions = await this.prisma.question.findMany({
-      where: { id: { in: questionIds } },
+      where: { id: { in: qIds } },
     });
 
     await this.prisma.$transaction(async (tx) => {
@@ -649,6 +671,7 @@ export class DriveService {
             driveId,
             questionId: q.id,
             moduleType: q.moduleType,
+            pointShare: shareMap.get(q.id) ?? null,
           })),
         });
       }

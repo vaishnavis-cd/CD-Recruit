@@ -140,7 +140,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     renderLineHighlight: "line",
     smoothScrolling: true,
     cursorBlinking: "smooth",
-    contextmenu: true,
+    contextmenu: false,
     ...options,
   };
 
@@ -148,6 +148,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     <div
       className={`relative w-full h-full min-h-0 overflow-hidden ${className}`}
       style={{ minHeight }}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <Editor
         height={height}
