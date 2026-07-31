@@ -145,6 +145,7 @@ model DriveQuestion {
   questionId              String     @map("question_id")
   moduleType              ModuleType @map("module_type")
   questionVersionSnapshot Int?       @map("question_version_snapshot")
+  pointShare              Float?     @map("point_share")
 
   drive    Drive    @relation(fields: [driveId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -324,6 +325,9 @@ model Score {
   id                     String  @id @default(uuid())
   sessionId              String  @unique @map("session_id")
   compositeScore         Float   @map("composite_score")
+  coreScore              Float   @default(0) @map("core_score")
+  bonusScore             Float   @default(0) @map("bonus_score")
+  totalScore             Float   @default(0) @map("total_score")
   moduleScores           Json    @map("module_scores")
   sayDoConsistencyScore  Float   @map("say_do_consistency_score")
   aiConfidence           Float   @map("ai_confidence")

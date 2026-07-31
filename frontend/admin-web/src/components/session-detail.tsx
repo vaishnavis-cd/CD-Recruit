@@ -241,20 +241,23 @@ export function SessionDetailBody({
         {tab === "overview" && (
           <div>
             <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#5B5B64] mb-3">
-              Module scores
+              Module scores (Normalized Accuracy 0-100%)
             </div>
             <div className="bg-white border border-[#E6E6EA] rounded-lg p-5 space-y-3">
-              {Object.entries(session.moduleScores).map(([m, v]) => (
-                <div key={m}>
-                  <div className="flex justify-between text-[12px] mb-1">
-                    <span className="text-[#0B0B0D]">{m}</span>
-                    <span className="font-mono text-[#5B5B64]">{v}/100</span>
+              {Object.entries(session.moduleScores).map(([m, v]) => {
+                const normVal = v <= 1.0 ? Math.round(v * 100) : Math.round(v);
+                return (
+                  <div key={m}>
+                    <div className="flex justify-between text-[12px] mb-1">
+                      <span className="text-[#0B0B0D] font-medium">{m}</span>
+                      <span className="font-mono text-[#5B5B64]">{normVal}%</span>
+                    </div>
+                    <div className="h-2 bg-[#EFF0F3] rounded">
+                      <div className="h-full bg-[#2F5CFF] rounded" style={{ width: `${Math.min(100, normVal)}%` }} />
+                    </div>
                   </div>
-                  <div className="h-2 bg-[#EFF0F3] rounded">
-                    <div className="h-full bg-[#2F5CFF] rounded" style={{ width: `${v}%` }} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

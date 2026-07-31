@@ -1,4 +1,4 @@
-import { ExecutionStatus } from "./enums";
+import { ExecutionStatus } from "./enums.js";
 
 // ---------------------------------------------------------------------------
 // Proctoring event log (fire-and-forget)

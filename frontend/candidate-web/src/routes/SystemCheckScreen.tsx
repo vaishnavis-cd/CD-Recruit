@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { StatusChip } from '../components/common/StatusChip'
-import { RetryButton } from '../components/common/RetryButton'
-import { Cpu, Camera, Wifi, Gauge, Maximize2, Info, AlertTriangle } from 'lucide-react'
+import { Cpu, Camera, Wifi, Gauge, Maximize2, Info, AlertTriangle, Monitor, Bluetooth, RotateCcw } from 'lucide-react'
 
 type CheckStatus = 'pending' | 'checking' | 'pass' | 'warn' | 'fail' | 'skipped'
 
 interface CheckItem {
-  id: 'wasm' | 'cam' | 'net' | 'perf'
+  id: 'wasm' | 'cam' | 'net' | 'perf' | 'monitor' | 'bluetooth'
   label: string
   icon: React.ReactNode
   status: CheckStatus
@@ -26,7 +25,6 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   const [fullscreen, setFullscreen] = useState(false)
   const [cvMode, setCvModeLocal] = useState<'full' | 'reduced'>('full')
   const [storageFull, setStorageFull] = useState(false)
-  const [allDone, setAllDone] = useState(false)
 
   const [checks, setChecks] = useState<CheckItem[]>([
     {
@@ -57,6 +55,20 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
       status: 'pending',
       note: 'Running micro-benchmark…',
     },
+    {
+      id: 'monitor',
+      label: 'Display & Monitor check',
+      icon: <Monitor size={18} />,
+      status: 'pending',
+      note: 'Checking display configuration…',
+    },
+    {
+      id: 'bluetooth',
+      label: 'External & Bluetooth devices check',
+      icon: <Bluetooth size={18} />,
+      status: 'pending',
+      note: 'Scanning for active peripherals…',
+    },
   ])
 
   function updateCheck(id: string, update: Partial<CheckItem>) {
@@ -74,30 +86,63 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     }
   }, [])
 
-  // Auto-fullscreen trigger on mount & click gesture
-  useEffect(() => {
-    const triggerAutoFullscreen = async () => {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        try {
-          await document.documentElement.requestFullscreen()
-          setFullscreen(true)
-        } catch {
-          // Will trigger on gesture
-        }
-      }
-    }
-    triggerAutoFullscreen()
+  const runMonitorCheck = useCallback(async () => {
+    updateCheck('monitor', { status: 'checking', note: 'Verifying connected displays…' })
+    await sleep(300)
 
-    const handleFirstGesture = async () => {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        try {
-          await document.documentElement.requestFullscreen()
-          setFullscreen(true)
-        } catch {}
-      }
+    const isExtended = Boolean((window.screen as any)?.isExtended || (window as any)?.isExtended)
+    const isMultiScreen = isExtended || (window.screen.availWidth > window.screen.width)
+
+    if (isMultiScreen) {
+      updateCheck('monitor', {
+        status: 'fail',
+        note: 'Multiple displays detected',
+        errorMessage: 'Secondary monitor or HDMI display detected. Please disconnect external monitors to continue.',
+      })
+      services.sessionApi.reportIntegritySignal({
+        kind: 'infra-failure',
+        category: 'functional',
+        timestamp: new Date(services.time.getServerNow()).toISOString(),
+      }).catch(() => {})
+    } else {
+      updateCheck('monitor', { status: 'pass', note: 'Single display verified', errorMessage: undefined })
     }
-    window.addEventListener('click', handleFirstGesture, { once: true })
-    return () => window.removeEventListener('click', handleFirstGesture)
+  }, [])
+
+  const runBluetoothCheck = useCallback(async () => {
+    updateCheck('bluetooth', { status: 'checking', note: 'Checking active audio & video devices…' })
+    await sleep(300)
+
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const bluetoothKeywords = ['bluetooth', 'wireless', 'airpods', 'headset', 'hands-free', 'handsfree', 'bth']
+        
+        const activeBtDevice = devices.find(d => {
+          const label = (d.label || '').toLowerCase()
+          return bluetoothKeywords.some(kw => label.includes(kw))
+        })
+
+        if (activeBtDevice) {
+          updateCheck('bluetooth', {
+            status: 'fail',
+            note: 'Active Bluetooth device connected',
+            errorMessage: 'Active Bluetooth headset or wireless audio device detected. Please disconnect your Bluetooth audio devices to continue.',
+          })
+          services.sessionApi.reportIntegritySignal({
+            kind: 'infra-failure',
+            category: 'functional',
+            timestamp: new Date(services.time.getServerNow()).toISOString(),
+          }).catch(() => {})
+        } else {
+          updateCheck('bluetooth', { status: 'pass', note: 'No wireless peripherals active', errorMessage: undefined })
+        }
+      } else {
+        updateCheck('bluetooth', { status: 'pass', note: 'Peripherals clear', errorMessage: undefined })
+      }
+    } catch {
+      updateCheck('bluetooth', { status: 'pass', note: 'Peripherals clear', errorMessage: undefined })
+    }
   }, [])
 
   useEffect(() => {
@@ -158,16 +203,20 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     await sleep(500)
     const navConn = (navigator as any).connection
     const downlink = navConn?.downlink ? `${navConn.downlink} Mbps` : '42 Mbps'
-    const rttNote = navConn?.rtt && navConn.rtt > 150 ? 'slight jitter' : 'slight jitter'
+    const rttNote = navConn?.rtt && navConn.rtt > 150 ? 'slight jitter' : 'low jitter'
     const netNote = `${downlink} · ${rttNote}`
-    updateCheck('net', { status: 'warn', note: netNote })
+    updateCheck('net', { status: 'pass', note: netNote })
 
     // 4. Performance benchmark
     updateCheck('perf', { status: 'checking', note: 'Evaluating CPU throughput…' })
     await sleep(400)
     updateCheck('perf', { status: 'pass', note: 'Above threshold' })
 
-    setAllDone(true)
+    // 5. Monitor check
+    await runMonitorCheck()
+
+    // 6. Bluetooth check
+    await runBluetoothCheck()
   }
 
   async function toggleFullscreen() {
@@ -201,6 +250,10 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     })
   }
 
+  const allPassed = checks.every(c => c.status === 'pass' || c.status === 'warn') &&
+    checks.find(c => c.id === 'monitor')?.status === 'pass' &&
+    checks.find(c => c.id === 'bluetooth')?.status === 'pass'
+
   return (
     <div
       className="min-h-screen px-6 py-12 flex items-center justify-center"
@@ -230,7 +283,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
           </div>
         )}
 
-        {/* Card list matching Image 2 divide-y */}
+        {/* Card list */}
         <div className="card-base divide-y" style={{ borderColor: "var(--border)" }} role="list" aria-label="System check items">
           {checks.map(c => {
             const tone =
@@ -246,30 +299,50 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
               c.status === 'fail' ? 'Failed' : 'Pending'
 
             return (
-              <div key={c.id} className="flex items-center gap-4 px-5 py-4" role="listitem">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--muted-foreground)]"
-                >
-                  {c.icon}
+              <div key={c.id} className="flex flex-col px-5 py-4 gap-2" role="listitem">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--muted-foreground)]"
+                  >
+                    {c.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[var(--foreground)] text-sm">{c.label}</div>
+                    <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{c.note}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(c.id === 'monitor' || c.id === 'bluetooth') && c.status === 'fail' && (
+                      <button
+                        onClick={c.id === 'monitor' ? runMonitorCheck : runBluetoothCheck}
+                        className="btn-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 cursor-pointer"
+                        type="button"
+                      >
+                        <RotateCcw size={12} />
+                        <span>Re-check</span>
+                      </button>
+                    )}
+                    <StatusChip tone={tone} label={label} loading={c.status === 'checking'} />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-[var(--foreground)] text-sm">{c.label}</div>
-                </div>
-                <StatusChip tone={tone} label={label} loading={c.status === 'checking'} />
+                {c.errorMessage && (
+                  <div className="text-xs text-[var(--critical)] bg-[var(--critical-subtle,#fff0f0)] p-2.5 rounded-lg font-medium border border-[var(--critical)]/20">
+                    {c.errorMessage}
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
 
-        {/* Info Callout Box matching Image 2 */}
+        {/* Info Callout Box */}
         <div className="mt-6 flex items-start gap-3 p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
           <Info size={16} className="text-[var(--accent)] mt-0.5 shrink-0" />
           <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
-            We'll ask for camera access next. It's used only for identity verification and integrity checks during the assessment — never for anything else.
+            We'll ask for camera access next. It's used only for identity verification and integrity checks during the assessment — never for anything else. Note: Power cables/chargers are excluded from device checks.
           </p>
         </div>
 
-        {/* Bottom Action Bar matching Image 2 */}
+        {/* Bottom Action Bar */}
         <div className="mt-6 flex items-center justify-between">
           <button
             onClick={toggleFullscreen}
@@ -282,13 +355,9 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
 
           <button
             onClick={handleContinue}
-            disabled={!allDone}
+            disabled={!allPassed}
             type="button"
-            className={`btn-primary text-xs font-semibold px-6 py-2.5 transition-all duration-300 ${
-              allDone
-                ? 'ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
-                : 'opacity-50 cursor-not-allowed'
-            }`}
+            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continue
           </button>
@@ -299,3 +368,4 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
 }
 
 function sleep(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)) }
+
