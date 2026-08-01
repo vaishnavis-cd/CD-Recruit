@@ -2,7 +2,20 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
 
+export interface DriveModuleConfigEntry {
+  enabled?: boolean;
+  isBonus?: boolean;
+  weight?: number;
+  maxBonusPoints?: number;
+  questionWeighting?: {
+    mode?: "equal" | "difficulty";
+  };
+}
+
 export interface CompositeScoreResult {
+  coreScore: number;
+  bonusScore: number;
+  totalScore: number;
   compositeScore: number;
   sayDoConsistencyScore: number;
   aiConfidence: number;
@@ -70,7 +83,7 @@ export class SessionScoringService {
       }
 
       const dq = dqMap.get(q.id);
-      const pointShare = dq?.pointShare !== null && dq?.pointShare !== undefined ? Number(dq.pointShare) : undefined;
+      const pointShare = (dq as any)?.pointShare !== null && (dq as any)?.pointShare !== undefined ? Number((dq as any).pointShare) : undefined;
       let accuracy = 0.0;
 
       // Robust Evaluation Rules per Module
@@ -114,13 +127,13 @@ export class SessionScoringService {
         const payload = resp.responsePayload as any;
         const execResult = payload?.executionResult;
         if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
-          moduleTotals[mod].earned += 1.0;
+          accuracy = 1.0;
         } else {
           const query = payload?.query || payload?.code || "";
           if (query && query.trim().length > 15) {
-            moduleTotals[mod].earned += 0.8;
+            accuracy = 0.8;
           } else if (query && query.trim().length > 0) {
-            moduleTotals[mod].earned += 0.4;
+            accuracy = 0.4;
           }
         }
       } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
