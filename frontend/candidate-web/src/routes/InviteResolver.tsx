@@ -71,17 +71,18 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // If backend /sessions/start successfully returned an active session, allow assessment entry
-        if (session) {
+        // Check if session has ALREADY been started in progress (Resume Case)
+        const isSessionAlreadyStarted = session && ((session as any).status === 'active' || (session as any).status === 'IN_PROGRESS' || (session as any).status === 'in_progress') && session.startedAt !== null
+
+        if (isSessionAlreadyStarted) {
           const currentAssessment = useSessionStore.getState().assessment
-          const consentDone = localStorage.getItem('cd-recruit-consent-audio') === 'true' || localStorage.getItem('cd-recruit-selfie-data')
-          if (consentDone) {
-            devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: session.id })
-          } else {
-            transitionTo({ type: 'system-check', mode: 'expedited', inviteToken: token })
-          }
+          devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: session.id })
           return
         }
+
+        // New Session — start at System Check onboarding sequence
+        transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
+        return
       } catch (err) {
         console.error('[InviteResolver] Failed to resolve invite:', err)
         // Show a minimal error state — ideally this retries
