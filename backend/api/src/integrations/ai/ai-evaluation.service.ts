@@ -129,8 +129,11 @@ Respond ONLY in strict JSON format:
     userContent: string,
     rawTextForFallback: string,
   ): Promise<AiEvaluationResult> {
+    const groqKey = this.getGroqApiKey();
+    const cerebrasKey = this.getCerebrasApiKey();
+
     // 1. Try Groq API (Primary)
-    if (this.groqApiKey) {
+    if (groqKey) {
       try {
         const groqResult = await this.callGroqApi(systemPrompt, userContent);
         if (groqResult) return { ...groqResult, providerUsed: "GROQ" };
@@ -140,7 +143,7 @@ Respond ONLY in strict JSON format:
     }
 
     // 2. Try Cerebras API (Fallback)
-    if (this.cerebrasApiKey) {
+    if (cerebrasKey) {
       try {
         const cerebrasResult = await this.callCerebrasApi(systemPrompt, userContent);
         if (cerebrasResult) return { ...cerebrasResult, providerUsed: "CEREBRAS" };
@@ -154,10 +157,11 @@ Respond ONLY in strict JSON format:
   }
 
   private async callGroqApi(systemPrompt: string, userContent: string) {
+    const key = this.getGroqApiKey();
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.groqApiKey}`,
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -181,10 +185,11 @@ Respond ONLY in strict JSON format:
   }
 
   private async callCerebrasApi(systemPrompt: string, userContent: string) {
+    const key = this.getCerebrasApiKey();
     const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.cerebrasApiKey}`,
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -28,6 +28,17 @@ export interface SessionListItem {
   compositeScore: number | null;
   sayDoConsistencyScore: number | null;
   humanReviewRequired: boolean;
+  integrityFlagsCount?: number;
+  decision?: {
+    outcome: ReviewDecision;
+    decidedAt: string;
+    decidedBy: string;
+    note?: string | null;
+  } | null;
+  driveId?: string | null;
+  driveName?: string | null;
+  moduleScores?: Record<string, number> | null;
+  codingSummary?: string | null;
 }
 
 export interface SessionListResponse {

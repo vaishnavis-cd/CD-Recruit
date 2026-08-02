@@ -279,11 +279,24 @@ function ResultsPage() {
                         {item.submittedAt ? item.submittedAt.slice(0, 16).replace("T", " ") : "In Progress"}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[12px] font-semibold ${scoreColor}`}
-                        >
-                          {scoreVal}%
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[12px] font-semibold ${scoreColor}`}
+                          >
+                            {scoreVal}%
+                          </span>
+                          {item.moduleScores && Object.keys(item.moduleScores).length > 0 && (
+                            <div className="text-[10px] text-[#8B8B93] font-mono leading-none mt-1 whitespace-nowrap">
+                              {Object.entries(item.moduleScores).map(([mod, val]: any) => {
+                                if (mod === "CODING" && item.codingSummary) {
+                                  return `Coding: ${item.codingSummary}`;
+                                }
+                                const percentage = val <= 1.0 ? Math.round(val * 100) : Math.round(val);
+                                return `${mod}: ${percentage}%`;
+                              }).join(" | ")}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         {flagsCount > 0 ? (

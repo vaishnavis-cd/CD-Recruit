@@ -5,7 +5,7 @@ import { SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 
 @Injectable()
 export class McqService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async submit(dto: SubmitMcqDto) {
     return this.saveResponse(dto.sessionId, dto.questionId, dto.selectedOptions, false, dto.timeSpentSeconds);

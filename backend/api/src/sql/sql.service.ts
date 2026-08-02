@@ -18,7 +18,7 @@ export class SqlService implements AssessmentModuleEngine {
     private readonly sandboxService: SqlSandboxService,
     private readonly comparatorService: ResultComparatorService,
     private readonly validatorService: SqlValidatorService,
-  ) {}
+  ) { }
 
   async validateSubmission(submission: any): Promise<boolean> {
     return !!(submission && submission.sql);

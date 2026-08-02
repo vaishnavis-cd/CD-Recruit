@@ -114,6 +114,8 @@ export class AdminService {
           },
           integrityFlags: true,
           proctoringEvents: true,
+          drive: true,
+          codingExecutions: true,
         },
       }),
       this.prisma.session.count({ where }),
@@ -160,6 +162,10 @@ export class AdminService {
       const flagCount = (session.integrityFlags ? session.integrityFlags.length : 0) +
         ((session as any).proctoringEvents ? (session as any).proctoringEvents.length : 0);
 
+      const codingExecs = session.codingExecutions || [];
+      const latestCoding = codingExecs[codingExecs.length - 1];
+      const codingSummary = latestCoding ? `${latestCoding.passedTests}/${latestCoding.totalTests}` : null;
+
       return {
         sessionId: session.id,
         candidateName: session.candidate.name,
@@ -180,14 +186,18 @@ export class AdminService {
         integrityFlagsCount: flagCount,
         decision: session.reviewerDecision
           ? ({
-              outcome: session.reviewerDecision.decision as any,
-              decidedAt: session.reviewerDecision.decidedAt.toISOString(),
-              decidedBy: session.reviewerDecision.staff
-                ? session.reviewerDecision.staff.name
-                : "Recruiter",
-              note: session.reviewerDecision.note,
-            } as any)
+            outcome: session.reviewerDecision.decision as any,
+            decidedAt: session.reviewerDecision.decidedAt.toISOString(),
+            decidedBy: session.reviewerDecision.staff
+              ? session.reviewerDecision.staff.name
+              : "Recruiter",
+            note: session.reviewerDecision.note,
+          } as any)
           : null,
+        driveId: session.driveId,
+        driveName: session.drive?.name ?? null,
+        moduleScores: (session.score?.moduleScores as any) ?? null,
+        codingSummary,
       };
     });
 
@@ -205,6 +215,7 @@ export class AdminService {
       include: {
         candidate: true,
         roleTemplate: true,
+        drive: true,
         moduleResponses: {
           include: {
             question: true,
@@ -221,6 +232,12 @@ export class AdminService {
           include: {
             staff: true,
           },
+        },
+        codingExecutions: {
+          orderBy: { completedAt: "asc" },
+        },
+        sqlExecutions: {
+          orderBy: { completedAt: "asc" },
         },
       },
     });
@@ -242,6 +259,7 @@ export class AdminService {
           include: {
             candidate: true,
             roleTemplate: true,
+            drive: true,
             moduleResponses: {
               include: {
                 question: true,
@@ -258,6 +276,12 @@ export class AdminService {
               include: {
                 staff: true,
               },
+            },
+            codingExecutions: {
+              orderBy: { completedAt: "asc" },
+            },
+            sqlExecutions: {
+              orderBy: { completedAt: "asc" },
             },
           },
         });
@@ -383,11 +407,54 @@ export class AdminService {
 
     const mappedResponses = session.moduleResponses.map((res) => {
       const qContent = (res.question?.content as any) || {};
+      const rawPayload = res.responsePayload as any;
+
+      // Enrich CODING responses with actual execution results from CodingExecution table
+      let enrichedPayload = rawPayload;
+      if (res.question.moduleType === ModuleType.CODING) {
+        const execs = (session as any).codingExecutions
+          ? (session as any).codingExecutions.filter((ce: any) => ce.questionId === res.questionId)
+          : [];
+        // Pick the latest SUBMIT execution (not RUN)
+        const submitExecs = execs.filter((ce: any) => ce.submissionType === "SUBMIT" || !ce.submissionType);
+        const latestExec = submitExecs.length > 0 ? submitExecs[submitExecs.length - 1] : execs[execs.length - 1];
+        if (latestExec) {
+          enrichedPayload = {
+            ...rawPayload,
+            sourceCode: latestExec.sourceCode || rawPayload?.code || rawPayload?.sourceCode,
+            code: latestExec.sourceCode || rawPayload?.code || rawPayload?.sourceCode,
+            passedTests: latestExec.passedTests ?? 0,
+            totalTests: latestExec.totalTests ?? 0,
+            executionStatus: latestExec.status,
+            stdout: latestExec.stdout,
+            stderr: latestExec.stderr,
+            executionTime: latestExec.executionTime,
+          };
+        }
+      }
+
+      // Enrich SQL responses with latest execution status
+      if (res.question.moduleType === ModuleType.SQL) {
+        const sqlExecs = (session as any).sqlExecutions
+          ? (session as any).sqlExecutions.filter((se: any) => se.questionId === res.questionId)
+          : [];
+        const latestSql = sqlExecs.length > 0 ? sqlExecs[sqlExecs.length - 1] : null;
+        if (latestSql) {
+          enrichedPayload = {
+            ...rawPayload,
+            query: rawPayload?.query || latestSql.query,
+            status: latestSql.status,
+            passed: latestSql.passed,
+            executionTime: latestSql.executionTime,
+          };
+        }
+      }
+
       return {
         moduleResponseId: res.id,
         questionId: res.questionId,
         moduleType: res.question.moduleType as ModuleType,
-        responsePayload: res.responsePayload as any,
+        responsePayload: enrichedPayload,
         timeSpentSeconds: res.timeSpentSeconds,
         isDraft: res.isDraft,
         lastAutosavedAt: res.lastAutosavedAt
@@ -423,28 +490,28 @@ export class AdminService {
       integrityFlags: combinedFlags,
       score: session.score
         ? {
-            compositeScore: session.score.compositeScore,
-            moduleScores: session.score.moduleScores as Record<string, number>,
-            sayDoConsistencyScore: session.score.sayDoConsistencyScore,
-            aiConfidence: session.score.aiConfidence,
-            humanReviewed: session.score.humanReviewed,
-          }
+          compositeScore: session.score.compositeScore,
+          moduleScores: session.score.moduleScores as Record<string, number>,
+          sayDoConsistencyScore: session.score.sayDoConsistencyScore,
+          aiConfidence: session.score.aiConfidence,
+          humanReviewed: session.score.humanReviewed,
+        }
         : session.moduleResponses.length > 0
-        ? {
+          ? {
             compositeScore: 0.82,
             moduleScores: { MCQ: 0.85, CODING: 0.8 },
             sayDoConsistencyScore: 0.9,
             aiConfidence: 0.85,
             humanReviewed: false,
           }
-        : null,
+          : null,
       decision: session.reviewerDecision
         ? {
-            outcome: session.reviewerDecision.decision as any,
-            decidedAt: session.reviewerDecision.decidedAt.toISOString(),
-            decidedBy: session.reviewerDecision.staff.name,
-            note: session.reviewerDecision.note || undefined,
-          }
+          outcome: session.reviewerDecision.decision as any,
+          decidedAt: session.reviewerDecision.decidedAt.toISOString(),
+          decidedBy: session.reviewerDecision.staff.name,
+          note: session.reviewerDecision.note || undefined,
+        }
         : undefined,
     };
   }

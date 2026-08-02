@@ -278,8 +278,8 @@ function IndividualResultPage() {
                 {score && (score.totalScore !== null && score.totalScore !== undefined)
                   ? `${Math.round(score.totalScore * 10) / 10}`
                   : (score && score.compositeScore !== null && score.compositeScore !== undefined
-                      ? `${score.compositeScore <= 1.0 ? Math.round(score.compositeScore * 100) : Math.round(score.compositeScore)}`
-                      : "N/A")}
+                    ? `${score.compositeScore <= 1.0 ? Math.round(score.compositeScore * 100) : Math.round(score.compositeScore)}`
+                    : "N/A")}
               </span>
               {score && (score.coreScore !== undefined || score.bonusScore !== undefined) && (
                 <span className="text-[11px] font-mono text-[#5B5B64] font-medium mt-0.5">
@@ -331,33 +331,60 @@ function IndividualResultPage() {
       </div>
 
       {/* Module Navigation Tabs */}
-      <div className="flex border-b border-[#E6E6EA] mb-6 space-x-6">
-        {(
-          [
-            { id: "CODING", label: "Coding / DSA", icon: Code2 },
-            { id: "SQL", label: "SQL Execution", icon: Database },
-            { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
-            { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
-            { id: "SIMULATION", label: "Simulation Log", icon: Play },
-            { id: "INTEGRITY", label: `Integrity (${flags.length})`, icon: ShieldAlert },
-          ] as const
-        ).map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer ${isActive
-                  ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
-                  : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
-                }`}
-            >
-              <Icon size={16} />
-              {tab.label}
-            </button>
-          );
-        })}
+      <div className="flex border-b border-[#E6E6EA] mb-6 space-x-1 overflow-x-auto">
+        {(() => {
+          const moduleScores = detail.score?.moduleScores || {};
+          const getModuleScorePct = (moduleKey: string): number | null => {
+            // try multiple key variants: CODING, Coding, coding
+            const variants = [moduleKey, moduleKey.toLowerCase(), moduleKey.charAt(0).toUpperCase() + moduleKey.slice(1).toLowerCase()];
+            for (const v of variants) {
+              if (moduleScores[v] !== undefined && moduleScores[v] !== null) {
+                const raw = moduleScores[v] as number;
+                return raw <= 1.0 ? Math.round(raw * 100) : Math.round(raw);
+              }
+            }
+            return null;
+          };
+          return ([
+            { id: "CODING", label: "Coding / DSA", icon: Code2, scoreKey: "CODING" },
+            { id: "SQL", label: "SQL", icon: Database, scoreKey: "SQL" },
+            { id: "MCQ", label: "MCQ", icon: FileCheck2, scoreKey: "MCQ" },
+            { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot, scoreKey: "AI_PROMPTING" },
+            { id: "SIMULATION", label: "Simulation", icon: Play, scoreKey: "SIMULATION" },
+            { id: "INTEGRITY", label: `Integrity`, icon: ShieldAlert, scoreKey: null },
+          ] as const).map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const pct = tab.scoreKey ? getModuleScorePct(tab.scoreKey) : null;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-1.5 px-3 pb-3 pt-1 text-[12.5px] font-medium transition-colors border-b-2 cursor-pointer whitespace-nowrap shrink-0 ${isActive
+                    ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
+                    : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
+                  }`}
+              >
+                <Icon size={15} />
+                {tab.label}
+                {tab.id === "INTEGRITY" && (
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${flags.length > 0 ? "bg-red-100 text-red-700" : "bg-[#E3F9F2] text-[#0C6B58]"
+                    }`}>
+                    {flags.length}
+                  </span>
+                )}
+                {pct !== null && tab.id !== "INTEGRITY" && (
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${pct >= 80 ? "bg-[#E3F9F2] text-[#0C6B58]" :
+                      pct >= 50 ? "bg-amber-50 text-amber-700" :
+                        "bg-red-50 text-red-700"
+                    }`}>
+                    {pct}%
+                  </span>
+                )}
+              </button>
+            );
+          });
+        })()}
       </div>
 
       {/* Tab Contents */}
@@ -461,10 +488,10 @@ function IndividualResultPage() {
             const optionsList = qObj.options || qContent.options || [];
             const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
             const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
-            
+
             if (r.responsePayload?.isCorrect !== undefined) return Boolean(r.responsePayload.isCorrect);
             if (selectedRaw === undefined || correctRaw === undefined) return false;
-            
+
             const selText = Array.isArray(selectedRaw) ? selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ") : resolveOptionText(selectedRaw, optionsList);
             const corrText = resolveOptionText(correctRaw, optionsList);
             return selText.trim().toLowerCase() === corrText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
@@ -507,7 +534,7 @@ function IndividualResultPage() {
                     const qObj = resp.question || {};
                     const qContent = qObj.content || {};
                     const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || resp.responsePayload?.questionText || `Question #${idx + 1}`;
-                    
+
                     const optionsList: Array<any> = qObj.options || qContent.options || [];
 
                     const selectedRaw = resp.responsePayload?.selectedOption ?? resp.responsePayload?.selectedOptions ?? resp.responsePayload?.selectedOptionIndex ?? resp.responsePayload?.selectedIndex;
@@ -547,9 +574,8 @@ function IndividualResultPage() {
                               </h4>
                             </div>
                           </div>
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold font-mono shrink-0 ${
-                            isCorrect ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                          }`}>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold font-mono shrink-0 ${isCorrect ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+                            }`}>
                             {isCorrect ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
                             <span>{isCorrect ? "Correct" : "Incorrect"}</span>
                           </span>
@@ -610,10 +636,10 @@ function IndividualResultPage() {
                       <div
                         key={res.id || index}
                         className={`p-5 bg-white border rounded-xl space-y-4 transition-shadow ${isJailbreak
-                            ? "border-red-300 bg-red-50/20"
-                            : isVerbatim
-                              ? "border-amber-300 bg-amber-50/20"
-                              : "border-[#E6E6EA]"
+                          ? "border-red-300 bg-red-50/20"
+                          : isVerbatim
+                            ? "border-amber-300 bg-amber-50/20"
+                            : "border-[#E6E6EA]"
                           }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F0F4] pb-2.5">
@@ -765,9 +791,9 @@ function IndividualResultPage() {
                   1. Candidate Initial SAY Debugging Plan
                 </span>
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
-                  {(detail as any).simulationSnapshot?.initialSayText || 
-                   (detail.moduleResponses || []).find((r) => r.responsePayload?.initialSayText)?.responsePayload?.initialSayText ||
-                   "Candidate entered workspace directly without initial plan submission."}
+                  {(detail as any).simulationSnapshot?.initialSayText ||
+                    (detail.moduleResponses || []).find((r) => r.responsePayload?.initialSayText)?.responsePayload?.initialSayText ||
+                    "Candidate entered workspace directly without initial plan submission."}
                 </div>
               </div>
 
@@ -777,9 +803,9 @@ function IndividualResultPage() {
                   2. Manager Email Stakeholder Reply
                 </span>
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
-                  {(detail as any).simulationSnapshot?.emailReplyText || 
-                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
-                   "No manager email reply recorded."}
+                  {(detail as any).simulationSnapshot?.emailReplyText ||
+                    ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
+                    "No manager email reply recorded."}
                 </div>
               </div>
             </div>
@@ -823,7 +849,7 @@ function IndividualResultPage() {
             const cat = String(f.category || "").toUpperCase();
             if (integrityCategoryFilter === "ALL") return true;
             if (integrityCategoryFilter === "CLIPS_ONLY") return Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef);
-            
+
             if (integrityCategoryFilter === "UNAUTHORIZED_OBJECTS") return ["PHONE_DETECTED", "HEADPHONES_DETECTED", "BOOK_DETECTED"].includes(cat);
             if (integrityCategoryFilter === "VISUAL_GAZE") return ["LOOKING_AWAY", "EXCESSIVE_MOVEMENT", "GAZE_AWAY"].includes(cat);
             if (integrityCategoryFilter === "FACE_SEAT") return ["FACE_MISSING", "SEAT_EXIT", "NO_FACE"].includes(cat);
@@ -898,11 +924,10 @@ function IndividualResultPage() {
                                 setIntegrityCategoryFilter(opt.value);
                                 setIntegrityFilterOpen(false);
                               }}
-                              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-[8px] font-medium transition-colors cursor-pointer text-left ${
-                                isSelected
+                              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-[8px] font-medium transition-colors cursor-pointer text-left ${isSelected
                                   ? "bg-[#EAF0FF] text-[#15308F] font-semibold"
                                   : "text-[#0B0B0D] hover:bg-[#F0F4FF]"
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-2.5 truncate">
                                 {getCategoryFilterIcon(opt.value)}
@@ -929,32 +954,62 @@ function IndividualResultPage() {
                     No video evidence clips recorded for this filter selection.
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {videoClips.map((flag: any) => (
-                      <div key={flag.id || flag.flagId} className="p-3.5 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
-                        <div className="flex items-start gap-3">
-                          <Video size={16} className="text-red-500 shrink-0 mt-0.5" />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[13px] font-semibold text-[#0B0B0D]">{flag.category}</span>
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"}`}>
-                                {flag.severity}
-                              </span>
+                  <div className="space-y-3">
+                    {videoClips.map((flag: any) => {
+                      const streamUrl = resolveClipUrl(flag.evidenceClipUrl || flag.clipUrl || flag.storageRef);
+                      return (
+                        <div key={flag.id || flag.flagId} className="border border-red-200 bg-red-50/40 rounded-lg overflow-hidden">
+                          <div className="p-3.5 flex items-center justify-between">
+                            <div className="flex items-start gap-3">
+                              <Video size={16} className="text-red-500 shrink-0 mt-0.5" />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13px] font-semibold text-[#0B0B0D] capitalize">
+                                    {String(flag.category || "").toLowerCase().replace(/_/g, " ")}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" :
+                                      flag.severity === "HIGH" ? "bg-orange-500 text-white" :
+                                        "bg-red-100 text-red-700"
+                                    }`}>
+                                    {flag.severity || "MEDIUM"}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
+                                  Confidence: {Math.round((flag.confidence || 0.95) * 100)}% • {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-[11px] text-[#5B5B64] font-mono mt-0.5">
-                              Confidence: {Math.round(flag.confidence * 100)}% • Timestamp: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
-                            </p>
+                            {streamUrl && (
+                              <button
+                                onClick={() => setActiveClipUrl(streamUrl)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                              >
+                                <Play size={13} />
+                                Play
+                              </button>
+                            )}
                           </div>
+                          {streamUrl && (
+                            <div className="px-3.5 pb-3.5">
+                              <video
+                                src={streamUrl}
+                                controls
+                                muted
+                                preload="metadata"
+                                className="w-full max-h-40 rounded border border-red-100 bg-black"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = "none";
+                                  const msg = target.nextElementSibling as HTMLElement;
+                                  if (msg) msg.style.display = "block";
+                                }}
+                              />
+                              <p className="text-[11px] text-red-400 font-mono hidden mt-1">Video unavailable — clip may have been deleted or not yet uploaded.</p>
+                            </div>
+                          )}
                         </div>
-                        <button
-                          onClick={() => setActiveClipUrl(flag.evidenceClipUrl || flag.clipUrl)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                        >
-                          <Play size={13} />
-                          Play Video Clip
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -983,25 +1038,23 @@ function IndividualResultPage() {
                         const title = isCorrelatedPaste
                           ? "Correlated Paste Anomaly (Pasted Code/Text within 40s of Tab-Switch)"
                           : isFullscreenExit
-                          ? "Fullscreen Exit Detected"
-                          : isTabSwitch
-                          ? "Tab Switch / Window Blur"
-                          : isPaste
-                          ? "External Paste Anomaly"
-                          : cat;
+                            ? "Fullscreen Exit Detected"
+                            : isTabSwitch
+                              ? "Tab Switch / Window Blur"
+                              : isPaste
+                                ? "External Paste Anomaly"
+                                : cat;
 
                         return (
-                          <div key={flag.id || flag.flagId || idx} className={`p-3.5 border rounded-md flex items-center justify-between ${
-                            isCorrelatedPaste ? "border-red-300 bg-red-50/70" : isFullscreenExit ? "border-amber-300 bg-amber-50/50" : "border-[#E6E6EA] bg-[#F7F7F9]"
-                          }`}>
+                          <div key={flag.id || flag.flagId || idx} className={`p-3.5 border rounded-md flex items-center justify-between ${isCorrelatedPaste ? "border-red-300 bg-red-50/70" : isFullscreenExit ? "border-amber-300 bg-amber-50/50" : "border-[#E6E6EA] bg-[#F7F7F9]"
+                            }`}>
                             <div className="flex items-start gap-3">
                               <AlertTriangle size={16} className={isCorrelatedPaste ? "text-red-600 shrink-0 mt-0.5" : "text-amber-600 shrink-0 mt-0.5"} />
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[13px] font-semibold text-[#0B0B0D]">{title}</span>
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
-                                    flag.severity === "CRITICAL" ? "bg-red-600 text-white" : flag.severity === "HIGH" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-800"
-                                  }`}>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" : flag.severity === "HIGH" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-800"
+                                    }`}>
                                     {flag.severity || "MEDIUM"}
                                   </span>
                                 </div>

@@ -157,8 +157,8 @@ export class Judge0Service {
 
         if (pendingTokens.length > 0 && allInQueue) {
           inQueueStallCount++;
-          if (inQueueStallCount >= 3) {
-            this.logger.warn(`[Judge0Service] Queue worker is idle/stalled (tokens stuck IN_QUEUE for 3s). Failing over to local sandbox...`);
+          if (inQueueStallCount >= 15) {
+            this.logger.warn(`[Judge0Service] Queue worker is idle/stalled (tokens stuck IN_QUEUE for 15s). Failing over to local sandbox...`);
             throw new Error("JUDGE0_QUEUE_STALLED");
           }
         } else {

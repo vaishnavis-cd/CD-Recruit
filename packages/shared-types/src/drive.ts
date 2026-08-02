@@ -12,6 +12,7 @@ export interface DriveModuleConfigEntry {
   maxBonusPoints?: number; // for bonus modules — max sum capped at 20
   isFixed?: boolean;
   questionWeighting?: QuestionWeightConfig;
+  questionSource?: string;
 }
 
 export type DriveModuleConfigItem = DriveModuleConfigEntry;

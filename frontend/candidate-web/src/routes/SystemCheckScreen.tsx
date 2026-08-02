@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { StatusChip } from '../components/common/StatusChip'
+import { RetryButton } from '../components/common/RetryButton'
 import { Cpu, Camera, Wifi, Gauge, Maximize2, Info, AlertTriangle, Monitor, Bluetooth, RotateCcw } from 'lucide-react'
 
 type CheckStatus = 'pending' | 'checking' | 'pass' | 'warn' | 'fail' | 'skipped'
@@ -150,12 +151,13 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   }, [])
 
   async function runSequentialChecks() {
-    setAllDone(false)
     setChecks([
       { id: 'wasm', label: 'WebAssembly support', icon: <Cpu size={18} />, status: 'pending', note: 'Verifying runtime…' },
       { id: 'cam', label: 'Camera access', icon: <Camera size={18} />, status: 'pending', note: 'Awaiting device…' },
       { id: 'net', label: 'Connection quality', icon: <Wifi size={18} />, status: 'pending', note: 'Measuring bandwidth…' },
       { id: 'perf', label: 'Performance benchmark', icon: <Gauge size={18} />, status: 'pending', note: 'Running micro-benchmark…' },
+      { id: 'monitor', label: 'Display & Monitor check', icon: <Monitor size={18} />, status: 'pending', note: 'Checking display configuration…' },
+      { id: 'bluetooth', label: 'External & Bluetooth devices check', icon: <Bluetooth size={18} />, status: 'pending', note: 'Scanning for active peripherals…' },
     ])
 
     // 1. WASM check

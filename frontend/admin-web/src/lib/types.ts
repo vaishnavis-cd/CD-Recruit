@@ -155,6 +155,9 @@ export interface CandidateSessionDetail {
   }>;
   score: {
     compositeScore: number;
+    coreScore?: number;
+    bonusScore?: number;
+    totalScore?: number;
     moduleScores: Record<string, number>;
     sayDoConsistencyScore: number;
     aiConfidence: number;

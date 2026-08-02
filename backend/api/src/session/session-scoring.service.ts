@@ -1,9 +1,13 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
+import { DriveModuleConfigEntry } from "@cd-recruit/shared-types";
 
 export interface CompositeScoreResult {
   compositeScore: number;
+  coreScore: number;
+  bonusScore: number;
+  totalScore: number;
   sayDoConsistencyScore: number;
   aiConfidence: number;
   gradingSource: string;
@@ -110,22 +114,28 @@ export class SessionScoringService {
 
         accuracy = isCorrect ? 1.0 : 0.0;
       } else if (mod === "SQL") {
-        // Strict binary exact-match — no length-based partial credit
-        const payload = resp.responsePayload as any;
-        const execResult = payload?.executionResult;
-        if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
-          moduleTotals[mod].earned += 1.0;
+        const sqlExecs = session.sqlExecutions.filter((se) => se.questionId === q.id);
+        const sortedSql = [...sqlExecs].sort((a, b) => {
+          const tA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.createdAt).getTime();
+          const tB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.createdAt).getTime();
+          return tA - tB;
+        });
+        const submitSqls = sortedSql.filter((se) => se.submissionType === "SUBMIT");
+        const latestSql = submitSqls.length > 0 ? submitSqls[submitSqls.length - 1] : sortedSql[sortedSql.length - 1];
+        if (latestSql && latestSql.passed === true) {
+          accuracy = 1.0;
         } else {
-          const query = payload?.query || payload?.code || "";
-          if (query && query.trim().length > 15) {
-            moduleTotals[mod].earned += 0.8;
-          } else if (query && query.trim().length > 0) {
-            moduleTotals[mod].earned += 0.4;
-          }
+          accuracy = 0.0;
         }
       } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
         const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
-        const latestExec = executions[executions.length - 1];
+        const sortedExecs = [...executions].sort((a, b) => {
+          const tA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.createdAt).getTime();
+          const tB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.createdAt).getTime();
+          return tA - tB;
+        });
+        const submitExecs = sortedExecs.filter((ce) => ce.submissionType === "SUBMIT");
+        const latestExec = submitExecs.length > 0 ? submitExecs[submitExecs.length - 1] : sortedExecs[sortedExecs.length - 1];
         const payload = resp.responsePayload as any;
         const execResult = payload?.executionResult;
 
@@ -210,7 +220,7 @@ export class SessionScoringService {
 
     for (const resp of responses) {
       const payload = resp.responsePayload as any;
-      const q = questionMap.get(resp.questionId);
+      const q: any = questionMap.get(resp.questionId);
       if (!q || !payload) continue;
 
       const sayValue = payload.selfConfidence ?? payload.confidenceLevel ?? payload.expectedScore;
@@ -224,11 +234,23 @@ export class SessionScoringService {
           doValue = selectedIndex === correctIndex ? 1.0 : 0.0;
         } else if (q.moduleType === "CODING") {
           const execs = session.codingExecutions.filter((ce) => ce.questionId === q.id);
-          const lastExec = execs[execs.length - 1];
+          const sortedExecs = [...execs].sort((a, b) => {
+            const tA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.createdAt).getTime();
+            const tB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.createdAt).getTime();
+            return tA - tB;
+          });
+          const submitExecs = sortedExecs.filter((ce) => ce.submissionType === "SUBMIT");
+          const lastExec = submitExecs.length > 0 ? submitExecs[submitExecs.length - 1] : sortedExecs[sortedExecs.length - 1];
           doValue = lastExec && lastExec.totalTests > 0 ? lastExec.passedTests / lastExec.totalTests : 0.0;
         } else if (q.moduleType === "SQL") {
           const sqlExecs = session.sqlExecutions ? session.sqlExecutions.filter((se) => se.questionId === q.id) : [];
-          const lastSql = sqlExecs[sqlExecs.length - 1];
+          const sortedSql = [...sqlExecs].sort((a, b) => {
+            const tA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.createdAt).getTime();
+            const tB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.createdAt).getTime();
+            return tA - tB;
+          });
+          const submitSqls = sortedSql.filter((se) => se.submissionType === "SUBMIT");
+          const lastSql = submitSqls.length > 0 ? submitSqls[submitSqls.length - 1] : sortedSql[sortedSql.length - 1];
           doValue = lastSql ? (lastSql.status === "COMPLETED" ? 1.0 : 0.0) : 0.0;
         } else {
           doValue = 0.0;
