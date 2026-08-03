@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { InFictionInbox } from '@/components/InFictionInbox'
 import apiClient from '@/api/client'
+import { useSessionStore } from '../../../store/sessionMachine'
 import {
   Mail,
   Bell,
@@ -30,6 +31,8 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
+  FileText,
   X,
 } from 'lucide-react'
 import { CodeEditor } from '../../../components/common/CodeEditor'
@@ -170,6 +173,27 @@ export function ContextSimulationWorkspace({
   // Unread manager email state & toast banner
   const [hasUnreadManagerEmail, setHasUnreadManagerEmail] = useState(false)
   const [showEmailToast, setShowEmailToast] = useState(false)
+
+  // Initial SAY plan reference banner state
+  const [initialSayPlan, setInitialSayPlan] = useState<string>('')
+  const [isPlanExpanded, setIsPlanExpanded] = useState(false)
+
+  useEffect(() => {
+    const storeResp = (useSessionStore.getState().assessment?.responses[scenario.id] as any)?.initialSayText
+    if (storeResp) {
+      setInitialSayPlan(storeResp)
+    }
+    if (sessionId) {
+      apiClient
+        .get(`/sessions/${sessionId}/simulation/scenario`)
+        .then((res) => {
+          if (res.data?.initialSayText) {
+            setInitialSayPlan(res.data.initialSayText)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [sessionId, scenario.id])
 
   const emitTelemetry = async (type: 'FILE_OPEN' | 'FILE_EDIT' | 'TEST_EXECUTE', filepath?: string) => {
     try {
@@ -393,6 +417,30 @@ export function ContextSimulationWorkspace({
           </button>
         </div>
       </div>
+
+      {/* Collapsible Candidate Initial Plan Reference Banner */}
+      {initialSayPlan && (
+        <div className="px-6 py-2 bg-[var(--surface)] border-b border-[var(--border)] text-xs z-10 shrink-0 shadow-xs">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setIsPlanExpanded(!isPlanExpanded)}
+              className="font-bold text-[var(--text-primary)] hover:text-[var(--accent)] inline-flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <FileText className="w-4 h-4 text-[var(--accent)]" />
+              <span>Your Submitted Debugging Plan</span>
+              <span className="text-[10px] text-[var(--text-secondary)] font-mono font-normal">
+                ({isPlanExpanded ? 'Click to collapse' : 'Click to expand & review'})
+              </span>
+              {isPlanExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          {isPlanExpanded && (
+            <div className="mt-2.5 p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] font-mono text-[11px] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed shadow-inner">
+              {initialSayPlan}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Content Body */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
