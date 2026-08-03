@@ -43,21 +43,18 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
     initials: "RB",
   });
 
-  const [hasUnreadResults, setHasUnreadResults] = useState(() => {
-    try {
-      return localStorage.getItem("proctora_read_results_notification") !== "true";
-    } catch {
-      return true;
-    }
-  });
+  const [hasUnreadResults, setHasUnreadResults] = useState(false);
 
   useEffect(() => {
-    if (pathname.startsWith("/results")) {
-      try {
+    try {
+      if (pathname.startsWith("/results")) {
         localStorage.setItem("proctora_read_results_notification", "true");
         setHasUnreadResults(false);
-      } catch {}
-    }
+      } else {
+        const isRead = localStorage.getItem("proctora_read_results_notification") === "true";
+        setHasUnreadResults(!isRead);
+      }
+    } catch {}
   }, [pathname]);
 
   useEffect(() => {

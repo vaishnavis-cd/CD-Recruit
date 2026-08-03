@@ -125,10 +125,12 @@ const RANGES = [
   const passRate = useMemo(() => {
     if (!allSessions.length) return 0;
     const passed = allSessions.filter((s: any) => {
-      const dec = (s.decision || s.reviewerDecision || s.status || "").toUpperCase();
+      const decVal = s.decision ?? s.reviewerDecision ?? s.status ?? "";
+      const dec = (typeof decVal === "string" ? decVal : String(decVal?.name || decVal?.decision || decVal?.status || decVal || "")).toUpperCase();
       const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
-      const scoreVal = raw <= 1.0 ? raw * 100 : raw;
-      return dec === "PASS" || dec === "ADVANCE" || dec === "REVIEWED" || scoreVal >= 70;
+      const scoreVal = typeof raw === "number" ? raw : Number(raw) || 0;
+      const val = scoreVal <= 1.0 ? scoreVal * 100 : scoreVal;
+      return dec === "PASS" || dec === "ADVANCE" || dec === "REVIEWED" || val >= 70;
     }).length;
     return Math.round((passed / allSessions.length) * 100);
   }, [allSessions]);

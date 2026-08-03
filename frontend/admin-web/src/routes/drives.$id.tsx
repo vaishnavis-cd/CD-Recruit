@@ -454,7 +454,20 @@ function DriveDetailPage() {
       setEndAmPm(eAmPm);
 
       const winMins = computeTimeWindowMinutes(sHour, sMin, sAmPm, eHour, eMin, eAmPm);
-      let initialConfig = data.moduleConfig && Object.keys(data.moduleConfig).length > 0 ? data.moduleConfig : moduleConfig;
+      const defaultModules: Record<string, DriveModuleConfigEntry> = {
+        MCQ: { enabled: true, durationMinutes: 15, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
+        SQL: { enabled: true, durationMinutes: 20, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
+        CODING: { enabled: true, durationMinutes: 30, weight: 25, isBonus: false, questionWeighting: { mode: "equal" } },
+        DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+        AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
+        SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
+      };
+
+      let initialConfig = {
+        ...defaultModules,
+        ...(data.moduleConfig || {}),
+      };
+
       if ((data.moduleConfig as any)?.proctoringConfig) {
         setProctoringConfig((data.moduleConfig as any).proctoringConfig);
       }
