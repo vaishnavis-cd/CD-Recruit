@@ -6,6 +6,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateQuestionDto, UpdateQuestionDto, ListQuestionsQueryDto } from "../common/dto/question.dto";
 import { ModuleType, QuestionStatus } from "@cd-recruit/shared-types";
+import { RakeExtractor } from "../ai-prompting/ai-prompting-guardrails";
 
 @Injectable()
 export class QuestionService {
@@ -52,6 +53,11 @@ export class QuestionService {
     const { moduleType, content, scoringConfig = {}, difficulty = "medium", tags = [], status = QuestionStatus.PUBLISHED, role = "General" } = dto;
     
     this.validateQuestionContent(moduleType, content, scoringConfig);
+
+    if (moduleType === ModuleType.AI_PROMPTING) {
+      const textToExtract = content.prompt || content.text || "";
+      content.extractedKeywords = RakeExtractor.extract(textToExtract);
+    }
 
     const question = await this.prisma.question.create({
       data: {
@@ -162,6 +168,11 @@ export class QuestionService {
     const { moduleType = question.moduleType as ModuleType, content = question.content, scoringConfig = question.scoringConfig, difficulty, tags, status, role } = dto;
 
     this.validateQuestionContent(moduleType, content, scoringConfig);
+
+    if (moduleType === ModuleType.AI_PROMPTING && content) {
+      const textToExtract = content.prompt || content.text || "";
+      content.extractedKeywords = RakeExtractor.extract(textToExtract);
+    }
 
     // Check if this question is used in any Drive
     const usageCount = await this.prisma.driveQuestion.count({
