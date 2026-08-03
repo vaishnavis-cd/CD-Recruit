@@ -929,6 +929,8 @@ export function ContextSimulationWorkspace({
             </div>
           </div>
         </div>
+      )}
+
       {/* Live Manager Email Toast Notification Popup */}
       {showEmailToast && (
         <div className="fixed bottom-6 right-6 z-50 p-4 bg-[var(--surface)] border border-rose-500/40 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm font-sans animate-in fade-in slide-in-from-bottom-3 duration-200">
