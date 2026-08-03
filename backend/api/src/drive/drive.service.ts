@@ -62,11 +62,12 @@ export class DriveService {
     const finalRoleTemplateId = template.id;
 
     const defaultModuleConfig = moduleConfig || {
-      MCQ: { enabled: false, durationMinutes: 15, weight: 0.2 },
-      SQL: { enabled: false, durationMinutes: 20, weight: 0.2 },
-      CODING: { enabled: false, durationMinutes: 30, weight: 0.3 },
-      AI_PROMPTING: { enabled: false, durationMinutes: 15, weight: 0.15 },
-      SIMULATION: { enabled: false, durationMinutes: 10, weight: 0.15 },
+      MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
+      SQL: { enabled: true, durationMinutes: 20, weight: 20 },
+      CODING: { enabled: true, durationMinutes: 30, weight: 25 },
+      DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
+      AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10 },
+      SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
     };
 
     // 2. Validate schedule if status is SCHEDULED or ACTIVE
@@ -302,12 +303,25 @@ export class DriveService {
         ["SUBMITTED", "AUTO_SUBMITTED", "CLOSED"].includes(i.session.status),
     ).length;
 
+    const baseModuleConfig = {
+      MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
+      SQL: { enabled: true, durationMinutes: 20, weight: 20 },
+      CODING: { enabled: true, durationMinutes: 30, weight: 25 },
+      DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
+      AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10 },
+      SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
+    };
+    const finalModuleConfig = {
+      ...baseModuleConfig,
+      ...((drive.moduleConfig as object) || {}),
+    };
+
     return {
       id: drive.id,
       name: drive.name,
       roleTemplateId: drive.roleTemplateId,
       roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
-      moduleConfig: drive.moduleConfig as any,
+      moduleConfig: finalModuleConfig as any,
       status: drive.status as any,
       scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
       scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,

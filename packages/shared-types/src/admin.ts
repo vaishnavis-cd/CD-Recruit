@@ -27,6 +27,7 @@ export interface SessionListItem {
   /** Available once Correlation Engine has scored the session; null before that. */
   compositeScore: number | null;
   sayDoConsistencyScore: number | null;
+  moduleScores?: Record<string, number> | null;
   humanReviewRequired: boolean;
 }
 

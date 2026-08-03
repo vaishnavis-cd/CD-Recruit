@@ -149,6 +149,8 @@ export class AdminService {
       const compositeScore = session.score?.compositeScore ?? null;
       const sayDoConsistencyScore =
         session.score?.sayDoConsistencyScore ?? null;
+      const moduleScores =
+        (session.score?.moduleScores as Record<string, number>) ?? null;
 
       // Human review logic: scored, not yet humanReviewed, and AI confidence is real and low
       const humanReviewRequired =
@@ -176,6 +178,7 @@ export class AdminService {
         disconnectCount: session.disconnectCount,
         compositeScore,
         sayDoConsistencyScore,
+        moduleScores,
         humanReviewRequired,
         integrityFlagsCount: flagCount,
         decision: session.reviewerDecision

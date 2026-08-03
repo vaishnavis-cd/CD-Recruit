@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { InFictionInbox } from '@/components/InFictionInbox'
 import apiClient from '@/api/client'
+import { useSessionStore } from '../../../store/sessionMachine'
 import {
   Mail,
   Bell,
@@ -30,6 +31,8 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
+  FileText,
   X,
 } from 'lucide-react'
 import { CodeEditor } from '../../../components/common/CodeEditor'
@@ -62,12 +65,14 @@ export function ContextSimulationWorkspace({
   scenario,
   onSubmitSimulation,
 }: ContextSimulationWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<'workspace' | 'channels' | 'signoff' | 'debrief'>('workspace')
+  // Default to Communication Center first so candidate is driven through the incident updates & to-do list
+  const [activeTab, setActiveTab] = useState<'workspace' | 'channels' | 'signoff' | 'debrief'>('channels')
   const [activeWorkspaceSubTab, setActiveWorkspaceSubTab] = useState<'editor' | 'diff' | 'pr_discussion'>('editor')
   const [activeChannelTab, setActiveChannelTab] = useState<'slack' | 'jira' | 'pr' | 'email'>('slack')
 
-  // Selected file in repo tree
+  // Selected file in repo tree & sidebar toggle
   const [selectedFile, setSelectedFile] = useState<string>('login/login_validation.py')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   // Language & Code State
   const [language, setLanguage] = useState<'python' | 'javascript'>('python')
@@ -76,10 +81,11 @@ export function ContextSimulationWorkspace({
   })
   const initialStarterCode = useRef(code)
 
-  // Resolution Modal & Debrief State
+  // Resolution Modal, Submitting & Debrief State
   const [showResolutionModal, setShowResolutionModal] = useState(false)
   const [resolutionData, setResolutionData] = useState<ResolutionData | null>(null)
   const [isDebriefCompleted, setIsDebriefCompleted] = useState(false)
+  const [isSubmittingResolution, setIsSubmittingResolution] = useState(false)
 
   // Quick Switcher Modal (Ctrl+P)
   const [showQuickSwitcher, setShowQuickSwitcher] = useState(false)
@@ -97,9 +103,6 @@ export function ContextSimulationWorkspace({
   const [countdown, setCountdown] = useState(6120)
   const [watermarkIndex, setWatermarkIndex] = useState(0)
   const watermarks = ['INTERNAL', 'CONFIDENTIAL', 'ENGINEERING SANDBOX', 'CANDIDATE BUILD', 'CLOUDESTINATIONS']
-
-  // Ambient Notification Toasts
-  const [ambientToast, setAmbientToast] = useState<string | null>('QA Lead Sarah Jenkins joined incident war room channel.')
 
   // Terminal Logs
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
@@ -136,23 +139,6 @@ export function ContextSimulationWorkspace({
     }
   }, [])
 
-  // Ambient Notifications Spawner
-  useEffect(() => {
-    const toasts = [
-      'QA reported regression confirmed on Staging Authentication API.',
-      'Engineering Manager Priya Patel requested ETA update in #incident-login-outage.',
-      'Pipeline build #8492 paused pending incident sign-off.',
-      'New PR review comment added by Alex Rivera (Tech Lead).',
-    ]
-    let tIdx = 0
-    const interval = setInterval(() => {
-      setAmbientToast(toasts[tIdx % toasts.length])
-      tIdx++
-      setTimeout(() => setAmbientToast(null), 5000)
-    }, 20000)
-    return () => clearInterval(interval)
-  }, [])
-
   // Ctrl+P Keyboard Shortcut Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -184,13 +170,43 @@ export function ContextSimulationWorkspace({
     }
   }
 
+  // Unread manager email state & toast banner
+  const [hasUnreadManagerEmail, setHasUnreadManagerEmail] = useState(false)
+  const [showEmailToast, setShowEmailToast] = useState(false)
+
+  // Initial SAY plan reference banner state
+  const [initialSayPlan, setInitialSayPlan] = useState<string>('')
+  const [isPlanExpanded, setIsPlanExpanded] = useState(false)
+
+  useEffect(() => {
+    const storeResp = (useSessionStore.getState().assessment?.responses[scenario.id] as any)?.initialSayText
+    if (storeResp) {
+      setInitialSayPlan(storeResp)
+    }
+    if (sessionId) {
+      apiClient
+        .get(`/sessions/${sessionId}/simulation/scenario`)
+        .then((res) => {
+          if (res.data?.initialSayText) {
+            setInitialSayPlan(res.data.initialSayText)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [sessionId, scenario.id])
+
   const emitTelemetry = async (type: 'FILE_OPEN' | 'FILE_EDIT' | 'TEST_EXECUTE', filepath?: string) => {
     try {
-      await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
+      const res = await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
         type,
         filepath: filepath || selectedFile,
         metadata: { timestamp: new Date().toISOString() },
       })
+      if (res.data?.emailTriggered) {
+        setHasUnreadManagerEmail(true)
+        setShowEmailToast(true)
+        setTimeout(() => setShowEmailToast(false), 6000)
+      }
       fetchActionHistory()
     } catch (err) {
       console.warn('[Telemetry] Error posting event:', err)
@@ -269,6 +285,7 @@ export function ContextSimulationWorkspace({
 
   // Handle Resolution Submission from Stage 4 Modal
   const handleResolutionSubmit = async (data: ResolutionData) => {
+    setIsSubmittingResolution(true)
     setResolutionData(data)
     setShowResolutionModal(false)
     const passedCount = testResults ? testResults.filter((r) => r.passed).length : 5
@@ -289,6 +306,7 @@ export function ContextSimulationWorkspace({
       onSubmitSimulation()
     } catch (err) {
       console.error('Submission failed:', err)
+      setIsSubmittingResolution(false)
     }
   }
 
@@ -318,38 +336,32 @@ export function ContextSimulationWorkspace({
     return diff
   }
 
+  if (isSubmittingResolution) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full w-full bg-[var(--background)] text-[var(--text-primary)] space-y-4 font-sans">
+        <RefreshCw className="w-8 h-8 text-[var(--accent)] animate-spin" />
+        <p className="text-sm font-semibold tracking-tight">Authorizing Hotfix &amp; Generating Incident Debrief...</p>
+      </div>
+    )
+  }
+
   if (activeTab === 'debrief' || isDebriefCompleted) {
     return <IncidentDebriefView resolutionData={resolutionData} actionHistory={actionHistory} />
   }
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--background)] text-[var(--text-primary)] font-sans relative select-none">
-      {/* Dynamic Watermark Banner */}
-      <div className="absolute top-1 right-3 text-[9px] font-mono font-semibold tracking-widest text-[var(--text-secondary)] opacity-15 z-50 pointer-events-none uppercase">
-        {watermarks[watermarkIndex]} • CANDIDATE RECRUIT INCIDENT ROOM • {new Date().toLocaleTimeString()} UTC
-      </div>
-
-      {/* Ambient Toast Notification */}
-      {ambientToast && (
-        <div className="fixed bottom-6 right-6 z-50 p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl text-xs flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-200 max-w-sm">
-          <div className="p-1.5 rounded-lg bg-[#2F5CFF]/15 text-[#2F5CFF]">
-            <Bell className="w-4 h-4" />
-          </div>
-          <span className="text-[var(--text-primary)] leading-snug">{ambientToast}</span>
-        </div>
-      )}
-
       {/* Top Persistent Header */}
       <div className="px-6 py-2.5 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between z-10 shrink-0 shadow-xs">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-bold font-mono">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            <span>P1 INCIDENT WAR ROOM</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold font-mono">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            <span>P1 INCIDENT</span>
           </div>
 
-          <div className="flex items-center gap-2 font-mono text-xs text-amber-500 font-bold">
-            <Clock className="w-4 h-4" />
-            <span>Window: {formatTimer(countdown)}</span>
+          <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)] bg-[var(--background)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
+            <Clock className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <span>{formatTimer(countdown)}</span>
           </div>
 
           <h1 className="text-xs font-bold tracking-wide text-[var(--text-primary)] truncate max-w-xs">
@@ -373,7 +385,7 @@ export function ContextSimulationWorkspace({
 
           <button
             onClick={() => setActiveTab('channels')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer relative ${
               activeTab === 'channels'
                 ? 'bg-[var(--accent)] text-white shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -381,46 +393,54 @@ export function ContextSimulationWorkspace({
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Communication Center</span>
+            {hasUnreadManagerEmail && (
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse absolute -top-0.5 -right-0.5" />
+            )}
           </button>
         </div>
 
-        <button
-          onClick={() => setActiveTab('signoff')}
-          className="px-5 py-2 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          <span>Resolve Incident &amp; Authorize</span>
-        </button>
-      </div>
-
-      {/* Technical Repository Metadata Sub-Header */}
-      <div className="px-6 py-1.5 bg-[var(--background)] border-b border-[var(--border)] flex items-center justify-between text-[11px] font-mono text-[var(--text-secondary)]">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5">
-            <GitBranch className="w-3.5 h-3.5 text-[var(--accent)]" />
-            <strong className="text-[var(--text-primary)]">Branch:</strong> feature/login-validation
-          </span>
-          <span>
-            <strong className="text-[var(--text-primary)]">Commit:</strong> a93fd2c
-          </span>
-          <span>
-            <strong className="text-[var(--text-primary)]">Author:</strong> Rahul Sharma
-          </span>
-          <span>
-            <strong className="text-[var(--text-primary)]">Repo:</strong> cdrecruit/login-service
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowQuickSwitcher(true)}
-            className="px-2 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1.5 cursor-pointer text-[10px]"
+            className="px-2.5 py-1 rounded-lg bg-[var(--background)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1.5 cursor-pointer text-xs"
           >
-            <Search className="w-3 h-3" />
-            <span>Quick File Switcher (Ctrl+P)</span>
+            <Search className="w-3.5 h-3.5" />
+            <span>Ctrl+P</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('signoff')}
+            className="px-4 py-1.5 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Resolve Incident</span>
           </button>
         </div>
       </div>
+
+      {/* Collapsible Candidate Initial Plan Reference Banner */}
+      {initialSayPlan && (
+        <div className="px-6 py-2 bg-[var(--surface)] border-b border-[var(--border)] text-xs z-10 shrink-0 shadow-xs">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setIsPlanExpanded(!isPlanExpanded)}
+              className="font-bold text-[var(--text-primary)] hover:text-[var(--accent)] inline-flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <FileText className="w-4 h-4 text-[var(--accent)]" />
+              <span>Your Submitted Debugging Plan</span>
+              <span className="text-[10px] text-[var(--text-secondary)] font-mono font-normal">
+                ({isPlanExpanded ? 'Click to collapse' : 'Click to expand & review'})
+              </span>
+              {isPlanExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          {isPlanExpanded && (
+            <div className="mt-2.5 p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] font-mono text-[11px] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed shadow-inner">
+              {initialSayPlan}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Content Body */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -433,105 +453,121 @@ export function ContextSimulationWorkspace({
 
         {activeTab === 'workspace' && (
           <div className="flex-1 flex min-h-0">
-            {/* Left Column: Repository Tree Sidebar */}
-            <div className="w-56 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col shrink-0">
-              <div className="px-3 py-2 border-b border-[var(--border)] text-[11px] font-bold uppercase tracking-wider font-mono text-[var(--text-secondary)] flex items-center justify-between">
-                <span>Repository Explorer</span>
-                <Folder className="w-3.5 h-3.5 text-[var(--accent)]" />
-              </div>
+            {/* Left Column: Guided Incident To-Do Checklist Sidebar */}
+            {isSidebarOpen && (
+              <div className="w-64 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col shrink-0 font-sans">
+                <div className="px-3 py-2.5 border-b border-[var(--border)] text-[11px] font-bold uppercase tracking-wider font-mono text-[var(--text-primary)] flex items-center justify-between bg-[var(--background)]">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)]" />
+                    <span>Incident Checklist</span>
+                  </span>
+                  <button onClick={() => setIsSidebarOpen(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
-              <div className="p-2 space-y-1 overflow-y-auto flex-1 font-mono text-xs text-[var(--text-primary)]">
-                {/* login folder */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-[var(--text-secondary)] font-bold px-1.5 py-1">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                    <Folder className="w-3.5 h-3.5 text-amber-500" />
-                    <span>login/</span>
+                <div className="p-3 space-y-3 overflow-y-auto flex-1 text-xs">
+                  <div className="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1">
+                    <div className="font-bold text-[11px] text-[var(--accent)] font-mono uppercase">Incident Guide</div>
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                      Follow the guided workflow steps below to investigate, communicate, patch, and deploy the P1 hotfix.
+                    </p>
                   </div>
 
-                  <div className="pl-5 space-y-0.5">
+                  <div className="space-y-1.5">
                     <button
                       onClick={() => {
-                        setSelectedFile('login/auth.py')
-                        emitTelemetry('FILE_OPEN', 'login/auth.py')
+                        setActiveTab('channels')
+                        setActiveChannelTab('slack')
                       }}
-                      className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center gap-2 cursor-pointer ${
-                        selectedFile === 'login/auth.py' ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-bold' : 'hover:bg-[var(--background)]'
-                      }`}
+                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
                     >
-                      <File className="w-3 h-3 text-[var(--text-secondary)]" />
-                      <span>auth.py</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setSelectedFile('login/login_validation.py')
-                        emitTelemetry('FILE_OPEN', 'login/login_validation.py')
-                      }}
-                      className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center justify-between cursor-pointer ${
-                        selectedFile === 'login/login_validation.py' ? 'bg-[var(--accent)] text-white font-bold' : 'hover:bg-[var(--background)]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileCode className="w-3 h-3" />
-                        <span>login_validation.py</span>
+                      <MessageSquare className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">1. Review #incident-login-outage</div>
+                        <div className="text-[10px] text-[var(--text-secondary)]">Check QA reports &amp; reproduction notes</div>
                       </div>
-                      <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-400">EDIT</span>
                     </button>
 
                     <button
                       onClick={() => {
-                        setSelectedFile('login/middleware.py')
-                        emitTelemetry('FILE_OPEN', 'login/middleware.py')
+                        setActiveTab('channels')
+                        setActiveChannelTab('jira')
                       }}
-                      className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center gap-2 cursor-pointer ${
-                        selectedFile === 'login/middleware.py' ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-bold' : 'hover:bg-[var(--background)]'
-                      }`}
+                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
                     >
-                      <File className="w-3 h-3 text-[var(--text-secondary)]" />
-                      <span>middleware.py</span>
+                      <Bug className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">2. Inspect JIRA Bug Ticket</div>
+                        <div className="text-[10px] text-[var(--text-secondary)]">Review BUG-3124 acceptance criteria</div>
+                      </div>
                     </button>
-                  </div>
-                </div>
 
-                {/* tests folder */}
-                <div className="space-y-1 pt-1">
-                  <div className="flex items-center gap-1 text-[var(--text-secondary)] font-bold px-1.5 py-1">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                    <Folder className="w-3.5 h-3.5 text-purple-500" />
-                    <span>tests/</span>
-                  </div>
-
-                  <div className="pl-5 space-y-0.5">
                     <button
                       onClick={() => {
-                        setSelectedFile('tests/test_validation.py')
-                        emitTelemetry('FILE_OPEN', 'tests/test_validation.py')
+                        setActiveTab('channels')
+                        setActiveChannelTab('email')
                       }}
-                      className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center gap-2 cursor-pointer ${
-                        selectedFile === 'tests/test_validation.py' ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-bold' : 'hover:bg-[var(--background)]'
-                      }`}
+                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
                     >
-                      <File className="w-3 h-3 text-[var(--text-secondary)]" />
-                      <span>test_validation.py</span>
+                      <Mail className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">3. Reply to Manager Email</div>
+                        <div className="text-[10px] text-[var(--text-secondary)]">Provide ETA update to stakeholders</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveTab('workspace')
+                        setActiveWorkspaceSubTab('editor')
+                        setSelectedFile('login/login_validation.py')
+                      }}
+                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
+                    >
+                      <FileCode className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">4. Patch login_validation.py</div>
+                        <div className="text-[10px] text-[var(--text-secondary)]">Fix leading/trailing space validation</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('signoff')}
+                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">5. Authorize &amp; Submit Hotfix</div>
+                        <div className="text-[10px] text-[var(--text-secondary)]">Deploy patch to staging &amp; finish</div>
+                      </div>
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Center Column: War Room Editor / Diff / PR Discussion */}
+          {/* Center Column: War Room Editor / Diff / PR Discussion */}
             <div className="flex-1 h-full flex flex-col bg-[var(--background)] min-w-0 border-r border-[var(--border)]">
               {/* Sub-Tab Bar: Editor, Diff, PR Discussion */}
               <div className="px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
+                  {!isSidebarOpen && (
+                    <button
+                      onClick={() => setIsSidebarOpen(true)}
+                      className="p-1 rounded bg-[var(--background)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer mr-1"
+                      title="Open Explorer Sidebar"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-[var(--accent)]" />
+                    </button>
+                  )}
                   <span className="text-xs font-bold text-[var(--text-primary)] font-mono flex items-center gap-2">
                     <FileCode className="w-4 h-4 text-[#2F5CFF]" />
                     <span>{selectedFile}</span>
                   </span>
                   {selectedFile !== 'login/login_validation.py' && (
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                      READ-ONLY REFERENCE
+                      READ-ONLY
                     </span>
                   )}
                 </div>
@@ -755,14 +791,23 @@ export function ContextSimulationWorkspace({
                 ].map((ch) => (
                   <button
                     key={ch.id}
-                    onClick={() => setActiveChannelTab(ch.id as any)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    onClick={() => {
+                      setActiveChannelTab(ch.id as any)
+                      if (ch.id === 'email') {
+                        setHasUnreadManagerEmail(false)
+                        setShowEmailToast(false)
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all relative ${
                       activeChannelTab === ch.id
                         ? 'bg-[var(--accent)] text-white shadow-xs'
                         : 'bg-[var(--background)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {ch.label}
+                    {ch.id === 'email' && hasUnreadManagerEmail && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold animate-pulse">NEW</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -886,6 +931,37 @@ export function ContextSimulationWorkspace({
         </div>
       )}
 
+      {/* Live Manager Email Toast Notification Popup */}
+      {showEmailToast && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 bg-[var(--surface)] border border-rose-500/40 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm font-sans animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0 border border-rose-500/30">
+            <Mail className="w-5 h-5" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+              <span>New Manager Email</span>
+              <button onClick={() => setShowEmailToast(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Sarah (Tech Lead) sent an inquiry regarding your hotfix status and ETA.
+            </p>
+            <button
+              onClick={() => {
+                setActiveTab('channels')
+                setActiveChannelTab('email')
+                setHasUnreadManagerEmail(false)
+                setShowEmailToast(false)
+              }}
+              className="text-[11px] font-bold text-[var(--accent)] hover:underline inline-flex items-center gap-1 pt-1 cursor-pointer"
+            >
+              <span>Open Email Sub-Tab</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

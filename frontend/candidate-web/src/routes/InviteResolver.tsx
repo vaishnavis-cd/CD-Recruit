@@ -83,28 +83,16 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // Apply time gates for NEW / UNSTARTED sessions
-        const nowMs = services.time.getServerNow()
-        const scheduledTimeStr = invite.scheduledTime || drive.scheduleStart
-        const scheduledStartMs = scheduledTimeStr ? new Date(scheduledTimeStr).getTime() : 0
+        // Check if scheduled time is in the future (> 15 minutes away)
+        const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduledAt || (drive as any).startsAt
+        if (scheduledTimeStr) {
+          const scheduledMs = new Date(scheduledTimeStr).getTime()
+          const nowMs = services.time.getServerNow()
+          const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
 
-        if (scheduledStartMs > 0) {
-          const graceMs = 20 * 60 * 1000 // 20 minutes grace window
-          const cutoffMs = scheduledStartMs + graceMs
-          if (nowMs > cutoffMs) {
-            console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
-            transitionTo({ type: 'expired', reason: 'never-started' })
-            return
-          }
-
-          const preheatStartMs = scheduledStartMs - 15 * 60 * 1000
-          if (nowMs < preheatStartMs) {
-            console.log('[InviteResolver] Candidate entered before system check preheat. Showing too early page.')
-            transitionTo({
-              type: 'too-early',
-              scheduledTimeMs: preheatStartMs,
-              inviteToken: token
-            })
+          if (!isNaN(scheduledMs) && nowMs < unlockTimeMs) {
+            localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
+            transitionTo({ type: 'too-early', scheduledTimeMs: unlockTimeMs, inviteToken: token })
             return
           }
         }

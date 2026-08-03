@@ -136,7 +136,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 </span>
               </div>
 
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div
                   className="font-mono-data text-4xl font-bold tabular-nums text-[var(--accent)] tracking-tight"
                   role="timer"
@@ -144,6 +144,14 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 >
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </div>
+
+                <button
+                  onClick={handleStartNow}
+                  className="px-6 py-3 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white font-bold text-sm transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95 w-full sm:w-auto justify-center"
+                >
+                  <span>Start Assessment Now</span>
+                  <ArrowRight size={16} />
+                </button>
               </div>
             </div>
 

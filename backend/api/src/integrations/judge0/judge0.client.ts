@@ -48,13 +48,16 @@ export class Judge0Client {
   /**
    * Submit a single source code & stdin to Judge0.
    */
+  /**
+   * Submit a single source code & stdin to Judge0 with wait=true.
+   */
   async createSubmission(
     sourceCodeBase64: string,
     languageId: number,
     stdinBase64?: string,
     expectedOutputBase64?: string,
-  ): Promise<string> {
-    const url = `${this.apiUrl}/submissions?base64_encoded=true&wait=false`;
+  ): Promise<Judge0ExecutionResponse & { token: string }> {
+    const url = `${this.apiUrl}/submissions?base64_encoded=true&wait=true`;
     const payload = {
       source_code: sourceCodeBase64,
       language_id: languageId,
@@ -96,8 +99,8 @@ export class Judge0Client {
           throw new Error(`Judge0 API error: ${response.statusText}`);
         }
 
-        const data = (await response.json()) as Judge0SubmissionResponse;
-        return data.token;
+        const data = (await response.json()) as Judge0ExecutionResponse & { token: string };
+        return data;
       } catch (error: any) {
         if (attempts === maxAttempts) {
           this.logger.error(`Error connecting to Judge0 for submission: ${error.message}`);
@@ -113,78 +116,22 @@ export class Judge0Client {
   }
 
   /**
-   * Submit a batch of test cases to Judge0 in a single HTTP POST request.
+   * Submit a batch of test cases to Judge0 in parallel synchronous HTTP POST requests with wait=true.
    */
-  async createBatchSubmissions(items: BatchSubmissionItem[]): Promise<string[]> {
+  async createBatchSubmissions(items: BatchSubmissionItem[]): Promise<Array<Judge0ExecutionResponse & { token: string }>> {
     if (items.length === 0) return [];
-    if (items.length === 1) {
-      const token = await this.createSubmission(
-        items[0].sourceCodeBase64,
-        items[0].languageId,
-        items[0].stdinBase64,
-        items[0].expectedOutputBase64,
-      );
-      return [token];
-    }
-
-    const url = `${this.apiUrl}/submissions/batch?base64_encoded=true`;
-    const payload = {
-      submissions: items.map((item) => ({
-        source_code: item.sourceCodeBase64,
-        language_id: item.languageId,
-        stdin: item.stdinBase64 || null,
-        expected_output: item.expectedOutputBase64 || null,
-        cpu_time_limit: 5.0,
-        wall_time_limit: 10.0,
-        enable_per_process_and_thread_time_limit: true,
-        enable_per_process_and_thread_memory_limit: true,
-      })),
-    };
-
-    let attempts = 0;
-    const maxAttempts = 3;
-    let delay = 500;
-
-    while (attempts < maxAttempts) {
-      attempts++;
-      try {
-        this.logger.log(`Submitting batch of ${items.length} test cases to Judge0 (attempt ${attempts})...`);
-        const response = await fetch(url, {
-          method: "POST",
-          headers: this.getHeaders(),
-          body: JSON.stringify(payload),
-        });
-
-        if (response.status === 429 || response.status === 503) {
-          if (attempts === maxAttempts) {
-            throw new Error(`Rate limit/Server busy (${response.status}) after ${maxAttempts} attempts.`);
-          }
-          this.logger.warn(`Judge0 batch submission rate limited (${response.status}). Retrying in ${delay}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          delay *= 2;
-          continue;
-        }
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          this.logger.error(`Judge0 batch submission failed: ${response.status} - ${errorText}`);
-          throw new Error(`Judge0 API error: ${response.statusText}`);
-        }
-
-        const data = (await response.json()) as Array<{ token: string }>;
-        return data.map((d) => d.token);
-      } catch (error: any) {
-        if (attempts === maxAttempts) {
-          this.logger.error(`Error connecting to Judge0 for batch submission: ${error.message}`);
-          throw error;
-        }
-        this.logger.warn(`Connection error on attempt ${attempts}: ${error.message}. Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        delay *= 2;
-      }
-    }
-
-    throw new Error("Failed to submit batch to Judge0.");
+    
+    // Execute all test cases concurrently using synchronous POST requests (wait=true)
+    return Promise.all(
+      items.map((item) =>
+        this.createSubmission(
+          item.sourceCodeBase64,
+          item.languageId,
+          item.stdinBase64,
+          item.expectedOutputBase64
+        )
+      )
+    );
   }
 
   /**

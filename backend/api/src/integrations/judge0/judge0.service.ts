@@ -243,16 +243,16 @@ export class Judge0Service {
       expectedOutputBase64: this.encodeBase64(tc.expectedOutput),
     }));
 
-    let tokens: string[] = [];
+    let submissionResponses: Array<Judge0ExecutionResponse & { token: string }> = [];
     let attempts = 0;
     const maxAttempts = 3;
-    let delay = 1000;
+    let delay = 500;
 
     while (attempts < maxAttempts) {
       attempts++;
       try {
-        tokens = await this.client.createBatchSubmissions(batchItems);
-        if (tokens && tokens.length === testCases.length) {
+        submissionResponses = await this.client.createBatchSubmissions(batchItems);
+        if (submissionResponses && submissionResponses.length === testCases.length) {
           break;
         }
       } catch (err: any) {
@@ -264,7 +264,7 @@ export class Judge0Service {
       }
     }
 
-    if (!tokens || tokens.length === 0 || tokens.length !== testCases.length) {
+    if (!submissionResponses || submissionResponses.length === 0 || submissionResponses.length !== testCases.length) {
       this.logger.error(
         `[INFRA_FAILURE_ALERT] Judge0 Sandboxed Execution Environment unavailable after ${maxAttempts} attempts. Flagging infra failure for ops intervention.`,
       );
@@ -289,39 +289,35 @@ export class Judge0Service {
       };
     }
 
-    let resultsMap: Map<string, Judge0ExecutionResponse>;
-    try {
-      resultsMap = await this.pollBatchSubmissions(tokens);
-    } catch (err: any) {
-      this.logger.error(
-        `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
-      );
-      return {
-        status: ExecutionStatus.FAILED,
-        passedTests: 0,
-        totalTests: testCases.length,
-        executionTime: 0,
-        memoryUsage: 0,
-        stdout: "",
-        stderr: "Judge0 sandboxed execution environment timed out or stalled (Infra error). Please retry or notify administrator.",
-        compileOutput: "",
-        results: testCases.map((tc) => ({
-          passed: false,
-          status: ExecutionStatus.FAILED,
-          executionTime: 0,
-          memoryUsage: 0,
-          stdout: "",
-          stderr: "Judge0 sandbox execution timed out",
-          compileOutput: "",
-        })),
-      };
+    const tokens = submissionResponses.map((r) => r.token);
+    const resultsMap = new Map<string, Judge0ExecutionResponse>();
+    const pendingTokens: string[] = [];
+
+    for (const resp of submissionResponses) {
+      const statusId = resp.status?.id;
+      if (statusId && statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
+        resultsMap.set(resp.token, resp);
+      } else if (resp.token) {
+        pendingTokens.push(resp.token);
+      }
+    }
+
+    if (pendingTokens.length > 0) {
+      try {
+        const polledMap = await this.pollBatchSubmissions(pendingTokens);
+        polledMap.forEach((val, key) => resultsMap.set(key, val));
+      } catch (err: any) {
+        this.logger.error(
+          `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
+        );
+      }
     }
 
     const results = testCases.map((tc, idx) => {
       const token = tokens[idx];
-      const response = resultsMap.get(token);
+      const response = resultsMap.get(token) || submissionResponses[idx];
 
-      if (!response) {
+      if (!response || !response.status) {
         return {
           passed: false,
           status: ExecutionStatus.FAILED,
