@@ -75,6 +75,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     } catch (err: any) {
       const code = err?.response?.data?.code ?? err?.response?.data?.error
       console.warn('[realSessionApiAdapter] resolveInvite start response:', code || err?.message)
+      throw err
     }
 
     return { invite, drive, session: realSession }

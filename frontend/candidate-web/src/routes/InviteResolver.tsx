@@ -83,17 +83,24 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // Check if scheduled time is in the future (> 15 minutes away)
-        const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduledAt || (drive as any).startsAt
+        // Check if scheduled time is in the future (> 15 minutes away) or has expired (> 20 minutes past start)
+        const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduleStart || (drive as any).scheduledAt || (drive as any).startsAt
         if (scheduledTimeStr) {
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
           const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
+          const cutoffMs = scheduledMs + 20 * 60 * 1000 // Grace period is 20m after test start
 
-          if (!isNaN(scheduledMs) && nowMs < unlockTimeMs) {
-            localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
-            transitionTo({ type: 'too-early', scheduledTimeMs: unlockTimeMs, inviteToken: token })
-            return
+          if (!isNaN(scheduledMs)) {
+            if (nowMs < unlockTimeMs) {
+              localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
+              transitionTo({ type: 'too-early', scheduledTimeMs: unlockTimeMs, inviteToken: token })
+              return
+            } else if (nowMs > cutoffMs) {
+              console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
+              transitionTo({ type: 'expired', reason: 'never-started' })
+              return
+            }
           }
         }
 
