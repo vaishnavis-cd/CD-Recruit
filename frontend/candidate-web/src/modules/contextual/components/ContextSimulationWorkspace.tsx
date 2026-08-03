@@ -167,13 +167,22 @@ export function ContextSimulationWorkspace({
     }
   }
 
+  // Unread manager email state & toast banner
+  const [hasUnreadManagerEmail, setHasUnreadManagerEmail] = useState(false)
+  const [showEmailToast, setShowEmailToast] = useState(false)
+
   const emitTelemetry = async (type: 'FILE_OPEN' | 'FILE_EDIT' | 'TEST_EXECUTE', filepath?: string) => {
     try {
-      await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
+      const res = await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
         type,
         filepath: filepath || selectedFile,
         metadata: { timestamp: new Date().toISOString() },
       })
+      if (res.data?.emailTriggered) {
+        setHasUnreadManagerEmail(true)
+        setShowEmailToast(true)
+        setTimeout(() => setShowEmailToast(false), 6000)
+      }
       fetchActionHistory()
     } catch (err) {
       console.warn('[Telemetry] Error posting event:', err)
@@ -352,7 +361,7 @@ export function ContextSimulationWorkspace({
 
           <button
             onClick={() => setActiveTab('channels')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer relative ${
               activeTab === 'channels'
                 ? 'bg-[var(--accent)] text-white shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -360,6 +369,9 @@ export function ContextSimulationWorkspace({
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Communication Center</span>
+            {hasUnreadManagerEmail && (
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse absolute -top-0.5 -right-0.5" />
+            )}
           </button>
         </div>
 
@@ -731,14 +743,23 @@ export function ContextSimulationWorkspace({
                 ].map((ch) => (
                   <button
                     key={ch.id}
-                    onClick={() => setActiveChannelTab(ch.id as any)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    onClick={() => {
+                      setActiveChannelTab(ch.id as any)
+                      if (ch.id === 'email') {
+                        setHasUnreadManagerEmail(false)
+                        setShowEmailToast(false)
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all relative ${
                       activeChannelTab === ch.id
                         ? 'bg-[var(--accent)] text-white shadow-xs'
                         : 'bg-[var(--background)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {ch.label}
+                    {ch.id === 'email' && hasUnreadManagerEmail && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold animate-pulse">NEW</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -860,8 +881,37 @@ export function ContextSimulationWorkspace({
             </div>
           </div>
         </div>
+      {/* Live Manager Email Toast Notification Popup */}
+      {showEmailToast && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 bg-[var(--surface)] border border-rose-500/40 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm font-sans animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0 border border-rose-500/30">
+            <Mail className="w-5 h-5" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+              <span>New Manager Email</span>
+              <button onClick={() => setShowEmailToast(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              Sarah (Tech Lead) sent an inquiry regarding your hotfix status and ETA.
+            </p>
+            <button
+              onClick={() => {
+                setActiveTab('channels')
+                setActiveChannelTab('email')
+                setHasUnreadManagerEmail(false)
+                setShowEmailToast(false)
+              }}
+              className="text-[11px] font-bold text-[var(--accent)] hover:underline inline-flex items-center gap-1 pt-1 cursor-pointer"
+            >
+              <span>Open Email Sub-Tab</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       )}
-
     </div>
   )
 }
