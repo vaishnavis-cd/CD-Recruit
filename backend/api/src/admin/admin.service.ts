@@ -384,6 +384,7 @@ export class AdminService {
     const mappedResponses = session.moduleResponses.map((res) => {
       const qContent = (res.question?.content as any) || {};
       return {
+        id: res.id,
         moduleResponseId: res.id,
         questionId: res.questionId,
         moduleType: res.question.moduleType as ModuleType,

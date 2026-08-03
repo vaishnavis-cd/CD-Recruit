@@ -40,9 +40,10 @@ const ROLE_NAME = "Software Developer";
  */
 const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
   MCQ: 0.15,
-  SQL: 0.2,
-  CODING: 0.3,
-  AI_PROMPTING: 0.2,
+  SQL: 0.15,
+  CODING: 0.25,
+  DEBUGGING: 0.15,
+  AI_PROMPTING: 0.15,
   SIMULATION: 0.15,
 };
 
@@ -62,15 +63,16 @@ const DURATION_MINUTES = 90;
  */
 function getAllQuestionSeedData(): Array<{
   moduleType: ModuleType;
+  difficulty?: string;
   content: unknown;
 }> {
   return [
-    ...mcqQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...sqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...codingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...debuggingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...aiPromptingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...simulationQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
+    ...mcqQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: q.difficulty, content: q.content })),
+    ...sqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...codingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...debuggingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...aiPromptingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...simulationQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
   ];
 }
 
@@ -83,7 +85,8 @@ const prisma = new PrismaClient();
 async function main(): Promise<void> {
   console.log("🌱 Starting seed…");
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(
+    async (tx) => {
     // ------------------------------------------------------------------
     // 1. Upsert Staff (Recruiter)
     // ------------------------------------------------------------------
@@ -122,13 +125,17 @@ async function main(): Promise<void> {
     // ------------------------------------------------------------------
     // 3. Seed Questions (Independent of RoleTemplate)
     // ------------------------------------------------------------------
-    const existingCount = await tx.question.count();
     const allQuestions = getAllQuestionSeedData();
 
-    // Create questions
+    // Create questions with distributed easy / medium / hard difficulty levels
+    const difficulties = ["easy", "medium", "hard"];
+    let diffIdx = 0;
     const createdQuestions = [];
     for (const q of allQuestions) {
       const prompt = (q.content as any)?.prompt || (q.content as any)?.title || '';
+      const difficulty = (q.difficulty || difficulties[diffIdx % 3]).toLowerCase();
+      diffIdx++;
+
       const existing = await tx.question.findFirst({
         where: {
           moduleType: q.moduleType,
@@ -137,21 +144,19 @@ async function main(): Promise<void> {
       });
       const isDebugging = prompt.toLowerCase().includes("debugging");
       const tags = isDebugging ? ["debugging", "coding"] : [q.moduleType.toLowerCase()];
+
       if (existing) {
-        // Ensure tags include debugging
-        if (isDebugging && (!existing.tags || !existing.tags.includes("debugging"))) {
-          await tx.question.update({
-            where: { id: existing.id },
-            data: { tags: ["debugging", "coding"] },
-          });
-        }
-        createdQuestions.push(existing);
+        const updated = await tx.question.update({
+          where: { id: existing.id },
+          data: { difficulty, tags },
+        });
+        createdQuestions.push(updated);
       } else {
         const created = await tx.question.create({
           data: {
             moduleType: q.moduleType,
             content: q.content as any,
-            difficulty: "medium",
+            difficulty,
             tags,
             scoringConfig: {},
             version: 1,
@@ -161,7 +166,7 @@ async function main(): Promise<void> {
         createdQuestions.push(created);
       }
     }
-    console.log(`  ✔ Ensured ${createdQuestions.length} independent question(s) exist`);
+    console.log(`  ✔ Ensured ${createdQuestions.length} independent question(s) with difficulty levels exist`);
 
     // 4. Create Default Drive if missing
     let drive = await tx.drive.findFirst({
@@ -321,7 +326,7 @@ async function main(): Promise<void> {
       }
     }
     console.log(`  ✔ Seeded candidate sessions, scores, integrity flags, and reviewer decisions.`);
-  });
+  }, { timeout: 30000 });
 
   console.log("✅ Seed complete.");
 }

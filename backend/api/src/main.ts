@@ -93,7 +93,7 @@ async function bootstrap(): Promise<void> {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("api-docs", app, swaggerDocument);
 
-  await app.listen(port, "0.0.0.0");
+  await app.listen(port, "127.0.0.1");
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);
   logger.log(`Swagger UI: http://localhost:${port}/api-docs`);

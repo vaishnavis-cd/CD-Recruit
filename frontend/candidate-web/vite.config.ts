@@ -5,8 +5,8 @@ import { resolve } from "path";
 
 export default defineConfig({
   plugins: [
-    react(),
-    tailwindcss(),
+    react() as any,
+    tailwindcss() as any,
     // Serve mediapipe WASM files with the correct MIME type
     {
       name: "mediapipe-wasm-mime",
@@ -39,6 +39,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: "127.0.0.1",
     port: 3000,
     strictPort: true,
     headers: {

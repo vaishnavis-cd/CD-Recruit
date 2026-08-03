@@ -149,13 +149,18 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     runSequentialChecks()
   }, [])
 
+  const assessment = useSessionStore((s) => s.assessment)
+  const proctoringConfig = (assessment as any)?.proctoringConfig || (assessment as any)?.drive?.moduleConfig?.proctoringConfig || {}
+
   async function runSequentialChecks() {
+    const pConfig = (assessment as any)?.proctoringConfig || (assessment as any)?.drive?.moduleConfig?.proctoringConfig || {}
+
     setChecks([
       { id: 'wasm', label: 'WebAssembly support', icon: <Cpu size={18} />, status: 'pending', note: 'Verifying runtime…' },
-      { id: 'cam', label: 'Camera access', icon: <Camera size={18} />, status: 'pending', note: 'Awaiting device…' },
+      { id: 'cam', label: 'Camera access', icon: <Camera size={18} />, status: 'pending', note: pConfig.requireCamera === false ? 'Disabled by drive config' : 'Awaiting device…' },
       { id: 'net', label: 'Connection quality', icon: <Wifi size={18} />, status: 'pending', note: 'Measuring bandwidth…' },
-      { id: 'perf', label: 'Performance benchmark', icon: <Gauge size={18} />, status: 'pending', note: 'Running micro-benchmark…' },
-      { id: 'monitor', label: 'Display & Monitor check', icon: <Monitor size={18} />, status: 'pending', note: 'Checking display configuration…' },
+      { id: 'perf', label: 'Performance benchmark', icon: <Gauge size={18} />, status: 'pending', note: pConfig.cpuMathBenchmark === false ? 'Disabled by drive config' : 'Running micro-benchmark…' },
+      { id: 'monitor', label: 'Display & Monitor check', icon: <Monitor size={18} />, status: 'pending', note: pConfig.requireScreenShare === false ? 'Disabled by drive config' : 'Checking display configuration…' },
       { id: 'bluetooth', label: 'External & Bluetooth devices check', icon: <Bluetooth size={18} />, status: 'pending', note: 'Scanning for active peripherals…' },
     ])
 
@@ -175,27 +180,31 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     }
 
     // 2. Camera access check
-    updateCheck('cam', { status: 'checking', note: 'Checking camera stream…' })
-    try {
-      await services.cv.start()
-      const stream = (services.cv as any).getStream?.()
-      const track = stream?.getVideoTracks?.()?.[0]
-      const settings = track?.getSettings?.()
-      const resNote = settings?.height ? `${settings.height}p @ ${Math.round(settings.frameRate || 30)}fps` : '1080p @ 30fps'
-      updateCheck('cam', { status: 'pass', note: resNote })
-    } catch (err) {
-      if (mode === 'expedited') {
-        updateCheck('cam', {
-          status: 'warn',
-          note: 'Camera optional in grace mode',
-        })
-        setCvModeLocal('reduced')
-      } else {
-        updateCheck('cam', {
-          status: 'warn',
-          note: '1080p @ 30fps',
-          errorMessage: 'Camera access will be requested during consent step.',
-        })
+    if (pConfig.requireCamera === false) {
+      updateCheck('cam', { status: 'pass', note: 'Disabled by drive' })
+    } else {
+      updateCheck('cam', { status: 'checking', note: 'Checking camera stream…' })
+      try {
+        await services.cv.start()
+        const stream = (services.cv as any).getStream?.()
+        const track = stream?.getVideoTracks?.()?.[0]
+        const settings = track?.getSettings?.()
+        const resNote = settings?.height ? `${settings.height}p @ ${Math.round(settings.frameRate || 30)}fps` : '1080p @ 30fps'
+        updateCheck('cam', { status: 'pass', note: resNote })
+      } catch (err) {
+        if (mode === 'expedited') {
+          updateCheck('cam', {
+            status: 'warn',
+            note: 'Camera optional in grace mode',
+          })
+          setCvModeLocal('reduced')
+        } else {
+          updateCheck('cam', {
+            status: 'warn',
+            note: '1080p @ 30fps',
+            errorMessage: 'Camera access will be requested during consent step.',
+          })
+        }
       }
     }
 

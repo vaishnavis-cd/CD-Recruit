@@ -37,6 +37,13 @@ import {
   Save,
   Lock,
   Unlock,
+  ShieldCheck,
+  Camera,
+  Mic,
+  Monitor,
+  Maximize2,
+  Cpu,
+  Smartphone,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker } from "../components/single-date-time-picker";
@@ -204,12 +211,33 @@ function DriveDetailPage() {
     SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
   });
 
+  // Per-Drive System Check & Hardware Proctoring Customization State
+  const [proctoringConfig, setProctoringConfig] = useState({
+    requireCamera: true,
+    requireMicrophone: true,
+    requireScreenShare: true,
+    allowMobileDevice: false,
+    enforceFullscreen: true,
+    cpuMathBenchmark: true,
+  });
+
   // Question Assignments & Point Shares State
   const [questionPointShares, setQuestionPointShares] = useState<Record<string, number>>({});
   const [assignedQuestions, setAssignedQuestions] = useState<string[]>([]);
   const [savedAssignedQuestions, setSavedAssignedQuestions] = useState<string[]>([]);
+  const [bulkImportConflict, setBulkImportConflict] = useState<{ importedIds: string[] } | null>(null);
+
+  // Automatically persist draft assigned questions in sessionStorage to survive bulk import modal navigation
+  useEffect(() => {
+    if (driveId && assignedQuestions.length > 0) {
+      try {
+        sessionStorage.setItem(`drive_draft_questions_${driveId}`, JSON.stringify(assignedQuestions));
+      } catch {}
+    }
+  }, [driveId, assignedQuestions]);
   const [pendingTabSwitch, setPendingTabSwitch] = useState<"roster" | "configuration" | null>(null);
   const [questionModuleFilter, setQuestionModuleFilter] = useState<string>("ALL");
+  const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
 
@@ -365,8 +393,21 @@ function DriveDetailPage() {
       const data = await fetchDriveDetail(driveId);
       setDrive(data);
       setEditName(data.name);
-      setEditStatus(data.status);
-      setAssignedQuestions(data.questionIds || []);
+      const draftStored = sessionStorage.getItem(`drive_draft_questions_${driveId}`);
+      if (draftStored) {
+        try {
+          const parsed = JSON.parse(draftStored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAssignedQuestions(parsed);
+          } else {
+            setAssignedQuestions(data.questionIds || []);
+          }
+        } catch {
+          setAssignedQuestions(data.questionIds || []);
+        }
+      } else {
+        setAssignedQuestions(data.questionIds || []);
+      }
       setSavedAssignedQuestions(data.questionIds || []);
 
       // Parse schedule dates to 12-hour AM/PM controls
@@ -414,6 +455,9 @@ function DriveDetailPage() {
 
       const winMins = computeTimeWindowMinutes(sHour, sMin, sAmPm, eHour, eMin, eAmPm);
       let initialConfig = data.moduleConfig && Object.keys(data.moduleConfig).length > 0 ? data.moduleConfig : moduleConfig;
+      if ((data.moduleConfig as any)?.proctoringConfig) {
+        setProctoringConfig((data.moduleConfig as any).proctoringConfig);
+      }
       
       // Auto-fit default module durations to time window on initial load if needed
       const confSum = Object.values(initialConfig).filter((m: any) => m.enabled).reduce((sum: number, m: any) => sum + (Number(m.durationMinutes) || 0), 0);
@@ -431,7 +475,7 @@ function DriveDetailPage() {
 
   useEffect(() => {
     loadData();
-    fetchQuestions();
+    fetchQuestions({ pageSize: 1000 });
   }, [driveId]);
 
   const handleStatusChange = async (newStatus: string) => {
@@ -692,7 +736,7 @@ function DriveDetailPage() {
           scheduleStart: startIso,
           scheduleEnd: endIso,
           status: editStatus,
-          moduleConfig,
+          moduleConfig: { ...moduleConfig, proctoringConfig },
         }),
       });
 
@@ -862,10 +906,22 @@ function DriveDetailPage() {
         return false;
       }
 
+      const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+
       if (questionModuleFilter === "ALL") {
-        if (!enabledModuleKeys.includes(q.moduleType)) return false;
+        const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
+        if (!enabledModuleKeys.includes(effectiveModule) && !enabledModuleKeys.includes(q.moduleType)) return false;
+      } else if (questionModuleFilter === "DEBUGGING") {
+        if (!isDebuggingQuestion) return false;
+      } else if (questionModuleFilter === "CODING") {
+        if (q.moduleType !== "CODING" || (Array.isArray(q.tags) && q.tags.includes("debugging"))) return false;
       } else {
         if (q.moduleType !== questionModuleFilter) return false;
+      }
+
+      if (questionDifficultyFilter !== "ALL") {
+        const diff = (q.difficulty || "MEDIUM").toUpperCase();
+        if (diff !== questionDifficultyFilter.toUpperCase()) return false;
       }
 
       if (questionSearch.trim()) {
@@ -876,7 +932,7 @@ function DriveDetailPage() {
       }
       return true;
     });
-  }, [questionsBank, enabledModuleKeys, questionModuleFilter, questionSearch, isAiPromptingDynamic]);
+  }, [questionsBank, enabledModuleKeys, questionModuleFilter, questionDifficultyFilter, questionSearch, isAiPromptingDynamic]);
 
   if (loading || !drive) {
     return (
@@ -1030,7 +1086,7 @@ function DriveDetailPage() {
                       : "bg-[#FFF5F5] text-[#C0392B] border border-red-200"
                   }`}
                 >
-                  Core: {weightValidation.coreSum} / 100 pts{weightValidation.bonusSum > 0 ? ` · Bonus: +${weightValidation.bonusSum} pts max` : ""}
+                  Total Weight: {weightValidation.coreSum} / 100 pts
                 </span>
                 <button
                   onClick={handleAutoBalanceDurations}
@@ -1098,33 +1154,6 @@ function DriveDetailPage() {
                         onClick={(e) => e.stopPropagation()}
                         className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EFF0F3] text-[11px]"
                       >
-                        {/* Core vs Bonus Toggle */}
-                        <div className="col-span-2 flex items-center justify-between bg-[#F7F7F9] p-1.5 rounded border border-[#E6E6EA] mb-1">
-                          <span className="text-[10px] font-semibold text-[#5B5B64]">Category:</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const isBonusNow = !conf.isBonus;
-                              setModuleConfig({
-                                ...moduleConfig,
-                                [mod.id]: {
-                                  ...conf,
-                                  isBonus: isBonusNow,
-                                  maxBonusPoints: isBonusNow ? (conf.maxBonusPoints || 10) : undefined,
-                                  weight: isBonusNow ? 0 : (conf.weight || 15),
-                                },
-                              });
-                            }}
-                            className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
-                              conf.isBonus
-                                ? "bg-[#FFF8E6] text-[#B7791F] border border-[#FEEBC8]"
-                                : "bg-[#EAF0FF] text-[#15308F] border border-[#C5D7FE]"
-                            }`}
-                          >
-                            {conf.isBonus ? "★ BONUS MODULE" : "CORE MODULE"}
-                          </button>
-                        </div>
-
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <label className="text-[#5B5B64] font-medium">Duration (min)</label>
@@ -1164,56 +1193,22 @@ function DriveDetailPage() {
 
                         <div>
                           <label className="block text-[#5B5B64] font-medium mb-1">
-                            {conf.isBonus ? "Max Bonus (pts)" : "Core Weight (pts)"}
+                            Score Weight (pts)
                           </label>
                           <input
                             type="number"
-                            value={
-                              conf.isBonus
-                                ? (conf.maxBonusPoints === undefined || conf.maxBonusPoints === 0 ? "" : conf.maxBonusPoints)
-                                : (conf.weight === 0 ? "" : conf.weight)
-                            }
+                            value={conf.weight === 0 ? "" : conf.weight}
                             onChange={(e) => {
                               const raw = e.target.value;
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
-                              if (conf.isBonus) {
-                                setModuleConfig({
-                                  ...moduleConfig,
-                                  [mod.id]: { ...conf, maxBonusPoints: Math.min(20, val) },
-                                });
-                              } else {
-                                setModuleConfig({
-                                  ...moduleConfig,
-                                  [mod.id]: { ...conf, weight: val },
-                                });
-                              }
+                              setModuleConfig({
+                                ...moduleConfig,
+                                [mod.id]: { ...conf, weight: val },
+                              });
                             }}
                             onFocus={(e) => e.target.select()}
                             className="w-full px-2 py-1 border border-[#E6E6EA] rounded font-mono text-[12px]"
                           />
-                        </div>
-
-                        {/* Question Weighting Mode Selector */}
-                        <div className="col-span-2 pt-1 border-t border-[#EFF0F3]">
-                          <label className="block text-[#5B5B64] font-medium mb-1 text-[10px] uppercase tracking-wider">
-                            Internal Question Weighting
-                          </label>
-                          <select
-                            value={conf.questionWeighting?.mode || "equal"}
-                            onChange={(e) => {
-                              setModuleConfig({
-                                ...moduleConfig,
-                                [mod.id]: {
-                                  ...conf,
-                                  questionWeighting: { mode: e.target.value as "equal" | "difficulty" },
-                                },
-                              });
-                            }}
-                            className="w-full px-2 py-1 border border-[#E6E6EA] rounded text-[11px] bg-white cursor-pointer"
-                          >
-                            <option value="equal">Equal Split Across Questions</option>
-                            <option value="difficulty">Difficulty-Weighted (Custom Share)</option>
-                          </select>
                         </div>
 
                         {mod.id === "AI_PROMPTING" && (
@@ -1251,6 +1246,53 @@ function DriveDetailPage() {
                       </div>
                     )}
                   </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION 3: System Checks & Proctoring Customization */}
+          <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 border-b border-[#EFF0F3] pb-3">
+              <ShieldCheck size={18} className="text-[#2F5CFF]" />
+              <div>
+                <h3 className="text-[15px] font-semibold text-[#0B0B0D]">System Checks &amp; Proctoring Customization</h3>
+                <p className="text-[12px] text-[#8B8B93]">Enable or customize mandatory hardware, browser, and network checks for candidates.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {[
+                { id: "requireCamera", label: "Webcam & Video Feed Check", icon: Camera, desc: "Verify candidate camera hardware before assessment entry." },
+                { id: "requireMicrophone", label: "Microphone & Audio Detection Check", icon: Mic, desc: "Verify microphone access and monitor ambient sound." },
+                { id: "requireScreenShare", label: "Display & Monitor Validation", icon: Monitor, desc: "Check for secondary monitors and HDMI output displays." },
+                { id: "enforceFullscreen", label: "Enforce Fullscreen Mode", icon: Maximize2, desc: "Require candidate browser window to remain in fullscreen." },
+                { id: "cpuMathBenchmark", label: "CPU Performance Benchmark", icon: Cpu, desc: "Run candidate hardware micro-benchmark before starting." },
+                { id: "allowMobileDevice", label: "Allow Mobile Web Candidates", icon: Smartphone, desc: "Permit assessment completion on mobile browsers." },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isChecked = Boolean(proctoringConfig[item.id as keyof typeof proctoringConfig]);
+                return (
+                  <label key={item.id} className="flex items-start gap-3 p-3.5 bg-[#F8F9FB] border border-[#E6E6EA] rounded-xl cursor-pointer hover:border-[#2F5CFF] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        setProctoringConfig({
+                          ...proctoringConfig,
+                          [item.id]: e.target.checked,
+                        });
+                      }}
+                      className="mt-0.5 accent-[#2F5CFF] rounded w-4 h-4"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 font-semibold text-[13px] text-[#0B0B0D]">
+                        <Icon size={14} className="text-[#2F5CFF]" />
+                        <span>{item.label}</span>
+                      </div>
+                      <p className="text-[11px] text-[#8B8B93] leading-snug">{item.desc}</p>
+                    </div>
+                  </label>
                 );
               })}
             </div>
@@ -1416,7 +1458,38 @@ function DriveDetailPage() {
                 })}
               </div>
 
-              <div className="relative w-full sm:w-[220px]">
+              {/* Complexity / Difficulty Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
+                <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
+                  {[
+                    { id: "ALL", label: "All" },
+                    { id: "EASY", label: "Easy" },
+                    { id: "MEDIUM", label: "Medium" },
+                    { id: "HARD", label: "Hard" },
+                  ].map((diff) => (
+                    <button
+                      key={diff.id}
+                      onClick={() => setQuestionDifficultyFilter(diff.id)}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
+                        questionDifficultyFilter === diff.id
+                          ? diff.id === "EASY"
+                            ? "bg-emerald-100 text-emerald-800 font-bold"
+                            : diff.id === "HARD"
+                            ? "bg-rose-100 text-rose-800 font-bold"
+                            : diff.id === "MEDIUM"
+                            ? "bg-amber-100 text-amber-800 font-bold"
+                            : "bg-[#2F5CFF] text-white font-bold"
+                          : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                      }`}
+                    >
+                      {diff.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative w-full sm:w-[200px]">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
                 <input
                   type="text"

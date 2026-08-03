@@ -5,6 +5,7 @@ import { useAssessmentTimer } from '../components/Timer'
 import { MCQModule } from '../modules/mcq/MCQModule'
 import { SQLModule } from '../modules/sql/SQLModule'
 import { CodingModule } from '../modules/coding/CodingModule'
+import { DebuggingModule } from '../modules/debugging/DebuggingModule'
 import { PromptingModule } from '../modules/prompting/PromptingModule'
 import { ContextualModule } from '../modules/contextual/ContextualModule'
 
@@ -23,9 +24,8 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
     }
     const types: string[] = []
     for (const q of assessment.questions) {
-      const type = q.moduleType as string
-      if (type && !types.includes(type)) {
-        types.push(type)
+      if (q.moduleType && !types.includes(q.moduleType)) {
+        types.push(q.moduleType)
       }
     }
     return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'AI_PROMPTING', 'SIMULATION']
@@ -52,8 +52,9 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
     case 'SQL':
       return <SQLModule moduleIndex={moduleIndex} />
     case 'CODING':
-    case 'DEBUGGING':
       return <CodingModule moduleIndex={moduleIndex} />
+    case 'DEBUGGING':
+      return <DebuggingModule moduleIndex={moduleIndex} />
     case 'AI_PROMPTING':
       return <PromptingModule moduleIndex={moduleIndex} />
     case 'SIMULATION':

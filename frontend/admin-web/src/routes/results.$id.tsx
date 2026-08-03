@@ -26,6 +26,7 @@ import {
   Layers,
   ChevronDown,
   Check,
+  Bug,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
@@ -124,7 +125,7 @@ function IndividualResultPage() {
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"CODING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
+  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
   const [integrityCategoryFilter, setIntegrityCategoryFilter] = useState("ALL");
   const [integrityFilterOpen, setIntegrityFilterOpen] = useState(false);
 
@@ -219,15 +220,15 @@ function IndividualResultPage() {
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-[20px] font-semibold text-[#0B0B0D]">{detail.candidateName}</h2>
               {decision?.outcome === "PASS" ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-[#E3F9F2] text-[#0C6B58]">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <CheckCircle2 size={14} /> Approved
                 </span>
               ) : decision?.outcome === "FAIL" ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-[#FFF5F5] text-[#C0392B]">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                   <XCircle size={14} /> Rejected
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-amber-50 text-amber-700">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                   <Clock size={14} /> Pending Review
                 </span>
               )}
@@ -241,7 +242,7 @@ function IndividualResultPage() {
           <div className="flex items-center gap-3">
             {decision && (
               <div className="text-right text-[12px] text-[#5B5B64] mr-2">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold font-mono ${String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-[#E3F9F2] text-[#0C6B58]" : "bg-[#FFF5F5] text-[#C0392B]"
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold font-mono ${String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
                   }`}>
                   {String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "APPROVED" : "REJECTED"}
                 </span>
@@ -251,7 +252,7 @@ function IndividualResultPage() {
             <button
               onClick={() => setShowDecisionModal("FAIL")}
               disabled={submittingDecision}
-              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-[#C0392B] bg-[#FFF5F5] border border-[#FECACA] hover:bg-[#FEE2E2] rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
             >
               <XCircle size={15} />
               Reject Candidate
@@ -259,7 +260,7 @@ function IndividualResultPage() {
             <button
               onClick={() => setShowDecisionModal("PASS")}
               disabled={submittingDecision}
-              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-[#0C6B58] hover:bg-[#095445] rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
             >
               <CheckCircle2 size={15} />
               Approve Candidate
@@ -269,38 +270,51 @@ function IndividualResultPage() {
 
         {/* Score Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
-          <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-3.5">
+          <div className="bg-[#F8F9FB] border border-[#E6E6EA] rounded-md p-3.5">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
               Total Score
             </span>
             <div className="flex flex-col">
               <span className="text-[24px] font-mono font-bold text-[#2F5CFF]">
-                {score && (score.totalScore !== null && score.totalScore !== undefined)
-                  ? `${Math.round(score.totalScore * 10) / 10}`
-                  : (score && score.compositeScore !== null && score.compositeScore !== undefined
-                      ? `${score.compositeScore <= 1.0 ? Math.round(score.compositeScore * 100) : Math.round(score.compositeScore)}`
-                      : "N/A")}
+                {score && ((score as any).totalScore !== null && (score as any).totalScore !== undefined)
+                  ? `${Math.round((score as any).totalScore * 10) / 10}`
+                  : (score && score.compositeScore !== null && score.compositeScore !== undefined)
+                    ? `${Math.round(score.compositeScore * 10) / 10}`
+                    : "N/A"}
               </span>
-              {score && (score.coreScore !== undefined || score.bonusScore !== undefined) && (
-                <span className="text-[11px] font-mono text-[#5B5B64] font-medium mt-0.5">
-                  Core: {score.coreScore ?? 0}/100 {score.bonusScore ? `· Bonus: +${score.bonusScore}` : ""}
+              <span className="text-[10px] text-[#8B8B93]">Weighted candidate performance</span>
+            </div>
+          </div>
+
+          <div className="bg-[#F8F9FB] border border-[#E6E6EA] rounded-md p-3.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
+              Proctoring Integrity
+            </span>
+            <div className="flex flex-col">
+              {flags.length > 0 ? (
+                <span className="text-[24px] font-mono font-bold text-rose-600 flex items-center gap-1">
+                  <ShieldAlert size={20} /> {flags.length} Flags
+                </span>
+              ) : (
+                <span className="text-[24px] font-mono font-bold text-emerald-600 flex items-center gap-1">
+                  <ShieldCheck size={20} /> Clean
                 </span>
               )}
             </div>
           </div>
 
-          <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-3.5">
+          <div className="bg-[#F8F9FB] border border-[#E6E6EA] rounded-md p-3.5">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
               Say/Do Alignment
             </span>
-            <span className="text-[24px] font-mono font-bold text-[#0C6B58]">
+            <span className="text-[24px] font-mono font-bold text-emerald-700">
               {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
                 ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
                 : "Pending"}
             </span>
           </div>
 
-          <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-3.5">
+          <div className="bg-[#F8F9FB] border border-[#E6E6EA] rounded-md p-3.5">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
               AI Confidence
             </span>
@@ -310,23 +324,6 @@ function IndividualResultPage() {
                 : "Pending"}
             </span>
           </div>
-
-          <div className="bg-[#F7F7F9] border border-[#E6E6EA] rounded-md p-3.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
-              Integrity Flags
-            </span>
-            <div className="flex items-center gap-1.5">
-              {flags.length > 0 ? (
-                <span className="text-[24px] font-mono font-bold text-[#C0392B] flex items-center gap-1">
-                  <ShieldAlert size={20} /> {flags.length}
-                </span>
-              ) : (
-                <span className="text-[24px] font-mono font-bold text-[#0C6B58] flex items-center gap-1">
-                  <ShieldCheck size={20} /> Clean
-                </span>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -335,29 +332,49 @@ function IndividualResultPage() {
         {(
           [
             { id: "CODING", label: "Coding / DSA", icon: Code2 },
+            { id: "DEBUGGING", label: "Debugging", icon: Bug },
             { id: "SQL", label: "SQL Execution", icon: Database },
             { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
             { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
             { id: "SIMULATION", label: "Simulation Log", icon: Play },
             { id: "INTEGRITY", label: `Integrity (${flags.length})`, icon: ShieldAlert },
           ] as const
-        ).map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer ${isActive
-                  ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
-                  : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
-                }`}
-            >
-              <Icon size={16} />
-              {tab.label}
-            </button>
-          );
-        })}
+        )
+          .filter((tab) => {
+            if (tab.id === "INTEGRITY") return true;
+            return (detail.moduleResponses || []).some(
+              (r) =>
+                r.moduleType === tab.id ||
+                r.responsePayload?.moduleType === tab.id ||
+                (tab.id === "CODING" && (r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined)) ||
+                (tab.id === "SQL" && (r.responsePayload?.query !== undefined || r.responsePayload?.sqlQuery !== undefined)) ||
+                (tab.id === "MCQ" && (r.responsePayload?.selectedOption !== undefined || r.responsePayload?.selectedOptions !== undefined)) ||
+                (tab.id === "AI_PROMPTING" && r.responsePayload?.prompt !== undefined) ||
+                (tab.id === "SIMULATION" && (r.responsePayload?.sayText !== undefined || r.responsePayload?.ticketReply !== undefined))
+            );
+          })
+          .map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
+                    ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
+                    : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
+                  }`}
+              >
+                <div className="relative inline-flex items-center justify-center shrink-0">
+                  <Icon size={16} />
+                  {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
+                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                  )}
+                </div>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
       </div>
 
       {/* Tab Contents */}
@@ -365,31 +382,34 @@ function IndividualResultPage() {
         {/* CODING TAB */}
         {activeTab === "CODING" && (() => {
           const codingResponses = (detail.moduleResponses || []).filter(
-            r => r.moduleType === 'CODING' || r.responsePayload?.moduleType === 'CODING' || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined
-          )
+            (r) =>
+              (r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined) &&
+              !(r.moduleType === "DEBUGGING" || r.responsePayload?.moduleType === "DEBUGGING" || (Array.isArray((r.question as any)?.tags) && (r.question as any).tags.includes("debugging")))
+          );
           return (
             <div className="space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Submitted Code & Unit Test Results</h3>
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Submitted Code &amp; Unit Test Results</h3>
               {codingResponses.length === 0 ? (
                 <p className="text-[13px] text-[#8B8B93] italic">No coding submissions recorded for this assessment.</p>
               ) : (
                 codingResponses.map((resp, idx) => {
-                  const codeText = resp.responsePayload?.sourceCode || resp.responsePayload?.code || "// No code submitted"
-                  const lang = resp.responsePayload?.language || "python"
+                  const codeText = resp.responsePayload?.sourceCode || resp.responsePayload?.code || "// No code submitted";
+                  const lang = resp.responsePayload?.language || "python";
+                  const promptText = (resp.question as any)?.prompt || resp.responsePayload?.questionText || `Problem #${idx + 1}`;
                   return (
                     <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
                       <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">
-                          Problem #{idx + 1} ({lang})
+                        <span className="text-[13px] font-semibold text-[#0B0B0D]">
+                          {promptText} ({lang})
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58]">
+                        <span className="px-2.5 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58] font-bold">
                           Passed {resp.responsePayload?.passedTests ?? 1} / {resp.responsePayload?.totalTests ?? 1} Tests
                         </span>
                       </div>
 
                       <div className="h-48 border border-[#E6E6EA] rounded-md overflow-hidden">
                         <CodeEditor
-                          value={codeText}
+                          value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
                           language={lang}
                           readOnly={true}
                           theme="dark"
@@ -405,11 +425,66 @@ function IndividualResultPage() {
                         </div>
                       )}
                     </div>
-                  )
+                  );
                 })
               )}
             </div>
-          )
+          );
+        })()}
+
+        {/* DEBUGGING TAB */}
+        {activeTab === "DEBUGGING" && (() => {
+          const debuggingResponses = (detail.moduleResponses || []).filter(
+            (r) =>
+              r.moduleType === "DEBUGGING" ||
+              r.responsePayload?.moduleType === "DEBUGGING" ||
+              (r.moduleType === "CODING" && (Array.isArray((r.question as any)?.tags) && (r.question as any).tags.includes("debugging")))
+          );
+
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Debugging Fix Submissions &amp; Test Suite Verification</h3>
+              {debuggingResponses.length === 0 ? (
+                <p className="text-[13px] text-[#8B8B93] italic">No debugging submissions recorded for this assessment.</p>
+              ) : (
+                debuggingResponses.map((resp, idx) => {
+                  const codeText = resp.responsePayload?.sourceCode || resp.responsePayload?.code || "// No fixed code submitted";
+                  const lang = resp.responsePayload?.language || "python";
+                  const promptText = (resp.question as any)?.prompt || resp.responsePayload?.questionText || `Debugging Challenge #${idx + 1}`;
+                  return (
+                    <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-[#0B0B0D]">
+                          {promptText} ({lang})
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58] font-bold">
+                          Passed {resp.responsePayload?.passedTests ?? 1} / {resp.responsePayload?.totalTests ?? 1} Tests
+                        </span>
+                      </div>
+
+                      <div className="h-48 border border-[#E6E6EA] rounded-md overflow-hidden">
+                        <CodeEditor
+                          value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
+                          language={lang}
+                          readOnly={true}
+                          theme="dark"
+                        />
+                      </div>
+
+                      {resp.responsePayload?.stdout && (
+                        <div>
+                          <span className="text-[11px] font-mono uppercase text-[#8B8B93] block mb-1">Standard Output:</span>
+                          <div className="bg-white border border-[#E6E6EA] p-2.5 rounded font-mono text-[11px] text-[#0B0B0D]">
+                            {resp.responsePayload.stdout}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          );
         })()}
 
         {/* SQL TAB */}
@@ -787,7 +862,7 @@ function IndividualResultPage() {
             {/* Telemetry Action Log */}
             <div className="border border-[#E6E6EA] rounded-md p-4 bg-white space-y-2">
               <span className="text-[11px] font-mono uppercase text-[#8B8B93] font-bold block">
-                3. Candidate Telemetry & Action Audit Stream
+                3. Candidate Telemetry &amp; Action Audit Stream
               </span>
               <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1 max-h-40 overflow-y-auto">
                 <div>• [INITIAL_SAY_SUBMIT] Plan recorded</div>
@@ -801,6 +876,39 @@ function IndividualResultPage() {
                 )}
               </div>
             </div>
+
+            {/* Recorded Simulation Module Submissions */}
+            {(() => {
+              const simResponses = (detail.moduleResponses || []).filter(
+                (r) => r.moduleType === "SIMULATION" || r.responsePayload?.moduleType === "SIMULATION" || r.responsePayload?.sayText || r.responsePayload?.ticketReply
+              );
+              return (
+                <div className="border border-[#E6E6EA] rounded-md p-4 bg-white space-y-3">
+                  <span className="text-[11px] font-mono uppercase text-[#0B0B0D] font-bold block">
+                    4. Contextual Simulation Recorded Responses ({simResponses.length})
+                  </span>
+                  {simResponses.length === 0 ? (
+                    <p className="text-[12px] text-[#8B8B93] italic">No direct simulation question responses recorded.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {simResponses.map((resp, idx) => {
+                        const payload = resp.responsePayload || {};
+                        const promptText = (resp.question as any)?.prompt || payload.questionText || `Simulation Scenario #${idx + 1}`;
+                        const responseText = payload.sayText || payload.ticketReply || payload.text || payload.code || JSON.stringify(payload, null, 2);
+                        return (
+                          <div key={resp.id || idx} className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded-md text-[12px] space-y-1.5">
+                            <span className="font-semibold text-[#0B0B0D] block">{promptText}</span>
+                            <div className="p-2.5 bg-white border border-[#E6E6EA] rounded font-mono text-[11px] text-[#0B0B0D] whitespace-pre-wrap">
+                              {responseText}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 

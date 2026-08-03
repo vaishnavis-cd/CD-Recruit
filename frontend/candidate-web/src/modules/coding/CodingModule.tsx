@@ -21,8 +21,8 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  // Include CODING and DEBUGGING module questions
-  const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING' || q.moduleType === 'DEBUGGING') ?? []
+  // Include CODING module questions
+  const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING') ?? []
   const questionId = codingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
 
