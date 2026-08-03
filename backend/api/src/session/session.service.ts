@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { GoneException } from "@app/common/exceptions/app.exceptions";
@@ -217,6 +219,25 @@ export class SessionService {
       orderBy: { lastActivityAt: "desc" },
     });
 
+    const isNewOrNotStarted = !existingSession || existingSession.status === SessionStatus.NOT_STARTED;
+    if (isNewOrNotStarted) {
+      const invite = await this.prisma.invite.findUnique({
+        where: { id: payload.inviteId },
+        include: { drive: true },
+      });
+      if (invite?.drive?.scheduleStart) {
+        const now = new Date();
+        const graceMinutes = 20; // 20 minutes grace window
+        const cutoff = new Date(invite.drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        if (now > cutoff) {
+          throw new UnauthorizedException({
+            code: "INVITE_TOKEN_EXPIRED",
+            message: "The assessment window has expired.",
+          });
+        }
+      }
+    }
+
     if (existingSession) {
       this.logger.log(`Reusing existing session ${existingSession.id} for candidate ${candidateRecord.email}`);
       const fullExisting = await this.prisma.session.findUnique({
@@ -294,6 +315,23 @@ export class SessionService {
         session as SessionWithTemplate,
         session.candidateId,
       );
+    }
+
+    if (session.driveId) {
+      const drive = await this.prisma.drive.findUnique({
+        where: { id: session.driveId },
+      });
+      if (drive && drive.scheduleStart) {
+        const now = new Date();
+        const graceMinutes = 20; // 20 minutes grace window
+        const cutoff = new Date(drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        if (now > cutoff) {
+          throw new BadRequestException({
+            code: "INVITE_TOKEN_EXPIRED",
+            message: "The assessment window has expired.",
+          });
+        }
+      }
     }
 
     let durationMinutes = session.roleTemplate.durationMinutes;

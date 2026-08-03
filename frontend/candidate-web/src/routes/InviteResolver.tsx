@@ -75,9 +75,38 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
         const isSessionAlreadyStarted = session && ((session as any).status === 'active' || (session as any).status === 'IN_PROGRESS' || (session as any).status === 'in_progress') && session.startedAt !== null
 
         if (isSessionAlreadyStarted) {
+          if (session.startedAt) {
+            useSessionStore.getState().setTimerStart(new Date(session.startedAt).getTime())
+          }
           const currentAssessment = useSessionStore.getState().assessment
           devForceJump({ type: 'assessment', moduleIndex: currentAssessment?.currentModuleIndex ?? 0, sessionId: session.id })
           return
+        }
+
+        // Apply time gates for NEW / UNSTARTED sessions
+        const nowMs = services.time.getServerNow()
+        const scheduledTimeStr = invite.scheduledTime || drive.scheduleStart
+        const scheduledStartMs = scheduledTimeStr ? new Date(scheduledTimeStr).getTime() : 0
+
+        if (scheduledStartMs > 0) {
+          const graceMs = 20 * 60 * 1000 // 20 minutes grace window
+          const cutoffMs = scheduledStartMs + graceMs
+          if (nowMs > cutoffMs) {
+            console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
+            transitionTo({ type: 'expired', reason: 'never-started' })
+            return
+          }
+
+          const preheatStartMs = scheduledStartMs - 15 * 60 * 1000
+          if (nowMs < preheatStartMs) {
+            console.log('[InviteResolver] Candidate entered before system check preheat. Showing too early page.')
+            transitionTo({
+              type: 'too-early',
+              scheduledTimeMs: preheatStartMs,
+              inviteToken: token
+            })
+            return
+          }
         }
 
         // New Session — start at System Check onboarding sequence
