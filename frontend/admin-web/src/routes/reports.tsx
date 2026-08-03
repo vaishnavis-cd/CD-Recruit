@@ -158,29 +158,29 @@ const RANGES = [
       ];
     }
 
-    const calcModuleAvg = (key: string, fallbackScore: number) => {
+    const calcModuleAvg = (key: string): number | null => {
       let sum = 0;
       let count = 0;
       allSessions.forEach((s: any) => {
         const ms = s.moduleScores || s.scores || {};
         if (ms[key] !== undefined && ms[key] !== null) {
-          const v = ms[key];
+          const v = typeof ms[key] === "number" ? ms[key] : Number(ms[key]) || 0;
           sum += v <= 1.0 ? v * 100 : v;
           count++;
         }
       });
-      return count > 0 ? Math.round(sum / count) : Math.max(0, fallbackScore);
+      return count > 0 ? Math.round(sum / count) : null;
     };
 
     return [
-      { name: "Coding / DSA", icon: Code2, score: calcModuleAvg("CODING", avgScore), color: "#5479ffff" },
-      { name: "SQL Querying", icon: Database, score: calcModuleAvg("SQL", Math.min(100, avgScore + 3)), color: "#5479ffff" },
-      { name: "MCQ Knowledge", icon: FileText, score: calcModuleAvg("MCQ", Math.min(100, avgScore + 5)), color: "#577bffff" },
-      { name: "AI Prompting", icon: Bot, score: calcModuleAvg("AI_PROMPTING", Math.min(100, avgScore + 2)), color: "#5479ffff" },
-      { name: "Contextual Simulation", icon: Play, score: calcModuleAvg("SIMULATION", Math.max(0, avgScore - 4)), color: "#5479ffff" },
-      { name: "Debugging", icon: Bug, score: calcModuleAvg("DEBUGGING", Math.max(0, avgScore - 2)), color: "#5479ffff" },
+      { name: "Coding / DSA", icon: Code2, score: calcModuleAvg("CODING"), color: "#5479ffff" },
+      { name: "SQL Querying", icon: Database, score: calcModuleAvg("SQL"), color: "#5479ffff" },
+      { name: "MCQ Knowledge", icon: FileText, score: calcModuleAvg("MCQ"), color: "#577bffff" },
+      { name: "AI Prompting", icon: Bot, score: calcModuleAvg("AI_PROMPTING"), color: "#5479ffff" },
+      { name: "Contextual Simulation", icon: Play, score: calcModuleAvg("SIMULATION"), color: "#5479ffff" },
+      { name: "Debugging", icon: Bug, score: calcModuleAvg("DEBUGGING"), color: "#5479ffff" },
     ];
-  }, [allSessions, avgScore]);
+  }, [allSessions]);
 
   // Score Band Distribution Data
   const scoreBandData = useMemo(() => {
@@ -362,12 +362,14 @@ const RANGES = [
                             <Icon size={15} style={{ color: mod.color }} />
                             <span>{mod.name}</span>
                           </div>
-                          <span className="font-mono font-semibold">{mod.score}%</span>
+                          <span className="font-mono font-semibold">
+                            {mod.score !== null ? `${mod.score}%` : "—"}
+                          </span>
                         </div>
                         <div className="w-full h-2.5 bg-[#F4F4F6] rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${mod.score}%`, backgroundColor: mod.color }}
+                            style={{ width: `${mod.score ?? 0}%`, backgroundColor: mod.color }}
                           />
                         </div>
                       </div>
