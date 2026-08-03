@@ -261,7 +261,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </aside>
 
         {/* Question content */}
-        <main className="flex-1 overflow-y-auto" id="main-content" tabIndex={-1}>
+        <main className="flex-1 h-full flex flex-col min-h-0 overflow-hidden" id="main-content" tabIndex={-1}>
           {children}
         </main>
       </div>

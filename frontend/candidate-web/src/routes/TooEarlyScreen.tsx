@@ -5,13 +5,15 @@ import { Clock, LifeBuoy } from 'lucide-react'
 
 const SUPPORT_EMAIL = 'mailto:support@proctora.com'
 
-function formatHHMMSS(ms: number) {
-  if (ms <= 0) return { h: '00', m: '00', s: '00' }
+function formatCountdown(ms: number) {
+  if (ms <= 0) return { d: '00', h: '00', m: '00', s: '00' }
   const totalSeconds = Math.max(0, Math.floor(ms / 1000))
-  const h = Math.floor(totalSeconds / 3600)
+  const d = Math.floor(totalSeconds / 86400)
+  const h = Math.floor((totalSeconds % 86400) / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
   const s = totalSeconds % 60
   return {
+    d: String(d).padStart(2, '0'),
     h: String(h).padStart(2, '0'),
     m: String(m).padStart(2, '0'),
     s: String(s).padStart(2, '0'),
@@ -49,7 +51,7 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
 
   const scheduledDate = new Date(scheduledTimeMs + 15 * 60 * 1000) // Test start time T
   const msUntilUnlock = scheduledTimeMs - nowMs
-  const { h, m, s } = formatHHMMSS(msUntilUnlock)
+  const { d, h, m, s } = formatCountdown(msUntilUnlock)
 
   const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
     hour: '2-digit',
@@ -81,7 +83,7 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
             />
           </div>
 
-          {/* Right Side: All Content & Live HH:MM:SS Countdown */}
+          {/* Right Side: All Content & Live Countdown */}
           <div className="lg:col-span-6 space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-[var(--surface)] text-[var(--muted-foreground)]">
@@ -101,11 +103,17 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
                 System Check Opens In
               </div>
               <div
-                className="font-mono-data text-4xl sm:text-5xl font-bold tabular-nums text-[var(--accent)] tracking-tight py-1"
+                className="font-mono-data text-3xl sm:text-4xl font-bold tabular-nums text-[var(--accent)] tracking-tight py-2 flex items-center justify-center gap-1.5"
                 role="timer"
                 aria-live="off"
               >
-                {h} : {m} : {s}
+                <span>{d}d</span>
+                <span className="text-[var(--text-secondary)] font-normal">:</span>
+                <span>{h}h</span>
+                <span className="text-[var(--text-secondary)] font-normal">:</span>
+                <span>{m}m</span>
+                <span className="text-[var(--text-secondary)] font-normal">:</span>
+                <span>{s}s</span>
               </div>
               <div className="text-xs text-[var(--muted-foreground)]">
                 Test starts at {formattedTime} · {formattedDate}
@@ -114,7 +122,11 @@ export function TooEarlyScreen({ scheduledTimeMs, inviteToken }: TooEarlyScreenP
 
             {/* Action & Support */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-              <button className="btn-primary w-full sm:w-auto px-6 py-2.5 cursor-pointer" disabled={msUntilUnlock > 0}>
+              <button
+                onClick={() => transitionTo({ type: 'system-check', mode: 'full', inviteToken })}
+                className="btn-primary w-full sm:w-auto px-6 py-2.5 cursor-pointer disabled:opacity-50"
+                disabled={msUntilUnlock > 0}
+              >
                 {msUntilUnlock > 0 ? "Waiting for system check unlock" : "Proceed to System Check"}
               </button>
 

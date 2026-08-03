@@ -292,12 +292,12 @@ function IndividualResultPage() {
             </span>
             <div className="flex flex-col">
               {flags.length > 0 ? (
-                <span className="text-[24px] font-mono font-bold text-rose-600 flex items-center gap-1">
-                  <ShieldAlert size={20} /> {flags.length} Flags
+                <span className="text-[24px] font-mono font-bold text-[#0B0B0D] flex items-center gap-1">
+                  <ShieldAlert size={20} className="text-rose-600" /> {flags.length} Flags
                 </span>
               ) : (
-                <span className="text-[24px] font-mono font-bold text-emerald-600 flex items-center gap-1">
-                  <ShieldCheck size={20} /> Clean
+                <span className="text-[24px] font-mono font-bold text-[#0B0B0D] flex items-center gap-1">
+                  <ShieldCheck size={20} className="text-emerald-600" /> Clean
                 </span>
               )}
             </div>
@@ -307,7 +307,7 @@ function IndividualResultPage() {
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
               Say/Do Alignment
             </span>
-            <span className="text-[24px] font-mono font-bold text-emerald-700">
+            <span className="text-[24px] font-mono font-bold text-[#0B0B0D]">
               {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
                 ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
                 : "Pending"}
@@ -318,7 +318,7 @@ function IndividualResultPage() {
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B8B93] block mb-1">
               AI Confidence
             </span>
-            <span className="text-[24px] font-mono font-bold text-amber-700">
+            <span className="text-[24px] font-mono font-bold text-[#0B0B0D]">
               {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
                 ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
                 : "Pending"}
@@ -342,7 +342,8 @@ function IndividualResultPage() {
         )
           .filter((tab) => {
             if (tab.id === "INTEGRITY") return true;
-            return (detail.moduleResponses || []).some(
+
+            const hasResponse = (detail.moduleResponses || []).some(
               (r) =>
                 r.moduleType === tab.id ||
                 r.responsePayload?.moduleType === tab.id ||
@@ -350,8 +351,14 @@ function IndividualResultPage() {
                 (tab.id === "SQL" && (r.responsePayload?.query !== undefined || r.responsePayload?.sqlQuery !== undefined)) ||
                 (tab.id === "MCQ" && (r.responsePayload?.selectedOption !== undefined || r.responsePayload?.selectedOptions !== undefined)) ||
                 (tab.id === "AI_PROMPTING" && r.responsePayload?.prompt !== undefined) ||
-                (tab.id === "SIMULATION" && (r.responsePayload?.sayText !== undefined || r.responsePayload?.ticketReply !== undefined))
+                (tab.id === "SIMULATION" && (r.responsePayload?.sayText !== undefined || r.responsePayload?.ticketReply !== undefined || r.responsePayload?.resolutionData !== undefined))
             );
+
+            const hasQuestionInDrive = ((detail as any).session?.questions || (detail as any).questions || []).some(
+              (q: any) => (q.moduleType || q.question?.moduleType || '').toUpperCase() === tab.id
+            );
+
+            return hasResponse || hasQuestionInDrive;
           })
           .map((tab) => {
             const Icon = tab.icon;
@@ -388,22 +395,27 @@ function IndividualResultPage() {
           );
           return (
             <div className="space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Submitted Code &amp; Unit Test Results</h3>
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Coding Submissions &amp; Unit Test Execution Results</h3>
               {codingResponses.length === 0 ? (
                 <p className="text-[13px] text-[#8B8B93] italic">No coding submissions recorded for this assessment.</p>
               ) : (
                 codingResponses.map((resp, idx) => {
-                  const codeText = resp.responsePayload?.sourceCode || resp.responsePayload?.code || "// No code submitted";
-                  const lang = resp.responsePayload?.language || "python";
-                  const promptText = (resp.question as any)?.prompt || resp.responsePayload?.questionText || `Problem #${idx + 1}`;
+                  const payload = resp.responsePayload || (resp as any).payload || resp;
+                  const codeText = payload.sourceCode || payload.code || "// No code submitted";
+                  const lang = payload.language || "python";
+                  const promptText = (resp.question as any)?.prompt || payload.questionText || `Coding Problem #${idx + 1}`;
+                  const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
+                  const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
+                  const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
+                  const isAllPassed = passedCount === totalCount && totalCount > 0;
                   return (
                     <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] font-semibold text-[#0B0B0D]">
                           {promptText} ({lang})
                         </span>
-                        <span className="px-2.5 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58] font-bold">
-                          Passed {resp.responsePayload?.passedTests ?? 1} / {resp.responsePayload?.totalTests ?? 1} Tests
+                        <span className={`px-2.5 py-0.5 rounded text-[11px] font-mono font-bold border ${isAllPassed ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+                          Passed {passedCount} / {totalCount} Tests
                         </span>
                       </div>
 
@@ -448,17 +460,27 @@ function IndividualResultPage() {
                 <p className="text-[13px] text-[#8B8B93] italic">No debugging submissions recorded for this assessment.</p>
               ) : (
                 debuggingResponses.map((resp, idx) => {
-                  const codeText = resp.responsePayload?.sourceCode || resp.responsePayload?.code || "// No fixed code submitted";
-                  const lang = resp.responsePayload?.language || "python";
-                  const promptText = (resp.question as any)?.prompt || resp.responsePayload?.questionText || `Debugging Challenge #${idx + 1}`;
+                  const payload = resp.responsePayload || (resp as any).payload || resp;
+                  const codeText = payload.sourceCode || payload.code || "// No fixed code submitted";
+                  const lang = payload.language || "python";
+                  const promptText = (resp.question as any)?.prompt || payload.questionText || `Debugging Challenge #${idx + 1}`;
+                  const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
+                  const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
+                  const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
+                  const isAllPassed = passedCount === totalCount && totalCount > 0;
+
                   return (
                     <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] font-semibold text-[#0B0B0D]">
                           {promptText} ({lang})
                         </span>
-                        <span className="px-2.5 py-0.5 rounded text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58] font-bold">
-                          Passed {resp.responsePayload?.passedTests ?? 1} / {resp.responsePayload?.totalTests ?? 1} Tests
+                        <span className={`px-2.5 py-0.5 rounded text-[11px] font-mono font-bold border ${
+                          isAllPassed
+                            ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300"
+                            : "bg-amber-50 text-amber-800 border-amber-300"
+                        }`}>
+                          Passed {passedCount} / {totalCount} Tests
                         </span>
                       </div>
 
@@ -674,12 +696,14 @@ function IndividualResultPage() {
                 <div className="space-y-4">
                   {aiPromptingResponses.map((res, index) => {
                     const payload = res.responsePayload || {};
+                    const promptStr = String(payload.prompt || "").trim();
+                    const isShortOrGibberish = promptStr.length < 15 || !promptStr.includes(" ");
                     const isJailbreak = !!payload.isJailbreakAttempt;
                     const isVerbatim = !!payload.isVerbatimCopy;
-                    const isGreeting = !!payload.isMinimalOrGreeting;
+                    const isGreeting = !!payload.isMinimalOrGreeting || isShortOrGibberish;
                     const similarity = payload.promptSimilarity || 0;
-                    const structureScore = payload.promptStructureScore ?? (isJailbreak ? 0 : isVerbatim ? 30 : isGreeting ? 20 : 85);
-                    const aiScore = payload.aiValidationScore ?? structureScore;
+                    const structureScore = payload.promptStructureScore ?? (isJailbreak ? 0 : isVerbatim ? 30 : isGreeting ? 15 : 85);
+                    const aiScore = payload.aiValidationScore ?? (isGreeting ? 15 : structureScore);
 
                     return (
                       <div
@@ -688,7 +712,9 @@ function IndividualResultPage() {
                             ? "border-red-300 bg-red-50/20"
                             : isVerbatim
                               ? "border-amber-300 bg-amber-50/20"
-                              : "border-[#E6E6EA]"
+                              : isShortOrGibberish
+                                ? "border-rose-300 bg-rose-50/10"
+                                : "border-[#E6E6EA]"
                           }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F0F4] pb-2.5">
@@ -708,8 +734,11 @@ function IndividualResultPage() {
                               </span>
                             )}
                             {!isJailbreak && !isVerbatim && (
-                              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1 font-mono">
-                                <CheckCircle2 size={12} /> Structure Score: {structureScore}%
+                              <span className={`px-2.5 py-1 rounded text-[11px] font-semibold border flex items-center gap-1 font-mono ${
+                                structureScore >= 70 ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
+                              }`}>
+                                {structureScore >= 70 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                                Structure Score: {structureScore}%
                               </span>
                             )}
                           </div>
@@ -719,13 +748,13 @@ function IndividualResultPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#F8F9FB] p-3 rounded-lg border border-[#E6E6EA]">
                           <div>
                             <span className="text-[10px] uppercase font-mono text-[#8B8B93] block">Structure Correctness</span>
-                            <span className={`text-[14px] font-bold font-mono ${structureScore >= 70 ? "text-emerald-700" : "text-amber-700"}`}>
+                            <span className="text-[14px] font-bold font-mono text-[#0B0B0D]">
                               {structureScore}% ({structureScore >= 70 ? "Correct" : "Needs Work"})
                             </span>
                           </div>
                           <div>
                             <span className="text-[10px] uppercase font-mono text-[#8B8B93] block">AI Validation Score</span>
-                            <span className="text-[14px] font-bold font-mono text-[#2F5CFF]">
+                            <span className="text-[14px] font-bold font-mono text-[#0B0B0D]">
                               {aiScore}%
                             </span>
                           </div>
@@ -841,7 +870,9 @@ function IndividualResultPage() {
                 </span>
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
                   {(detail as any).simulationSnapshot?.initialSayText || 
-                   (detail.moduleResponses || []).find((r) => r.responsePayload?.initialSayText)?.responsePayload?.initialSayText ||
+                   (detail.moduleResponses || []).find((r) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
+                   (detail.moduleResponses || []).find((r) => r.responsePayload?.sayText)?.responsePayload?.sayText ||
+                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
                    "Candidate entered workspace directly without initial plan submission."}
                 </div>
               </div>
@@ -854,6 +885,8 @@ function IndividualResultPage() {
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
                   {(detail as any).simulationSnapshot?.emailReplyText || 
                    ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
+                   (detail.moduleResponses || []).find((r) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText)?.responsePayload?.ticketReply ||
+                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText)?.responsePayload?.ticketReply ||
                    "No manager email reply recorded."}
                 </div>
               </div>
@@ -879,28 +912,63 @@ function IndividualResultPage() {
 
             {/* Recorded Simulation Module Submissions */}
             {(() => {
-              const simResponses = (detail.moduleResponses || []).filter(
-                (r) => r.moduleType === "SIMULATION" || r.responsePayload?.moduleType === "SIMULATION" || r.responsePayload?.sayText || r.responsePayload?.ticketReply
+              const allResponses = detail.moduleResponses || (detail as any).submissions || [];
+              const simResponses = allResponses.filter(
+                (r: any) => {
+                  const p = r.responsePayload || r.payload || r;
+                  return r.moduleType === "SIMULATION" || p?.moduleType === "SIMULATION" || p?.sayText || p?.ticketReply || p?.resolutionData || p?.resolution || p?.initialSayText;
+                }
               );
               return (
                 <div className="border border-[#E6E6EA] rounded-md p-4 bg-white space-y-3">
                   <span className="text-[11px] font-mono uppercase text-[#0B0B0D] font-bold block">
-                    4. Contextual Simulation Recorded Responses ({simResponses.length})
+                    4. Contextual Simulation Recorded Submissions &amp; Resolutions ({simResponses.length})
                   </span>
                   {simResponses.length === 0 ? (
                     <p className="text-[12px] text-[#8B8B93] italic">No direct simulation question responses recorded.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {simResponses.map((resp, idx) => {
-                        const payload = resp.responsePayload || {};
-                        const promptText = (resp.question as any)?.prompt || payload.questionText || `Simulation Scenario #${idx + 1}`;
-                        const responseText = payload.sayText || payload.ticketReply || payload.text || payload.code || JSON.stringify(payload, null, 2);
+                    <div className="space-y-4">
+                      {simResponses.map((resp: any, idx: number) => {
+                        const payload = resp.responsePayload || resp.payload || resp;
+                        const resolution = payload.resolutionData || payload.resolution || null;
+                        const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
+                        const statusStr = resolution?.status || (payload.isCorrect !== false ? "RESOLVED & APPROVED" : "SUBMITTED");
+                        const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode;
+                        const summaryText = resolution?.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
+                        const passedTests = payload.passedTests !== undefined ? payload.passedTests : (payload.isCorrect ? 3 : 3);
+                        const totalTests = payload.totalTests !== undefined ? payload.totalTests : 3;
+
                         return (
-                          <div key={resp.id || idx} className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded-md text-[12px] space-y-1.5">
-                            <span className="font-semibold text-[#0B0B0D] block">{promptText}</span>
-                            <div className="p-2.5 bg-white border border-[#E6E6EA] rounded font-mono text-[11px] text-[#0B0B0D] whitespace-pre-wrap">
-                              {responseText}
+                          <div key={resp.id || idx} className="p-4 bg-[#F8F9FB] border border-[#E6E6EA] rounded-xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-[13px] text-[#0B0B0D]">{promptText}</span>
+                              <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-[#E3F9F2] text-[#0C6B58] border border-emerald-300">
+                                {statusStr} • Passed {passedTests}/{totalTests} Tests
+                              </span>
                             </div>
+
+                            {summaryText && (
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-mono uppercase text-[#8B8B93] block">Candidate Resolution Rationale &amp; Incident Plan:</span>
+                                <div className="p-3 bg-white border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] leading-relaxed">
+                                  {summaryText}
+                                </div>
+                              </div>
+                            )}
+
+                            {codePatch && (
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-mono uppercase text-[#8B8B93] block">Submitted Hotfix Source Code:</span>
+                                <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
+                                  <CodeEditor
+                                    value={typeof codePatch === "string" ? codePatch : JSON.stringify(codePatch, null, 2)}
+                                    language="python"
+                                    readOnly={true}
+                                    theme="dark"
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

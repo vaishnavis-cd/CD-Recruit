@@ -123,8 +123,8 @@ export class CodingService implements AssessmentModuleEngine {
     const question = await this.prisma.question.findUnique({
       where: { id: dto.questionId },
     });
-    if (!question || question.moduleType !== ModuleType.CODING) {
-      throw new NotFoundException("Coding question not found");
+    if (!question || (question.moduleType !== ModuleType.CODING && question.moduleType !== ModuleType.DEBUGGING)) {
+      throw new NotFoundException("Coding/Debugging question not found");
     }
 
     const content = question.content as any;
@@ -253,8 +253,8 @@ export class CodingService implements AssessmentModuleEngine {
     const question = await this.prisma.question.findUnique({
       where: { id: dto.questionId },
     });
-    if (!question || question.moduleType !== ModuleType.CODING) {
-      throw new NotFoundException("Coding question not found");
+    if (!question || (question.moduleType !== ModuleType.CODING && question.moduleType !== ModuleType.DEBUGGING)) {
+      throw new NotFoundException("Coding/Debugging question not found");
     }
 
     const content = question.content as any;

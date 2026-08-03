@@ -161,7 +161,7 @@ export class SimulationService implements AssessmentModuleEngine {
         },
       });
     } catch (err: any) {
-      this.logger.debug(`simulationSnapshot DB update note for ${sessionId}: ${err.message}`);
+      this.logger.warn(`simulationSnapshot DB update failed for session ${sessionId}: ${err.message}`);
     }
   }
 
@@ -416,12 +416,14 @@ export class SimulationService implements AssessmentModuleEngine {
       evaluation,
     );
 
-    // Find seeded SIMULATION question in DB to map ModuleResponse
-    const question = await this.prisma.question.findFirst({
-      where: { moduleType: ModuleType.SIMULATION },
-    });
+    // Resolve scenario config and questionId consistently across all sources
+    const scenarioConfig = await this.getScenarioConfig(sessionId);
+    const questionId = scenarioConfig?.id || QA_BUG_REPORT_SCENARIO.id;
 
-    const questionId = question?.id || QA_BUG_REPORT_SCENARIO.id;
+    const payloadWithModule = {
+      ...(typeof evaluation === "object" ? evaluation : {}),
+      moduleType: ModuleType.SIMULATION,
+    };
 
     // Save ModuleResponse in DB
     await this.prisma.moduleResponse.upsert({
@@ -434,12 +436,12 @@ export class SimulationService implements AssessmentModuleEngine {
       create: {
         sessionId,
         questionId,
-        responsePayload: evaluation as any,
+        responsePayload: payloadWithModule as any,
         isDraft: false,
         timeSpentSeconds: 300,
       },
       update: {
-        responsePayload: evaluation as any,
+        responsePayload: payloadWithModule as any,
         isDraft: false,
       },
     });

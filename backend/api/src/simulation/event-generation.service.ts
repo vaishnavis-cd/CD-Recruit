@@ -133,6 +133,20 @@ JSON Schema:
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// QUARANTINED / DEFERRED UNUSED LLM PROVIDERS
+//
+// NOTE: ClaudeProvider and GeminiProvider are defined below for potential future
+// online LLM scenario enrichment, but are DEFERRED and deliberately NOT wired
+// into active candidate sessions.
+//
+// Reason: Candidate sessions strictly use pre-authored static templates
+// (via getStaticFallback) to guarantee 0 live LLM latency, 0 costs, deterministic
+// grading, and 100% pre-approved scenario content.
+//
+// DO NOT DELETE OR REMOVE without explicit architectural sign-off.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class ClaudeProvider implements LLMProvider {
   constructor(private apiKey: string) {}
 

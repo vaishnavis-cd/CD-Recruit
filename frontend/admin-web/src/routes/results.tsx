@@ -45,10 +45,10 @@ function ResultsPage() {
 
   useEffect(() => {
     if (isExactResults) {
-      fetchResults();
+      fetchResults({ driveId: driveFilter !== "all" ? driveFilter : undefined });
       fetchDrives();
     }
-  }, [isExactResults]);
+  }, [isExactResults, driveFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -60,8 +60,9 @@ function ResultsPage() {
         if (!name.includes(q) && !email.includes(q) && !drive.includes(q)) return false;
       }
 
-      if (driveFilter !== "all" && item.driveId !== driveFilter) {
-        return false;
+      if (driveFilter !== "all") {
+        const itemDriveId = item.driveId || item.drive_id || item.drive?.id;
+        if (itemDriveId && itemDriveId !== driveFilter) return false;
       }
 
       if (statusFilter === "pending") {
