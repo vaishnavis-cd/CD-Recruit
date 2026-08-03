@@ -161,7 +161,7 @@ export class SimulationService implements AssessmentModuleEngine {
         },
       });
     } catch (err: any) {
-      this.logger.debug(`simulationSnapshot DB update note for ${sessionId}: ${err.message}`);
+      this.logger.warn(`simulationSnapshot DB update failed for session ${sessionId}: ${err.message}`);
     }
   }
 
