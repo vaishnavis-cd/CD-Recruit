@@ -180,7 +180,20 @@
   50% { transform: scaleY(1); }
 }
 
+@keyframes btnBorderRipple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(47, 92, 255, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(47, 92, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(47, 92, 255, 0);
+  }
+}
+
 @utility animate-cd-fade-in { animation: cd-fade-in 400ms var(--ease-cd) both; }
 @utility animate-cd-scale-in { animation: cd-scale-in 250ms var(--ease-cd) both; }
 @utility animate-cd-pulse-warn { animation: cd-pulse-warn 1.6s var(--ease-cd) infinite; }
 @utility animate-cd-flash { animation: cd-flash 500ms var(--ease-cd) both; }
+@utility animate-border-ripple { animation: btnBorderRipple 1.2s cubic-bezier(0, 0.2, 0.8, 1) infinite; }

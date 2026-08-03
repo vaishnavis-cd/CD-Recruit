@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,7 @@ import {
   Folder,
   ChevronRight,
   ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -185,8 +186,11 @@ function QuestionBankPage() {
       setEditSqlSeed(q.content?.seedData || "");
       setEditSqlExpectedQuery(q.content?.expectedQuery || "");
 
-    } else if (q.moduleType === "CODING") {
-      setEditStarterCode(q.content?.starterCode || "");
+    } else if (q.moduleType === "CODING" || q.moduleType === "DEBUGGING") {
+      const code = typeof q.content?.starterCode === "object"
+        ? (q.content.starterCode.javascript || q.content.starterCode.python || JSON.stringify(q.content.starterCode, null, 2))
+        : (q.content?.starterCode || "");
+      setEditStarterCode(code);
       setEditTestCasesInput(
         q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : ""
       );
@@ -221,10 +225,16 @@ function QuestionBankPage() {
         content.schema = editSqlSchema;
         content.seedData = editSqlSeed;
         content.expectedQuery = editSqlExpectedQuery;
-
-      } else if (editingQuestion.moduleType === "CODING") {
+      } else if (editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") {
         content.starterCode = editStarterCode;
-        content.testCases = editTestCasesInput ? JSON.parse(editTestCasesInput) : [];
+        if (editTestCasesInput.trim()) {
+          try {
+            content.testCases = JSON.parse(editTestCasesInput);
+          } catch {
+            toast.error("Invalid Test Cases JSON format");
+            return;
+          }
+        }
       } else if (editingQuestion.moduleType === "AI_PROMPTING") {
         content.context = editAiSystemContext;
         content.techStack = editAiTechStack;
@@ -235,20 +245,11 @@ function QuestionBankPage() {
         content.rubric = editSimRubric ? JSON.parse(editSimRubric) : [];
       }
 
-      await updateQuestion(editingQuestion.id, {
-        content,
-        scoringConfig,
-        difficulty: editDifficulty,
-        role: editRole,
-        tags: editTagsInput
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-      });
-
+      await updateQuestion(editingQuestion.id, { ...editingQuestion, difficulty: editDifficulty, tags: editTagsInput.split(",").map((t) => t.trim()).filter(Boolean), role: editRole, content });
+      toast.success("Question updated successfully");
       setEditingQuestion(null);
     } catch (err: any) {
-      toast.error("Failed updating question: " + err.message);
+      toast.error(err.message || "Failed to update question");
     }
   };
 
@@ -269,7 +270,7 @@ function QuestionBankPage() {
         content.seedData = sqlSeed;
         content.expectedQuery = sqlExpectedQuery;
 
-      } else if (moduleType === "CODING") {
+      } else if (moduleType === "CODING" || moduleType === "DEBUGGING") {
         content.starterCode = starterCode;
         content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
       } else if (moduleType === "AI_PROMPTING") {
@@ -589,6 +590,29 @@ function QuestionBankPage() {
         </div>
       }
     >
+      {/* Single-Click Return Banner if navigated from a Drive */}
+      {(() => {
+        const params = new URLSearchParams(window.location.search);
+        const driveId = params.get("driveId") || params.get("fromDrive");
+        if (!driveId) return null;
+        return (
+          <div className="mb-4 p-3 bg-[#EAF0FF] border border-[#2F5CFF]/30 rounded-xl flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2.5 text-[#15308F] text-[13px] font-medium">
+              <Sparkles size={16} className="text-[#2F5CFF]" />
+              <span>You are currently managing questions for an active Drive.</span>
+            </div>
+            <Link
+              to={`/drives/${driveId}`}
+              search={{ tab: "questions" }}
+              className="px-3.5 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              <span>Return to Drive Questions</span>
+            </Link>
+          </div>
+        );
+      })()}
+
       {/* Tag Directory Navigation */}
       {query.trim() !== "" ? (
         /* Search results list */
@@ -1019,8 +1043,8 @@ function QuestionBankPage() {
                 </div>
               )}
 
-              {/* Coding Fields */}
-              {moduleType === "CODING" && (
+              {/* Coding & Debugging Fields */}
+              {(moduleType === "CODING" || moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
@@ -1410,8 +1434,8 @@ function QuestionBankPage() {
                 </div>
               )}
 
-              {/* Coding Fields */}
-              {editingQuestion.moduleType === "CODING" && (
+              {/* Coding & Debugging Fields */}
+              {(editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">

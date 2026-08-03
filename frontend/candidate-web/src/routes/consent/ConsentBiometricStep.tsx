@@ -65,7 +65,7 @@ export function ConsentBiometricStep({ onConsent }: ConsentBiometricStepProps) {
         <button
           className={`btn-primary text-xs font-semibold px-6 py-2.5 transition-all duration-300 ${
             agreed
-              ? 'ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
+              ? 'animate-border-ripple shadow-lg cursor-pointer'
               : 'opacity-50 cursor-not-allowed'
           }`}
           disabled={!agreed}

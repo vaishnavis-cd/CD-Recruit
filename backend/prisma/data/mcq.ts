@@ -9,12 +9,14 @@ export interface McqContent {
 
 export interface McqSeedEntry {
   moduleType: Extract<ModuleType, "MCQ">;
+  difficulty?: "easy" | "medium" | "hard";
   content: McqContent;
 }
 
 export const mcqQuestions: McqSeedEntry[] = [
   {
     moduleType: "MCQ",
+    difficulty: "medium",
     content: {
       prompt:
         "In the JavaScript/Node.js event loop, which of the following is executed first after the current synchronous execution stack is cleared?",
@@ -31,6 +33,7 @@ export const mcqQuestions: McqSeedEntry[] = [
   },
   {
     moduleType: "MCQ",
+    difficulty: "easy",
     content: {
       prompt:
         "What is the primary benefit of the B-Tree index structure over a Hash index structure in relational databases like PostgreSQL?",
@@ -43,6 +46,23 @@ export const mcqQuestions: McqSeedEntry[] = [
       correctIndex: 1,
       explanation:
         "B-Tree indexes maintain sorted order of keys, allowing efficient range scans, sorting (ORDER BY), and inequality comparison operators (<, <=, >, >=). Hash indexes only support equality comparisons (=).",
+    },
+  },
+  {
+    moduleType: "MCQ",
+    difficulty: "hard",
+    content: {
+      prompt:
+        "According to the PACELC theorem (an extension of CAP), in a distributed database system operating normally WITHOUT network partitions, what trade-off must system architects choose between?",
+      options: [
+        "Availability vs Partition Tolerance",
+        "Latency (L) vs Consistency (C)",
+        "Throughput vs Storage Overhead",
+        "Durability vs Scalability",
+      ],
+      correctIndex: 1,
+      explanation:
+        "PACELC states that IF there is a Partition (P), trade off Availability (A) and Consistency (C); ELSE (E), trade off Latency (L) and Consistency (C).",
     },
   },
   {

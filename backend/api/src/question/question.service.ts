@@ -92,8 +92,6 @@ export class QuestionService {
 
     if (search) {
       where.OR = [
-        { content: { path: ["prompt"], string_contains: search } },
-        { content: { path: ["title"], string_contains: search } },
         { tags: { has: search } },
         { role: { contains: search, mode: "insensitive" } },
       ];
@@ -105,58 +103,27 @@ export class QuestionService {
         skip,
         take,
         orderBy: { version: "desc" },
+        include: {
+          _count: {
+            select: { driveQuestions: true, moduleResponses: true },
+          },
+        },
       }),
       this.prisma.question.count({ where }),
     ]);
 
-    // Map items to include summary statistics
-    const itemsWithStats = await Promise.all(
-      items.map(async (q) => {
-        const usageCount = await this.prisma.driveQuestion.count({
-          where: { questionId: q.id },
-        });
-
-        // Compute average score on this question
-        const responses = await this.prisma.moduleResponse.findMany({
-          where: { questionId: q.id },
-          include: {
-            session: {
-              include: {
-                score: true,
-              },
-            },
-          },
-        });
-
-        let avgScore: number | null = null;
-        if (responses.length > 0) {
-          let sum = 0;
-          let count = 0;
-          for (const res of responses) {
-            const modScores = res.session.score?.moduleScores as Record<string, number>;
-            if (modScores && modScores[q.moduleType]) {
-              sum += modScores[q.moduleType];
-              count += 1;
-            }
-          }
-          if (count > 0) {
-            avgScore = Math.round((sum / count) * 100);
-          }
-        }
-
-        return {
-          id: q.id,
-          moduleType: q.moduleType,
-          content: q.content,
-          difficulty: q.difficulty,
-          tags: q.tags,
-          version: q.version,
-          status: q.status,
-          usageCount,
-          avgScore,
-        };
-      }),
-    );
+    const itemsWithStats = items.map((q) => ({
+      id: q.id,
+      moduleType: q.moduleType,
+      content: q.content,
+      difficulty: q.difficulty,
+      tags: q.tags,
+      version: q.version,
+      status: q.status,
+      role: q.role,
+      usageCount: q._count.driveQuestions,
+      avgScore: null,
+    }));
 
     return {
       items: itemsWithStats,

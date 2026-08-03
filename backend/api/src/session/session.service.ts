@@ -777,6 +777,7 @@ export class SessionService {
       durationMinutes,
       cvMode:
         session.cvMode as unknown as import("@cd-recruit/shared-types").CvMode,
+      proctoringConfig: (drive?.moduleConfig as any)?.proctoringConfig || null,
       status:
         session.status as unknown as import("@cd-recruit/shared-types").SessionStatus,
       startedAt: session.startedAt?.toISOString() ?? null,

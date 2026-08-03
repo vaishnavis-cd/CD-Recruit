@@ -206,7 +206,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
             <button
               onClick={onComplete}
               type="button"
-              className="btn-primary text-xs font-semibold px-6 py-2.5 ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer"
+              className="btn-primary text-xs font-semibold px-6 py-2.5 animate-border-ripple shadow-lg cursor-pointer"
             >
               Continue
             </button>
@@ -218,7 +218,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
             type="button"
             className={`text-xs font-semibold px-6 py-2.5 rounded-lg transition-all ${
               isAligned && hasStream
-                ? 'btn-primary ring-4 ring-[var(--accent)]/40 animate-pulse shadow-lg cursor-pointer'
+                ? 'btn-primary animate-border-ripple shadow-lg cursor-pointer'
                 : 'bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed border border-slate-600'
             }`}
           >

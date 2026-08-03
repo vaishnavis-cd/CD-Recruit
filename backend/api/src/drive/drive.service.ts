@@ -15,7 +15,7 @@ import {
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
-import { InviteStatus, SessionStatus } from "@prisma/client";
+import { InviteStatus, SessionStatus, ModuleType } from "@prisma/client";
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
@@ -378,14 +378,15 @@ export class DriveService {
     });
 
     if (moduleConfig) {
+      const validModuleTypes = Object.values(ModuleType);
       const enabledModules = Object.entries(moduleConfig as Record<string, any>)
-        .filter(([_, conf]) => conf?.enabled)
-        .map(([mod]) => mod);
+        .filter(([mod, conf]) => conf?.enabled && validModuleTypes.includes(mod as any))
+        .map(([mod]) => mod as ModuleType);
 
       await this.prisma.driveQuestion.deleteMany({
         where: {
           driveId,
-          moduleType: { notIn: enabledModules as any },
+          moduleType: { notIn: enabledModules },
         },
       });
     }

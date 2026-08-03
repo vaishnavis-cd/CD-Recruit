@@ -246,7 +246,7 @@ function DashboardPage() {
 
   return (
     <AppShell
-      title="Operational Command Center"
+      title="Dashboard"
       actions={
         <div className="flex items-center gap-2.5">
           <select

@@ -1,7 +1,8 @@
 import { ModuleType } from "@prisma/client";
 
 export interface DebuggingSeedEntry {
-  moduleType: Extract<ModuleType, "CODING">;
+  moduleType: any;
+  difficulty?: "easy" | "medium" | "hard";
   content: {
     prompt: string;
     starterCode: Record<string, string>;
@@ -14,7 +15,8 @@ export interface DebuggingSeedEntry {
 
 export const debuggingQuestions: DebuggingSeedEntry[] = [
   {
-    moduleType: "CODING",
+    moduleType: "DEBUGGING",
+    difficulty: "easy",
     content: {
       prompt:
         "DEBUGGING CHALLENGE: The following function is intended to validate whether an array of integers forms a valid sequence where each element is strictly greater than the previous element. However, QA reported that duplicate numbers and off-by-one boundary cases are passing incorrectly. Identify the bug in the logic and fix it.",
@@ -22,7 +24,7 @@ export const debuggingQuestions: DebuggingSeedEntry[] = [
         javascript: `const fs = require('fs');
 
 function isStrictlyIncreasing(arr) {
-  // BUGGY IMPLEMENTATION: Missing strict inequality and boundary check
+  // FIX NEEDED: Check boundary conditions and strict inequality
   for (let i = 1; i < arr.length; i++) {
     if (arr[i] <= arr[i - 1]) {
       return false;
@@ -44,7 +46,7 @@ if (input) {
 import json
 
 def is_strictly_increasing(arr: list[int]) -> bool:
-    # BUGGY IMPLEMENTATION: Non-strict comparison allows duplicates
+    # FIX NEEDED: Check boundary conditions and strict inequality
     for i in range(1, len(arr)):
         if arr[i] <= arr[i - 1]:
             return False
@@ -69,7 +71,8 @@ for line in sys.stdin:
     },
   },
   {
-    moduleType: "CODING",
+    moduleType: "DEBUGGING",
+    difficulty: "medium",
     content: {
       prompt:
         "DEBUGGING CHALLENGE: Memory Leak & Event Listener Cleanup. A frontend service accumulates orphaned window event listeners when components unmount, causing high browser memory usage over time. Inspect the handler registration logic and fix the cleanup callback function.",
@@ -82,7 +85,8 @@ class EventTracker {
   }
 
   subscribe(event, callback) {
-    this.listeners.push({ event, callback });
+    const handler = { event, callback };
+    this.listeners.push(handler);
     return () => this.unsubscribe(event);
   }
 
@@ -131,6 +135,63 @@ for line in sys.stdin:
       constraints: ["Memory leak cleanup must be O(N) or better"],
       difficulty: "medium",
       explanation: "Ensure event listeners are properly removed from the array when unsubscribed.",
+    },
+  },
+  {
+    moduleType: "DEBUGGING",
+    difficulty: "hard",
+    content: {
+      prompt:
+        "DEBUGGING CHALLENGE: Rate Limiter Window Calculation. The sliding window algorithm below calculates requests per window interval, but incorrectly allows request bursts when crossing the sliding window boundary due to a timestamp rounding defect. Fix the timestamp window calculation.",
+      starterCode: {
+        javascript: `const fs = require('fs');
+
+function isRateLimited(timestamps, windowSizeMs, maxRequests) {
+  if (!timestamps || timestamps.length === 0) return false;
+  const now = timestamps[timestamps.length - 1];
+  const windowStart = now - windowSizeMs;
+  let count = 0;
+  for (let i = 0; i < timestamps.length; i++) {
+    if (timestamps[i] >= windowStart) {
+      count++;
+    }
+  }
+  return count > maxRequests;
+}
+
+const input = fs.readFileSync(0, 'utf-8').trim();
+if (input) {
+  const lines = input.split('\\n');
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const { timestamps, windowSizeMs, maxRequests } = JSON.parse(line.trim());
+    console.log(isRateLimited(timestamps, windowSizeMs, maxRequests) ? 'true' : 'false');
+  }
+}`,
+        python: `import sys
+import json
+
+def is_rate_limited(timestamps: list[int], window_size_ms: int, max_requests: int) -> bool:
+    if not timestamps:
+        return False
+    now = timestamps[-1]
+    window_start = now - window_size_ms
+    count = sum(1 for t in timestamps if t >= window_start)
+    return count > max_requests
+
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    data = json.loads(line.strip())
+    print('true' if is_rate_limited(data['timestamps'], data['windowSizeMs'], data['maxRequests']) else 'false')`,
+      },
+      testCases: [
+        { input: "{\"timestamps\": [1000, 1500, 2000, 2200], \"windowSizeMs\": 1500, \"maxRequests\": 3}", expectedOutput: "true", label: "Burst Over Limit Check" },
+        { input: "{\"timestamps\": [1000, 3000, 5000], \"windowSizeMs\": 1500, \"maxRequests\": 2}", expectedOutput: "false", label: "Spaced Requests Check" },
+      ],
+      constraints: ["1 <= timestamps.length <= 10^5"],
+      difficulty: "hard",
+      explanation: "Count timestamps in the range [now - windowSizeMs, now] and return true if count exceeds maxRequests.",
     },
   },
 ];

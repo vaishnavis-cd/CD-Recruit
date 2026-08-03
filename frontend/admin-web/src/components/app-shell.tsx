@@ -43,6 +43,23 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
     initials: "RB",
   });
 
+  const [hasUnreadResults, setHasUnreadResults] = useState(() => {
+    try {
+      return localStorage.getItem("proctora_read_results_notification") !== "true";
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    if (pathname.startsWith("/results")) {
+      try {
+        localStorage.setItem("proctora_read_results_notification", "true");
+        setHasUnreadResults(false);
+      } catch {}
+    }
+  }, [pathname]);
+
   useEffect(() => {
     const user = getUserProfile();
     if (user) {
@@ -74,9 +91,7 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
       <aside className="w-[244px] shrink-0 bg-white border-r border-[#E6E6EA] text-[#0B0B0D] flex flex-col sticky top-0 h-screen">
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-[#2F5CFF] flex items-center justify-center font-mono text-[13px] font-semibold text-white">
-              P
-            </div>
+            <img src="/Logo.png" alt="Proctora Logo" className="w-7 h-7 object-contain" />
             <div>
               <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">Proctora</div>
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
@@ -103,8 +118,13 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
                 {active && (
                   <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-[#2F5CFF]" />
                 )}
-                <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
-                {item.label}
+                <div className="relative inline-flex items-center justify-center shrink-0">
+                  <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
+                  {item.to === "/results" && hasUnreadResults && (
+                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" title="New candidate results pending review" />
+                  )}
+                </div>
+                <span>{item.label}</span>
               </Link>
             );
           })}
