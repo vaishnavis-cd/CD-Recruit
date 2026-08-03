@@ -23,6 +23,8 @@ export interface CodingExecutionResponse {
   executionTime: number | null;
   memoryUsage: number | null;
   stdout?: string;
+  stderr?: string;
+  compileOutput?: string;
   results?: TestResultDetail[];
 }
 

@@ -11,6 +11,8 @@ export interface QuestionSlice {
     search?: string;
     status?: string;
     role?: string;
+    pageSize?: number;
+    page?: number;
   }) => Promise<void>;
   createQuestion: (input: {
     moduleType: string;
@@ -43,7 +45,9 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
     set({ loading: true });
     try {
       const headers = await getAuthHeaders();
-      let url = `${API_BASE}/admin/questions?page=1&pageSize=100`;
+      const page = query?.page || 1;
+      const pageSize = query?.pageSize || 500;
+      let url = `${API_BASE}/admin/questions?page=${page}&pageSize=${pageSize}`;
       if (query?.moduleType) url += `&moduleType=${query.moduleType}`;
       if (query?.difficulty) url += `&difficulty=${query.difficulty}`;
       if (query?.search) url += `&search=${encodeURIComponent(query.search)}`;

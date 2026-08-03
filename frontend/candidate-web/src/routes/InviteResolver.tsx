@@ -80,6 +80,20 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
+        // Check if scheduled time is in the future (> 15 minutes away)
+        const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduledAt || (drive as any).startsAt
+        if (scheduledTimeStr) {
+          const scheduledMs = new Date(scheduledTimeStr).getTime()
+          const nowMs = services.time.getServerNow()
+          const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
+
+          if (!isNaN(scheduledMs) && nowMs < unlockTimeMs) {
+            localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
+            transitionTo({ type: 'too-early', scheduledTimeMs: unlockTimeMs, inviteToken: token })
+            return
+          }
+        }
+
         // New Session — start at System Check onboarding sequence
         transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
         return

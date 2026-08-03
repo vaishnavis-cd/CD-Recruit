@@ -86,18 +86,18 @@ export function InitialSayStep({
   ]
 
   return (
-    <div className="max-w-5xl mx-auto py-6 px-6 space-y-6 pb-20 text-[var(--text-primary)] font-sans">
+    <div className="max-w-4xl mx-auto py-8 px-6 space-y-6 pb-20 text-[var(--text-primary)] font-sans">
       {/* Persistent Deployment Pressure Status Bar */}
-      <div className="p-3.5 rounded-xl bg-gradient-to-r from-rose-500/15 via-amber-500/10 to-transparent border border-rose-500/30 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0" />
-          <span className="text-xs font-bold font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400">
-            DEPLOYMENT WINDOW ACTIVE — P1 INCIDENT IN PROGRESS
+      <div className="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+          <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[var(--text-primary)]">
+            Incident Briefing &amp; Strategy Phase
           </span>
         </div>
-        <div className="flex items-center gap-2 font-mono text-xs font-bold text-amber-600 dark:text-amber-400 bg-[var(--surface)] px-3 py-1 rounded-lg border border-[var(--border)]">
-          <Clock className="w-4 h-4 text-amber-500" />
-          <span>Deployment Window: {formatTimer(countdown)} Remaining</span>
+        <div className="flex items-center gap-2 font-mono text-xs text-[var(--text-secondary)] bg-[var(--background)] px-3 py-1 rounded-lg border border-[var(--border)]">
+          <Clock className="w-3.5 h-3.5 text-[var(--accent)]" />
+          <span>Window Remaining: {formatTimer(countdown)}</span>
         </div>
       </div>
 
@@ -105,28 +105,25 @@ export function InitialSayStep({
       <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-rose-500/15 text-rose-500 border border-rose-500/30 shadow-xs">
-              <ShieldAlert className="w-6 h-6" />
+            <div className="p-2.5 rounded-xl bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20 shadow-xs">
+              <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold font-mono uppercase bg-rose-500/20 text-rose-500 border border-rose-500/30">
-                  P1 PRODUCTION INCIDENT
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                  STATUS: DEPLOYMENT BLOCKED
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rose-500/15 text-rose-400 border border-rose-500/20">
+                  P1 INCIDENT
                 </span>
                 <span className="text-xs font-mono text-[var(--text-secondary)]">ID: INC-2026-0891</span>
               </div>
-              <h1 className="text-xl font-extrabold tracking-tight text-[var(--text-primary)] mt-1">
+              <h1 className="text-lg font-bold tracking-tight text-[var(--text-primary)] mt-1">
                 {scenarioTitle}
               </h1>
             </div>
           </div>
         </div>
 
-        {/* Technical Environment Metadata Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[var(--background)] p-3.5 rounded-xl border border-[var(--border)] font-mono text-xs">
+        {/* Environment Metadata Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[var(--background)] p-3 rounded-xl border border-[var(--border)] font-mono text-xs">
           <div>
             <span className="text-[10px] text-[var(--text-secondary)] uppercase block font-semibold">Repository</span>
             <span className="font-bold text-[var(--accent)]">cdrecruit/login-service</span>
@@ -137,11 +134,11 @@ export function InitialSayStep({
           </div>
           <div>
             <span className="text-[10px] text-[var(--text-secondary)] uppercase block font-semibold">Environment</span>
-            <span className="font-bold text-emerald-500">Staging Sandbox</span>
+            <span className="font-bold text-[var(--text-primary)]">Staging Sandbox</span>
           </div>
           <div>
             <span className="text-[10px] text-[var(--text-secondary)] uppercase block font-semibold">Deployment ETA</span>
-            <span className="font-bold text-amber-500">1h 43m</span>
+            <span className="font-bold text-[var(--text-primary)]">1h 43m</span>
           </div>
         </div>
 
@@ -150,79 +147,15 @@ export function InitialSayStep({
         </p>
       </div>
 
-      {/* Incident Context Grid: Timeline, Team, Objectives */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Incident Timeline */}
-        <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[#2F5CFF] flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#2F5CFF]" />
-            <span>Incident Chronology</span>
-          </h3>
-
-          <div className="space-y-2 font-mono text-xs">
-            {timelineEvents.map((evt, i) => (
-              <div key={i} className="flex items-center gap-2.5 p-2 rounded-lg bg-[var(--background)] border border-[var(--border)]">
-                <span className="text-[10px] font-bold text-[var(--accent)]">{evt.time}</span>
-                <span className="text-[11px] text-[var(--text-primary)] font-sans">{evt.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Assigned Team Members */}
-        <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-purple-500 flex items-center gap-2">
-            <Users className="w-4 h-4 text-purple-500" />
-            <span>War Room Participants</span>
-          </h3>
-
-          <div className="space-y-2">
-            {teamMembers.map((m, i) => (
-              <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[var(--background)] border border-[var(--border)]">
-                <div className="flex items-center gap-2">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center font-mono font-bold text-[11px] border ${m.avatarBg}`}>
-                    {m.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-[var(--text-primary)] block leading-tight">{m.name}</span>
-                    <span className="text-[10px] text-[var(--text-secondary)]">{m.role}</span>
-                  </div>
-                </div>
-                <span className="text-[9px] font-mono font-semibold px-2 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)]">
-                  {m.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Incident Objectives */}
-        <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-emerald-500 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>Incident Objectives</span>
-          </h3>
-
-          <div className="space-y-2">
-            {objectives.map((obj, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-primary)] font-sans">
-                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>{obj}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* SAY Phase Strategy Form */}
       <form onSubmit={handleSubmit} className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm space-y-5">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
             <Sparkles className="w-4 h-4 text-[var(--accent)]" />
             <span>Investigation &amp; Remediation Strategy</span>
           </label>
           <p className="text-xs text-[var(--text-secondary)]">
-            Before accessing the repository, explain your investigation strategy, assumptions, risks, and validation plan.
+            Explain your initial investigation approach, potential risk areas, and plan of action before accessing the workspace repository.
           </p>
         </div>
 
@@ -242,16 +175,16 @@ export function InitialSayStep({
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-[var(--text-secondary)] font-mono">
             {text.trim().length} characters typed
           </span>
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting}
-            className="px-6 py-2.5 rounded-xl bg-[var(--accent)] text-white text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-sm cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            <span>Submit Strategy &amp; Enter Incident Workspace</span>
+            <span>Submit Strategy &amp; Enter Workspace</span>
             <Send className="w-4 h-4" />
           </button>
         </div>

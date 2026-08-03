@@ -895,14 +895,16 @@ function DriveDetailPage() {
   };
 
   const isAiPromptingDynamic = useMemo(() => {
-    const aiConf = moduleConfig["AI_PROMPTING"];
+    const aiConf = moduleConfig["AI_PROMPTING"] as any;
     return !!(aiConf?.enabled && (aiConf?.questionSource || "AI_DYNAMIC") === "AI_DYNAMIC");
   }, [moduleConfig]);
 
   // Filtered Questions Bank List (Filtered to only modules enabled in drive configuration)
   const filteredQuestionsList = useMemo(() => {
     return questionsBank.filter((q) => {
-      if (q.moduleType === "AI_PROMPTING" && isAiPromptingDynamic) {
+      if (q.status === "ARCHIVED") return false;
+
+      if (q.moduleType === "AI_PROMPTING" && isAiPromptingDynamic && questionModuleFilter === "ALL") {
         return false;
       }
 
@@ -910,7 +912,9 @@ function DriveDetailPage() {
 
       if (questionModuleFilter === "ALL") {
         const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
-        if (!enabledModuleKeys.includes(effectiveModule) && !enabledModuleKeys.includes(q.moduleType)) return false;
+        if (enabledModuleKeys.length > 0) {
+          if (!enabledModuleKeys.includes(effectiveModule) && !enabledModuleKeys.includes(q.moduleType)) return false;
+        }
       } else if (questionModuleFilter === "DEBUGGING") {
         if (!isDebuggingQuestion) return false;
       } else if (questionModuleFilter === "CODING") {
@@ -926,7 +930,16 @@ function DriveDetailPage() {
 
       if (questionSearch.trim()) {
         const s = questionSearch.toLowerCase().trim();
-        const title = (q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || "").toLowerCase();
+        const title = (
+          q.content?.title ||
+          q.content?.prompt ||
+          q.content?.name ||
+          q.content?.question ||
+          q.content?.text ||
+          q.content?.problemStatement ||
+          q.content?.scenario ||
+          ""
+        ).toLowerCase();
         const tags = (q.tags || []).join(" ").toLowerCase();
         if (!title.includes(s) && !tags.includes(s)) return false;
       }
@@ -1219,7 +1232,7 @@ function DriveDetailPage() {
                               onValueChange={(val) =>
                                 setModuleConfig({
                                   ...moduleConfig,
-                                  [mod.id]: { ...conf, questionSource: val },
+                                  [mod.id]: { ...(conf as any), questionSource: val } as any,
                                 })
                               }
                             >
@@ -1381,12 +1394,14 @@ function DriveDetailPage() {
                       difficulty: "MEDIUM",
                       content: { title: `Assigned Question (#${qId.slice(0, 8)})` },
                     };
-                    const title = q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
+                    const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
+                    const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
+                    const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
                     return (
                       <div key={qId} className="p-3 flex items-center justify-between hover:bg-[#F0F4FF]/50 transition-colors">
                         <div className="flex items-center gap-2.5">
                           <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
-                            {q.moduleType}
+                            {displayModule}
                           </span>
                           <span className="text-[13px] font-semibold text-[#0B0B0D] line-clamp-1">{title}</span>
                         </div>
@@ -1431,31 +1446,33 @@ function DriveDetailPage() {
                       : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
                   }`}
                 >
-                  All Selected Modules ({enabledModuleKeys.length})
+                  All Modules ({enabledModuleKeys.length})
                 </button>
-                {enabledModuleKeys.map((modKey) => {
-                  const labelMap: Record<string, string> = {
-                    MCQ: "MCQ",
-                    SQL: "SQL",
-                    CODING: "Coding",
-                    DEBUGGING: "Debugging",
-                    AI_PROMPTING: "AI Prompting",
-                    SIMULATION: "Simulation",
-                  };
-                  return (
-                    <button
-                      key={modKey}
-                      onClick={() => setQuestionModuleFilter(modKey)}
-                      className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
-                        questionModuleFilter === modKey
-                          ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                          : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
-                      }`}
-                    >
-                      {labelMap[modKey] || modKey}
-                    </button>
-                  );
-                })}
+                {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION"] as const)
+                  .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
+                  .map((modKey) => {
+                    const labelMap: Record<string, string> = {
+                      MCQ: "MCQ",
+                      SQL: "SQL",
+                      CODING: "Coding",
+                      DEBUGGING: "Debugging",
+                      AI_PROMPTING: "AI Prompting",
+                      SIMULATION: "Simulation",
+                    };
+                    return (
+                      <button
+                        key={modKey}
+                        onClick={() => setQuestionModuleFilter(modKey)}
+                        className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                          questionModuleFilter === modKey
+                            ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                            : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                        }`}
+                      >
+                        <span>{labelMap[modKey] || modKey}</span>
+                      </button>
+                    );
+                  })}
               </div>
 
               {/* Complexity / Difficulty Filter */}
@@ -1517,8 +1534,10 @@ function DriveDetailPage() {
               ) : (
                 filteredQuestionsList.map((q) => {
                   const isSelected = assignedQuestions.includes(q.id);
-                  const title = q.content?.title || q.content?.prompt || q.content?.text || q.content?.question || `Question #${q.id.slice(0, 6)}`;
+                  const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
                   const difficulty = q.difficulty || "MEDIUM";
+                  const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+                  const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
                   const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
 
                   return (
@@ -1529,7 +1548,7 @@ function DriveDetailPage() {
                     >
                       <div className="flex items-center gap-3 pr-4 flex-1">
                         <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
-                          {q.moduleType}
+                          {displayModule}
                         </span>
                         <div>
                           <div className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors line-clamp-1">

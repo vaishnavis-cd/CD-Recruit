@@ -30,18 +30,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  BarChart,
-  Bar,
-  Cell,
-} from "recharts";
+
+function SvgBarChart({ data }: { data: Array<{ band: string; count: number }> }) {
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <div className="w-full h-full flex flex-col justify-end pt-2 pb-1">
+      <div className="flex-1 flex items-end justify-between gap-3 px-2">
+        {data.map((item, idx) => {
+          const heightPct = Math.max(12, Math.round((item.count / maxCount) * 100));
+          return (
+            <div key={item.band || idx} className="flex-1 flex flex-col items-center gap-1.5 group h-full justify-end">
+              <span className="text-[11px] font-mono font-bold text-[#5B5B64] group-hover:text-[#2F5CFF] transition-colors">
+                {item.count}
+              </span>
+              <div className="w-full bg-[#F4F4F6] rounded-t-lg overflow-hidden h-[140px] flex items-end">
+                <div
+                  className="w-full bg-[#2F5CFF] hover:bg-[#1A44D6] rounded-t transition-all duration-500 shadow-xs"
+                  style={{ height: `${heightPct}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-medium text-[#5B5B64] truncate max-w-full mt-1">
+                {item.band}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/reports")({
   component: ReportsPage,
@@ -57,16 +74,17 @@ const RANGES = [
   { id: "7d", label: "Last 7 days" },
   { id: "30d", label: "Last 30 days" },
   { id: "90d", label: "Last 90 days" },
-];
-
-export function ReportsPage() {
+];function ReportsPage() {
   const sessions = useStore((s) => s.sessions) || [];
+  const resultsList = useStore((s) => s.resultsList) || [];
   const fetchSessions = useStore((s) => s.fetchSessions);
   const roleTemplates = useStore((s) => s.roleTemplates) || [];
   const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
   const fetchResults = useStore((s) => s.fetchResults);
 
   const [activeTab, setActiveTab] = useState<"PERFORMANCE" | "INTEGRITY" | "EXPORTS">("PERFORMANCE");
+
+  const [variant, setVariant] = useState<"internal" | "candidate">("internal");
 
   useEffect(() => {
     try {
@@ -78,37 +96,164 @@ export function ReportsPage() {
     }
   }, []);
 
-  const [variant, setVariant] = useState<"internal" | "candidate">("internal");
+  // Merge unique candidate sessions from resultsList and sessions
+  const allSessions = useMemo(() => {
+    const list = [...resultsList, ...sessions];
+    const map = new Map<string, any>();
+    list.forEach((item: any) => {
+      const id = item.id || item.sessionId;
+      if (id && !map.has(id)) {
+        map.set(id, item);
+      }
+    });
+    return Array.from(map.values());
+  }, [resultsList, sessions]);
 
-  // Compute Aggregate Metrics safely
-  const totalAssessed = sessions.length || 14;
+  // Compute Aggregate Metrics dynamically from real database records
+  const totalAssessed = allSessions.length;
+
   const avgScore = useMemo(() => {
-    if (!sessions.length) return 82;
-    const total = sessions.reduce((acc, s: any) => acc + (s.compositeScore || s.score?.compositeScore || 75), 0);
-    return Math.round(total / sessions.length);
-  }, [sessions]);
+    if (!allSessions.length) return 0;
+    const total = allSessions.reduce((acc, s: any) => {
+      const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
+      const scoreVal = raw <= 1.0 ? raw * 100 : raw;
+      return acc + scoreVal;
+    }, 0);
+    return Math.round(total / allSessions.length);
+  }, [allSessions]);
 
   const passRate = useMemo(() => {
-    if (!sessions.length) return 78;
-    const passed = sessions.filter((s: any) => s.status === "reviewed" || s.status === "PASS" || (s.compositeScore || 0) >= 70).length;
-    return Math.round((passed / sessions.length) * 100);
-  }, [sessions]);
+    if (!allSessions.length) return 0;
+    const passed = allSessions.filter((s: any) => {
+      const dec = (s.decision || s.reviewerDecision || s.status || "").toUpperCase();
+      const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
+      const scoreVal = raw <= 1.0 ? raw * 100 : raw;
+      return dec === "PASS" || dec === "ADVANCE" || dec === "REVIEWED" || scoreVal >= 70;
+    }).length;
+    return Math.round((passed / allSessions.length) * 100);
+  }, [allSessions]);
 
   const avgConsistency = useMemo(() => {
-    if (!sessions.length) return 88;
-    const total = sessions.reduce((acc, s: any) => acc + (s.sayDoConsistencyScore || s.score?.sayDoConsistencyScore || 85), 0);
-    const avg = total / sessions.length;
-    return Math.round(avg <= 1.0 ? avg * 100 : avg);
-  }, [sessions]);
+    if (!allSessions.length) return 0;
+    const total = allSessions.reduce((acc, s: any) => {
+      const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore ?? 0;
+      const val = raw <= 1.0 ? raw * 100 : raw;
+      return acc + val;
+    }, 0);
+    return Math.round(total / allSessions.length);
+  }, [allSessions]);
 
+  // Dynamic Module Performance Averages
+  const moduleAverages = useMemo(() => {
+    if (!allSessions.length) {
+      return [
+        { name: "Coding / DSA", icon: Code2, score: 0, color: "#5479ffff" },
+        { name: "SQL Querying", icon: Database, score: 0, color: "#5479ffff" },
+        { name: "MCQ Knowledge", icon: FileText, score: 0, color: "#577bffff" },
+        { name: "AI Prompting", icon: Bot, score: 0, color: "#5479ffff" },
+        { name: "Contextual Simulation", icon: Play, score: 0, color: "#5479ffff" },
+        { name: "Debugging", icon: Bug, score: 0, color: "#5479ffff" },
+      ];
+    }
 
+    const calcModuleAvg = (key: string, fallbackScore: number) => {
+      let sum = 0;
+      let count = 0;
+      allSessions.forEach((s: any) => {
+        const ms = s.moduleScores || s.scores || {};
+        if (ms[key] !== undefined && ms[key] !== null) {
+          const v = ms[key];
+          sum += v <= 1.0 ? v * 100 : v;
+          count++;
+        }
+      });
+      return count > 0 ? Math.round(sum / count) : Math.max(0, fallbackScore);
+    };
+
+    return [
+      { name: "Coding / DSA", icon: Code2, score: calcModuleAvg("CODING", avgScore), color: "#5479ffff" },
+      { name: "SQL Querying", icon: Database, score: calcModuleAvg("SQL", Math.min(100, avgScore + 3)), color: "#5479ffff" },
+      { name: "MCQ Knowledge", icon: FileText, score: calcModuleAvg("MCQ", Math.min(100, avgScore + 5)), color: "#577bffff" },
+      { name: "AI Prompting", icon: Bot, score: calcModuleAvg("AI_PROMPTING", Math.min(100, avgScore + 2)), color: "#5479ffff" },
+      { name: "Contextual Simulation", icon: Play, score: calcModuleAvg("SIMULATION", Math.max(0, avgScore - 4)), color: "#5479ffff" },
+      { name: "Debugging", icon: Bug, score: calcModuleAvg("DEBUGGING", Math.max(0, avgScore - 2)), color: "#5479ffff" },
+    ];
+  }, [allSessions, avgScore]);
+
+  // Score Band Distribution Data
+  const scoreBandData = useMemo(() => {
+    let count90 = 0, count75 = 0, count60 = 0, countLow = 0;
+    allSessions.forEach((s: any) => {
+      const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
+      const val = raw <= 1.0 ? raw * 100 : raw;
+      if (val >= 90) count90++;
+      else if (val >= 75) count75++;
+      else if (val >= 60) count60++;
+      else countLow++;
+    });
+
+    return [
+      { band: "90-100%", count: count90 },
+      { band: "75-89%", count: count75 },
+      { band: "60-74%", count: count60 },
+      { band: "<60%", count: countLow },
+    ];
+  }, [allSessions]);
+
+  // Dynamic Integrity & Risk Analytics
+  const integrityAnalytics = useMemo(() => {
+    let lowRiskCount = 0;
+    let medRiskCount = 0;
+    let highRiskCount = 0;
+
+    let tabSwitchCount = 0;
+    let gazeCount = 0;
+    let faceMissingCount = 0;
+    let objectCount = 0;
+    let audioCount = 0;
+    let multiFaceCount = 0;
+
+    allSessions.forEach((s: any) => {
+      const flags = s.proctoringFlags || s.integrityFlags || s.flags || [];
+      const flagCount = flags.length;
+
+      if (flagCount >= 4) highRiskCount++;
+      else if (flagCount >= 2) medRiskCount++;
+      else lowRiskCount++;
+
+      flags.forEach((f: any) => {
+        const type = (typeof f === "string" ? f : f.type || f.category || "").toUpperCase();
+        if (type.includes("TAB") || type.includes("BROWSER") || type.includes("FOCUS")) tabSwitchCount++;
+        else if (type.includes("GAZE") || type.includes("LOOK")) gazeCount++;
+        else if (type.includes("MISSING") || type.includes("ABSENT")) faceMissingCount++;
+        else if (type.includes("OBJECT") || type.includes("PHONE")) objectCount++;
+        else if (type.includes("AUDIO") || type.includes("SPEECH") || type.includes("VOICE")) audioCount++;
+        else if (type.includes("MULTI") || type.includes("PERSON") || type.includes("FACE")) multiFaceCount++;
+      });
+    });
+
+    const total = allSessions.length || 1;
+    return {
+      lowPct: Math.round((lowRiskCount / total) * 100),
+      medPct: Math.round((medRiskCount / total) * 100),
+      highPct: Math.round((highRiskCount / total) * 100),
+      violations: [
+        { name: "Tab Switches & Focus Loss", category: "BROWSER_APP", count: tabSwitchCount, risk: "LOW", rate: `${Math.round((tabSwitchCount / total) * 100)}%` },
+        { name: "Gaze Away & Head Movements", category: "VISUAL_GAZE", count: gazeCount, risk: "LOW", rate: `${Math.round((gazeCount / total) * 100)}%` },
+        { name: "Face Missing from Camera", category: "FACE_SEAT", count: faceMissingCount, risk: "MEDIUM", rate: `${Math.round((faceMissingCount / total) * 100)}%` },
+        { name: "Unauthorized Objects (Phone/Headphones/Book)", category: "UNAUTHORIZED_OBJECTS", count: objectCount, risk: "HIGH", rate: `${Math.round((objectCount / total) * 100)}%` },
+        { name: "Audio & Voice Activity", category: "AUDIO_SPEECH", count: audioCount, risk: "MEDIUM", rate: `${Math.round((audioCount / total) * 100)}%` },
+        { name: "Multiple Faces / Seat Exits", category: "MULTIPLE_PERSONS", count: multiFaceCount, risk: "HIGH", rate: `${Math.round((multiFaceCount / total) * 100)}%` },
+      ],
+    };
+  }, [allSessions]);
 
   return (
     <AppShell
       title="Reports & Assessment Analytics"
       actions={
         <ExportDropdown
-          data={sessions}
+          data={allSessions}
           filenamePrefix="proctora-analytics-report"
           title="Proctora Assessment & Analytics Report"
         />
@@ -140,8 +285,6 @@ export function ReportsPage() {
             {activeTab === "INTEGRITY" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
           </button>
 
-
-
           <button
             onClick={() => setActiveTab("EXPORTS")}
             className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
@@ -166,7 +309,7 @@ export function ReportsPage() {
                 </div>
                 <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{totalAssessed}</div>
                 <div className="text-[11px] text-[#5B5B64] font-medium flex items-center gap-1">
-                  <TrendingUp size={12} className="text-[#2F5CFF]" /> Active assessment drives
+                  <TrendingUp size={12} className="text-[#2F5CFF]" /> Real database candidate sessions
                 </div>
               </div>
 
@@ -208,36 +351,26 @@ export function ReportsPage() {
                 </div>
 
                 <div className="space-y-4 text-[13px]">
-                  {(() => {
-                    const modules = [
-                      { name: "Coding / DSA", icon: Code2, score: avgScore, color: "#5479ffff" },
-                      { name: "SQL Querying", icon: Database, score: Math.min(100, avgScore + 3), color: "#5479ffff" },
-                      { name: "MCQ Knowledge", icon: FileText, score: Math.min(100, avgScore + 8), color: "#577bffff" },
-                      { name: "AI Prompting", icon: Bot, score: Math.min(100, avgScore + 5), color: "#5479ffff" },
-                      { name: "Contextual Simulation", icon: Play, score: Math.max(40, avgScore - 4), color: "#5479ffff" },
-                      { name: "Debugging", icon: Bug, score: Math.max(40, avgScore - 2), color: "#5479ffff" },
-                    ];
-                    return modules.map((mod) => {
-                      const Icon = mod.icon;
-                      return (
-                        <div key={mod.name} className="space-y-1.5">
-                          <div className="flex items-center justify-between font-medium">
-                            <div className="flex items-center gap-2 text-[#0B0B0D]">
-                              <Icon size={15} style={{ color: mod.color }} />
-                              <span>{mod.name}</span>
-                            </div>
-                            <span className="font-mono font-semibold">{mod.score}%</span>
+                  {moduleAverages.map((mod) => {
+                    const Icon = mod.icon;
+                    return (
+                      <div key={mod.name} className="space-y-1.5">
+                        <div className="flex items-center justify-between font-medium">
+                          <div className="flex items-center gap-2 text-[#0B0B0D]">
+                            <Icon size={15} style={{ color: mod.color }} />
+                            <span>{mod.name}</span>
                           </div>
-                          <div className="w-full h-2.5 bg-[#F4F4F6] rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{ width: `${mod.score}%`, backgroundColor: mod.color }}
-                            />
-                          </div>
+                          <span className="font-mono font-semibold">{mod.score}%</span>
                         </div>
-                      );
-                    });
-                  })()}
+                        <div className="w-full h-2.5 bg-[#F4F4F6] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${mod.score}%`, backgroundColor: mod.color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -249,32 +382,7 @@ export function ReportsPage() {
                 </div>
 
                 <div className="w-full h-[220px]">
-                  {(() => {
-                    const safe = sessions.length ? sessions : Array.from({ length: 14 });
-                    const count90 = safe.filter((s: any) => (s?.compositeScore || 80) >= 90).length;
-                    const count75 = safe.filter((s: any) => (s?.compositeScore || 80) >= 75 && (s?.compositeScore || 80) < 90).length;
-                    const count60 = safe.filter((s: any) => (s?.compositeScore || 80) >= 60 && (s?.compositeScore || 80) < 75).length;
-                    const countLow = safe.filter((s: any) => (s?.compositeScore || 80) < 60).length;
-
-                    const data = [
-                      { band: "90-100%", count: count90 || 5 },
-                      { band: "75-89%", count: count75 || 6 },
-                      { band: "60-74%", count: count60 || 2 },
-                      { band: "<60%", count: countLow || 1 },
-                    ];
-
-                    return (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EFF0F3" />
-                          <XAxis dataKey="band" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <Tooltip formatter={(val) => [`${val} candidates`, "Count"]} />
-                          <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="#2F5CFF" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    );
-                  })()}
+                  <SvgBarChart data={scoreBandData} />
                 </div>
               </div>
             </div>
@@ -288,19 +396,19 @@ export function ReportsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-5 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
                 <div className="text-[11px] font-mono font-semibold uppercase text-emerald-800">Low Risk Sessions</div>
-                <div className="text-3xl font-bold text-emerald-900 font-mono">82%</div>
+                <div className="text-3xl font-bold text-emerald-900 font-mono">{integrityAnalytics.lowPct}%</div>
                 <div className="text-[12px] text-emerald-700">0–1 minor integrity telemetry logs</div>
               </div>
 
               <div className="p-5 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1">
                 <div className="text-[11px] font-mono font-semibold uppercase text-amber-800">Medium Risk Sessions</div>
-                <div className="text-3xl font-bold text-amber-900 font-mono">14%</div>
+                <div className="text-3xl font-bold text-amber-900 font-mono">{integrityAnalytics.medPct}%</div>
                 <div className="text-[12px] text-amber-700">2–3 tab switches or gaze shifts</div>
               </div>
 
               <div className="p-5 bg-rose-50/60 border border-rose-200 rounded-xl space-y-1">
                 <div className="text-[11px] font-mono font-semibold uppercase text-rose-800">High Risk Sessions</div>
-                <div className="text-3xl font-bold text-rose-900 font-mono">4%</div>
+                <div className="text-3xl font-bold text-rose-900 font-mono">{integrityAnalytics.highPct}%</div>
                 <div className="text-[12px] text-rose-700">Multiple face/object/speech flags</div>
               </div>
             </div>
@@ -309,14 +417,7 @@ export function ReportsPage() {
             <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-4">
               <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Proctoring Flag &amp; Evidence Analytics</h3>
               <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-lg overflow-hidden">
-                {[
-                  { name: "Tab Switches & Focus Loss", category: "BROWSER_APP", count: 42, risk: "LOW", rate: "12%" },
-                  { name: "Gaze Away & Head Movements", category: "VISUAL_GAZE", count: 28, risk: "LOW", rate: "8%" },
-                  { name: "Face Missing from Camera", category: "FACE_SEAT", count: 9, risk: "MEDIUM", rate: "3%" },
-                  { name: "Unauthorized Objects (Phone/Headphones/Book)", category: "UNAUTHORIZED_OBJECTS", count: 4, risk: "HIGH", rate: "1%" },
-                  { name: "Audio & Voice Activity", category: "AUDIO_SPEECH", count: 6, risk: "MEDIUM", rate: "2%" },
-                  { name: "Multiple Faces / Seat Exits", category: "MULTIPLE_PERSONS", count: 2, risk: "HIGH", rate: "<1%" },
-                ].map((item) => (
+                {integrityAnalytics.violations.map((item) => (
                   <div key={item.name} className="p-4 bg-white flex items-center justify-between hover:bg-[#F7F7F9] transition-colors">
                     <div className="flex items-center gap-3">
                       <ShieldAlert size={16} className={item.risk === "HIGH" ? "text-rose-600" : item.risk === "MEDIUM" ? "text-amber-600" : "text-[#2F5CFF]"} />
@@ -380,7 +481,7 @@ export function ReportsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {FIELDS[variant].map((f) => (
+                {FIELDS[variant].map((f: any) => (
                   <label
                     key={f.label}
                     className="group flex items-start gap-3 border border-[#E6E6EA] rounded-xl p-4 hover:border-[#2F5CFF] hover:bg-[#F0F4FF]/30 transition-colors cursor-pointer"

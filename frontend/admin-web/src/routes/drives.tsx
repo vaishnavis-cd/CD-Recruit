@@ -337,9 +337,18 @@ function DrivesPage() {
     return (questions || []).filter(q => {
       if (selectedModuleFilter !== "all" && q.moduleType !== selectedModuleFilter) return false;
       if (s) {
-        const title = (q.content?.title || "").toLowerCase();
-        const desc = (q.content?.description || q.content?.text || "").toLowerCase();
-        if (!title.includes(s) && !desc.includes(s)) return false;
+        const title = (
+          q.content?.title ||
+          q.content?.prompt ||
+          q.content?.name ||
+          q.content?.question ||
+          q.content?.text ||
+          q.content?.problemStatement ||
+          ""
+        ).toLowerCase();
+        const desc = (q.content?.description || q.content?.text || q.content?.explanation || "").toLowerCase();
+        const tags = (q.tags || []).join(" ").toLowerCase();
+        if (!title.includes(s) && !desc.includes(s) && !tags.includes(s)) return false;
       }
       return true;
     });
