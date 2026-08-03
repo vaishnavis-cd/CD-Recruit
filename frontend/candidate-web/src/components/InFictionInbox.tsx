@@ -111,7 +111,23 @@ export function InFictionInbox({ sessionId, scenarioId }: InFictionInboxProps) {
   async function handleSendReply() {
     if (!draft || !draft.text.trim()) return
     setSending(true)
-    await services.scenario.sendReply(draft.messageId, draft.text)
+    try {
+      await services.scenario.sendReply(draft.messageId, draft.text)
+      await apiClient.post(`/sessions/${sessionId}/simulation/email-reply`, {
+        replyText: draft.text,
+      })
+      await apiClient.post(`/sessions/${sessionId}/responses`, {
+        questionId: scenarioId,
+        moduleType: 'SIMULATION',
+        responsePayload: {
+          ticketReply: draft.text,
+          emailReplyText: draft.text,
+          status: 'EMAIL_REPLIED'
+        }
+      })
+    } catch (err) {
+      console.warn('[InFictionInbox] Error persisting email reply:', err)
+    }
     setReplies(prev => ({ ...prev, [draft.messageId]: draft.text }))
     setDraft(null)
     setSending(false)

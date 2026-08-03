@@ -133,22 +133,23 @@ async function main(): Promise<void> {
     const createdQuestions = [];
     for (const q of allQuestions) {
       const prompt = (q.content as any)?.prompt || (q.content as any)?.title || '';
-      const difficulty = (q.difficulty || difficulties[diffIdx % 3]).toLowerCase();
+      const matchPath = (q.content as any)?.prompt ? ['prompt'] : ['title'];
+      const difficulty = (q.difficulty || (q.content as any)?.difficulty || difficulties[diffIdx % 3]).toLowerCase();
       diffIdx++;
 
       const existing = await tx.question.findFirst({
         where: {
           moduleType: q.moduleType,
-          content: { path: ['prompt'], equals: prompt },
+          content: { path: matchPath, equals: prompt },
         },
       });
-      const isDebugging = prompt.toLowerCase().includes("debugging");
+      const isDebugging = prompt.toLowerCase().includes("debugging") || q.moduleType === "DEBUGGING";
       const tags = isDebugging ? ["debugging", "coding"] : [q.moduleType.toLowerCase()];
 
       if (existing) {
         const updated = await tx.question.update({
           where: { id: existing.id },
-          data: { difficulty, tags },
+          data: { difficulty, tags, status: "PUBLISHED" as any },
         });
         createdQuestions.push(updated);
       } else {
@@ -158,9 +159,7 @@ async function main(): Promise<void> {
             content: q.content as any,
             difficulty,
             tags,
-            scoringConfig: {},
-            version: 1,
-            status: "PUBLISHED",
+            status: "PUBLISHED" as any,
           },
         });
         createdQuestions.push(created);

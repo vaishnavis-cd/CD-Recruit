@@ -56,7 +56,10 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
         if (mType === 'CONTEXTUAL' || mType === 'SIMULATION') {
           return activeTypes.has('CONTEXTUAL') || activeTypes.has('SIMULATION')
         }
-        return activeTypes.has(mType as any) || (mType === 'CODING' && activeTypes.has('DEBUGGING'))
+        if (mType === 'PROMPTING' || mType === 'AI_PROMPTING') {
+          return activeTypes.has('PROMPTING') || activeTypes.has('AI_PROMPTING')
+        }
+        return activeTypes.has(mType as any)
       })
     }
     return MODULES

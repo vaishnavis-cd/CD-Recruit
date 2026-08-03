@@ -592,6 +592,7 @@ function QuestionBankPage() {
     >
       {/* Single-Click Return Banner if navigated from a Drive */}
       {(() => {
+        if (typeof window === "undefined") return null;
         const params = new URLSearchParams(window.location.search);
         const driveId = params.get("driveId") || params.get("fromDrive");
         if (!driveId) return null;
@@ -602,8 +603,9 @@ function QuestionBankPage() {
               <span>You are currently managing questions for an active Drive.</span>
             </div>
             <Link
-              to={`/drives/${driveId}`}
-              search={{ tab: "questions" }}
+              to="/drives/$id"
+              params={{ id: driveId }}
+              search={{ tab: "questions" } as any}
               className="px-3.5 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={14} />

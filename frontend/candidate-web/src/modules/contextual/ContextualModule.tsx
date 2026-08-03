@@ -84,9 +84,22 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
   // Handle Initial SAY submission
   const handleInitialSaySubmit = async (initialSayText: string) => {
     if (sessionId) {
-      await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
-        text: initialSayText,
-      })
+      try {
+        await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
+          text: initialSayText,
+        })
+        await apiClient.post(`/sessions/${sessionId}/responses`, {
+          questionId: scenario.id,
+          moduleType: 'SIMULATION',
+          responsePayload: {
+            initialSayText,
+            sayText: initialSayText,
+            status: 'INITIAL_SAY_SUBMITTED'
+          }
+        })
+      } catch (err) {
+        console.warn('Error persisting initial say text:', err)
+      }
     }
     const currentResp = (assessment?.responses[scenario.id] as any) || {}
     setQuestionStatus(scenario.id, 'answered')
