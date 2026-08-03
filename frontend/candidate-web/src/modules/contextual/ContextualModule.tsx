@@ -32,7 +32,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
   const assessment = useSessionStore(s => s.assessment)
   const sessionId = assessment?.sessionId || ''
 
-  const [step, setStep] = useState<'LOADING' | 'INITIAL_SAY' | 'WORKSPACE' | 'COMPLETED'>('LOADING')
+  const [step, setStep] = useState<'LOADING' | 'INITIAL_SAY' | 'INTERSTITIAL' | 'WORKSPACE' | 'COMPLETED'>('LOADING')
   const [scenario, setScenario] = useState(DEFAULT_QA_BUG_SCENARIO)
 
   // Fetch Scenario Config & restore step state from session store / backend DB
@@ -83,6 +83,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
 
   // Handle Initial SAY submission
   const handleInitialSaySubmit = async (initialSayText: string) => {
+    setStep('INTERSTITIAL')
     if (sessionId) {
       try {
         await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
@@ -104,7 +105,10 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
     const currentResp = (assessment?.responses[scenario.id] as any) || {}
     setQuestionStatus(scenario.id, 'answered')
     setResponse(scenario.id, { ...currentResp, initialSayText, completed: false })
-    setStep('WORKSPACE')
+
+    setTimeout(() => {
+      setStep('WORKSPACE')
+    }, 1500)
   }
 
   // Handle final simulation submit
@@ -153,6 +157,20 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
             prompt="What would you do to solve this issue?"
             onSubmit={handleInitialSaySubmit}
           />
+        )}
+
+        {step === 'INTERSTITIAL' && (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8 animate-in fade-in duration-300">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/30 flex items-center justify-center shadow-lg">
+              <Loader2 className="w-7 h-7 animate-spin" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Setting up your workspace</h2>
+              <p className="text-xs text-[var(--text-secondary)] max-w-sm">
+                Configuring the engineering sandbox and incident environment based on your debugging plan...
+              </p>
+            </div>
+          </div>
         )}
 
         {step === 'WORKSPACE' && (
