@@ -60,13 +60,14 @@ const READONLY_REPO_FILES: Record<string, string> = {
   'utils/string_helpers.py': `# string_helpers.py\n\ndef is_alphanumeric_or_underscore(s: str) -> bool:\n    return all(c.isalnum() or c == '_' for c in s)\n`,
 }
 
+type TabType = 'workspace' | 'channels' | 'signoff' | 'debrief'
+
 export function ContextSimulationWorkspace({
   sessionId,
   scenario,
   onSubmitSimulation,
 }: ContextSimulationWorkspaceProps) {
-  // Default to Communication Center first so candidate is driven through the incident updates & to-do list
-  const [activeTab, setActiveTab] = useState<'workspace' | 'channels' | 'signoff' | 'debrief'>('channels')
+  const [activeTab, setActiveTab] = useState<TabType>('channels')
   const [activeWorkspaceSubTab, setActiveWorkspaceSubTab] = useState<'editor' | 'diff' | 'pr_discussion'>('editor')
   const [activeChannelTab, setActiveChannelTab] = useState<'slack' | 'jira' | 'pr' | 'email'>('slack')
 
@@ -397,6 +398,19 @@ export function ContextSimulationWorkspace({
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse absolute -top-0.5 -right-0.5" />
             )}
           </button>
+          {isDebriefCompleted && (
+            <button
+              onClick={() => setActiveTab('debrief')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer ${
+                (activeTab as string) === 'debrief'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-emerald-500 hover:text-emerald-400 bg-emerald-500/10'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Debrief &amp; Review</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -409,11 +423,15 @@ export function ContextSimulationWorkspace({
           </button>
 
           <button
-            onClick={() => setActiveTab('signoff')}
-            className="px-4 py-1.5 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+            onClick={() => setActiveTab(isDebriefCompleted ? 'debrief' : 'signoff')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs active:scale-95 ${
+              isDebriefCompleted
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : 'bg-[var(--accent)] hover:opacity-90 text-white'
+            }`}
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>Resolve Incident</span>
+            <span>{isDebriefCompleted ? '✓ Hotfix Submitted' : 'Resolve Incident'}</span>
           </button>
         </div>
       </div>
@@ -444,6 +462,16 @@ export function ContextSimulationWorkspace({
 
       {/* Main Content Body */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
+        {(activeTab as string) === 'debrief' && (
+          <div className="flex-1 overflow-y-auto bg-[var(--background)]">
+            <IncidentDebriefView
+              resolutionData={resolutionData}
+              actionHistory={actionHistory}
+              onCompleteModule={onSubmitSimulation}
+            />
+          </div>
+        )}
+
         {activeTab === 'signoff' && (
           <HotfixSignoffPanel
             onSubmit={handleResolutionSubmit}
@@ -931,34 +959,42 @@ export function ContextSimulationWorkspace({
         </div>
       )}
 
-      {/* Live Manager Email Toast Notification Popup */}
+      {/* Live Manager Email Toast Notification Popup — Arise from Bottom Center */}
       {showEmailToast && (
-        <div className="fixed bottom-6 right-6 z-50 p-4 bg-[var(--surface)] border border-rose-500/40 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm font-sans animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0 border border-rose-500/30">
-            <Mail className="w-5 h-5" />
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 p-5 bg-[#0F172A] border-2 border-rose-500 rounded-2xl shadow-[0_10px_40px_rgba(225,29,72,0.45)] flex items-start gap-4 max-w-lg w-[92vw] sm:w-[480px] font-sans animate-in fade-in slide-in-from-bottom-8 duration-300">
+          <div className="p-3 rounded-xl bg-rose-500/20 text-rose-400 shrink-0 border border-rose-500/40 animate-pulse">
+            <Mail className="w-6 h-6" />
           </div>
-          <div className="flex-1 space-y-1">
-            <div className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-              <span>New Manager Email</span>
-              <button onClick={() => setShowEmailToast(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
-                <X className="w-3.5 h-3.5" />
+          <div className="flex-1 space-y-1.5 min-w-0">
+            <div className="text-sm font-bold text-white flex items-center justify-between">
+              <span className="flex items-center gap-2 text-rose-400 font-mono text-[12px] uppercase tracking-wide">
+                <ShieldAlert className="w-4 h-4" /> URGENT MANAGER ESCALATION
+              </span>
+              <button
+                onClick={() => setShowEmailToast(false)}
+                className="text-slate-400 hover:text-white cursor-pointer p-1 rounded-md hover:bg-slate-800 transition-colors"
+                title="Dismiss banner"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-              Sarah (Tech Lead) sent an inquiry regarding your hotfix status and ETA.
+            <p className="text-xs text-slate-200 leading-relaxed">
+              <strong>Rahul Sharma (Engineering Manager)</strong> sent a high-priority email inquiry regarding deployment status, ETA, and outage risk.
             </p>
-            <button
-              onClick={() => {
-                setActiveTab('channels')
-                setActiveChannelTab('email')
-                setHasUnreadManagerEmail(false)
-                setShowEmailToast(false)
-              }}
-              className="text-[11px] font-bold text-[var(--accent)] hover:underline inline-flex items-center gap-1 pt-1 cursor-pointer"
-            >
-              <span>Open Email Sub-Tab</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="pt-1 flex items-center justify-end">
+              <button
+                onClick={() => {
+                  setActiveTab('channels')
+                  setActiveChannelTab('email')
+                  setHasUnreadManagerEmail(false)
+                  setShowEmailToast(false)
+                }}
+                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-lg inline-flex items-center gap-1.5 cursor-pointer shadow-md transition-all hover:scale-[1.02]"
+              >
+                <span>Read &amp; Reply to Manager Email</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}

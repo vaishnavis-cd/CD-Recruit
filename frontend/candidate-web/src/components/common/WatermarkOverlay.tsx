@@ -11,13 +11,13 @@ export function WatermarkOverlay() {
 
   return (
     <div 
-      className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden select-none opacity-[0.035] flex flex-wrap justify-between p-8"
+      className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden select-none opacity-[0.18] flex flex-wrap justify-between p-8"
       aria-hidden="true"
     >
-      {Array.from({ length: 12 }).map((_, i) => (
+      {Array.from({ length: 16 }).map((_, i) => (
         <div 
           key={i} 
-          className="text-[11px] font-mono font-semibold text-[var(--text-primary)] transform -rotate-12 tracking-widest whitespace-nowrap"
+          className="text-xs font-mono font-bold text-[var(--text-primary)] transform -rotate-12 tracking-widest whitespace-nowrap drop-shadow-xs"
         >
           {watermarkText}
         </div>

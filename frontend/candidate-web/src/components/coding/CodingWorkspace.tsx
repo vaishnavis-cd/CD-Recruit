@@ -239,18 +239,6 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   };
 
   const handleLanguageChange = (newLang: string) => {
-    const currentCode = codeByLanguage[selectedLanguage] || "";
-    const starterTemplate = starter[selectedLanguage] || DEFAULT_TEMPLATES[selectedLanguage] || "";
-
-    const isDirty = currentCode.trim() !== starterTemplate.trim();
-
-    if (isDirty) {
-      const confirmSwitch = window.confirm(
-        "Switching languages will keep your written code but switch the active editor template. Are you sure you want to proceed?"
-      );
-      if (!confirmSwitch) return;
-    }
-
     setSelectedLanguage(newLang);
 
     if (editorRef.current && monacoRef.current) {

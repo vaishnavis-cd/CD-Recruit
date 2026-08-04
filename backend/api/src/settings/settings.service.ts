@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { ListAuditLogQueryDto } from "../common/dto/settings.dto";
@@ -71,6 +71,39 @@ export class SettingsService {
     fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2), "utf8");
   }
 
+  private async resolveStaffId(actor: any): Promise<string> {
+    if (typeof actor === "string" && actor) {
+      const s = await this.prisma.staff.findUnique({ where: { id: actor } });
+      if (s) return s.id;
+    }
+    if (actor && typeof actor === "object") {
+      if (actor.id) {
+        const s = await this.prisma.staff.findUnique({ where: { id: actor.id } });
+        if (s) return s.id;
+      }
+      if (actor.email) {
+        const s = await this.prisma.staff.findFirst({ where: { email: actor.email } });
+        if (s) return s.id;
+      }
+      if (actor.sub) {
+        const s = await this.prisma.staff.findFirst({ where: { keycloakUserId: actor.sub } });
+        if (s) return s.id;
+      }
+    }
+    let defaultStaff = await this.prisma.staff.findFirst();
+    if (!defaultStaff) {
+      defaultStaff = await this.prisma.staff.create({
+        data: {
+          name: "System Admin",
+          email: "admin@cdrecruit.com",
+          role: "ADMIN",
+          keycloakUserId: "system-admin-default",
+        },
+      });
+    }
+    return defaultStaff.id;
+  }
+
   async listStaff() {
     const staff = await this.prisma.staff.findMany({
       orderBy: { name: "asc" },
@@ -84,7 +117,60 @@ export class SettingsService {
     }));
   }
 
-  async updateStaffRole(staffId: string, role: StaffRole, actorId: string) {
+  async createStaff(dto: { name: string; email: string; role: StaffRole }, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
+    const existing = await this.prisma.staff.findUnique({ where: { email: dto.email } });
+    if (existing) {
+      throw new BadRequestException("Staff member with this email already exists");
+    }
+
+    const keycloakUserId = `keycloak_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const staff = await this.prisma.staff.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        role: dto.role as any,
+        keycloakUserId,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "STAFF_CREATED",
+        entityType: "Staff",
+        entityId: staff.id,
+        metadata: { name: dto.name, email: dto.email, role: dto.role },
+      },
+    });
+
+    return staff;
+  }
+
+  async deleteStaff(staffId: string, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) {
+      throw new NotFoundException(`Staff not found with ID ${staffId}`);
+    }
+
+    await this.prisma.staff.delete({ where: { id: staffId } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "STAFF_DELETED",
+        entityType: "Staff",
+        entityId: staffId,
+        metadata: { name: staff.name, email: staff.email, role: staff.role },
+      },
+    });
+
+    return { success: true };
+  }
+
+  async updateStaffRole(staffId: string, role: StaffRole, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
     const staff = await this.prisma.staff.findUnique({
       where: { id: staffId },
     });
@@ -123,9 +209,10 @@ export class SettingsService {
   async updateScoringConfig(
     aiConfidenceThreshold: number,
     passRateThreshold: number,
-    actorId: string,
+    actor: any,
     aiIntensity?: string
   ) {
+    const actorId = await this.resolveStaffId(actor);
     const config = this.readConfig();
     const oldConfig = { ...config };
     config.aiConfidenceThreshold = aiConfidenceThreshold;
@@ -156,7 +243,8 @@ export class SettingsService {
     };
   }
 
-  async updateRetentionConfig(biometricRetentionDays: number, actorId: string) {
+  async updateRetentionConfig(biometricRetentionDays: number, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
     const config = this.readConfig();
     const oldDays = config.biometricRetentionDays;
     config.biometricRetentionDays = biometricRetentionDays;
@@ -183,7 +271,8 @@ export class SettingsService {
     };
   }
 
-  async updateAppealWindowConfig(appealWindowDays: number, actorId: string) {
+  async updateAppealWindowConfig(appealWindowDays: number, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
     const config = this.readConfig();
     const oldDays = config.appealWindowDays ?? 14;
     config.appealWindowDays = appealWindowDays;
@@ -214,8 +303,9 @@ export class SettingsService {
 
   async updateTimingThresholds(
     dto: { heartbeatStaleThresholdSeconds?: number; graceWindowSeconds?: number; maxDisconnectCount?: number },
-    actorId: string
+    actor: any
   ) {
+    const actorId = await this.resolveStaffId(actor);
     const config = this.readConfig();
     if (dto.heartbeatStaleThresholdSeconds !== undefined) {
       config.heartbeatStaleThresholdSeconds = dto.heartbeatStaleThresholdSeconds;

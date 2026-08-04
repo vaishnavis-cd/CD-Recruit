@@ -354,8 +354,9 @@ function IndividualResultPage() {
                 (tab.id === "SIMULATION" && (r.responsePayload?.sayText !== undefined || r.responsePayload?.ticketReply !== undefined || r.responsePayload?.resolutionData !== undefined))
             );
 
-            const hasQuestionInDrive = ((detail as any).session?.questions || (detail as any).questions || []).some(
-              (q: any) => (q.moduleType || q.question?.moduleType || '').toUpperCase() === tab.id
+            const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+            const hasQuestionInDrive = driveQuestions.some(
+              (q: any) => (q.moduleType || q.question?.moduleType || "").toUpperCase() === tab.id
             );
 
             return hasResponse || hasQuestionInDrive;
@@ -870,8 +871,9 @@ function IndividualResultPage() {
                 </span>
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
                   {(detail as any).simulationSnapshot?.initialSayText || 
-                   (detail.moduleResponses || []).find((r) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
-                   (detail.moduleResponses || []).find((r) => r.responsePayload?.sayText)?.responsePayload?.sayText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.sayText ||
+                   (detail.moduleResponses || []).find((r: any) => r.moduleType === 'SIMULATION' && r.responsePayload?.text)?.responsePayload?.text ||
                    ((detail as any).submissions || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
                    "Candidate entered workspace directly without initial plan submission."}
                 </div>
@@ -885,7 +887,8 @@ function IndividualResultPage() {
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
                   {(detail as any).simulationSnapshot?.emailReplyText || 
                    ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
-                   (detail.moduleResponses || []).find((r) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText)?.responsePayload?.ticketReply ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply)?.responsePayload?.emailReplyText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply)?.responsePayload?.ticketReply ||
                    ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText)?.responsePayload?.ticketReply ||
                    "No manager email reply recorded."}
                 </div>
@@ -897,13 +900,20 @@ function IndividualResultPage() {
               <span className="text-[11px] font-mono uppercase text-[#8B8B93] font-bold block">
                 3. Candidate Telemetry &amp; Action Audit Stream
               </span>
-              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1 max-h-40 overflow-y-auto">
-                <div>• [INITIAL_SAY_SUBMIT] Plan recorded</div>
-                <div>• [FILE_OPEN] login_validation.py opened in war room editor</div>
-                <div>• [FILE_EDIT] Candidate modified username space validation regex</div>
-                <div>• [TEST_EXECUTE] Ran diagnostic test suite against reproduction cases</div>
+              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1 max-h-48 overflow-y-auto">
+                {((detail as any).telemetryActions && Array.isArray((detail as any).telemetryActions) && (detail as any).telemetryActions.length > 0) ? (
+                  (detail as any).telemetryActions.map((act: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-[#8B8B93] shrink-0">[{act.timestamp || `#${idx + 1}`}]</span>
+                      <span className="font-semibold text-[#2F5CFF]">[{act.type || "ACTION"}]</span>
+                      <span className="text-[#0B0B0D] truncate">{act.label || "Action logged"}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-[#8B8B93] italic">No telemetry actions recorded during session.</div>
+                )}
                 {((detail as any).simulationSnapshot?.telemetryCount || 0) > 0 && (
-                  <div className="text-emerald-600 font-semibold pt-1">
+                  <div className="text-emerald-600 font-semibold pt-2 border-t border-[#E6E6EA] mt-1">
                     ✓ Total Recorded Work Events: {(detail as any).simulationSnapshot?.telemetryCount}
                   </div>
                 )}

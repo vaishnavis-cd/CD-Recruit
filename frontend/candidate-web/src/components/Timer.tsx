@@ -17,12 +17,19 @@ export function Timer() {
   const [nowMs, setNowMs] = useState(() => services.time.getServerNow())
 
   useEffect(() => {
-    return services.time.subscribe(setNowMs)
+    const unsub = services.time.subscribe(setNowMs)
+    const highPrecisionInterval = setInterval(() => {
+      setNowMs(services.time.getServerNow())
+    }, 250)
+    return () => {
+      unsub()
+      clearInterval(highPrecisionInterval)
+    }
   }, [])
 
   if (!assessment || assessment.timerStartMs === null) {
     return (
-      <div className="timer-shell font-mono text-sm px-3 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)]">
+      <div className="timer-shell font-mono-data text-sm font-bold px-4 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] shadow-xs">
         <span className="sr-only">Assessment timer not started</span>
         <span aria-hidden>--:--</span>
       </div>
@@ -31,13 +38,13 @@ export function Timer() {
 
   const elapsedMs = nowMs - assessment.timerStartMs
   const totalMs = assessment.totalSeconds * 1000
-  const remainingSeconds = Math.max(0, Math.round((totalMs - elapsedMs) / 1000))
+  const remainingSeconds = Math.max(0, Math.floor((totalMs - elapsedMs) / 1000))
 
-  // Color thresholds: amber at 10/5/1 min, never red per spec
-  let colorClass = 'text-[var(--text-primary)]'
-  if (remainingSeconds <= 60) colorClass = 'text-[var(--warning)] font-bold animate-pulse'
-  else if (remainingSeconds <= 300) colorClass = 'text-[var(--warning)] font-semibold'
-  else if (remainingSeconds <= 600) colorClass = 'text-[var(--warning)]'
+  // Color thresholds: amber at 10/5/1 min
+  let colorClass = 'text-[var(--text-primary)] border-[var(--border)]'
+  if (remainingSeconds <= 60) colorClass = 'text-[var(--warning)] font-bold border-[var(--warning)] bg-[var(--warning)]/10 animate-pulse'
+  else if (remainingSeconds <= 300) colorClass = 'text-[var(--warning)] font-bold border-[var(--warning)]/40 bg-[var(--warning)]/5'
+  else if (remainingSeconds <= 600) colorClass = 'text-[var(--text-primary)] font-bold border-[var(--accent)]/30'
 
   const label = remainingSeconds <= 60
     ? 'Less than 1 minute remaining'
@@ -47,12 +54,12 @@ export function Timer() {
 
   return (
     <div
-      className={`timer-shell font-mono-data text-sm px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] ${colorClass} tabular-nums flex items-center gap-1.5`}
+      className={`timer-shell font-mono-data text-base font-bold px-4 py-1.5 rounded-xl bg-[var(--surface)] border-2 ${colorClass} tabular-nums flex items-center gap-2 shadow-xs transition-all`}
       role="timer"
       aria-label={label}
       aria-live="off"
     >
-      <span aria-hidden>{formatTime(remainingSeconds)}</span>
+      <span aria-hidden className="tracking-tight">{formatTime(remainingSeconds)}</span>
       <span className="sr-only">{label}</span>
     </div>
   )

@@ -245,7 +245,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           setResponse(questionId, savedQuery)
         }
       } else {
-        setQuery('')
+        setQuery('-- Write your SQL query here:\nSELECT * FROM employees;')
       }
       setResults(null)
       setEvalResult(null)

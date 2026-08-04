@@ -144,15 +144,10 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 >
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </div>
-
-                <button
-                  onClick={handleStartNow}
-                  className="px-6 py-3 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white font-bold text-sm transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95 w-full sm:w-auto justify-center"
-                >
-                  <span>Start Assessment Now</span>
-                  <ArrowRight size={16} />
-                </button>
               </div>
+              <p className="text-xs text-[var(--muted-foreground)] pt-1">
+                Assessment will automatically launch when the preheat countdown reaches 00:00.
+              </p>
             </div>
 
             {/* Active Modules Badges */}

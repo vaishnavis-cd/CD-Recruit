@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search } from "lucide-react";
+import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
@@ -53,6 +53,67 @@ function SettingsPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [logsQuery, setLogsQuery] = useState("");
+
+  // Add Staff Modal state
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [newStaffName, setNewStaffName] = useState("");
+  const [newStaffEmail, setNewStaffEmail] = useState("");
+  const [newStaffRole, setNewStaffRole] = useState("RECRUITER");
+  const [creatingStaff, setCreatingStaff] = useState(false);
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffName.trim() || !newStaffEmail.trim()) {
+      toast.error("Please enter both staff name and email");
+      return;
+    }
+    setCreatingStaff(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/staff`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newStaffName.trim(),
+          email: newStaffEmail.trim(),
+          role: newStaffRole,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to add staff member");
+      }
+      toast.success(`Staff member "${newStaffName}" added successfully`);
+      setShowAddStaffModal(false);
+      setNewStaffName("");
+      setNewStaffEmail("");
+      setNewStaffRole("RECRUITER");
+      loadStaffList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create staff member");
+    } finally {
+      setCreatingStaff(false);
+    }
+  };
+
+  const handleDeleteStaff = async (staffId: string, staffName: string) => {
+    if (!confirm(`Are you sure you want to remove staff member "${staffName}"?`)) return;
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/staff/${staffId}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to remove staff member");
+      toast.success(`Staff member "${staffName}" removed`);
+      setStaff((prev) => prev.filter((s) => s.id !== staffId));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove staff member");
+    }
+  };
 
   const loadStaffList = async () => {
     setLoadingStaff(true);
@@ -135,11 +196,26 @@ function SettingsPage() {
   const loadAuditLogs = async () => {
     setLoadingLogs(true);
     try {
-      const data = await fetchAuditLogs({ search: logsQuery || undefined });
-      setAuditLogs(Array.isArray(data?.items) ? data.items : []);
+      const headers = await getAuthHeaders();
+      const queryParam = logsQuery ? `?search=${encodeURIComponent(logsQuery)}` : "";
+      const res = await fetch(`${API_BASE}/admin/settings/audit-log${queryParam}`, {
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuditLogs(Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : []);
+      } else {
+        const data = await fetchAuditLogs({ search: logsQuery || undefined });
+        setAuditLogs(Array.isArray(data?.items) ? data.items : []);
+      }
     } catch (err) {
       console.error("Failed to load audit logs:", err);
-      setAuditLogs([]);
+      try {
+        const data = await fetchAuditLogs({ search: logsQuery || undefined });
+        setAuditLogs(Array.isArray(data?.items) ? data.items : []);
+      } catch {
+        setAuditLogs([]);
+      }
     } finally {
       setLoadingLogs(false);
     }
@@ -331,10 +407,10 @@ function SettingsPage() {
             <div className="max-w-[480px] space-y-5">
               <div>
                 <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
-                  Admin Account & API Credentials
+                  Admin Account Details
                 </h3>
                 <p className="text-[11px] text-[#8B8B93] mt-0.5">
-                  Manage your administrator credentials and API keys for system integrations.
+                  Manage your administrator display name and email address.
                 </p>
               </div>
 
@@ -366,26 +442,7 @@ function SettingsPage() {
                     System Role
                   </label>
                   <div className="px-3 py-2 border border-[#E6E6EA] rounded bg-[#F7F7F9] text-[#5B5B64] font-mono text-[12px]">
-                    ADMIN (Full Privileges)
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#E6E6EA]">
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                    Integration API Key
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      readOnly
-                      value={apiKeyGenerated || "proc_live_************************"}
-                      className="flex-1 px-3 py-2 border border-[#E6E6EA] rounded bg-[#F7F7F9] font-mono text-[12px] text-[#5B5B64]"
-                    />
-                    <button
-                      onClick={generateDevApiKey}
-                      className="px-3 py-2 border border-[#E6E6EA] rounded text-[12px] font-medium text-[#2F5CFF] hover:bg-[#F7F7F9] cursor-pointer"
-                    >
-                      Generate Key
-                    </button>
+                    ADMIN (Full Privileges & Governance)
                   </div>
                 </div>
               </div>
@@ -401,38 +458,179 @@ function SettingsPage() {
 
           {/* Tab 1: Staff & Roles */}
           {activeTab === "users" && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
-                  Manage Staff & Recruiter Roles
-                </h3>
-                <p className="text-[11px] text-[#8B8B93] mt-0.5">
-                  Toggle admin overrides and update role templates below:
-                </p>
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                    Manage Staff &amp; Team Permissions
+                  </h3>
+                  <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                    Add team members, assign operational roles, and manage system privileges:
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddStaffModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
+                >
+                  <UserPlus size={14} /> Add Staff Member
+                </button>
+              </div>
+
+              {/* Roles Breakdown Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="p-3 bg-[#FFF5F5] border border-[#FFE3E3] rounded-lg">
+                  <div className="text-[11px] font-mono font-bold text-rose-700 uppercase">ADMIN</div>
+                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Full access to settings, system timing, staff roles & audit logs.</p>
+                </div>
+                <div className="p-3 bg-[#F0F4FF] border border-[#D0E0FF] rounded-lg">
+                  <div className="text-[11px] font-mono font-bold text-[#15308F] uppercase">RECRUITER</div>
+                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Drive creation, candidate invitations, and hiring decision log.</p>
+                </div>
+                <div className="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded-lg">
+                  <div className="text-[11px] font-mono font-bold text-amber-800 uppercase">PROCTOR</div>
+                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Real-time session monitoring, integrity flag review & video evidence.</p>
+                </div>
+                <div className="p-3 bg-[#ECFDF5] border border-[#A7F3D0] rounded-lg">
+                  <div className="text-[11px] font-mono font-bold text-emerald-800 uppercase">EVALUATOR</div>
+                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Technical evaluation of code, SQL queries, and AI prompt traces.</p>
+                </div>
               </div>
 
               {loadingStaff ? (
-                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-4">
+                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-6">
                   Loading staff roster…
                 </p>
               ) : (
-                <div className="border border-[#E6E6EA] rounded-md divide-y divide-[#EFF0F3] overflow-hidden">
+                <div className="border border-[#E6E6EA] rounded-lg divide-y divide-[#EFF0F3] overflow-hidden bg-white shadow-sm">
                   {staff.map((s) => (
-                    <div key={s.id} className="p-3.5 flex items-center justify-between">
-                      <div>
-                        <div className="text-[13px] font-medium text-[#0B0B0D]">{s.name}</div>
-                        <div className="text-[11px] text-[#5B5B64]">{s.email}</div>
+                    <div key={s.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-[#F9FAFB]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#EAF0FF] border border-[#C5D7FF] text-[#2F5CFF] font-bold text-[12px] flex items-center justify-center font-mono shrink-0">
+                          {s.name ? s.name.charAt(0).toUpperCase() : "S"}
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-semibold text-[#0B0B0D] flex items-center gap-2">
+                            <span>{s.name}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border uppercase ${
+                              s.role === "ADMIN"
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : s.role === "PROCTOR"
+                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  : s.role === "EVALUATOR"
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}>
+                              {s.role}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[#5B5B64] font-mono">{s.email}</div>
+                        </div>
                       </div>
-                      <select
-                        value={s.role}
-                        onChange={(e) => handleUpdateRole(s.id, e.target.value)}
-                        className="px-2 py-1 text-[12px] border border-[#E6E6EA] rounded bg-white text-[#5B5B64] outline-none"
-                      >
-                        <option value="RECRUITER">Recruiter</option>
-                        <option value="ADMIN">Admin</option>
-                      </select>
+
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={s.role}
+                          onChange={(e) => handleUpdateRole(s.id, e.target.value)}
+                          className="px-2.5 py-1 text-[12px] font-medium border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] outline-none shadow-sm cursor-pointer"
+                        >
+                          <option value="RECRUITER">Recruiter</option>
+                          <option value="ADMIN">Admin</option>
+                          <option value="PROCTOR">Proctor</option>
+                          <option value="EVALUATOR">Evaluator</option>
+                        </select>
+
+                        <button
+                          onClick={() => handleDeleteStaff(s.id, s.name)}
+                          title="Remove staff member"
+                          className="p-1.5 text-[#8B8B93] hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  {staff.length === 0 && (
+                    <div className="p-6 text-center text-[#8B8B93] text-[12px]">
+                      No staff members registered. Click "Add Staff Member" to grant access.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Add Staff Modal */}
+              {showAddStaffModal && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white border border-[#E6E6EA] rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-[#EFF0F3] pb-3">
+                      <div className="flex items-center gap-2">
+                        <UserPlus size={16} className="text-[#2F5CFF]" />
+                        <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Add New Staff Member</h3>
+                      </div>
+                      <button
+                        onClick={() => setShowAddStaffModal(false)}
+                        className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleCreateStaff} className="space-y-4 text-[13px]">
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={newStaffName}
+                          onChange={(e) => setNewStaffName(e.target.value)}
+                          placeholder="e.g. Sarah Connor"
+                          className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] text-[13px] outline-none focus:border-[#2F5CFF]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Email Address</label>
+                        <input
+                          type="email"
+                          required
+                          value={newStaffEmail}
+                          onChange={(e) => setNewStaffEmail(e.target.value)}
+                          placeholder="e.g. sarah@company.com"
+                          className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] text-[13px] outline-none focus:border-[#2F5CFF]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Assigned Role</label>
+                        <select
+                          value={newStaffRole}
+                          onChange={(e) => setNewStaffRole(e.target.value)}
+                          className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] text-[13px] outline-none focus:border-[#2F5CFF]"
+                        >
+                          <option value="RECRUITER">Recruiter (Drives, Invites &amp; Hiring Decisions)</option>
+                          <option value="ADMIN">Admin (Full System Governance &amp; Configuration)</option>
+                          <option value="PROCTOR">Proctor (Live Monitoring &amp; Integrity Review)</option>
+                          <option value="EVALUATOR">Evaluator (Technical Code &amp; Submission Grading)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#EFF0F3]">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddStaffModal(false)}
+                          className="px-3.5 py-1.5 text-[12px] font-medium text-[#5B5B64] hover:text-[#0B0B0D] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={creatingStaff}
+                          className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
+                        >
+                          {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
             </div>
