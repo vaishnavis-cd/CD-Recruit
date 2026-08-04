@@ -66,6 +66,10 @@ export interface ModuleResponseDetail {
 
 export interface SessionDetail {
   sessionId: string;
+  id?: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  driveName?: string;
   candidate: {
     id: string;
     name: string;
@@ -80,6 +84,10 @@ export interface SessionDetail {
   disconnectCount: number;
   moduleResponses: ModuleResponseDetail[];
   integrityFlags: IntegrityFlag[];
+  questions?: any[];
+  drive?: any;
+  simulationSnapshot?: any;
+  telemetryActions?: any[];
   score: Score | null;
   decision?: {
     outcome: ReviewDecision;

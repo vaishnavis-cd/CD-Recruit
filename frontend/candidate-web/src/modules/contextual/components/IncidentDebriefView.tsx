@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   CheckCircle2,
   Clock,
@@ -12,15 +11,17 @@ import {
   FileCode,
   Activity,
   UserCheck,
+  ChevronRight,
 } from 'lucide-react'
 import { ResolutionData } from './IncidentResolutionModal'
 
 interface IncidentDebriefViewProps {
   resolutionData?: ResolutionData | null
   actionHistory: Array<{ timestamp: string; label: string; type: string }>
+  onCompleteModule?: () => void
 }
 
-export function IncidentDebriefView({ resolutionData, actionHistory }: IncidentDebriefViewProps) {
+export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteModule }: IncidentDebriefViewProps) {
   const scores = {
     debugging: 92,
     codeQuality: 88,
@@ -49,7 +50,36 @@ export function IncidentDebriefView({ resolutionData, actionHistory }: IncidentD
   ]
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-6 space-y-8 pb-20 text-[var(--text-primary)]">
+    <div className="max-w-5xl mx-auto py-8 px-6 space-y-6 pb-20 text-[var(--text-primary)]">
+      {/* Saved Submission Confirmation Banner */}
+      <div className="p-4.5 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/40 text-emerald-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 shrink-0">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="font-bold text-sm text-[var(--text-primary)] flex items-center gap-2">
+              <span>Hotfix Sign-Off Authorized &amp; Saved Successfully</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 uppercase">
+                100% SAVED
+              </span>
+            </div>
+            <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Your initial SAY plan, DO code edits, unit test verifications, and manager email reply have been permanently evaluated.
+            </div>
+          </div>
+        </div>
+        {onCompleteModule && (
+          <button
+            onClick={onCompleteModule}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-2 cursor-pointer shadow-md transition-all hover:scale-[1.02] shrink-0 w-full sm:w-auto justify-center"
+          >
+            <span>Proceed to Next Assessment Module</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
       {/* Header Banner */}
       <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-4">

@@ -114,6 +114,8 @@ export function InFictionInbox({ sessionId, scenarioId }: InFictionInboxProps) {
     try {
       await services.scenario.sendReply(draft.messageId, draft.text)
       await apiClient.post(`/sessions/${sessionId}/simulation/email-reply`, {
+        messageId: draft.messageId,
+        text: draft.text,
         replyText: draft.text,
       })
       await apiClient.post(`/sessions/${sessionId}/responses`, {

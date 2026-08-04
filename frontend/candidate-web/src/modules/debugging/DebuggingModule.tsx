@@ -30,7 +30,29 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
   const [error, setError] = useState<string | null>(null)
 
   const [code, setCode] = useState('')
+  const [codeByLanguage, setCodeByLanguage] = useState<Record<string, string>>({})
   const [activeLang, setActiveLang] = useState<string>('python')
+
+  const handleCodeChange = (newVal: string) => {
+    setCode(newVal)
+    setCodeByLanguage(prev => ({
+      ...prev,
+      [activeLang]: newVal
+    }))
+  }
+
+  const handleLanguageSwitch = (newLang: string) => {
+    setActiveLang(newLang)
+    if (codeByLanguage[newLang] !== undefined) {
+      setCode(codeByLanguage[newLang])
+    } else {
+      const content = questionData?.content || {}
+      const starter = content.starterCode || content.buggyCode || {}
+      const defaultTemplate = typeof starter === 'string' ? starter : (starter[newLang] || '')
+      setCode(defaultTemplate)
+      setCodeByLanguage(prev => ({ ...prev, [newLang]: defaultTemplate }))
+    }
+  }
   const [isRunning, setIsRunning] = useState(false)
   const [executionResult, setExecutionResult] = useState<CodingExecutionResponse | null>(null)
   const [execError, setExecError] = useState<string | null>(null)
@@ -339,7 +361,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           <div className="flex-1 min-h-0">
             <CodeEditor
               value={code}
-              onChange={(v) => setCode(v || '')}
+              onChange={(v) => handleCodeChange(v || '')}
               language={activeLang}
             />
           </div>

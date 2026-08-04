@@ -1,7 +1,9 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -27,13 +29,29 @@ export class SettingsController {
     return this.settingsService.listStaff();
   }
 
+  @Post("staff")
+  async createStaff(
+    @Body() dto: { name: string; email: string; role: StaffRole },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.createStaff(dto, actor);
+  }
+
+  @Delete("staff/:staffId")
+  async deleteStaff(
+    @Param("staffId", ParseUUIDPipe) staffId: string,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.deleteStaff(staffId, actor);
+  }
+
   @Patch("staff/:staffId/role")
   async updateStaffRole(
     @Param("staffId", ParseUUIDPipe) staffId: string,
     @Body() dto: UpdateStaffRoleDto,
     @CurrentUser() actor: any,
   ) {
-    return this.settingsService.updateStaffRole(staffId, dto.role, actor.id);
+    return this.settingsService.updateStaffRole(staffId, dto.role, actor);
   }
 
   @Get("scoring")
@@ -49,7 +67,7 @@ export class SettingsController {
     return this.settingsService.updateScoringConfig(
       dto.aiConfidenceThreshold,
       dto.passRateThreshold,
-      actor.id,
+      actor,
       dto.aiIntensity,
     );
   }
@@ -64,7 +82,7 @@ export class SettingsController {
     @Body() dto: any,
     @CurrentUser() actor: any,
   ) {
-    return this.settingsService.updateTimingThresholds(dto, actor.id);
+    return this.settingsService.updateTimingThresholds(dto, actor);
   }
 
   @Get("retention")
@@ -79,7 +97,7 @@ export class SettingsController {
   ) {
     return this.settingsService.updateRetentionConfig(
       dto.biometricRetentionDays,
-      actor.id,
+      actor,
     );
   }
 
@@ -95,12 +113,17 @@ export class SettingsController {
   ) {
     return this.settingsService.updateAppealWindowConfig(
       dto.appealWindowDays,
-      actor.id,
+      actor,
     );
   }
 
   @Get("audit-log")
   async listAuditLogs(@Query() query: ListAuditLogQueryDto) {
+    return this.settingsService.listAuditLogs(query);
+  }
+
+  @Get("audit-logs")
+  async listAuditLogsAlias(@Query() query: ListAuditLogQueryDto) {
     return this.settingsService.listAuditLogs(query);
   }
 }

@@ -125,17 +125,47 @@ export class SimulationService implements AssessmentModuleEngine {
   /**
    * Helper to fetch or initialize session state with DB hydration
    */
-  private getOrCreateSessionState(sessionId: string) {
+  /**
+   * Helper to fetch or initialize session state with DB hydration
+   */
+  private async getOrCreateSessionState(sessionId: string) {
     let state = this.sessionStates.get(sessionId);
     if (!state) {
+      let snapshot: any = null;
+      try {
+        const session = await this.prisma.session.findUnique({
+          where: { id: sessionId },
+          select: { simulationSnapshot: true },
+        });
+        snapshot = session?.simulationSnapshot;
+      } catch (err: any) {
+        this.logger.warn(`Could not read simulationSnapshot from DB for session ${sessionId}: ${err.message}`);
+      }
+
       state = {
-        initialSayText: "",
-        emailReplyText: "",
-        emailTriggered: false,
-        inboxMessages: [],
+        initialSayText: snapshot?.initialSayText || "",
+        emailReplyText: snapshot?.emailReplyText || "",
+        emailTriggered: Boolean(snapshot?.emailTriggered),
+        inboxMessages: Array.isArray(snapshot?.inboxMessages) ? snapshot.inboxMessages : [],
       };
       this.sessionStates.set(sessionId, state);
     }
+
+    // Always ensure inboxMessages has at least the default Manager Email if not present
+    if (state.inboxMessages.length === 0) {
+      const managerEmailMsg: SimulationInboxMessage = {
+        id: 101,
+        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
+        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
+        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
+        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        read: false,
+        expectsReply: true,
+      };
+      state.inboxMessages.push(managerEmailMsg);
+    }
+
     return state;
   }
 
@@ -143,8 +173,9 @@ export class SimulationService implements AssessmentModuleEngine {
    * Persist current session snapshot into Prisma DB (session.simulationSnapshot)
    */
   private async persistSessionSnapshot(sessionId: string): Promise<void> {
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     const telemetry = this.telemetryService.getEventStream(sessionId);
+    const actions = await this.getCandidateActions(sessionId);
 
     try {
       await this.prisma.session.update({
@@ -155,7 +186,8 @@ export class SimulationService implements AssessmentModuleEngine {
             emailReplyText: state.emailReplyText,
             emailTriggered: state.emailTriggered,
             inboxMessages: state.inboxMessages,
-            telemetryCount: telemetry.length,
+            telemetryCount: Math.max(telemetry.length, actions.length),
+            telemetryActions: actions,
             lastUpdated: new Date().toISOString(),
           } as any,
         },
@@ -169,7 +201,7 @@ export class SimulationService implements AssessmentModuleEngine {
    * Step 2: Save candidate's Initial SAY response
    */
   async saveInitialSay(sessionId: string, initialSayText: string): Promise<{ ok: boolean }> {
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     state.initialSayText = initialSayText;
 
     this.telemetryService.recordEvent(sessionId, {
@@ -184,6 +216,44 @@ export class SimulationService implements AssessmentModuleEngine {
       "Candidate submitted Initial SAY response",
       { initialSayText },
     );
+
+    // Save ModuleResponse in DB
+    const scenario = await this.getScenarioConfig(sessionId);
+    const questionId = scenario?.id || QA_BUG_REPORT_SCENARIO.id;
+
+    try {
+      await this.prisma.moduleResponse.upsert({
+        where: {
+          sessionId_questionId: {
+            sessionId,
+            questionId,
+          },
+        },
+        create: {
+          sessionId,
+          questionId,
+          responsePayload: {
+            initialSayText,
+            sayText: initialSayText,
+            status: "INITIAL_SAY_SUBMITTED",
+            moduleType: ModuleType.SIMULATION,
+          } as any,
+          isDraft: false,
+          timeSpentSeconds: 60,
+        },
+        update: {
+          responsePayload: {
+            initialSayText,
+            sayText: initialSayText,
+            status: "INITIAL_SAY_SUBMITTED",
+            moduleType: ModuleType.SIMULATION,
+          } as any,
+          isDraft: false,
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to upsert Initial SAY ModuleResponse: ${err.message}`);
+    }
 
     await this.persistSessionSnapshot(sessionId);
     return { ok: true };
@@ -206,11 +276,12 @@ export class SimulationService implements AssessmentModuleEngine {
     });
 
     const isEditNow = this.telemetryService.hasFirstEditOccurred(sessionId);
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     let justTriggered = false;
 
-    // Backend owns email trigger: Trigger manager email on FIRST code edit
-    if (!wasEditBefore && isEditNow && !state.emailTriggered) {
+    // Backend owns email trigger: Trigger manager email on code edit or test execution if not triggered yet
+    const isCodeAction = event.type === "FILE_EDIT" || event.type === "TEST_EXECUTE" || isEditNow;
+    if (isCodeAction && !state.emailTriggered) {
       state.emailTriggered = true;
       justTriggered = true;
 
@@ -225,9 +296,12 @@ export class SimulationService implements AssessmentModuleEngine {
         expectsReply: true,
       };
 
-      state.inboxMessages.push(managerEmailMsg);
+      // Check if message is already in inbox
+      if (!state.inboxMessages.some((m) => m.id === 101)) {
+        state.inboxMessages.push(managerEmailMsg);
+      }
 
-      this.logger.log(`[Backend Email Trigger] First code edit detected for session ${sessionId}. Created Manager Email from ${managerEmailMsg.from}`);
+      this.logger.log(`[Backend Email Trigger] Code edit/action detected for session ${sessionId}. Created Manager Email from ${managerEmailMsg.from}`);
 
       await this.sessionLogService.logAction(
         sessionId,
@@ -239,7 +313,7 @@ export class SimulationService implements AssessmentModuleEngine {
     }
 
     await this.persistSessionSnapshot(sessionId);
-    return { ok: true, emailTriggered: justTriggered || state.emailTriggered };
+    return { ok: true, emailTriggered: justTriggered };
   }
 
   private formatActionLabel(type: string, payload?: Record<string, any>): string {
@@ -272,45 +346,72 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   /**
-   * Get Live Candidate Telemetry Actions Stream (persisted DB + memory)
+   * Get Live Candidate Telemetry Actions Stream (persisted DB + memory + SessionLog)
    */
-  async getCandidateActions(sessionId: string) {
+  async getCandidateActions(sessionId: string): Promise<Array<{ timestamp: string; type: string; label: string }>> {
     const actionsMap = new Map<string, { timestamp: string; rawTime: number; type: string; label: string }>();
 
+    // 1. Read existing telemetryActions from DB simulationSnapshot
     try {
-      const sessionState = await this.sessionLogService.getSession(sessionId);
-      if (sessionState && sessionState.eventStates) {
-        for (const eventId of Object.keys(sessionState.eventStates)) {
-          const ev = sessionState.eventStates[eventId];
-          if (Array.isArray(ev.actions)) {
-            for (const a of ev.actions) {
-              const dt = new Date(a.timestamp);
-              const key = `${a.timestamp}_${a.state}`;
-              actionsMap.set(key, {
-                timestamp: dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-                rawTime: dt.getTime(),
-                type: a.state || "ACTION",
-                label: this.formatActionLabel(a.state, a.payload),
-              });
-            }
-          }
+      const session = await this.prisma.session.findUnique({
+        where: { id: sessionId },
+        select: { simulationSnapshot: true },
+      });
+      const snapActions = (session?.simulationSnapshot as any)?.telemetryActions;
+      if (Array.isArray(snapActions)) {
+        for (const act of snapActions) {
+          const key = `${act.timestamp}_${act.label}`;
+          actionsMap.set(key, {
+            timestamp: act.timestamp,
+            rawTime: Date.parse(act.timestamp) || Date.now(),
+            type: act.type || "ACTION",
+            label: act.label || "Action logged",
+          });
         }
       }
-    } catch (err) {
-      this.logger.warn(`Could not load persistent candidate actions for session ${sessionId}:`, err);
+    } catch (err: any) {
+      this.logger.warn(`Could not read snapshot telemetryActions for session ${sessionId}: ${err.message}`);
     }
 
+    // 2. Add memoryStream events
     const memoryStream = this.telemetryService.getEventStream(sessionId);
     for (const e of memoryStream) {
       const dt = new Date(e.timestamp);
-      const key = `${e.timestamp}_${e.type}`;
+      const label = this.formatActionLabel(e.type, { filepath: e.filepath, ...e.metadata });
+      const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const key = `${timeStr}_${label}`;
       if (!actionsMap.has(key)) {
         actionsMap.set(key, {
-          timestamp: dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          timestamp: timeStr,
           rawTime: dt.getTime(),
           type: e.type,
-          label: this.formatActionLabel(e.type, { filepath: e.filepath, ...e.metadata }),
+          label,
         });
+      }
+    }
+
+    // 3. Fallback: If map is still empty, pull from eventLogs in DB
+    if (actionsMap.size === 0) {
+      try {
+        const sessionWithLogs = await this.prisma.session.findUnique({
+          where: { id: sessionId },
+          include: { eventLogs: true } as any,
+        });
+        const logs = (sessionWithLogs as any)?.eventLogs || [];
+        for (const log of logs) {
+          const dt = log.occurredAt ? new Date(log.occurredAt) : log.createdAt ? new Date(log.createdAt) : new Date();
+          const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          const payload = (log.payload as any) || {};
+          const label = payload.label || payload.action || payload.text || log.eventType;
+          actionsMap.set(`${timeStr}_${label}`, {
+            timestamp: timeStr,
+            rawTime: dt.getTime(),
+            type: log.eventType || "LOG",
+            label: label || "Action logged",
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not fallback read eventLogs for session ${sessionId}: ${err.message}`);
       }
     }
 
@@ -321,16 +422,16 @@ export class SimulationService implements AssessmentModuleEngine {
   /**
    * Get Candidate Inbox Messages
    */
-  getInbox(sessionId: string): SimulationInboxMessage[] {
-    const state = this.getOrCreateSessionState(sessionId);
+  async getInbox(sessionId: string): Promise<SimulationInboxMessage[]> {
+    const state = await this.getOrCreateSessionState(sessionId);
     return state.inboxMessages;
   }
 
   /**
    * Mark all inbox messages as read
    */
-  markInboxRead(sessionId: string): { ok: boolean } {
-    const state = this.getOrCreateSessionState(sessionId);
+  async markInboxRead(sessionId: string): Promise<{ ok: boolean }> {
+    const state = await this.getOrCreateSessionState(sessionId);
     state.inboxMessages.forEach((m) => {
       m.read = true;
     });
@@ -342,13 +443,28 @@ export class SimulationService implements AssessmentModuleEngine {
    * Step 8: Save Email Reply
    */
   async saveEmailReply(sessionId: string, messageId: number, replyText: string): Promise<{ ok: boolean }> {
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     state.emailReplyText = replyText;
 
-    const msg = state.inboxMessages.find((m) => m.id === messageId);
+    let msg = state.inboxMessages.find((m) => m.id === messageId);
+    if (!msg && state.inboxMessages.length > 0) {
+      msg = state.inboxMessages[0];
+    }
     if (msg) {
       msg.replyText = replyText;
       msg.read = true;
+    } else {
+      state.inboxMessages.push({
+        id: messageId || 101,
+        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
+        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
+        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
+        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        read: true,
+        expectsReply: true,
+        replyText,
+      });
     }
 
     this.telemetryService.recordEvent(sessionId, {
@@ -363,6 +479,58 @@ export class SimulationService implements AssessmentModuleEngine {
       "Candidate submitted email reply to manager",
       { messageId, replyText },
     );
+
+    // Save ModuleResponse in DB for manager email reply
+    const scenario = await this.getScenarioConfig(sessionId);
+    const questionId = scenario?.id || QA_BUG_REPORT_SCENARIO.id;
+
+    try {
+      const existingResp = await this.prisma.moduleResponse.findUnique({
+        where: {
+          sessionId_questionId: {
+            sessionId,
+            questionId,
+          },
+        },
+      });
+      const currentPayload = (existingResp?.responsePayload as any) || {};
+
+      await this.prisma.moduleResponse.upsert({
+        where: {
+          sessionId_questionId: {
+            sessionId,
+            questionId,
+          },
+        },
+        create: {
+          sessionId,
+          questionId,
+          responsePayload: {
+            ...currentPayload,
+            initialSayText: state.initialSayText || currentPayload.initialSayText || "",
+            emailReplyText: replyText,
+            ticketReply: replyText,
+            status: "EMAIL_REPLIED",
+            moduleType: ModuleType.SIMULATION,
+          } as any,
+          isDraft: false,
+          timeSpentSeconds: 120,
+        },
+        update: {
+          responsePayload: {
+            ...currentPayload,
+            initialSayText: state.initialSayText || currentPayload.initialSayText || "",
+            emailReplyText: replyText,
+            ticketReply: replyText,
+            status: "EMAIL_REPLIED",
+            moduleType: ModuleType.SIMULATION,
+          } as any,
+          isDraft: false,
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to upsert Email Reply ModuleResponse: ${err.message}`);
+    }
 
     await this.persistSessionSnapshot(sessionId);
     return { ok: true };
@@ -392,7 +560,7 @@ export class SimulationService implements AssessmentModuleEngine {
    * Final Submission & 4-Part Evaluation Engine
    */
   async submitSimulation(sessionId: string, submissionPayload?: any): Promise<FullSimulationEvaluationResult> {
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     const telemetryEvents = this.telemetryService.getEventStream(sessionId);
 
     // Extract test results if present in submission payload
@@ -422,6 +590,9 @@ export class SimulationService implements AssessmentModuleEngine {
 
     const payloadWithModule = {
       ...(typeof evaluation === "object" ? evaluation : {}),
+      initialSayText: state.initialSayText,
+      emailReplyText: state.emailReplyText,
+      ticketReply: state.emailReplyText,
       moduleType: ModuleType.SIMULATION,
     };
 
@@ -503,7 +674,7 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   async getCurrentEvent(sessionId: string): Promise<any> {
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     return {
       event: {
         id: QA_BUG_REPORT_SCENARIO.id,
@@ -532,7 +703,7 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   async getSessionSummary(sessionId: string): Promise<any> {
-    const state = this.getOrCreateSessionState(sessionId);
+    const state = await this.getOrCreateSessionState(sessionId);
     return {
       module: "context_simulation",
       scenarioId: QA_BUG_REPORT_SCENARIO.id,

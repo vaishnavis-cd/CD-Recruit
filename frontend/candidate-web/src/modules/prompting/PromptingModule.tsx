@@ -212,8 +212,19 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+      <div className="flex-1 overflow-y-auto h-full min-h-0 px-6 py-6 space-y-4 max-w-4xl mx-auto">
+        {/* Candidate Evaluation Guidance Banner */}
+        <div className="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--text-secondary)] flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+            <span>Iterate freely on your prompt. <strong>Only your final active prompt &amp; generated output submission</strong> will be evaluated by the grading engine.</span>
+          </div>
+          <span className="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-[10px] font-mono font-semibold">
+            Task Scoped AI Sandbox
+          </span>
+        </div>
+
+        <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-1">
           Prompt {currentIndex + 1} of {questions.length}
         </div>
 

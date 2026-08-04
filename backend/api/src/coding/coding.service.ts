@@ -107,11 +107,11 @@ export class CodingService implements AssessmentModuleEngine {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
-    if (session.status === SessionStatus.NOT_STARTED) {
+    if (session.status === SessionStatus.NOT_STARTED || session.status === SessionStatus.AUTO_SUBMITTED) {
       const now = new Date();
       await this.prisma.session.update({
         where: { id: dto.sessionId },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
+        data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
       });
       session.status = SessionStatus.IN_PROGRESS;
     }

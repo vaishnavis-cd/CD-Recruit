@@ -208,6 +208,18 @@ export class AdminService {
       include: {
         candidate: true,
         roleTemplate: true,
+        drive: {
+          include: {
+            questions: {
+              include: {
+                question: true,
+              },
+            },
+          },
+        },
+        eventLogs: {
+          orderBy: { occurredAt: "asc" },
+        },
         moduleResponses: {
           include: {
             question: true,
@@ -245,6 +257,18 @@ export class AdminService {
           include: {
             candidate: true,
             roleTemplate: true,
+            drive: {
+              include: {
+                questions: {
+                  include: {
+                    question: true,
+                  },
+                },
+              },
+            },
+            eventLogs: {
+              orderBy: { occurredAt: "asc" },
+            },
             moduleResponses: {
               include: {
                 question: true,
@@ -407,6 +431,32 @@ export class AdminService {
       };
     });
 
+    const questions = session.drive?.questions?.map((dq) => ({
+      id: dq.question.id,
+      moduleType: dq.moduleType,
+      question: {
+        id: dq.question.id,
+        prompt: (dq.question.content as any)?.prompt || (dq.question.content as any)?.title || (dq.question.content as any)?.text || "Question",
+        options: (dq.question.content as any)?.options || [],
+        content: dq.question.content,
+      },
+    })) || [];
+
+    const snapshotActions = (session.simulationSnapshot as any)?.telemetryActions;
+    const telemetryActions = (Array.isArray(snapshotActions) && snapshotActions.length > 0)
+      ? snapshotActions
+      : ((session as any).eventLogs?.map((log: any) => {
+          const dt = log.occurredAt ? new Date(log.occurredAt) : log.createdAt ? new Date(log.createdAt) : new Date();
+          const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          const payload = (log.payload as any) || {};
+          const actionLabel = payload.label || payload.action || payload.text || log.eventType;
+          return {
+            timestamp: timeStr,
+            type: log.eventType,
+            label: actionLabel,
+          };
+        }) || []);
+
     return {
       sessionId: session.id,
       candidate: {
@@ -414,6 +464,9 @@ export class AdminService {
         name: session.candidate.name,
         email: session.candidate.email,
       },
+      candidateName: session.candidate.name,
+      candidateEmail: session.candidate.email,
+      driveName: session.drive?.name || "Assessment Drive",
       roleTemplateName: session.roleTemplate.roleName,
       status: session.status as SessionStatus,
       cvMode: session.cvMode,
@@ -425,6 +478,14 @@ export class AdminService {
       disconnectCount: session.disconnectCount,
       moduleResponses: mappedResponses,
       integrityFlags: combinedFlags,
+      questions,
+      drive: session.drive ? {
+        id: session.drive.id,
+        name: session.drive.name,
+        questions,
+      } : undefined,
+      simulationSnapshot: session.simulationSnapshot || null,
+      telemetryActions,
       score: session.score
         ? {
             compositeScore: session.score.compositeScore,
