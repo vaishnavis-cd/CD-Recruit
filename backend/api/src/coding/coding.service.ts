@@ -301,9 +301,14 @@ export class CodingService implements AssessmentModuleEngine {
 
     // 6. Save final response in ModuleResponse
     const responsePayload = {
-      moduleType: ModuleType.CODING,
+      moduleType: question.moduleType,
       code: dto.sourceCode,
+      sourceCode: dto.sourceCode,
       language: dto.language,
+      status: result.status,
+      passedTests: result.passedTests,
+      totalTests: result.totalTests,
+      stdout: result.stdout,
     };
 
     await this.prisma.moduleResponse.upsert({
@@ -379,9 +384,14 @@ export class CodingService implements AssessmentModuleEngine {
       throw new BadRequestException("Session is not in progress");
     }
 
+    const question = await this.prisma.question.findUnique({
+      where: { id: dto.questionId },
+    });
+
     const responsePayload = {
-      moduleType: ModuleType.CODING,
+      moduleType: question?.moduleType || ModuleType.CODING,
       code: dto.sourceCode,
+      sourceCode: dto.sourceCode,
       language: dto.language,
     };
 

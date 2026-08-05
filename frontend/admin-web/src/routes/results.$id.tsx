@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -152,6 +152,71 @@ function IndividualResultPage() {
   useEffect(() => {
     loadData();
   }, [id]);
+
+  const availableTabs = useMemo(() => {
+    if (!detail) return [];
+
+    const isDebuggingItem = (item: any) => {
+      if (!item) return false;
+      const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
+      if (modType === "DEBUGGING") return true;
+      const tags = item.tags || item.question?.tags || [];
+      if (Array.isArray(tags) && tags.includes("debugging")) return true;
+      const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
+      if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
+      return false;
+    };
+
+    const flagCount = detail.integrityFlags?.length || 0;
+    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any }> = [
+      { id: "CODING", label: "Coding / DSA", icon: Code2 },
+      { id: "DEBUGGING", label: "Debugging", icon: Bug },
+      { id: "SQL", label: "SQL Execution", icon: Database },
+      { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
+      { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
+      { id: "SIMULATION", label: "Simulation Log", icon: Play },
+      { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
+    ];
+
+    const moduleConfig = (detail as any).drive?.moduleConfig || (detail as any).session?.drive?.moduleConfig || {};
+
+    return tabs.filter((tab) => {
+      if (tab.id === "INTEGRITY") return true;
+
+      const isEnabledInConfig = Boolean(moduleConfig[tab.id]?.enabled);
+
+      const hasResponse = (detail.moduleResponses || []).some((r) => {
+        if (tab.id === "DEBUGGING") return isDebuggingItem(r);
+        if (tab.id === "CODING") {
+          const isCodingResp = r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined;
+          return isCodingResp && !isDebuggingItem(r);
+        }
+        return r.moduleType === tab.id || r.responsePayload?.moduleType === tab.id;
+      });
+
+      const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+      const hasQuestionInDrive = driveQuestions.some((q: any) => {
+        if (tab.id === "DEBUGGING") return isDebuggingItem(q);
+        if (tab.id === "CODING") {
+          const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+          return (qMod === "CODING" || qMod === "") && !isDebuggingItem(q);
+        }
+        const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+        return qMod === tab.id;
+      });
+
+      return isEnabledInConfig || hasResponse || hasQuestionInDrive;
+    });
+  }, [detail]);
+
+  useEffect(() => {
+    if (availableTabs.length > 0) {
+      const isCurrentValid = availableTabs.some((t: any) => t.id === activeTab);
+      if (!isCurrentValid) {
+        setActiveTab(availableTabs[0].id as any);
+      }
+    }
+  }, [availableTabs, activeTab]);
 
   const handleDecisionSubmit = async () => {
     if (!showDecisionModal || !detail) return;
@@ -329,39 +394,7 @@ function IndividualResultPage() {
 
       {/* Module Navigation Tabs */}
       <div className="flex border-b border-[#E6E6EA] mb-6 space-x-6">
-        {(
-          [
-            { id: "CODING", label: "Coding / DSA", icon: Code2 },
-            { id: "DEBUGGING", label: "Debugging", icon: Bug },
-            { id: "SQL", label: "SQL Execution", icon: Database },
-            { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
-            { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
-            { id: "SIMULATION", label: "Simulation Log", icon: Play },
-            { id: "INTEGRITY", label: `Integrity (${flags.length})`, icon: ShieldAlert },
-          ] as const
-        )
-          .filter((tab) => {
-            if (tab.id === "INTEGRITY") return true;
-
-            const hasResponse = (detail.moduleResponses || []).some(
-              (r) =>
-                r.moduleType === tab.id ||
-                r.responsePayload?.moduleType === tab.id ||
-                (tab.id === "CODING" && (r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined)) ||
-                (tab.id === "SQL" && (r.responsePayload?.query !== undefined || r.responsePayload?.sqlQuery !== undefined)) ||
-                (tab.id === "MCQ" && (r.responsePayload?.selectedOption !== undefined || r.responsePayload?.selectedOptions !== undefined)) ||
-                (tab.id === "AI_PROMPTING" && r.responsePayload?.prompt !== undefined) ||
-                (tab.id === "SIMULATION" && (r.responsePayload?.sayText !== undefined || r.responsePayload?.ticketReply !== undefined || r.responsePayload?.resolutionData !== undefined))
-            );
-
-            const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
-            const hasQuestionInDrive = driveQuestions.some(
-              (q: any) => (q.moduleType || q.question?.moduleType || "").toUpperCase() === tab.id
-            );
-
-            return hasResponse || hasQuestionInDrive;
-          })
-          .map((tab) => {
+        {availableTabs.map((tab: any) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -389,10 +422,21 @@ function IndividualResultPage() {
       <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm min-h-[400px]">
         {/* CODING TAB */}
         {activeTab === "CODING" && (() => {
+          const isDebuggingItem = (item: any) => {
+            if (!item) return false;
+            const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
+            if (modType === "DEBUGGING") return true;
+            const tags = item.tags || item.question?.tags || [];
+            if (Array.isArray(tags) && tags.includes("debugging")) return true;
+            const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
+            if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
+            return false;
+          };
+
           const codingResponses = (detail.moduleResponses || []).filter(
             (r) =>
               (r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined) &&
-              !(r.moduleType === "DEBUGGING" || r.responsePayload?.moduleType === "DEBUGGING" || (Array.isArray((r.question as any)?.tags) && (r.question as any).tags.includes("debugging")))
+              !isDebuggingItem(r)
           );
           return (
             <div className="space-y-4">
@@ -447,11 +491,19 @@ function IndividualResultPage() {
 
         {/* DEBUGGING TAB */}
         {activeTab === "DEBUGGING" && (() => {
+          const isDebuggingItem = (item: any) => {
+            if (!item) return false;
+            const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
+            if (modType === "DEBUGGING") return true;
+            const tags = item.tags || item.question?.tags || [];
+            if (Array.isArray(tags) && tags.includes("debugging")) return true;
+            const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
+            if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
+            return false;
+          };
+
           const debuggingResponses = (detail.moduleResponses || []).filter(
-            (r) =>
-              r.moduleType === "DEBUGGING" ||
-              r.responsePayload?.moduleType === "DEBUGGING" ||
-              (r.moduleType === "CODING" && (Array.isArray((r.question as any)?.tags) && (r.question as any).tags.includes("debugging")))
+            (r) => isDebuggingItem(r)
           );
 
           return (
@@ -817,7 +869,9 @@ function IndividualResultPage() {
                 <div>
                   <span className="text-[11px] font-mono uppercase text-[#8B8B93]">Say-Do Consistency Score</span>
                   <div className="text-2xl font-bold text-[#0B0B0D] mt-0.5">
-                    {detail.score?.sayDoConsistencyScore ? `${Math.round(detail.score.sayDoConsistencyScore <= 1.0 ? detail.score.sayDoConsistencyScore * 100 : detail.score.sayDoConsistencyScore)}%` : "Pending Evaluation"}
+                    {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score.sayDoConsistencyScore >= 0
+                      ? `${Math.round(detail.score.sayDoConsistencyScore <= 1.0 ? detail.score.sayDoConsistencyScore * 100 : detail.score.sayDoConsistencyScore)}%`
+                      : "Pending Evaluation"}
                   </div>
                 </div>
                 <div className="text-right">

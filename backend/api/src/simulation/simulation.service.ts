@@ -151,8 +151,8 @@ export class SimulationService implements AssessmentModuleEngine {
       this.sessionStates.set(sessionId, state);
     }
 
-    // Always ensure inboxMessages has at least the default Manager Email if not present
-    if (state.inboxMessages.length === 0) {
+    // Ensure inboxMessages has the default Manager Email ONLY if emailTriggered is true
+    if (state.emailTriggered && state.inboxMessages.length === 0) {
       const managerEmailMsg: SimulationInboxMessage = {
         id: 101,
         from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
@@ -567,13 +567,44 @@ export class SimulationService implements AssessmentModuleEngine {
     const testResults = submissionPayload?.testResults || null;
 
     // Generate 4-part evaluation result via ContextSimulationEvaluatorService
-    const evaluation = await this.evaluatorService.generateFullEvaluation(
-      state.initialSayText,
-      state.emailReplyText,
-      telemetryEvents,
-      testResults,
-      QA_BUG_REPORT_SCENARIO,
-    );
+    let evaluation: FullSimulationEvaluationResult;
+    try {
+      evaluation = await this.evaluatorService.generateFullEvaluation(
+        state.initialSayText,
+        state.emailReplyText,
+        telemetryEvents,
+        testResults,
+        QA_BUG_REPORT_SCENARIO,
+      );
+    } catch (evalErr: any) {
+      this.logger.warn(`[submitSimulation] Evaluation service failed for session ${sessionId}: ${evalErr.message}. Using deterministic fallback.`);
+      // Graceful deterministic fallback — never throw 500
+      const baseScore = testResults?.isCorrect ? 75 : testResults?.passedTests && testResults?.totalTests ? Math.round((testResults.passedTests / testResults.totalTests) * 70) : 40;
+      evaluation = {
+        overallScore: baseScore,
+        rubricVersion: QA_BUG_REPORT_SCENARIO.rubricVersion,
+        initialSay: { score: state.initialSayText ? 60 : 0, reasoning: 'Evaluated offline', strengths: [], weaknesses: [] },
+        emailSay: { score: state.emailReplyText ? 60 : 0, reasoning: 'Evaluated offline', strengths: [], weaknesses: [] },
+        doEvaluation: {
+          behaviourScore: telemetryEvents.length > 0 ? 60 : 20,
+          technicalScore: testResults?.isCorrect ? 100 : 40,
+          compositeDoScore: baseScore,
+          reasoning: 'Evaluated offline',
+          strengths: [],
+          weaknesses: [],
+        },
+        sayDoCorrelation: { score: 50, reasoning: 'Offline evaluation', strengths: [], weaknesses: [] },
+        categoryBreakdown: { INITIAL_SAY: 60, EMAIL_SAY: 60, DO_BEHAVIOUR: 60, DO_TECHNICAL: 40, DO_COMPOSITE: baseScore, SAY_DO_CORRELATION: 50 },
+        competencyBreakdown: { problemSolving: 60, debugging: 60, communication: 60, technicalExecution: 40, sayDoConsistency: 50 },
+        recommendation: baseScore >= 70 ? 'Recommended' : baseScore >= 50 ? 'Needs Further Evaluation' : 'Not Recommended',
+        recommendationReason: 'Evaluated using deterministic offline scoring.',
+        strengths: ['Attempted the diagnostic scenario'],
+        areasForImprovement: ['AI evaluation unavailable; manual review recommended'],
+        actionTimeline: telemetryEvents.map(e => ({ timestamp: e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '00:00', action: String(e.type) })),
+        summaryReasoning: `Offline evaluation: ${baseScore}/100.`,
+        evaluatedAt: new Date().toISOString(),
+      };
+    }
 
     // Log evaluation completion
     await this.sessionLogService.logAction(
@@ -597,51 +628,59 @@ export class SimulationService implements AssessmentModuleEngine {
     };
 
     // Save ModuleResponse in DB
-    await this.prisma.moduleResponse.upsert({
-      where: {
-        sessionId_questionId: {
+    try {
+      await this.prisma.moduleResponse.upsert({
+        where: {
+          sessionId_questionId: {
+            sessionId,
+            questionId,
+          },
+        },
+        create: {
           sessionId,
           questionId,
+          responsePayload: payloadWithModule as any,
+          isDraft: false,
+          timeSpentSeconds: 300,
         },
-      },
-      create: {
-        sessionId,
-        questionId,
-        responsePayload: payloadWithModule as any,
-        isDraft: false,
-        timeSpentSeconds: 300,
-      },
-      update: {
-        responsePayload: payloadWithModule as any,
-        isDraft: false,
-      },
-    });
+        update: {
+          responsePayload: payloadWithModule as any,
+          isDraft: false,
+        },
+      });
+    } catch (dbErr: any) {
+      this.logger.warn(`[submitSimulation] ModuleResponse upsert failed: ${dbErr.message}`);
+    }
 
     // Update Score model in DB
-    const normalizedScore = evaluation.overallScore / 100;
-    await this.prisma.score.upsert({
-      where: { sessionId },
-      create: {
-        sessionId,
-        compositeScore: normalizedScore,
-        moduleScores: {
-          SIMULATION: normalizedScore,
+    try {
+      const normalizedScore = evaluation.overallScore / 100;
+      await this.prisma.score.upsert({
+        where: { sessionId },
+        create: {
+          sessionId,
+          compositeScore: normalizedScore,
+          moduleScores: {
+            SIMULATION: normalizedScore,
+          },
+          sayDoConsistencyScore: evaluation.sayDoCorrelation.score / 100,
+          aiConfidence: 0.9,
+          humanReviewed: false,
+          sayDoRationale: evaluation.sayDoCorrelation.reasoning,
+          gradingSource: "deterministic",
         },
-        sayDoConsistencyScore: evaluation.sayDoCorrelation.score / 100,
-        aiConfidence: 0.9,
-        humanReviewed: false,
-        sayDoRationale: evaluation.sayDoCorrelation.reasoning,
-        gradingSource: "deterministic",
-      },
-      update: {
-        compositeScore: normalizedScore,
-        moduleScores: {
-          SIMULATION: normalizedScore,
+        update: {
+          compositeScore: normalizedScore,
+          moduleScores: {
+            SIMULATION: normalizedScore,
+          },
+          sayDoConsistencyScore: evaluation.sayDoCorrelation.score / 100,
+          sayDoRationale: evaluation.sayDoCorrelation.reasoning,
         },
-        sayDoConsistencyScore: evaluation.sayDoCorrelation.score / 100,
-        sayDoRationale: evaluation.sayDoCorrelation.reasoning,
-      },
-    });
+      });
+    } catch (scoreErr: any) {
+      this.logger.warn(`[submitSimulation] Score upsert failed: ${scoreErr.message}`);
+    }
 
     await this.persistSessionSnapshot(sessionId);
     return evaluation;
@@ -722,6 +761,11 @@ export class SimulationService implements AssessmentModuleEngine {
     const cases = dto.testCases || QA_BUG_REPORT_SCENARIO.testCases;
     const language = dto.language || "python";
     const sourceCode = dto.code || "";
+
+    const state = await this.getOrCreateSessionState(sessionId);
+    if (!state.emailTriggered) {
+      await this.recordTelemetry(sessionId, { type: "TEST_EXECUTE" });
+    }
 
     this.logger.log(`Executing ${language} simulation diagnostics for session ${sessionId}...`);
 

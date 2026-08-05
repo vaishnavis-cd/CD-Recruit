@@ -196,6 +196,20 @@ export function ContextSimulationWorkspace({
     }
   }, [sessionId, scenario.id])
 
+  useEffect(() => {
+    if (sessionId) {
+      apiClient.get(`/sessions/${sessionId}/simulation/inbox`).then((res) => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const hasUnread = res.data.some((m: any) => !m.read && !m.replyText)
+          if (hasUnread) {
+            setHasUnreadManagerEmail(true)
+            setShowEmailToast(true)
+          }
+        }
+      }).catch(() => {})
+    }
+  }, [sessionId])
+
   const emitTelemetry = async (type: 'FILE_OPEN' | 'FILE_EDIT' | 'TEST_EXECUTE', filepath?: string) => {
     try {
       const res = await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
@@ -203,10 +217,10 @@ export function ContextSimulationWorkspace({
         filepath: filepath || selectedFile,
         metadata: { timestamp: new Date().toISOString() },
       })
-      if (res.data?.emailTriggered) {
+      if (res.data?.emailTriggered || (res.data as any)?.emailTriggered === true) {
         setHasUnreadManagerEmail(true)
         setShowEmailToast(true)
-        setTimeout(() => setShowEmailToast(false), 6000)
+        setTimeout(() => setShowEmailToast(false), 12000)
       }
       fetchActionHistory()
     } catch (err) {
@@ -215,7 +229,6 @@ export function ContextSimulationWorkspace({
   }
 
   const handleCodeChange = (val: string | undefined) => {
-    if (selectedFile !== 'login/login_validation.py') return
     const newCode = val || ''
     setCode(newCode)
 
@@ -223,7 +236,7 @@ export function ContextSimulationWorkspace({
       clearTimeout(editTimeoutRef.current)
     }
     editTimeoutRef.current = setTimeout(() => {
-      emitTelemetry('FILE_EDIT', `login_validation.${language === 'python' ? 'py' : 'js'}`)
+      emitTelemetry('FILE_EDIT', selectedFile || `login_validation.${language === 'python' ? 'py' : 'js'}`)
     }, 1000)
   }
 
@@ -961,7 +974,7 @@ export function ContextSimulationWorkspace({
 
       {/* Live Manager Email Toast Notification Popup — Arise from Bottom Center */}
       {showEmailToast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 p-5 bg-[#0F172A] border-2 border-rose-500 rounded-2xl shadow-[0_10px_40px_rgba(225,29,72,0.45)] flex items-start gap-4 max-w-lg w-[92vw] sm:w-[480px] font-sans animate-in fade-in slide-in-from-bottom-8 duration-300">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[99999] p-5 bg-[#0F172A] border-2 border-rose-500 rounded-2xl shadow-[0_10px_40px_rgba(225,29,72,0.45)] flex items-start gap-4 max-w-lg w-[92vw] sm:w-[480px] font-sans animate-in fade-in slide-in-from-bottom-8 duration-300">
           <div className="p-3 rounded-xl bg-rose-500/20 text-rose-400 shrink-0 border border-rose-500/40 animate-pulse">
             <Mail className="w-6 h-6" />
           </div>

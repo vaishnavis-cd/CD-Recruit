@@ -28,11 +28,10 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
       try {
         const { invite, drive, session } = await services.sessionApi.resolveInvite(token)
 
-        // If session was already submitted, go straight to done
-        if (session?.status === 'submitted') {
+        // If session was already submitted or completed, lock access and show link expired screen
+        if (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED') {
           setSession(session)
-          // If we have persisted assessment state, try to resume
-          devForceJump({ type: 'done', auto: false, referenceId: 'RESTORED', sessionId: session.id })
+          transitionTo({ type: 'expired', reason: 'already-submitted' })
           return
         }
 
@@ -83,23 +82,27 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // Check if scheduled time is in the future (> 15 minutes away) or has expired (> 20 minutes past start)
+        // Check if scheduled time is in the future (> 15 minutes away) or past 20m grace window
         const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduleStart || (drive as any).scheduledAt || (drive as any).startsAt
         if (scheduledTimeStr) {
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
           const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
-          const cutoffMs = scheduledMs + 20 * 60 * 1000 // Grace period is 20m after test start
+          const cutoffMs = scheduledMs + 20 * 60 * 1000 // Grace period cutoff is 20m after test start (10:20 AM for 10:00 AM drive)
 
           if (!isNaN(scheduledMs)) {
             if (nowMs < unlockTimeMs) {
               localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
-              transitionTo({ type: 'too-early', scheduledTimeMs: unlockTimeMs, inviteToken: token })
+              transitionTo({ type: 'too-early', scheduledTimeMs: scheduledMs, inviteToken: token })
               return
-            } else if (nowMs > cutoffMs) {
-              console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
-              transitionTo({ type: 'expired', reason: 'never-started' })
+            } else if (nowMs > cutoffMs && !isSessionAlreadyStarted) {
+              console.log('[InviteResolver] Candidate entered after 20-min grace window. Showing expired page.')
+              transitionTo({ type: 'expired', reason: 'grace-expired' })
               return
+            } else {
+              // Candidate is in the valid active window — clear any stale far-future scheduled-ms
+              // so WaitingRoomScreen won't show a huge countdown (e.g. 2804:15)
+              localStorage.removeItem('cd-recruit-scheduled-ms')
             }
           }
         }

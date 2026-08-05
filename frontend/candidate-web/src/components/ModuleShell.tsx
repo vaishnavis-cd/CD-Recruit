@@ -5,6 +5,7 @@ import { ProctoringIndicator } from './ProctoringIndicator'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { MODULES } from '../fixtures/questions'
+import { getEffectiveModuleType } from '../utils/moduleType'
 import { useTheme } from '../theme/ThemeProvider'
 import { ProctoringModule } from '../proctoring/proctoring.module'
 import { Moon, Sun } from 'lucide-react'
@@ -73,13 +74,14 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
       MCQ: { id: 'mcq', name: 'MCQ' },
       SQL: { id: 'sql', name: 'SQL' },
       CODING: { id: 'coding', name: 'Coding' },
+      DEBUGGING: { id: 'debugging', name: 'Debugging' },
       AI_PROMPTING: { id: 'prompting', name: 'AI Prompting' },
       SIMULATION: { id: 'simulation', name: 'Contextual Simulation' },
       CONTEXTUAL: { id: 'simulation', name: 'Contextual Simulation' },
     }
     const types: string[] = []
     for (const q of assessment.questions) {
-      const type = q.moduleType as string
+      const type = getEffectiveModuleType(q)
       if (type && !types.includes(type)) {
         types.push(type)
       }

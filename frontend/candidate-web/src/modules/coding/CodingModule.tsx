@@ -11,6 +11,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 
+import { getEffectiveModuleType } from '../../utils/moduleType'
+
 interface CodingModuleProps {
   moduleIndex: number
 }
@@ -21,8 +23,8 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  // Include CODING module questions
-  const codingQuestions = assessment?.questions?.filter(q => q.moduleType === 'CODING') ?? []
+  // Include CODING module questions only
+  const codingQuestions = assessment?.questions?.filter(q => getEffectiveModuleType(q) === 'CODING') ?? []
   const questionId = codingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
 

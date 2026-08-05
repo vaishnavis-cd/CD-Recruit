@@ -11,7 +11,7 @@ export function WatermarkOverlay() {
 
   return (
     <div 
-      className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden select-none opacity-[0.18] flex flex-wrap justify-between p-8"
+      className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden select-none opacity-[0.06] flex flex-wrap justify-between p-8"
       aria-hidden="true"
     >
       {Array.from({ length: 16 }).map((_, i) => (

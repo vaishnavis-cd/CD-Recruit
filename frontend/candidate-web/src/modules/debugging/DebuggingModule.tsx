@@ -6,6 +6,7 @@ import apiClient from '../../api/client'
 import { runCoding, TestResultDetail, CodingExecutionResponse } from '../../api/coding'
 import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown } from 'lucide-react'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+import { getEffectiveModuleType } from '../../utils/moduleType'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -19,7 +20,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
 
-  const debuggingQuestions = assessment?.questions?.filter(q => q.moduleType === 'DEBUGGING') ?? []
+  const debuggingQuestions = assessment?.questions?.filter(q => getEffectiveModuleType(q) === 'DEBUGGING') ?? []
   const questionId = debuggingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
 

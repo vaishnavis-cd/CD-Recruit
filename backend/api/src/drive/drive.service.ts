@@ -138,11 +138,16 @@ export class DriveService {
 
         if (questionsToLink.length > 0) {
           await tx.driveQuestion.createMany({
-            data: questionsToLink.map((q) => ({
-              driveId: createdDrive.id,
-              questionId: q.id,
-              moduleType: q.moduleType,
-            })),
+            data: questionsToLink.map((q) => {
+              const tags = q.tags || [];
+              const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+              const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+              return {
+                driveId: createdDrive.id,
+                questionId: q.id,
+                moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+              };
+            }),
           });
         }
       }
@@ -682,12 +687,17 @@ export class DriveService {
 
       if (questions.length > 0) {
         await tx.driveQuestion.createMany({
-          data: questions.map((q) => ({
-            driveId,
-            questionId: q.id,
-            moduleType: q.moduleType,
-            pointShare: shareMap.get(q.id) ?? null,
-          })),
+          data: questions.map((q) => {
+            const tags = q.tags || [];
+            const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+            const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+            return {
+              driveId,
+              questionId: q.id,
+              moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+              pointShare: shareMap.get(q.id) ?? null,
+            };
+          }),
         });
       }
 

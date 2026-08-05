@@ -144,18 +144,19 @@ async function main(): Promise<void> {
         },
       });
       const isDebugging = prompt.toLowerCase().includes("debugging") || q.moduleType === "DEBUGGING";
+      const targetModule = isDebugging ? "DEBUGGING" : q.moduleType;
       const tags = isDebugging ? ["debugging", "coding"] : [q.moduleType.toLowerCase()];
 
       if (existing) {
         const updated = await tx.question.update({
           where: { id: existing.id },
-          data: { difficulty, tags, status: "PUBLISHED" as any },
+          data: { moduleType: targetModule as any, difficulty, tags, status: "PUBLISHED" as any },
         });
         createdQuestions.push(updated);
       } else {
         const created = await tx.question.create({
           data: {
-            moduleType: q.moduleType,
+            moduleType: targetModule as any,
             content: q.content as any,
             difficulty,
             tags,
