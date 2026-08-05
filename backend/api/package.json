@@ -20,6 +20,7 @@
     "seed": "tsx ../prisma/seed.ts"
   },
   "dependencies": {
+    "@cd-recruit/shared-types": "*",
     "@bull-board/api": "^8.3.2",
     "@bull-board/express": "^8.3.2",
     "@nestjs/bullmq": "^10.2.3",
