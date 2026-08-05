@@ -8,6 +8,7 @@ import { CodingModule } from '../modules/coding/CodingModule'
 import { DebuggingModule } from '../modules/debugging/DebuggingModule'
 import { PromptingModule } from '../modules/prompting/PromptingModule'
 import { ContextualModule } from '../modules/contextual/ContextualModule'
+import { getEffectiveModuleType } from '../utils/moduleType'
 
 interface AssessmentScreenProps {
   moduleIndex: number
@@ -20,15 +21,16 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-      return ['MCQ', 'SQL', 'CODING', 'AI_PROMPTING', 'SIMULATION']
+      return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION']
     }
     const types: string[] = []
     for (const q of assessment.questions) {
-      if (q.moduleType && !types.includes(q.moduleType)) {
-        types.push(q.moduleType)
+      const type = getEffectiveModuleType(q)
+      if (type && !types.includes(type)) {
+        types.push(type)
       }
     }
-    return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'AI_PROMPTING', 'SIMULATION']
+    return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION']
   }, [assessment?.questions])
 
   // Start timer when Module 1 opens (never before)

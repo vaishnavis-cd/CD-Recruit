@@ -4,11 +4,29 @@ import { Clock, Lock, LifeBuoy } from 'lucide-react'
 const SUPPORT_EMAIL = 'mailto:support@proctora.com'
 
 interface ExpiredScreenProps {
-  reason: 'never-started' | 'drive-closed'
+  reason: 'never-started' | 'drive-closed' | 'already-submitted' | 'grace-expired'
 }
 
 export function ExpiredScreen({ reason }: ExpiredScreenProps) {
   const isDriveClosed = reason === 'drive-closed'
+  const isAlreadySubmitted = reason === 'already-submitted'
+  const isGraceExpired = reason === 'grace-expired'
+
+  const title = isAlreadySubmitted
+    ? 'Assessment Completed'
+    : isDriveClosed
+    ? 'Assessment Window Closed'
+    : isGraceExpired
+    ? 'Grace Window Expired'
+    : 'Assessment Link Expired'
+
+  const description = isAlreadySubmitted
+    ? 'You have already completed and submitted this assessment. This invite link can no longer be re-accessed.'
+    : isDriveClosed
+    ? 'The assessment drive has been closed by the recruiter. The submission window is closed for all candidates.'
+    : isGraceExpired
+    ? 'The 20-minute grace window for joining this scheduled assessment drive has passed.'
+    : 'The scheduled assessment window for this invite link has expired.'
 
   return (
     <div
@@ -18,22 +36,16 @@ export function ExpiredScreen({ reason }: ExpiredScreenProps) {
     >
       <div className="w-full max-w-md text-center space-y-6 animate-cd-fade-in">
         <div className="w-14 h-14 rounded-2xl bg-[var(--surface)] text-[var(--warning)] border border-[var(--border)] flex items-center justify-center mx-auto shadow-xs">
-          {isDriveClosed ? <Lock size={28} /> : <Clock size={28} />}
+          {isDriveClosed || isAlreadySubmitted ? <Lock size={28} /> : <Clock size={28} />}
         </div>
 
         <div>
           <h1 id="expired-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)] mb-2">
-            {isDriveClosed
-              ? 'Assessment Window Closed'
-              : 'Assessment Link Expired'
-            }
+            {title}
           </h1>
 
           <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
-            {isDriveClosed
-              ? "The assessment drive has been closed by the recruiter. The submission window is closed for all candidates."
-              : "The scheduled assessment window for this invite link has expired."
-            }
+            {description}
           </p>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { MODULES } from '../fixtures/questions'
+import { getEffectiveModuleType } from '../utils/moduleType'
 import { StatusChip } from '../components/common/StatusChip'
 import { LifeBuoy, ArrowRight, ShieldCheck } from 'lucide-react'
 import waitingRoomCalmImg from '../assets/waiting-room-calm.png'
@@ -20,20 +21,29 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
   // Lock target preheat countdown time once on mount
   const [targetTimeMs] = useState(() => {
     const currentNow = services.time.getServerNow()
-    if (scheduledTimeMs && scheduledTimeMs > currentNow + 2000) {
-      return scheduledTimeMs
-    }
-    try {
-      const stored = localStorage.getItem('cd-recruit-scheduled-ms')
-      if (stored) {
-        const parsed = parseInt(stored, 10)
-        if (!isNaN(parsed) && parsed > currentNow) {
-          return parsed
-        }
-      }
-    } catch { /* ignore */ }
+    let scheduled = scheduledTimeMs
 
+    if (!scheduled) {
+      try {
+        const stored = localStorage.getItem('cd-recruit-scheduled-ms')
+        if (stored) {
+          const parsed = parseInt(stored, 10)
+          if (!isNaN(parsed)) scheduled = parsed
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Sanity-check: scheduled time must be in the future AND at most 10 minutes away.
+    // If it's more than 10 minutes away (e.g. a future-dated drive or stale localStorage),
+    // treat it as a late-arrival and apply the mandatory 60s briefing.
+    const MAX_WAIT_MS = 10 * 60 * 1000 // 10 minutes maximum countdown
+    if (scheduled && scheduled > currentNow && (scheduled - currentNow) <= MAX_WAIT_MS) {
+      return scheduled
+    }
+
+    // Candidate arrived at or after start time OR scheduled time is too far out — mandatory 60s briefing
     const preheatTarget = currentNow + 60 * 1000
+    // Only store in localStorage if it was a fallback (don't override valid far-future scheduleMs)
     localStorage.setItem('cd-recruit-scheduled-ms', String(preheatTarget))
     return preheatTarget
   })
@@ -53,13 +63,13 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
   const activeModules = useMemo(() => {
     const questions = session?.questions || assessment?.questions
     if (questions && questions.length > 0) {
-      const activeTypes = new Set(questions.map((q: any) => (q.moduleType || q.type || '').toUpperCase()))
+      const activeTypes = new Set(questions.map((q: any) => getEffectiveModuleType(q)))
       return MODULES.filter(m => {
         const mType = m.type.toUpperCase()
         if (mType === 'CONTEXTUAL' || mType === 'SIMULATION') {
           return activeTypes.has('CONTEXTUAL') || activeTypes.has('SIMULATION')
         }
-        return activeTypes.has(mType as any) || (mType === 'CODING' && activeTypes.has('DEBUGGING'))
+        return activeTypes.has(mType as any)
       })
     }
     return MODULES

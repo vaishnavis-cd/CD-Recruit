@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
 import { MODULES, TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions'
+import { getEffectiveModuleType } from '../utils/moduleType'
 import { StatusChip } from '../components/common/StatusChip'
 import { CheckCircle2, ArrowRight, ArrowLeft, Clock, Inbox, Sparkles, Image as ImageIcon } from 'lucide-react'
 import workspaceIntroImg from '../assets/workspace-intro.png'
@@ -50,7 +51,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
   const activeModules = useMemo(() => {
     const questions = session?.questions || assessment?.questions
     if (questions && questions.length > 0) {
-      const activeTypes = new Set(questions.map((q: any) => (q.moduleType || q.type || '').toUpperCase()))
+      const activeTypes = new Set(questions.map((q: any) => getEffectiveModuleType(q)))
       return MODULES.filter(m => {
         const mType = m.type.toUpperCase()
         if (mType === 'CONTEXTUAL' || mType === 'SIMULATION') {

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  OnModuleInit,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateQuestionDto, UpdateQuestionDto, ListQuestionsQueryDto } from "../common/dto/question.dto";
@@ -9,8 +10,42 @@ import { ModuleType, QuestionStatus } from "@cd-recruit/shared-types";
 import { RakeExtractor } from "../ai-prompting/ai-prompting-guardrails";
 
 @Injectable()
-export class QuestionService {
+export class QuestionService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    try {
+      const allQuestions = await this.prisma.question.findMany();
+      const debuggingIds: string[] = [];
+
+      for (const q of allQuestions) {
+        const tags = q.tags || [];
+        const promptText = (q.content as any)?.prompt || (q.content as any)?.title || (q.content as any)?.text || "";
+        const isDebug = q.moduleType === "DEBUGGING" ||
+          tags.includes("debugging") ||
+          (typeof promptText === "string" && promptText.toLowerCase().includes("debugging"));
+
+        if (isDebug) {
+          debuggingIds.push(q.id);
+          if (q.moduleType !== ("DEBUGGING" as any)) {
+            await this.prisma.question.update({
+              where: { id: q.id },
+              data: { moduleType: "DEBUGGING" as any },
+            });
+          }
+        }
+      }
+
+      if (debuggingIds.length > 0) {
+        await this.prisma.driveQuestion.updateMany({
+          where: { questionId: { in: debuggingIds } },
+          data: { moduleType: "DEBUGGING" as any },
+        });
+      }
+    } catch (err) {
+      console.warn("Failed auto-normalizing debugging questions on startup:", err);
+    }
+  }
 
   private validateQuestionContent(moduleType: ModuleType, content: any, scoringConfig: any) {
     if (!content) {
@@ -32,8 +67,9 @@ export class QuestionService {
         }
         break;
       case ModuleType.CODING:
-        if (!content.prompt || !content.starterCode) {
-          throw new BadRequestException("Coding question must contain prompt and starterCode");
+      case ModuleType.DEBUGGING:
+        if (!content.prompt || (!content.starterCode && !content.buggyCode && !content.code)) {
+          throw new BadRequestException("Coding/Debugging question must contain prompt and starterCode/buggyCode");
         }
         break;
       case ModuleType.AI_PROMPTING:

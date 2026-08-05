@@ -89,15 +89,6 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
           text: initialSayText,
         })
-        await apiClient.post(`/sessions/${sessionId}/responses`, {
-          questionId: scenario.id,
-          moduleType: 'SIMULATION',
-          responsePayload: {
-            initialSayText,
-            sayText: initialSayText,
-            status: 'INITIAL_SAY_SUBMITTED'
-          }
-        })
       } catch (err) {
         console.warn('Error persisting initial say text:', err)
       }

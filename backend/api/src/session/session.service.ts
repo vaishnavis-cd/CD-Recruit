@@ -81,10 +81,16 @@ async function buildQuestionList(
         );
         const resultList = shuffled.map((q: any) => {
           const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
+          const rawQ = matchingDq?.question || q;
+          const tags = rawQ.tags || [];
+          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
           return {
             ...q,
-            content: matchingDq?.question?.content || q.content || {},
-            difficulty: matchingDq?.question?.difficulty || q.difficulty || "medium",
+            moduleType: effectiveModuleType,
+            content: rawQ.content || q.content || {},
+            difficulty: rawQ.difficulty || q.difficulty || "medium",
           };
         });
 
@@ -922,7 +928,7 @@ export class SessionService {
       return safe;
     }
 
-    if (moduleType === "CODING") {
+    if (moduleType === "CODING" || moduleType === "DEBUGGING") {
       const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
       const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
         ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
