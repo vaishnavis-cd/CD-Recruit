@@ -8,6 +8,7 @@ import { CodingModule } from '../modules/coding/CodingModule'
 import { DebuggingModule } from '../modules/debugging/DebuggingModule'
 import { PromptingModule } from '../modules/prompting/PromptingModule'
 import { ContextualModule } from '../modules/contextual/ContextualModule'
+import { NOSQLModule } from '../modules/nosql/NOSQLModule'
 import { getEffectiveModuleType } from '../utils/moduleType'
 
 interface AssessmentScreenProps {
@@ -21,7 +22,7 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-      return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION']
+      return ['MCQ', 'SQL', 'NOSQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION']
     }
     const types: string[] = []
     for (const q of assessment.questions) {
@@ -30,7 +31,7 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
         types.push(type)
       }
     }
-    return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION']
+    return types.length > 0 ? types : ['MCQ', 'SQL', 'NOSQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION']
   }, [assessment?.questions])
 
   // Start timer when Module 1 opens (never before)
@@ -59,6 +60,8 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
       return <DebuggingModule moduleIndex={moduleIndex} />
     case 'AI_PROMPTING':
       return <PromptingModule moduleIndex={moduleIndex} />
+    case 'NOSQL':
+      return <NOSQLModule moduleIndex={moduleIndex} />
     case 'SIMULATION':
     case 'CONTEXTUAL':
       return <ContextualModule moduleIndex={moduleIndex} />

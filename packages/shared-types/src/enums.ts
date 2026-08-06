@@ -40,6 +40,7 @@ export enum ModuleType {
   DEBUGGING = "DEBUGGING",
   AI_PROMPTING = "AI_PROMPTING",
   SIMULATION = "SIMULATION",
+  NOSQL = "NOSQL",
 }
 
 // ---------------------------------------------------------------------------

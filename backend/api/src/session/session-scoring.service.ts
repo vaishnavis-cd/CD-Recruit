@@ -124,17 +124,20 @@ export class SessionScoringService {
         accuracy = isCorrect ? 1.0 : 0.0;
       } else if (mod === "SQL") {
         // Strict binary exact-match — no length-based partial credit
-        const payload = resp.responsePayload as any;
-        const execResult = payload?.executionResult;
-        if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
+        const sqlExecs = session.sqlExecutions ? session.sqlExecutions.filter((se) => se.questionId === q.id) : [];
+        const latestExec = sqlExecs[sqlExecs.length - 1];
+        if (latestExec && latestExec.passed) {
           accuracy = 1.0;
         } else {
-          const query = payload?.query || payload?.code || "";
-          if (query && query.trim().length > 15) {
-            accuracy = 0.8;
-          } else if (query && query.trim().length > 0) {
-            accuracy = 0.4;
-          }
+          accuracy = 0.0;
+        }
+      } else if (mod === "NOSQL") {
+        const payload = resp.responsePayload as any;
+        const execResult = payload?.executionResult;
+        if (execResult?.passed || execResult?.status === "SUCCESS") {
+          accuracy = 1.0;
+        } else {
+          accuracy = 0.0;
         }
       } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
         const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
@@ -243,6 +246,9 @@ export class SessionScoringService {
           const sqlExecs = session.sqlExecutions ? session.sqlExecutions.filter((se) => se.questionId === q.id) : [];
           const lastSql = sqlExecs[sqlExecs.length - 1];
           doValue = lastSql ? (lastSql.status === "COMPLETED" ? 1.0 : 0.0) : 0.0;
+        } else if (q.moduleType === "NOSQL") {
+          const execResult = payload?.executionResult;
+          doValue = execResult?.passed ? 1.0 : 0.0;
         } else {
           doValue = 0.0;
         }

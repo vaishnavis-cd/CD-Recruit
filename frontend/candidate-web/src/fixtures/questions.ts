@@ -315,10 +315,11 @@ export const ALL_QUESTIONS: Question[] = [
 export const MODULES = [
   { index: 0, name: 'Multiple Choice', type: 'mcq' as const, suggestedMinutes: 15, questionIds: MCQ_QUESTIONS.map(q => q.id) },
   { index: 1, name: 'SQL', type: 'sql' as const, suggestedMinutes: 20, questionIds: SQL_QUESTIONS.map(q => q.id) },
-  { index: 2, name: 'Coding & DSA', type: 'coding' as const, suggestedMinutes: 30, questionIds: CODING_QUESTIONS.map(q => q.id) },
-  { index: 3, name: 'Debugging', type: 'debugging' as const, suggestedMinutes: 15, questionIds: [] },
-  { index: 4, name: 'AI Prompting', type: 'prompting' as const, suggestedMinutes: 15, questionIds: PROMPTING_QUESTIONS.map(q => q.id) },
-  { index: 5, name: 'Contextual Simulation', type: 'contextual' as const, suggestedMinutes: 20, questionIds: CONTEXTUAL_QUESTIONS.map(q => q.id) },
+  { index: 2, name: 'NoSQL', type: 'nosql' as const, suggestedMinutes: 15, questionIds: [] },
+  { index: 3, name: 'Coding & DSA', type: 'coding' as const, suggestedMinutes: 30, questionIds: CODING_QUESTIONS.map(q => q.id) },
+  { index: 4, name: 'Debugging', type: 'debugging' as const, suggestedMinutes: 15, questionIds: [] },
+  { index: 5, name: 'AI Prompting', type: 'prompting' as const, suggestedMinutes: 15, questionIds: PROMPTING_QUESTIONS.map(q => q.id) },
+  { index: 6, name: 'Contextual Simulation', type: 'contextual' as const, suggestedMinutes: 20, questionIds: CONTEXTUAL_QUESTIONS.map(q => q.id) },
 ]
 
 export const TOTAL_ASSESSMENT_MINUTES = MODULES.reduce((sum, m) => sum + m.suggestedMinutes, 0)

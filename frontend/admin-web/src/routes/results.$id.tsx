@@ -125,7 +125,7 @@ function IndividualResultPage() {
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
+  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "NOSQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
   const [integrityCategoryFilter, setIntegrityCategoryFilter] = useState("ALL");
   const [integrityFilterOpen, setIntegrityFilterOpen] = useState(false);
 
@@ -168,10 +168,11 @@ function IndividualResultPage() {
     };
 
     const flagCount = detail.integrityFlags?.length || 0;
-    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any }> = [
+    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "NOSQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any }> = [
       { id: "CODING", label: "Coding / DSA", icon: Code2 },
       { id: "DEBUGGING", label: "Debugging", icon: Bug },
       { id: "SQL", label: "SQL Execution", icon: Database },
+      { id: "NOSQL", label: "NoSQL Execution", icon: Database },
       { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
       { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
       { id: "SIMULATION", label: "Simulation Log", icon: Play },
@@ -565,7 +566,7 @@ function IndividualResultPage() {
         {/* SQL TAB */}
         {activeTab === "SQL" && (() => {
           const sqlResponses = (detail.moduleResponses || []).filter(
-            r => r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL' || r.responsePayload?.query !== undefined || r.responsePayload?.sqlQuery !== undefined
+            r => (r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL') && r.moduleType !== 'NOSQL' && r.responsePayload?.moduleType !== 'NOSQL'
           )
           return (
             <div className="space-y-4">
@@ -575,12 +576,22 @@ function IndividualResultPage() {
               ) : (
                 sqlResponses.map((resp, idx) => {
                   const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted"
+                  const execResult = resp.responsePayload?.executionResult
+                  const hasResult = execResult !== undefined
+                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED"
+                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED")
+                  const badgeColor = hasResult
+                    ? (isCorrect
+                        ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300"
+                        : "bg-rose-50 text-rose-800 border-rose-300")
+                    : "bg-[#EAF0FF] text-[#15308F] border-blue-200"
+
                   return (
                     <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">SQL Query #{idx + 1}</span>
-                        <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAF0FF] text-[#15308F]">
-                          {resp.responsePayload?.status || "EXECUTED"}
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${badgeColor}`}>
+                          {statusText}
                         </span>
                       </div>
 
@@ -588,6 +599,58 @@ function IndividualResultPage() {
                         <CodeEditor
                           value={queryText}
                           language="sql"
+                          readOnly={true}
+                          theme="dark"
+                        />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )
+        })()}
+
+        {/* NoSQL TAB */}
+        {activeTab === "NOSQL" && (() => {
+          const nosqlResponses = (detail.moduleResponses || []).filter(
+            r => (r.moduleType === 'NOSQL' || r.responsePayload?.moduleType === 'NOSQL') && r.moduleType !== 'SQL' && r.responsePayload?.moduleType !== 'SQL'
+          )
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">NoSQL Query Submissions & Execution Results</h3>
+              {nosqlResponses.length === 0 ? (
+                <p className="text-[13px] text-[#8B8B93] italic">No NoSQL queries recorded for this assessment.</p>
+              ) : (
+                nosqlResponses.map((resp, idx) => {
+                  const op = resp.responsePayload?.operation || {}
+                  const rawQuery = resp.responsePayload?.query
+                  const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2))
+                  const displayLanguage = rawQuery ? "javascript" : "json"
+
+                  const execResult = resp.responsePayload?.executionResult
+                  const hasResult = execResult !== undefined
+                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED"
+                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED")
+                  const badgeColor = hasResult
+                    ? (isCorrect
+                        ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300"
+                        : "bg-rose-50 text-rose-800 border-rose-300")
+                    : "bg-[#EAF0FF] text-[#15308F] border-blue-200"
+
+                  return (
+                    <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">NoSQL Operation #{idx + 1}</span>
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${badgeColor}`}>
+                          {statusText}
+                        </span>
+                      </div>
+
+                      <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
+                        <CodeEditor
+                          value={displayQuery}
+                          language={displayLanguage}
                           readOnly={true}
                           theme="dark"
                         />

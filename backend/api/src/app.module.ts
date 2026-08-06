@@ -18,6 +18,7 @@ import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
+import { NosqlModule } from "./modules/nosql/nosql.module";
 import { ProctoringModule } from "./proctoring/proctoring.module";
 import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
@@ -83,6 +84,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     QueueModule,
     CodingModule,
     SqlModule,
+    NosqlModule,
     ProctoringModule,
     AiEvaluationModule,
     SimulationModule,

@@ -1136,6 +1136,7 @@ function DriveDetailPage() {
                 [
                   { id: "MCQ", name: "Multiple Choice (MCQ)", icon: CheckCircle2, desc: "Evaluated deterministically" },
                   { id: "SQL", name: "SQL Queries", icon: Database, desc: "Evaluated via Judge0 DB" },
+                  { id: "NOSQL", name: "NoSQL Queries", icon: Database, desc: "Evaluated via isolated MongoDB sandbox" },
                   { id: "CODING", name: "Coding / DSA", icon: Code2, desc: "Evaluated via Judge0" },
                   { id: "DEBUGGING", name: "Debugging", icon: Bug, desc: "Evaluated via Judge0" },
                   { id: "AI_PROMPTING", name: "AI Prompting", icon: Bot, desc: "Evaluated via Groq/Cerebras" },
@@ -1461,7 +1462,7 @@ function DriveDetailPage() {
                 >
                   All Modules ({enabledModuleKeys.length})
                 </button>
-                {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION"] as const)
+                {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "NOSQL"] as const)
                   .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
                   .map((modKey) => {
                     const labelMap: Record<string, string> = {
@@ -1471,6 +1472,7 @@ function DriveDetailPage() {
                       DEBUGGING: "Debugging",
                       AI_PROMPTING: "AI Prompting",
                       SIMULATION: "Simulation",
+                      NOSQL: "NoSQL",
                     };
                     return (
                       <button
