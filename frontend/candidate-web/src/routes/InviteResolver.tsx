@@ -29,9 +29,9 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
         const { invite, drive, session } = await services.sessionApi.resolveInvite(token)
 
         // If session was already submitted or completed, lock access and show link expired screen
-        if (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED') {
+        if (session && (session.status === 'submitted' || (session as any).status === 'SUBMITTED' || (session as any).status === 'COMPLETED')) {
           setSession(session)
-          transitionTo({ type: 'expired', reason: 'already-submitted' })
+          transitionTo({ type: 'expired', reason: 'already-submitted' as any })
           return
         }
 
@@ -97,7 +97,7 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
               return
             } else if (nowMs > cutoffMs && !isSessionAlreadyStarted) {
               console.log('[InviteResolver] Candidate entered after 20-min grace window. Showing expired page.')
-              transitionTo({ type: 'expired', reason: 'grace-expired' })
+              transitionTo({ type: 'expired', reason: 'grace-expired' as any })
               return
             } else {
               // Candidate is in the valid active window — clear any stale far-future scheduled-ms

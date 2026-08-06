@@ -26,6 +26,7 @@ import { codingQuestions } from "./data/coding";
 import { aiPromptingQuestions } from "./data/aiPrompting";
 import { simulationQuestions } from "./data/simulation";
 import { debuggingQuestions } from "./data/debugging";
+import { nosqlQuestions } from "./data/nosql";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -39,11 +40,12 @@ const ROLE_NAME = "Software Developer";
  * These are used by the Correlation Engine (Phase 10) to compute the composite score.
  */
 const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
-  MCQ: 0.15,
+  MCQ: 0.10,
   SQL: 0.15,
+  NOSQL: 0.15,
   CODING: 0.25,
-  DEBUGGING: 0.15,
-  AI_PROMPTING: 0.15,
+  DEBUGGING: 0.10,
+  AI_PROMPTING: 0.10,
   SIMULATION: 0.15,
 };
 
@@ -69,6 +71,7 @@ function getAllQuestionSeedData(): Array<{
   return [
     ...mcqQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: q.difficulty, content: q.content })),
     ...sqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...nosqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
     ...codingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
     ...debuggingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
     ...aiPromptingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
@@ -180,6 +183,7 @@ async function main(): Promise<void> {
           moduleConfig: {
             MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
             SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
+            NOSQL: { enabled: true, durationMinutes: 15, weight: 0.15 },
             CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
             AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
             SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
@@ -224,6 +228,7 @@ async function main(): Promise<void> {
           moduleConfig: {
             MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
             SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
+            NOSQL: { enabled: true, durationMinutes: 15, weight: 0.15 },
             CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
             AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
             SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },

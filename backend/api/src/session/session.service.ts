@@ -624,6 +624,24 @@ export class SessionService {
       this.logger.warn(`Failed to reap workspace for session ${sessionId}: ${err.message}`);
     }
 
+    try {
+      const responses = await this.prisma.moduleResponse.findMany({
+        where: { sessionId, sandboxDbName: { not: null } },
+      });
+      for (const resp of responses) {
+        if (resp.sandboxDbName) {
+          await this.queueProvider.enqueueDelayed(
+            "heartbeat-monitor",
+            "drop-sandbox",
+            { sandboxDbName: resp.sandboxDbName },
+            { delayMs: 0 },
+          );
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to enqueue sandbox drop jobs on session close for session ${sessionId}: ${err.message}`);
+    }
+
     await this.prisma.eventLog.create({
       data: {
         sessionId,
@@ -786,6 +804,24 @@ export class SessionService {
       this.logger.warn(`Failed to reap workspace on autoSubmit for session ${sessionId}: ${err.message}`);
     }
 
+    try {
+      const responses = await this.prisma.moduleResponse.findMany({
+        where: { sessionId, sandboxDbName: { not: null } },
+      });
+      for (const resp of responses) {
+        if (resp.sandboxDbName) {
+          await this.queueProvider.enqueueDelayed(
+            "heartbeat-monitor",
+            "drop-sandbox",
+            { sandboxDbName: resp.sandboxDbName },
+            { delayMs: 0 },
+          );
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to enqueue sandbox drop jobs on autoSubmit for session ${sessionId}: ${err.message}`);
+    }
+
     this.logger.warn(
       `Session ${sessionId} AUTO_SUBMITTED — grace window expired`,
     );
@@ -925,6 +961,11 @@ export class SessionService {
 
     if (moduleType === "SQL") {
       const { expectedQuery: _eq, ...safe } = c;
+      return safe;
+    }
+
+    if (moduleType === "NOSQL") {
+      const { expectedOperation: _eo, ...safe } = c;
       return safe;
     }
 

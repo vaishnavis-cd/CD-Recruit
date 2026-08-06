@@ -21,6 +21,7 @@ enum ModuleType {
   DEBUGGING
   AI_PROMPTING
   SIMULATION
+  NOSQL
 }
 
 enum SessionStatus {
@@ -269,6 +270,9 @@ model ModuleResponse {
   timeSpentSeconds  Int?     @map("time_spent_seconds")
   isDraft           Boolean  @default(true) @map("is_draft") // true until real submit overwrites it
   lastAutosavedAt   DateTime? @map("last_autosaved_at")
+  sandboxDbName     String?   @map("sandbox_db_name")
+  lastOperation     Json?     @map("last_operation")
+  executionCount    Int       @default(0) @map("execution_count")
 
   session  Session  @relation(fields: [sessionId], references: [id])
   question Question @relation(fields: [questionId], references: [id])

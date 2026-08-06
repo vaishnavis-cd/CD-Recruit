@@ -333,6 +333,10 @@ export class SqlService implements AssessmentModuleEngine {
       const responsePayload = {
         moduleType: ModuleType.SQL,
         query: dto.query,
+        executionResult: {
+          passed,
+          status: passed ? "PASSED" : "FAILED",
+        },
       };
 
       await this.prisma.moduleResponse.upsert({
