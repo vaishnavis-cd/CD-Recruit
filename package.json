@@ -22,18 +22,26 @@
     "dev:correlation": "cd backend/correlation-engine && python -m uvicorn app.main:app --port 8000 --reload",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
+    "test:unit": "jest",
+    "test:api": "mocha ./tests/api/**/*.test.js",
+    "test:load": "k6 run ./tests/load/judge0_load_test.js",
+    "test:all": "npm-run-all --parallel test:unit test:api test:load",
     "db:generate": "npm --workspace=backend/api run prisma:generate",
     "db:migrate": "npm --workspace=backend/api run prisma:migrate",
     "db:seed": "npm --workspace=backend/api run prisma:seed",
     "db:studio": "npm --workspace=backend/api run prisma:studio"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
     "@prisma/engines": "^7.8.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "lint-staged": "^15.5.2",
     "prettier": "^3.9.5",
-    "typescript-eslint": "^8.64.0"
+    "typescript-eslint": "^8.64.0",
+    "jest": "^29.7.0",
+    "mocha": "^10.5.0",
+    "supertest": "^6.3.4"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -61,5 +69,8 @@
   "dependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.62.2"
   },
-  "allowScripts": {}
+  "allowScripts": {
+    "@nestjs/core@11.1.28": true,
+    "@scarf/scarf@1.4.0": true
+  }
 }
