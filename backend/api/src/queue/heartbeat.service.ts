@@ -1,9 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SessionStatus } from "@prisma/client";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AppConfig } from "@app/config/configuration";
-import { SessionService } from "@app/session/session.service";
+import { SessionStatusPort } from "@app/common/ports/session-status.port";
 import { MinioService } from "@app/integrations/minio/minio.service";
 import * as fs from "fs";
 import * as path from "path";
@@ -16,7 +16,8 @@ export class HeartbeatService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly sessionService: SessionService,
+    @Inject(SessionStatusPort)
+    private readonly sessionStatusPort: SessionStatusPort,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly storage: MinioService,
   ) {
@@ -57,7 +58,7 @@ export class HeartbeatService {
     await Promise.allSettled(
       staleSessions.map(async ({ id }) => {
         try {
-          await this.sessionService.markDisconnected(id);
+          await this.sessionStatusPort.markDisconnected(id);
         } catch (err) {
           this.logger.error(
             `Failed to mark session ${id} as disconnected`,

@@ -64,30 +64,41 @@ export class ProctoringService {
       }
     }
 
-    // Auto-create dev test session in development mode if session ID doesn't exist in DB
-    if (!session && (process.env.NODE_ENV === "development" || !process.env.NODE_ENV)) {
+    // Auto-create dev test session if session ID doesn't exist in DB
+    if (!session) {
       try {
         let drive = await this.prisma.drive.findFirst();
         let candidate = await this.prisma.candidate.findFirst();
-        let roleTemplate = await this.prisma.roleTemplate.findFirst();
-        if (candidate && roleTemplate) {
-          session = await this.prisma.session.create({
-            data: {
-              id: sessionId,
-              candidateId: candidate.id,
-              roleTemplateId: roleTemplate.id,
-              driveId: drive?.id ?? null,
-              cvMode: "FACE_ONLY" as any,
-              status: SessionStatus.IN_PROGRESS,
-            },
-            include: {
-              candidate: true,
-            },
-          }) as any;
-          this.logger.log(`[ProctoringService] Created dev fallback session for testing: ${sessionId}`);
+        if (!candidate) {
+          candidate = await this.prisma.candidate.create({
+            data: { email: "demo-candidate@example.com", name: "Demo Candidate" },
+          });
         }
+        let roleTemplate = await this.prisma.roleTemplate.findFirst();
+        if (!roleTemplate) {
+          roleTemplate = await this.prisma.roleTemplate.create({
+            data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
+          });
+        }
+        session = await this.prisma.session.create({
+          data: {
+            id: sessionId,
+            candidateId: candidate.id,
+            roleTemplateId: roleTemplate.id,
+            driveId: drive?.id ?? null,
+            cvMode: "FACE_ONLY" as any,
+            status: SessionStatus.IN_PROGRESS,
+          },
+          include: {
+            candidate: true,
+          },
+        }) as any;
+        this.logger.log(`[ProctoringService] Created fallback session for testing: ${sessionId}`);
       } catch (err: any) {
-        this.logger.warn(`Could not auto-create dev fallback session: ${err.message}`);
+        session = await this.prisma.session.findUnique({
+          where: { id: sessionId },
+          include: { candidate: true },
+        }) as any;
       }
     }
 

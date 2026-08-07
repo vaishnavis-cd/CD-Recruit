@@ -1,8 +1,8 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Logger } from "@nestjs/common";
+import { Logger, Inject } from "@nestjs/common";
 import { Job } from "bullmq";
 
-import { SessionService } from "@app/session/session.service";
+import { SessionStatusPort } from "@app/common/ports/session-status.port";
 
 /**
  * GraceWindowProcessor — auto-submits a session after the grace window expires.
@@ -12,7 +12,7 @@ import { SessionService } from "@app/session/session.service";
  *   delay: GRACE_WINDOW_SECONDS * 1000
  *   jobId: `grace-${sessionId}`   ← deterministic, prevents duplicates
  *
- * On execution, the processor calls SessionService.autoSubmit(), which:
+ * On execution, the processor calls SessionStatusPort.autoSubmit(), which:
  *   - Is a no-op if the session is no longer DISCONNECTED (candidate resumed)
  *   - Transitions to AUTO_SUBMITTED if still DISCONNECTED
  *   - Writes an AUTO_SUBMITTED EventLog entry
@@ -24,7 +24,10 @@ import { SessionService } from "@app/session/session.service";
 export class GraceWindowProcessor extends WorkerHost {
   private readonly logger = new Logger(GraceWindowProcessor.name);
 
-  constructor(private readonly sessionService: SessionService) {
+  constructor(
+    @Inject(SessionStatusPort)
+    private readonly sessionStatusPort: SessionStatusPort,
+  ) {
     super();
   }
 
@@ -34,6 +37,6 @@ export class GraceWindowProcessor extends WorkerHost {
       `grace-window job ${job.id}: auto-submit check for session ${sessionId}`,
     );
 
-    await this.sessionService.autoSubmit(sessionId);
+    await this.sessionStatusPort.autoSubmit(sessionId);
   }
 }

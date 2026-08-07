@@ -1,4 +1,4 @@
-import { Module, Global, forwardRef } from "@nestjs/common";
+import { Module, Global } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { QueueProviderPort } from "./queue-provider.port";
 import { BullmqQueueProvider } from "./bullmq-queue.provider";
@@ -24,7 +24,7 @@ const isFull = infraMode === "full";
           ),
         ]
       : []),
-    forwardRef(() => SessionModule),
+    SessionModule,
   ],
   providers: [
     ...(isFull

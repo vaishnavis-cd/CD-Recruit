@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
+import { ModuleResponse, CodingExecution, SQLExecution, Question } from "@prisma/client";
 
 export interface DriveModuleConfigEntry {
   enabled?: boolean;
@@ -24,6 +25,85 @@ export interface CompositeScoreResult {
   moduleScores: Record<string, number>;
 }
 
+// Local Interfaces for Strong Type Safety
+interface QuestionContentOptionObject {
+  text?: string;
+  label?: string;
+}
+
+type QuestionOption = string | QuestionContentOptionObject;
+
+interface QuestionContent {
+  correctOption?: string | number;
+  correctAnswer?: string | number;
+  correctIndex?: number;
+  answerIndex?: number;
+  options?: QuestionOption[];
+  [key: string]: unknown;
+}
+
+interface ExecutionResultPayload {
+  passed?: boolean;
+  matched?: boolean;
+  status?: string;
+  totalTests?: number;
+  passedTests?: number;
+}
+
+interface EvaluationPayload {
+  overallScore?: number;
+}
+
+interface ResponsePayload {
+  selectedOptions?: Array<string | number>;
+  selectedOption?: string | number;
+  selectedOptionIndex?: number;
+  selectedIndex?: number;
+  executionResult?: ExecutionResultPayload;
+  query?: string;
+  code?: string;
+  evaluation?: EvaluationPayload;
+  score?: number;
+  overallScore?: number;
+  prompt?: string;
+  messages?: unknown[];
+  actionLog?: unknown[];
+  response?: string;
+  selfConfidence?: number;
+  confidenceLevel?: number;
+  expectedScore?: number;
+  [key: string]: unknown;
+}
+
+interface QuestionScoreItem {
+  questionId: string;
+  accuracy: number;
+  pointShare?: number;
+}
+
+// Private Readonly Constants (Replacing Magic Numbers)
+const AUTOMATED_EVALUATION_ENGINE = "AUTOMATED_EVALUATION_ENGINE";
+
+const DEFAULT_MCQ_FALLBACK_SCORE = 0.8;
+const DEFAULT_CODING_FALLBACK_SCORE = 0.85;
+
+const SQL_STRICT_PASS_SCORE = 1.0;
+const SQL_LONG_QUERY_SCORE = 0.8;
+const SQL_SHORT_QUERY_SCORE = 0.4;
+const SQL_MIN_QUERY_LENGTH = 15;
+
+const CODING_FALLBACK_SCORE = 0.85;
+const CODING_MIN_LENGTH = 15;
+
+const AI_PROMPTING_FALLBACK_SCORE = 0.85;
+const SIMULATION_FALLBACK_SCORE = 0.85;
+
+const DEFAULT_SAY_DO_VALUE = 0.5;
+
+const AI_CONFIDENCE_COMPLETION_RATIO_WEIGHT = 0.7;
+const AI_CONFIDENCE_EXECUTION_BONUS = 0.2;
+const DEFAULT_AI_CONFIDENCE_THRESHOLD = 0.8;
+
 @Injectable()
 export class SessionScoringService {
   private readonly logger = new Logger(SessionScoringService.name);
@@ -38,6 +118,114 @@ export class SessionScoringService {
    * Evaluates candidate's module responses and test executions.
    */
   async computeSessionScores(sessionId: string): Promise<CompositeScoreResult> {
+    const session = await this.loadSession(sessionId);
+
+    const responses = session.moduleResponses || [];
+    const codingExecutions = session.codingExecutions || [];
+    const sqlExecutions = session.sqlExecutions || [];
+    const driveModuleConfig = (session.drive?.moduleConfig as unknown as Record<string, DriveModuleConfigEntry>) || {};
+    const driveQuestions = session.drive?.questions || [];
+    const dqMap = new Map(driveQuestions.map((dq) => [dq.questionId, dq]));
+
+    // Map pre-grouping for performance optimization (O(1) lookups)
+    const codingExecutionsMap = new Map<string, CodingExecution[]>();
+    for (const ce of codingExecutions) {
+      const list = codingExecutionsMap.get(ce.questionId) || [];
+      list.push(ce);
+      codingExecutionsMap.set(ce.questionId, list);
+    }
+
+    const sqlExecutionsMap = new Map<string, SQLExecution[]>();
+    for (const se of sqlExecutions) {
+      const list = sqlExecutionsMap.get(se.questionId) || [];
+      list.push(se);
+      sqlExecutionsMap.set(se.questionId, list);
+    }
+
+    // Group responses by module type via Question lookup
+    const questionIds = responses.map((r) => r.questionId);
+    const questions = await this.prisma.question.findMany({
+      where: { id: { in: questionIds } },
+    });
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+
+    // Track question-level evaluation results: mod -> array of { questionId, accuracy (0-1), pointShare }
+    const moduleQuestionScores: Record<string, QuestionScoreItem[]> = {};
+
+    for (const resp of responses) {
+      const q = questionMap.get(resp.questionId);
+      if (!q) continue;
+
+      const mod = q.moduleType;
+      if (!moduleQuestionScores[mod]) {
+        moduleQuestionScores[mod] = [];
+      }
+
+      const dq = dqMap.get(q.id);
+      const pointShare = dq?.pointShare !== null && dq?.pointShare !== undefined ? Number(dq.pointShare) : undefined;
+      const payload = resp.responsePayload as ResponsePayload | null;
+      const qContent = (q.content as QuestionContent) || {};
+
+      let accuracy = 0.0;
+
+      if (mod === "MCQ") {
+        accuracy = this.evaluateMCQ(payload, qContent);
+      } else if (mod === "SQL") {
+        accuracy = this.evaluateSQL(payload);
+      } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
+        accuracy = this.evaluateCoding(payload, codingExecutionsMap.get(q.id) || []);
+      } else if (mod === "AI_PROMPTING") {
+        accuracy = this.evaluateAIPrompting(payload);
+      } else if (mod === "SIMULATION") {
+        accuracy = this.evaluateSimulation(payload);
+      }
+
+      moduleQuestionScores[mod].push({
+        questionId: q.id,
+        accuracy: Math.max(0.0, Math.min(1.0, accuracy)),
+        pointShare,
+      });
+    }
+
+    const moduleScores = this.calculateModuleScores(moduleQuestionScores, driveModuleConfig);
+    const { coreScore, bonusScore, totalScore, compositeScore } = this.calculateCompositeScores(moduleScores, driveModuleConfig);
+    const { sayDoConsistencyScore, sayDoRationale } = this.calculateSayDoConsistency(
+      responses,
+      questionMap,
+      codingExecutionsMap,
+      sqlExecutionsMap,
+      moduleScores,
+      compositeScore,
+    );
+
+    const hasExecutions = codingExecutions.length > 0 || sqlExecutions.length > 0;
+    const aiConfidence = this.calculateAIConfidence(responses.length, questionIds.length, hasExecutions);
+
+    const result: CompositeScoreResult = {
+      coreScore,
+      bonusScore,
+      totalScore,
+      compositeScore,
+      sayDoConsistencyScore,
+      aiConfidence,
+      gradingSource: AUTOMATED_EVALUATION_ENGINE,
+      sayDoRationale,
+      moduleScores,
+    };
+
+    this.logger.debug(
+      `Computed session scores for session ${sessionId}: compositeScore=${compositeScore}, aiConfidence=${aiConfidence}, modulesCount=${Object.keys(moduleScores).length}`,
+    );
+
+    await this.saveScores(sessionId, result);
+
+    return result;
+  }
+
+  /**
+   * Load session from database with all relations required for scoring.
+   */
+  private async loadSession(sessionId: string) {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
@@ -57,124 +245,139 @@ export class SessionScoringService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    const responses = session.moduleResponses || [];
-    const moduleScores: Record<string, number> = {};
-    const driveModuleConfig = (session.drive?.moduleConfig as unknown as Record<string, DriveModuleConfigEntry>) || {};
-    const driveQuestions = session.drive?.questions || [];
-    const dqMap = new Map(driveQuestions.map((dq) => [dq.questionId, dq]));
+    return session;
+  }
 
-    // Group responses by module type via Question lookup
-    const questionIds = responses.map((r) => r.questionId);
-    const questions = await this.prisma.question.findMany({
-      where: { id: { in: questionIds } },
-    });
-    const questionMap = new Map(questions.map((q) => [q.id, q]));
+  /**
+   * Helper to round numeric values to two decimal places.
+   */
+  private roundToTwoDecimals(value: number): number {
+    return Math.round(value * 100) / 100;
+  }
 
-    // Track question-level evaluation results: mod -> array of { questionId, accuracy (0-1), pointShare }
-    const moduleQuestionScores: Record<string, Array<{ questionId: string; accuracy: number; pointShare?: number }>> = {};
-
-    for (const resp of responses) {
-      const q: any = questionMap.get(resp.questionId);
-      if (!q) continue;
-
-      const mod: string = q.moduleType;
-      if (!moduleQuestionScores[mod]) {
-        moduleQuestionScores[mod] = [];
-      }
-
-      const dq = dqMap.get(q.id);
-      const pointShare = (dq as any)?.pointShare !== null && (dq as any)?.pointShare !== undefined ? Number((dq as any).pointShare) : undefined;
-      let accuracy = 0.0;
-
-      // Robust Evaluation Rules per Module
-      if (mod === "MCQ") {
-        const payload = resp.responsePayload as any;
-        const qContent = (q.content as any) || {};
-
-        let selectedList: string[] = [];
-        if (Array.isArray(payload?.selectedOptions)) {
-          selectedList = payload.selectedOptions.map(String);
-        } else if (payload?.selectedOption !== undefined && payload?.selectedOption !== null) {
-          selectedList = [String(payload.selectedOption)];
-        } else if (payload?.selectedOptionIndex !== undefined) {
-          selectedList = [`opt_${payload.selectedOptionIndex}`, String(payload.selectedOptionIndex)];
-        } else if (payload?.selectedIndex !== undefined) {
-          selectedList = [`opt_${payload.selectedIndex}`, String(payload.selectedIndex)];
-        }
-
-        const correctTarget = qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? 0;
-        const options = Array.isArray(qContent.options) ? qContent.options : [];
-
-        let isCorrect = false;
-        if (selectedList.length > 0) {
-          isCorrect = selectedList.some((sel) => {
-            if (sel === String(correctTarget)) return true;
-            if (/^opt_\d+$/i.test(sel)) {
-              const idx = parseInt(sel.replace(/opt_/i, ""), 10);
-              if (idx === Number(correctTarget)) return true;
-            }
-            if (typeof correctTarget === "number" && options[correctTarget]) {
-              const optText = typeof options[correctTarget] === "string" ? options[correctTarget] : options[correctTarget].text || options[correctTarget].label;
-              if (optText && optText.trim().toLowerCase() === sel.trim().toLowerCase()) return true;
-            }
-            return false;
-          });
-        }
-
-        accuracy = isCorrect ? 1.0 : 0.0;
-      } else if (mod === "SQL") {
-        // Strict binary exact-match — no length-based partial credit
-        const payload = resp.responsePayload as any;
-        const execResult = payload?.executionResult;
-        if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
-          accuracy = 1.0;
-        } else {
-          const query = payload?.query || payload?.code || "";
-          if (query && query.trim().length > 15) {
-            accuracy = 0.8;
-          } else if (query && query.trim().length > 0) {
-            accuracy = 0.4;
-          }
-        }
-      } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
-        const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
-        const latestExec = executions[executions.length - 1];
-        const payload = resp.responsePayload as any;
-        const execResult = payload?.executionResult;
-
-        if (latestExec && latestExec.totalTests > 0) {
-          accuracy = latestExec.passedTests / latestExec.totalTests;
-        } else if (execResult && execResult.totalTests > 0) {
-          accuracy = execResult.passedTests / execResult.totalTests;
-        } else if (payload?.code && payload.code.trim().length > 15) {
-          accuracy = 0.85;
-        }
-      } else if (mod === "AI_PROMPTING") {
-        const payload = resp.responsePayload as any;
-        const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
-        if (typeof evalScore === "number") {
-          accuracy = evalScore > 1 ? evalScore / 100 : evalScore;
-        } else if (payload?.prompt || payload?.messages || payload?.response) {
-          accuracy = 0.85;
-        }
-      } else if (mod === "SIMULATION") {
-        const payload = resp.responsePayload as any;
-        const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
-        if (typeof evalScore === "number") {
-          accuracy = evalScore > 1 ? evalScore / 100 : evalScore;
-        } else if (payload?.messages || payload?.actionLog || payload?.response) {
-          accuracy = 0.85;
-        }
-      }
-
-      moduleQuestionScores[mod].push({
-        questionId: q.id,
-        accuracy: Math.max(0.0, Math.min(1.0, accuracy)),
-        pointShare,
-      });
+  /**
+   * Extract list of selected options from response payload.
+   */
+  private extractSelectedOptions(payload: ResponsePayload | null): string[] {
+    if (!payload) return [];
+    if (Array.isArray(payload.selectedOptions)) {
+      return payload.selectedOptions.map(String);
     }
+    if (payload.selectedOption !== undefined && payload.selectedOption !== null) {
+      return [String(payload.selectedOption)];
+    }
+    if (payload.selectedOptionIndex !== undefined) {
+      return [`opt_${payload.selectedOptionIndex}`, String(payload.selectedOptionIndex)];
+    }
+    if (payload.selectedIndex !== undefined) {
+      return [`opt_${payload.selectedIndex}`, String(payload.selectedIndex)];
+    }
+    return [];
+  }
 
-    // Layer 1: Compute normalized score per module (0.0 to 1.0)
+  /**
+   * Evaluate MCQ module accuracy (0.0 to 1.0).
+   */
+  private evaluateMCQ(payload: ResponsePayload | null, qContent: QuestionContent): number {
+    const selectedList = this.extractSelectedOptions(payload);
+    if (selectedList.length === 0) return 0.0;
+
+    const correctTarget = qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? 0;
+    const options = Array.isArray(qContent.options) ? qContent.options : [];
+
+    const isCorrect = selectedList.some((sel) => {
+      if (sel === String(correctTarget)) return true;
+      if (/^opt_\d+$/i.test(sel)) {
+        const idx = parseInt(sel.replace(/opt_/i, ""), 10);
+        if (idx === Number(correctTarget)) return true;
+      }
+      if (typeof correctTarget === "number" && options[correctTarget]) {
+        const targetOpt = options[correctTarget];
+        const optText = typeof targetOpt === "string" ? targetOpt : targetOpt.text || targetOpt.label;
+        if (optText && optText.trim().toLowerCase() === sel.trim().toLowerCase()) return true;
+      }
+      return false;
+    });
+
+    return isCorrect ? 1.0 : 0.0;
+  }
+
+  /**
+   * Evaluate SQL module accuracy (0.0 to 1.0).
+   */
+  private evaluateSQL(payload: ResponsePayload | null): number {
+    const execResult = payload?.executionResult;
+    if (execResult?.passed || execResult?.matched || execResult?.status === "SUCCESS") {
+      return SQL_STRICT_PASS_SCORE;
+    }
+    const query = payload?.query || payload?.code || "";
+    const trimmedLen = query.trim().length;
+    if (trimmedLen > SQL_MIN_QUERY_LENGTH) {
+      return SQL_LONG_QUERY_SCORE;
+    }
+    if (trimmedLen > 0) {
+      return SQL_SHORT_QUERY_SCORE;
+    }
+    return 0.0;
+  }
+
+  /**
+   * Evaluate CODING/DEBUGGING module accuracy (0.0 to 1.0).
+   */
+  private evaluateCoding(payload: ResponsePayload | null, questionExecutions: CodingExecution[] = []): number {
+    const latestExec = questionExecutions.length > 0 ? questionExecutions[questionExecutions.length - 1] : null;
+    const execResult = payload?.executionResult;
+
+    if (latestExec && latestExec.totalTests > 0) {
+      return latestExec.passedTests / latestExec.totalTests;
+    }
+    if (execResult && typeof execResult.totalTests === "number" && execResult.totalTests > 0 && typeof execResult.passedTests === "number") {
+      return execResult.passedTests / execResult.totalTests;
+    }
+    const code = payload?.code || "";
+    if (code.trim().length > CODING_MIN_LENGTH) {
+      return CODING_FALLBACK_SCORE;
+    }
+    return 0.0;
+  }
+
+  /**
+   * Evaluate AI_PROMPTING module accuracy (0.0 to 1.0).
+   */
+  private evaluateAIPrompting(payload: ResponsePayload | null): number {
+    const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+    if (typeof evalScore === "number") {
+      return evalScore > 1 ? evalScore / 100 : evalScore;
+    }
+    if (payload?.prompt || payload?.messages || payload?.response) {
+      return AI_PROMPTING_FALLBACK_SCORE;
+    }
+    return 0.0;
+  }
+
+  /**
+   * Evaluate SIMULATION module accuracy (0.0 to 1.0).
+   */
+  private evaluateSimulation(payload: ResponsePayload | null): number {
+    const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+    if (typeof evalScore === "number") {
+      return evalScore > 1 ? evalScore / 100 : evalScore;
+    }
+    if (payload?.messages || payload?.actionLog || payload?.response) {
+      return SIMULATION_FALLBACK_SCORE;
+    }
+    return 0.0;
+  }
+
+  /**
+   * Compute normalized score per module (0.0 to 1.0).
+   */
+  private calculateModuleScores(
+    moduleQuestionScores: Record<string, QuestionScoreItem[]>,
+    driveModuleConfig: Record<string, DriveModuleConfigEntry>,
+  ): Record<string, number> {
+    const moduleScores: Record<string, number> = {};
+
     for (const [mod, qScores] of Object.entries(moduleQuestionScores)) {
       if (qScores.length === 0) continue;
 
@@ -184,22 +387,29 @@ export class SessionScoringService {
 
       if (mode === "difficulty" && hasCustomShares) {
         const totalShareSum = qScores.reduce((sum, qs) => sum + (qs.pointShare || 0), 0);
-        const earnedShareSum = qScores.reduce((sum, qs) => sum + (qs.accuracy * (qs.pointShare || 0)), 0);
-        moduleScores[mod] = totalShareSum > 0 ? Math.round((earnedShareSum / totalShareSum) * 100) / 100 : 0.8;
+        const earnedShareSum = qScores.reduce((sum, qs) => sum + qs.accuracy * (qs.pointShare || 0), 0);
+        moduleScores[mod] = totalShareSum > 0 ? this.roundToTwoDecimals(earnedShareSum / totalShareSum) : DEFAULT_MCQ_FALLBACK_SCORE;
       } else {
-        // Equal split within module
         const totalAcc = qScores.reduce((sum, qs) => sum + qs.accuracy, 0);
-        moduleScores[mod] = Math.round((totalAcc / qScores.length) * 100) / 100;
+        moduleScores[mod] = this.roundToTwoDecimals(totalAcc / qScores.length);
       }
     }
 
-    // Default fallback values if no module responses were recorded
     if (Object.keys(moduleScores).length === 0) {
-      moduleScores["MCQ"] = 0.8;
-      moduleScores["CODING"] = 0.85;
+      moduleScores["MCQ"] = DEFAULT_MCQ_FALLBACK_SCORE;
+      moduleScores["CODING"] = DEFAULT_CODING_FALLBACK_SCORE;
     }
 
-    // Layer 2: Core vs Bonus composite weighted score calculation
+    return moduleScores;
+  }
+
+  /**
+   * Compute core, bonus, total, and composite scores.
+   */
+  private calculateCompositeScores(
+    moduleScores: Record<string, number>,
+    driveModuleConfig: Record<string, DriveModuleConfigEntry>,
+  ) {
     let coreScore = 0;
     let bonusScore = 0;
 
@@ -213,35 +423,49 @@ export class SessionScoringService {
       }
     }
 
-    coreScore = Math.round(coreScore * 100) / 100;
-    bonusScore = Math.round(bonusScore * 100) / 100;
-    const totalScore = Math.round((coreScore + bonusScore) * 100) / 100;
+    coreScore = this.roundToTwoDecimals(coreScore);
+    bonusScore = this.roundToTwoDecimals(bonusScore);
+    const totalScore = this.roundToTwoDecimals(coreScore + bonusScore);
     const compositeScore = totalScore;
 
-    // Authentic Say-Do Consistency Calculation
+    return { coreScore, bonusScore, totalScore, compositeScore };
+  }
+
+  /**
+   * Compute authentic Say-Do consistency metric and rationale.
+   */
+  private calculateSayDoConsistency(
+    responses: ModuleResponse[],
+    questionMap: Map<string, Question>,
+    codingExecutionsMap: Map<string, CodingExecution[]>,
+    sqlExecutionsMap: Map<string, SQLExecution[]>,
+    moduleScores: Record<string, number>,
+    compositeScore: number,
+  ): { sayDoConsistencyScore: number; sayDoRationale: string } {
     const sayDoDivergences: number[] = [];
 
     for (const resp of responses) {
-      const payload = resp.responsePayload as any;
+      const payload = resp.responsePayload as ResponsePayload | null;
       const q = questionMap.get(resp.questionId);
       if (!q || !payload) continue;
 
       const sayValue = payload.selfConfidence ?? payload.confidenceLevel ?? payload.expectedScore;
       if (typeof sayValue === "number") {
         const normalizedSay = sayValue > 1 ? sayValue / 100 : sayValue;
-        
-        let doValue = 0.5;
+
+        let doValue = DEFAULT_SAY_DO_VALUE;
         if (q.moduleType === "MCQ") {
-          const selectedIndex = payload?.selectedOptionIndex ?? payload?.selectedIndex;
-          const correctIndex = (q.content as any)?.correctIndex ?? (q.content as any)?.answerIndex ?? 0;
+          const selectedIndex = payload.selectedOptionIndex ?? payload.selectedIndex;
+          const qContent = (q.content as QuestionContent) || {};
+          const correctIndex = qContent.correctIndex ?? qContent.answerIndex ?? 0;
           doValue = selectedIndex === correctIndex ? 1.0 : 0.0;
         } else if (q.moduleType === "CODING") {
-          const execs = session.codingExecutions.filter((ce) => ce.questionId === q.id);
-          const lastExec = execs[execs.length - 1];
+          const execs = codingExecutionsMap.get(q.id) || [];
+          const lastExec = execs.length > 0 ? execs[execs.length - 1] : null;
           doValue = lastExec && lastExec.totalTests > 0 ? lastExec.passedTests / lastExec.totalTests : 0.0;
         } else if (q.moduleType === "SQL") {
-          const sqlExecs = session.sqlExecutions ? session.sqlExecutions.filter((se) => se.questionId === q.id) : [];
-          const lastSql = sqlExecs[sqlExecs.length - 1];
+          const sqlExecs = sqlExecutionsMap.get(q.id) || [];
+          const lastSql = sqlExecs.length > 0 ? sqlExecs[sqlExecs.length - 1] : null;
           doValue = lastSql ? (lastSql.status === "COMPLETED" ? 1.0 : 0.0) : 0.0;
         } else {
           doValue = 0.0;
@@ -258,81 +482,63 @@ export class SessionScoringService {
     const scoreValues = Object.values(moduleScores);
     if (sayDoDivergences.length > 0) {
       const meanDivergence = sayDoDivergences.reduce((a, b) => a + b, 0) / sayDoDivergences.length;
-      sayDoConsistencyScore = Math.max(0.0, Math.round((1.0 - meanDivergence) * 100) / 100);
+      sayDoConsistencyScore = Math.max(0.0, this.roundToTwoDecimals(1.0 - meanDivergence));
       sayDoRationale = `Calculated from ${sayDoDivergences.length} candidate self-assessments ("Say") vs actual execution results ("Do").`;
     } else if (scoreValues.length > 1) {
       const mean = scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length;
       const variance = scoreValues.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scoreValues.length;
       const stdDev = Math.sqrt(variance);
-      sayDoConsistencyScore = Math.max(0.0, Math.round((1.0 - stdDev) * 100) / 100);
-      sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${Math.round(stdDev * 100) / 100}).`;
+      sayDoConsistencyScore = Math.max(0.0, this.roundToTwoDecimals(1.0 - stdDev));
+      sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${this.roundToTwoDecimals(stdDev)}).`;
     } else {
       sayDoConsistencyScore = Math.min(1.0, compositeScore / 100);
       sayDoRationale = `Evaluated candidate performance across ${responses.length} response(s).`;
     }
 
-    // Calculate dynamic AI Confidence score based on evaluation data completeness and test executions
-    let aiConfidence = 0.0;
-    if (responses.length > 0) {
-      const completionRatio = Math.min(1.0, responses.length / Math.max(1, questionIds.length));
-      const hasExecutions = (session.codingExecutions && session.codingExecutions.length > 0) || (session.sqlExecutions && session.sqlExecutions.length > 0);
-      const executionBonus = hasExecutions ? 0.2 : 0.0;
-      aiConfidence = Math.min(1.0, Math.round((0.7 * completionRatio + executionBonus) * 100) / 100);
-    }
+    return { sayDoConsistencyScore, sayDoRationale };
+  }
 
-    const result: CompositeScoreResult = {
-      coreScore,
-      bonusScore,
-      totalScore,
-      compositeScore,
-      sayDoConsistencyScore,
-      aiConfidence,
-      gradingSource: "AUTOMATED_EVALUATION_ENGINE",
-      sayDoRationale,
-      moduleScores,
-    };
+  /**
+   * Compute dynamic AI Confidence score based on evaluation completeness and test executions.
+   */
+  private calculateAIConfidence(responsesCount: number, questionIdsCount: number, hasExecutions: boolean): number {
+    if (responsesCount === 0) return 0.0;
 
-    // Save to DB
-    await this.saveScores(sessionId, result);
+    const completionRatio = Math.min(1.0, responsesCount / Math.max(1, questionIdsCount));
+    const executionBonus = hasExecutions ? AI_CONFIDENCE_EXECUTION_BONUS : 0.0;
+    const rawConfidence = AI_CONFIDENCE_COMPLETION_RATIO_WEIGHT * completionRatio + executionBonus;
 
-    return result;
+    return Math.min(1.0, this.roundToTwoDecimals(rawConfidence));
   }
 
   /**
    * Persist computed scores in database and route confidence gating.
    */
-  async saveScores(sessionId: string, scoreData: CompositeScoreResult) {
+  async saveScores(sessionId: string, scoreData: CompositeScoreResult): Promise<void> {
     const scoringConfig = await this.settingsService.getScoringConfig();
-    const threshold = scoringConfig.aiConfidenceThreshold ?? 0.8;
+    const threshold = scoringConfig.aiConfidenceThreshold ?? DEFAULT_AI_CONFIDENCE_THRESHOLD;
     const isAutoPublished = scoreData.aiConfidence >= threshold;
+
+    const data = {
+      compositeScore: scoreData.compositeScore,
+      coreScore: scoreData.coreScore,
+      bonusScore: scoreData.bonusScore,
+      totalScore: scoreData.totalScore,
+      sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
+      aiConfidence: scoreData.aiConfidence,
+      humanReviewed: isAutoPublished,
+      gradingSource: scoreData.gradingSource,
+      sayDoRationale: scoreData.sayDoRationale,
+      moduleScores: scoreData.moduleScores as any,
+    };
 
     await this.prisma.score.upsert({
       where: { sessionId },
       create: {
         session: { connect: { id: sessionId } },
-        compositeScore: scoreData.compositeScore,
-        coreScore: scoreData.coreScore,
-        bonusScore: scoreData.bonusScore,
-        totalScore: scoreData.totalScore,
-        sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
-        aiConfidence: scoreData.aiConfidence,
-        humanReviewed: isAutoPublished,
-        gradingSource: scoreData.gradingSource,
-        sayDoRationale: scoreData.sayDoRationale,
-        moduleScores: scoreData.moduleScores as any,
+        ...data,
       },
-      update: {
-        compositeScore: scoreData.compositeScore,
-        coreScore: scoreData.coreScore,
-        bonusScore: scoreData.bonusScore,
-        totalScore: scoreData.totalScore,
-        sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
-        aiConfidence: scoreData.aiConfidence,
-        humanReviewed: isAutoPublished,
-        gradingSource: scoreData.gradingSource,
-        sayDoRationale: scoreData.sayDoRationale,
-        moduleScores: scoreData.moduleScores as any,
-      },
+      update: data,
     });
   }
 }
