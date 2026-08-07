@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { SessionLogService, SimulationSession } from "./session-log.service";
 import { EventGenerationService } from "./event-generation.service";
@@ -8,6 +8,7 @@ import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { SimulationTelemetryService, TelemetryEventType } from "./simulation-telemetry.service";
 import { ContextSimulationEvaluatorService, FullSimulationEvaluationResult } from "./context-simulation-evaluator.service";
+import { MinioService } from "../integrations/minio/minio.service";
 import { execFile } from "child_process";
 import * as vm from "vm";
 import * as fs from "fs"; 
@@ -51,6 +52,7 @@ export class SimulationService implements AssessmentModuleEngine {
     private sandboxOrchestrator: SandboxOrchestratorService,
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,
+    @Optional() private minioService?: MinioService,
   ) {}
 
   /**
@@ -170,7 +172,7 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   private async persistSessionSnapshot(sessionId: string): Promise<void> {
     const state = await this.getOrCreateSessionState(sessionId);
-    const telemetry = this.telemetryService.getEventStream(sessionId);
+    const telemetry = await this.telemetryService.getEventStreamAsync(sessionId);
     const actions = await this.getCandidateActions(sessionId);
 
     try {
@@ -184,6 +186,7 @@ export class SimulationService implements AssessmentModuleEngine {
             inboxMessages: state.inboxMessages,
             telemetryCount: Math.max(telemetry.length, actions.length),
             telemetryActions: actions,
+            rawTelemetryEvents: telemetry,
             lastUpdated: new Date().toISOString(),
           } as any,
         },
@@ -557,7 +560,7 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   async submitSimulation(sessionId: string, submissionPayload?: any): Promise<FullSimulationEvaluationResult> {
     const state = await this.getOrCreateSessionState(sessionId);
-    const telemetryEvents = this.telemetryService.getEventStream(sessionId);
+    const telemetryEvents = await this.telemetryService.getEventStreamAsync(sessionId);
 
     // Extract test results if present in submission payload
     const testResults = submissionPayload?.testResults || null;
@@ -676,6 +679,31 @@ export class SimulationService implements AssessmentModuleEngine {
       });
     } catch (scoreErr: any) {
       this.logger.warn(`[submitSimulation] Score upsert failed: ${scoreErr.message}`);
+    }
+
+    // Archive session telemetry & evaluation log bundle to MinIO if object storage is enabled
+    if (this.minioService) {
+      try {
+        const logBundle = {
+          sessionId,
+          evaluatedAt: evaluation.evaluatedAt,
+          initialSayText: state.initialSayText,
+          emailReplyText: state.emailReplyText,
+          evaluation,
+          telemetryEvents,
+          actionTimeline: evaluation.actionTimeline,
+        };
+        const buffer = Buffer.from(JSON.stringify(logBundle, null, 2), "utf8");
+        await this.minioService.putObject(
+          "cd-recruit-general",
+          `logs/simulation/session-log-${sessionId}.json`,
+          buffer,
+          { "Content-Type": "application/json" } as any,
+        );
+        this.logger.log(`[MinIO Log Archive] Successfully stored logs/simulation/session-log-${sessionId}.json`);
+      } catch (minioErr: any) {
+        this.logger.warn(`[MinIO Log Archive] Warning: could not archive session log: ${minioErr.message}`);
+      }
     }
 
     await this.persistSessionSnapshot(sessionId);
