@@ -1,0 +1,36 @@
+# prometheus.yml
+# Scrape config for the full observability stack. Target hostnames assume
+# these services share a docker network with the CD-Recruit stack (see
+# docker-compose.observability.yml NETWORK_NAME note - you must attach
+# this compose file to the SAME network as docker-compose.dev.yml /
+# docker-compose.judge0.yml, or these container-name targets won't resolve.
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # k6 pushes metrics here via --out experimental-prometheus-rw, it does not
+  # get scraped - remote_write is configured on k6's side, not here. This
+  # job is left out intentionally; k6 metrics arrive via the remote-write
+  # receiver enabled below.
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'redis_exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'postgres_exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'judge0_exporter'
+    static_configs:
+      - targets: ['judge0-exporter:9235']

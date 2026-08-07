@@ -1,0 +1,102 @@
+{
+  "title": "CD-Recruit Load Test",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "title": "k6: Journey step latency (p90 / p95)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "histogram_quantile(0.90, sum(rate(k6_step_coding_total_bucket[1m])) by (le))", "legendFormat": "coding p90" },
+        { "expr": "histogram_quantile(0.95, sum(rate(k6_step_coding_total_bucket[1m])) by (le))", "legendFormat": "coding p95" },
+        { "expr": "histogram_quantile(0.90, sum(rate(k6_step_session_start_bucket[1m])) by (le))", "legendFormat": "session_start p90" },
+        { "expr": "histogram_quantile(0.95, sum(rate(k6_step_final_submit_bucket[1m])) by (le))", "legendFormat": "final_submit p95" }
+      ]
+    },
+    {
+      "id": 2, "title": "k6: Error rate & VUs", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(k6_journey_errors[1m]))", "legendFormat": "journey error rate" },
+        { "expr": "k6_vus", "legendFormat": "active VUs" }
+      ]
+    },
+    {
+      "id": 3, "title": "Judge0: Queue depth & busy workers (THE key correlation chart)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "judge0_queue_size", "legendFormat": "queue size ({{queue}})" },
+        { "expr": "judge0_workers_busy", "legendFormat": "busy workers ({{queue}})" },
+        { "expr": "judge0_workers_available", "legendFormat": "available workers ({{queue}})" }
+      ]
+    },
+    {
+      "id": 4, "title": "Containers: CPU % by container", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{name!=\"\"}[1m])) by (name) * 100", "legendFormat": "{{name}}" }
+      ]
+    },
+    {
+      "id": 5, "title": "Containers: Memory usage by container", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "container_memory_usage_bytes{name!=\"\"}", "legendFormat": "{{name}}" }
+      ]
+    },
+    {
+      "id": 6, "title": "Redis: ops/sec & memory", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        { "expr": "rate(redis_commands_processed_total[1m])", "legendFormat": "ops/sec" },
+        { "expr": "redis_memory_used_bytes", "legendFormat": "memory used" }
+      ]
+    },
+    {
+      "id": 7, "title": "Postgres: connections & slow queries", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        { "expr": "pg_stat_activity_count", "legendFormat": "active connections" },
+        { "expr": "pg_stat_database_tup_returned", "legendFormat": "rows returned" }
+      ]
+    },
+    {
+      "id": 8, "title": "Host: CPU / memory / disk I/O", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "targets": [
+        { "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)", "legendFormat": "CPU busy %" },
+        { "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100", "legendFormat": "memory used %" },
+        { "expr": "rate(node_disk_io_time_seconds_total[1m]) * 100", "legendFormat": "disk busy % ({{device}})" }
+      ]
+    },
+    {
+      "id": 9, "title": "Host: Disk throughput & IOPS", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "targets": [
+        { "expr": "rate(node_disk_read_bytes_total[1m])", "legendFormat": "read bytes/s ({{device}})" },
+        { "expr": "rate(node_disk_written_bytes_total[1m])", "legendFormat": "write bytes/s ({{device}})" },
+        { "expr": "rate(node_disk_reads_completed_total[1m])", "legendFormat": "read IOPS ({{device}})" },
+        { "expr": "rate(node_disk_writes_completed_total[1m])", "legendFormat": "write IOPS ({{device}})" }
+      ]
+    },
+    {
+      "id": 10, "title": "Per-container disk I/O (judge0 sandbox churn shows here)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "targets": [
+        { "expr": "sum(rate(container_fs_writes_bytes_total{name!=\"\"}[1m])) by (name)", "legendFormat": "write bytes/s {{name}}" },
+        { "expr": "sum(rate(container_fs_reads_bytes_total{name!=\"\"}[1m])) by (name)", "legendFormat": "read bytes/s {{name}}" }
+      ]
+    },
+    {
+      "id": 11, "title": "Judge0: sandbox spin-up latency proxy (queue wait from k6)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+      "targets": [
+        { "expr": "histogram_quantile(0.90, sum(rate(k6_step_judge0_queue_wait_bucket[1m])) by (le))", "legendFormat": "judge0 queue wait p90" },
+        { "expr": "histogram_quantile(0.95, sum(rate(k6_step_judge0_queue_wait_bucket[1m])) by (le))", "legendFormat": "judge0 queue wait p95" },
+        { "expr": "judge0_queue_size", "legendFormat": "queue size ({{queue}})" }
+      ]
+    }
+  ]
+}

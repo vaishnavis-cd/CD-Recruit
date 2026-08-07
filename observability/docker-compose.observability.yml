@@ -1,0 +1,103 @@
+# docker-compose.observability.yml
+#
+# Run alongside your existing stack:
+#   docker compose -f observability/docker-compose.observability.yml up -d
+#
+# IMPORTANT: this must share a network with docker-compose.dev.yml /
+# docker-compose.judge0.yml so redis-exporter/postgres-exporter/
+# judge0-exporter/cadvisor can resolve those container names. Find the
+# real network name with:
+#   docker network ls | grep cdrecruit
+# then replace CHANGE_ME_NETWORK_NAME below. If your compose files don't
+# already define a named network, add `networks: default: name: cdrecruit-net`
+# to docker-compose.dev.yml so both stacks can share it.
+#
+# Also double-check your Postgres port: README.md says 5434, .env.example
+# says 5433 - these disagree. Confirm the real one with `docker ps` before
+# wiring DATA_SOURCE_NAME below (internal container port is almost
+# certainly 5432 regardless of the host-mapped port, which is what
+# matters here since this runs on the same docker network).
+
+networks:
+  default:
+    external: true
+    name: CHANGE_ME_NETWORK_NAME
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'  # required so k6 can push directly
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - '9090:9090'
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: 'Admin'
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - '3300:3000' # avoid clashing with admin-web on 3000
+    depends_on:
+      - prometheus
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - '8081:8080' # host 8080 likely taken by Keycloak
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    ports:
+      - '9100:9100'
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    environment:
+      REDIS_ADDR: 'redis://redis:6379' # replace 'redis' with your real container name
+    ports:
+      - '9121:9121'
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit?sslmode=disable'
+      # replace 'postgres' with your real container name; internal port is
+      # 5432 regardless of the 5433/5434 host mapping discrepancy noted above
+    ports:
+      - '9187:9187'
+
+  judge0-exporter:
+    build: ./judge0_exporter
+    environment:
+      JUDGE0_URL: 'http://judge0-server:2358' # replace with your real judge0 container name
+      POLL_INTERVAL_S: '5'
+    ports:
+      - '9235:9235'
+
+volumes:
+  prometheus-data:
+  grafana-data:
