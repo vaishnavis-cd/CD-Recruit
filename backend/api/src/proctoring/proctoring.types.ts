@@ -6,17 +6,17 @@ export { ProctoringEventType, ProctoringUploadStatus };
 
 export class CreateProctoringEventDto {
   @ApiPropertyOptional({
-    description: "Optional pre-generated event ID (UUID)",
+    description: "Optional pre-generated event ID",
   })
-  @IsUUID()
+  @IsString()
   @IsOptional()
   id?: string;
 
   @ApiPropertyOptional({
-    description: "Session ID (UUID) linked to the assessment session",
+    description: "Session ID linked to the assessment session",
     example: "f7d79b94-8173-45c1-9d10-3882775a2d04",
   })
-  @IsUUID()
+  @IsString()
   @IsOptional()
   sessionId?: string;
 

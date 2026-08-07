@@ -1,0 +1,192 @@
+[
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Write a query to retrieve the names of all employees who earn more than the average salary of their respective departments.",
+      "schema": "\n        CREATE TABLE departments (\n          id INT PRIMARY KEY,\n          name VARCHAR(50)\n        );\n        CREATE TABLE employees (\n          id INT PRIMARY KEY,\n          name VARCHAR(50),\n          salary DECIMAL(10, 2),\n          department_id INT REFERENCES departments(id)\n        );\n      ",
+      "seedData": "\n        INSERT INTO departments VALUES (1, 'Engineering'), (2, 'Sales'), (3, 'HR');\n        INSERT INTO employees VALUES \n          (1, 'Alice', 95000.00, 1),\n          (2, 'Bob', 80000.00, 1),\n          (3, 'Charlie', 110000.00, 1),\n          (4, 'David', 60000.00, 2),\n          (5, 'Eve', 75000.00, 2),\n          (6, 'Frank', 50000.00, 3);\n      ",
+      "expectedQuery": "\n        SELECT e.name \n        FROM employees e\n        WHERE e.salary > (\n          SELECT AVG(sub.salary) \n          FROM employees sub \n          WHERE sub.department_id = e.department_id\n        );\n      ",
+      "explanation": "A correlated subquery or a JOIN with an aggregated subquery matches each employee's salary against the average salary for their department."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find all users who registered in the last 30 days (relative to '2026-07-14') and have placed at least 3 orders. Return user_id, email, and the order count.",
+      "schema": "\n        CREATE TABLE users (\n          id INT PRIMARY KEY,\n          email VARCHAR(100),\n          created_at DATE\n        );\n        CREATE TABLE orders (\n          id INT PRIMARY KEY,\n          user_id INT REFERENCES users(id),\n          ordered_at DATE\n        );\n      ",
+      "seedData": "\n        INSERT INTO users VALUES \n          (1, 'user1@test.com', '2026-07-01'),\n          (2, 'user2@test.com', '2026-06-01'),\n          (3, 'user3@test.com', '2026-07-10'),\n          (4, 'user4@test.com', '2026-07-05');\n        INSERT INTO orders VALUES\n          (101, 1, '2026-07-02'), (102, 1, '2026-07-03'), (103, 1, '2026-07-04'),\n          (104, 2, '2026-06-05'), (105, 2, '2026-06-10'), (106, 2, '2026-06-15'),\n          (107, 3, '2026-07-11'), (108, 3, '2026-07-12'),\n          (109, 4, '2026-07-06'), (110, 4, '2026-07-07'), (111, 4, '2026-07-08'), (112, 4, '2026-07-09');\n      ",
+      "expectedQuery": "\n        SELECT u.id AS user_id, u.email, COUNT(o.id) AS order_count\n        FROM users u\n        JOIN orders o ON u.id = o.user_id\n        WHERE u.created_at >= '2026-07-14'::date - INTERVAL '30 days'\n        GROUP BY u.id, u.email\n        HAVING COUNT(o.id) >= 3;\n      ",
+      "explanation": "Filters users using a date interval comparison, groups by user fields, and applies HAVING COUNT(o.id) >= 3 to filter group aggregations."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "For each order, calculate the running total of sales revenue by transaction date. Return order_id, transaction_date, amount, and running_total.",
+      "schema": "\n        CREATE TABLE sales (\n          id INT PRIMARY KEY,\n          amount DECIMAL(12, 2),\n          transaction_date DATE\n        );\n      ",
+      "seedData": "\n        INSERT INTO sales VALUES \n          (1, 150.00, '2026-07-01'),\n          (2, 200.00, '2026-07-02'),\n          (3, 50.00, '2026-07-03'),\n          (4, 300.00, '2026-07-04');\n      ",
+      "expectedQuery": "\n        SELECT id AS order_id, transaction_date, amount,\n               SUM(amount) OVER (ORDER BY transaction_date, id) AS running_total\n        FROM sales\n        ORDER BY transaction_date, id;\n      ",
+      "explanation": "Uses the SUM window function OVER an ordered partition of transaction dates to produce a cumulative running total."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Identify duplicate email addresses in the candidates table. Return the email and the duplicate count, sorted by count descending.",
+      "schema": "\n        CREATE TABLE candidates (\n          id INT PRIMARY KEY,\n          email VARCHAR(100)\n        );\n      ",
+      "seedData": "\n        INSERT INTO candidates VALUES \n          (1, 'alice@test.com'),\n          (2, 'bob@test.com'),\n          (3, 'alice@test.com'),\n          (4, 'charlie@test.com'),\n          (5, 'bob@test.com'),\n          (6, 'bob@test.com');\n      ",
+      "expectedQuery": "\n        SELECT email, COUNT(*) AS duplicate_count\n        FROM candidates\n        GROUP BY email\n        HAVING COUNT(*) > 1\n        ORDER BY duplicate_count DESC;\n      ",
+      "explanation": "Groups by email, filters with HAVING count > 1, and orders by count descending."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find the second highest salary from the employees table. Return a single column and row named second_highest_salary. If no second highest salary exists, return NULL.",
+      "schema": "\n        CREATE TABLE employees (\n          id INT PRIMARY KEY,\n          salary DECIMAL(10, 2)\n        );\n      ",
+      "seedData": "\n        INSERT INTO employees VALUES (1, 90000.00), (2, 90000.00), (3, 80000.00), (4, 110000.00);\n      ",
+      "expectedQuery": "\n        SELECT MAX(salary) AS second_highest_salary\n        FROM employees\n        WHERE salary < (SELECT MAX(salary) FROM employees);\n      ",
+      "explanation": "Using a subquery to find the absolute max, and selecting the max salary that is strictly less than that value yields the second highest salary (handles ties correctly)."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Retrieve the top 3 selling products by total revenue. Return product_id, name, and total_revenue.",
+      "schema": "\n        CREATE TABLE products (\n          id INT PRIMARY KEY,\n          name VARCHAR(100)\n        );\n        CREATE TABLE order_items (\n          id INT PRIMARY KEY,\n          product_id INT REFERENCES products(id),\n          quantity INT,\n          price_per_unit DECIMAL(10, 2)\n        );\n      ",
+      "seedData": "\n        INSERT INTO products VALUES (1, 'Laptop'), (2, 'Mouse'), (3, 'Keyboard'), (4, 'Monitor');\n        INSERT INTO order_items VALUES \n          (10, 1, 2, 1000.00),\n          (11, 2, 5, 25.00),\n          (12, 3, 3, 75.00),\n          (13, 1, 1, 1000.00),\n          (14, 4, 4, 250.00);\n      ",
+      "expectedQuery": "\n        SELECT p.id AS product_id, p.name, SUM(oi.quantity * oi.price_per_unit) AS total_revenue\n        FROM products p\n        JOIN order_items oi ON p.id = oi.product_id\n        GROUP BY p.id, p.name\n        ORDER BY total_revenue DESC\n        LIMIT 3;\n      ",
+      "explanation": "Multiplies quantity and price, groups by product, orders by total sum descending, and limits results to 3."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "List all projects and the count of employees assigned to each. Include projects that have no employees assigned. Sort by employee count descending.",
+      "schema": "\n        CREATE TABLE projects (\n          id INT PRIMARY KEY,\n          name VARCHAR(100)\n        );\n        CREATE TABLE project_assignments (\n          project_id INT REFERENCES projects(id),\n          employee_id INT\n        );\n      ",
+      "seedData": "\n        INSERT INTO projects VALUES (1, 'Project Alpha'), (2, 'Project Beta'), (3, 'Project Gamma');\n        INSERT INTO project_assignments VALUES (1, 101), (1, 102), (2, 103);\n      ",
+      "expectedQuery": "\n        SELECT p.name, COUNT(pa.employee_id) AS employee_count\n        FROM projects p\n        LEFT JOIN project_assignments pa ON p.id = pa.project_id\n        GROUP BY p.id, p.name\n        ORDER BY employee_count DESC;\n      ",
+      "explanation": "Uses a LEFT JOIN to ensure projects with zero assignments are not omitted, aggregating count of employee IDs rather than COUNT(*)."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find all employees who report directly to a manager who reports to the CEO (represented by manager_id IS NULL). Do not list the CEO or the immediate managers themselves.",
+      "schema": "\n        CREATE TABLE employees (\n          id INT PRIMARY KEY,\n          name VARCHAR(50),\n          manager_id INT\n        );\n      ",
+      "seedData": "\n        INSERT INTO employees VALUES \n          (1, 'CEO Arthur', NULL),\n          (2, 'Manager Beatrice', 1),\n          (3, 'Manager Charles', 1),\n          (4, 'Dev Daniel', 2),\n          (5, 'Dev Ethan', 2),\n          (6, 'Dev Frank', 3),\n          (7, 'Intern Grace', 4);\n      ",
+      "expectedQuery": "\n        SELECT name\n        FROM employees\n        WHERE manager_id IN (\n          SELECT id \n          FROM employees \n          WHERE manager_id = (SELECT id FROM employees WHERE manager_id IS NULL)\n        );\n      ",
+      "explanation": "Retrieves employees whose manager's manager is the node with no parent (the CEO)."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Calculate the net price of each order item, considering item discount and an order-wide shipping cost distributed evenly across items. Return order_id, item_id, and final_net_price.",
+      "schema": "\n        CREATE TABLE orders (\n          id INT PRIMARY KEY,\n          shipping_cost DECIMAL(10, 2)\n        );\n        CREATE TABLE order_items (\n          id INT PRIMARY KEY,\n          order_id INT REFERENCES orders(id),\n          price DECIMAL(10, 2),\n          discount DECIMAL(10, 2)\n        );\n      ",
+      "seedData": "\n        INSERT INTO orders VALUES (1, 15.00), (2, 5.00);\n        INSERT INTO order_items VALUES \n          (101, 1, 100.00, 10.00),\n          (102, 1, 50.00, 0.00),\n          (103, 1, 30.00, 5.00),\n          (104, 2, 20.00, 0.00);\n      ",
+      "expectedQuery": "\n        WITH item_counts AS (\n          SELECT order_id, COUNT(*) AS item_count\n          FROM order_items\n          GROUP BY order_id\n        )\n        SELECT oi.order_id, oi.id AS item_id,\n               (oi.price - oi.discount + (o.shipping_cost / ic.item_count)) AS final_net_price\n        FROM order_items oi\n        JOIN orders o ON oi.order_id = o.id\n        JOIN item_counts ic ON oi.order_id = ic.order_id;\n      ",
+      "explanation": "Uses a CTE to count items per order, then joins to distribute the shipping cost proportionally and apply item discount."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find all customers who bought product 'A' but have never bought product 'B'. Return customer_id.",
+      "schema": "\n        CREATE TABLE sales (\n          customer_id INT,\n          product_name VARCHAR(10)\n        );\n      ",
+      "seedData": "\n        INSERT INTO sales VALUES \n          (1, 'A'), (1, 'B'),\n          (2, 'A'),\n          (3, 'C'),\n          (4, 'A'), (4, 'C');\n      ",
+      "expectedQuery": "\n        SELECT DISTINCT customer_id\n        FROM sales\n        WHERE product_name = 'A'\n        EXCEPT\n        SELECT DISTINCT customer_id\n        FROM sales\n        WHERE product_name = 'B';\n      ",
+      "explanation": "Uses EXCEPT to select customers who bought 'A' and subtract those who bought 'B'."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Compute the rolling 3-day total order value for each date in the dataset. Return order_date and rolling_total.",
+      "schema": "\n        CREATE TABLE daily_sales (\n          order_date DATE PRIMARY KEY,\n          total_amount DECIMAL(12, 2)\n        );\n      ",
+      "seedData": "\n        INSERT INTO daily_sales VALUES \n          ('2026-07-01', 1000.00),\n          ('2026-07-02', 1500.00),\n          ('2026-07-03', 800.00),\n          ('2026-07-04', 2000.00),\n          ('2026-07-05', 1200.00);\n      ",
+      "expectedQuery": "\n        SELECT order_date,\n               SUM(total_amount) OVER (\n                 ORDER BY order_date\n                 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW\n               ) AS rolling_total\n        FROM daily_sales;\n      ",
+      "explanation": "Applies a sliding window frame of 'ROWS BETWEEN 2 PRECEDING AND CURRENT ROW' ordered by date to calculate a rolling 3-day total."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find the department name that has the highest cumulative salary expense. Return department name and total_salary.",
+      "schema": "\n        CREATE TABLE departments (\n          id INT PRIMARY KEY,\n          name VARCHAR(50)\n        );\n        CREATE TABLE employees (\n          id INT PRIMARY KEY,\n          salary DECIMAL(10, 2),\n          department_id INT REFERENCES departments(id)\n        );\n      ",
+      "seedData": "\n        INSERT INTO departments VALUES (1, 'Engineering'), (2, 'Sales');\n        INSERT INTO employees VALUES \n          (1, 90000.00, 1), (2, 85000.00, 1),\n          (3, 100000.00, 2), (4, 70000.00, 2);\n      ",
+      "expectedQuery": "\n        SELECT d.name, SUM(e.salary) AS total_salary\n        FROM departments d\n        JOIN employees e ON d.id = e.department_id\n        GROUP BY d.id, d.name\n        ORDER BY total_salary DESC\n        LIMIT 1;\n      ",
+      "explanation": "Groups employees by department, computes the sum, orders descending, and takes the first row."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Using a recursive CTE, construct the full file path for every node in the folder system. Return folder_id, path (e.g. '/root/documents/reports').",
+      "schema": "\n        CREATE TABLE folders (\n          id INT PRIMARY KEY,\n          name VARCHAR(50),\n          parent_id INT REFERENCES folders(id)\n        );\n      ",
+      "seedData": "\n        INSERT INTO folders VALUES \n          (1, 'root', NULL),\n          (2, 'documents', 1),\n          (3, 'images', 1),\n          (4, 'reports', 2),\n          (5, 'vacation', 3);\n      ",
+      "expectedQuery": "\n        WITH RECURSIVE folder_path AS (\n          SELECT id, name, parent_id, CAST('/' || name AS VARCHAR(255)) AS path\n          FROM folders\n          WHERE parent_id IS NULL\n          UNION ALL\n          SELECT f.id, f.name, f.parent_id, CAST(fp.path || '/' || f.name AS VARCHAR(255))\n          FROM folders f\n          JOIN folder_path fp ON f.parent_id = fp.id\n        )\n        SELECT id AS folder_id, path FROM folder_path;\n      ",
+      "explanation": "Applies a recursive CTE joining folders with their parent's path calculations to build the absolute path string."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find all overlapping video session entries. Two sessions overlap if they belong to the same candidate and their timelines intersect. Return session_a_id and session_b_id where session_a_id < session_b_id.",
+      "schema": "\n        CREATE TABLE test_sessions (\n          id INT PRIMARY KEY,\n          candidate_id INT,\n          start_time TIMESTAMP,\n          end_time TIMESTAMP\n        );\n      ",
+      "seedData": "\n        INSERT INTO test_sessions VALUES \n          (1, 100, '2026-07-14 10:00:00', '2026-07-14 11:00:00'),\n          (2, 100, '2026-07-14 10:30:00', '2026-07-14 11:30:00'),\n          (3, 100, '2026-07-14 12:00:00', '2026-07-14 13:00:00'),\n          (4, 200, '2026-07-14 10:00:00', '2026-07-14 11:00:00');\n      ",
+      "expectedQuery": "\n        SELECT s1.id AS session_a_id, s2.id AS session_b_id\n        FROM test_sessions s1\n        JOIN test_sessions s2 ON s1.candidate_id = s2.candidate_id AND s1.id < s2.id\n        WHERE s1.start_time < s2.end_time AND s2.start_time < s1.end_time;\n      ",
+      "explanation": "Joins session table with itself on identical candidate IDs, enforcing overlap query logic: s1.start < s2.end AND s2.start < s1.end."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find the percentage of orders that resulted in a returns status, grouped by customer region. Return region and return_percentage.",
+      "schema": "\n        CREATE TABLE customers (\n          id INT PRIMARY KEY,\n          region VARCHAR(20)\n        );\n        CREATE TABLE orders (\n          id INT PRIMARY KEY,\n          customer_id INT REFERENCES customers(id),\n          status VARCHAR(20)\n        );\n      ",
+      "seedData": "\n        INSERT INTO customers VALUES (1, 'North'), (2, 'North'), (3, 'South'), (4, 'South');\n        INSERT INTO orders VALUES \n          (10, 1, 'DELIVERED'), (11, 1, 'RETURNED'),\n          (12, 2, 'DELIVERED'),\n          (13, 3, 'RETURNED'), (14, 3, 'RETURNED'),\n          (15, 4, 'DELIVERED');\n      ",
+      "expectedQuery": "\n        SELECT c.region,\n               ROUND(100.0 * COUNT(CASE WHEN o.status = 'RETURNED' THEN 1 END) / COUNT(o.id), 2) AS return_percentage\n        FROM customers c\n        JOIN orders o ON c.id = o.customer_id\n        GROUP BY c.region;\n      ",
+      "explanation": "Aggregates return counts using conditional CASE statements and divides by the total orders within each grouped region."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Compute Month-Over-Month growth rate in active users. Return month (as format 'YYYY-MM') and growth_rate (as percentage with 2 decimals).",
+      "schema": "\n        CREATE TABLE user_activity (\n          user_id INT,\n          active_date DATE\n        );\n      ",
+      "seedData": "\n        INSERT INTO user_activity VALUES \n          (1, '2026-05-15'), (2, '2026-05-20'),\n          (1, '2026-06-01'), (2, '2026-06-15'), (3, '2026-06-20'),\n          (1, '2026-07-01'), (4, '2026-07-02');\n      ",
+      "expectedQuery": "\n        WITH monthly_actives AS (\n          SELECT TO_CHAR(active_date, 'YYYY-MM') AS month,\n                 COUNT(DISTINCT user_id) AS active_count\n          FROM user_activity\n          GROUP BY TO_CHAR(active_date, 'YYYY-MM')\n        ),\n        lagged_actives AS (\n          SELECT month, active_count,\n                 LAG(active_count) OVER (ORDER BY month) AS prev_active_count\n          FROM monthly_actives\n        )\n        SELECT month,\n               ROUND(100.0 * (active_count - prev_active_count) / prev_active_count, 2) AS growth_rate\n        FROM lagged_actives\n        WHERE prev_active_count IS NOT NULL;\n      ",
+      "explanation": "Utilizes window function LAG to reference the previous month's unique active users count and computes the percentage change."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Find the items that are currently out of stock (quantity = 0) but have a backorder quantity greater than 0. Sort by backorder quantity descending.",
+      "schema": "\n        CREATE TABLE inventory (\n          item_id INT PRIMARY KEY,\n          quantity INT,\n          backorder_quantity INT\n        );\n      ",
+      "seedData": "\n        INSERT INTO inventory VALUES \n          (1, 10, 0),\n          (2, 0, 50),\n          (3, 0, 0),\n          (4, 0, 120);\n      ",
+      "expectedQuery": "\n        SELECT item_id, backorder_quantity\n        FROM inventory\n        WHERE quantity = 0 AND backorder_quantity > 0\n        ORDER BY backorder_quantity DESC;\n      ",
+      "explanation": "Filters for zero inventory count and positive backorders, sorting by backorders descending."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Identify the high-value customers who spent a total of more than $1000.00 across all orders. Return customer_id and total_spent.",
+      "schema": "\n        CREATE TABLE orders (\n          id INT PRIMARY KEY,\n          customer_id INT,\n          order_total DECIMAL(10, 2)\n        );\n      ",
+      "seedData": "\n        INSERT INTO orders VALUES \n          (1, 10, 500.00), (2, 10, 600.00),\n          (3, 11, 950.00),\n          (4, 12, 1200.00);\n      ",
+      "expectedQuery": "\n        SELECT customer_id, SUM(order_total) AS total_spent\n        FROM orders\n        GROUP BY customer_id\n        HAVING SUM(order_total) > 1000.00\n        ORDER BY total_spent DESC;\n      ",
+      "explanation": "Groups orders by customer ID, calculates aggregate totals, filters with HAVING total > 1000, and orders descending."
+    }
+  },
+  {
+    "moduleType": "SQL",
+    "content": {
+      "prompt": "Write a query to identify candidates who had consecutive daily logins of 3 or more days. Return candidate_id.",
+      "schema": "\n        CREATE TABLE logins (\n          candidate_id INT,\n          login_date DATE\n        );\n      ",
+      "seedData": "\n        INSERT INTO logins VALUES \n          (1, '2026-07-01'), (1, '2026-07-02'), (1, '2026-07-03'),\n          (2, '2026-07-01'), (2, '2026-07-03'), (2, '2026-07-04'),\n          (3, '2026-07-01'), (3, '2026-07-02');\n      ",
+      "expectedQuery": "\n        WITH ranked_logins AS (\n          SELECT DISTINCT candidate_id, login_date,\n                 login_date - CAST(ROW_NUMBER() OVER (PARTITION BY candidate_id ORDER BY login_date) AS INT) AS grp\n          FROM logins\n        )\n        SELECT DISTINCT candidate_id\n        FROM ranked_logins\n        GROUP BY candidate_id, grp\n        HAVING COUNT(*) >= 3;\n      ",
+      "explanation": "Finds consecutive dates by partitioning logins per candidate, subtracting a sequential row number from each date to get a constant reference date block ('grp'), and grouping by this block."
+    }
+  }
+]

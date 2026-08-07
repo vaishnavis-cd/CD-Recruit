@@ -3,8 +3,6 @@ import { PrismaService } from "@app/prisma/prisma.service";
 import { SessionLogService, SimulationSession } from "./session-log.service";
 import { EventGenerationService } from "./event-generation.service";
 import { CompetencyEngine } from "./competency-engine";
-import { CorrelationEngineClient } from "../common/correlation-engine.client";
-import { CorrelationGradingService } from "./correlation-grading.service";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
@@ -12,7 +10,7 @@ import { SimulationTelemetryService, TelemetryEventType } from "./simulation-tel
 import { ContextSimulationEvaluatorService, FullSimulationEvaluationResult } from "./context-simulation-evaluator.service";
 import { execFile } from "child_process";
 import * as vm from "vm";
-import * as fs from "fs";
+import * as fs from "fs"; 
 import * as path from "path";
 import * as os from "os";
 import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
@@ -50,8 +48,6 @@ export class SimulationService implements AssessmentModuleEngine {
     private sessionLogService: SessionLogService,
     private eventGenerationService: EventGenerationService,
     private competencyEngine: CompetencyEngine,
-    private correlationClient: CorrelationEngineClient,
-    private correlationGradingService: CorrelationGradingService,
     private sandboxOrchestrator: SandboxOrchestratorService,
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,

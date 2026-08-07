@@ -141,12 +141,14 @@ import { SessionLifecycleService } from "./session-lifecycle.service";
 import { SessionStateMachine } from "./session-state-machine";
 import { SessionScoringService } from "./session-scoring.service";
 
+import { SessionStatusPort } from "@app/common/ports/session-status.port";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionService
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class SessionService {
+export class SessionService implements SessionStatusPort {
   private readonly logger = new Logger(SessionService.name);
   private readonly graceWindowSeconds: number;
   private readonly maxDisconnectCount: number;

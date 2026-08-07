@@ -112,12 +112,13 @@ function getTodayIsoDate() {
 
 function getDefaultScheduleWindow() {
   const now = new Date();
+  const ONE_HOUR = 60 *60*1000;
   // Next rounded hour from now
-  const start = new Date(now.getTime() + 60 * 60 * 1000);
+  const start = new Date(now.getTime() + ONE_HOUR);
   start.setMinutes(0, 0, 0);
 
   // End time 1 hour after start
-  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  const end = new Date(start.getTime() + ONE_HOUR);
 
   const startParsed = isoToAmPm(start.toISOString());
   const endParsed = isoToAmPm(end.toISOString());
@@ -240,6 +241,7 @@ function DriveDetailPage() {
   const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
+
 
   // Add Candidate Modal State
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);

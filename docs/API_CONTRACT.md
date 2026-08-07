@@ -20,11 +20,24 @@
 
 ## 1. Session Lifecycle
 
+### 1.0 Candidate DPDP Consent (`POST /sessions/:sessionId/consent`)
+Wired via `CandidateController` ([candidate.module.ts:5](file:///d:/Projects/cd-recruit/codebase/backend/api/src/candidate/candidate.module.ts#L5)). Persists DPDP Act §6 legal consent records (`TERMS`, `BIOMETRIC`, `SELFIE`, `AUDIO`) with IP address audit logging.
+
+**Request Body:**
+```json
+{
+  "consentType": "BIOMETRIC",
+  "version": "1.0"
+}
+```
+
 ### 1.1 Start Session
 
 ```
 POST /sessions/start
 ```
+
+> **Note on Progress Endpoint (`GET /sessions/:id/progress`):** Returns `501 Not Implemented` ([session.controller.ts:154](file:///d:/Projects/cd-recruit/codebase/backend/api/src/session/session.controller.ts#L154)). Candidate progress is tracked client-side via Zustand `sessionMachine`.
 
 Validates the invite token, creates a Session (NOT_STARTED → IN_PROGRESS), sets `startedAt = now()`, and `deadlineAt = startedAt + roleTemplate.durationMinutes`.
 
