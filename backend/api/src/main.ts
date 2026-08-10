@@ -23,7 +23,10 @@ async function bootstrap(): Promise<void> {
 
   // ── Global prefix ──────────────────────────────────────────────────────
   // Every route is served under /api/v1 — matches API_CONTRACT.md base URL.
-  app.setGlobalPrefix("api/v1");
+  // Exclude api-docs so Swagger UI assets load cleanly at /api-docs and /api/v1/api-docs.
+  app.setGlobalPrefix("api/v1", {
+    exclude: ["api-docs", "api-docs/(.*)", "api/v1/api-docs", "api/v1/api-docs/(.*)"],
+  });
 
   // ── CORS ──────────────────────────────────────────────────────────────
   // Allows the candidate-web (localhost:3000) and admin-web to reach the API.
@@ -47,6 +50,46 @@ async function bootstrap(): Promise<void> {
   );
 
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // ── Swagger Configuration (Must be registered BEFORE app.init()) ─────────────
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle("CD-Recruit Platform API")
+    .setDescription("Interactive OpenAPI documentation for testing candidate, admin, simulation, and proctoring endpoints")
+    .setVersion("1.0")
+    .addBearerAuth(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        name: "Authorization",
+        description: "Enter Candidate / Staff JWT token",
+        in: "header",
+      },
+      "bearer",
+    )
+    .addTag("auth", "Authentication & token resolution")
+    .addTag("candidate", "Candidate session management & submissions")
+    .addTag("admin", "Recruiter drives, candidates & reviewer decisions")
+    .addTag("simulation", "Contextual simulation workspace & 4-part evaluation")
+    .addTag("proctoring", "Proctoring integrity & evidence upload")
+    .addTag("mcq", "MCQ assessment module")
+    .addTag("sql", "SQL assessment & sandbox execution")
+    .addTag("coding", "Coding assessment & test execution")
+    .build();
+
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+
+  const swaggerOptions = {
+    useGlobalPrefix: false,
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      filter: true,
+    },
+  };
+
+  SwaggerModule.setup("api-docs", app, swaggerDocument, swaggerOptions);
+  SwaggerModule.setup("api/v1/api-docs", app, swaggerDocument, swaggerOptions);
 
   await app.init();
 
@@ -83,20 +126,11 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  // ── Swagger Configuration ─────────────────────────────────────────────
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle("Proctora Proctoring API")
-    .setDescription("Authoritative spec documentation for client-side proctoring engine backend")
-    .setVersion("1.0")
-    .addTag("proctoring")
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("api-docs", app, swaggerDocument);
-
-  await app.listen(port, "127.0.0.1");
+  await app.listen(port, "0.0.0.0");
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);
   logger.log(`Swagger UI: http://localhost:${port}/api-docs`);
+  logger.log(`Swagger UI (v1): http://localhost:${port}/api/v1/api-docs`);
 }
 
 bootstrap().catch((err) => {
