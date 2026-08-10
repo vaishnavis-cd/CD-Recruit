@@ -146,6 +146,7 @@ export class DriveService {
                 driveId: createdDrive.id,
                 questionId: q.id,
                 moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+                questionVersionSnapshot: q.version ?? 1,
               };
             }),
           });
@@ -431,7 +432,7 @@ export class DriveService {
   async duplicate(driveId: string, staffId: string) {
     const sourceDrive = await this.prisma.drive.findUnique({
       where: { id: driveId },
-      include: { questions: true },
+      include: { questions: { include: { question: true } } },
     });
 
     if (!sourceDrive) {
@@ -455,6 +456,7 @@ export class DriveService {
             driveId: drive.id,
             questionId: q.questionId,
             moduleType: q.moduleType,
+            questionVersionSnapshot: (q as any).question?.version ?? q.questionVersionSnapshot ?? 1,
           })),
         });
       }
@@ -696,6 +698,7 @@ export class DriveService {
               questionId: q.id,
               moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
               pointShare: shareMap.get(q.id) ?? null,
+              questionVersionSnapshot: q.version ?? 1,
             };
           }),
         });
