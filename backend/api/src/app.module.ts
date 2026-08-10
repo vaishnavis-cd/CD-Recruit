@@ -25,6 +25,9 @@ import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
 import { McqModule } from "./mcq/mcq.module";
 
 
+import { RoleTemplateModule } from "./role-template/role-template.module";
+
+
 const infraMode = process.env.INFRA_MODE ?? "local";
 
 @Module({
@@ -88,6 +91,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     SimulationModule,
     AiPromptingModule,
     McqModule,
+    RoleTemplateModule,
 
   ],
 })
