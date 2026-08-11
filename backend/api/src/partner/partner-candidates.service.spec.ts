@@ -46,11 +46,17 @@ async function runPartnerCandidatesServiceTests() {
         }
         return null;
       },
+      update: async ({ where, data }: any) => {
+        const d = createdDrives.find((drv) => drv.id === where.id);
+        if (d) Object.assign(d, data);
+        return d || data;
+      },
     },
     invite: {
       findMany: async ({ where }: any) => {
         return createdInvites.filter((inv) => inv.driveId === where.driveId);
       },
+      updateMany: async () => ({ count: 1 }),
     },
     auditLog: {
       create: async ({ data }: any) => {
