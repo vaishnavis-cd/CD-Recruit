@@ -14,6 +14,22 @@ datasource db {
 
 // ---------- Enums ----------
 
+enum Department {
+  SOFTWARE_ENGINEERING
+  DATA_ENGINEERING
+  QA
+  SRE
+  SYSOPS
+  ITOPS
+  PMO
+  SECOPS
+}
+
+enum ExperienceLevel {
+  FRESHER
+  EXPERIENCED
+}
+
 enum ModuleType {
   MCQ
   SQL
@@ -21,6 +37,7 @@ enum ModuleType {
   DEBUGGING
   AI_PROMPTING
   SIMULATION
+  TEST_SCENARIOS
 }
 
 enum SessionStatus {
@@ -103,16 +120,36 @@ enum ConsentType {
 
 
 model RoleTemplate {
-  id              String   @id @default(uuid())
-  roleName        String   @map("role_name")
-  weightingPreset Json     @map("weighting_preset")
-  durationMinutes Int      @map("duration_minutes") // drives session.deadlineAt
+  id              String           @id @default(uuid())
+  roleName        String           @map("role_name")
+  department      Department?      @map("department")
+  level           ExperienceLevel? @map("level")
+  version         Int              @default(1)
+  isActive        Boolean          @default(true) @map("is_active")
+  weightingPreset Json             @map("weighting_preset")
+  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
 
-  sessions  Session[]
-  invites   Invite[]
-  drives    Drive[]
+  sessions          Session[]
+  invites           Invite[]
+  drives            Drive[]
+  templateQuestions RoleTemplateQuestion[]
 
+  @@unique([department, level, version])
   @@map("role_template")
+}
+
+model RoleTemplateQuestion {
+  id             String     @id @default(uuid())
+  roleTemplateId String     @map("role_template_id")
+  questionId     String     @map("question_id")
+  moduleType     ModuleType @map("module_type")
+  orderIndex     Int        @map("order_index")
+
+  roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id], onDelete: Cascade)
+  question     Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleTemplateId, questionId])
+  @@map("role_template_question")
 }
 
 model Drive {
@@ -167,10 +204,11 @@ model Question {
   version        Int        @default(1)
   status         QuestionStatus @default(PUBLISHED)
 
-  moduleResponses ModuleResponse[]
-  driveQuestions  DriveQuestion[]
-  codingExecutions CodingExecution[]
-  sqlExecutions    SQLExecution[]
+  moduleResponses        ModuleResponse[]
+  driveQuestions         DriveQuestion[]
+  codingExecutions       CodingExecution[]
+  sqlExecutions          SQLExecution[]
+  roleTemplateQuestions  RoleTemplateQuestion[]
 
   @@map("question")
 }

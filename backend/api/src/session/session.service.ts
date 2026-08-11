@@ -115,25 +115,72 @@ async function buildQuestionList(
         }
         return resultList;
       }
+
+      // If drive questions not explicitly linked, try resolving via Drive's RoleTemplate or Department
+      const drive = await prisma.drive.findUnique({
+        where: { id: driveId },
+        include: {
+          roleTemplate: {
+            include: {
+              templateQuestions: {
+                include: { question: true },
+                orderBy: { orderIndex: "asc" },
+              },
+            },
+          },
+        },
+      });
+
+      const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
+
+      // 1. Check template questions from RoleTemplate
+      if (drive?.roleTemplate?.templateQuestions && drive.roleTemplate.templateQuestions.length > 0) {
+        const tQuestions = drive.roleTemplate.templateQuestions.map((tq, idx) => ({
+          questionId: tq.questionId,
+          moduleType: tq.moduleType,
+          moduleIndex: idx,
+          content: tq.question?.content || {},
+          difficulty: tq.question?.difficulty || "medium",
+        }));
+        return tQuestions;
+      }
+
+      // 2. Check department-scoped questions
+      if (deptName && deptName !== "UNSPECIFIED") {
+        const deptQuestions = await prisma.question.findMany({
+          where: {
+            status: "PUBLISHED",
+            OR: [
+              { role: { equals: deptName, mode: "insensitive" } },
+              { content: { path: ["department"], equals: deptName } },
+            ],
+          },
+          orderBy: { moduleType: "asc" },
+        });
+
+        if (deptQuestions && deptQuestions.length > 0) {
+          return deptQuestions.map((q, idx) => ({
+            questionId: q.id,
+            moduleType: q.moduleType,
+            moduleIndex: idx,
+            content: q.content,
+            difficulty: q.difficulty || "medium",
+          }));
+        }
+      }
+
+      // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
+      throw new UnprocessableEntityException(
+        `No questions available for department ${deptName} — question bank not yet populated`
+      );
     }
 
-    // Fallback: Published questions from Question Bank
-    const fallbackQuestions = await prisma.question.findMany({
-      where: { status: "PUBLISHED" },
-      take: 30,
-      orderBy: { moduleType: "asc" },
-    });
-
-    return fallbackQuestions.map((q, idx) => ({
-      questionId: q.id,
-      moduleType: q.moduleType,
-      moduleIndex: idx,
-      content: q.content,
-      difficulty: q.difficulty || "medium",
-    }));
+    throw new UnprocessableEntityException(
+      "No valid assessment drive associated with this session"
+    );
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
-    return [];
+    throw err;
   }
 }
 
