@@ -67,17 +67,12 @@ async function bootstrap(): Promise<void> {
       },
       "bearer",
     )
-<<<<<<< HEAD
-    .addTag("auth", "Authentication & token resolution")
-    .addTag("candidate", "Candidate session management & submissions")
-    .addTag("admin", "Recruiter drives, candidates & reviewer decisions")
-=======
     .addApiKey(
       {
         type: "apiKey",
         name: "X-API-Key",
         in: "header",
-        description: "Partner API key (pk_live_... — issued from Settings → Integrations)",
+        description: "Partner API key (pk_live_... � issued from Settings ? Integrations)",
       },
       "X-API-Key",
     )
@@ -85,7 +80,7 @@ async function bootstrap(): Promise<void> {
     .addTag("candidate", "Candidate session management & submissions")
     .addTag("admin", "Recruiter drives, candidates & reviewer decisions")
     .addTag("partner", "Partner ATS integration endpoints (X-API-Key auth)")
->>>>>>> partner-api
+    .addTag("simulation", "Contextual simulation workspace & 4-part evaluation")
     .addTag("simulation", "Contextual simulation workspace & 4-part evaluation")
     .addTag("proctoring", "Proctoring integrity & evidence upload")
     .addTag("mcq", "MCQ assessment module")
