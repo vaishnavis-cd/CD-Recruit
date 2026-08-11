@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveStatus } from "../lib/types";
 
 export const Route = createFileRoute("/drives")({
@@ -89,6 +89,11 @@ function DrivesPage() {
   const [step, setStep] = useState(1);
   const [driveName, setDriveName] = useState("");
   const [role, setRole] = useState("");
+  const [department, setDepartment] = useState("");
+  const [level, setLevel] = useState("");
+  const [activeTemplatePreview, setActiveTemplatePreview] = useState<any | null>(null);
+  const [isLoadingTemplatePreview, setIsLoadingTemplatePreview] = useState(false);
+  const [templatePreviewError, setTemplatePreviewError] = useState<string | null>(null);
   
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
@@ -121,6 +126,51 @@ function DrivesPage() {
     fetchDrives();
     fetchRoleTemplates();
   }, []);
+
+  // Fetch active RoleTemplate preview when department and level are selected
+  useEffect(() => {
+    if (!department || !level) {
+      setActiveTemplatePreview(null);
+      setTemplatePreviewError(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingTemplatePreview(true);
+    setTemplatePreviewError(null);
+
+    getAuthHeaders().then((headers) => {
+      fetch(`${API_BASE}/admin/role-templates/active?department=${department}&level=${level}`, { headers })
+        .then(async (res) => {
+          if (!isMounted) return;
+          if (res.ok) {
+            const data = await res.json();
+            setActiveTemplatePreview(data);
+            if (data.roleName && !role) {
+              setRole(data.roleName);
+            }
+          } else if (res.status === 404) {
+            setActiveTemplatePreview(null);
+            setTemplatePreviewError(`No active RoleTemplate found for ${department} / ${level}.`);
+          } else {
+            setActiveTemplatePreview(null);
+            setTemplatePreviewError("Failed to load active template preview.");
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          setActiveTemplatePreview(null);
+          setTemplatePreviewError("Failed to reach server for active template preview.");
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingTemplatePreview(false);
+        });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [department, level]);
 
 
 
@@ -498,6 +548,90 @@ function DrivesPage() {
                   className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                    Department (Partner API)
+                  </label>
+                  <select
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  >
+                    <option value="">Select Department...</option>
+                    <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                    <option value="DATA_ENGINEERING">Data Engineering</option>
+                    <option value="PMO">PMO</option>
+                    <option value="QA">QA</option>
+                    <option value="SYSOPS">SysOps</option>
+                    <option value="ITOPS">ITOps</option>
+                    <option value="SECOPS">SecOps</option>
+                    <option value="SRE">SRE</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                    Experience Level
+                  </label>
+                  <select
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  >
+                    <option value="">Select Level...</option>
+                    <option value="FRESHER">Fresher</option>
+                    <option value="EXPERIENCED">Experienced</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Preview of Attached Active RoleTemplate */}
+              {isLoadingTemplatePreview && (
+                <div className="p-3.5 bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[12px] text-[#5B5B64] flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-[#2F5CFF] border-t-transparent rounded-full animate-spin"></div>
+                  <span>Fetching active role template preview...</span>
+                </div>
+              )}
+
+              {!isLoadingTemplatePreview && activeTemplatePreview && (
+                <div className="p-3.5 bg-[#F0F4FF] border border-[#C6D4FF] rounded-lg text-[13px] space-y-2">
+                  <div className="flex items-center justify-between font-semibold text-[#1E3A8A]">
+                    <span>⚡ Active Role Template Preview: {activeTemplatePreview.roleName} (v{activeTemplatePreview.version})</span>
+                    <span className="px-2 py-0.5 text-[11px] bg-[#2F5CFF] text-white rounded font-medium">Active</span>
+                  </div>
+                  <div className="text-[12px] text-[#3B82F6]">
+                    Duration: {activeTemplatePreview.durationMinutes} mins | Dept: {activeTemplatePreview.department} | Level: {activeTemplatePreview.level}
+                  </div>
+                  {activeTemplatePreview.questions && activeTemplatePreview.questions.length > 0 ? (
+                    <div className="space-y-1 pt-1">
+                      <div className="text-[11px] font-medium text-[#4B5563] uppercase tracking-wider">
+                        Attached Questions ({activeTemplatePreview.questions.length}):
+                      </div>
+                      <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                        {activeTemplatePreview.questions.map((q: any, idx: number) => (
+                          <div key={q.id || idx} className="flex items-center justify-between px-2.5 py-1 bg-white border border-[#E0E7FF] rounded text-[12px]">
+                            <span className="font-mono text-[#2F5CFF] font-medium">[{q.moduleType}]</span>
+                            <span className="truncate max-w-[220px] text-[#374151]">
+                              {q.question?.content?.prompt || q.question?.content?.title || `Question #${idx + 1}`}
+                            </span>
+                            <span className="text-[11px] text-[#6B7280]">v{q.questionVersionSnapshot || q.question?.version || 1}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[12px] text-[#6B7280] italic">No questions attached to this template.</div>
+                  )}
+                </div>
+              )}
+
+              {!isLoadingTemplatePreview && templatePreviewError && (
+                <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg text-[12px] text-[#991B1B]">
+                  ⚠️ {templatePreviewError}
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
