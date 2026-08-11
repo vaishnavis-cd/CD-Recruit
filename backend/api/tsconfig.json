@@ -12,7 +12,9 @@
     "rootDir": "./src",
     "baseUrl": "./",
     "paths": {
-      "@app/*": ["src/*"]
+      "@app/*": ["src/*"],
+      "rxjs": ["node_modules/rxjs", "../../node_modules/rxjs"],
+      "rxjs/*": ["node_modules/rxjs/*", "../../node_modules/rxjs/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

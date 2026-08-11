@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveStatus } from "../lib/types";
 
 export const Route = createFileRoute("/drives")({
@@ -81,6 +81,7 @@ function DrivesPage() {
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DriveStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "DIRECT" | "PARTNER_API">("all");
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
   const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
@@ -89,6 +90,11 @@ function DrivesPage() {
   const [step, setStep] = useState(1);
   const [driveName, setDriveName] = useState("");
   const [role, setRole] = useState("");
+  const [department, setDepartment] = useState("");
+  const [level, setLevel] = useState("");
+  const [activeTemplatePreview, setActiveTemplatePreview] = useState<any | null>(null);
+  const [isLoadingTemplatePreview, setIsLoadingTemplatePreview] = useState(false);
+  const [templatePreviewError, setTemplatePreviewError] = useState<string | null>(null);
   
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
@@ -121,6 +127,51 @@ function DrivesPage() {
     fetchDrives();
     fetchRoleTemplates();
   }, []);
+
+  // Fetch active RoleTemplate preview when department and level are selected
+  useEffect(() => {
+    if (!department || !level) {
+      setActiveTemplatePreview(null);
+      setTemplatePreviewError(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingTemplatePreview(true);
+    setTemplatePreviewError(null);
+
+    getAuthHeaders().then((headers) => {
+      fetch(`${API_BASE}/admin/role-templates/active?department=${department}&level=${level}`, { headers })
+        .then(async (res) => {
+          if (!isMounted) return;
+          if (res.ok) {
+            const data = await res.json();
+            setActiveTemplatePreview(data);
+            if (data.roleName && !role) {
+              setRole(data.roleName);
+            }
+          } else if (res.status === 404) {
+            setActiveTemplatePreview(null);
+            setTemplatePreviewError(`No active RoleTemplate found for ${department} / ${level}.`);
+          } else {
+            setActiveTemplatePreview(null);
+            setTemplatePreviewError("Failed to load active template preview.");
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          setActiveTemplatePreview(null);
+          setTemplatePreviewError("Failed to reach server for active template preview.");
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingTemplatePreview(false);
+        });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [department, level]);
 
 
 
@@ -245,9 +296,10 @@ function DrivesPage() {
     return drives.filter((d) => {
       if (q && !d.name.toLowerCase().includes(q)) return false;
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
+      if (sourceFilter !== "all" && ((d as any).originChannel || "DIRECT") !== sourceFilter) return false;
       return true;
     });
-  }, [drives, query, statusFilter]);
+  }, [drives, query, statusFilter, sourceFilter]);
 
   const handleLaunch = async () => {
     if (validationErrors.length > 0) {
@@ -387,20 +439,39 @@ function DrivesPage() {
       }
     >
       {/* Filter chips */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {(["all", "DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
-              statusFilter === s
-                ? "text-black border-[#2F5CFF] border-2"
-                : "bg-white text-[#5B5B64] border-[#E6E6EA] border-2 hover:border-[#D6D7DC]"
-            }`}
-          >
-            {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["all", "DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
+                statusFilter === s
+                  ? "text-black border-[#2F5CFF] border-2"
+                  : "bg-white text-[#5B5B64] border-[#E6E6EA] border-2 hover:border-[#D6D7DC]"
+              }`}
+            >
+              {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1.5 border-l border-[#E6E6EA] pl-3">
+          <span className="text-[11px] font-semibold text-[#8B8B93] uppercase tracking-wider">Source:</span>
+          {(["all", "DIRECT", "PARTNER_API"] as const).map((src) => (
+            <button
+              key={src}
+              onClick={() => setSourceFilter(src)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors cursor-pointer ${
+                sourceFilter === src
+                  ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                  : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
+              }`}
+            >
+              {src === "all" ? "All Sources" : src === "DIRECT" ? "Direct" : "Partner API"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Grid of Drives */}
@@ -425,11 +496,22 @@ function DrivesPage() {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <span
-                    className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
-                  >
-                    {STATUS_LABEL[d.status]}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
+                        (d as any).originChannel === "PARTNER_API"
+                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                          : "bg-gray-100 text-gray-600 border border-gray-200"
+                      }`}
+                    >
+                      {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
+                    >
+                      {STATUS_LABEL[d.status]}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
                     <Calendar size={13} className="text-[#8B8B93] shrink-0" />
                     <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
@@ -498,6 +580,90 @@ function DrivesPage() {
                   className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                    Department (Partner API)
+                  </label>
+                  <select
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  >
+                    <option value="">Select Department...</option>
+                    <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                    <option value="DATA_ENGINEERING">Data Engineering</option>
+                    <option value="PMO">PMO</option>
+                    <option value="QA">QA</option>
+                    <option value="SYSOPS">SysOps</option>
+                    <option value="ITOPS">ITOps</option>
+                    <option value="SECOPS">SecOps</option>
+                    <option value="SRE">SRE</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                    Experience Level
+                  </label>
+                  <select
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  >
+                    <option value="">Select Level...</option>
+                    <option value="FRESHER">Fresher</option>
+                    <option value="EXPERIENCED">Experienced</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Preview of Attached Active RoleTemplate */}
+              {isLoadingTemplatePreview && (
+                <div className="p-3.5 bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[12px] text-[#5B5B64] flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-[#2F5CFF] border-t-transparent rounded-full animate-spin"></div>
+                  <span>Fetching active role template preview...</span>
+                </div>
+              )}
+
+              {!isLoadingTemplatePreview && activeTemplatePreview && (
+                <div className="p-3.5 bg-[#F0F4FF] border border-[#C6D4FF] rounded-lg text-[13px] space-y-2">
+                  <div className="flex items-center justify-between font-semibold text-[#1E3A8A]">
+                    <span>⚡ Active Role Template Preview: {activeTemplatePreview.roleName} (v{activeTemplatePreview.version})</span>
+                    <span className="px-2 py-0.5 text-[11px] bg-[#2F5CFF] text-white rounded font-medium">Active</span>
+                  </div>
+                  <div className="text-[12px] text-[#3B82F6]">
+                    Duration: {activeTemplatePreview.durationMinutes} mins | Dept: {activeTemplatePreview.department} | Level: {activeTemplatePreview.level}
+                  </div>
+                  {activeTemplatePreview.questions && activeTemplatePreview.questions.length > 0 ? (
+                    <div className="space-y-1 pt-1">
+                      <div className="text-[11px] font-medium text-[#4B5563] uppercase tracking-wider">
+                        Attached Questions ({activeTemplatePreview.questions.length}):
+                      </div>
+                      <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                        {activeTemplatePreview.questions.map((q: any, idx: number) => (
+                          <div key={q.id || idx} className="flex items-center justify-between px-2.5 py-1 bg-white border border-[#E0E7FF] rounded text-[12px]">
+                            <span className="font-mono text-[#2F5CFF] font-medium">[{q.moduleType}]</span>
+                            <span className="truncate max-w-[220px] text-[#374151]">
+                              {q.question?.content?.prompt || q.question?.content?.title || `Question #${idx + 1}`}
+                            </span>
+                            <span className="text-[11px] text-[#6B7280]">v{q.questionVersionSnapshot || q.question?.version || 1}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[12px] text-[#6B7280] italic">No questions attached to this template.</div>
+                  )}
+                </div>
+              )}
+
+              {!isLoadingTemplatePreview && templatePreviewError && (
+                <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg text-[12px] text-[#991B1B]">
+                  ⚠️ {templatePreviewError}
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">

@@ -1,0 +1,10 @@
+-- AlterEnum
+ALTER TYPE "ModuleType" ADD VALUE 'DEBUGGING';
+
+-- AlterTable
+ALTER TABLE "drive_question" ADD COLUMN     "point_share" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "score" ADD COLUMN     "bonus_score" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "core_score" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "total_score" DOUBLE PRECISION NOT NULL DEFAULT 0;

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { SessionLogService, SimulationSession } from "./session-log.service";
 import { EventGenerationService } from "./event-generation.service";
@@ -8,6 +8,7 @@ import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { SimulationTelemetryService, TelemetryEventType, TelemetryEvent } from "./simulation-telemetry.service";
 import { ContextSimulationEvaluatorService, FullSimulationEvaluationResult } from "./context-simulation-evaluator.service";
+import { MinioService } from "../integrations/minio/minio.service";
 import { execFile } from "child_process";
 import * as vm from "vm";
 import * as fs from "fs"; 
@@ -51,6 +52,7 @@ export class SimulationService implements AssessmentModuleEngine {
     private sandboxOrchestrator: SandboxOrchestratorService,
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,
+    @Optional() private minioService?: MinioService,
   ) {}
 
   /**
@@ -170,7 +172,11 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   private async persistSessionSnapshot(sessionId: string): Promise<void> {
     const state = await this.getOrCreateSessionState(sessionId);
+<<<<<<< HEAD
     const telemetry = await this.getUnifiedTelemetryEvents(sessionId);
+=======
+    const telemetry = await this.telemetryService.getEventStreamAsync(sessionId);
+>>>>>>> partner-api
     const actions = await this.getCandidateActions(sessionId);
 
     try {
@@ -184,6 +190,7 @@ export class SimulationService implements AssessmentModuleEngine {
         where: { id: sessionId },
         data: {
           simulationSnapshot: {
+<<<<<<< HEAD
             ...existingSnapshot,
             initialSayText: state.initialSayText || existingSnapshot.initialSayText || null,
             emailReplyText: state.emailReplyText || existingSnapshot.emailReplyText || null,
@@ -191,6 +198,15 @@ export class SimulationService implements AssessmentModuleEngine {
             inboxMessages: state.inboxMessages || existingSnapshot.inboxMessages || [],
             telemetryCount: Math.max(telemetry.length, actions.length, existingSnapshot.telemetryCount || 0),
             telemetryActions: actions.length > 0 ? actions : existingSnapshot.telemetryActions || [],
+=======
+            initialSayText: state.initialSayText,
+            emailReplyText: state.emailReplyText,
+            emailTriggered: state.emailTriggered,
+            inboxMessages: state.inboxMessages,
+            telemetryCount: Math.max(telemetry.length, actions.length),
+            telemetryActions: actions,
+            rawTelemetryEvents: telemetry,
+>>>>>>> partner-api
             lastUpdated: new Date().toISOString(),
           } as any,
         },
@@ -728,8 +744,12 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   async submitSimulation(sessionId: string, submissionPayload?: any): Promise<FullSimulationEvaluationResult> {
     const state = await this.getOrCreateSessionState(sessionId);
+<<<<<<< HEAD
     const telemetryEvents = await this.getUnifiedTelemetryEvents(sessionId);
     const candidateActions = await this.getCandidateActions(sessionId);
+=======
+    const telemetryEvents = await this.telemetryService.getEventStreamAsync(sessionId);
+>>>>>>> partner-api
 
     // Extract test results if present in submission payload
     const testResults = submissionPayload?.testResults || null;
@@ -857,6 +877,31 @@ export class SimulationService implements AssessmentModuleEngine {
       });
     } catch (scoreErr: any) {
       this.logger.warn(`[submitSimulation] Score upsert failed: ${scoreErr.message}`);
+    }
+
+    // Archive session telemetry & evaluation log bundle to MinIO if object storage is enabled
+    if (this.minioService) {
+      try {
+        const logBundle = {
+          sessionId,
+          evaluatedAt: evaluation.evaluatedAt,
+          initialSayText: state.initialSayText,
+          emailReplyText: state.emailReplyText,
+          evaluation,
+          telemetryEvents,
+          actionTimeline: evaluation.actionTimeline,
+        };
+        const buffer = Buffer.from(JSON.stringify(logBundle, null, 2), "utf8");
+        await this.minioService.putObject(
+          "cd-recruit-general",
+          `logs/simulation/session-log-${sessionId}.json`,
+          buffer,
+          { "Content-Type": "application/json" } as any,
+        );
+        this.logger.log(`[MinIO Log Archive] Successfully stored logs/simulation/session-log-${sessionId}.json`);
+      } catch (minioErr: any) {
+        this.logger.warn(`[MinIO Log Archive] Warning: could not archive session log: ${minioErr.message}`);
+      }
     }
 
     await this.persistSessionSnapshot(sessionId);

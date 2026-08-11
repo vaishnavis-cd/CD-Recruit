@@ -333,6 +333,7 @@ async function main() {
         driveId: drive.id,
         questionId: q.id,
         moduleType: q.moduleType,
+        questionVersionSnapshot: q.version ?? 1,
       },
     });
   }

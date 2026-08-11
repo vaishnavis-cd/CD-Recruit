@@ -250,6 +250,7 @@ export class QuestionService implements OnModuleInit {
           difficulty: difficulty ?? question.difficulty,
           tags: tags ?? question.tags,
           status: (status as any) ?? question.status,
+          version: { increment: 1 },
         },
       });
       return updated;

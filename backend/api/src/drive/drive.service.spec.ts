@@ -7,12 +7,19 @@ async function runCharacterizationTests() {
   // Mock dependencies
   const mockPrisma: any = {
     roleTemplate: {
+      findFirst: async ({ where }: any) => {
+        if (where?.id === "valid-template" || where?.OR?.some((o: any) => o.id === "valid-template")) {
+          return { id: "valid-template", roleName: "Software Engineer" };
+        }
+        return null;
+      },
       findUnique: async ({ where }: any) => {
         if (where.id === "valid-template") {
           return { id: "valid-template", roleName: "Software Engineer" };
         }
         return null;
       },
+      create: async ({ data }: any) => ({ id: "created-tpl", ...data }),
     },
     question: {
       count: async () => 1,
@@ -43,6 +50,8 @@ async function runCharacterizationTests() {
       createMany: async () => ({ count: 1 }),
     },
     drive: {
+      create: async ({ data }: any) => ({ id: "drive-created", ...data }),
+      update: async ({ data }: any) => ({ id: "drive-updated", ...data }),
       findUnique: async ({ where }: any) => {
         if (where.id === "drive-1") {
           return {
@@ -83,20 +92,12 @@ async function runCharacterizationTests() {
     mockCsvIngestionService,
   );
 
-  // Test 1: create throws NotFoundException if role template missing
+  // Test 1: createFromTemplate throws NotFoundException if role template missing
   try {
-    await driveService.create(
-      {
-        name: "Test",
-        roleTemplateId: "invalid-id",
-        scheduleStart: "2026-01-01",
-        scheduleEnd: "2026-01-02",
-      } as any,
-      "staff-1",
-    );
+    await driveService.createFromTemplate("invalid-id", { name: "Test" }, "staff-1");
     assert.fail("Should have thrown NotFoundException");
   } catch (err: any) {
-    assert.strictEqual(err.message, "Role template not found with ID invalid-id");
+    assert.strictEqual(err.message, "RoleTemplate not found with ID invalid-id");
   }
 
   // Test 2: findOne returns detail object
@@ -108,6 +109,78 @@ async function runCharacterizationTests() {
   // Test 3: generateLinks generates tokens for ungenerated candidates
   const genResult = await driveService.generateLinks("drive-1", "staff-1");
   assert.strictEqual(genResult.count, 1);
+
+  // Test 4: createFromTemplate copies template questions into driveQuestion with version snapshot
+  let createdDriveData: any = null;
+  let createdDriveQuestions: any = null;
+
+  const mockPrismaTemplate: any = {
+    roleTemplate: {
+      findUnique: async ({ where }: any) => {
+        if (where.id === "tpl-123") {
+          return {
+            id: "tpl-123",
+            roleName: "Backend Engineer",
+            department: "SOFTWARE_ENGINEERING",
+            level: "EXPERIENCED",
+            durationMinutes: 75,
+            weightingPreset: { MCQ: 0.4, CODING: 0.6 },
+            version: 2,
+            questions: [
+              {
+                id: "rtq-1",
+                questionId: "q-10",
+                moduleType: "CODING",
+                orderIndex: 0,
+                questionVersionSnapshot: 3,
+                pointShare: 1.0,
+                question: { id: "q-10", version: 3 },
+              },
+            ],
+          };
+        }
+        return null;
+      },
+    },
+    drive: {
+      create: async ({ data }: any) => {
+        createdDriveData = { id: "drive-from-tpl", ...data };
+        return createdDriveData;
+      },
+      findUnique: async ({ where }: any) => ({
+        id: where.id,
+        name: createdDriveData.name,
+        roleTemplateId: "tpl-123",
+        questions: [{ questionId: "q-10", questionVersionSnapshot: 3 }],
+      }),
+    },
+    driveQuestion: {
+      createMany: async ({ data }: any) => {
+        createdDriveQuestions = data;
+        return { count: data.length };
+      },
+    },
+    auditLog: {
+      create: async () => ({}),
+    },
+    $transaction: async (cb: any) => cb(mockPrismaTemplate),
+  };
+
+  const templateDriveService = new DriveService(
+    mockPrismaTemplate,
+    mockAuthService,
+    mockCandidateIngestionService,
+    mockCsvIngestionService,
+  );
+
+  const tplDrive = await templateDriveService.createFromTemplate("tpl-123", { name: "Custom Drive Name" }, "staff-1");
+  assert.strictEqual(createdDriveData.name, "Custom Drive Name");
+  assert.strictEqual(createdDriveData.roleTemplateId, "tpl-123");
+  assert.strictEqual(createdDriveQuestions.length, 1);
+  assert.strictEqual(createdDriveQuestions[0].questionId, "q-10");
+  assert.strictEqual(createdDriveQuestions[0].questionVersionSnapshot, 3);
+  assert.strictEqual(createdDriveData.moduleConfig.CODING.weight, 0.6);
+  assert.strictEqual(createdDriveData.moduleConfig.CODING.durationMinutes, 75);
 
   console.log("✅ All DriveService characterization tests passed successfully!");
 }

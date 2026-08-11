@@ -177,6 +177,7 @@ async function main(): Promise<void> {
             driveId: drive.id,
             questionId: q.id,
             moduleType: q.moduleType,
+            questionVersionSnapshot: q.version ?? 1,
           },
         });
       }

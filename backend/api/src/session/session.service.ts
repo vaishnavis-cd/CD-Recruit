@@ -280,10 +280,10 @@ export class SessionService implements SessionStatusPort {
         where: { id: payload.inviteId },
         include: { drive: true },
       });
-      if (invite?.drive?.scheduleStart) {
+      if (invite?.scheduledTime) {
         const now = new Date();
         const graceMinutes = 20; // 20 minutes grace window
-        const cutoff = new Date(invite.drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        const cutoff = new Date(invite.scheduledTime.getTime() + graceMinutes * 60 * 1000);
         if (now > cutoff) {
           throw new UnauthorizedException({
             code: "INVITE_TOKEN_EXPIRED",
