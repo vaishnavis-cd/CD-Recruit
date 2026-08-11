@@ -556,6 +556,7 @@ model Partner {
   hashedApiKey String   @map("hashed_api_key")
   callbackUrl  String?  @map("callback_url")
   rateLimit    Int      @default(100) @map("rate_limit")
+  isRevoked    Boolean  @default(false) @map("is_revoked")
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("partner")

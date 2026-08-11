@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Trash2, UserPlus, X, Key, RefreshCw, Copy, Edit3, Lock, Unlock, Globe } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/settings")({
       {
         name: "description",
         content:
-          "Configure scoring thresholds, retention rules, staff permissions, and audit trails.",
+          "Configure scoring thresholds, retention rules, staff permissions, partner integrations, and audit trails.",
       },
     ],
   }),
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations">("profile");
 
   // Admin Profile state
   const [adminName, setAdminName] = useState("Lead Proctor Admin");
@@ -53,6 +53,132 @@ function SettingsPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [logsQuery, setLogsQuery] = useState("");
+
+  // Partner Integrations state
+  const [partners, setPartners] = useState<any[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+  const [showCreatePartnerModal, setShowCreatePartnerModal] = useState(false);
+  const [newPartnerName, setNewPartnerName] = useState("");
+  const [newPartnerCallbackUrl, setNewPartnerCallbackUrl] = useState("");
+  const [newPartnerRateLimit, setNewPartnerRateLimit] = useState(100);
+  const [creatingPartner, setCreatingPartner] = useState(false);
+
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<{ partnerName: string; apiKey: string } | null>(null);
+  const [editingPartner, setEditingPartner] = useState<any | null>(null);
+  const [confirmRotatePartner, setConfirmRotatePartner] = useState<any | null>(null);
+  const [confirmRevokePartner, setConfirmRevokePartner] = useState<any | null>(null);
+
+  const loadPartnerList = async () => {
+    setLoadingPartners(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners`, { headers });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const data = await res.json();
+      setPartners(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to load partners list:", err);
+    } finally {
+      setLoadingPartners(false);
+    }
+  };
+
+  const handleCreatePartner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPartnerName.trim()) {
+      toast.error("Partner Name is required");
+      return;
+    }
+    setCreatingPartner(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newPartnerName.trim(),
+          callbackUrl: newPartnerCallbackUrl.trim() || undefined,
+          rateLimit: Number(newPartnerRateLimit) || 100,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to create partner");
+      }
+      const data = await res.json();
+      setShowCreatePartnerModal(false);
+      setNewPartnerName("");
+      setNewPartnerCallbackUrl("");
+      setNewPartnerRateLimit(100);
+      setNewlyCreatedKey({ partnerName: data.name, apiKey: data.apiKey });
+      toast.success(`Partner "${data.name}" registered successfully`);
+      loadPartnerList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create partner");
+    } finally {
+      setCreatingPartner(false);
+    }
+  };
+
+  const handleRotateKey = async () => {
+    if (!confirmRotatePartner) return;
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners/${confirmRotatePartner.id}/rotate-key`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to rotate API key");
+      const data = await res.json();
+      setConfirmRotatePartner(null);
+      setNewlyCreatedKey({ partnerName: data.name, apiKey: data.apiKey });
+      toast.success(`API key rotated for partner "${data.name}"`);
+      loadPartnerList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to rotate API key");
+    }
+  };
+
+  const handleRevokePartner = async () => {
+    if (!confirmRevokePartner) return;
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to revoke partner");
+      setConfirmRevokePartner(null);
+      toast.success(`Partner "${confirmRevokePartner.name}" revoked`);
+      loadPartnerList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to revoke partner");
+    }
+  };
+
+  const handleUpdatePartner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPartner) return;
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners/${editingPartner.id}`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editingPartner.name,
+          callbackUrl: editingPartner.callbackUrl || null,
+          rateLimit: Number(editingPartner.rateLimit) || 100,
+          isRevoked: editingPartner.isRevoked,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update partner");
+      setEditingPartner(null);
+      toast.success("Partner settings updated successfully");
+      loadPartnerList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update partner");
+    }
+  };
 
   // Add Staff Modal state
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -227,6 +353,7 @@ function SettingsPage() {
     if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
     if (activeTab === "audit") loadAuditLogs();
+    if (activeTab === "integrations") loadPartnerList();
   }, [activeTab, logsQuery]);
 
   const handleUpdateRole = async (staffId: string, newRole: string) => {
@@ -397,6 +524,17 @@ function SettingsPage() {
           >
             <FileText size={14} />
             Audit Logs
+          </button>
+          <button
+            onClick={() => setActiveTab("integrations")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
+              activeTab === "integrations"
+                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
+                : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            }`}
+          >
+            <Key size={14} />
+            Integrations
           </button>
         </div>
 
@@ -886,8 +1024,326 @@ function SettingsPage() {
               )}
             </div>
           )}
+
+          {/* Tab 5: Integrations */}
+          {activeTab === "integrations" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-[16px] font-bold text-[#0B0B0D]">Partner API Integrations</h3>
+                  <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                    Manage external ATS partner API credentials, rate limits, and callback configurations.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCreatePartnerModal(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+                >
+                  <Plus size={14} /> Register Partner
+                </button>
+              </div>
+
+              {loadingPartners ? (
+                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-8">
+                  Loading partner integration records…
+                </p>
+              ) : partners.length === 0 ? (
+                <div className="p-8 text-center border border-dashed border-[#E6E6EA] rounded-xl space-y-2">
+                  <Key className="w-8 h-8 text-[#8B8B93] mx-auto" />
+                  <p className="text-sm font-semibold text-[#0B0B0D]">No Partner API Keys Configured</p>
+                  <p className="text-xs text-[#5B5B64]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                </div>
+              ) : (
+                <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
+                  <div className="grid grid-cols-[1.8fr_1fr_1.8fr_1fr_1fr_1.2fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
+                    <div>Partner Name</div>
+                    <div>Rate Limit</div>
+                    <div>Callback URL</div>
+                    <div>Status</div>
+                    <div>Created</div>
+                    <div className="text-right">Actions</div>
+                  </div>
+
+                  <div className="divide-y divide-[#EFF0F3]">
+                    {partners.map((p) => (
+                      <div key={p.id} className="grid grid-cols-[1.8fr_1fr_1.8fr_1fr_1fr_1.2fr] gap-3 px-4 py-3.5 items-center hover:bg-[#F9FAFB] transition-colors">
+                        <div>
+                          <p className="font-bold text-[#0B0B0D]">{p.name}</p>
+                          <p className="text-[10px] font-mono text-[#8B8B93] truncate">{p.id}</p>
+                        </div>
+                        <div className="font-mono text-xs text-[#5B5B64]">{p.rateLimit} req/min</div>
+                        <div className="font-mono text-xs text-[#5B5B64] truncate" title={p.callbackUrl || "Not configured"}>
+                          {p.callbackUrl ? (
+                            <span className="flex items-center gap-1 text-[#2F5CFF]">
+                              <Globe size={12} /> {p.callbackUrl}
+                            </span>
+                          ) : (
+                            <span className="text-[#8B8B93] italic">None</span>
+                          )}
+                        </div>
+                        <div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                              p.isRevoked ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                            }`}
+                          >
+                            {p.isRevoked ? "Revoked" : "Active"}
+                          </span>
+                        </div>
+                        <div className="font-mono text-xs text-[#8B8B93]">
+                          {p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }) : "—"}
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setConfirmRotatePartner(p)}
+                            className="p-1.5 text-[#5B5B64] hover:text-[#2F5CFF] hover:bg-[#EAF0FF] border border-[#E6E6EA] rounded-md transition-all cursor-pointer"
+                            title="Rotate API Key"
+                          >
+                            <RefreshCw size={13} />
+                          </button>
+                          <button
+                            onClick={() => setEditingPartner({ ...p })}
+                            className="p-1.5 text-[#5B5B64] hover:text-[#2F5CFF] hover:bg-[#EAF0FF] border border-[#E6E6EA] rounded-md transition-all cursor-pointer"
+                            title="Edit Partner Config"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          {!p.isRevoked && (
+                            <button
+                              onClick={() => setConfirmRevokePartner(p)}
+                              className="p-1.5 text-[#5B5B64] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] rounded-md transition-all cursor-pointer"
+                              title="Revoke Partner Key"
+                            >
+                              <Lock size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Modal: Create Partner */}
+      {showCreatePartnerModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-900">Register Partner API Key</h3>
+              <button onClick={() => setShowCreatePartnerModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleCreatePartner} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Partner Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Greenhouse ATS"
+                  value={newPartnerName}
+                  onChange={(e) => setNewPartnerName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Rate Limit (requests / min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={newPartnerRateLimit}
+                  onChange={(e) => setNewPartnerRateLimit(parseInt(e.target.value) || 100)}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Callback URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://ats.partner.com/webhooks/cd-recruit"
+                  value={newPartnerCallbackUrl}
+                  onChange={(e) => setNewPartnerCallbackUrl(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePartnerModal(false)}
+                  className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingPartner}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg shadow-sm cursor-pointer"
+                >
+                  {creatingPartner ? "Generating Key…" : "Generate API Key"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Display Raw API Key */}
+      {newlyCreatedKey && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+            <div className="flex items-center gap-2 text-emerald-600">
+              <Check className="w-6 h-6 shrink-0" />
+              <h3 className="text-base font-bold text-gray-900">API Key Issued for {newlyCreatedKey.partnerName}</h3>
+            </div>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed">
+              <strong>Copy this API key now.</strong> For security reasons, you will not be able to view it again.
+            </p>
+            <div className="p-3 bg-gray-900 rounded-lg font-mono text-xs text-emerald-400 break-all flex items-center justify-between gap-2">
+              <span>{newlyCreatedKey.apiKey}</span>
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
+                  toast.success("API key copied to clipboard!");
+                }}
+                className="px-2.5 py-1 text-[11px] font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded cursor-pointer shrink-0"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setNewlyCreatedKey(null)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirm Rotate Key */}
+      {confirmRotatePartner && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+            <div className="flex items-center gap-3 text-amber-600">
+              <RefreshCw className="w-6 h-6 shrink-0" />
+              <h3 className="text-base font-bold text-gray-900">Rotate API Key for {confirmRotatePartner.name}?</h3>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Rotating this API key will immediately invalidate the active key for <strong>{confirmRotatePartner.name}</strong>. Existing integration calls using the old key will fail. This action will be logged in the Audit Log.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setConfirmRotatePartner(null)}
+                className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRotateKey}
+                className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm cursor-pointer"
+              >
+                Confirm Rotate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirm Revoke Partner */}
+      {confirmRevokePartner && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <Lock className="w-6 h-6 shrink-0" />
+              <h3 className="text-base font-bold text-gray-900">Revoke Partner Access for {confirmRevokePartner.name}?</h3>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Revoking access will immediately block all API requests from <strong>{confirmRevokePartner.name}</strong>. This action will be recorded in the Audit Log.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setConfirmRevokePartner(null)}
+                className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRevokePartner}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm cursor-pointer"
+              >
+                Confirm Revoke
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Partner */}
+      {editingPartner && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-900">Edit Partner: {editingPartner.name}</h3>
+              <button onClick={() => setEditingPartner(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdatePartner} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Partner Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPartner.name}
+                  onChange={(e) => setEditingPartner({ ...editingPartner, name: e.target.value })}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Rate Limit (requests / min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editingPartner.rateLimit}
+                  onChange={(e) => setEditingPartner({ ...editingPartner, rateLimit: parseInt(e.target.value) || 100 })}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Callback URL</label>
+                <input
+                  type="url"
+                  placeholder="https://ats.partner.com/webhooks/cd-recruit"
+                  value={editingPartner.callbackUrl || ""}
+                  onChange={(e) => setEditingPartner({ ...editingPartner, callbackUrl: e.target.value })}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPartner(null)}
+                  className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg shadow-sm cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

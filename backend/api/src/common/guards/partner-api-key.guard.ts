@@ -27,11 +27,12 @@ export class PartnerApiKeyGuard implements CanActivate {
     const partner = await this.prisma.partner.findFirst({
       where: {
         hashedApiKey,
+        isRevoked: false,
       },
     });
 
     if (!partner) {
-      throw new UnauthorizedException("Invalid X-API-Key");
+      throw new UnauthorizedException("Invalid or revoked X-API-Key");
     }
 
     // Attach resolved partner entity to request context
