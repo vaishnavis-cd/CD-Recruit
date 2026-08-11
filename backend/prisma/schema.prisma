@@ -48,6 +48,11 @@ enum DecisionType {
   REJECT
 }
 
+enum OriginChannel {
+  DIRECT
+  PARTNER_API
+}
+
 enum InviteStatus {
   PENDING
   REDEEMED
@@ -151,6 +156,8 @@ model Drive {
   bufferMinutes  Int         @default(15) @map("buffer_minutes")
   graceMinutes   Int         @default(5) @map("grace_minutes")
   slotDistribution Json?     @map("slot_distribution")
+  originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
+  isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
   roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
@@ -277,6 +284,7 @@ model Session {
   disconnectCount   Int       @default(0) @map("disconnect_count") // incremented on each DISCONNECTED event; AUTO_SUBMITTED when ≥ 3
   workspaceStatus   String?   @default("provisioning") @map("workspace_status")
   simulationSnapshot Json?    @map("simulation_snapshot")
+  originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
 
   organization Organization? @relation(fields: [organizationId], references: [id])
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
@@ -432,6 +440,7 @@ model Invite {
   scheduledTime   DateTime?    @map("scheduled_time")
   bufferMinutes   Int          @default(15) @map("buffer_minutes")
   graceMinutes    Int          @default(5) @map("grace_minutes")
+  originChannel   OriginChannel @default(DIRECT) @map("origin_channel")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])

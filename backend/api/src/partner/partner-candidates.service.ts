@@ -8,7 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { RoleTemplateService } from "../role-template/role-template.service";
 import { DriveService } from "../drive/drive.service";
 import { CandidateIngestionService } from "../drive/candidate-ingestion.service";
-import { Department, ExperienceLevel, DriveStatus, Partner } from "@prisma/client";
+import { Department, ExperienceLevel, DriveStatus, Partner, OriginChannel } from "@prisma/client";
 import { PushPartnerCandidatesDto } from "./dto/partner-candidates.dto";
 import { ConfigService } from "@nestjs/config";
 
@@ -85,6 +85,12 @@ export class PartnerCandidatesService {
     const expiresAt24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await this.prisma.$transaction(async (tx) => {
+      // Ensure drive has originChannel = PARTNER_API
+      await tx.drive.update({
+        where: { id: drive.id },
+        data: { originChannel: OriginChannel.PARTNER_API },
+      });
+
       await this.candidateIngestionService.processBulkCandidates(
         tx,
         drive.id,
@@ -95,8 +101,18 @@ export class PartnerCandidatesService {
         {
           expiresAt: expiresAt24h,
           scheduledTime: null, // self-paced 24-hour rolling validity
+          originChannel: OriginChannel.PARTNER_API,
         },
       );
+
+      // Update created invites originChannel = PARTNER_API
+      await tx.invite.updateMany({
+        where: {
+          driveId: drive.id,
+          candidateEmail: { in: candidates.map((c) => c.email) },
+        },
+        data: { originChannel: OriginChannel.PARTNER_API },
+      });
 
       // Write AuditLog entry per created Drive and candidate ingestion
       await tx.auditLog.create({

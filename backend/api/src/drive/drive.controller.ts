@@ -135,4 +135,12 @@ export class DriveController {
   ) {
     return this.driveService.removeCandidateFromDrive(driveId, candidateId, actor.id);
   }
+
+  @Post(":driveId/unlock-editing")
+  async unlockEditing(
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @CurrentUser() actor: any,
+  ) {
+    return this.driveService.unlockEditing(driveId, actor?.id || actor?.sub || "system");
+  }
 }

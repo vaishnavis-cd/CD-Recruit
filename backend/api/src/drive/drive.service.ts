@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   HttpStatus,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
@@ -15,7 +16,7 @@ import {
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
-import { InviteStatus, SessionStatus, ModuleType } from "@prisma/client";
+import { InviteStatus, SessionStatus, ModuleType, OriginChannel } from "@prisma/client";
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
@@ -803,6 +804,10 @@ export class DriveService {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
     }
 
+    if (drive.originChannel === OriginChannel.PARTNER_API && !drive.isEditingUnlocked) {
+      throw new ForbiddenException("Question editing for partner API drives is locked by default. Explicit unlock required.");
+    }
+
     const totalInvites = await this.prisma.invite.count({
       where: { driveId },
     });
@@ -1087,5 +1092,40 @@ export class DriveService {
     });
 
     return { success: true, count: inviteIds.length };
+  }
+
+  async unlockEditing(driveId: string, staffId: string) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    const updated = await this.prisma.drive.update({
+      where: { id: driveId },
+      data: { isEditingUnlocked: true },
+      include: {
+        roleTemplate: true,
+        questions: { include: { question: true } },
+        invites: true,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "DRIVE_EDITING_UNLOCKED",
+        entityType: "Drive",
+        entityId: driveId,
+        metadata: {
+          driveName: drive.name,
+          unlockedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return updated;
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
-import { InviteStatus } from "@prisma/client";
+import { InviteStatus, OriginChannel } from "@prisma/client";
 import * as crypto from "crypto";
 
 export interface CandidateEntry {
@@ -26,7 +26,7 @@ export class CandidateIngestionService {
     candidates: CandidateEntry[],
     staffId: string,
     isGenerated = false,
-    options?: { expiresAt?: Date; scheduledTime?: Date | null },
+    options?: { expiresAt?: Date; scheduledTime?: Date | null; originChannel?: OriginChannel },
   ) {
     if (candidates.length === 0) {
       return { count: 0, createdCount: 0 };

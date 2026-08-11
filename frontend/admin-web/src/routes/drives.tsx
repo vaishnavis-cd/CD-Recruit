@@ -81,6 +81,7 @@ function DrivesPage() {
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DriveStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "DIRECT" | "PARTNER_API">("all");
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
   const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
@@ -295,9 +296,10 @@ function DrivesPage() {
     return drives.filter((d) => {
       if (q && !d.name.toLowerCase().includes(q)) return false;
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
+      if (sourceFilter !== "all" && ((d as any).originChannel || "DIRECT") !== sourceFilter) return false;
       return true;
     });
-  }, [drives, query, statusFilter]);
+  }, [drives, query, statusFilter, sourceFilter]);
 
   const handleLaunch = async () => {
     if (validationErrors.length > 0) {
@@ -437,20 +439,39 @@ function DrivesPage() {
       }
     >
       {/* Filter chips */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {(["all", "DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
-              statusFilter === s
-                ? "text-black border-[#2F5CFF] border-2"
-                : "bg-white text-[#5B5B64] border-[#E6E6EA] border-2 hover:border-[#D6D7DC]"
-            }`}
-          >
-            {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["all", "DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
+                statusFilter === s
+                  ? "text-black border-[#2F5CFF] border-2"
+                  : "bg-white text-[#5B5B64] border-[#E6E6EA] border-2 hover:border-[#D6D7DC]"
+              }`}
+            >
+              {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1.5 border-l border-[#E6E6EA] pl-3">
+          <span className="text-[11px] font-semibold text-[#8B8B93] uppercase tracking-wider">Source:</span>
+          {(["all", "DIRECT", "PARTNER_API"] as const).map((src) => (
+            <button
+              key={src}
+              onClick={() => setSourceFilter(src)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors cursor-pointer ${
+                sourceFilter === src
+                  ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                  : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
+              }`}
+            >
+              {src === "all" ? "All Sources" : src === "DIRECT" ? "Direct" : "Partner API"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Grid of Drives */}
@@ -475,11 +496,22 @@ function DrivesPage() {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <span
-                    className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
-                  >
-                    {STATUS_LABEL[d.status]}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
+                        (d as any).originChannel === "PARTNER_API"
+                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                          : "bg-gray-100 text-gray-600 border border-gray-200"
+                      }`}
+                    >
+                      {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
+                    >
+                      {STATUS_LABEL[d.status]}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
                     <Calendar size={13} className="text-[#8B8B93] shrink-0" />
                     <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
