@@ -187,6 +187,160 @@ export class DriveService {
     };
   }
 
+  /**
+   * Instantiate a Drive from a RoleTemplate.
+   * Copies RoleTemplateQuestion rows into DriveQuestion (with questionVersionSnapshot populated),
+   * carrying over weightingPreset and durationMinutes from the template unless explicitly overridden.
+   */
+  async createFromTemplate(roleTemplateId: string, driveMeta: any = {}, staffId: string = "system") {
+    const template = await this.prisma.roleTemplate.findUnique({
+      where: { id: roleTemplateId },
+      include: {
+        questions: {
+          include: {
+            question: true,
+          },
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+    });
+
+    if (!template) {
+      throw new NotFoundException(`RoleTemplate not found with ID ${roleTemplateId}`);
+    }
+
+    const name = driveMeta.name || `${template.roleName} Drive - ${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+    const status = driveMeta.status || DriveStatus.DRAFT;
+    const scheduleStart = driveMeta.scheduleStart;
+    const scheduleEnd = driveMeta.scheduleEnd;
+    const candidates = driveMeta.candidates || [];
+
+    // Build moduleConfig carrying over weightingPreset and durationMinutes from template unless overridden
+    let moduleConfig = driveMeta.moduleConfig;
+    if (!moduleConfig) {
+      const preset = (template.weightingPreset as Record<string, number>) || {};
+      moduleConfig = {};
+      const duration = driveMeta.durationMinutes ?? template.durationMinutes ?? 60;
+
+      for (const [mod, weight] of Object.entries(preset)) {
+        moduleConfig[mod] = {
+          enabled: true,
+          durationMinutes: duration,
+          weight: typeof weight === "number" ? weight : 0.2,
+        };
+      }
+
+      if (Object.keys(moduleConfig).length === 0) {
+        moduleConfig = {
+          MCQ: { enabled: true, durationMinutes: 15, weight: 0.2 },
+          SQL: { enabled: true, durationMinutes: 20, weight: 0.2 },
+          CODING: { enabled: true, durationMinutes: 30, weight: 0.3 },
+          AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.15 },
+          SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+        };
+      }
+    }
+
+    // Schedule validation
+    if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
+      if (!scheduleStart || !scheduleEnd) {
+        throw new BadRequestException(
+          "Schedule start and end dates are required when status is SCHEDULED or ACTIVE",
+        );
+      }
+      if (new Date(scheduleStart) >= new Date(scheduleEnd)) {
+        throw new BadRequestException("Schedule start date must be before end date");
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const createdDrive = await tx.drive.create({
+        data: {
+          name,
+          roleTemplateId: template.id,
+          organizationId: driveMeta.organizationId || undefined,
+          moduleConfig: moduleConfig as any,
+          status: status as any,
+          scheduleStart: scheduleStart ? new Date(scheduleStart) : null,
+          scheduleEnd: scheduleEnd ? new Date(scheduleEnd) : null,
+          createdById: staffId,
+          bufferMinutes: driveMeta.bufferMinutes ?? 15,
+          graceMinutes: driveMeta.graceMinutes ?? 5,
+        },
+      });
+
+      // Copy RoleTemplateQuestion rows into DriveQuestion with questionVersionSnapshot populated
+      if (template.questions && template.questions.length > 0) {
+        await tx.driveQuestion.createMany({
+          data: template.questions.map((rtq) => ({
+            driveId: createdDrive.id,
+            questionId: rtq.questionId,
+            moduleType: rtq.moduleType,
+            questionVersionSnapshot: rtq.questionVersionSnapshot ?? rtq.question?.version ?? 1,
+            pointShare: rtq.pointShare ?? null,
+          })),
+        });
+      } else if (driveMeta.questionIds && Array.isArray(driveMeta.questionIds) && driveMeta.questionIds.length > 0) {
+        const questionsToLink = await tx.question.findMany({
+          where: {
+            id: { in: driveMeta.questionIds },
+            status: "PUBLISHED",
+          },
+        });
+
+        if (questionsToLink.length > 0) {
+          await tx.driveQuestion.createMany({
+            data: questionsToLink.map((q) => ({
+              driveId: createdDrive.id,
+              questionId: q.id,
+              moduleType: q.moduleType,
+              questionVersionSnapshot: q.version ?? 1,
+            })),
+          });
+        }
+      }
+
+      // Generate Invites/Roster if candidates provided
+      if (candidates.length > 0) {
+        await this.candidateIngestionService.processBulkCandidates(
+          tx,
+          createdDrive.id,
+          template.id,
+          candidates,
+          staffId,
+          true,
+        );
+      }
+
+      // Create Audit Log
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "DRIVE_CREATED_FROM_TEMPLATE",
+          entityType: "Drive",
+          entityId: createdDrive.id,
+          metadata: {
+            roleTemplateId: template.id,
+            templateVersion: template.version,
+            department: template.department,
+            level: template.level,
+          },
+        },
+      });
+
+      return tx.drive.findUnique({
+        where: { id: createdDrive.id },
+        include: {
+          roleTemplate: true,
+          questions: {
+            include: { question: true },
+          },
+          invites: true,
+        },
+      });
+    });
+  }
+
   async list(query: ListDrivesQueryDto): Promise<DriveListResponse> {
     const { page, pageSize, status, search } = query;
     const skip = (page - 1) * pageSize;

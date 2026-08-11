@@ -39,6 +39,16 @@ export class DriveController {
     return this.driveService.create(dto, actor.id);
   }
 
+  @Post("from-template/:roleTemplateId")
+  @HttpCode(HttpStatus.CREATED)
+  async createFromTemplate(
+    @Param("roleTemplateId", ParseUUIDPipe) roleTemplateId: string,
+    @Body() driveMeta: any,
+    @CurrentUser() actor: any,
+  ) {
+    return this.driveService.createFromTemplate(roleTemplateId, driveMeta, actor?.id || actor?.sub || "system");
+  }
+
   @Get()
   async list(@Query() query: ListDrivesQueryDto) {
     return this.driveService.list(query);
