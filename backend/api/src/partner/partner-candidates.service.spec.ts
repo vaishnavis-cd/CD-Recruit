@@ -189,6 +189,7 @@ async function runPartnerCandidatesServiceTests() {
 
   const scoredStatusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
   const scoredCand = scoredStatusRes.candidates.find((c: any) => c.candidate_email === "bob@example.com");
+  if (!scoredCand) throw new Error("scoredCand not found in response");
   assert.strictEqual(scoredCand.score_status, "SCORED");
   assert.strictEqual(scoredCand.composite_score, 88.5);
   assert.strictEqual(scoredCand.composite_score_band, "STRONG_PASS");
