@@ -64,11 +64,11 @@ function mapBackendSession(session: any): Session {
   const compositeScore =
     session.compositeScore !== null && session.compositeScore !== undefined
       ? Math.round(session.compositeScore * 100)
-      : 70;
+      : null;
   const sayDoScore =
     session.sayDoConsistencyScore !== null && session.sayDoConsistencyScore !== undefined
       ? Math.round(session.sayDoConsistencyScore * 100)
-      : 80;
+      : null;
 
   const initials = session.candidateName
     ? session.candidateName
@@ -80,11 +80,12 @@ function mapBackendSession(session: any): Session {
 
   const roleName = session.roleTemplateName || session.roleName || "Software Developer";
 
+  const confidenceVal = session.score?.aiConfidence ?? session.aiConfidence ?? null;
   const status = mapBackendStatus(
     session.status || "SUBMITTED",
     session.compositeScore !== null && session.compositeScore !== undefined,
     !session.humanReviewRequired,
-    0.85,
+    confidenceVal ?? 0,
     false,
   );
 
@@ -151,6 +152,7 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     if (!res.ok) throw new Error("Failed to fetch session detail");
     const detail = await res.json();
     const mapped = {
+      ...detail,
       id: detail.sessionId || detail.id || sessionId,
       candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
       candidateEmail: detail.candidate?.email || detail.candidateEmail || "",
@@ -180,6 +182,10 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       submissions: detail.submissions || detail.moduleResponses || [],
       moduleResponses: detail.moduleResponses || detail.submissions || [],
       reviewerDecision: detail.reviewerDecision || detail.decision || null,
+      simulationSnapshot: detail.simulationSnapshot || null,
+      telemetryActions: detail.telemetryActions || detail.simulationSnapshot?.telemetryActions || [],
+      questions: detail.questions || detail.drive?.questions || [],
+      drive: detail.drive || null,
     };
     set({ currentSessionDetail: mapped as any });
     return mapped as any;

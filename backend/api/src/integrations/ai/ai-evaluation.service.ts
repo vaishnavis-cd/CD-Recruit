@@ -2,10 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 export interface AiEvaluationResult {
-  score: number; // 0 to 100
+  score: number | null; // 0 to 100 or null if unavailable
   reasoning: string;
   feedback: string;
-  providerUsed: "GROQ" | "CEREBRAS" | "DEV_FALLBACK";
+  providerUsed: "GROQ" | "CEREBRAS" | "DEV_FALLBACK" | "UNAVAILABLE";
 }
 
 @Injectable()
@@ -148,12 +148,18 @@ Respond ONLY in strict JSON format:
         const cerebrasResult = await this.callCerebrasApi(systemPrompt, userContent);
         if (cerebrasResult) return { ...cerebrasResult, providerUsed: "CEREBRAS" };
       } catch (err: any) {
-        this.logger.warn(`Cerebras API evaluation failed: ${err.message}. Using Dev Fallback...`);
+        this.logger.warn(`Cerebras API evaluation failed: ${err.message}. Provider unavailable.`);
       }
     }
 
-    // 3. Heuristic Dev Fallback
-    return this.devFallbackEvaluation(rawTextForFallback);
+    // 3. Provider Unavailable Fallback
+    this.logger.warn("Both Groq and Cerebras providers failed or are unavailable.");
+    return {
+      score: null,
+      reasoning: "Evaluation Pending — AI evaluation provider unavailable.",
+      feedback: "AI evaluation provider unavailable.",
+      providerUsed: "UNAVAILABLE",
+    };
   }
 
   private async callGroqApi(systemPrompt: string, userContent: string) {
@@ -276,7 +282,7 @@ Respond ONLY in strict JSON format:
     try {
       const parsed = JSON.parse(content);
       return {
-        score: Math.min(100, Math.max(0, Number(parsed.score) || 75)),
+        score: typeof parsed.score === "number" && !isNaN(parsed.score) ? Math.min(100, Math.max(0, Math.round(parsed.score))) : null,
         reasoning: parsed.reasoning || "AI Evaluation completed.",
         feedback: parsed.feedback || "Good structure and relevant response.",
       };
@@ -284,21 +290,5 @@ Respond ONLY in strict JSON format:
       this.logger.error("Failed to parse JSON response from LLM", content);
       return null;
     }
-  }
-
-  private devFallbackEvaluation(rawText: string): AiEvaluationResult {
-    const length = (rawText || "").trim().length;
-    let score = 75;
-    if (length > 200) score = 88;
-    else if (length > 80) score = 78;
-    else if (length > 20) score = 65;
-    else score = 45;
-
-    return {
-      score,
-      reasoning: "Rule-based dev fallback evaluation (length & structure check).",
-      feedback: "Candidate answer provided sufficient technical structure.",
-      providerUsed: "DEV_FALLBACK",
-    };
   }
 }
