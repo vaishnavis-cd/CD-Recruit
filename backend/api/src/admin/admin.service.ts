@@ -469,22 +469,40 @@ export class AdminService {
           const dt = log.occurredAt ? new Date(log.occurredAt) : log.createdAt ? new Date(log.createdAt) : new Date();
           const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
           const payload = (log.payload as any) || {};
-          const actionLabel = payload.label || payload.action || payload.text || log.eventType;
+          let label = payload.label || payload.action || payload.text;
+          
+          if (!label) {
+            if (log.eventType?.includes("INITIAL_SAY")) label = "Submitted Initial SAY debugging plan";
+            else if (log.eventType?.includes("EMAIL_REPLY")) label = "Submitted manager email reply";
+            else if (log.eventType?.includes("MANAGER_EMAIL")) label = "Received incoming email from Manager";
+            else if (log.eventType?.includes("TEST_EXECUTE") || log.eventType?.includes("run_code")) label = "Executed diagnostic test suite";
+            else if (log.eventType?.includes("FILE_EDIT")) label = `Modified ${payload.filepath || 'login_validation.py'}`;
+            else if (log.eventType?.includes("FILE_OPEN")) label = `Inspected ${payload.filepath || 'login_validation.py'}`;
+            else if (log.eventType?.includes("SIMULATION_SUBMITTED")) label = "Submitted final incident solution";
+            else label = log.eventType || "Action logged";
+          }
+
           return {
             timestamp: timeStr,
-            type: log.eventType,
-            label: actionLabel,
+            type: log.eventType || "ACTION",
+            label,
           };
         }) || []);
 
     if (telemetryActions.length === 0 && session.moduleResponses.length > 0) {
-      telemetryActions = session.moduleResponses.map((r, idx) => {
+      telemetryActions = session.moduleResponses.map((r) => {
         const dt = r.lastAutosavedAt ? new Date(r.lastAutosavedAt) : new Date();
         const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const p = (r.responsePayload as any) || {};
+        let label = `Submitted response for ${r.question.moduleType} assessment`;
+        if (p.initialSayText) label = "Submitted Initial SAY debugging plan";
+        else if (p.emailReplyText || p.ticketReply) label = "Submitted manager email reply";
+        else if (p.fixedCode || p.isCorrect !== undefined) label = "Executed diagnostic test suite & submitted fix";
+
         return {
           timestamp: timeStr,
           type: r.question.moduleType,
-          label: `Submitted response for ${r.question.moduleType} assessment`,
+          label,
         };
       });
     }
@@ -522,32 +540,21 @@ export class AdminService {
     const existingScore = session.score;
     const sayDoConsistencyScore =
       existingScore?.sayDoConsistencyScore ??
-      (snapshotObj.overallScore ? snapshotObj.overallScore / 100 : null) ??
-      (snapshotObj.sayDoCorrelation?.score ? snapshotObj.sayDoCorrelation.score / 100 : null) ??
-      0.88;
+      (snapshotObj.sayDoCorrelation?.score ? snapshotObj.sayDoCorrelation.score / 100 : null);
 
     const sayDoRationale =
       (existingScore as any)?.sayDoRationale ||
       snapshotObj.sayDoCorrelation?.reasoning ||
       snapshotObj.evaluation?.sayDoCorrelation?.reasoning ||
-      "Candidate demonstrated high alignment between initial proposed plan and executed code changes.";
+      null;
 
     const scoreObj = existingScore
       ? {
           compositeScore: existingScore.compositeScore,
-          moduleScores: (existingScore.moduleScores as Record<string, number>) || { SIMULATION: existingScore.compositeScore },
+          moduleScores: (existingScore.moduleScores as Record<string, number>) || {},
           sayDoConsistencyScore,
-          aiConfidence: existingScore.aiConfidence || 0.85,
+          aiConfidence: existingScore.aiConfidence ?? null,
           humanReviewed: existingScore.humanReviewed || false,
-          sayDoRationale,
-        }
-      : session.moduleResponses.length > 0 || session.simulationSnapshot
-      ? {
-          compositeScore: 0.85,
-          moduleScores: { MCQ: 0.85, CODING: 0.8, SIMULATION: 0.85 },
-          sayDoConsistencyScore,
-          aiConfidence: 0.85,
-          humanReviewed: false,
           sayDoRationale,
         }
       : null;

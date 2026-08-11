@@ -168,6 +168,10 @@ export interface CandidateSessionDetail {
     decidedBy: string;
     note?: string;
   };
+  simulationSnapshot?: any;
+  telemetryActions?: Array<{ timestamp: string; type: string; label: string }>;
+  drive?: any;
+  questions?: any[];
 }
 
 export interface Candidate {
@@ -191,8 +195,8 @@ export interface Session {
   candidate: Candidate;
   roleTemplate: RoleTemplate;
   status: SessionStatus;
-  compositeScore: number;
-  sayDoScore: number;
+  compositeScore: number | null;
+  sayDoScore: number | null;
   sayDoTrace: { t: number; said: number; did: number }[];
   moduleScores: Record<string, number>;
   mismatches: { said: string; did: string; impact: string }[];

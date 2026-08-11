@@ -384,7 +384,7 @@ function IndividualResultPage() {
               AI Confidence
             </span>
             <span className="text-[24px] font-mono font-bold text-[#0B0B0D]">
-              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
                 ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
                 : "Pending"}
             </span>
@@ -877,7 +877,9 @@ function IndividualResultPage() {
                 <div className="text-right">
                   <span className="text-[11px] font-mono uppercase text-[#8B8B93]">AI Confidence</span>
                   <div className="text-sm font-semibold text-[#0C6B58] mt-0.5">
-                    {detail.score?.aiConfidence ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%` : "N/A"}
+                    {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score?.aiConfidence
+                      ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%`
+                      : "Pending"}
                   </div>
                 </div>
               </div>
@@ -954,23 +956,43 @@ function IndividualResultPage() {
               <span className="text-[11px] font-mono uppercase text-[#8B8B93] font-bold block">
                 3. Candidate Telemetry &amp; Action Audit Stream
               </span>
-              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1 max-h-48 overflow-y-auto">
-                {((detail as any).telemetryActions && Array.isArray((detail as any).telemetryActions) && (detail as any).telemetryActions.length > 0) ? (
-                  (detail as any).telemetryActions.map((act: any, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-[#8B8B93] shrink-0">[{act.timestamp || `#${idx + 1}`}]</span>
-                      <span className="font-semibold text-[#2F5CFF]">[{act.type || "ACTION"}]</span>
-                      <span className="text-[#0B0B0D] truncate">{act.label || "Action logged"}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-[#8B8B93] italic">No telemetry actions recorded during session.</div>
-                )}
-                {((detail as any).simulationSnapshot?.telemetryCount || 0) > 0 && (
-                  <div className="text-emerald-600 font-semibold pt-2 border-t border-[#E6E6EA] mt-1">
-                    ✓ Total Recorded Work Events: {(detail as any).simulationSnapshot?.telemetryCount}
-                  </div>
-                )}
+              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1.5 max-h-56 overflow-y-auto">
+                {(() => {
+                  const rawActions = (detail as any).telemetryActions || (detail as any).simulationSnapshot?.telemetryActions || [];
+                  const actionsList = Array.isArray(rawActions) && rawActions.length > 0
+                    ? rawActions
+                    : (detail as any).simulationSnapshot?.evaluation?.actionTimeline?.map((item: any) => ({
+                        timestamp: item.timestamp,
+                        type: "ACTION",
+                        label: item.action,
+                      })) || [];
+
+                  const totalCount = Math.max(actionsList.length, (detail as any).simulationSnapshot?.telemetryCount || 0);
+
+                  if (actionsList.length === 0) {
+                    return <div className="text-[#8B8B93] italic">No telemetry actions recorded during session.</div>;
+                  }
+
+                  return (
+                    <>
+                      {actionsList.map((act: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 py-0.5 border-b border-gray-100 last:border-0">
+                          <span className="text-[#8B8B93] shrink-0 font-mono text-[10px]">[{act.timestamp || `#${idx + 1}`}]</span>
+                          <span className="font-semibold text-[#2F5CFF] shrink-0 text-[10px] px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded">
+                            [{act.type || "ACTION"}]
+                          </span>
+                          <span className="text-[#0B0B0D] text-[11px] truncate">{act.label || act.action || "Action logged"}</span>
+                        </div>
+                      ))}
+                      {totalCount > 0 && (
+                        <div className="text-emerald-600 font-semibold pt-2 border-t border-[#E6E6EA] mt-1 text-[11px] flex items-center gap-1.5">
+                          <span>✓ Total Recorded Work Events:</span>
+                          <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-[10px]">{totalCount}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

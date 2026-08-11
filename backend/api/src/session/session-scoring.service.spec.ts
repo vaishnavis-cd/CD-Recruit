@@ -103,7 +103,7 @@ async function runSessionScoringTests() {
   const result = await service.computeSessionScores("sess-1");
 
   assert.ok(result, "Result should be defined");
-  assert.strictEqual(result.gradingSource, "AUTOMATED_EVALUATION_ENGINE");
+  assert.strictEqual(result.gradingSource, "module_scoring");
   assert.strictEqual(result.moduleScores["MCQ"], 1.0, "MCQ module score should be 1.0");
   assert.strictEqual(result.moduleScores["SQL"], 1.0, "SQL module score should be 1.0");
   assert.strictEqual(result.moduleScores["CODING"], 0.9, "Coding module score should be 0.9 (9/10 tests)");

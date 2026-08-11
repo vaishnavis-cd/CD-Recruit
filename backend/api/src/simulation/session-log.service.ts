@@ -214,6 +214,9 @@ export class SessionLogService
     const sessionState = await this.getSession(sessionId);
     if (!sessionState) return;
 
+    if (!sessionState.eventStates) {
+      sessionState.eventStates = {};
+    }
     if (!sessionState.eventStates[eventId]) {
       // Initialize event log if not present
       sessionState.eventStates[eventId] = {

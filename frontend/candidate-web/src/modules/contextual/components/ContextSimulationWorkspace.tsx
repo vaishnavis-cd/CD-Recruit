@@ -210,12 +210,12 @@ export function ContextSimulationWorkspace({
     }
   }, [sessionId])
 
-  const emitTelemetry = async (type: 'FILE_OPEN' | 'FILE_EDIT' | 'TEST_EXECUTE', filepath?: string) => {
+  const emitTelemetry = async (type: 'FILE_OPEN' | 'FILE_EDIT' | 'TEST_EXECUTE', filepath?: string, metadata?: Record<string, any>) => {
     try {
       const res = await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
         type,
         filepath: filepath || selectedFile,
-        metadata: { timestamp: new Date().toISOString() },
+        metadata: { timestamp: new Date().toISOString(), ...metadata },
       })
       if (res.data?.emailTriggered || (res.data as any)?.emailTriggered === true) {
         setHasUnreadManagerEmail(true)
@@ -243,7 +243,6 @@ export function ContextSimulationWorkspace({
   // Animated Multi-Stage Diagnostics Run
   const handleRunDiagnostics = async () => {
     setIsRunningTests(true)
-    emitTelemetry('TEST_EXECUTE')
 
     const steps = [
       'Collecting logs & environment variables...',
@@ -272,6 +271,8 @@ export function ContextSimulationWorkspace({
 
       const passedCount = results.filter((r) => r.passed).length
       const total = results.length
+
+      emitTelemetry('TEST_EXECUTE', selectedFile, { passCount: passedCount, totalCount: total })
 
       const newLogs = [
         `=========================================================================`,
@@ -563,6 +564,7 @@ export function ContextSimulationWorkspace({
                         setActiveTab('workspace')
                         setActiveWorkspaceSubTab('editor')
                         setSelectedFile('login/login_validation.py')
+                        emitTelemetry('FILE_OPEN', 'login/login_validation.py')
                       }}
                       className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
                     >
