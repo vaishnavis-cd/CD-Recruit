@@ -82,10 +82,17 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
+<<<<<<< HEAD
         // Check if scheduled time is in the future (> 15 minutes away) or past grace window
         const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024'
         const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduleStart || (drive as any).scheduledAt || (drive as any).startsAt
         if (scheduledTimeStr && !isDemoToken) {
+=======
+        // Time-Gating Check for Scheduled vs Self-Paced (Rolling) Invites
+        // For null scheduledTime (self-paced partner invites): skip Too Early / Buffer / Grace states -> go directly to System Check (full mode)
+        const scheduledTimeStr = invite.scheduledTime
+        if (scheduledTimeStr) {
+>>>>>>> partner-api
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
           const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
@@ -106,9 +113,12 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
               localStorage.removeItem('cd-recruit-scheduled-ms')
             }
           }
+        } else {
+          // Self-paced rolling invite (null scheduledTime): clear schedule marker
+          localStorage.removeItem('cd-recruit-scheduled-ms')
         }
 
-        // New Session — start at System Check onboarding sequence
+        // New Session — start directly at System Check (always full tutorial, never condensed)
         transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
         return
       } catch (err) {

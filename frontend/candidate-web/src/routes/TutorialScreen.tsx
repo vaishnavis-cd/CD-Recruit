@@ -96,21 +96,18 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
   async function proceedToAssessment() {
     const nowMs = services.time.getServerNow()
+    const isSelfPaced = !scheduledMs && (!session || !(session as any)?.invite?.scheduledTime)
 
-    // Derive the real scheduled start time in priority order:
-    // 1. localStorage value set by InviteResolver / TooEarlyScreen (contains the real schedule time)
-    // 2. Fallback: now + 60s preheat buffer
     let preheatTargetMs: number
-
     if (scheduledMs && scheduledMs > nowMs) {
-      // Real schedule time is still in the future — countdown to it
       preheatTargetMs = scheduledMs
     } else {
-      // Already past schedule (or no info) — short 60s preheat buffer
       preheatTargetMs = nowMs + 60 * 1000
     }
 
-    localStorage.setItem('cd-recruit-scheduled-ms', preheatTargetMs.toString())
+    if (!isSelfPaced) {
+      localStorage.setItem('cd-recruit-scheduled-ms', preheatTargetMs.toString())
+    }
 
     try {
       const selfieDataUrl = localStorage.getItem('cd-recruit-selfie-data')
@@ -124,7 +121,13 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
       const sessionDuration = (newSession.durationMinutes || allocatedMinutes) * 60
       initAssessment(newSession.id, sessionDuration, newSession.questions)
-      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
+
+      if (isSelfPaced || !(newSession as any)?.invite?.scheduledTime) {
+        // Self-paced rolling-window candidate: skip waiting-room, assessment begins whenever candidate finishes
+        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: newSession.id })
+      } else {
+        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
+      }
     } catch (err: any) {
       const code = err?.response?.data?.code ?? err?.response?.data?.error
       console.error('[TutorialScreen] Failed to create session:', code, err)
@@ -133,12 +136,19 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
       if (currentSession?.id) {
         const sessionDuration = (currentSession.durationMinutes || allocatedMinutes) * 60
         initAssessment(currentSession.id, sessionDuration, currentSession.questions)
-        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
+        if (isSelfPaced) {
+          transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: currentSession.id })
+        } else {
+          transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
+        }
         return
       }
 
-      // Mandatory fallback: push to waiting room with computed target
-      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
+      if (isSelfPaced) {
+        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: 'sess_candidate' })
+      } else {
+        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
+      }
     }
   }
 
