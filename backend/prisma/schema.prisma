@@ -540,3 +540,14 @@ model ProctoringEvent {
   @@index([sessionId])
   @@map("proctoring_event")
 }
+
+model Partner {
+  id           String   @id @default(uuid())
+  name         String
+  hashedApiKey String   @map("hashed_api_key")
+  callbackUrl  String?  @map("callback_url")
+  rateLimit    Int      @default(100) @map("rate_limit")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("partner")
+}
