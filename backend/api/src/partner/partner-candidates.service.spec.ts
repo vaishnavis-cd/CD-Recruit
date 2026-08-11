@@ -35,7 +35,16 @@ async function runPartnerCandidatesServiceTests() {
   const mockPrisma: any = {
     drive: {
       findFirst: async ({ where }: any) => {
-        return createdDrives.find((d) => d.name === where.name) || null;
+        const searchName = typeof where?.name === "string" ? where.name : where?.name?.startsWith;
+        if (!searchName) return createdDrives[0] || null;
+        const found = createdDrives.find((d) => d.name.includes(searchName));
+        if (found) {
+          return {
+            ...found,
+            invites: createdInvites.filter((inv) => inv.driveId === found.id),
+          };
+        }
+        return null;
       },
     },
     invite: {
@@ -152,6 +161,32 @@ async function runPartnerCandidatesServiceTests() {
   assert.strictEqual(createdDrives.length, initialDriveCount, "Should not create a duplicate Drive for same requisition");
   assert.strictEqual(res2.drive_id, res1.drive_id);
   console.log("  ✔ Subsequent call for same requisition reuses existing Drive");
+
+  // Test 4: getRequisitionStatus returns status with PENDING score_status when Score row is missing
+  const statusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
+  assert.strictEqual(statusRes.requisition_ref, "REQ-100");
+  assert.strictEqual(statusRes.total_candidates, 2);
+  assert.strictEqual(statusRes.candidates[0].score_status, "PENDING");
+  assert.strictEqual(statusRes.candidates[0].composite_score, null);
+  assert.strictEqual(statusRes.candidates[0].composite_score_band, null);
+  console.log("  ✔ getRequisitionStatus returns PENDING score_status when Score row is missing");
+
+  // Test 5: getRequisitionStatus populates SCORED and composite_score_band when real Score row exists
+  createdInvites[0].session = {
+    id: "sess-1",
+    status: "COMPLETED",
+    score: {
+      compositeScore: 88.5,
+      gradingSource: "real_evaluation_engine",
+    },
+  };
+
+  const scoredStatusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
+  const scoredCand = scoredStatusRes.candidates.find((c: any) => c.candidate_email === "bob@example.com");
+  assert.strictEqual(scoredCand.score_status, "SCORED");
+  assert.strictEqual(scoredCand.composite_score, 88.5);
+  assert.strictEqual(scoredCand.composite_score_band, "STRONG_PASS");
+  console.log("  ✔ getRequisitionStatus populates SCORED and STRONG_PASS band when real Score row exists");
 
   console.log("✅ All PartnerCandidatesService characterization tests passed successfully!");
 }
