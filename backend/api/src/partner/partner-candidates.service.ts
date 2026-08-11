@@ -50,7 +50,23 @@ export class PartnerCandidatesService {
     }
 
     const driveName = `[Partner:${partner.id}:${requisition_ref}] ${activeTemplate.roleName}`;
-    const actorStaffId = `API:${partner.name}`;
+    // "API:<partner.name>" is used as the actor label in AuditLog entries.
+    // For the Drive.createdById FK, we must use a real Staff row ID.
+    const auditActorLabel = `API:${partner.name}`;
+
+    // Resolve a real Staff ID for the FK constraint on Drive.createdById.
+    // We use the first ADMIN staff found; fall back to any staff as a last resort.
+    const systemStaff = await this.prisma.staff.findFirst({
+      where: { role: "ADMIN" },
+      orderBy: { createdAt: "asc" },
+    }) ?? await this.prisma.staff.findFirst({ orderBy: { createdAt: "asc" } });
+
+    if (!systemStaff) {
+      throw new UnprocessableEntityException(
+        "No staff account found to attribute partner drive creation. Please ensure at least one admin staff account exists.",
+      );
+    }
+    const systemStaffId = systemStaff.id;
 
     // 2. Upsert Drive keyed on (partner_id, requisition_ref)
     let drive = await this.prisma.drive.findFirst({
@@ -65,13 +81,18 @@ export class PartnerCandidatesService {
     let isNewDrive = false;
     if (!drive) {
       // First call for a requisition creates Drive via createFromTemplate
+      const now = new Date();
+      const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
       drive = await this.driveService.createFromTemplate(
         activeTemplate.id,
         {
           name: driveName,
           status: DriveStatus.ACTIVE,
+          scheduleStart: now,
+          scheduleEnd: oneYearLater,
         },
-        actorStaffId,
+        systemStaffId,
       );
       isNewDrive = true;
     }
@@ -96,7 +117,7 @@ export class PartnerCandidatesService {
         drive.id,
         activeTemplate.id,
         candidateEntries,
-        actorStaffId,
+        systemStaffId,
         true, // isGenerated = true generates candidate token
         {
           expiresAt: expiresAt24h,
@@ -117,11 +138,12 @@ export class PartnerCandidatesService {
       // Write AuditLog entry per created Drive and candidate ingestion
       await tx.auditLog.create({
         data: {
-          staffId: actorStaffId,
+          staffId: systemStaffId,
           action: isNewDrive ? "DRIVE_AND_CANDIDATES_INGESTED_FROM_PARTNER_API" : "CANDIDATES_INGESTED_FROM_PARTNER_API",
           entityType: "Drive",
           entityId: drive.id,
           metadata: {
+            actorLabel: auditActorLabel,
             partnerId: partner.id,
             partnerName: partner.name,
             requisitionRef: requisition_ref,
