@@ -2,6 +2,7 @@ import {
   Injectable,
   UnprocessableEntityException,
   BadRequestException,
+  NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { RoleTemplateService } from "../role-template/role-template.service";
@@ -151,6 +152,77 @@ export class PartnerCandidatesService {
       level,
       invites: inviteResults,
       drive_warnings,
+    };
+  }
+
+  async getRequisitionStatus(partner: Partner, ref: string) {
+    const drive = await this.prisma.drive.findFirst({
+      where: {
+        name: { startsWith: `[Partner:${partner.id}:${ref}]` },
+      },
+      include: {
+        invites: {
+          include: {
+            session: {
+              include: {
+                score: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Requisition reference '${ref}' not found`);
+    }
+
+    const candidateWebUrl =
+      this.configService.get<string>("CANDIDATE_WEB_URL") ||
+      process.env.CANDIDATE_WEB_URL ||
+      "http://localhost:3000";
+
+    const candidateStatuses = drive.invites.map((inv) => {
+      const session = inv.session;
+      const score = session?.score;
+
+      // Only populate score fields if a real, non-placeholder persisted Score row exists
+      const isScored = !!(
+        score &&
+        typeof score.compositeScore === "number" &&
+        score.gradingSource !== "placeholder"
+      );
+
+      let compositeScore: number | null = null;
+      let scoreBand: string | null = null;
+
+      if (isScored && score) {
+        compositeScore = score.compositeScore;
+        const normScore = compositeScore <= 1.0 ? compositeScore * 100 : compositeScore;
+        if (normScore >= 85) scoreBand = "STRONG_PASS";
+        else if (normScore >= 70) scoreBand = "PASS";
+        else if (normScore >= 50) scoreBand = "BORDERLINE";
+        else scoreBand = "FAIL";
+      }
+
+      return {
+        candidate_email: inv.candidateEmail,
+        candidate_name: inv.candidateName,
+        invite_status: inv.status,
+        session_status: session ? session.status : null,
+        score_status: isScored ? "SCORED" : "PENDING",
+        composite_score: compositeScore,
+        composite_score_band: scoreBand,
+        assessment_link: `${candidateWebUrl}/invite/${inv.token}`,
+        expires_at: inv.expiresAt.toISOString(),
+      };
+    });
+
+    return {
+      requisition_ref: ref,
+      drive_id: drive.id,
+      total_candidates: drive.invites.length,
+      candidates: candidateStatuses,
     };
   }
 }
