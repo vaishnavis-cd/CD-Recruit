@@ -26,6 +26,7 @@ export class CandidateIngestionService {
     candidates: CandidateEntry[],
     staffId: string,
     isGenerated = false,
+    options?: { expiresAt?: Date; scheduledTime?: Date | null },
   ) {
     if (candidates.length === 0) {
       return { count: 0, createdCount: 0 };
@@ -49,9 +50,14 @@ export class CandidateIngestionService {
     const invitesData: any[] = [];
     const candidatesToCreate: any[] = [];
 
-    const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + ttlHours);
+    const expiresAt =
+      options?.expiresAt ??
+      (() => {
+        const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
+        const d = new Date();
+        d.setHours(d.getHours() + ttlHours);
+        return d;
+      })();
 
     for (const cand of candidates) {
       const emailLower = cand.candidateEmail.trim().toLowerCase();
@@ -89,6 +95,7 @@ export class CandidateIngestionService {
         driveId,
         createdById: staffId,
         expiresAt,
+        scheduledTime: options?.scheduledTime !== undefined ? options.scheduledTime : null,
         token,
         isGenerated,
         status: InviteStatus.PENDING,

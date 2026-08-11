@@ -23,11 +23,9 @@ import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
 import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
 import { McqModule } from "./mcq/mcq.module";
-
-
 import { RoleTemplateModule } from "./role-template/role-template.module";
 import { RedisModule } from "./common/redis/redis.module";
-
+import { PartnerModule } from "./partner/partner.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -94,7 +92,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     McqModule,
     RoleTemplateModule,
     RedisModule,
-
+    PartnerModule,
   ],
 })
 export class AppModule {}
