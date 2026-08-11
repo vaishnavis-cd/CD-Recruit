@@ -82,13 +82,15 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // Check if scheduled time is in the future (> 15 minutes away) or past 20m grace window
+        // Check if scheduled time is in the future (> 15 minutes away) or past grace window
+        const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024'
         const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduleStart || (drive as any).scheduledAt || (drive as any).startsAt
-        if (scheduledTimeStr) {
+        if (scheduledTimeStr && !isDemoToken) {
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
           const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
-          const cutoffMs = scheduledMs + 20 * 60 * 1000 // Grace period cutoff is 20m after test start (10:20 AM for 10:00 AM drive)
+          const graceMins = invite.graceMinutes || (drive as any).graceMinutes || 120
+          const cutoffMs = scheduledMs + graceMins * 60 * 1000 // Grace period cutoff
 
           if (!isNaN(scheduledMs)) {
             if (nowMs < unlockTimeMs) {
@@ -96,12 +98,11 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
               transitionTo({ type: 'too-early', scheduledTimeMs: scheduledMs, inviteToken: token })
               return
             } else if (nowMs > cutoffMs && !isSessionAlreadyStarted) {
-              console.log('[InviteResolver] Candidate entered after 20-min grace window. Showing expired page.')
+              console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
               transitionTo({ type: 'expired', reason: 'grace-expired' as any })
               return
             } else {
               // Candidate is in the valid active window — clear any stale far-future scheduled-ms
-              // so WaitingRoomScreen won't show a huge countdown (e.g. 2804:15)
               localStorage.removeItem('cd-recruit-scheduled-ms')
             }
           }

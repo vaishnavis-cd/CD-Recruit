@@ -87,15 +87,38 @@ export class DriveService {
       .filter(([_, conf]: [string, any]) => conf.enabled)
       .map(([mod, _]) => mod);
 
+    const targetDept = template.department || template.roleName;
+
     if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
       for (const mod of enabledModules) {
-        const qCount = await this.prisma.question.count({
-          where: { moduleType: mod as any, status: "PUBLISHED" },
-        });
+        if (mod === "AI_PROMPTING") continue;
+
+        let qCount = 0;
+        if (dto.questionIds && dto.questionIds.length > 0) {
+          qCount = await this.prisma.question.count({
+            where: {
+              id: { in: dto.questionIds },
+              moduleType: mod as any,
+              status: "PUBLISHED",
+            },
+          });
+        } else {
+          qCount = await this.prisma.question.count({
+            where: {
+              moduleType: mod as any,
+              status: "PUBLISHED",
+              OR: [
+                { role: { equals: targetDept, mode: "insensitive" } },
+                { content: { path: ["department"], equals: targetDept } },
+              ],
+            },
+          });
+        }
+
         if (qCount === 0) {
           throw new AppException(
             "INCOMPLETE_MODULE_CONFIG",
-            `No published questions available for enabled module: ${mod}`,
+            `No published questions available for department ${targetDept} (module: ${mod}) — question bank not yet populated.`,
             HttpStatus.UNPROCESSABLE_ENTITY,
           );
         }
@@ -788,6 +811,29 @@ export class DriveService {
 
     if (ungeneratedInvites.length === 0) {
       throw new BadRequestException("No candidate invites found for this drive. Please add candidates first.");
+    }
+
+    const targetDept = drive.roleTemplate?.department || drive.roleTemplate?.roleName || "UNSPECIFIED";
+    const driveQuestionCount = await this.prisma.driveQuestion.count({
+      where: { driveId },
+    });
+
+    if (driveQuestionCount === 0) {
+      const deptQuestionCount = await this.prisma.question.count({
+        where: {
+          status: "PUBLISHED",
+          OR: [
+            { role: { equals: targetDept, mode: "insensitive" } },
+            { content: { path: ["department"], equals: targetDept } },
+          ],
+        },
+      });
+
+      if (deptQuestionCount === 0) {
+        throw new BadRequestException(
+          `Cannot generate invite links for drive '${drive.name}': No published questions available for department ${targetDept} — question bank not yet populated.`
+        );
+      }
     }
 
     const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
