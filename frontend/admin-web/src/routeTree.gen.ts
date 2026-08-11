@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as ReportsRouteImport } from './routes/reports'
@@ -21,6 +22,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultsIdRouteImport } from './routes/results.$id'
 import { Route as DrivesIdRouteImport } from './routes/drives.$id'
 
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/results': typeof ResultsRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/templates': typeof TemplatesRoute
   '/drives/$id': typeof DrivesIdRoute
   '/results/$id': typeof ResultsIdRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/results': typeof ResultsRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/templates': typeof TemplatesRoute
   '/drives/$id': typeof DrivesIdRoute
   '/results/$id': typeof ResultsIdRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/results': typeof ResultsRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/templates': typeof TemplatesRoute
   '/drives/$id': typeof DrivesIdRoute
   '/results/$id': typeof ResultsIdRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/results'
     | '/settings'
+    | '/templates'
     | '/drives/$id'
     | '/results/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/results'
     | '/settings'
+    | '/templates'
     | '/drives/$id'
     | '/results/$id'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/results'
     | '/settings'
+    | '/templates'
     | '/drives/$id'
     | '/results/$id'
   fileRoutesById: FileRoutesById
@@ -169,10 +181,18 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   ResultsRoute: typeof ResultsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
+  TemplatesRoute: typeof TemplatesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   ResultsRoute: ResultsRouteWithChildren,
   SettingsRoute: SettingsRoute,
+  TemplatesRoute: TemplatesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

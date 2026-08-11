@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   Award,
   AlertTriangle,
+  Layers,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/invites", label: "Invites", icon: Send },
   { to: "/results", label: "Results", icon: Award },
   { to: "/reports", label: "Reports", icon: FileBarChart },
+  { to: "/templates", label: "Role Templates", icon: Layers },
   { to: "/questions", label: "Question Bank", icon: ClipboardCheck },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
