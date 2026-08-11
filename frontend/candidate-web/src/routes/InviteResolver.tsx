@@ -82,8 +82,9 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-        // Check if scheduled time is in the future (> 15 minutes away) or past 20m grace window
-        const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduleStart || (drive as any).scheduledAt || (drive as any).startsAt
+        // Time-Gating Check for Scheduled vs Self-Paced (Rolling) Invites
+        // For null scheduledTime (self-paced partner invites): skip Too Early / Buffer / Grace states -> go directly to System Check (full mode)
+        const scheduledTimeStr = invite.scheduledTime
         if (scheduledTimeStr) {
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
@@ -101,13 +102,15 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
               return
             } else {
               // Candidate is in the valid active window — clear any stale far-future scheduled-ms
-              // so WaitingRoomScreen won't show a huge countdown (e.g. 2804:15)
               localStorage.removeItem('cd-recruit-scheduled-ms')
             }
           }
+        } else {
+          // Self-paced rolling invite (null scheduledTime): clear schedule marker
+          localStorage.removeItem('cd-recruit-scheduled-ms')
         }
 
-        // New Session — start at System Check onboarding sequence
+        // New Session — start directly at System Check (always full tutorial, never condensed)
         transitionTo({ type: 'system-check', mode: 'full', inviteToken: token })
         return
       } catch (err) {

@@ -38,7 +38,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     const payload = parseJwtPayload(token)
     const invite: Invite = {
       token,
-      scheduledTime: payload?.scheduledTime || FIXTURE_INVITE.scheduledTime,
+      scheduledTime: payload?.scheduledTime ?? null,
       bufferMinutes: payload?.bufferMinutes || FIXTURE_INVITE.bufferMinutes || 30,
       graceMinutes: payload?.graceMinutes || FIXTURE_INVITE.graceMinutes || 120,
       candidateId: payload?.inviteId || payload?.candidateEmail || token,
@@ -53,8 +53,8 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     try {
       const startRes = await apiClient.post('/sessions/start', { inviteToken: token })
       const data = startRes.data
-      if (data.scheduleStart) {
-        invite.scheduledTime = data.scheduleStart
+      if (data.scheduledTime !== undefined) {
+        invite.scheduledTime = data.scheduledTime
       }
       if (data.bufferMinutes) {
         invite.bufferMinutes = data.bufferMinutes
