@@ -26,6 +26,7 @@ import { McqModule } from "./mcq/mcq.module";
 
 
 import { RoleTemplateModule } from "./role-template/role-template.module";
+import { RedisModule } from "./common/redis/redis.module";
 
 
 const infraMode = process.env.INFRA_MODE ?? "local";
@@ -92,6 +93,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     AiPromptingModule,
     McqModule,
     RoleTemplateModule,
+    RedisModule,
 
   ],
 })
