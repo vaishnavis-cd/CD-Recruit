@@ -64,6 +64,7 @@ export interface DriveListItem {
   roleTemplateName: string;
   moduleConfig: DriveModuleConfig;
   status: DriveStatus;
+  originChannel?: string;
   scheduleStart: string | null;
   scheduleEnd: string | null;
   createdById: string;
