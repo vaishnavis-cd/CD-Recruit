@@ -1055,9 +1055,10 @@ function SettingsPage() {
                 </div>
               ) : (
                 <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
-                  <div className="grid grid-cols-[1.8fr_1fr_1.8fr_1fr_1fr_1.2fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
+                  <div className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
                     <div>Partner Name</div>
                     <div>Rate Limit</div>
+                    <div>API Hits</div>
                     <div>Callback URL</div>
                     <div>Status</div>
                     <div>Created</div>
@@ -1066,12 +1067,13 @@ function SettingsPage() {
 
                   <div className="divide-y divide-[#EFF0F3]">
                     {partners.map((p) => (
-                      <div key={p.id} className="grid grid-cols-[1.8fr_1fr_1.8fr_1fr_1fr_1.2fr] gap-3 px-4 py-3.5 items-center hover:bg-[#F9FAFB] transition-colors">
+                      <div key={p.id} className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-3.5 items-center hover:bg-[#F9FAFB] transition-colors">
                         <div>
                           <p className="font-bold text-[#0B0B0D]">{p.name}</p>
                           <p className="text-[10px] font-mono text-[#8B8B93] truncate">{p.id}</p>
                         </div>
                         <div className="font-mono text-xs text-[#5B5B64]">{p.rateLimit} req/min</div>
+                        <div className="font-mono text-xs font-semibold text-[#2F5CFF]">{(p as any).apiHitCount ?? 0} hits</div>
                         <div className="font-mono text-xs text-[#5B5B64] truncate" title={p.callbackUrl || "Not configured"}>
                           {p.callbackUrl ? (
                             <span className="flex items-center gap-1 text-[#2F5CFF]">

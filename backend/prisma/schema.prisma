@@ -557,6 +557,7 @@ model Partner {
   callbackUrl  String?  @map("callback_url")
   rateLimit    Int      @default(100) @map("rate_limit")
   isRevoked    Boolean  @default(false) @map("is_revoked")
+  apiHitCount  Int      @default(0) @map("api_hit_count")
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("partner")

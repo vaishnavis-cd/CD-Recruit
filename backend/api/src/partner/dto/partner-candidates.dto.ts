@@ -45,6 +45,10 @@ export class PushPartnerCandidatesDto {
   @IsNotEmpty()
   requisition_ref: string;
 
+  @IsOptional()
+  @IsString()
+  drive_name?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PartnerCandidateInputDto)

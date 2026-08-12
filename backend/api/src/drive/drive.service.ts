@@ -392,6 +392,7 @@ export class DriveService {
         roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
         moduleConfig: drive.moduleConfig as any,
         status: drive.status as any,
+        originChannel: drive.originChannel,
         scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
         scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
         createdById: drive.createdById,

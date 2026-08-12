@@ -49,7 +49,8 @@ export class PartnerCandidatesService {
       );
     }
 
-    const driveName = `[Partner:${partner.id}:${requisition_ref}] ${activeTemplate.roleName}`;
+    const customOrRoleName = dto.drive_name?.trim() || activeTemplate.roleName;
+    const driveName = `[Partner:${partner.id}:${requisition_ref}] ${customOrRoleName} (P)`;
     // "API:<partner.name>" is used as the actor label in AuditLog entries.
     // For the Drive.createdById FK, we must use a real Staff row ID.
     const auditActorLabel = `API:${partner.name}`;
@@ -74,6 +75,7 @@ export class PartnerCandidatesService {
         name: driveName,
       },
       include: {
+        questions: true,
         invites: true,
       },
     });
@@ -150,6 +152,12 @@ export class PartnerCandidatesService {
             candidateCount: candidates.length,
           },
         },
+      });
+
+      // Increment partner API hit counter
+      await tx.partner.update({
+        where: { id: partner.id },
+        data: { apiHitCount: { increment: 1 } },
       });
     });
 

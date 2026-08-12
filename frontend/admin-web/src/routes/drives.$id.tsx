@@ -46,7 +46,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { SingleDateTimePicker } from "../components/single-date-time-picker";
+import { SingleDateTimePicker, computeRollingEndDate } from "../components/single-date-time-picker";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
 import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
@@ -203,6 +203,9 @@ function DriveDetailPage() {
   const [endHour, setEndHour] = useState("11");
   const [endMinute, setEndMinute] = useState("00");
   const [endAmPm, setEndAmPm] = useState("AM");
+
+  /** When true the drive uses a 24-hour rolling window (scheduleEnd = scheduleStart + 24h) */
+  const [rollingWindow, setRollingWindow] = useState(false);
 
   // Module Config State (6 Modules)
   const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
@@ -556,6 +559,9 @@ function DriveDetailPage() {
     endMinStr: string,
     endAmPmStr: string
   ): number => {
+    // Rolling window is always exactly 24 hours
+    if (rollingWindow) return 24 * 60;
+
     let sHour = parseInt(startHourStr, 10) || 10;
     if (startAmPmStr === "PM" && sHour < 12) sHour += 12;
     if (startAmPmStr === "AM" && sHour === 12) sHour = 0;
@@ -680,14 +686,12 @@ function DriveDetailPage() {
       return { valid: false, error: "Please select a schedule date on the calendar." };
     }
     const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
-    const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
 
-    if (!startIso || !endIso) {
+    if (!startIso) {
       return { valid: false, error: "Invalid date or time selection." };
     }
 
     const startDateObj = new Date(startIso);
-    const endDateObj = new Date(endIso);
     const now = new Date();
 
     if (startDateObj < now) {
@@ -697,11 +701,19 @@ function DriveDetailPage() {
       };
     }
 
-    if (endDateObj <= startDateObj) {
-      return {
-        valid: false,
-        error: "Schedule end time must be strictly after the start time.",
-      };
+    // In rolling mode, end is always exactly 24h after start — always valid
+    if (!rollingWindow) {
+      const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
+      if (!endIso) {
+        return { valid: false, error: "Invalid end date or time selection." };
+      }
+      const endDateObj = new Date(endIso);
+      if (endDateObj <= startDateObj) {
+        return {
+          valid: false,
+          error: "Schedule end time must be strictly after the start time.",
+        };
+      }
     }
 
     return { valid: true };
@@ -709,7 +721,8 @@ function DriveDetailPage() {
 
   const isScheduleDateValid = useMemo(() => {
     return validateDateTimeConfig().valid;
-  }, [startDate, endDate, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm]);
+  }, [startDate, endDate, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow]);
+
 
   const hasQuestionsSelected = useMemo(() => {
     return assignedQuestions.length > 0;
@@ -763,7 +776,10 @@ function DriveDetailPage() {
 
     try {
       const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
-      const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
+      // In rolling window mode, endIso = startIso + exactly 24h
+      const endIso = rollingWindow
+        ? computeRollingEndDate(startDate, startHour, startMinute, startAmPm)
+        : amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
 
       const headers = await getAuthHeaders();
       const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
@@ -1174,6 +1190,18 @@ function DriveDetailPage() {
               endHour={endHour}
               endMinute={endMinute}
               endAmPm={endAmPm}
+              rollingWindow={rollingWindow}
+              onRollingWindowChange={(enabled) => {
+                setRollingWindow(enabled);
+                // When switching to rolling mode, ensure hours are 0-23 compatible
+                if (enabled) {
+                  // Convert current 12h start to 24h representation for display
+                  let h = parseInt(startHour, 10) || 9;
+                  if (startAmPm === "PM" && h < 12) h += 12;
+                  if (startAmPm === "AM" && h === 12) h = 0;
+                  setStartHour(String(h).padStart(2, "0"));
+                }
+              }}
               onChange={(data) => {
                 setStartDate(data.date);
                 setEndDate(data.date);
