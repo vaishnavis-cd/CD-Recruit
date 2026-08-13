@@ -19,7 +19,7 @@ export class InviteService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async createInvite(dto: CreateInviteDto, staffId: string) {
     const { candidateEmail, candidateName, roleTemplateId, driveId } = dto;
@@ -79,7 +79,8 @@ export class InviteService {
       },
     });
 
-    const inviteLink = `${process.env.VITE_API_BASE_URL.replace("/api/v1", "")}/start?token=${token}`;
+    const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+    const inviteLink = `${candidateAppBase}/invite/${token}`;
 
     // Create Audit Log
     await this.prisma.auditLog.create({
@@ -270,7 +271,8 @@ export class InviteService {
       },
     });
 
-    const inviteLink = `${process.env.VITE_API_BASE_URL.replace("/api/v1", "")}/start?token=${token}`;
+    const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+    const inviteLink = `${candidateAppBase}/invite/${token}`;
 
     // Create Audit Log
     await this.prisma.auditLog.create({
@@ -347,6 +349,38 @@ export class InviteService {
           });
         }
       }
+    });
+  }
+
+  async deleteInvite(id: string, staffId: string): Promise<void> {
+    const invite = await this.prisma.invite.findUnique({ where: { id } });
+    if (!invite) throw new NotFoundException(`Invite not found with ID ${id}`);
+
+    await this.prisma.invite.delete({ where: { id } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "INVITE_DELETED",
+        entityType: "Invite",
+        entityId: id,
+        metadata: { candidateEmail: invite.candidateEmail },
+      },
+    });
+  }
+
+  async bulkDelete(inviteIds: string[], staffId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.invite.deleteMany({ where: { id: { in: inviteIds } } });
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "BULK_INVITE_DELETED",
+          entityType: "Invite",
+          entityId: "BULK",
+          metadata: { count: inviteIds.length },
+        },
+      });
     });
   }
 

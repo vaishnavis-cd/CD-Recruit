@@ -1,5 +1,9 @@
 {
   "aiConfidenceThreshold": 0.8,
   "passRateThreshold": 0.7,
-  "biometricRetentionDays": 30
+  "biometricRetentionDays": 30,
+  "appealWindowDays": 14,
+  "heartbeatStaleThresholdSeconds": 45,
+  "graceWindowSeconds": 300,
+  "maxDisconnectCount": 3
 }

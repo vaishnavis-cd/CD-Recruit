@@ -54,7 +54,7 @@ export class EventGenerationService {
   async generateScenario(request: ScenarioRequest): Promise<ScenarioResponse> {
     const templateId = request.eventTemplateId;
 
-    const systemPrompt = `You are a technical scenario generator for CD Recruit.
+    const systemPrompt = `You are a technical scenario generator for Proctora.
 Your job is to enrich the context and text assets of a simulated engineering event.
 Return ONLY a valid JSON object matching the requested schema. Do not add markdown backticks or extra text outside JSON.
 JSON Schema:
@@ -67,18 +67,8 @@ JSON Schema:
   "emails": "Simulated customer/support email text if relevant"
 }`;
 
-    if (this.provider) {
-      try {
-        return await this.provider.generateScenario(request, systemPrompt);
-      } catch (error) {
-        console.warn(
-          `LLM provider (${this.providerName}) failed, falling back to static artifacts:`,
-          error,
-        );
-      }
-    }
-
-    // Static fallback strategy using predefined templates
+    // Candidate session events strictly use pre-authored static templates
+    // to guarantee 0 live LLM latency, 0 costs, and 100% pre-approved scenario content.
     return this.getStaticFallback(templateId);
   }
 
@@ -142,6 +132,20 @@ JSON Schema:
     return response;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUARANTINED / DEFERRED UNUSED LLM PROVIDERS
+//
+// NOTE: ClaudeProvider and GeminiProvider are defined below for potential future
+// online LLM scenario enrichment, but are DEFERRED and deliberately NOT wired
+// into active candidate sessions.
+//
+// Reason: Candidate sessions strictly use pre-authored static templates
+// (via getStaticFallback) to guarantee 0 live LLM latency, 0 costs, deterministic
+// grading, and 100% pre-approved scenario content.
+//
+// DO NOT DELETE OR REMOVE without explicit architectural sign-off.
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ClaudeProvider implements LLMProvider {
   constructor(private apiKey: string) {}

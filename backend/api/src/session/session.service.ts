@@ -1,20 +1,24 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { GoneException } from "@app/common/exceptions/app.exceptions";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
-import { CvMode, Session, SessionStatus } from "@prisma/client";
+import { CvMode, Session, SessionStatus, InviteStatus, ConsentType } from "@prisma/client";
+
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
+import { MinioService } from "@app/integrations/minio/minio.service";
+import { QueueProviderPort } from "@app/queue/queue-provider.port";
+import { SandboxOrchestratorService } from "../simulation/sandbox/sandbox-orchestrator.service";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -33,30 +37,134 @@ type SessionWithTemplate = Session & {
 
 /**
  * Build the question list shape returned in session start/resume responses.
- * Phase 1 returns an empty array because no questions are seeded yet.
  * Phase 3 replaces this with real question fetching.
  */
-function buildQuestionList(_session: Session): [] {
-  return [];
+import { DriveShufflerService } from "../drive/drive-shuffler.service";
+
+const driveShuffler = new DriveShufflerService();
+
+async function buildQuestionList(
+  prisma: PrismaService,
+  session: Session,
+): Promise<any[]> {
+  try {
+    let driveId = session.driveId;
+
+    if (!driveId) {
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: session.candidateId },
+      });
+      if (candidate) {
+        const invite = await prisma.invite.findFirst({
+          where: { candidateEmail: candidate.email },
+          orderBy: { createdAt: "desc" },
+        });
+        driveId = invite?.driveId || null;
+      }
+    }
+
+    if (driveId) {
+      const driveQuestions = await prisma.driveQuestion.findMany({
+        where: { driveId },
+        include: { question: true },
+        orderBy: [
+          { moduleType: "asc" },
+          { question: { id: "asc" } },
+        ],
+      });
+
+      if (driveQuestions && driveQuestions.length > 0) {
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          driveQuestions as any,
+          session.candidateId,
+          driveId
+        );
+        const resultList = shuffled.map((q: any) => {
+          const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
+          const rawQ = matchingDq?.question || q;
+          const tags = rawQ.tags || [];
+          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+          return {
+            ...q,
+            moduleType: effectiveModuleType,
+            content: rawQ.content || q.content || {},
+            difficulty: rawQ.difficulty || q.difficulty || "medium",
+          };
+        });
+
+        const drive = await prisma.drive.findUnique({ where: { id: driveId } });
+        if (drive && drive.moduleConfig) {
+          const mc = drive.moduleConfig as Record<string, { enabled?: boolean }>;
+          if (mc.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
+          }
+        }
+        return resultList;
+      }
+    }
+
+    // Fallback: Published questions from Question Bank
+    const fallbackQuestions = await prisma.question.findMany({
+      where: { status: "PUBLISHED" },
+      take: 30,
+      orderBy: { moduleType: "asc" },
+    });
+
+    return fallbackQuestions.map((q, idx) => ({
+      questionId: q.id,
+      moduleType: q.moduleType,
+      moduleIndex: idx,
+      content: q.content,
+      difficulty: q.difficulty || "medium",
+    }));
+  } catch (err) {
+    console.error("[buildQuestionList] Error building questions:", err);
+    return [];
+  }
 }
+
+import { SessionLifecycleService } from "./session-lifecycle.service";
+import { SessionStateMachine } from "./session-state-machine";
+import { SessionScoringService } from "./session-scoring.service";
+
+import { SessionStatusPort } from "@app/common/ports/session-status.port";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionService
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class SessionService {
+export class SessionService implements SessionStatusPort {
   private readonly logger = new Logger(SessionService.name);
   private readonly graceWindowSeconds: number;
   private readonly maxDisconnectCount: number;
+  private readonly bucketBiometric: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly candidate: CandidateService,
     private readonly config: ConfigService<AppConfig, true>,
-    @InjectQueue("grace-window")
-    private readonly graceWindowQueue: Queue<{ sessionId: string }>,
+    private readonly minio: MinioService,
+    private readonly queueProvider: QueueProviderPort,
+    private readonly lifecycleService: SessionLifecycleService,
+    private readonly stateMachine: SessionStateMachine,
+    private readonly scoringService: SessionScoringService,
+    private readonly sandboxOrchestrator: SandboxOrchestratorService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -64,6 +172,7 @@ export class SessionService {
     this.maxDisconnectCount = this.config.get("maxDisconnectCount", {
       infer: true,
     });
+    this.bucketBiometric = this.config.get<string>("app.minio.bucketBiometric" as any) ?? "biometrics";
   }
 
   // ─── Start session ────────────────────────────────────────────────────────
@@ -79,74 +188,205 @@ export class SessionService {
    */
   async startSession(inviteToken: string): Promise<StartSessionResponse> {
     // 1. Verify token (throws 401/410 on failure)
-    const payload = this.auth.verifyInviteToken(inviteToken);
+    const payload = await this.auth.verifyInviteToken(inviteToken);
 
-    // 2. Validate roleTemplate exists
-    const roleTemplate = await this.prisma.roleTemplate.findUnique({
-      where: { id: payload.roleTemplateId },
-    });
+    // 2. Validate roleTemplate exists with fallback
+    let roleTemplate = null;
+    if (payload.roleTemplateId) {
+      roleTemplate = await this.prisma.roleTemplate.findUnique({
+        where: { id: payload.roleTemplateId },
+      });
+    }
 
     if (!roleTemplate) {
-      this.logger.warn(
-        `Invite token references unknown roleTemplateId: ${payload.roleTemplateId}`,
-      );
-      // Treat as invalid token — leaking "role not found" is unnecessary
-      throw new UnprocessableEntityException({
-        code: "INVITE_TOKEN_INVALID",
-        message: "The invite token references an unknown role template.",
+      roleTemplate = await this.prisma.roleTemplate.findFirst();
+    }
+
+    if (!roleTemplate) {
+      roleTemplate = await this.prisma.roleTemplate.create({
+        data: {
+          roleName: "Software Engineer",
+          weightingPreset: {},
+          durationMinutes: 60,
+        },
       });
     }
 
     // 3. Find or create candidate
     const candidateRecord = await this.candidate.findOrCreate(
-      payload.email,
-      payload.name,
+      payload.candidateEmail,
+      payload.candidateName,
     );
 
-    // 4. Guard against concurrent active sessions
-    const activeSession = await this.prisma.session.findFirst({
+    // 4. Reuse existing session if already created for this candidate
+    const existingSession = await this.prisma.session.findFirst({
       where: {
         candidateId: candidateRecord.id,
-        status: { in: [SessionStatus.IN_PROGRESS, SessionStatus.DISCONNECTED] },
+        status: { in: [SessionStatus.NOT_STARTED, SessionStatus.IN_PROGRESS, SessionStatus.DISCONNECTED] },
       },
+      orderBy: { lastActivityAt: "desc" },
     });
 
-    if (activeSession) {
-      throw new ConflictException({
-        code: "SESSION_ALREADY_ACTIVE",
-        message: "A session for this candidate is already active.",
+    const isNewOrNotStarted = !existingSession || existingSession.status === SessionStatus.NOT_STARTED;
+    if (isNewOrNotStarted) {
+      const invite = await this.prisma.invite.findUnique({
+        where: { id: payload.inviteId },
+        include: { drive: true },
       });
+      if (invite?.scheduledTime) {
+        const now = new Date();
+        const graceMinutes = 20; // 20 minutes grace window
+        const cutoff = new Date(invite.scheduledTime.getTime() + graceMinutes * 60 * 1000);
+        if (now > cutoff) {
+          throw new UnauthorizedException({
+            code: "INVITE_TOKEN_EXPIRED",
+            message: "The assessment window has expired.",
+          });
+        }
+      }
     }
 
-    // 5. Compute deadline server-side
-    const now = new Date();
-    const deadlineAt = new Date(
-      now.getTime() + roleTemplate.durationMinutes * 60 * 1000,
-    );
+    if (existingSession) {
+      this.logger.log(`Reusing existing session ${existingSession.id} for candidate ${candidateRecord.email}`);
+      const fullExisting = await this.prisma.session.findUnique({
+        where: { id: existingSession.id },
+        include: { roleTemplate: true },
+      });
+      return await this.buildStartResponse(
+        fullExisting as SessionWithTemplate,
+        candidateRecord.id,
+      );
+    }
 
-    // 6. Create the session
+    // 5. Create the session (starts as NOT_STARTED, dates set upon /begin)
+    const now = new Date();
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: payload.inviteId },
+    });
+
     const session = await this.prisma.session.create({
       data: {
         candidateId: candidateRecord.id,
         roleTemplateId: payload.roleTemplateId,
-        cvMode: payload.cvMode as CvMode,
-        status: SessionStatus.IN_PROGRESS,
-        startedAt: now,
-        deadlineAt,
-        lastHeartbeatAt: now,
+        driveId: invite?.driveId || null,
+        cvMode: (payload.cvMode as CvMode) || CvMode.FULL,
+        status: SessionStatus.NOT_STARTED,
+        startedAt: null,
+        deadlineAt: null,
+        lastHeartbeatAt: null,
         lastActivityAt: now,
         disconnectCount: 0,
       },
       include: { roleTemplate: true },
     });
 
+    if (invite) {
+      await this.prisma.invite.update({
+        where: { id: invite.id },
+        data: {
+          status: InviteStatus.REDEEMED,
+          redeemedAt: now,
+          sessionId: session.id,
+        },
+      });
+    }
+
     this.logger.log(
       `Session created: ${session.id} for candidate ${candidateRecord.id}`,
     );
 
-    return this.buildStartResponse(
+    return await this.buildStartResponse(
       session as SessionWithTemplate,
       candidateRecord.id,
+    );
+  }
+
+  /**
+   * Transition a session from NOT_STARTED to IN_PROGRESS.
+   * Computes the deadline based on RoleTemplate duration.
+   */
+  async beginSession(sessionId: string): Promise<StartSessionResponse> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { roleTemplate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    if (session.status !== SessionStatus.NOT_STARTED) {
+      return await this.buildStartResponse(
+        session as SessionWithTemplate,
+        session.candidateId,
+      );
+    }
+
+    if (session.driveId) {
+      const drive = await this.prisma.drive.findUnique({
+        where: { id: session.driveId },
+      });
+      if (drive && drive.scheduleStart) {
+        const now = new Date();
+        const graceMinutes = 20; // 20 minutes grace window
+        const cutoff = new Date(drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        if (now > cutoff) {
+          throw new BadRequestException({
+            code: "INVITE_TOKEN_EXPIRED",
+            message: "The assessment window has expired.",
+          });
+        }
+      }
+    }
+
+    let durationMinutes = session.roleTemplate.durationMinutes;
+    if (session.driveId) {
+      const drive = await this.prisma.drive.findUnique({
+        where: { id: session.driveId },
+      });
+      if (drive && drive.moduleConfig) {
+        const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+        const totalDriveMins = Object.values(mc)
+          .filter((conf) => conf?.enabled)
+          .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+
+        if (totalDriveMins > 0) {
+          durationMinutes = totalDriveMins;
+        }
+      }
+    }
+
+    const now = new Date();
+    const deadlineAt = new Date(
+      now.getTime() + durationMinutes * 60 * 1000,
+    );
+
+    const updated = await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        status: SessionStatus.IN_PROGRESS,
+        startedAt: now,
+        deadlineAt,
+        lastHeartbeatAt: now,
+        lastActivityAt: now,
+      },
+      include: { roleTemplate: true },
+    });
+
+    this.logger.log(`Session ${sessionId} has begun.`);
+
+    try {
+      await this.sandboxOrchestrator.ensureWorkspace(sessionId);
+    } catch (err: any) {
+      this.logger.warn(`Workspace provisioning warning for session ${sessionId}: ${err.message}`);
+    }
+
+    return await this.buildStartResponse(
+      updated as SessionWithTemplate,
+      updated.candidateId,
     );
   }
 
@@ -314,7 +554,7 @@ export class SessionService {
       deadlineAt: updated.deadlineAt!.toISOString(),
       disconnectCount: updated.disconnectCount,
       reconnectedAt: now.toISOString(),
-      questions: buildQuestionList(updated),
+      questions: await buildQuestionList(this.prisma, updated),
     };
   }
 
@@ -342,6 +582,13 @@ export class SessionService {
     ];
 
     if (!submittable.includes(session.status)) {
+      if (session.status === SessionStatus.SUBMITTED) {
+        return {
+          sessionId: session.id,
+          status: session.status as any,
+          submittedAt: (session.submittedAt || new Date()).toISOString(),
+        };
+      }
       throw new UnprocessableEntityException({
         code: "SESSION_NOT_SUBMITTABLE",
         message: `Session cannot be submitted in status: ${session.status}.`,
@@ -349,6 +596,13 @@ export class SessionService {
     }
 
     const now = new Date();
+    if (session.deadlineAt && now > session.deadlineAt) {
+      throw new GoneException({
+        code: "DEADLINE_PASSED",
+        message: "The assessment session deadline has passed.",
+      });
+    }
+
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
@@ -358,7 +612,34 @@ export class SessionService {
       },
     });
 
-    this.logger.log(`Session closed (submitted): ${sessionId}`);
+    // Calculate real module scores and composite score upon submission
+    try {
+      await this.scoringService.computeSessionScores(sessionId);
+    } catch (err: any) {
+      this.logger.error(`Failed to evaluate scores for session ${sessionId}: ${err.message}`);
+    }
+
+    // Reap container sandbox workspace on session completion
+    try {
+      await this.sandboxOrchestrator.reapWorkspace(sessionId);
+    } catch (err: any) {
+      this.logger.warn(`Failed to reap workspace for session ${sessionId}: ${err.message}`);
+    }
+
+    await this.prisma.eventLog.create({
+      data: {
+        sessionId,
+        eventType: "SUBMITTED",
+        payload: {
+          routing: "HUMAN_REVIEW_QUEUE",
+          humanReviewed: false,
+          reason: "TRACK_B_FAILSAFE_DEFAULT",
+        },
+        occurredAt: now,
+      },
+    });
+
+    this.logger.log(`Session closed (submitted): ${sessionId} (Routed to Human Review Queue)`);
 
     return {
       sessionId: updated.id,
@@ -442,14 +723,13 @@ export class SessionService {
 
     // Enqueue a delayed auto-submit job for the grace window cutoff.
     // jobId is deterministic per sessionId to prevent duplicate jobs.
-    await this.graceWindowQueue.add(
+    await this.queueProvider.enqueueDelayed(
+      "grace-window",
       "auto-submit",
       { sessionId },
       {
-        delay: this.graceWindowSeconds * 1000,
-        jobId: `grace-${sessionId}`, // deterministic — safe to re-enqueue
-        removeOnComplete: true,
-        removeOnFail: false,
+        delayMs: this.graceWindowSeconds * 1000,
+        jobId: `grace-${sessionId}`,
       },
     );
 
@@ -496,6 +776,18 @@ export class SessionService {
       },
     });
 
+    try {
+      await this.scoringService.computeSessionScores(sessionId);
+    } catch (err: any) {
+      this.logger.error(`Failed to evaluate scores on autoSubmit for session ${sessionId}: ${err.message}`);
+    }
+
+    try {
+      await this.sandboxOrchestrator.reapWorkspace(sessionId);
+    } catch (err: any) {
+      this.logger.warn(`Failed to reap workspace on autoSubmit for session ${sessionId}: ${err.message}`);
+    }
+
     this.logger.warn(
       `Session ${sessionId} AUTO_SUBMITTED — grace window expired`,
     );
@@ -503,24 +795,260 @@ export class SessionService {
 
   // ─── Response builder ─────────────────────────────────────────────────────
 
-  private buildStartResponse(
+  private async buildStartResponse(
     session: SessionWithTemplate,
     candidateId: string,
-  ): StartSessionResponse {
+  ): Promise<StartSessionResponse> {
+    const drive = session.driveId
+      ? await this.prisma.drive.findUnique({ where: { id: session.driveId } })
+      : null;
+
+    let durationMinutes = session.roleTemplate.durationMinutes;
+    if (drive && drive.moduleConfig) {
+      const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+      const totalDriveMins = Object.values(mc)
+        .filter((conf) => conf?.enabled)
+        .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+
+      if (totalDriveMins > 0) {
+        durationMinutes = totalDriveMins;
+      }
+    }
+
     return {
       sessionId: session.id,
       candidateId,
       roleTemplateId: session.roleTemplateId,
       roleTemplateName: session.roleTemplate.roleName,
-      durationMinutes: session.roleTemplate.durationMinutes,
+      durationMinutes,
       cvMode:
         session.cvMode as unknown as import("@cd-recruit/shared-types").CvMode,
+      proctoringConfig: (drive?.moduleConfig as any)?.proctoringConfig || null,
       status:
         session.status as unknown as import("@cd-recruit/shared-types").SessionStatus,
-      startedAt: session.startedAt!.toISOString(),
-      deadlineAt: session.deadlineAt!.toISOString(),
+      startedAt: session.startedAt?.toISOString() ?? null,
+      deadlineAt: session.deadlineAt?.toISOString() ?? null,
+      scheduleStart: drive?.scheduleStart?.toISOString() ?? null,
+      bufferMinutes: drive?.bufferMinutes ?? 30,
+      graceMinutes: drive?.graceMinutes ?? 120,
       disconnectCount: session.disconnectCount,
-      questions: buildQuestionList(session),
+      questions: await buildQuestionList(this.prisma, session),
     };
   }
+
+  /**
+   * Fetch the full details of a question for the active session.
+   */
+  async getQuestion(sessionId: string, questionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    if (questionId === "ai-prompting-dynamic") {
+      const response = await this.prisma.moduleResponse.findUnique({
+        where: {
+          sessionId_questionId: {
+            sessionId,
+            questionId,
+          },
+        },
+      });
+      return {
+        questionId,
+        roleTemplateId: session.roleTemplateId,
+        content: {
+          title: "AI Prompting Challenge",
+          prompt: "Engage in conversational problem solving with the AI assistant.",
+        },
+        response: response
+          ? {
+              responsePayload: response.responsePayload,
+              isDraft: response.isDraft,
+              timeSpentSeconds: response.timeSpentSeconds,
+            }
+          : null,
+      };
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+    });
+    if (!question) {
+      throw new NotFoundException({
+        code: "QUESTION_NOT_FOUND",
+        message: "Question not found.",
+      });
+    }
+
+    const response = await this.prisma.moduleResponse.findUnique({
+      where: {
+        sessionId_questionId: {
+          sessionId,
+          questionId,
+        },
+      },
+    });
+
+    return {
+      questionId: question.id,
+      roleTemplateId: session.roleTemplateId,
+      content: this.sanitiseQuestionContent(question.moduleType, question.content),
+      response: response
+        ? {
+            responsePayload: response.responsePayload,
+            isDraft: response.isDraft,
+            timeSpentSeconds: response.timeSpentSeconds,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Strip server-only fields before sending question content to the candidate.
+   * - MCQ: remove correctIndex and explanation
+   * - SQL: remove expectedQuery
+   * - CODING: remove testCases where isHidden === true (and any legacy hiddenTests array)
+   */
+  private sanitiseQuestionContent(moduleType: string, content: unknown): unknown {
+    if (!content || typeof content !== "object") return content;
+
+    const c = content as Record<string, unknown>;
+
+    if (moduleType === "MCQ") {
+      const { correctIndex: _ci, explanation: _ex, ...safe } = c;
+      return safe;
+    }
+
+    if (moduleType === "SQL") {
+      const { expectedQuery: _eq, ...safe } = c;
+      return safe;
+    }
+
+    if (moduleType === "CODING" || moduleType === "DEBUGGING") {
+      const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
+      const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
+        ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
+        : []);
+      return { ...rest, testCases: visibleTestCases };
+    }
+
+    return content;
+  }
+
+  /**
+   * Upload baseline selfie to MinIO and store the object key in baselineSelfieRef
+   */
+  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    // Verify session is active (not submitted/closed)
+    if ([SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED, SessionStatus.ABANDONED].includes(session.status as any)) {
+      throw new ConflictException({
+        code: "SESSION_CLOSED",
+        message: "Cannot upload baseline selfie for a closed assessment session.",
+      });
+    }
+
+    // Parse base64 data URL
+    const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new UnprocessableEntityException({
+        code: "INVALID_IMAGE_FORMAT",
+        message: "Invalid image data format. Expected base64 data URL.",
+      });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], "base64");
+    const objectKey = `selfie-${sessionId}.jpg`;
+
+    // Upload to MinIO
+    const uploaded = await this.minio.putObject(
+      this.bucketBiometric,
+      objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+
+    if (!uploaded) {
+      throw new UnprocessableEntityException({
+        code: "UPLOAD_FAILED",
+        message: "Failed to upload selfie to MinIO storage.",
+      });
+    }
+
+    // Update DB
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        baselineSelfieRef: objectKey,
+      },
+    });
+
+    return { ok: true };
+  }
+
+  /**
+   * Persist candidate consent record in PostgreSQL.
+   */
+  async recordConsent(
+    sessionId: string,
+    version: string = "1.0",
+    ipAddress: string = "127.0.0.1",
+    rawConsentType?: string | ConsentType,
+  ): Promise<{ ok: boolean; consentRecordId: string }> {
+    let session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      const invite = await this.prisma.invite.findFirst({
+        where: { OR: [{ token: sessionId }, { id: sessionId }] },
+        include: { session: true },
+      });
+      if (invite?.session) {
+        session = invite.session;
+      }
+    }
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    const consentType = (rawConsentType as ConsentType) || ConsentType.TERMS;
+
+    const consentRecord = await this.prisma.consentRecord.create({
+      data: {
+        candidateId: session.candidateId,
+        consentType: "TERMS" as any,
+        version: version || "1.0",
+        ipAddress: ipAddress || "127.0.0.1",
+        consentedAt: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `[SessionService] Consent record created: ID=${consentRecord.id} for Candidate=${session.candidateId}`,
+    );
+
+    return { ok: true, consentRecordId: consentRecord.id };
+  }
 }
+

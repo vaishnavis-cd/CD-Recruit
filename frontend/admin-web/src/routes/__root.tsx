@@ -6,11 +6,14 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  redirect,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Toaster } from "../components/ui/sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { isAuthenticated } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -73,17 +76,22 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: ({ location }) => {
+    if (typeof window !== "undefined" && location.pathname !== "/login" && !isAuthenticated()) {
+      throw redirect({ to: "/login", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CD-Recruit — Admin Dashboard" },
+      { title: "Proctora — Admin Dashboard" },
       {
         name: "description",
         content:
           "Recruiter dashboard for reviewing candidate assessment sessions with Say-Do consistency scoring.",
       },
-      { property: "og:title", content: "CD-Recruit — Admin Dashboard" },
+      { property: "og:title", content: "Proctora — Admin Dashboard" },
       {
         property: "og:description",
         content:
@@ -94,7 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/Logo2.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -130,6 +138,21 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Toaster
+        position="top-center"
+        duration={4000}
+        toastOptions={{
+          style: { fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)' },
+          classNames: {
+            toast: "!bg-white !text-[#0B0B0D] !border-2 !shadow-xl !rounded-[12px] !text-[13px] !font-medium font-sans flex items-center gap-2",
+            success: "!border-[#12B76A] !bg-[#F0FDF4] !text-[#027A48]",
+            error: "!border-[#E5484D] !bg-[#FFF5F5] !text-[#B42318]",
+            warning: "!border-[#F59E0B] !bg-[#FFFBEB] !text-[#B45309]",
+            info: "!border-[#2F5CFF] !bg-[#EFF6FF] !text-[#1E40AF]",
+            description: "!text-[#5B5B64] !text-[12px]",
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }

@@ -101,3 +101,124 @@ export interface AuditLog {
     email: string;
   };
 }
+
+export interface SessionResultItem {
+  id: string;
+  sessionId: string;
+  candidateId: string;
+  candidateName: string;
+  candidateEmail: string;
+  driveId?: string | null;
+  driveName?: string;
+  roleTemplateName?: string;
+  status: string;
+  submittedAt: string | null;
+  compositeScore: number | null;
+  moduleScores?: Record<string, number>;
+  aiConfidence?: number | null;
+  humanReviewed?: boolean;
+  integrityFlagsCount?: number;
+  decision?: {
+    outcome: "PASS" | "FAIL";
+    decidedAt: string;
+    decidedBy: string;
+    note?: string;
+  };
+}
+
+export interface CandidateSessionDetail {
+  id: string;
+  candidateName: string;
+  candidateEmail: string;
+  driveName: string;
+  roleTemplateName: string;
+  status: string;
+  startedAt: string | null;
+  submittedAt: string | null;
+  deadlineAt: string | null;
+  disconnectCount: number;
+  moduleResponses: Array<{
+    id: string;
+    questionId: string;
+    moduleType?: string;
+    responsePayload: any;
+    question?: any;
+  }>;
+  integrityFlags: Array<{
+    id: string;
+    flagId?: string;
+    category: string;
+    severity: string;
+    confidence: number;
+    flaggedAt: string;
+    evidenceClipUrl?: string | null;
+  }>;
+  score: {
+    compositeScore: number;
+    moduleScores: Record<string, number>;
+    sayDoConsistencyScore: number;
+    aiConfidence: number;
+    humanReviewed: boolean;
+    sayDoRationale?: string | null;
+    gradingSource?: string | null;
+  } | null;
+  decision?: {
+    outcome: "PASS" | "FAIL";
+    decidedAt: string;
+    decidedBy: string;
+    note?: string;
+  };
+}
+
+export interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+}
+
+export interface RoleTemplate {
+  id: string;
+  roleName: string;
+  track: string;
+}
+
+export type SessionStatus = "submitted" | "ai_scored" | "review" | "reviewed" | "decision";
+
+export interface Session {
+  id: string;
+  driveId?: string;
+  candidate: Candidate;
+  roleTemplate: RoleTemplate;
+  status: SessionStatus;
+  compositeScore: number;
+  sayDoScore: number;
+  sayDoTrace: { t: number; said: number; did: number }[];
+  moduleScores: Record<string, number>;
+  mismatches: { said: string; did: string; impact: string }[];
+  integrityFlags: {
+    category: string;
+    severity: "low" | "critical";
+    timestamp: string;
+    hasEvidence: boolean;
+  }[];
+  submittedAt: string;
+  reviewer?: { initials: string; name: string };
+  decision?: { outcome: "advance" | "reject"; decidedAt: string; decidedBy: string; note?: string };
+  sayDoRationale?: string | null;
+  gradingSource?: "placeholder" | "deterministic" | "ai_graded" | "correlation_engine";
+}
+
+export interface Invite {
+  id: string;
+  sessionId?: string;
+  candidateName: string;
+  candidateEmail: string;
+  roleTemplate: RoleTemplate;
+  status: "PENDING" | "REDEDEEMED" | "REDEEMED" | "EXPIRED" | "REVOKED";
+  link: string;
+  createdAt: string;
+  expiresAt: string;
+  redeemedAt?: string;
+}
+

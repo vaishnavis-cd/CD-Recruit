@@ -5,9 +5,9 @@ import {
   SessionStatus,
   FlagDisposition,
   InviteStatus,
-} from "./enums";
-import { ResponsePayload } from "./response";
-import { Score } from "./score";
+} from "./enums.js";
+import { ResponsePayload } from "./response.js";
+import { Score } from "./score.js";
 
 // ---------------------------------------------------------------------------
 // Admin session list
@@ -27,6 +27,7 @@ export interface SessionListItem {
   /** Available once Correlation Engine has scored the session; null before that. */
   compositeScore: number | null;
   sayDoConsistencyScore: number | null;
+  moduleScores?: Record<string, number> | null;
   humanReviewRequired: boolean;
 }
 
@@ -65,6 +66,10 @@ export interface ModuleResponseDetail {
 
 export interface SessionDetail {
   sessionId: string;
+  id?: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  driveName?: string;
   candidate: {
     id: string;
     name: string;
@@ -79,6 +84,10 @@ export interface SessionDetail {
   disconnectCount: number;
   moduleResponses: ModuleResponseDetail[];
   integrityFlags: IntegrityFlag[];
+  questions?: any[];
+  drive?: any;
+  simulationSnapshot?: any;
+  telemetryActions?: any[];
   score: Score | null;
   decision?: {
     outcome: ReviewDecision;

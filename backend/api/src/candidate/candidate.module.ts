@@ -1,16 +1,11 @@
 import { Module } from "@nestjs/common";
+import { CandidateController } from "./candidate.controller";
 import { CandidateService } from "./candidate.service";
+import { CandidateRepository } from "./candidate.repository";
 
-/**
- * CandidateModule — pure service module, no controller.
- *
- * Candidates are created as a side-effect of session start (not through their
- * own API surface), so there is intentionally no CandidateController.
- *
- * CandidateService is exported so SessionModule can inject it.
- */
 @Module({
-  providers: [CandidateService],
-  exports: [CandidateService],
+  controllers: [CandidateController],
+  providers: [CandidateService, CandidateRepository],
+  exports: [CandidateService, CandidateRepository],
 })
 export class CandidateModule {}

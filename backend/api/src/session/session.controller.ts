@@ -16,6 +16,7 @@ import {
   HeartbeatDto,
 } from "@app/common/dto/session.dto";
 import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
+import { SessionOwnerGuard } from "@app/common/guards/session-owner.guard";
 import {
   StartSessionResponse,
   ResumeSessionResponse,
@@ -50,6 +51,53 @@ export class SessionController {
   }
 
   /**
+   * POST /api/v1/sessions/:sessionId/begin
+   *
+   * Begin the assessment session, transitioning NOT_STARTED to IN_PROGRESS.
+   */
+  @Post(":sessionId/begin")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async begin(
+    @Param("sessionId") sessionId: string,
+  ): Promise<StartSessionResponse> {
+    return this.sessionService.beginSession(sessionId);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/selfie
+   *
+   * Upload baseline selfie before beginning the assessment.
+   */
+  @Post(":sessionId/selfie")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async selfie(
+    @Param("sessionId") sessionId: string,
+    @Body("image") image: string,
+  ): Promise<{ ok: boolean }> {
+    return this.sessionService.uploadSelfie(sessionId, image);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/consent
+   *
+   * Persist candidate consent record in PostgreSQL.
+   */
+  @Post(":sessionId/consent")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async consent(
+    @Param("sessionId") sessionId: string,
+    @Body("version") version?: string,
+    @Body("ipAddress") ipAddress?: string,
+    @Body("consentType") consentType?: string,
+  ): Promise<{ ok: boolean; consentRecordId: string }> {
+    return this.sessionService.recordConsent(sessionId, version, ipAddress, consentType);
+  }
+
+
+  /**
    * POST /api/v1/sessions/:sessionId/heartbeat
    *
    * Tab-alive signal.  Must be sent every 15 s.
@@ -57,6 +105,7 @@ export class SessionController {
    */
   @Post(":sessionId/heartbeat")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async heartbeat(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Body() dto: HeartbeatDto,
@@ -72,11 +121,27 @@ export class SessionController {
    */
   @Post(":sessionId/resume")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async resume(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
     @Body() dto: ResumeSessionDto,
   ): Promise<ResumeSessionResponse> {
     return this.sessionService.resumeSession(sessionId, dto.tabId);
+  }
+
+  /**
+   * GET /api/v1/sessions/:sessionId/questions/:questionId
+   *
+   * Fetch the full details of a question for the active session.
+   */
+  @Get(":sessionId/questions/:questionId")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async getQuestion(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("questionId") questionId: string,
+  ) {
+    return this.sessionService.getQuestion(sessionId, questionId);
   }
 
   /**
@@ -87,6 +152,7 @@ export class SessionController {
    */
   @Get(":sessionId/progress")
   @HttpCode(HttpStatus.NOT_IMPLEMENTED)
+  @UseGuards(SessionOwnerGuard)
   progress(@Param("sessionId", ParseUUIDPipe) _sessionId: string): {
     message: string;
   } {
@@ -100,6 +166,7 @@ export class SessionController {
    */
   @Post(":sessionId/close")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async close(
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ): Promise<CloseSessionResponse> {

@@ -9,24 +9,40 @@
     "packages/shared-types"
   ],
   "scripts": {
-    "dev:candidate": "npm --workspace=frontend/candidate-web run dev",
-    "dev:admin": "npm --workspace=frontend/admin-web run dev",
-    "dev:api": "npm --workspace=backend/api run start:dev",
+    "build:shared": "npm --workspace=packages/shared-types run build",
+    "prepare": "npm run build:shared",
+    "postinstall": "npm run build:shared",
+    "infra:up": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml up -d",
+    "infra:down": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml down",
+    "infra:logs": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml logs -f",
+    "setup:all": "npm run build:shared && npm run db:migrate && npm run db:seed",
+    "dev:candidate": "npm run build:shared && npm --workspace=frontend/candidate-web run dev",
+    "dev:admin": "npm run build:shared && npm --workspace=frontend/admin-web run dev",
+    "dev:api": "npm run build:shared && npm --workspace=backend/api run start:dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
+    "test:unit": "jest",
+    "test:api": "mocha ./tests/api/**/*.test.js",
+    "test:load": "k6 run ./tests/load/judge0_load_test.js",
+    "test:all": "npm-run-all --parallel test:unit test:api test:load",
     "db:generate": "npm --workspace=backend/api run prisma:generate",
     "db:migrate": "npm --workspace=backend/api run prisma:migrate",
     "db:seed": "npm --workspace=backend/api run prisma:seed",
     "db:studio": "npm --workspace=backend/api run prisma:studio"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/swagger": "^11.4.5",
     "@prisma/engines": "^7.8.0",
-    "@rolldown/binding-win32-x64-msvc": "^1.2.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "lint-staged": "^15.5.2",
     "prettier": "^3.9.5",
-    "typescript-eslint": "^8.64.0"
+    "typescript-eslint": "^8.64.0",
+    "jest": "^29.7.0",
+    "mocha": "^10.5.0",
+    "supertest": "^6.3.4"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -35,14 +51,23 @@
     ],
     "*.{js,json,md,yml,yaml}": [
       "prettier --write"
-    ],
-    "*.py": [
-      "ruff check --fix",
-      "black"
     ]
+  },
+  "overrides": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
   },
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@10.0.0"
+  "packageManager": "npm@10.0.0",
+  "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.62.2"
+  },
+  "allowScripts": {
+    "@nestjs/core@11.1.28": true,
+    "@scarf/scarf@1.4.0": true
+  }
 }

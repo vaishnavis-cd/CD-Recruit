@@ -1,148 +1,104 @@
-import { Controller, Get, Post, Body, Param } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
 import { SimulationService } from "./simulation.service";
 import { SessionLogService } from "./session-log.service";
-import { PrismaService } from "../common/prisma.service";
+import { PrismaService } from "@app/prisma/prisma.service";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../common/guards/roles.guard";
+import { Roles } from "../common/decorators/roles.decorator";
+import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
+import { StaffRole } from "@cd-recruit/shared-types";
+import { ScenarioOrchestratorService } from "./scenario-orchestrator.service";
+import { TelemetryEventType } from "./simulation-telemetry.service";
 
-@Controller()
+@Controller("sessions")
 export class SimulationController {
   constructor(
     private simulationService: SimulationService,
     private sessionLogService: SessionLogService,
+    private scenarioOrchestrator: ScenarioOrchestratorService,
     private prisma: PrismaService,
   ) {}
 
-  @Get("admin/sessions")
-  async listSessions() {
-    return this.prisma.session.findMany({
-      include: {
-        candidate: true,
-        roleTemplate: true,
-        score: true,
-      },
-      orderBy: { startedAt: "desc" },
-    });
+  @Get(":id/simulation/scenario")
+  getScenarioConfig(@Param("id") sessionId: string) {
+    return this.simulationService.getScenarioConfig(sessionId);
   }
 
-  @Post("sessions/mock-create")
-  async createMockSession(
-    @Body() body: { role: string; name: string; email: string },
+  @Post(":id/simulation/initial-say")
+  @UseGuards(SessionOwnerGuard)
+  async saveInitialSay(
+    @Param("id") sessionId: string,
+    @Body() body: { text: string },
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Get or create candidate
-      let candidate = await tx.candidate.findUnique({
-        where: { email: body.email },
-      });
-      if (!candidate) {
-        candidate = await tx.candidate.create({
-          data: {
-            email: body.email,
-            name: body.name,
-          },
-        });
-      }
-
-      // 2. Get or create RoleTemplate
-      let roleTemplate = await tx.roleTemplate.findFirst({
-        where: { roleName: body.role },
-      });
-      if (!roleTemplate) {
-        roleTemplate = await tx.roleTemplate.create({
-          data: {
-            roleName: body.role,
-            weightingPreset: {
-              MCQ: 0.15,
-              SQL: 0.2,
-              CODING: 0.3,
-              AI_PROMPTING: 0.2,
-              SIMULATION: 0.15,
-            },
-            durationMinutes: 90,
-          },
-        });
-      }
-
-      // 3. Get or create a Drive for this mock session
-      let drive = await tx.drive.findFirst({
-        where: { roleTemplateId: roleTemplate.id },
-      });
-      if (!drive) {
-        drive = await tx.drive.create({
-          data: {
-            name: `Mock Drive for ${roleTemplate.roleName}`,
-            roleTemplateId: roleTemplate.id,
-            moduleConfig: {},
-            createdById: "SYSTEM", // Placeholder ID or real system staff ID
-          },
-        });
-      }
-
-      // Find if there's any simulation question seeded
-      const seededQuestion = await tx.question.findFirst({
-        where: { moduleType: "SIMULATION" },
-      });
-
-      let simQuestion = seededQuestion;
-      if (!simQuestion) {
-        simQuestion = await tx.question.create({
-          data: {
-            moduleType: "SIMULATION",
-            content: {
-              title: "Default Simulation Outage",
-              description: "Workspace simulation outage scenario.",
-              triggers: [],
-              rubric: [],
-            },
-          },
-        });
-      }
-
-      // Link Question to Drive if not already linked
-      let driveQuestion = await tx.driveQuestion.findUnique({
-        where: {
-          driveId_questionId: {
-            driveId: drive.id,
-            questionId: simQuestion.id,
-          },
-        },
-      });
-      if (!driveQuestion) {
-        driveQuestion = await tx.driveQuestion.create({
-          data: {
-            driveId: drive.id,
-            questionId: simQuestion.id,
-            moduleType: "SIMULATION",
-          },
-        });
-      }
-
-      // 4. Create Session
-      const session = await tx.session.create({
-        data: {
-          candidateId: candidate.id,
-          roleTemplateId: roleTemplate.id,
-          driveId: drive.id,
-          cvMode: "FULL",
-          status: "IN_PROGRESS",
-          startedAt: new Date(),
-          deadlineAt: new Date(Date.now() + 90 * 60000),
-        },
-      });
-
-      return session;
-    });
+    return this.simulationService.saveInitialSay(sessionId, body.text);
   }
 
-  @Post("sessions/:id/simulation/start")
+  @Post(":id/simulation/telemetry")
+  @UseGuards(SessionOwnerGuard)
+  async recordTelemetry(
+    @Param("id") sessionId: string,
+    @Body() body: { type: TelemetryEventType; filepath?: string; metadata?: Record<string, any> },
+  ) {
+    return this.simulationService.recordTelemetry(sessionId, body);
+  }
+
+  @Post(":id/simulation/run-code")
+  @UseGuards(SessionOwnerGuard)
+  async runSimulationCode(
+    @Param("id") sessionId: string,
+    @Body() body: { code: string; language: "python" | "javascript"; testCases?: any[] },
+  ) {
+    return this.simulationService.runSimulationCode(sessionId, body);
+  }
+
+  @Get(":id/simulation/actions")
+  @UseGuards(SessionOwnerGuard)
+  async getCandidateActions(@Param("id") sessionId: string) {
+    return this.simulationService.getCandidateActions(sessionId);
+  }
+
+  @Get(":id/simulation/inbox")
+  @UseGuards(SessionOwnerGuard)
+  getInbox(@Param("id") sessionId: string) {
+    return this.simulationService.getInbox(sessionId);
+  }
+
+  @Post(":id/simulation/inbox/read")
+  @UseGuards(SessionOwnerGuard)
+  markInboxRead(@Param("id") sessionId: string) {
+    return this.simulationService.markInboxRead(sessionId);
+  }
+
+  @Post(":id/simulation/email-reply")
+  @UseGuards(SessionOwnerGuard)
+  async saveEmailReply(
+    @Param("id") sessionId: string,
+    @Body() body: { messageId?: number; text?: string; replyText?: string },
+  ) {
+    const msgId = Number(body.messageId) || 101;
+    const text = body.replyText || body.text || "";
+    return this.simulationService.saveEmailReply(sessionId, msgId, text);
+  }
+
+  @Get(":sessionId/simulation/triggered-messages")
+  async getTriggeredMessages(@Param("sessionId") sessionId: string) {
+    return this.simulationService.getInbox(sessionId);
+  }
+
+  @Post(":id/simulation/start")
+  @UseGuards(SessionOwnerGuard)
   async startSimulation(@Param("id") sessionId: string) {
     return this.simulationService.startSimulation(sessionId);
   }
 
-  @Get("sessions/:id/simulation/current")
+  @Get(":id/simulation/current")
+  @UseGuards(SessionOwnerGuard)
   async getCurrentEvent(@Param("id") sessionId: string) {
     return this.simulationService.getCurrentEvent(sessionId);
   }
 
-  @Post("sessions/:id/simulation/state")
+  @Post(":id/simulation/state")
+  @UseGuards(SessionOwnerGuard)
   async logEventState(
     @Param("id") sessionId: string,
     @Body() body: { state: string; action: string; payload?: any },
@@ -156,27 +112,43 @@ export class SimulationController {
     return { ok: true };
   }
 
-  @Post("sessions/:id/simulation/submit")
+  @Post(":id/simulation/submit")
+  @UseGuards(SessionOwnerGuard)
   async submitEvent(@Param("id") sessionId: string, @Body() response: any) {
-    return this.simulationService.submitEvent(sessionId, response);
+    return this.simulationService.submitSimulation(sessionId, response);
   }
 
-  @Post("sessions/:id/simulation/skip")
+  @Post(":id/simulation/execute")
+  @UseGuards(SessionOwnerGuard)
+  async executeTerminalCommand(
+    @Param("id") sessionId: string,
+    @Body() body: { command: string },
+  ) {
+    return this.simulationService.executeTerminalCommand(sessionId, body.command);
+  }
+
+  @Post(":id/simulation/skip")
+  @UseGuards(SessionOwnerGuard)
   async skipEvent(@Param("id") sessionId: string) {
     return this.simulationService.skipEvent(sessionId);
   }
 
-  @Get("sessions/:id/simulation/summary")
+  @Get(":id/simulation/summary")
+  @UseGuards(SessionOwnerGuard)
   async getSessionSummary(@Param("id") sessionId: string) {
     return this.simulationService.getSessionSummary(sessionId);
   }
 
-  @Get("sessions/:id/simulation/timeline")
+  @Get(":id/simulation/timeline")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
   async getRecruiterTimeline(@Param("id") sessionId: string) {
     return this.sessionLogService.getTimeline(sessionId);
   }
 
-  @Get("sessions/:id/simulation/logs")
+  @Get(":id/simulation/logs")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
   async getSessionLogs(@Param("id") sessionId: string) {
     return this.sessionLogService.getSession(sessionId);
   }

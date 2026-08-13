@@ -2,19 +2,93 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from "@nes
 import { PrismaService } from "../prisma/prisma.service";
 import { SqlSandboxService } from "./sql-sandbox.service";
 import { ResultComparatorService } from "./result-comparator.service";
+import { SqlValidatorService, SqlQuestionType } from "./sql-validator.service";
 import { RunSqlDto, SubmitSqlDto, DraftSqlDto } from "./dto/sql.dto";
 import { SqlQuestionContentJson } from "./sql.types";
 import { SubmissionType, SqlExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
+import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 
 @Injectable()
-export class SqlService {
+export class SqlService implements AssessmentModuleEngine {
+  readonly moduleType = ModuleType.SQL;
   private readonly logger = new Logger(SqlService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly sandboxService: SqlSandboxService,
     private readonly comparatorService: ResultComparatorService,
+    private readonly validatorService: SqlValidatorService,
   ) {}
+
+  async validateSubmission(submission: any): Promise<boolean> {
+    return !!(submission && submission.sql);
+  }
+
+  async evaluateSubmission(
+    sessionId: string,
+    questionId: string,
+    submission: any,
+  ): Promise<ModuleEvaluationResult> {
+    try {
+      const res = await this.run({
+        sessionId,
+        questionId,
+        query: submission.sql,
+      });
+
+      const question = await this.prisma.question.findUnique({
+        where: { id: questionId },
+      });
+      const content = question?.content as any;
+      const schemaSql = content?.schema || "";
+
+      // Calculate score with partial credit for non-empty, non-trivial
+      const query = (submission.sql || "").trim();
+      let score = 0.0;
+      if (res.passed) {
+        score = 1.0;
+      } else if (res.status === "COMPLETED") {
+        const cleanQuery = query
+          .replace(/--.*$/gm, "")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .trim();
+
+        // 1. Must contain FROM keyword case-insensitively
+        const hasFrom = /\bFROM\b/i.test(cleanQuery);
+
+        // 2. Extract table names from schema SQL and verify at least one is referenced
+        const tableMatches = [...schemaSql.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"([^"]+)"|([a-zA-Z_]\w*))/gi)];
+        const tableNames = tableMatches.map((m: any) => {
+          const name = m[1] || m[2];
+          return name ? name.toLowerCase() : "";
+        }).filter(Boolean);
+
+        const referencesTable = tableNames.length === 0 || tableNames.some((tableName: string) => {
+          const regex = new RegExp(`\\b${tableName}\\b`, "i");
+          return regex.test(cleanQuery);
+        });
+
+        if (hasFrom && referencesTable && cleanQuery.length >= 10) {
+          score = 0.2;
+        }
+      }
+
+      return {
+        status: res.status as any,
+        score,
+        scoreDetail: res,
+        evaluatedAt: new Date(),
+      };
+    } catch (err: any) {
+      this.logger.error(`Error evaluating submission: ${err.message}`);
+      return {
+        status: "FAILED" as any,
+        score: 0.0,
+        scoreDetail: { error: err.message },
+        evaluatedAt: new Date(),
+      };
+    }
+  }
 
   /**
    * Run candidate SQL query in sandbox and compare with expected output.
@@ -27,8 +101,16 @@ export class SqlService {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
+    if (session.status === SessionStatus.NOT_STARTED || session.status === SessionStatus.AUTO_SUBMITTED) {
+      const now = new Date();
+      await this.prisma.session.update({
+        where: { id: dto.sessionId },
+        data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
+      });
+      session.status = SessionStatus.IN_PROGRESS;
+    }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
-      throw new BadRequestException("Session is not in progress");
+      throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
     }
 
     // 2. Validate question
@@ -40,33 +122,45 @@ export class SqlService {
     }
 
     const content = question.content as unknown as SqlQuestionContentJson;
+    const questionType: SqlQuestionType = (question as any).questionType || "SELECT_ONLY";
+
+    // Fast-fail pre-check validation gate
+    this.validatorService.validateCandidateQuery(dto.query, questionType);
 
     const start = Date.now();
     let status = SqlExecutionStatus.COMPLETED;
     let resultJson: any = null;
     let passed = false;
     let rowsCount = 0;
+    let executionTimeMs = 0;
+    let poolWaitTimeMs = 0;
 
     try {
-      // Execute candidate query
-      const candidateResult = await this.sandboxService.executeQuery(
-        content.schema,
-        content.seedData,
-        dto.query,
-      );
+      // Execute candidate query in sandbox
+      const candExec = await this.sandboxService.executeQuery({
+        schemaSql: content.schema,
+        seedSql: content.seedData,
+        query: dto.query,
+        questionType,
+      });
+
+      const candidateResult = candExec.queryResult;
+      executionTimeMs = candExec.executionTimeMs;
+      poolWaitTimeMs = candExec.poolWaitTimeMs;
 
       resultJson = candidateResult;
       rowsCount = candidateResult.rowCount;
 
-      // Execute expected query if available
+      // Execute expected query if available (never exposed to client)
       if (content.expectedQuery) {
         try {
-          const expectedResult = await this.sandboxService.executeQuery(
-            content.schema,
-            content.seedData,
-            content.expectedQuery,
-          );
-          passed = this.comparatorService.compare(candidateResult, expectedResult);
+          const expExec = await this.sandboxService.executeQuery({
+            schemaSql: content.schema,
+            seedSql: content.seedData,
+            query: content.expectedQuery,
+            questionType,
+          });
+          passed = this.comparatorService.compare(candidateResult, expExec.queryResult);
         } catch (err: any) {
           this.logger.error(`Failed to execute expected query in comparison: ${err.message}`);
           passed = false;
@@ -75,39 +169,58 @@ export class SqlService {
     } catch (err: any) {
       passed = false;
       const errMsg = err.message || "";
-      if (errMsg.includes("timeout")) {
+      if (errMsg.includes("timeout") || errMsg.includes("timed out")) {
         status = SqlExecutionStatus.TIMEOUT;
-        resultJson = { error: "Query execution timed out" };
+        resultJson = { error: "Your query took too long to execute (>5s). Consider optimizing your query." };
+      } else if (errMsg.includes("permission denied") || errMsg.includes("must be owner")) {
+        status = SqlExecutionStatus.FAILED;
+        resultJson = { error: "This operation is not permitted in the SQL sandbox environment." };
       } else {
         status = SqlExecutionStatus.QUERY_ERROR;
         resultJson = { error: errMsg };
       }
     }
 
-    const elapsed = Date.now() - start;
+    const totalElapsed = Date.now() - start;
+    this.logger.log(
+      `SQL Run Execution [Session: ${dto.sessionId}, Question: ${dto.questionId}] Passed: ${passed}, ExecTime: ${executionTimeMs}ms, PoolWait: ${poolWaitTimeMs}ms`,
+    );
 
-    // 3. Create SQLExecution record
-    const execution = await this.prisma.sQLExecution.create({
-      data: {
-        sessionId: dto.sessionId,
-        questionId: dto.questionId,
-        submissionType: SubmissionType.RUN,
-        query: dto.query,
-        status: status as any,
-        resultJson: resultJson as any,
+    // 3. Create SQLExecution record with safety net
+    try {
+      const execution = await this.prisma.sQLExecution.create({
+        data: {
+          sessionId: dto.sessionId,
+          questionId: dto.questionId,
+          submissionType: SubmissionType.RUN,
+          query: dto.query,
+          status: status as any,
+          resultJson: resultJson as any,
+          passed,
+          executionTime: totalElapsed,
+          completedAt: new Date(),
+        },
+      });
+
+      return {
+        executionId: execution.id,
+        status: execution.status,
         passed,
-        executionTime: elapsed,
-        completedAt: new Date(),
-      },
-    });
-
-    return {
-      executionId: execution.id,
-      status: execution.status,
-      passed: execution.passed,
-      executionTime: execution.executionTime,
-      resultRows: rowsCount,
-    };
+        executionTime: execution.executionTime,
+        resultRows: rowsCount,
+        result: resultJson,
+      };
+    } catch (dbErr: any) {
+      this.logger.error(`Failed to persist SQLExecution record: ${dbErr.message}`);
+      return {
+        executionId: "unknown",
+        status,
+        passed: false,
+        executionTime: totalElapsed,
+        resultRows: rowsCount,
+        result: resultJson,
+      };
+    }
   }
 
   /**
@@ -121,8 +234,16 @@ export class SqlService {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
+    if (session.status === SessionStatus.NOT_STARTED) {
+      const now = new Date();
+      await this.prisma.session.update({
+        where: { id: dto.sessionId },
+        data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
+      });
+      session.status = SessionStatus.IN_PROGRESS;
+    }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
-      throw new BadRequestException("Session is not in progress");
+      throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
     }
 
     // 2. Validate question
@@ -134,33 +255,42 @@ export class SqlService {
     }
 
     const content = question.content as unknown as SqlQuestionContentJson;
+    const questionType: SqlQuestionType = (question as any).questionType || "SELECT_ONLY";
+
+    // Fast-fail pre-check validation gate
+    this.validatorService.validateCandidateQuery(dto.query, questionType);
 
     const start = Date.now();
     let status = SqlExecutionStatus.COMPLETED;
     let resultJson: any = null;
     let passed = false;
     let rowsCount = 0;
+    let executionTimeMs = 0;
 
     try {
       // Execute candidate query
-      const candidateResult = await this.sandboxService.executeQuery(
-        content.schema,
-        content.seedData,
-        dto.query,
-      );
+      const candExec = await this.sandboxService.executeQuery({
+        schemaSql: content.schema,
+        seedSql: content.seedData,
+        query: dto.query,
+        questionType,
+      });
 
+      const candidateResult = candExec.queryResult;
+      executionTimeMs = candExec.executionTimeMs;
       resultJson = candidateResult;
       rowsCount = candidateResult.rowCount;
 
-      // Execute expected query
+      // Execute expected query (never exposed to client)
       if (content.expectedQuery) {
         try {
-          const expectedResult = await this.sandboxService.executeQuery(
-            content.schema,
-            content.seedData,
-            content.expectedQuery,
-          );
-          passed = this.comparatorService.compare(candidateResult, expectedResult);
+          const expExec = await this.sandboxService.executeQuery({
+            schemaSql: content.schema,
+            seedSql: content.seedData,
+            query: content.expectedQuery,
+            questionType,
+          });
+          passed = this.comparatorService.compare(candidateResult, expExec.queryResult);
         } catch (err: any) {
           this.logger.error(`Failed to execute expected query in comparison: ${err.message}`);
           passed = false;
@@ -169,75 +299,88 @@ export class SqlService {
     } catch (err: any) {
       passed = false;
       const errMsg = err.message || "";
-      if (errMsg.includes("timeout")) {
+      if (errMsg.includes("timeout") || errMsg.includes("timed out")) {
         status = SqlExecutionStatus.TIMEOUT;
-        resultJson = { error: "Query execution timed out" };
+        resultJson = { error: "Your query took too long to execute (>5s)." };
+      } else if (errMsg.includes("permission denied") || errMsg.includes("must be owner")) {
+        status = SqlExecutionStatus.FAILED;
+        resultJson = { error: "This operation is not permitted in the SQL sandbox environment." };
       } else {
         status = SqlExecutionStatus.QUERY_ERROR;
         resultJson = { error: errMsg };
       }
     }
 
-    const elapsed = Date.now() - start;
+    const totalElapsed = Date.now() - start;
 
-    // 3. Create SQLExecution record
-    const execution = await this.prisma.sQLExecution.create({
-      data: {
-        sessionId: dto.sessionId,
-        questionId: dto.questionId,
-        submissionType: SubmissionType.SUBMIT,
-        query: dto.query,
-        status: status as any,
-        resultJson: resultJson as any,
-        passed,
-        executionTime: elapsed,
-        completedAt: new Date(),
-      },
-    });
-
-    // 4. Save final response in ModuleResponse
-    const responsePayload = {
-      moduleType: ModuleType.SQL,
-      query: dto.query,
-    };
-
-    await this.prisma.moduleResponse.upsert({
-      where: {
-        sessionId_questionId: {
+    try {
+      // 3. Create SQLExecution record
+      const execution = await this.prisma.sQLExecution.create({
+        data: {
           sessionId: dto.sessionId,
           questionId: dto.questionId,
+          submissionType: SubmissionType.SUBMIT,
+          query: dto.query,
+          status: status as any,
+          resultJson: resultJson as any,
+          passed,
+          executionTime: totalElapsed,
+          completedAt: new Date(),
         },
-      },
-      update: {
-        responsePayload: responsePayload as any,
-        isDraft: false,
-        timeSpentSeconds: dto.timeSpentSeconds || null,
-        lastAutosavedAt: new Date(),
-      },
-      create: {
-        sessionId: dto.sessionId,
-        questionId: dto.questionId,
-        responsePayload: responsePayload as any,
-        isDraft: false,
-        timeSpentSeconds: dto.timeSpentSeconds || null,
-        lastAutosavedAt: new Date(),
-      },
-    });
+      });
 
-    return {
-      executionId: execution.id,
-      status: execution.status,
-      passed: execution.passed,
-      executionTime: execution.executionTime,
-      resultRows: rowsCount,
-    };
+      // 4. Save final response in ModuleResponse
+      const responsePayload = {
+        moduleType: ModuleType.SQL,
+        query: dto.query,
+      };
+
+      await this.prisma.moduleResponse.upsert({
+        where: {
+          sessionId_questionId: {
+            sessionId: dto.sessionId,
+            questionId: dto.questionId,
+          },
+        },
+        update: {
+          responsePayload: responsePayload as any,
+          isDraft: false,
+          timeSpentSeconds: dto.timeSpentSeconds || null,
+          lastAutosavedAt: new Date(),
+        },
+        create: {
+          sessionId: dto.sessionId,
+          questionId: dto.questionId,
+          responsePayload: responsePayload as any,
+          isDraft: false,
+          timeSpentSeconds: dto.timeSpentSeconds || null,
+          lastAutosavedAt: new Date(),
+        },
+      });
+
+      return {
+        executionId: execution.id,
+        status: execution.status,
+        passed,
+        executionTime: execution.executionTime,
+        resultRows: rowsCount,
+      };
+    } catch (persistErr: any) {
+      this.logger.error(`Failed to persist submit response or execution record: ${persistErr.message}`);
+      return {
+        executionId: "unknown",
+        status: SqlExecutionStatus.COMPLETED,
+        passed: false,
+        executionTime: totalElapsed,
+        resultRows: rowsCount,
+      };
+    }
   }
 
   /**
    * Save draft version of candidate SQL query.
    */
   async draft(dto: DraftSqlDto) {
-    // Validate session
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
     });

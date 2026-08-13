@@ -1,5 +1,7 @@
 -- CreateEnum
-CREATE TYPE "InviteStatus" AS ENUM ('PENDING', 'REDEEMED', 'EXPIRED', 'REVOKED');
+DO $$ BEGIN
+  CREATE TYPE "InviteStatus" AS ENUM ('PENDING', 'REDEEMED', 'EXPIRED', 'REVOKED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- AlterTable
 ALTER TABLE "integrity_flag" ADD COLUMN     "disposition" TEXT,

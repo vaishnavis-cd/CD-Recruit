@@ -2,71 +2,62 @@
  * backend/prisma/seed.ts
  *
  * Prisma seed script for the CD-Recruit assessment platform.
+ * Reads seed question datasets from declarative JSON files in backend/prisma/data/.
  *
  * Run via:
  *   npx prisma db seed
  *   (or directly: npx tsx backend/prisma/seed.ts)
- *
- * Idempotent: safe to run multiple times.
- *   - Uses findFirst + conditional create for RoleTemplate (no unique constraint in schema).
- *   - Skips Question seeding if any questions already exist for the template.
  */
 
-import { PrismaClient, ModuleType } from "@prisma/client";
-import { mcqQuestions } from "./data/mcq";
-import { sqlQuestions } from "./data/sql";
-import { codingQuestions } from "./data/coding";
-import { aiPromptingQuestions } from "./data/aiPrompting";
-import { simulationQuestions } from "./data/simulation";
+import { PrismaClient, ModuleType, CvMode, DecisionType } from "@prisma/client";
+import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
+
+// Standardize .env contract loading
+dotenv.config({ path: path.join(__dirname, "../.env") });
+dotenv.config({ path: path.join(__dirname, "../api/.env") });
 
 // ---------------------------------------------------------------------------
-// Constants
+// Constants & Configuration
 // ---------------------------------------------------------------------------
 
 const ROLE_NAME = "Software Developer";
+const DURATION_MINUTES = 90;
 
-/**
- * Default weighting preset for the Software Developer role.
- * Keys correspond to ModuleType enum values; values are 0–1 weights summing to 1.
- * These are used by the Correlation Engine (Phase 10) to compute the composite score.
- */
 const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
   MCQ: 0.15,
-  SQL: 0.2,
-  CODING: 0.3,
-  AI_PROMPTING: 0.2,
+  SQL: 0.15,
+  CODING: 0.25,
+  DEBUGGING: 0.15,
+  AI_PROMPTING: 0.15,
   SIMULATION: 0.15,
 };
 
 /**
- * Assessment duration for a Software Developer session, in minutes.
- * Stored on RoleTemplate.durationMinutes and used to compute Session.deadlineAt.
- */
-const DURATION_MINUTES = 90;
-
-// ---------------------------------------------------------------------------
-// Seed helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Returns a unified list of all question seed entries across every module type,
- * cast to the shape Prisma expects for Question.create / createMany.
+ * Reads all declarative JSON seed question files from backend/prisma/data/
  */
 function getAllQuestionSeedData(): Array<{
   moduleType: ModuleType;
-  content: unknown;
+  difficulty?: string;
+  content: any;
 }> {
-  return [
-    ...mcqQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...sqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...codingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...aiPromptingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-    ...simulationQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, content: q.content })),
-  ];
+  const dataDir = path.join(__dirname, "data");
+  const jsonFiles = ["mcq.json", "sql.json", "coding.json", "debugging.json", "aiPrompting.json", "simulation.json"];
+  const questions: Array<{ moduleType: ModuleType; difficulty?: string; content: any }> = [];
+
+  for (const file of jsonFiles) {
+    const filePath = path.join(dataDir, file);
+    if (fs.existsSync(filePath)) {
+      const items = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      questions.push(...items);
+    }
+  }
+  return questions;
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// Main Seeder
 // ---------------------------------------------------------------------------
 
 const prisma = new PrismaClient();
@@ -74,112 +65,268 @@ const prisma = new PrismaClient();
 async function main(): Promise<void> {
   console.log("🌱 Starting seed…");
 
-  await prisma.$transaction(async (tx) => {
-    // ------------------------------------------------------------------
-    // 1. Upsert Staff (Recruiter)
-    // ------------------------------------------------------------------
-    const staff = await tx.staff.upsert({
-      where: { email: "recruiter@example.com" },
-      update: {},
-      create: {
-        email: "recruiter@example.com",
-        name: "Rachel Brooks",
-        role: "RECRUITER",
-        keycloakUserId: "mock-keycloak-recruiter-id",
-      },
-    });
-    console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);
-
-    // ------------------------------------------------------------------
-    // 2. Upsert RoleTemplate
-    // ------------------------------------------------------------------
-    let roleTemplate = await tx.roleTemplate.findFirst({
-      where: { roleName: ROLE_NAME },
-    });
-
-    if (!roleTemplate) {
-      roleTemplate = await tx.roleTemplate.create({
-        data: {
-          roleName: ROLE_NAME,
-          weightingPreset: DEFAULT_WEIGHTING_PRESET,
-          durationMinutes: DURATION_MINUTES,
+  await prisma.$transaction(
+    async (tx) => {
+      // 1. Upsert Staff (Recruiter)
+      const staff = await tx.staff.upsert({
+        where: { email: "recruiter@example.com" },
+        update: {},
+        create: {
+          email: "recruiter@example.com",
+          name: "Rachel Brooks",
+          role: "RECRUITER",
+          keycloakUserId: "mock-keycloak-recruiter-id",
         },
       });
-      console.log(`  ✔ Created RoleTemplate "${ROLE_NAME}" (id: ${roleTemplate.id})`);
-    } else {
-      console.log(`  ↩ RoleTemplate "${ROLE_NAME}" already exists (id: ${roleTemplate.id}) — skipping create`);
-    }
+      console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);
 
-    // ------------------------------------------------------------------
-    // 3. Seed Questions (Independent of RoleTemplate)
-    // ------------------------------------------------------------------
-    const existingCount = await tx.question.count();
-    const allQuestions = getAllQuestionSeedData();
+      // 2. Upsert Base RoleTemplate
+      let roleTemplate = await tx.roleTemplate.findFirst({
+        where: { roleName: ROLE_NAME },
+      });
 
-    if (existingCount > 0) {
-      console.log(
-        `  ↩ Found ${existingCount} existing question(s) — skipping question seed`,
-      );
-    } else if (allQuestions.length === 0) {
-      console.log(
-        "  ⚠ No question seed data found. " +
-          "Populate the arrays in backend/prisma/data/*.ts and re-run the seed.",
-      );
-    } else {
-      // Create questions
-      const createdQuestions = [];
-      for (const q of allQuestions) {
-        const created = await tx.question.create({
+      if (!roleTemplate) {
+        roleTemplate = await tx.roleTemplate.create({
           data: {
-            moduleType: q.moduleType,
-            content: q.content as any,
-            difficulty: "medium",
-            tags: [q.moduleType.toLowerCase()],
-            scoringConfig: {},
-            version: 1,
-            status: "PUBLISHED",
+            roleName: ROLE_NAME,
+            weightingPreset: DEFAULT_WEIGHTING_PRESET,
+            durationMinutes: DURATION_MINUTES,
           },
         });
-        createdQuestions.push(created);
+        console.log(`  ✔ Created Base RoleTemplate "${ROLE_NAME}" (id: ${roleTemplate.id})`);
+      } else {
+        console.log(`  ↩ Base RoleTemplate "${ROLE_NAME}" exists (id: ${roleTemplate.id})`);
       }
-      console.log(`  ✔ Created ${createdQuestions.length} independent question(s)`);
 
-      // ------------------------------------------------------------------
-      // 4. Create Default Drive
-      // ------------------------------------------------------------------
-      const drive = await tx.drive.create({
-        data: {
-          name: "Software Developer Drive - July 2026",
-          roleTemplateId: roleTemplate.id,
-          moduleConfig: {
-            MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
-            SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
-            CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
-            AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
-            SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+      // 2b. Seed 16 Department x Experience Level Role Templates
+      const DEPARTMENTS = [
+        "SOFTWARE_ENGINEERING",
+        "DATA_ENGINEERING",
+        "PMO",
+        "QA",
+        "SYSOPS",
+        "ITOPS",
+        "SECOPS",
+        "SRE",
+      ] as const;
+      const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
+      const DEPT_NAMES: Record<string, string> = {
+        SOFTWARE_ENGINEERING: "Software Engineering",
+        DATA_ENGINEERING: "Data Engineering",
+        PMO: "Project Management Office",
+        QA: "Quality Assurance",
+        SYSOPS: "System Operations",
+        ITOPS: "IT Operations",
+        SECOPS: "Security Operations",
+        SRE: "Site Reliability Engineering",
+      };
+
+      for (const dept of DEPARTMENTS) {
+        for (const lvl of LEVELS) {
+          const isExp = lvl === "EXPERIENCED";
+          const name = `${DEPT_NAMES[dept]} - ${lvl === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced"}`;
+          await tx.roleTemplate.upsert({
+            where: {
+              department_level_version: {
+                department: dept as any,
+                level: lvl as any,
+                version: 1,
+              },
+            },
+            update: { roleName: name, isActive: true, durationMinutes: isExp ? 90 : 60 },
+            create: {
+              department: dept as any,
+              level: lvl as any,
+              roleName: name,
+              version: 1,
+              isActive: true,
+              durationMinutes: isExp ? 90 : 60,
+              weightingPreset: { MCQ: 20, SQL: 20, CODING: 30, DEBUGGING: 15, AI_PROMPTING: 15 },
+            },
+          });
+        }
+      }
+      console.log(`  ✔ Seeded 16 Department / Level Role Templates`);
+
+      // 3. Seed Questions from JSON Files
+      const allQuestions = getAllQuestionSeedData();
+      const createdQuestions = [];
+
+      for (const q of allQuestions) {
+        const prompt = q.content?.prompt || q.content?.title || "";
+        const matchPath = q.content?.prompt ? ["prompt"] : ["title"];
+        const difficulty = (q.difficulty || q.content?.difficulty || "medium").toLowerCase();
+        const isDebugging = q.moduleType === "DEBUGGING" || prompt.toLowerCase().includes("debugging");
+        const targetModule = isDebugging ? "DEBUGGING" : q.moduleType;
+        const tags = isDebugging ? ["debugging", "coding"] : [q.moduleType.toLowerCase()];
+
+        const existing = await tx.question.findFirst({
+          where: {
+            moduleType: targetModule as ModuleType,
+            content: { path: matchPath, equals: prompt },
           },
-          status: "ACTIVE",
-          scheduleStart: new Date(),
-          scheduleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          createdById: staff.id,
-        },
-      });
-      console.log(`  ✔ Created Drive "${drive.name}" (id: ${drive.id})`);
+        });
 
-      // ------------------------------------------------------------------
-      // 5. Link Questions to the Drive
-      // ------------------------------------------------------------------
-      const driveQuestionsData = createdQuestions.map((q) => ({
-        driveId: drive.id,
-        questionId: q.id,
-        moduleType: q.moduleType,
-      }));
-      await tx.driveQuestion.createMany({
-        data: driveQuestionsData,
+        if (existing) {
+          const updated = await tx.question.update({
+            where: { id: existing.id },
+            data: { moduleType: targetModule as ModuleType, difficulty, tags, status: "PUBLISHED" },
+          });
+          createdQuestions.push(updated);
+        } else {
+          const created = await tx.question.create({
+            data: {
+              moduleType: targetModule as ModuleType,
+              content: q.content,
+              difficulty,
+              tags,
+              status: "PUBLISHED",
+            },
+          });
+          createdQuestions.push(created);
+        }
+      }
+      console.log(`  ✔ Ensured ${createdQuestions.length} JSON seed questions exist and published`);
+
+      // 4. Upsert Default Recruitment Drive
+      let drive = await tx.drive.findFirst({
+        where: { name: "Software Developer Drive - July 2026" },
       });
-      console.log(`  ✔ Linked ${driveQuestionsData.length} questions to Drive "${drive.name}"`);
-    }
-  });
+      if (!drive) {
+        drive = await tx.drive.create({
+          data: {
+            name: "Software Developer Drive - July 2026",
+            roleTemplateId: roleTemplate.id,
+            moduleConfig: {
+              MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
+              SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
+              CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
+              AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
+              SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+            },
+            status: "ACTIVE",
+            scheduleStart: new Date(),
+            scheduleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            createdById: staff.id,
+          },
+        });
+        console.log(`  ✔ Created Drive "${drive.name}" (id: ${drive.id})`);
+      }
+
+      // 5. Link Questions to the Drive
+      for (const q of createdQuestions) {
+        await tx.driveQuestion.upsert({
+          where: {
+            driveId_questionId: {
+              driveId: drive.id,
+              questionId: q.id,
+            },
+          },
+          update: {},
+          create: {
+            driveId: drive.id,
+            questionId: q.id,
+            moduleType: q.moduleType,
+            questionVersionSnapshot: q.version ?? 1,
+          },
+        });
+      }
+      console.log(`  ✔ Linked questions to Drive "${drive.name}"`);
+
+      // 6. Seed Candidates, Invites, Sessions, Scores, Integrity Flags, and Reviewer Decisions
+      const candidatesData = [
+        { name: "Alice Johnson", email: "alice.johnson@example.com", score: 88, status: "SUBMITTED", decision: DecisionType.ADVANCE, flags: 0 },
+        { name: "Bob Smith", email: "bob.smith@example.com", score: 74, status: "SUBMITTED", decision: null, flags: 1 },
+        { name: "Carol White", email: "carol.white@example.com", score: 42, status: "SUBMITTED", decision: DecisionType.REJECT, flags: 2 },
+        { name: "David Miller", email: "david.miller@example.com", score: null, status: "IN_PROGRESS", decision: null, flags: 0 },
+        { name: "Emma Watson", email: "emma.watson@example.com", score: 92, status: "SUBMITTED", decision: null, flags: 0 },
+      ];
+
+      for (const cand of candidatesData) {
+        const candidate = await tx.candidate.upsert({
+          where: { email: cand.email },
+          update: {},
+          create: {
+            name: cand.name,
+            email: cand.email,
+          },
+        });
+
+        let invite = await tx.invite.findFirst({ where: { candidateEmail: cand.email } });
+        if (!invite) {
+          invite = await tx.invite.create({
+            data: {
+              candidateEmail: cand.email,
+              candidateName: cand.name,
+              roleTemplateId: roleTemplate.id,
+              driveId: drive.id,
+              status: "REDEEMED",
+              token: `token-${cand.email.replace(/[@.]/g, "-")}-${Date.now()}`,
+              createdById: staff.id,
+              expiresAt: new Date(Date.now() + 48 * 3600 * 1000),
+            },
+          });
+        }
+
+        let session = await tx.session.findFirst({ where: { candidateId: candidate.id } });
+        if (!session) {
+          session = await tx.session.create({
+            data: {
+              candidateId: candidate.id,
+              driveId: drive.id,
+              roleTemplateId: roleTemplate.id,
+              cvMode: CvMode.FULL,
+              status: cand.status as any,
+              startedAt: new Date(Date.now() - 3600 * 1000),
+              submittedAt: cand.status === "SUBMITTED" ? new Date() : null,
+            },
+          });
+
+          await tx.invite.update({
+            where: { id: invite.id },
+            data: { sessionId: session.id },
+          });
+
+          if (cand.score !== null) {
+            await tx.score.create({
+              data: {
+                sessionId: session.id,
+                compositeScore: cand.score,
+                moduleScores: { MCQ: cand.score, SQL: cand.score, CODING: cand.score },
+                sayDoConsistencyScore: cand.score / 100,
+                aiConfidence: 0.9,
+                humanReviewed: cand.decision !== null,
+              },
+            });
+          }
+
+          if (cand.decision) {
+            await tx.reviewerDecision.create({
+              data: {
+                sessionId: session.id,
+                staffId: staff.id,
+                decision: cand.decision,
+                note: cand.decision === DecisionType.ADVANCE ? "Excellent technical performance." : "Did not meet pass threshold.",
+              },
+            });
+          }
+
+          if (cand.flags > 0) {
+            await tx.integrityFlag.create({
+              data: {
+                sessionId: session.id,
+                category: "CORRELATED_PASTE_ANOMALY",
+                severity: "CRITICAL",
+                confidence: 0.95,
+              },
+            });
+          }
+        }
+      }
+      console.log(`  ✔ Seeded candidate sessions, scores, integrity flags, and reviewer decisions.`);
+    },
+    { timeout: 30000 },
+  );
 
   console.log("✅ Seed complete.");
 }

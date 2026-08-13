@@ -27,9 +27,10 @@ services:
       POSTGRES_PASSWORD: cdrecruit123
       POSTGRES_DB: cdrecruit
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cdrecruit -d cdrecruit"]
@@ -56,14 +57,6 @@ services:
   # ── Keycloak ────────────────────────────────────────────────────────────────
   # OIDC identity provider running in dev mode (no TLS, embedded H2 DB for Keycloak metadata).
   # The cd-recruit realm is pre-imported from docker/keycloak/realm-export.json.
-  #
-  # ⚠️  PLACEHOLDER DEFAULTS — verify before Phase 4 (Auth) goes live:
-  #   - Realm:          cd-recruit
-  #   - API client:     cd-recruit-api   (confidential, client-credentials flow)
-  #   - Frontend client:cd-recruit-frontend (public, PKCE)
-  #   - Redirect URIs:  http://localhost:3000/* (candidate-web)
-  #                     http://localhost:3001/* (NestJS API — for admin-web callback)
-  #   Admin console:    http://localhost:8080  (admin / admin)
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: cdrecruit_keycloak_dev
@@ -71,12 +64,6 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-      # Point Keycloak to Postgres for its own metadata store (optional — uses embedded H2 by default in start-dev)
-      # Uncomment below to persist Keycloak config across restarts:
-      # KC_DB: postgres
-      # KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      # KC_DB_USERNAME: cdrecruit
-      # KC_DB_PASSWORD: cdrecruit123
     ports:
       - "8080:8080"
     volumes:

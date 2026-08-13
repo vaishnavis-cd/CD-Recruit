@@ -5,12 +5,12 @@
 // Import pattern:
 //   import { SessionStatus, ModuleType } from '@cd-recruit/shared-types';
 
-export * from "./enums";
-export * from "./roleTemplate";
-export * from "./session";
-export * from "./question";
-export * from "./response";
-export * from "./score";
-export * from "./events";
-export * from "./admin";
-export * from "./drive";
+export * from "./enums.js";
+export * from "./roleTemplate.js";
+export * from "./session.js";
+export * from "./question.js";
+export * from "./response.js";
+export * from "./score.js";
+export * from "./events.js";
+export * from "./admin.js";
+export * from "./drive.js";

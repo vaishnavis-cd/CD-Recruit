@@ -29,7 +29,8 @@ export class CreateDriveDto {
   @IsNotEmpty()
   name: string;
 
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   roleTemplateId: string;
 
   @IsOptional()
@@ -49,6 +50,11 @@ export class CreateDriveDto {
 
   @IsOptional()
   @IsArray()
+  @IsUUID("4", { each: true })
+  questionIds?: string[];
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DriveCandidateDto)
   candidates?: DriveCandidateDto[];
@@ -61,7 +67,7 @@ export class UpdateDriveDto {
   name?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   roleTemplateId?: string;
 
   @IsOptional()
@@ -80,10 +86,25 @@ export class UpdateDriveDto {
   scheduleEnd?: string;
 }
 
+export class DriveQuestionAssignmentDto {
+  @IsString()
+  questionId: string;
+
+  @IsOptional()
+  pointShare?: number;
+}
+
 export class SaveDriveQuestionsDto {
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  questionIds: string[];
+  questionIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DriveQuestionAssignmentDto)
+  questionAssignments?: DriveQuestionAssignmentDto[];
 }
 
 export class AddCandidatesBulkDto {

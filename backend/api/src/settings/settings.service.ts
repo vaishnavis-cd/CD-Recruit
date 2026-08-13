@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { ListAuditLogQueryDto } from "../common/dto/settings.dto";
@@ -24,8 +24,39 @@ export class SettingsService {
         aiConfidenceThreshold: 0.8,
         passRateThreshold: 0.7,
         biometricRetentionDays: 30,
+        appealWindowDays: 14,
+        heartbeatStaleThresholdSeconds: 45,
+        graceWindowSeconds: 300,
+        maxDisconnectCount: 3,
       };
       fs.writeFileSync(this.configPath, JSON.stringify(defaultConfig, null, 2), "utf8");
+    } else {
+      try {
+        const data = fs.readFileSync(this.configPath, "utf8");
+        const json = JSON.parse(data);
+        let updated = false;
+        if (json.appealWindowDays === undefined) {
+          json.appealWindowDays = 14;
+          updated = true;
+        }
+        if (json.heartbeatStaleThresholdSeconds === undefined) {
+          json.heartbeatStaleThresholdSeconds = 45;
+          updated = true;
+        }
+        if (json.graceWindowSeconds === undefined) {
+          json.graceWindowSeconds = 300;
+          updated = true;
+        }
+        if (json.maxDisconnectCount === undefined) {
+          json.maxDisconnectCount = 3;
+          updated = true;
+        }
+        if (updated) {
+          fs.writeFileSync(this.configPath, JSON.stringify(json, null, 2), "utf8");
+        }
+      } catch (err) {
+        // ignore
+      }
     }
   }
 
@@ -38,6 +69,39 @@ export class SettingsService {
   private writeConfig(config: any) {
     this.ensureConfigExists();
     fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2), "utf8");
+  }
+
+  private async resolveStaffId(actor: any): Promise<string> {
+    if (typeof actor === "string" && actor) {
+      const s = await this.prisma.staff.findUnique({ where: { id: actor } });
+      if (s) return s.id;
+    }
+    if (actor && typeof actor === "object") {
+      if (actor.id) {
+        const s = await this.prisma.staff.findUnique({ where: { id: actor.id } });
+        if (s) return s.id;
+      }
+      if (actor.email) {
+        const s = await this.prisma.staff.findFirst({ where: { email: actor.email } });
+        if (s) return s.id;
+      }
+      if (actor.sub) {
+        const s = await this.prisma.staff.findFirst({ where: { keycloakUserId: actor.sub } });
+        if (s) return s.id;
+      }
+    }
+    let defaultStaff = await this.prisma.staff.findFirst();
+    if (!defaultStaff) {
+      defaultStaff = await this.prisma.staff.create({
+        data: {
+          name: "System Admin",
+          email: "admin@cdrecruit.com",
+          role: "ADMIN",
+          keycloakUserId: "system-admin-default",
+        },
+      });
+    }
+    return defaultStaff.id;
   }
 
   async listStaff() {
@@ -53,7 +117,60 @@ export class SettingsService {
     }));
   }
 
-  async updateStaffRole(staffId: string, role: StaffRole, actorId: string) {
+  async createStaff(dto: { name: string; email: string; role: StaffRole }, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
+    const existing = await this.prisma.staff.findUnique({ where: { email: dto.email } });
+    if (existing) {
+      throw new BadRequestException("Staff member with this email already exists");
+    }
+
+    const keycloakUserId = `keycloak_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const staff = await this.prisma.staff.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        role: dto.role as any,
+        keycloakUserId,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "STAFF_CREATED",
+        entityType: "Staff",
+        entityId: staff.id,
+        metadata: { name: dto.name, email: dto.email, role: dto.role },
+      },
+    });
+
+    return staff;
+  }
+
+  async deleteStaff(staffId: string, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) {
+      throw new NotFoundException(`Staff not found with ID ${staffId}`);
+    }
+
+    await this.prisma.staff.delete({ where: { id: staffId } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "STAFF_DELETED",
+        entityType: "Staff",
+        entityId: staffId,
+        metadata: { name: staff.name, email: staff.email, role: staff.role },
+      },
+    });
+
+    return { success: true };
+  }
+
+  async updateStaffRole(staffId: string, role: StaffRole, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
     const staff = await this.prisma.staff.findUnique({
       where: { id: staffId },
     });
@@ -83,16 +200,26 @@ export class SettingsService {
   async getScoringConfig() {
     const config = this.readConfig();
     return {
-      aiConfidenceThreshold: config.aiConfidenceThreshold,
-      passRateThreshold: config.passRateThreshold,
+      aiConfidenceThreshold: config.aiConfidenceThreshold ?? 0.8,
+      passRateThreshold: config.passRateThreshold ?? 0.7,
+      aiIntensity: config.aiIntensity ?? "HIGH",
     };
   }
 
-  async updateScoringConfig(aiConfidenceThreshold: number, passRateThreshold: number, actorId: string) {
+  async updateScoringConfig(
+    aiConfidenceThreshold: number,
+    passRateThreshold: number,
+    actor: any,
+    aiIntensity?: string
+  ) {
+    const actorId = await this.resolveStaffId(actor);
     const config = this.readConfig();
     const oldConfig = { ...config };
     config.aiConfidenceThreshold = aiConfidenceThreshold;
     config.passRateThreshold = passRateThreshold;
+    if (aiIntensity) {
+      config.aiIntensity = aiIntensity;
+    }
     this.writeConfig(config);
 
     // Audit log
@@ -102,7 +229,7 @@ export class SettingsService {
         action: "SCORING_CONFIG_UPDATED",
         entityType: "Config",
         entityId: "scoring",
-        metadata: { oldConfig, newConfig: { aiConfidenceThreshold, passRateThreshold } },
+        metadata: { oldConfig, newConfig: { aiConfidenceThreshold, passRateThreshold, aiIntensity: config.aiIntensity } },
       },
     });
 
@@ -116,7 +243,8 @@ export class SettingsService {
     };
   }
 
-  async updateRetentionConfig(biometricRetentionDays: number, actorId: string) {
+  async updateRetentionConfig(biometricRetentionDays: number, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
     const config = this.readConfig();
     const oldDays = config.biometricRetentionDays;
     config.biometricRetentionDays = biometricRetentionDays;
@@ -130,6 +258,73 @@ export class SettingsService {
         entityType: "Config",
         entityId: "retention",
         metadata: { oldDays, newDays: biometricRetentionDays },
+      },
+    });
+
+    return config;
+  }
+
+  async getAppealWindowConfig() {
+    const config = this.readConfig();
+    return {
+      appealWindowDays: config.appealWindowDays ?? 14,
+    };
+  }
+
+  async updateAppealWindowConfig(appealWindowDays: number, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
+    const config = this.readConfig();
+    const oldDays = config.appealWindowDays ?? 14;
+    config.appealWindowDays = appealWindowDays;
+    this.writeConfig(config);
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "APPEAL_WINDOW_CONFIG_UPDATED",
+        entityType: "Config",
+        entityId: "appealWindow",
+        metadata: { oldDays, newDays: appealWindowDays },
+      },
+    });
+
+    return config;
+  }
+
+  async getTimingThresholds() {
+    const config = this.readConfig();
+    return {
+      heartbeatStaleThresholdSeconds: config.heartbeatStaleThresholdSeconds ?? 45,
+      graceWindowSeconds: config.graceWindowSeconds ?? 300,
+      maxDisconnectCount: config.maxDisconnectCount ?? 3,
+    };
+  }
+
+  async updateTimingThresholds(
+    dto: { heartbeatStaleThresholdSeconds?: number; graceWindowSeconds?: number; maxDisconnectCount?: number },
+    actor: any
+  ) {
+    const actorId = await this.resolveStaffId(actor);
+    const config = this.readConfig();
+    if (dto.heartbeatStaleThresholdSeconds !== undefined) {
+      config.heartbeatStaleThresholdSeconds = dto.heartbeatStaleThresholdSeconds;
+    }
+    if (dto.graceWindowSeconds !== undefined) {
+      config.graceWindowSeconds = dto.graceWindowSeconds;
+    }
+    if (dto.maxDisconnectCount !== undefined) {
+      config.maxDisconnectCount = dto.maxDisconnectCount;
+    }
+    this.writeConfig(config);
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "SYSTEM_TIMING_UPDATED",
+        entityType: "Config",
+        entityId: "systemTiming",
+        metadata: { updated: dto },
       },
     });
 
