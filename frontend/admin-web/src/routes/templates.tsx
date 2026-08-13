@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { API_BASE, getAuthHeaders } from "../lib/store";
+import {
+  getDepartmentAllowedModules,
+  extractQuestionTier,
+  MODULE_LABEL_MAP,
+} from "../lib/roleModules";
 
 export const Route = createFileRoute("/templates")({
   component: RoleTemplatesPage,
@@ -601,61 +606,76 @@ export function RoleTemplatesPage() {
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-2">
                   <h4 className="text-[14px] font-semibold text-[#0B0B0D]">
-                    Attach Questions from Question Bank
+                    Attach Questions from Question Bank ({department})
                   </h4>
                   <span className="text-[12px] font-medium text-[#2F5CFF]">
                     {Object.keys(selectedQuestionsMap).length} question(s) selected
                   </span>
                 </div>
 
-                {questionsBank.length === 0 ? (
-                  <div className="p-4 bg-[#F7F7F9] rounded text-[12px] text-[#8B8B93] text-center">
-                    No questions available in Question Bank.
-                  </div>
-                ) : (
-                  <div className="max-h-60 overflow-y-auto space-y-2 border border-[#E6E6EA] rounded-md p-3">
-                    {questionsBank.map((q) => {
-                      const isSelected = !!selectedQuestionsMap[q.id];
-                      return (
-                        <div
-                          key={q.id}
-                          onClick={() => toggleQuestionSelection(q)}
-                          className={`p-2.5 rounded border text-[12px] flex items-center justify-between cursor-pointer transition-colors ${
-                            isSelected
-                              ? "bg-[#F0F4FF] border-[#2F5CFF]"
-                              : "bg-white border-[#E6E6EA] hover:border-[#C6D4FF]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}}
-                              className="rounded text-[#2F5CFF]"
-                            />
-                            <div>
-                              <div className="font-medium text-[#0B0B0D]">
-                                {q.content?.prompt || q.content?.title || "Untitled Question"}
-                              </div>
-                              <div className="text-[11px] text-[#8B8B93] flex items-center gap-2">
-                                <span className="font-mono text-[#2F5CFF]">[{q.moduleType}]</span>
-                                <span>Version: v{q.version || 1}</span>
-                                {q.difficulty && (
-                                  <span className="capitalize">{q.difficulty}</span>
-                                )}
+                {(() => {
+                  const allowedMods = getDepartmentAllowedModules(department);
+                  const eligibleQuestions = questionsBank.filter((q) => allowedMods.includes(q.moduleType));
+
+                  if (eligibleQuestions.length === 0) {
+                    return (
+                      <div className="p-4 bg-[#F7F7F9] rounded text-[12px] text-[#8B8B93] text-center">
+                        No eligible questions available for department {department}.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="max-h-60 overflow-y-auto space-y-2 border border-[#E6E6EA] rounded-md p-3">
+                      {eligibleQuestions.map((q) => {
+                        const isSelected = !!selectedQuestionsMap[q.id];
+                        const qTier = extractQuestionTier(q);
+                        return (
+                          <div
+                            key={q.id}
+                            onClick={() => toggleQuestionSelection(q)}
+                            className={`p-2.5 rounded border text-[12px] flex items-center justify-between cursor-pointer transition-colors ${
+                              isSelected
+                                ? "bg-[#F0F4FF] border-[#2F5CFF]"
+                                : "bg-white border-[#E6E6EA] hover:border-[#C6D4FF]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="rounded text-[#2F5CFF]"
+                              />
+                              <div>
+                                <div className="font-medium text-[#0B0B0D]">
+                                  {q.content?.prompt || q.content?.title || "Untitled Question"}
+                                </div>
+                                <div className="text-[11px] text-[#8B8B93] flex items-center gap-2 mt-0.5">
+                                  <span className="font-mono text-[#2F5CFF] font-semibold">
+                                    [{MODULE_LABEL_MAP[q.moduleType] || q.moduleType}]
+                                  </span>
+                                  {q.difficulty && (
+                                    <span className="uppercase text-[10px] bg-gray-100 px-1 py-0.2 rounded">{q.difficulty}</span>
+                                  )}
+                                  <span className={`text-[10px] font-mono font-bold uppercase px-1 py-0.2 rounded ${qTier === "TIER_2" ? "bg-purple-100 text-purple-800" : "bg-indigo-100 text-indigo-800"}`}>
+                                    {qTier === "TIER_2" ? "TIER 2" : "TIER 1"}
+                                  </span>
+                                  <span>v{q.version || 1}</span>
+                                </div>
                               </div>
                             </div>
+                            {isSelected && (
+                              <span className="text-[11px] text-[#2F5CFF] font-semibold">
+                                Attached
+                              </span>
+                            )}
                           </div>
-                          {isSelected && (
-                            <span className="text-[11px] text-[#2F5CFF] font-semibold">
-                              Attached
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

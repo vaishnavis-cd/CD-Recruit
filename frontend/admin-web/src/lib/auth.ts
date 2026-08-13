@@ -59,7 +59,16 @@ export async function loginWithKeycloak(email: string, pw: string): Promise<Keyc
 
 export function getStoredToken(): string | null {
   if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem("admin_token");
+  const token = localStorage.getItem("admin_token");
+  if (!token) return null;
+  const payload = parseJwtPayload(token);
+  if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
+    console.warn("[Auth] Stored admin_token has expired. Clearing token.");
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_refresh_token");
+    return null;
+  }
+  return token;
 }
 
 export function clearStoredToken(): void {

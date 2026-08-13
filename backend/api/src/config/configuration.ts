@@ -45,8 +45,8 @@ export const configuration = () => ({
     endpoint: process.env.MINIO_ENDPOINT ?? "localhost",
     port: parseInt(process.env.MINIO_PORT ?? "9000", 10),
     useSsl: process.env.MINIO_USE_SSL === "true",
-    accessKey: process.env.MINIO_ACCESS_KEY ?? "",
-    secretKey: process.env.MINIO_SECRET_KEY ?? "",
+    accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
+    secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
     bucketGeneral: process.env.MINIO_BUCKET_GENERAL ?? "cd-recruit-general",
     bucketBiometric:
       process.env.MINIO_BUCKET_BIOMETRIC ?? "cd-recruit-biometric",

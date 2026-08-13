@@ -172,11 +172,7 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   private async persistSessionSnapshot(sessionId: string): Promise<void> {
     const state = await this.getOrCreateSessionState(sessionId);
-<<<<<<< HEAD
     const telemetry = await this.getUnifiedTelemetryEvents(sessionId);
-=======
-    const telemetry = await this.telemetryService.getEventStreamAsync(sessionId);
->>>>>>> partner-api
     const actions = await this.getCandidateActions(sessionId);
 
     try {
@@ -190,7 +186,6 @@ export class SimulationService implements AssessmentModuleEngine {
         where: { id: sessionId },
         data: {
           simulationSnapshot: {
-<<<<<<< HEAD
             ...existingSnapshot,
             initialSayText: state.initialSayText || existingSnapshot.initialSayText || null,
             emailReplyText: state.emailReplyText || existingSnapshot.emailReplyText || null,
@@ -198,15 +193,7 @@ export class SimulationService implements AssessmentModuleEngine {
             inboxMessages: state.inboxMessages || existingSnapshot.inboxMessages || [],
             telemetryCount: Math.max(telemetry.length, actions.length, existingSnapshot.telemetryCount || 0),
             telemetryActions: actions.length > 0 ? actions : existingSnapshot.telemetryActions || [],
-=======
-            initialSayText: state.initialSayText,
-            emailReplyText: state.emailReplyText,
-            emailTriggered: state.emailTriggered,
-            inboxMessages: state.inboxMessages,
-            telemetryCount: Math.max(telemetry.length, actions.length),
-            telemetryActions: actions,
             rawTelemetryEvents: telemetry,
->>>>>>> partner-api
             lastUpdated: new Date().toISOString(),
           } as any,
         },
@@ -744,12 +731,8 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   async submitSimulation(sessionId: string, submissionPayload?: any): Promise<FullSimulationEvaluationResult> {
     const state = await this.getOrCreateSessionState(sessionId);
-<<<<<<< HEAD
     const telemetryEvents = await this.getUnifiedTelemetryEvents(sessionId);
     const candidateActions = await this.getCandidateActions(sessionId);
-=======
-    const telemetryEvents = await this.telemetryService.getEventStreamAsync(sessionId);
->>>>>>> partner-api
 
     // Extract test results if present in submission payload
     const testResults = submissionPayload?.testResults || null;

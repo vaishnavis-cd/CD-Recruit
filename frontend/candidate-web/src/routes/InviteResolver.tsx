@@ -82,21 +82,15 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           return
         }
 
-<<<<<<< HEAD
-        // Check if scheduled time is in the future (> 15 minutes away) or past grace window
-        const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024'
-        const scheduledTimeStr = invite.scheduledTime || (drive as any).scheduleStart || (drive as any).scheduledAt || (drive as any).startsAt
-        if (scheduledTimeStr && !isDemoToken) {
-=======
         // Time-Gating Check for Scheduled vs Self-Paced (Rolling) Invites
         // For null scheduledTime (self-paced partner invites): skip Too Early / Buffer / Grace states -> go directly to System Check (full mode)
-        const scheduledTimeStr = invite.scheduledTime
-        if (scheduledTimeStr) {
->>>>>>> partner-api
+        const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024'
+        const scheduledTimeStr = invite.scheduledTime || null
+        if (scheduledTimeStr && !isDemoToken) {
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
           const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
-          const graceMins = invite.graceMinutes || (drive as any).graceMinutes || 120
+          const graceMins = invite.graceMinutes || (drive as any)?.graceMinutes || 120
           const cutoffMs = scheduledMs + graceMins * 60 * 1000 // Grace period cutoff
 
           if (!isNaN(scheduledMs)) {
