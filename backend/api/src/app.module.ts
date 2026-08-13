@@ -18,6 +18,7 @@ import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
+import { NosqlModule } from "./modules/nosql/nosql.module";
 import { ProctoringModule } from "./proctoring/proctoring.module";
 import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
@@ -27,6 +28,8 @@ import { RoleTemplateModule } from "./role-template/role-template.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
 import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
+
+import { FaceVerifyModule } from "./integrations/face-verify/face-verify.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -81,11 +84,13 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     QuestionModule,
     SettingsModule,
     MinioModule,
+    FaceVerifyModule,
     CandidateModule,
     SessionModule,
     QueueModule,
     CodingModule,
     SqlModule,
+    NosqlModule,
     ProctoringModule,
     AiEvaluationModule,
     SimulationModule,

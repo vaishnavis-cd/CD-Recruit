@@ -261,13 +261,111 @@ export class SessionScoringService {
     return Math.round(value * 100) / 100;
   }
 
-  /**
-   * Extract list of selected options from response payload.
-   */
-  private extractSelectedOptions(payload: ResponsePayload | null): string[] {
-    if (!payload) return [];
-    if (Array.isArray(payload.selectedOptions)) {
-      return payload.selectedOptions.map(String);
+    // Track question-level evaluation results: mod -> array of { questionId, accuracy (0-1), pointShare }
+    const moduleQuestionScores: Record<string, Array<{ questionId: string; accuracy: number; pointShare?: number }>> = {};
+
+    for (const resp of responses) {
+      const q: any = questionMap.get(resp.questionId);
+      if (!q) continue;
+
+      const mod: string = q.moduleType;
+      if (!moduleQuestionScores[mod]) {
+        moduleQuestionScores[mod] = [];
+      }
+
+      const dq = dqMap.get(q.id);
+      const pointShare = (dq as any)?.pointShare !== null && (dq as any)?.pointShare !== undefined ? Number((dq as any).pointShare) : undefined;
+      let accuracy = 0.0;
+
+      // Robust Evaluation Rules per Module
+      if (mod === "MCQ") {
+        const payload = resp.responsePayload as any;
+        const qContent = (q.content as any) || {};
+
+        let selectedList: string[] = [];
+        if (Array.isArray(payload?.selectedOptions)) {
+          selectedList = payload.selectedOptions.map(String);
+        } else if (payload?.selectedOption !== undefined && payload?.selectedOption !== null) {
+          selectedList = [String(payload.selectedOption)];
+        } else if (payload?.selectedOptionIndex !== undefined) {
+          selectedList = [`opt_${payload.selectedOptionIndex}`, String(payload.selectedOptionIndex)];
+        } else if (payload?.selectedIndex !== undefined) {
+          selectedList = [`opt_${payload.selectedIndex}`, String(payload.selectedIndex)];
+        }
+
+        const correctTarget = qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? 0;
+        const options = Array.isArray(qContent.options) ? qContent.options : [];
+
+        let isCorrect = false;
+        if (selectedList.length > 0) {
+          isCorrect = selectedList.some((sel) => {
+            if (sel === String(correctTarget)) return true;
+            if (/^opt_\d+$/i.test(sel)) {
+              const idx = parseInt(sel.replace(/opt_/i, ""), 10);
+              if (idx === Number(correctTarget)) return true;
+            }
+            if (typeof correctTarget === "number" && options[correctTarget]) {
+              const optText = typeof options[correctTarget] === "string" ? options[correctTarget] : options[correctTarget].text || options[correctTarget].label;
+              if (optText && optText.trim().toLowerCase() === sel.trim().toLowerCase()) return true;
+            }
+            return false;
+          });
+        }
+
+        accuracy = isCorrect ? 1.0 : 0.0;
+      } else if (mod === "SQL") {
+        // Strict binary exact-match — no length-based partial credit
+        const sqlExecs = session.sqlExecutions ? session.sqlExecutions.filter((se) => se.questionId === q.id) : [];
+        const latestExec = sqlExecs[sqlExecs.length - 1];
+        if (latestExec && latestExec.passed) {
+          accuracy = 1.0;
+        } else {
+          accuracy = 0.0;
+        }
+      } else if (mod === "NOSQL") {
+        const payload = resp.responsePayload as any;
+        const execResult = payload?.executionResult;
+        if (execResult?.passed || execResult?.status === "SUCCESS") {
+          accuracy = 1.0;
+        } else {
+          accuracy = 0.0;
+        }
+      } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
+        const executions = session.codingExecutions.filter((ce) => ce.questionId === q.id);
+        const latestExec = executions[executions.length - 1];
+        const payload = resp.responsePayload as any;
+        const execResult = payload?.executionResult;
+
+        if (latestExec && latestExec.totalTests > 0) {
+          accuracy = latestExec.passedTests / latestExec.totalTests;
+        } else if (execResult && execResult.totalTests > 0) {
+          accuracy = execResult.passedTests / execResult.totalTests;
+        } else if (payload?.code && payload.code.trim().length > 15) {
+          accuracy = 0.85;
+        }
+      } else if (mod === "AI_PROMPTING") {
+        const payload = resp.responsePayload as any;
+        const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+        if (typeof evalScore === "number") {
+          accuracy = evalScore > 1 ? evalScore / 100 : evalScore;
+        } else if (payload?.prompt || payload?.messages || payload?.response) {
+          accuracy = 0.85;
+        }
+      } else if (mod === "SIMULATION") {
+        const payload = resp.responsePayload as any;
+        const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+        if (typeof evalScore === "number") {
+          accuracy = evalScore > 1 ? evalScore / 100 : evalScore;
+        } else if (payload?.messages || payload?.actionLog || payload?.response) {
+          accuracy = 0.85;
+        }
+      }
+
+      moduleQuestionScores[mod].push({
+        questionId: q.id,
+        accuracy: Math.max(0.0, Math.min(1.0, accuracy)),
+        pointShare,
+      });
     }
     if (payload.selectedOption !== undefined && payload.selectedOption !== null) {
       return [String(payload.selectedOption)];
@@ -488,6 +586,9 @@ export class SessionScoringService {
           const sqlExecs = sqlExecutionsMap.get(q.id) || [];
           const lastSql = sqlExecs.length > 0 ? sqlExecs[sqlExecs.length - 1] : null;
           doValue = lastSql ? (lastSql.status === "COMPLETED" ? 1.0 : 0.0) : 0.0;
+        } else if (q.moduleType === "NOSQL") {
+          const execResult = payload?.executionResult;
+          doValue = execResult?.passed ? 1.0 : 0.0;
         } else {
           doValue = 0.0;
         }

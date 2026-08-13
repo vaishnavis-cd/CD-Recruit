@@ -205,6 +205,7 @@ async function buildQuestionList(
 import { SessionLifecycleService } from "./session-lifecycle.service";
 import { SessionStateMachine } from "./session-state-machine";
 import { SessionScoringService } from "./session-scoring.service";
+import { FaceVerifyClient } from "../integrations/face-verify/face-verify.client";
 
 import { SessionStatusPort } from "@app/common/ports/session-status.port";
 
@@ -230,6 +231,7 @@ export class SessionService implements SessionStatusPort {
     private readonly stateMachine: SessionStateMachine,
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
+    private readonly faceVerifyClient: FaceVerifyClient,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -354,6 +356,24 @@ export class SessionService implements SessionStatusPort {
           sessionId: session.id,
         },
       });
+    }
+
+    if (invite?.idProofRef) {
+      await this.prisma.candidate.update({
+        where: { id: candidateRecord.id },
+        data: {
+          idProofRef: invite.idProofRef,
+          idProofEmbedding: invite.idProofEmbedding,
+          idProofModel: "ArcFace",
+        },
+      });
+    } else {
+      if (!invite) {
+        this.logger.warn(
+          `Invite ${payload.inviteId} missing during session start for session ${session.id}`,
+        );
+      }
+      await this.createNoIdProofFlag(session.id);
     }
 
     this.logger.log(
@@ -696,6 +716,24 @@ export class SessionService implements SessionStatusPort {
       this.logger.warn(`Failed to reap workspace for session ${sessionId}: ${err.message}`);
     }
 
+    try {
+      const responses = await this.prisma.moduleResponse.findMany({
+        where: { sessionId, sandboxDbName: { not: null } },
+      });
+      for (const resp of responses) {
+        if (resp.sandboxDbName) {
+          await this.queueProvider.enqueueDelayed(
+            "heartbeat-monitor",
+            "drop-sandbox",
+            { sandboxDbName: resp.sandboxDbName },
+            { delayMs: 0 },
+          );
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to enqueue sandbox drop jobs on session close for session ${sessionId}: ${err.message}`);
+    }
+
     await this.prisma.eventLog.create({
       data: {
         sessionId,
@@ -863,6 +901,24 @@ export class SessionService implements SessionStatusPort {
       this.logger.warn(`Failed to reap workspace on autoSubmit for session ${sessionId}: ${err.message}`);
     }
 
+    try {
+      const responses = await this.prisma.moduleResponse.findMany({
+        where: { sessionId, sandboxDbName: { not: null } },
+      });
+      for (const resp of responses) {
+        if (resp.sandboxDbName) {
+          await this.queueProvider.enqueueDelayed(
+            "heartbeat-monitor",
+            "drop-sandbox",
+            { sandboxDbName: resp.sandboxDbName },
+            { delayMs: 0 },
+          );
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to enqueue sandbox drop jobs on autoSubmit for session ${sessionId}: ${err.message}`);
+    }
+
     this.logger.warn(
       `Session ${sessionId} AUTO_SUBMITTED — grace window expired`,
     );
@@ -1005,6 +1061,11 @@ export class SessionService implements SessionStatusPort {
       return safe;
     }
 
+    if (moduleType === "NOSQL") {
+      const { expectedOperation: _eo, ...safe } = c;
+      return safe;
+    }
+
     if (moduleType === "CODING" || moduleType === "DEBUGGING") {
       const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
       const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
@@ -1124,6 +1185,105 @@ export class SessionService implements SessionStatusPort {
     );
 
     return { ok: true, consentRecordId: consentRecord.id };
+  }
+
+  async verifyIdentity(
+    sessionId: string,
+    file: { buffer: Buffer; originalname: string },
+  ): Promise<{
+    status: "no_id_proof_on_file" | "verified" | "not_verified";
+    matched: boolean | null;
+    distance: number | null;
+    threshold: number | null;
+  }> {
+    if (!file || !file.buffer) {
+      throw new BadRequestException("No selfie image provided in request");
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { candidate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session not found with ID ${sessionId}`);
+    }
+
+    const candidate = session.candidate;
+    if (!candidate || !candidate.idProofEmbedding) {
+      this.logger.log(
+        `Session ${sessionId} has no ID proof embedding on file for candidate ${candidate?.id}`,
+      );
+      return {
+        status: "no_id_proof_on_file",
+        matched: null,
+        distance: null,
+        threshold: null,
+      };
+    }
+
+    const embedding = candidate.idProofEmbedding as unknown as number[];
+    const result = await this.faceVerifyClient.verify(
+      file.buffer,
+      file.originalname,
+      embedding,
+    );
+
+    if (result.matched) {
+      await this.prisma.candidate.update({
+        where: { id: candidate.id },
+        data: { idVerifiedAt: new Date() },
+      });
+      return {
+        status: "verified",
+        matched: true,
+        distance: result.distance,
+        threshold: result.threshold,
+      };
+    }
+
+    return {
+      status: "not_verified",
+      matched: false,
+      distance: result.distance,
+      threshold: result.threshold,
+    };
+  }
+
+  async flagAndContinueIdentity(
+    sessionId: string,
+  ): Promise<{ status: string; sessionId: string }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session not found with ID ${sessionId}`);
+    }
+
+    await this.prisma.integrityFlag.create({
+      data: {
+        sessionId: session.id,
+        category: "IDENTITY_MISMATCH",
+        severity: "HIGH",
+        confidence: 1.0,
+        flaggedAt: new Date(),
+      },
+    });
+
+    return { status: "flagged", sessionId };
+  }
+
+  private async createNoIdProofFlag(sessionId: string): Promise<void> {
+    await this.prisma.integrityFlag.create({
+      data: {
+        sessionId,
+        category: "NO_ID_PROOF_ON_FILE",
+        severity: "MEDIUM",
+        confidence: 1.0,
+        flaggedAt: new Date(),
+      },
+    });
   }
 }
 

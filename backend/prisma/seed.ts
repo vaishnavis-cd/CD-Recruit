@@ -18,6 +18,14 @@ import * as path from "path";
 dotenv.config({ path: path.join(__dirname, "../.env") });
 dotenv.config({ path: path.join(__dirname, "../api/.env") });
 
+import { mcqQuestions } from "./data/mcq";
+import { sqlQuestions } from "./data/sql";
+import { codingQuestions } from "./data/coding";
+import { aiPromptingQuestions } from "./data/aiPrompting";
+import { simulationQuestions } from "./data/simulation";
+import { debuggingQuestions } from "./data/debugging";
+import { nosqlQuestions } from "./data/nosql";
+
 // ---------------------------------------------------------------------------
 // Constants & Configuration
 // ---------------------------------------------------------------------------
@@ -26,11 +34,12 @@ const ROLE_NAME = "Software Developer";
 const DURATION_MINUTES = 90;
 
 const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
-  MCQ: 0.15,
+  MCQ: 0.10,
   SQL: 0.15,
+  NOSQL: 0.15,
   CODING: 0.25,
-  DEBUGGING: 0.15,
-  AI_PROMPTING: 0.15,
+  DEBUGGING: 0.10,
+  AI_PROMPTING: 0.10,
   SIMULATION: 0.15,
 };
 
@@ -42,18 +51,15 @@ function getAllQuestionSeedData(): Array<{
   difficulty?: string;
   content: any;
 }> {
-  const dataDir = path.join(__dirname, "data");
-  const jsonFiles = ["mcq.json", "sql.json", "coding.json", "debugging.json", "aiPrompting.json", "simulation.json"];
-  const questions: Array<{ moduleType: ModuleType; difficulty?: string; content: any }> = [];
-
-  for (const file of jsonFiles) {
-    const filePath = path.join(dataDir, file);
-    if (fs.existsSync(filePath)) {
-      const items = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      questions.push(...items);
-    }
-  }
-  return questions;
+  return [
+    ...mcqQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: q.difficulty, content: q.content })),
+    ...sqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...nosqlQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...codingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...debuggingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...aiPromptingQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+    ...simulationQuestions.map((q) => ({ moduleType: q.moduleType as ModuleType, difficulty: (q as any).difficulty, content: q.content })),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +232,73 @@ async function main(): Promise<void> {
           create: {
             driveId: drive.id,
             questionId: q.id,
-            moduleType: q.moduleType,
-            questionVersionSnapshot: q.version ?? 1,
+          },
+        },
+        update: {},
+        create: {
+          driveId: drive.id,
+          questionId: q.id,
+          moduleType: q.moduleType,
+        },
+      });
+    }
+    console.log(`  ✔ Linked questions to Drive "${drive.name}"`);
+
+    // ------------------------------------------------------------------
+    // 6. Seed Candidates, Sessions, Scores, Flags, and Decisions
+    // ------------------------------------------------------------------
+    let defaultDrive = await tx.drive.findFirst();
+    if (!defaultDrive) {
+      defaultDrive = await tx.drive.create({
+        data: {
+          name: "Software Developer Drive - July 2026",
+          roleTemplateId: roleTemplate.id,
+          moduleConfig: {
+            MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
+            SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
+            NOSQL: { enabled: true, durationMinutes: 15, weight: 0.15 },
+            CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
+            AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
+            SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+          },
+          status: "ACTIVE",
+          scheduleStart: new Date(),
+          scheduleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          createdById: staff.id,
+        },
+      });
+    }
+
+    const candidatesData = [
+      { name: "Alice Johnson", email: "alice.johnson@example.com", score: 88, status: "SUBMITTED", decision: DecisionType.ADVANCE, flags: 0 },
+      { name: "Bob Smith", email: "bob.smith@example.com", score: 74, status: "SUBMITTED", decision: null, flags: 1 },
+      { name: "Carol White", email: "carol.white@example.com", score: 42, status: "SUBMITTED", decision: DecisionType.REJECT, flags: 2 },
+      { name: "David Miller", email: "david.miller@example.com", score: null, status: "IN_PROGRESS", decision: null, flags: 0 },
+      { name: "Emma Watson", email: "emma.watson@example.com", score: 92, status: "SUBMITTED", decision: null, flags: 0 },
+    ];
+
+    for (const cand of candidatesData) {
+      const candidate = await tx.candidate.upsert({
+        where: { email: cand.email },
+        update: {},
+        create: {
+          name: cand.name,
+          email: cand.email,
+        },
+      });
+
+      let invite = await tx.invite.findFirst({ where: { candidateEmail: cand.email } });
+      if (!invite) {
+        invite = await tx.invite.create({
+          data: {
+            candidateEmail: cand.email,
+            candidateName: cand.name,
+            roleTemplateId: roleTemplate.id,
+            driveId: defaultDrive.id,
+            status: "REDEEMED",
+            token: `token-${cand.email.replace(/[@.]/g, "-")}-${Date.now()}`,
+            createdById: staff.id,
+            expiresAt: new Date(Date.now() + 48 * 3600 * 1000),
           },
         });
       }

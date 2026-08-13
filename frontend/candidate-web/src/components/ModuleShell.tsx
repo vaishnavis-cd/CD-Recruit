@@ -73,6 +73,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
     const MODULE_NAME_MAP: Record<string, { id: string; name: string }> = {
       MCQ: { id: 'mcq', name: 'MCQ' },
       SQL: { id: 'sql', name: 'SQL' },
+      NOSQL: { id: 'nosql', name: 'NoSQL' },
       CODING: { id: 'coding', name: 'Coding' },
       DEBUGGING: { id: 'debugging', name: 'Debugging' },
       AI_PROMPTING: { id: 'prompting', name: 'AI Prompting' },
