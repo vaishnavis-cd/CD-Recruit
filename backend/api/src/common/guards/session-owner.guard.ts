@@ -30,21 +30,28 @@ export class SessionOwnerGuard implements CanActivate {
 
     if (!session) {
       try {
-        let candidate = await this.prisma.candidate.findFirst();
-        if (!candidate) {
-          candidate = await this.prisma.candidate.create({
-            data: { email: "demo@example.com", name: "Demo Candidate" },
-          });
-        }
         let roleTemplate = await this.prisma.roleTemplate.findFirst();
         if (!roleTemplate) {
           roleTemplate = await this.prisma.roleTemplate.create({
             data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
           });
         }
+        let candidate = await this.prisma.candidate.findFirst({
+          where: { email: `${sessionId}@example.com` },
+        });
+        if (!candidate) {
+          candidate = await this.prisma.candidate.create({
+            data: {
+              email: `${sessionId}@example.com`,
+              name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}`,
+            },
+          });
+        }
         let drive = await this.prisma.drive.findFirst();
-        session = (await this.prisma.session.create({
-          data: {
+        session = (await this.prisma.session.upsert({
+          where: { id: sessionId },
+          update: {},
+          create: {
             id: sessionId,
             candidate: { connect: { id: candidate.id } },
             roleTemplate: { connect: { id: roleTemplate.id } },

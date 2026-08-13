@@ -18,6 +18,7 @@ import {
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveStatus } from "../lib/types";
+import { formatDriveName } from "../lib/utils";
 
 export const Route = createFileRoute("/drives")({
   component: DrivesPage,
@@ -489,7 +490,7 @@ function DrivesPage() {
               <div className="flex items-baseline justify-between gap-3 mb-8">
                 <div className="min-w-0 flex-1 space-y-2">
                   <h3 className="text-[18px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
-                    {d.name}
+                    {formatDriveName(d.name)}
                   </h3>
                   <p className="text-[13px] text-[#8B8B93] font-normal truncate">
                     {d.roleTemplateName || "Software Developer"}

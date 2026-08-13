@@ -156,14 +156,35 @@ export class ProctoringController {
     @Res() res: any,
   ) {
     try {
-      const rawPath = req.params[0] || "";
-      const objectKey = decodeURIComponent(rawPath.split("?")[0]).replace(/^\//, "");
+      let rawPath: string = "";
+      const p0 = req.params?.[0];
+      if (Array.isArray(p0)) {
+        rawPath = p0.join("/");
+      } else if (typeof p0 === "string") {
+        rawPath = p0;
+      } else if (typeof req.params?.path === "string") {
+        rawPath = req.params.path;
+      } else if (typeof req.params?.key === "string") {
+        rawPath = req.params.key;
+      }
+
+      if (!rawPath && req.originalUrl) {
+        const streamPrefix = `/stream/${bucket}/`;
+        const idx = req.originalUrl.indexOf(streamPrefix);
+        if (idx !== -1) {
+          rawPath = req.originalUrl.substring(idx + streamPrefix.length);
+        }
+      }
+
+      const pathString = String(rawPath || "");
+      const objectKey = decodeURIComponent(pathString.split("?")[0]).replace(/^\//, "");
       this.logger.log(`[ProctoringController] STREAM_CLIP: bucket=${bucket}, objectKey=${objectKey}`);
       const stream = await this.proctoringService.getObjectStream(bucket, objectKey);
       if (!stream) {
         return res.status(HttpStatus.NOT_FOUND).send("Evidence video clip not found");
       }
       res.setHeader("Content-Type", "video/webm");
+      res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Cache-Control", "public, max-age=3600");
       stream.pipe(res);
     } catch (err: any) {

@@ -8,7 +8,6 @@ import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { SimulationTelemetryService, TelemetryEventType } from "./simulation-telemetry.service";
 import { ContextSimulationEvaluatorService, FullSimulationEvaluationResult } from "./context-simulation-evaluator.service";
-import { MinioService } from "../integrations/minio/minio.service";
 import { execFile } from "child_process";
 import * as vm from "vm";
 import * as fs from "fs"; 
@@ -52,7 +51,6 @@ export class SimulationService implements AssessmentModuleEngine {
     private sandboxOrchestrator: SandboxOrchestratorService,
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,
-    @Optional() private minioService?: MinioService,
   ) {}
 
   /**
@@ -681,30 +679,6 @@ export class SimulationService implements AssessmentModuleEngine {
       this.logger.warn(`[submitSimulation] Score upsert failed: ${scoreErr.message}`);
     }
 
-    // Archive session telemetry & evaluation log bundle to MinIO if object storage is enabled
-    if (this.minioService) {
-      try {
-        const logBundle = {
-          sessionId,
-          evaluatedAt: evaluation.evaluatedAt,
-          initialSayText: state.initialSayText,
-          emailReplyText: state.emailReplyText,
-          evaluation,
-          telemetryEvents,
-          actionTimeline: evaluation.actionTimeline,
-        };
-        const buffer = Buffer.from(JSON.stringify(logBundle, null, 2), "utf8");
-        await this.minioService.putObject(
-          "cd-recruit-general",
-          `logs/simulation/session-log-${sessionId}.json`,
-          buffer,
-          { "Content-Type": "application/json" } as any,
-        );
-        this.logger.log(`[MinIO Log Archive] Successfully stored logs/simulation/session-log-${sessionId}.json`);
-      } catch (minioErr: any) {
-        this.logger.warn(`[MinIO Log Archive] Warning: could not archive session log: ${minioErr.message}`);
-      }
-    }
 
     await this.persistSessionSnapshot(sessionId);
     return evaluation;

@@ -68,20 +68,27 @@ export class ProctoringService {
     if (!session) {
       try {
         let drive = await this.prisma.drive.findFirst();
-        let candidate = await this.prisma.candidate.findFirst();
-        if (!candidate) {
-          candidate = await this.prisma.candidate.create({
-            data: { email: "demo-candidate@example.com", name: "Demo Candidate" },
-          });
-        }
         let roleTemplate = await this.prisma.roleTemplate.findFirst();
         if (!roleTemplate) {
           roleTemplate = await this.prisma.roleTemplate.create({
             data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
           });
         }
-        session = await this.prisma.session.create({
-          data: {
+        let candidate = await this.prisma.candidate.findFirst({
+          where: { email: `${sessionId}@example.com` },
+        });
+        if (!candidate) {
+          candidate = await this.prisma.candidate.create({
+            data: {
+              email: `${sessionId}@example.com`,
+              name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}`,
+            },
+          });
+        }
+        session = await this.prisma.session.upsert({
+          where: { id: sessionId },
+          update: {},
+          create: {
             id: sessionId,
             candidateId: candidate.id,
             roleTemplateId: roleTemplate.id,
@@ -93,10 +100,10 @@ export class ProctoringService {
             candidate: true,
           },
         }) as any;
-        this.logger.log(`[ProctoringService] Created fallback session for testing: ${sessionId}`);
+        this.logger.log(`[ProctoringService] Ensured session exists: ${sessionId}`);
       } catch (err: any) {
-        session = await this.prisma.session.findUnique({
-          where: { id: sessionId },
+        this.logger.error(`[ProctoringService] Fallback session lookup for ${sessionId}: ${err.message}`);
+        session = await this.prisma.session.findFirst({
           include: { candidate: true },
         }) as any;
       }
@@ -140,7 +147,14 @@ export class ProctoringService {
     }
     const targetSessionId = session.id;
 
-    const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
+    const activeStatuses: SessionStatus[] = [
+      SessionStatus.IN_PROGRESS,
+      SessionStatus.NOT_STARTED,
+      SessionStatus.DISCONNECTED,
+      SessionStatus.SUBMITTED,
+      SessionStatus.AUTO_SUBMITTED,
+      SessionStatus.CLOSED,
+    ];
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
         `Session is in state ${session.status}. Telemetry events are only accepted for active assessments.`,
@@ -190,7 +204,14 @@ export class ProctoringService {
       throw new NotFoundException(`Session not found with ID ${sessionId}`);
     }
 
-    const activeStatuses: SessionStatus[] = [SessionStatus.IN_PROGRESS, SessionStatus.NOT_STARTED, SessionStatus.DISCONNECTED];
+    const activeStatuses: SessionStatus[] = [
+      SessionStatus.IN_PROGRESS,
+      SessionStatus.NOT_STARTED,
+      SessionStatus.DISCONNECTED,
+      SessionStatus.SUBMITTED,
+      SessionStatus.AUTO_SUBMITTED,
+      SessionStatus.CLOSED,
+    ];
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
         `Upload rejected: session is in ${session.status} state. Uploads only allowed for active assessments.`,

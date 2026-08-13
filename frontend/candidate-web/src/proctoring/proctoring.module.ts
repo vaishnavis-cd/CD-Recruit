@@ -36,7 +36,14 @@ export class ProctoringModule {
    * Returns true if successful, false if camera access is denied.
    */
   public async start(sessionId: string): Promise<boolean> {
-    if (this.isRunning) return true;
+    if (this.isRunning) {
+      if (sessionId && this.sessionId !== sessionId) {
+        console.log(`[Proctoring] Updating active proctoring session ID from ${this.sessionId} to ${sessionId}`);
+        this.sessionId = sessionId;
+        DetectionEngineService.getInstance().setSessionId(sessionId);
+      }
+      return true;
+    }
     if (this.startingPromise) return this.startingPromise;
 
     this.startingPromise = (async () => {

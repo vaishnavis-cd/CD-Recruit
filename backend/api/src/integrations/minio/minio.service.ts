@@ -72,33 +72,32 @@ export class MinioService implements OnModuleInit {
       return;
     }
 
-    const buckets = [this.bucketBiometric, this.bucketGeneral];
-    for (const bucket of buckets) {
-      if (!bucket) continue;
-      try {
-        const exists = await this.minioClient.bucketExists(bucket);
-        if (!exists) {
-          await this.minioClient.makeBucket(bucket, "us-east-1");
-          this.logger.log(`Created MinIO bucket: ${bucket}`);
-        } else {
-          this.logger.log(`MinIO bucket exists: ${bucket}`);
-        }
-      } catch (error: any) {
-        const msg = error.message || "";
-        const code = error.code || "";
-        if (
-          msg.includes("already own it") ||
-          code === "BucketAlreadyOwnedByYou" ||
-          code === "BucketAlreadyExists"
-        ) {
-          this.logger.log(`MinIO bucket already exists and owned: ${bucket}`);
-          continue;
-        }
+    const bucket = this.bucketBiometric;
+    if (!bucket) return;
+    try {
+      const exists = await this.minioClient.bucketExists(bucket);
+      if (!exists) {
+        await this.minioClient.makeBucket(bucket, "us-east-1");
+        this.logger.log(`Created MinIO bucket: ${bucket}`);
+      } else {
+        this.logger.log(`MinIO bucket exists: ${bucket}`);
+      }
+      this.storageHealthy = true;
+    } catch (error: any) {
+      const msg = error.message || "";
+      const code = error.code || "";
+      if (
+        msg.includes("already own it") ||
+        code === "BucketAlreadyOwnedByYou" ||
+        code === "BucketAlreadyExists"
+      ) {
+        this.logger.log(`MinIO bucket already exists and owned: ${bucket}`);
+        this.storageHealthy = true;
+      } else {
         this.storageHealthy = false;
         this.logger.warn(
           `Could not ensure MinIO bucket "${bucket}" exists (${error.message}). Falling back to local disk storage.`,
         );
-        break;
       }
     }
   }
@@ -107,13 +106,14 @@ export class MinioService implements OnModuleInit {
    * Health ping for readiness check and startup assertion.
    */
   async checkHealth(): Promise<boolean> {
-    if (!this.minioClient || !this.storageHealthy) {
+    if (!this.minioClient) {
       return false;
     }
     try {
       if (this.bucketBiometric) {
         await this.minioClient.bucketExists(this.bucketBiometric);
       }
+      this.storageHealthy = true;
       return true;
     } catch (error: any) {
       this.storageHealthy = false;
@@ -130,8 +130,8 @@ export class MinioService implements OnModuleInit {
     objectKey: string,
     ttlSeconds?: number,
   ): Promise<string | null> {
-    if (!this.minioClient || !this.storageHealthy) {
-      this.logger.warn("MinIO client is not initialized or storage is unhealthy. Returning null url.");
+    if (!this.minioClient) {
+      this.logger.warn("MinIO client is not initialized. Returning null url.");
       return null;
     }
 
@@ -159,7 +159,7 @@ export class MinioService implements OnModuleInit {
    * Retrieves a readable stream for a biometric evidence clip.
    */
   async getObjectStream(bucketName: string, objectKey: string) {
-    if (!this.minioClient || !this.storageHealthy) {
+    if (!this.minioClient) {
       return null;
     }
     try {
@@ -179,8 +179,8 @@ export class MinioService implements OnModuleInit {
     buffer: Buffer,
     metaData?: Minio.ItemBucketMetadata,
   ): Promise<boolean> {
-    if (!this.minioClient || !this.storageHealthy) {
-      this.logger.warn("MinIO client is not initialized or storage is unhealthy. Cannot put object.");
+    if (!this.minioClient) {
+      this.logger.warn("MinIO client is not initialized. Cannot put object.");
       return false;
     }
     try {
@@ -201,8 +201,8 @@ export class MinioService implements OnModuleInit {
   }
 
   async deleteObject(bucketName: string, objectKey: string): Promise<boolean> {
-    if (!this.minioClient || !this.storageHealthy) {
-      this.logger.warn("MinIO client is not initialized or storage is unhealthy. Cannot delete object.");
+    if (!this.minioClient) {
+      this.logger.warn("MinIO client is not initialized. Cannot delete object.");
       return false;
     }
     try {
