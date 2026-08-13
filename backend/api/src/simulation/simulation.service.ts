@@ -15,6 +15,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
+import { EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./scenarios/experienced-prod-incident.config";
 
 export interface SimulationInboxMessage {
   id: number;
@@ -64,6 +65,7 @@ export class SimulationService implements AssessmentModuleEngine {
         const session = await this.prisma.session.findUnique({
           where: { id: sessionId },
           include: {
+            roleTemplate: true,
             drive: {
               include: {
                 questions: {
@@ -75,21 +77,27 @@ export class SimulationService implements AssessmentModuleEngine {
           },
         });
 
+        const isExperienced = session?.roleTemplate?.level === "EXPERIENCED";
+
         const driveSimQuestion = session?.drive?.questions?.[0]?.question;
         if (driveSimQuestion && driveSimQuestion.content) {
           const content = driveSimQuestion.content as any;
           return {
             id: driveSimQuestion.id,
-            title: content.title || QA_BUG_REPORT_SCENARIO.title,
-            description: content.description || QA_BUG_REPORT_SCENARIO.description,
-            track: content.track || QA_BUG_REPORT_SCENARIO.track,
-            rubricVersion: content.rubricVersion || QA_BUG_REPORT_SCENARIO.rubricVersion,
-            initialSayPrompt: content.initialSayPrompt || QA_BUG_REPORT_SCENARIO.initialSayPrompt,
-            managerEmail: content.managerEmail || QA_BUG_REPORT_SCENARIO.managerEmail,
-            starterCode: content.starterCode || QA_BUG_REPORT_SCENARIO.starterCode,
-            testCases: content.testCases || QA_BUG_REPORT_SCENARIO.testCases,
-            evaluationCriteria: content.evaluationCriteria || QA_BUG_REPORT_SCENARIO.evaluationCriteria,
+            title: content.title || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.title : QA_BUG_REPORT_SCENARIO.title),
+            description: content.description || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.description : QA_BUG_REPORT_SCENARIO.description),
+            track: content.track || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.track : QA_BUG_REPORT_SCENARIO.track),
+            rubricVersion: content.rubricVersion || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.rubricVersion : QA_BUG_REPORT_SCENARIO.rubricVersion),
+            initialSayPrompt: content.initialSayPrompt || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.initialSayPrompt : QA_BUG_REPORT_SCENARIO.initialSayPrompt),
+            managerEmail: content.managerEmail || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.managerEmail : QA_BUG_REPORT_SCENARIO.managerEmail),
+            starterCode: content.starterCode || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.starterCode : QA_BUG_REPORT_SCENARIO.starterCode),
+            testCases: content.testCases || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.testCases : QA_BUG_REPORT_SCENARIO.testCases),
+            evaluationCriteria: content.evaluationCriteria || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.evaluationCriteria : QA_BUG_REPORT_SCENARIO.evaluationCriteria),
           };
+        }
+
+        if (isExperienced) {
+          return EXPERIENCED_PROD_INCIDENT_SCENARIO;
         }
       }
 

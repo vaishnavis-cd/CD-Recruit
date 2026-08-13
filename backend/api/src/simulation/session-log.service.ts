@@ -124,9 +124,10 @@ export class SessionLogService
       return response.responsePayload as unknown as SimulationSession;
     }
 
-    // Determine track automatically from roleName metadata
+    // Determine track automatically from roleName metadata and template level
     const roleName = session.roleTemplate.roleName.toLowerCase();
     const track =
+      session.roleTemplate.level === "EXPERIENCED" ||
       roleName.includes("senior") ||
       roleName.includes("lead") ||
       roleName.includes("experienced") ||
