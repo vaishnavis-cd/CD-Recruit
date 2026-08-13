@@ -122,7 +122,7 @@ async function buildQuestionList(
         include: {
           roleTemplate: {
             include: {
-              templateQuestions: {
+              questions: {
                 include: { question: true },
                 orderBy: { orderIndex: "asc" },
               },
@@ -134,8 +134,8 @@ async function buildQuestionList(
       const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
 
       // 1. Check template questions from RoleTemplate
-      if (drive?.roleTemplate?.templateQuestions && drive.roleTemplate.templateQuestions.length > 0) {
-        const tQuestions = drive.roleTemplate.templateQuestions.map((tq, idx) => ({
+      if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
+        const tQuestions = drive.roleTemplate.questions.map((tq, idx) => ({
           questionId: tq.questionId,
           moduleType: tq.moduleType,
           moduleIndex: idx,
@@ -147,14 +147,32 @@ async function buildQuestionList(
 
       // 2. Check department-scoped questions
       if (deptName && deptName !== "UNSPECIFIED") {
+        const deptUpper = deptName.toUpperCase();
+        const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
+        const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
+        const altDept = isSde ? "SDE" : deptUpper;
+
+        const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
+        const enabledMods = Object.entries(preset)
+          .filter(([_, w]) => Number(w) > 0)
+          .map(([mod]) => mod);
+
+        const whereClause: any = {
+          status: "PUBLISHED",
+          OR: [
+            { role: { equals: primaryDept, mode: "insensitive" } },
+            { role: { equals: altDept, mode: "insensitive" } },
+            { content: { path: ["department"], equals: primaryDept } },
+            { content: { path: ["department"], equals: altDept } },
+          ],
+        };
+
+        if (enabledMods.length > 0) {
+          whereClause.moduleType = { in: enabledMods };
+        }
+
         const deptQuestions = await prisma.question.findMany({
-          where: {
-            status: "PUBLISHED",
-            OR: [
-              { role: { equals: deptName, mode: "insensitive" } },
-              { content: { path: ["department"], equals: deptName } },
-            ],
-          },
+          where: whereClause,
           orderBy: { moduleType: "asc" },
         });
 

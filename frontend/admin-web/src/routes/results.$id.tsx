@@ -125,7 +125,7 @@ function IndividualResultPage() {
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
+  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "INTEGRITY">("CODING");
   const [integrityCategoryFilter, setIntegrityCategoryFilter] = useState("ALL");
   const [integrityFilterOpen, setIntegrityFilterOpen] = useState(false);
 
@@ -168,13 +168,14 @@ function IndividualResultPage() {
     };
 
     const flagCount = detail.integrityFlags?.length || 0;
-    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any }> = [
+    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "INTEGRITY"; label: string; icon: any }> = [
       { id: "CODING", label: "Coding / DSA", icon: Code2 },
       { id: "DEBUGGING", label: "Debugging", icon: Bug },
       { id: "SQL", label: "SQL Execution", icon: Database },
       { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
       { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
       { id: "SIMULATION", label: "Simulation Log", icon: Play },
+      { id: "TEST_SCENARIOS", label: "Test Scenarios", icon: FileCheck2 },
       { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
     ];
 
@@ -717,6 +718,73 @@ function IndividualResultPage() {
                             </div>
                           )}
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* TEST SCENARIOS TAB */}
+        {activeTab === "TEST_SCENARIOS" && (() => {
+          const scenarioResponses = (detail.moduleResponses || []).filter(
+            (r) => r.moduleType === "TEST_SCENARIOS" || r.responsePayload?.moduleType === "TEST_SCENARIOS" || (r as any).question?.moduleType === "TEST_SCENARIOS" || r.responsePayload?.answer !== undefined
+          );
+
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E6EA] pb-3">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Test Scenarios Submissions &amp; Evaluation</h3>
+                  <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Total Scenarios: {scenarioResponses.length}
+                </span>
+              </div>
+
+              {scenarioResponses.length === 0 ? (
+                <div className="p-8 text-center bg-white border border-[#E6E6EA] rounded-lg text-[#8B8B93] text-[13px]">
+                  No Test Scenario responses recorded for this candidate session.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {scenarioResponses.map((res: any, index: number) => {
+                    const qObj = res.question || {};
+                    const qContent = qObj.content || {};
+                    const promptText = res.prompt || qObj.prompt || qContent.prompt || qContent.question || `Test Scenario #${index + 1}`;
+                    const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
+                    const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
+                    const category = qContent.category || qObj.category || "Scenario Evaluation";
+
+                    return (
+                      <div key={res.id || index} className="border border-[#E6E6EA] rounded-md p-5 space-y-4 bg-[#F7F7F9]">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <span className="text-[11px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
+                              Scenario {index + 1} • {category}
+                            </span>
+                            <h4 className="text-[14px] font-bold text-[#0B0B0D]">{promptText}</h4>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-mono uppercase text-[#5B5B64] font-semibold block">
+                            Candidate's Solution &amp; Action Plan:
+                          </label>
+                          <div className="bg-white border border-[#E6E6EA] p-4 rounded-md text-[13px] font-sans text-[#0B0B0D] leading-relaxed whitespace-pre-wrap">
+                            {candidateAnswer}
+                          </div>
+                        </div>
+
+                        {expectedAnswer && (
+                          <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-[12px] text-indigo-950 space-y-1">
+                            <span className="font-semibold text-indigo-900 block font-mono uppercase text-[10px]">Expected Criteria / Key Guidelines:</span>
+                            <p className="leading-relaxed">{expectedAnswer}</p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

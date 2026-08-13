@@ -179,6 +179,8 @@ export class SessionScoringService {
         accuracy = this.evaluateAIPrompting(payload);
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
+      } else if (mod === "TEST_SCENARIOS") {
+        accuracy = this.evaluateTestScenarios(payload);
       }
 
       moduleQuestionScores[mod].push({
@@ -369,6 +371,21 @@ export class SessionScoringService {
     }
     if (payload?.messages || payload?.actionLog || payload?.response) {
       return SIMULATION_FALLBACK_SCORE;
+    }
+    return 0.0;
+  }
+
+  /**
+   * Evaluate TEST_SCENARIOS module accuracy (0.0 to 1.0).
+   */
+  private evaluateTestScenarios(payload: ResponsePayload | null): number {
+    const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+    if (typeof evalScore === "number") {
+      return evalScore > 1 ? evalScore / 100 : evalScore;
+    }
+    const ans = payload?.answer || payload?.text || payload?.response;
+    if (typeof ans === "string" && ans.trim().length > 10) {
+      return 0.85;
     }
     return 0.0;
   }

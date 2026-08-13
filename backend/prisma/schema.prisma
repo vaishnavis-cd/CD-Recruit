@@ -122,40 +122,9 @@ enum ConsentType {
   AUDIO
 }
 
-enum Department {
-  SOFTWARE_ENGINEERING
-  DATA_ENGINEERING
-  PMO
-  QA
-  SYSOPS
-  ITOPS
-  SECOPS
-  SRE
-}
-
-enum ExperienceLevel {
-  FRESHER
-  EXPERIENCED
-}
-
-
-
 model RoleTemplate {
   id              String           @id @default(uuid())
   roleName        String           @map("role_name")
-<<<<<<< HEAD
-  department      Department?      @map("department")
-  level           ExperienceLevel? @map("level")
-  version         Int              @default(1)
-  isActive        Boolean          @default(true) @map("is_active")
-  weightingPreset Json             @map("weighting_preset")
-  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
-
-  sessions          Session[]
-  invites           Invite[]
-  drives            Drive[]
-  templateQuestions RoleTemplateQuestion[]
-=======
   weightingPreset Json             @map("weighting_preset")
   durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
   department      Department?      @map("department")
@@ -167,49 +136,34 @@ model RoleTemplate {
   invites   Invite[]
   drives    Drive[]
   questions RoleTemplateQuestion[]
->>>>>>> partner-api
 
   @@unique([department, level, version])
   @@map("role_template")
 }
 
-model RoleTemplateQuestion {
-  id             String     @id @default(uuid())
-  roleTemplateId String     @map("role_template_id")
-  questionId     String     @map("question_id")
-  moduleType     ModuleType @map("module_type")
-  orderIndex     Int        @map("order_index")
-
-  roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id], onDelete: Cascade)
-  question     Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@unique([roleTemplateId, questionId])
-  @@map("role_template_question")
-}
-
 model Drive {
-  id             String      @id @default(uuid())
-  organizationId String?     @map("organization_id")
-  name           String
-  roleTemplateId String      @map("role_template_id")
-  moduleConfig   Json        @map("module_config")
-  status         DriveStatus @default(DRAFT)
-  scheduleStart  DateTime?   @map("schedule_start")
-  scheduleEnd    DateTime?   @map("schedule_end")
-  createdById    String      @map("created_by_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  bufferMinutes  Int         @default(15) @map("buffer_minutes")
-  graceMinutes   Int         @default(5) @map("grace_minutes")
-  slotDistribution Json?     @map("slot_distribution")
-  originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
-  isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
+  id                String        @id @default(uuid())
+  organizationId    String?       @map("organization_id")
+  name              String
+  roleTemplateId    String        @map("role_template_id")
+  moduleConfig      Json          @map("module_config")
+  status            DriveStatus   @default(DRAFT)
+  scheduleStart     DateTime?     @map("schedule_start")
+  scheduleEnd       DateTime?     @map("schedule_end")
+  createdById       String        @map("created_by_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  bufferMinutes     Int           @default(15) @map("buffer_minutes")
+  graceMinutes      Int           @default(5) @map("grace_minutes")
+  slotDistribution  Json?         @map("slot_distribution")
+  originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
+  isEditingUnlocked Boolean       @default(false) @map("is_editing_unlocked")
 
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
-  createdBy      Staff         @relation(fields: [createdById], references: [id])
-  sessions       Session[]
-  invites        Invite[]
-  questions      DriveQuestion[]
+  organization Organization?   @relation(fields: [organizationId], references: [id])
+  roleTemplate RoleTemplate   @relation(fields: [roleTemplateId], references: [id])
+  createdBy    Staff          @relation(fields: [createdById], references: [id])
+  sessions     Session[]
+  invites      Invite[]
+  questions    DriveQuestion[]
 
   @@map("drive")
 }
@@ -257,19 +211,11 @@ model Question {
   version        Int        @default(1)
   status         QuestionStatus @default(PUBLISHED)
 
-<<<<<<< HEAD
-  moduleResponses        ModuleResponse[]
-  driveQuestions         DriveQuestion[]
-  codingExecutions       CodingExecution[]
-  sqlExecutions          SQLExecution[]
-  roleTemplateQuestions  RoleTemplateQuestion[]
-=======
   moduleResponses       ModuleResponse[]
   driveQuestions        DriveQuestion[]
   roleTemplateQuestions RoleTemplateQuestion[]
   codingExecutions      CodingExecution[]
   sqlExecutions         SQLExecution[]
->>>>>>> partner-api
 
   @@map("question")
 }

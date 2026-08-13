@@ -16,7 +16,7 @@ import {
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
-import { InviteStatus, SessionStatus, ModuleType, OriginChannel } from "@prisma/client";
+import { InviteStatus, SessionStatus, ModuleType, OriginChannel, Department } from "@prisma/client";
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
@@ -41,34 +41,53 @@ export class DriveService {
       candidates = [],
     } = dto;
 
-    // 1. Verify RoleTemplate exists or auto-create custom role template
+    // 1. Verify RoleTemplate exists by ID, roleName, or department/level
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roleTemplateId);
+    const isDept = Object.values(Department).includes(roleTemplateId.toUpperCase().trim() as any);
+
+    const searchOr: any[] = [
+      { roleName: { equals: roleTemplateId, mode: "insensitive" } },
+    ];
+    if (isUuid) {
+      searchOr.unshift({ id: roleTemplateId });
+    }
+    if (isDept) {
+      searchOr.push({ department: roleTemplateId.toUpperCase().trim() as Department });
+    }
+
     let template = await this.prisma.roleTemplate.findFirst({
       where: {
-        OR: [
-          { id: roleTemplateId },
-          { roleName: { equals: roleTemplateId, mode: "insensitive" } },
-        ],
+        OR: searchOr,
+        isActive: true,
       },
+      orderBy: { version: "desc" },
     });
 
     if (!template) {
       template = await this.prisma.roleTemplate.create({
         data: {
           roleName: roleTemplateId.trim() || "Software Developer",
-          weightingPreset: { MCQ: 0.2, SQL: 0.2, CODING: 0.3, AI_PROMPTING: 0.15, SIMULATION: 0.15 },
+          department: "SOFTWARE_ENGINEERING",
+          level: "FRESHER",
+          weightingPreset: { MCQ: 0.15, SQL: 0.15, CODING: 0.20, DEBUGGING: 0.15, AI_PROMPTING: 0.10, SIMULATION: 0.15, TEST_SCENARIOS: 0.10 },
           durationMinutes: 90,
+          isActive: true,
         },
       });
     }
     const finalRoleTemplateId = template.id;
 
+    const preset = (template.weightingPreset as Record<string, number>) || {};
+    const hasPresetKeys = Object.keys(preset).length > 0;
+
     const defaultModuleConfig = moduleConfig || {
-      MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
-      SQL: { enabled: true, durationMinutes: 20, weight: 20 },
-      CODING: { enabled: true, durationMinutes: 30, weight: 25 },
-      DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
-      AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10 },
-      SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
+      MCQ: { enabled: hasPresetKeys ? (Number(preset.MCQ) || 0) > 0 : true, durationMinutes: 15, weight: (Number(preset.MCQ) || 0.2) * 100 },
+      SQL: { enabled: hasPresetKeys ? (Number(preset.SQL) || 0) > 0 : false, durationMinutes: 20, weight: (Number(preset.SQL) || 0) * 100 },
+      CODING: { enabled: hasPresetKeys ? (Number(preset.CODING) || 0) > 0 : false, durationMinutes: 30, weight: (Number(preset.CODING) || 0) * 100 },
+      DEBUGGING: { enabled: hasPresetKeys ? (Number(preset.DEBUGGING) || 0) > 0 : false, durationMinutes: 20, weight: (Number(preset.DEBUGGING) || 0) * 100 },
+      AI_PROMPTING: { enabled: hasPresetKeys ? (Number(preset.AI_PROMPTING) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.AI_PROMPTING) || 0) * 100 },
+      SIMULATION: { enabled: hasPresetKeys ? (Number(preset.SIMULATION) || 0) > 0 : false, durationMinutes: 10, weight: (Number(preset.SIMULATION) || 0) * 100 },
+      TEST_SCENARIOS: { enabled: hasPresetKeys ? (Number(preset.TEST_SCENARIOS) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.TEST_SCENARIOS) || 0) * 100 },
     };
 
     // 2. Validate schedule if status is SCHEDULED or ACTIVE
@@ -182,7 +201,7 @@ export class DriveService {
         await this.candidateIngestionService.processBulkCandidates(
           tx,
           createdDrive.id,
-          roleTemplateId,
+          finalRoleTemplateId,
           candidates,
           staffId,
           true,
@@ -315,6 +334,37 @@ export class DriveService {
         if (questionsToLink.length > 0) {
           await tx.driveQuestion.createMany({
             data: questionsToLink.map((q) => ({
+              driveId: createdDrive.id,
+              questionId: q.id,
+              moduleType: q.moduleType,
+              questionVersionSnapshot: q.version ?? 1,
+            })),
+          });
+        }
+      } else {
+        const finalMc = (createdDrive.moduleConfig as Record<string, any>) || {};
+        const enabledModTypes = Object.entries(finalMc)
+          .filter(([_, conf]: [string, any]) => conf?.enabled)
+          .map(([mod]) => mod);
+
+        const deptUpper = template.department.toUpperCase();
+        const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE");
+
+        const autoQuestions = await tx.question.findMany({
+          where: {
+            status: "PUBLISHED",
+            moduleType: { in: enabledModTypes as any },
+            OR: [
+              { role: { equals: template.department, mode: "insensitive" } },
+              { role: { equals: isSde ? "SDE" : template.department, mode: "insensitive" } },
+            ],
+          },
+          take: 40,
+        });
+
+        if (autoQuestions.length > 0) {
+          await tx.driveQuestion.createMany({
+            data: autoQuestions.map((q) => ({
               driveId: createdDrive.id,
               questionId: q.id,
               moduleType: q.moduleType,
@@ -458,7 +508,7 @@ export class DriveService {
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
-      const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+      const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:5173";
       const inviteLink = `${candidateAppBase}/invite/${invite.token}`;
       const session = invite.session;
 
