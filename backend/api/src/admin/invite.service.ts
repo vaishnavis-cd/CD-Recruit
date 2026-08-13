@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
@@ -12,6 +13,8 @@ import {
   InviteStatus,
 } from "@cd-recruit/shared-types";
 import { ConfigService } from "@nestjs/config";
+import { MinioService } from "../integrations/minio/minio.service";
+import { FaceVerifyClient } from "../integrations/face-verify/face-verify.client";
 
 @Injectable()
 export class InviteService {
@@ -19,6 +22,8 @@ export class InviteService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly minioService: MinioService,
+    private readonly faceVerifyClient: FaceVerifyClient,
   ) { }
 
   async createInvite(dto: CreateInviteDto, staffId: string) {
@@ -382,6 +387,75 @@ export class InviteService {
         },
       });
     });
+  }
+
+  async uploadIdProof(
+    inviteId: string,
+    file: { buffer: Buffer; originalname: string },
+  ): Promise<{ inviteId: string; status: string }> {
+    if (!file || !file.buffer) {
+      throw new BadRequestException("No image file provided in request");
+    }
+
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: inviteId },
+      include: { drive: { include: { organization: true } } },
+    });
+
+    if (!invite) {
+      throw new NotFoundException(`Invite not found with ID ${inviteId}`);
+    }
+
+    if (
+      [
+        InviteStatus.REDEEMED,
+        InviteStatus.EXPIRED,
+        InviteStatus.REVOKED,
+      ].includes(invite.status as InviteStatus)
+    ) {
+      throw new BadRequestException(
+        `Cannot upload ID proof for invite in ${invite.status} status.`,
+      );
+    }
+
+    const orgSlug = invite.drive?.organization?.slug ?? "default-org";
+    const timestamp = Date.now();
+    const ext = file.originalname.split(".").pop() || "jpg";
+    const objectKey = `clients/${orgSlug}/invites/${inviteId}/id-proof/${timestamp}.${ext}`;
+
+    // Enroll with Face Verify service first to ensure a face is detected
+    let enrollResult: { embedding: number[]; model: string };
+    try {
+      enrollResult = await this.faceVerifyClient.enroll(
+        file.buffer,
+        file.originalname,
+      );
+    } catch (err: any) {
+      if (err.status === 422 || err.message?.includes("No face detected")) {
+        throw new UnprocessableEntityException(
+          err.message || "No face detected in uploaded ID proof image.",
+        );
+      }
+      throw err;
+    }
+
+    const bucketBiometric =
+      (this.configService.get("minio.bucketBiometric" as any) as string) ??
+      (this.configService.get("app.minio.bucketBiometric" as any) as string) ??
+      "cd-recruit-biometric";
+
+    await this.minioService.putObject(bucketBiometric, objectKey, file.buffer);
+
+    await this.prisma.invite.update({
+      where: { id: inviteId },
+      data: {
+        idProofRef: objectKey,
+        idProofEmbedding: enrollResult.embedding,
+        idProofUploadedAt: new Date(),
+      },
+    });
+
+    return { inviteId, status: "id_proof_enrolled" };
   }
 
   private mapToInviteListItem(invite: any): InviteListItem {

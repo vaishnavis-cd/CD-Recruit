@@ -8,7 +8,11 @@ import {
   ParseUUIDPipe,
   Post,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { SessionService } from "./session.service";
 import {
   StartSessionDto,
@@ -171,5 +175,38 @@ export class SessionController {
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ): Promise<CloseSessionResponse> {
     return this.sessionService.closeSession(sessionId);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/verify-identity
+   *
+   * Verifies live selfie upload against stored candidate ID proof embedding.
+   */
+  @Post(":sessionId/verify-identity")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  @UseInterceptors(FileInterceptor("file"))
+  async verifyIdentity(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @UploadedFile() file: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException("No selfie image uploaded in form field 'file'");
+    }
+    return this.sessionService.verifyIdentity(sessionId, file);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/flag-and-continue
+   *
+   * Flags session with IDENTITY_MISMATCH IntegrityFlag and allows candidate to proceed.
+   */
+  @Post(":sessionId/flag-and-continue")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async flagAndContinue(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+  ) {
+    return this.sessionService.flagAndContinueIdentity(sessionId);
   }
 }

@@ -17,6 +17,6 @@ import { PrismaModule } from "../prisma/prisma.module";
     SqlValidatorService,
     SqlCleanupService,
   ],
-  exports: [SqlService],
+  exports: [SqlService, ResultComparatorService],
 })
 export class SqlModule {}
