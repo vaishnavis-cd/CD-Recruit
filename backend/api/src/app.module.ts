@@ -26,6 +26,8 @@ import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
 import { McqModule } from "./mcq/mcq.module";
 
 
+import { FaceVerifyModule } from "./integrations/face-verify/face-verify.module";
+
 const infraMode = process.env.INFRA_MODE ?? "local";
 
 @Module({
@@ -79,6 +81,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     QuestionModule,
     SettingsModule,
     MinioModule,
+    FaceVerifyModule,
     CandidateModule,
     SessionModule,
     QueueModule,

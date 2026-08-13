@@ -195,6 +195,10 @@ model Candidate {
   organizationId String?       @map("organization_id")
   email          String        @unique
   name           String
+  idProofRef       String?   @map("id_proof_ref")
+  idProofEmbedding Json?     @map("id_proof_embedding")
+  idProofModel     String?   @map("id_proof_model")
+  idVerifiedAt     DateTime? @map("id_verified_at")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
@@ -300,7 +304,7 @@ model EventLog {
 model IntegrityFlag {
   id         String   @id @default(uuid())
   sessionId  String   @map("session_id")
-  category   String
+  category   String   // Valid categories include standard proctoring categories plus "IDENTITY_MISMATCH" and "NO_ID_PROOF_ON_FILE"
   confidence Float
   severity   String
   flaggedAt  DateTime @default(now()) @map("flagged_at")
@@ -397,6 +401,9 @@ model Invite {
   scheduledTime   DateTime?    @map("scheduled_time")
   bufferMinutes   Int          @default(15) @map("buffer_minutes")
   graceMinutes    Int          @default(5) @map("grace_minutes")
+  idProofRef        String?   @map("id_proof_ref")
+  idProofEmbedding  Json?     @map("id_proof_embedding")
+  idProofUploadedAt DateTime? @map("id_proof_uploaded_at")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])

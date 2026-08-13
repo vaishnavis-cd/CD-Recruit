@@ -220,5 +220,7 @@ export interface Invite {
   createdAt: string;
   expiresAt: string;
   redeemedAt?: string;
+  idProofRef?: string | null;
+  idProofUploadedAt?: string | null;
 }
 
