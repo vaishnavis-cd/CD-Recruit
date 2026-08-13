@@ -5,7 +5,9 @@
 
 */
 -- CreateEnum
-CREATE TYPE "ConsentType" AS ENUM ('TERMS', 'BIOMETRIC', 'SELFIE', 'AUDIO');
+DO $$ BEGIN
+  CREATE TYPE "ConsentType" AS ENUM ('TERMS', 'BIOMETRIC', 'SELFIE', 'AUDIO');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- AlterEnum
 -- This migration adds more than one value to an enum.

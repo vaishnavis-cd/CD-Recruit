@@ -137,7 +137,7 @@ async function runPartnerCandidatesServiceTests() {
   assert.strictEqual(threw422, true, "Should throw 422 when active template missing");
   console.log("  ✔ Throws 422 UnprocessableEntityException when active role template missing");
 
-  // Test 2: First call for requisition creates Drive via createFromTemplate and sets 24h rolling invites
+  // Test 2: First call for requisition creates Drive via createFromTemplate and sets 48h rolling invites
   const res1 = await service.pushCandidates(mockPartner, {
     department_code: "SOFTWARE_ENGINEERING",
     level: "EXPERIENCED",

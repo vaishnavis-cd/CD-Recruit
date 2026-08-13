@@ -152,9 +152,9 @@ Set at the requisition level. If your system needs to override level for an indi
 
 **Your system is responsible for delivering the assessment link to the candidate.** CD-Recruit does not send the candidate-facing invitation email in this integration phase. The `link` field in the response is the complete, ready-to-use assessment URL — deliver it via your existing candidate communication channel.
 
-The 24-hour validity window (`expires_at`) begins at API response time, not at delivery time. Deliver the link promptly after receiving it — any delay on your side reduces the candidate's usable window, not just the delivery lead time.
+The 48-hour validity window (`expires_at`) begins at API response time, not at delivery time. Deliver the link promptly after receiving it — any delay on your side reduces the candidate's usable window, not just the delivery lead time.
 
-The candidate's assessment window is fully self-paced within those 24 hours: they may start at any point before `expires_at`. There is no fixed appointment time to communicate to the candidate for this integration path.
+The candidate's assessment window is fully self-paced within those 48 hours: they may start at any point before `expires_at`. There is no fixed appointment time to communicate to the candidate for this integration path.
 
 ---
 
