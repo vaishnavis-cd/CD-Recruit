@@ -32,7 +32,9 @@ export class CandidateIngestionService {
       return { count: 0, createdCount: 0 };
     }
 
-    const emails = candidates.map((c) => c.candidateEmail.trim().toLowerCase());
+    const emails = candidates
+      .map((c: any) => (c.candidateEmail || c.email || "").trim().toLowerCase())
+      .filter((e: string) => Boolean(e));
     const existingCandidates = await tx.candidate.findMany({
       where: { email: { in: emails } },
     });
@@ -59,8 +61,12 @@ export class CandidateIngestionService {
         return d;
       })();
 
-    for (const cand of candidates) {
-      const emailLower = cand.candidateEmail.trim().toLowerCase();
+    for (const cand of candidates as any[]) {
+      const emailRaw = (cand.candidateEmail || cand.email || "").trim();
+      const emailLower = emailRaw.toLowerCase();
+      const nameRaw = (cand.candidateName || cand.name || emailRaw).trim();
+
+      if (!emailLower) continue;
 
       // Skip candidate if email already exists in this drive's roster
       if (existingDriveEmails.has(emailLower)) {
@@ -72,8 +78,8 @@ export class CandidateIngestionService {
 
       if (!existingEmails.has(emailLower)) {
         candidatesToCreate.push({
-          email: cand.candidateEmail.trim(),
-          name: cand.name.trim(),
+          email: emailRaw,
+          name: nameRaw,
         });
         existingEmails.add(emailLower);
       }
@@ -81,16 +87,16 @@ export class CandidateIngestionService {
       const token = isGenerated
         ? this.authService.generateInviteToken(
             inviteId,
-            cand.candidateEmail,
-            cand.name,
+            emailRaw,
+            nameRaw,
             roleTemplateId,
           )
         : "draft_" + crypto.randomUUID();
 
       invitesData.push({
         id: inviteId,
-        candidateEmail: cand.candidateEmail,
-        candidateName: cand.name,
+        candidateEmail: emailRaw,
+        candidateName: nameRaw,
         roleTemplateId,
         driveId,
         createdById: staffId,

@@ -36,13 +36,13 @@ export class MinioService implements OnModuleInit {
         this.configService.get<boolean>("app.minio.useSsl") ??
         false;
       const accessKey =
-        this.configService.get<string>("minio.accessKey") ??
-        this.configService.get<string>("app.minio.accessKey") ??
-        "minioadmin";
+        (this.configService.get<string>("minio.accessKey") ||
+        this.configService.get<string>("app.minio.accessKey") ||
+        "minioadmin").trim() || "minioadmin";
       const secretKey =
-        this.configService.get<string>("minio.secretKey") ??
-        this.configService.get<string>("app.minio.secretKey") ??
-        "minioadmin";
+        (this.configService.get<string>("minio.secretKey") ||
+        this.configService.get<string>("app.minio.secretKey") ||
+        "minioadmin").trim() || "minioadmin";
 
       this.minioClient = new Minio.Client({
         endPoint,

@@ -37,7 +37,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
 
   // Fetch Scenario Config & restore step state from session store / backend DB
   useEffect(() => {
-    const savedResponse = assessment?.responses[scenario.id] as { initialSayText?: string; completed?: boolean } | undefined
+    const savedResponse = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : undefined) as { initialSayText?: string; completed?: boolean } | undefined
 
     if (savedResponse?.completed) {
       setStep('COMPLETED')
@@ -76,7 +76,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
           setStep('INITIAL_SAY')
         }
       })
-  }, [sessionId, scenario.id])
+  }, [sessionId, scenario?.id])
 
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
   const setResponse = useSessionStore(s => s.setResponse)
@@ -93,7 +93,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         console.warn('Error persisting initial say text:', err)
       }
     }
-    const currentResp = (assessment?.responses[scenario.id] as any) || {}
+    const currentResp = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : {}) || {}
     setQuestionStatus(scenario.id, 'answered')
     setResponse(scenario.id, { ...currentResp, initialSayText, completed: false })
 
@@ -109,7 +109,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         completed: true,
       }).catch(() => {})
     }
-    const currentResp = (assessment?.responses[scenario.id] as any) || {}
+    const currentResp = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : {}) || {}
     setQuestionStatus(scenario.id, 'answered')
     setResponse(scenario.id, { ...currentResp, completed: true })
     setStep('COMPLETED')

@@ -26,6 +26,7 @@ import { McqModule } from "./mcq/mcq.module";
 import { RoleTemplateModule } from "./role-template/role-template.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
+import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -93,6 +94,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     RoleTemplateModule,
     RedisModule,
     PartnerModule,
+    TestScenariosModule,
   ],
 })
 export class AppModule {}

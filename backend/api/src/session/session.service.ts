@@ -115,25 +115,90 @@ async function buildQuestionList(
         }
         return resultList;
       }
+
+      // If drive questions not explicitly linked, try resolving via Drive's RoleTemplate or Department
+      const drive = await prisma.drive.findUnique({
+        where: { id: driveId },
+        include: {
+          roleTemplate: {
+            include: {
+              questions: {
+                include: { question: true },
+                orderBy: { orderIndex: "asc" },
+              },
+            },
+          },
+        },
+      });
+
+      const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
+
+      // 1. Check template questions from RoleTemplate
+      if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
+        const tQuestions = drive.roleTemplate.questions.map((tq, idx) => ({
+          questionId: tq.questionId,
+          moduleType: tq.moduleType,
+          moduleIndex: idx,
+          content: tq.question?.content || {},
+          difficulty: tq.question?.difficulty || "medium",
+        }));
+        return tQuestions;
+      }
+
+      // 2. Check department-scoped questions
+      if (deptName && deptName !== "UNSPECIFIED") {
+        const deptUpper = deptName.toUpperCase();
+        const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
+        const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
+        const altDept = isSde ? "SDE" : deptUpper;
+
+        const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
+        const enabledMods = Object.entries(preset)
+          .filter(([_, w]) => Number(w) > 0)
+          .map(([mod]) => mod);
+
+        const whereClause: any = {
+          status: "PUBLISHED",
+          OR: [
+            { role: { equals: primaryDept, mode: "insensitive" } },
+            { role: { equals: altDept, mode: "insensitive" } },
+            { content: { path: ["department"], equals: primaryDept } },
+            { content: { path: ["department"], equals: altDept } },
+          ],
+        };
+
+        if (enabledMods.length > 0) {
+          whereClause.moduleType = { in: enabledMods };
+        }
+
+        const deptQuestions = await prisma.question.findMany({
+          where: whereClause,
+          orderBy: { moduleType: "asc" },
+        });
+
+        if (deptQuestions && deptQuestions.length > 0) {
+          return deptQuestions.map((q, idx) => ({
+            questionId: q.id,
+            moduleType: q.moduleType,
+            moduleIndex: idx,
+            content: q.content,
+            difficulty: q.difficulty || "medium",
+          }));
+        }
+      }
+
+      // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
+      throw new UnprocessableEntityException(
+        `No questions available for department ${deptName} — question bank not yet populated`
+      );
     }
 
-    // Fallback: Published questions from Question Bank
-    const fallbackQuestions = await prisma.question.findMany({
-      where: { status: "PUBLISHED" },
-      take: 30,
-      orderBy: { moduleType: "asc" },
-    });
-
-    return fallbackQuestions.map((q, idx) => ({
-      questionId: q.id,
-      moduleType: q.moduleType,
-      moduleIndex: idx,
-      content: q.content,
-      difficulty: q.difficulty || "medium",
-    }));
+    throw new UnprocessableEntityException(
+      "No valid assessment drive associated with this session"
+    );
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
-    return [];
+    throw err;
   }
 }
 
@@ -612,9 +677,14 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-    // Calculate real module scores and composite score upon submission
+    // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
     try {
-      await this.scoringService.computeSessionScores(sessionId);
+      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
+      if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
+        await this.scoringService.computeSessionScores(sessionId);
+      } else {
+        this.logger.log(`[closeSession] Skipping computeSessionScores for ${sessionId} — existing simulation score preserved (gradingSource: ${existingScore.gradingSource})`);
+      }
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores for session ${sessionId}: ${err.message}`);
     }
@@ -777,7 +847,12 @@ export class SessionService implements SessionStatusPort {
     });
 
     try {
-      await this.scoringService.computeSessionScores(sessionId);
+      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
+      if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
+        await this.scoringService.computeSessionScores(sessionId);
+      } else {
+        this.logger.log(`[autoSubmitSession] Skipping computeSessionScores for ${sessionId} — existing simulation score preserved (gradingSource: ${existingScore.gradingSource})`);
+      }
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores on autoSubmit for session ${sessionId}: ${err.message}`);
     }

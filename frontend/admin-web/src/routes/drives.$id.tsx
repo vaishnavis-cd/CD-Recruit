@@ -52,6 +52,12 @@ import { type DriveDetail } from "../lib/types";
 import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
 import { formatDriveName } from "../lib/utils";
 import {
+  getDepartmentAllowedModules,
+  extractQuestionTier,
+  MODULE_LABEL_MAP,
+  ALL_MODULE_KEYS,
+} from "../lib/roleModules";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -205,17 +211,22 @@ function DriveDetailPage() {
   const [endMinute, setEndMinute] = useState("00");
   const [endAmPm, setEndAmPm] = useState("AM");
 
+<<<<<<< HEAD
   /** When true the drive uses a 24-hour rolling window (scheduleEnd = scheduleStart + 24h) */
   const [rollingWindow, setRollingWindow] = useState(false);
 
   // Module Config State (6 Modules)
+=======
+  // Module Config State (7 Modules)
+>>>>>>> ramsdevelopbranch
   const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
-    MCQ: { enabled: true, durationMinutes: 15, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
-    SQL: { enabled: true, durationMinutes: 20, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
-    CODING: { enabled: true, durationMinutes: 30, weight: 25, isBonus: false, questionWeighting: { mode: "equal" } },
+    MCQ: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+    SQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+    CODING: { enabled: true, durationMinutes: 30, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
     DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
     AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
     SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
+    TEST_SCENARIOS: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
   });
 
   // Per-Drive System Check & Hardware Proctoring Customization State
@@ -245,6 +256,7 @@ function DriveDetailPage() {
   const [pendingTabSwitch, setPendingTabSwitch] = useState<"roster" | "configuration" | null>(null);
   const [questionModuleFilter, setQuestionModuleFilter] = useState<string>("ALL");
   const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState<string>("ALL");
+  const [questionTierFilter, setQuestionTierFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
 
@@ -954,10 +966,101 @@ function DriveDetailPage() {
     return !!(aiConf?.enabled && (aiConf?.questionSource || "AI_DYNAMIC") === "AI_DYNAMIC");
   }, [moduleConfig]);
 
-  // Filtered Questions Bank List (Filtered to only modules enabled in drive configuration)
+  // Infer target department for this drive
+  const driveTargetDept = useMemo(() => {
+    if (!drive) return "SOFTWARE_ENGINEERING";
+    const deptRaw = (
+      (drive as any).roleTemplate?.department ||
+      (drive as any).department ||
+      (drive as any).roleTemplate?.roleName ||
+      drive.roleTemplateName ||
+      drive.name ||
+      ""
+    ).toUpperCase();
+
+    if (deptRaw.includes("SECOPS") || deptRaw.includes("SECURITY")) return "SECOPS";
+    if (deptRaw.includes("DATA")) return "DATA_ENGINEERING";
+    if (deptRaw.includes("QA") || deptRaw.includes("QUALITY") || deptRaw.includes("TEST")) return "QA";
+    if (deptRaw.includes("SRE") || deptRaw.includes("RELIABILITY")) return "SRE";
+    if (deptRaw.includes("SYSOPS")) return "SYSOPS";
+    if (deptRaw.includes("ITOPS")) return "ITOPS";
+    if (deptRaw.includes("PMO") || deptRaw.includes("PROJECT")) return "PMO";
+    // Default to SOFTWARE_ENGINEERING / SDE
+    return "SOFTWARE_ENGINEERING";
+  }, [drive]);
+
+  // Allowed Modules for this drive based on target department / RoleTemplate
+  const allowedModules = useMemo(() => {
+    return getDepartmentAllowedModules(driveTargetDept);
+  }, [driveTargetDept]);
+
+  // Filtered Questions Bank List (Filtered to target department/role and enabled modules)
   const filteredQuestionsList = useMemo(() => {
+    const DEPT_TAGS_MAP: Record<string, string[]> = {
+      SOFTWARE_ENGINEERING: ["sde", "software_engineering", "software engineering", "software developer", "software engineer"],
+      DATA_ENGINEERING: ["data_engineering", "data engineering", "de"],
+      QA: ["qa", "quality assurance", "testing"],
+      SRE: ["sre", "site reliability"],
+      SYSOPS: ["sysops"],
+      ITOPS: ["itops"],
+      PMO: ["pmo"],
+      SECOPS: ["secops", "cybersecurity", "security operations"],
+    };
+
+    const targetDeptNorm = (driveTargetDept as string) === "SDE" ? "SOFTWARE_ENGINEERING" : driveTargetDept;
+
     return questionsBank.filter((q) => {
       if (q.status === "ARCHIVED") return false;
+
+      // Always include assigned questions so user can review/manage what's assigned
+      const isAssigned = assignedQuestions.includes(q.id);
+
+      if (!isAssigned) {
+        // Enforce allowed modules restriction for this department
+        const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
+        if (!allowedModules.includes(effectiveModule) && !allowedModules.includes(q.moduleType)) {
+          return false;
+        }
+
+        // Department / Role matching check
+        const qRoleUpper = (q.role || "").toUpperCase();
+        const qContentDeptUpper = (q.content?.department || "").toUpperCase();
+        const qTagsLower = (q.tags || []).map((t: string) => t.toLowerCase());
+
+        let qDept: string | null = null;
+        if (qRoleUpper === "SOFTWARE_ENGINEERING" || qRoleUpper === "SDE" || qContentDeptUpper === "SDE" || qContentDeptUpper === "SOFTWARE_ENGINEERING") {
+          qDept = "SOFTWARE_ENGINEERING";
+        } else if (qRoleUpper === "DATA_ENGINEERING" || qContentDeptUpper === "DATA_ENGINEERING") {
+          qDept = "DATA_ENGINEERING";
+        } else if (qRoleUpper === "QA" || qContentDeptUpper === "QA") {
+          qDept = "QA";
+        } else if (qRoleUpper === "SRE" || qContentDeptUpper === "SRE") {
+          qDept = "SRE";
+        } else if (qRoleUpper === "SYSOPS" || qContentDeptUpper === "SYSOPS") {
+          qDept = "SYSOPS";
+        } else if (qRoleUpper === "ITOPS" || qContentDeptUpper === "ITOPS") {
+          qDept = "ITOPS";
+        } else if (qRoleUpper === "PMO" || qContentDeptUpper === "PMO") {
+          qDept = "PMO";
+        } else if (qRoleUpper === "SECOPS" || qContentDeptUpper === "SECOPS") {
+          qDept = "SECOPS";
+        }
+
+        if (!qDept) {
+          for (const [deptKey, tagsList] of Object.entries(DEPT_TAGS_MAP)) {
+            if (qTagsLower.some((t: string) => tagsList.includes(t))) {
+              qDept = deptKey;
+              break;
+            }
+          }
+        }
+
+        // If question belongs to a specific department, it MUST match the Drive's target department
+        if (qDept && qDept !== targetDeptNorm) {
+          return false;
+        }
+      }
 
       if (q.moduleType === "AI_PROMPTING" && isAiPromptingDynamic && questionModuleFilter === "ALL") {
         return false;
@@ -967,9 +1070,7 @@ function DriveDetailPage() {
 
       if (questionModuleFilter === "ALL") {
         const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
-        if (enabledModuleKeys.length > 0) {
-          if (!enabledModuleKeys.includes(effectiveModule) && !enabledModuleKeys.includes(q.moduleType)) return false;
-        }
+        if (!allowedModules.includes(effectiveModule) && !allowedModules.includes(q.moduleType)) return false;
       } else if (questionModuleFilter === "DEBUGGING") {
         if (!isDebuggingQuestion) return false;
       } else if (questionModuleFilter === "CODING") {
@@ -981,6 +1082,11 @@ function DriveDetailPage() {
       if (questionDifficultyFilter !== "ALL") {
         const diff = (q.difficulty || "MEDIUM").toUpperCase();
         if (diff !== questionDifficultyFilter.toUpperCase()) return false;
+      }
+
+      if (questionTierFilter !== "ALL") {
+        const qTier = extractQuestionTier(q);
+        if (qTier !== questionTierFilter) return false;
       }
 
       if (questionSearch.trim()) {
@@ -1000,7 +1106,7 @@ function DriveDetailPage() {
       }
       return true;
     });
-  }, [questionsBank, enabledModuleKeys, questionModuleFilter, questionDifficultyFilter, questionSearch, isAiPromptingDynamic]);
+  }, [questionsBank, driveTargetDept, allowedModules, assignedQuestions, questionModuleFilter, questionDifficultyFilter, questionTierFilter, questionSearch, isAiPromptingDynamic]);
 
   if (loading || !drive) {
     return (
@@ -1249,7 +1355,7 @@ function DriveDetailPage() {
               </div>
             </div>
 
-            {/* 6 Modules Grid */}
+            {/* 7 Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
               {(
                 [
@@ -1259,6 +1365,7 @@ function DriveDetailPage() {
                   { id: "DEBUGGING", name: "Debugging", icon: Bug, desc: "Evaluated via Judge0" },
                   { id: "AI_PROMPTING", name: "AI Prompting", icon: Bot, desc: "Evaluated via Groq/Cerebras" },
                   { id: "SIMULATION", name: "Contextual Simulation", icon: Play, desc: "On-call incident & ticket simulation evaluated via LLM" },
+                  { id: "TEST_SCENARIOS", name: "Test Scenarios", icon: FileText, desc: "Role-specific scenario questions evaluated via structured criteria" },
                 ] as const
               ).map((mod) => {
                 const Icon = mod.icon;
@@ -1578,63 +1685,82 @@ function DriveDetailPage() {
                       : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
                   }`}
                 >
-                  All Modules ({enabledModuleKeys.length})
+                  All Modules ({allowedModules.length})
                 </button>
-                {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION"] as const)
-                  .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
-                  .map((modKey) => {
-                    const labelMap: Record<string, string> = {
-                      MCQ: "MCQ",
-                      SQL: "SQL",
-                      CODING: "Coding",
-                      DEBUGGING: "Debugging",
-                      AI_PROMPTING: "AI Prompting",
-                      SIMULATION: "Simulation",
-                    };
-                    return (
-                      <button
-                        key={modKey}
-                        onClick={() => setQuestionModuleFilter(modKey)}
-                        className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
-                          questionModuleFilter === modKey
-                            ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                            : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
-                        }`}
-                      >
-                        <span>{labelMap[modKey] || modKey}</span>
-                      </button>
-                    );
-                  })}
-              </div>
-
-              {/* Complexity / Difficulty Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
-                <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
-                  {[
-                    { id: "ALL", label: "All" },
-                    { id: "EASY", label: "Easy" },
-                    { id: "MEDIUM", label: "Medium" },
-                    { id: "HARD", label: "Hard" },
-                  ].map((diff) => (
+                {allowedModules.map((modKey) => {
+                  return (
                     <button
-                      key={diff.id}
-                      onClick={() => setQuestionDifficultyFilter(diff.id)}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
-                        questionDifficultyFilter === diff.id
-                          ? diff.id === "EASY"
-                            ? "bg-emerald-100 text-emerald-800 font-bold"
-                            : diff.id === "HARD"
-                            ? "bg-rose-100 text-rose-800 font-bold"
-                            : diff.id === "MEDIUM"
-                            ? "bg-amber-100 text-amber-800 font-bold"
-                            : "bg-[#2F5CFF] text-white font-bold"
-                          : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                      key={modKey}
+                      onClick={() => setQuestionModuleFilter(modKey)}
+                      className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                        questionModuleFilter === modKey
+                          ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                          : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
                       }`}
                     >
-                      {diff.label}
+                      <span>{MODULE_LABEL_MAP[modKey] || modKey}</span>
                     </button>
-                  ))}
+                  );
+                })}
+              </div>
+
+              {/* Complexity / Difficulty & Tier Filters */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
+                  <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
+                    {[
+                      { id: "ALL", label: "All" },
+                      { id: "EASY", label: "Easy" },
+                      { id: "MEDIUM", label: "Medium" },
+                      { id: "HARD", label: "Hard" },
+                    ].map((diff) => (
+                      <button
+                        key={diff.id}
+                        onClick={() => setQuestionDifficultyFilter(diff.id)}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
+                          questionDifficultyFilter === diff.id
+                            ? diff.id === "EASY"
+                              ? "bg-emerald-100 text-emerald-800 font-bold"
+                              : diff.id === "HARD"
+                              ? "bg-rose-100 text-rose-800 font-bold"
+                              : diff.id === "MEDIUM"
+                              ? "bg-amber-100 text-amber-800 font-bold"
+                              : "bg-[#2F5CFF] text-white font-bold"
+                            : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                        }`}
+                      >
+                        {diff.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Tier:</span>
+                  <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
+                    {[
+                      { id: "ALL", label: "All" },
+                      { id: "TIER_1", label: "Tier 1" },
+                      { id: "TIER_2", label: "Tier 2" },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setQuestionTierFilter(t.id)}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
+                          questionTierFilter === t.id
+                            ? t.id === "TIER_1"
+                              ? "bg-indigo-100 text-indigo-900 font-bold"
+                              : t.id === "TIER_2"
+                              ? "bg-purple-100 text-purple-900 font-bold"
+                              : "bg-[#2F5CFF] text-white font-bold"
+                            : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1668,6 +1794,7 @@ function DriveDetailPage() {
                   const isSelected = assignedQuestions.includes(q.id);
                   const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
                   const difficulty = q.difficulty || "MEDIUM";
+                  const qTier = extractQuestionTier(q);
                   const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
                   const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
                   const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
@@ -1680,7 +1807,7 @@ function DriveDetailPage() {
                     >
                       <div className="flex items-center gap-3 pr-4 flex-1">
                         <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
-                          {displayModule}
+                          {MODULE_LABEL_MAP[displayModule] || displayModule}
                         </span>
                         <div>
                           <div className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors line-clamp-1">
@@ -1698,6 +1825,17 @@ function DriveDetailPage() {
                             >
                               {difficulty}
                             </span>
+
+                            <span
+                              className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${
+                                qTier === "TIER_2"
+                                  ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                  : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              }`}
+                            >
+                              {qTier === "TIER_2" ? "TIER 2" : "TIER 1"}
+                            </span>
+
                             {displayTags.length > 0 && (
                               <div className="flex items-center gap-1 flex-wrap">
                                 {displayTags.map((tag: string) => (
@@ -1988,6 +2126,18 @@ function DriveDetailPage() {
                   </label>
                   <div className="p-3 bg-[#0B0B0D] text-slate-100 font-mono text-[12px] rounded-md whitespace-pre-wrap">
                     {previewQuestion.content.problemStatement}
+                  </div>
+                </div>
+              )}
+
+              {/* Expected Answer / Grading Rubric for Test Scenarios & AI Prompting */}
+              {(previewQuestion.content?.expectedAnswer || previewQuestion.content?.expectedCriteria) && (
+                <div className="space-y-1.5 pt-2 border-t border-[#EFF0F3]">
+                  <label className="text-[12px] font-mono uppercase tracking-wider text-[#5B5B64] font-semibold block">
+                    Expected Guidelines / Rubric:
+                  </label>
+                  <div className="p-3 bg-[#EEF2FF] border border-[#C5D5FF] text-[#1E293B] text-[13px] rounded-md leading-relaxed">
+                    {previewQuestion.content.expectedAnswer || previewQuestion.content.expectedCriteria}
                   </div>
                 </div>
               )}

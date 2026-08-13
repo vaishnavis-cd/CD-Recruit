@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { Judge0Service } from "../integrations/judge0/judge0.service";
+import { QaAutomationSandboxService } from "../execution/qa-automation-sandbox.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { CodingQuestionContentJson } from "./coding.types";
 import { SubmissionType, ExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
@@ -14,6 +15,7 @@ export class CodingService implements AssessmentModuleEngine {
   constructor(
     private readonly prisma: PrismaService,
     private readonly judge0Service: Judge0Service,
+    private readonly qaAutomationSandboxService: QaAutomationSandboxService,
   ) {}
 
   async validateSubmission(submission: any): Promise<boolean> {
@@ -128,10 +130,11 @@ export class CodingService implements AssessmentModuleEngine {
     }
 
     const content = question.content as any;
+    const isAutomation = content?.category === "AUTOMATION";
     const visibleTests = this.getQuestionTestCases(content, SubmissionType.RUN);
 
     // 3. Create CodingExecution record as PENDING
-    const languageId = this.judge0Service.getLanguageId(dto.language);
+    const languageId = isAutomation ? 99 : this.judge0Service.getLanguageId(dto.language);
     const execution = await this.prisma.codingExecution.create({
       data: {
         sessionId: dto.sessionId,
@@ -141,17 +144,46 @@ export class CodingService implements AssessmentModuleEngine {
         sourceCode: dto.sourceCode,
         status: ExecutionStatus.PENDING,
         passedTests: 0,
-        totalTests: visibleTests.length,
+        totalTests: isAutomation ? 1 : visibleTests.length,
       },
     });
 
-    // 4. Run execution tests against sample cases
-    const result = await this.judge0Service.runTests(
-      dto.sourceCode,
-      languageId,
-      dto.questionId,
-      visibleTests,
-    );
+    // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
+    let result: any;
+    if (isAutomation) {
+      const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
+        content?.framework || "SELENIUM",
+        dto.language || content?.language || "python",
+        dto.sourceCode
+      );
+      result = {
+        status: sandboxRes.status,
+        passedTests: sandboxRes.passedTests,
+        totalTests: sandboxRes.totalTests,
+        stdout: sandboxRes.stdout,
+        stderr: sandboxRes.stderr,
+        compileOutput: sandboxRes.compileOutput || "",
+        executionTime: sandboxRes.executionTime,
+        memoryUsage: sandboxRes.memoryUsage,
+        results: [
+          {
+            passed: sandboxRes.status === ExecutionStatus.COMPLETED,
+            status: sandboxRes.status,
+            executionTime: sandboxRes.executionTime,
+            memoryUsage: sandboxRes.memoryUsage,
+            stdout: sandboxRes.stdout,
+            stderr: sandboxRes.stderr,
+          },
+        ],
+      };
+    } else {
+      result = await this.judge0Service.runTests(
+        dto.sourceCode,
+        languageId,
+        dto.questionId,
+        visibleTests,
+      );
+    }
 
     // 5. Update database record with final results
     const updatedExecution = await this.prisma.codingExecution.update({
@@ -258,10 +290,11 @@ export class CodingService implements AssessmentModuleEngine {
     }
 
     const content = question.content as any;
+    const isAutomation = content?.category === "AUTOMATION";
     const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
 
     // 3. Create CodingExecution record as PENDING
-    const languageId = this.judge0Service.getLanguageId(dto.language);
+    const languageId = isAutomation ? 99 : this.judge0Service.getLanguageId(dto.language);
     const execution = await this.prisma.codingExecution.create({
       data: {
         sessionId: dto.sessionId,
@@ -271,17 +304,36 @@ export class CodingService implements AssessmentModuleEngine {
         sourceCode: dto.sourceCode,
         status: ExecutionStatus.PENDING,
         passedTests: 0,
-        totalTests: allTests.length,
+        totalTests: isAutomation ? 1 : allTests.length,
       },
     });
 
-    // 4. Run execution tests against sample + hidden cases
-    const result = await this.judge0Service.runTests(
-      dto.sourceCode,
-      languageId,
-      dto.questionId,
-      allTests,
-    );
+    // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
+    let result: any;
+    if (isAutomation) {
+      const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
+        content?.framework || "SELENIUM",
+        dto.language || content?.language || "python",
+        dto.sourceCode
+      );
+      result = {
+        status: sandboxRes.status,
+        passedTests: sandboxRes.passedTests,
+        totalTests: sandboxRes.totalTests,
+        stdout: sandboxRes.stdout,
+        stderr: sandboxRes.stderr,
+        compileOutput: sandboxRes.compileOutput || "",
+        executionTime: sandboxRes.executionTime,
+        memoryUsage: sandboxRes.memoryUsage,
+      };
+    } else {
+      result = await this.judge0Service.runTests(
+        dto.sourceCode,
+        languageId,
+        dto.questionId,
+        allTests,
+      );
+    }
 
     // 5. Update database record with final results
     const updatedExecution = await this.prisma.codingExecution.update({

@@ -5,6 +5,6 @@ export const FIXTURE_DRIVE: Drive = {
   name: 'Senior Engineer Cohort — Q3 2024',
   roleName: 'Senior Software Engineer',
   status: 'open',
-  scheduleStart: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  scheduleStart: undefined as any,
   scheduleEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 }

@@ -126,7 +126,7 @@ function IndividualResultPage() {
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY">("CODING");
+  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "INTEGRITY">("CODING");
   const [integrityCategoryFilter, setIntegrityCategoryFilter] = useState("ALL");
   const [integrityFilterOpen, setIntegrityFilterOpen] = useState(false);
 
@@ -169,13 +169,14 @@ function IndividualResultPage() {
     };
 
     const flagCount = detail.integrityFlags?.length || 0;
-    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any }> = [
+    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "INTEGRITY"; label: string; icon: any }> = [
       { id: "CODING", label: "Coding / DSA", icon: Code2 },
       { id: "DEBUGGING", label: "Debugging", icon: Bug },
       { id: "SQL", label: "SQL Execution", icon: Database },
       { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
       { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
       { id: "SIMULATION", label: "Simulation Log", icon: Play },
+      { id: "TEST_SCENARIOS", label: "Test Scenarios", icon: FileCheck2 },
       { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
     ];
 
@@ -385,7 +386,7 @@ function IndividualResultPage() {
               AI Confidence
             </span>
             <span className="text-[24px] font-mono font-bold text-[#0B0B0D]">
-              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
                 ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
                 : "Pending"}
             </span>
@@ -727,6 +728,73 @@ function IndividualResultPage() {
           );
         })()}
 
+        {/* TEST SCENARIOS TAB */}
+        {activeTab === "TEST_SCENARIOS" && (() => {
+          const scenarioResponses = (detail.moduleResponses || []).filter(
+            (r) => r.moduleType === "TEST_SCENARIOS" || r.responsePayload?.moduleType === "TEST_SCENARIOS" || (r as any).question?.moduleType === "TEST_SCENARIOS" || r.responsePayload?.answer !== undefined
+          );
+
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E6EA] pb-3">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Test Scenarios Submissions &amp; Evaluation</h3>
+                  <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Total Scenarios: {scenarioResponses.length}
+                </span>
+              </div>
+
+              {scenarioResponses.length === 0 ? (
+                <div className="p-8 text-center bg-white border border-[#E6E6EA] rounded-lg text-[#8B8B93] text-[13px]">
+                  No Test Scenario responses recorded for this candidate session.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {scenarioResponses.map((res: any, index: number) => {
+                    const qObj = res.question || {};
+                    const qContent = qObj.content || {};
+                    const promptText = res.prompt || qObj.prompt || qContent.prompt || qContent.question || `Test Scenario #${index + 1}`;
+                    const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
+                    const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
+                    const category = qContent.category || qObj.category || "Scenario Evaluation";
+
+                    return (
+                      <div key={res.id || index} className="border border-[#E6E6EA] rounded-md p-5 space-y-4 bg-[#F7F7F9]">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <span className="text-[11px] font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
+                              Scenario {index + 1} • {category}
+                            </span>
+                            <h4 className="text-[14px] font-bold text-[#0B0B0D]">{promptText}</h4>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-mono uppercase text-[#5B5B64] font-semibold block">
+                            Candidate's Solution &amp; Action Plan:
+                          </label>
+                          <div className="bg-white border border-[#E6E6EA] p-4 rounded-md text-[13px] font-sans text-[#0B0B0D] leading-relaxed whitespace-pre-wrap">
+                            {candidateAnswer}
+                          </div>
+                        </div>
+
+                        {expectedAnswer && (
+                          <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-[12px] text-indigo-950 space-y-1">
+                            <span className="font-semibold text-indigo-900 block font-mono uppercase text-[10px]">Expected Criteria / Key Guidelines:</span>
+                            <p className="leading-relaxed">{expectedAnswer}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* AI PROMPTING TAB */}
         {activeTab === "AI_PROMPTING" && (() => {
           const aiPromptingResponses = (detail.moduleResponses || []).filter(
@@ -878,7 +946,9 @@ function IndividualResultPage() {
                 <div className="text-right">
                   <span className="text-[11px] font-mono uppercase text-[#8B8B93]">AI Confidence</span>
                   <div className="text-sm font-semibold text-[#0C6B58] mt-0.5">
-                    {detail.score?.aiConfidence ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%` : "N/A"}
+                    {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score?.aiConfidence
+                      ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%`
+                      : "Pending"}
                   </div>
                 </div>
               </div>
@@ -955,23 +1025,43 @@ function IndividualResultPage() {
               <span className="text-[11px] font-mono uppercase text-[#8B8B93] font-bold block">
                 3. Candidate Telemetry &amp; Action Audit Stream
               </span>
-              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1 max-h-48 overflow-y-auto">
-                {((detail as any).telemetryActions && Array.isArray((detail as any).telemetryActions) && (detail as any).telemetryActions.length > 0) ? (
-                  (detail as any).telemetryActions.map((act: any, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-[#8B8B93] shrink-0">[{act.timestamp || `#${idx + 1}`}]</span>
-                      <span className="font-semibold text-[#2F5CFF]">[{act.type || "ACTION"}]</span>
-                      <span className="text-[#0B0B0D] truncate">{act.label || "Action logged"}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-[#8B8B93] italic">No telemetry actions recorded during session.</div>
-                )}
-                {((detail as any).simulationSnapshot?.telemetryCount || 0) > 0 && (
-                  <div className="text-emerald-600 font-semibold pt-2 border-t border-[#E6E6EA] mt-1">
-                    ✓ Total Recorded Work Events: {(detail as any).simulationSnapshot?.telemetryCount}
-                  </div>
-                )}
+              <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[11px] font-mono text-[#5B5B64] space-y-1.5 max-h-56 overflow-y-auto">
+                {(() => {
+                  const rawActions = (detail as any).telemetryActions || (detail as any).simulationSnapshot?.telemetryActions || [];
+                  const actionsList = Array.isArray(rawActions) && rawActions.length > 0
+                    ? rawActions
+                    : (detail as any).simulationSnapshot?.evaluation?.actionTimeline?.map((item: any) => ({
+                        timestamp: item.timestamp,
+                        type: "ACTION",
+                        label: item.action,
+                      })) || [];
+
+                  const totalCount = Math.max(actionsList.length, (detail as any).simulationSnapshot?.telemetryCount || 0);
+
+                  if (actionsList.length === 0) {
+                    return <div className="text-[#8B8B93] italic">No telemetry actions recorded during session.</div>;
+                  }
+
+                  return (
+                    <>
+                      {actionsList.map((act: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 py-0.5 border-b border-gray-100 last:border-0">
+                          <span className="text-[#8B8B93] shrink-0 font-mono text-[10px]">[{act.timestamp || `#${idx + 1}`}]</span>
+                          <span className="font-semibold text-[#2F5CFF] shrink-0 text-[10px] px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded">
+                            [{act.type || "ACTION"}]
+                          </span>
+                          <span className="text-[#0B0B0D] text-[11px] truncate">{act.label || act.action || "Action logged"}</span>
+                        </div>
+                      ))}
+                      {totalCount > 0 && (
+                        <div className="text-emerald-600 font-semibold pt-2 border-t border-[#E6E6EA] mt-1 text-[11px] flex items-center gap-1.5">
+                          <span>✓ Total Recorded Work Events:</span>
+                          <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-[10px]">{totalCount}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

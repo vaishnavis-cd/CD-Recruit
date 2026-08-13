@@ -6,7 +6,7 @@ import { type QuestionSlice, createQuestionSlice } from "./slices/questionSlice"
 import { type CommonSlice, createCommonSlice } from "./slices/commonSlice";
 import { clearStoredToken, getStoredToken } from "./auth";
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3001/api/v1";
+export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
 // Global fetch interceptor to handle 401 errors by clearing token and redirecting to login
 if (typeof window !== "undefined") {

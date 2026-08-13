@@ -21,7 +21,7 @@ export interface InviteSlice {
   bulkResend: (ids: string[]) => Promise<void>;
 }
 
-const CANDIDATE_BASE_URL = (import.meta as any).env?.VITE_CANDIDATE_URL || "http://localhost:3000";
+const CANDIDATE_BASE_URL = (import.meta as any).env?.VITE_CANDIDATE_URL || "http://localhost:5173";
 
 function mapBackendInvite(invite: any): Invite {
   return {

@@ -25,6 +25,11 @@ import { useStore } from "../lib/store";
 import { ModuleType } from "@cd-recruit/shared-types";
 import { CodeEditor } from "../components/common/CodeEditor";
 import { processQuestionTags } from "./drives.$id";
+import {
+  extractQuestionTier,
+  MODULE_LABEL_MAP,
+  getDepartmentAllowedModules,
+} from "../lib/roleModules";
 
 export const Route = createFileRoute("/questions")({
   component: QuestionBankPage,
@@ -53,6 +58,7 @@ function QuestionBankPage() {
   const [query, setQuery] = useState("");
   const [modFilter, setModFilter] = useState<string>("all");
   const [diffFilter, setDiffFilter] = useState<string>("all");
+  const [tierFilter, setTierFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -533,8 +539,10 @@ function QuestionBankPage() {
             <option value="MCQ">MCQ</option>
             <option value="SQL">SQL</option>
             <option value="CODING">Coding</option>
+            <option value="DEBUGGING">Debugging</option>
             <option value="AI_PROMPTING">AI Prompting</option>
-            <option value="SIMULATION">Simulation</option>
+            <option value="SIMULATION">Context Simulation</option>
+            <option value="TEST_SCENARIOS">Test Scenarios</option>
           </select>
 
           {/* Difficulty Filter */}
@@ -549,18 +557,33 @@ function QuestionBankPage() {
             <option value="hard">Hard</option>
           </select>
 
-          {/* Role Filter */}
+          {/* Tier Filter */}
+          <select
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+          >
+            <option value="all">All Tiers</option>
+            <option value="TIER_1">Tier 1</option>
+            <option value="TIER_2">Tier 2</option>
+          </select>
+
+          {/* Department / Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
             className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
           >
-            <option value="all">All Roles</option>
+            <option value="all">All Roles / Depts</option>
+            <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+            <option value="DATA_ENGINEERING">Data Engineering</option>
+            <option value="QA">QA</option>
+            <option value="SRE">SRE</option>
+            <option value="SYSOPS">SysOps</option>
+            <option value="ITOPS">ITOps</option>
+            <option value="PMO">PMO</option>
+            <option value="SECOPS">SecOps</option>
             <option value="General">General</option>
-            <option value="Backend Engineer">Backend Engineer</option>
-            <option value="Full-stack Engineer">Full-stack Engineer</option>
-            <option value="Data Engineer">Data Engineer</option>
-            <option value="ML Engineer">ML Engineer</option>
           </select>
 
           <div className="relative group">
@@ -756,6 +779,15 @@ function QuestionBankPage() {
                       }`}
                     >
                       {q.difficulty}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
+                        extractQuestionTier(q) === "TIER_2"
+                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                          : "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                      }`}
+                    >
+                      {extractQuestionTier(q) === "TIER_2" ? "TIER 2" : "TIER 1"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
                       Role: {q.role || "General"}

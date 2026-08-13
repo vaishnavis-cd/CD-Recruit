@@ -34,9 +34,12 @@ export interface UpdateRoleTemplateDto {
 
 @Injectable()
 export class RoleTemplateService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
+   * Find the active RoleTemplate for a given department and level.
+   * Throws NotFoundException if no active template exists.
+   * NEVER auto-creates a placeholder template.
    * Lookup current active RoleTemplate for a specific Department and ExperienceLevel.
    * Throws NotFoundException if no active row exists. Never auto-creates.
    */
@@ -86,14 +89,14 @@ export class RoleTemplateService {
         questions:
           questions && questions.length > 0
             ? {
-                create: questions.map((q, idx) => ({
-                  questionId: q.questionId,
-                  moduleType: q.moduleType,
-                  orderIndex: q.orderIndex ?? idx,
-                  questionVersionSnapshot: q.questionVersionSnapshot,
-                  pointShare: q.pointShare,
-                })),
-              }
+              create: questions.map((q, idx) => ({
+                questionId: q.questionId,
+                moduleType: q.moduleType,
+                orderIndex: q.orderIndex ?? idx,
+                questionVersionSnapshot: q.questionVersionSnapshot,
+                pointShare: q.pointShare,
+              })),
+            }
             : undefined,
       },
       include: {

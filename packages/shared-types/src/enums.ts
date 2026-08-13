@@ -29,6 +29,32 @@ export enum SessionStatus {
   ABANDONED = "ABANDONED",
 }
 
+export enum Department {
+  SOFTWARE_ENGINEERING = "SOFTWARE_ENGINEERING",
+  DATA_ENGINEERING = "DATA_ENGINEERING",
+  QA = "QA",
+  SRE = "SRE",
+  SYSOPS = "SYSOPS",
+  ITOPS = "ITOPS",
+  PMO = "PMO",
+  SECOPS = "SECOPS",
+}
+
+export enum ExperienceLevel {
+  FRESHER = "FRESHER",
+  EXPERIENCED = "EXPERIENCED",
+}
+
+export enum QuestionCategory {
+  ALGORITHM = "ALGORITHM",
+  AUTOMATION = "AUTOMATION",
+}
+
+export enum AutomationFramework {
+  SELENIUM = "SELENIUM",
+  PLAYWRIGHT = "PLAYWRIGHT",
+}
+
 // ---------------------------------------------------------------------------
 // Questions / Modules
 // ---------------------------------------------------------------------------
@@ -40,6 +66,7 @@ export enum ModuleType {
   DEBUGGING = "DEBUGGING",
   AI_PROMPTING = "AI_PROMPTING",
   SIMULATION = "SIMULATION",
+  TEST_SCENARIOS = "TEST_SCENARIOS",
 }
 
 // ---------------------------------------------------------------------------

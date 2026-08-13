@@ -112,20 +112,71 @@ export class QuestionService implements OnModuleInit {
   }
 
   async list(query: ListQuestionsQueryDto) {
-    const { page, pageSize, moduleType, difficulty, search, status, role } = query;
+    const { page, pageSize, moduleType, difficulty, search, status, role, tier, department } = query as any;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
 
     const where: any = {};
-    if (moduleType) {
-      where.moduleType = moduleType;
+
+    // 1. Role / Department module restrictions
+    const targetDept = department || role;
+    if (targetDept && targetDept !== "all") {
+      const deptUpper = targetDept.toUpperCase().trim();
+      let allowedMods: string[] = [];
+
+      if (deptUpper.includes("PMO") || deptUpper.includes("PROJECT")) allowedMods = ["MCQ", "TEST_SCENARIOS"];
+      else if (deptUpper.includes("SRE") || deptUpper.includes("RELIABILITY")) allowedMods = ["MCQ", "TEST_SCENARIOS"];
+      else if (deptUpper.includes("SYSOPS")) allowedMods = ["MCQ", "TEST_SCENARIOS"];
+      else if (deptUpper.includes("ITOPS")) allowedMods = ["MCQ", "TEST_SCENARIOS"];
+      else if (deptUpper.includes("SECOPS") || deptUpper.includes("SECURITY")) allowedMods = ["MCQ", "TEST_SCENARIOS"];
+      else if (deptUpper.includes("DATA")) allowedMods = ["MCQ", "SQL", "CODING"];
+      else if (deptUpper.includes("QA") || deptUpper.includes("QUALITY") || deptUpper.includes("TEST")) allowedMods = ["MCQ", "SQL", "CODING", "DEBUGGING", "TEST_SCENARIOS"];
+      else if (deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER")) allowedMods = ["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"];
+
+      if (allowedMods.length > 0) {
+        where.moduleType = { in: allowedMods as any[] };
+      }
     }
+
+    if (moduleType) {
+      if (where.moduleType?.in) {
+        // If moduleType is requested, make sure it is in allowedMods
+        if (where.moduleType.in.includes(moduleType)) {
+          where.moduleType = moduleType;
+        } else {
+          // Requested module not allowed for this role/department
+          where.moduleType = "NONE"; // Will match 0 records
+        }
+      } else {
+        where.moduleType = moduleType;
+      }
+    }
+
     if (difficulty) {
       where.difficulty = difficulty;
     }
-    if (role) {
-      where.role = { contains: role, mode: "insensitive" };
+    if (role && role !== "all") {
+      const deptUpper = role.toUpperCase();
+      const altDept = deptUpper === "SOFTWARE_ENGINEERING" ? "SDE" : (deptUpper === "SDE" ? "SOFTWARE_ENGINEERING" : deptUpper);
+      where.OR = [
+        { role: { equals: role, mode: "insensitive" } },
+        { role: { equals: altDept, mode: "insensitive" } },
+        { content: { path: ["department"], equals: role } },
+        { content: { path: ["department"], equals: altDept } },
+        { role: "General" },
+      ];
     }
+
+    // Tier filtering
+    if (tier && tier !== "all") {
+      const tierUpper = tier.toUpperCase();
+      if (tierUpper === "TIER_2" || tierUpper === "TIER2") {
+        where.tags = { hasSome: ["tier_2", "tier2"] };
+      } else if (tierUpper === "TIER_1" || tierUpper === "TIER1") {
+        where.NOT = { tags: { hasSome: ["tier_2", "tier2"] } };
+      }
+    }
+
     if (status) {
       where.status = status;
     } else {
@@ -133,10 +184,17 @@ export class QuestionService implements OnModuleInit {
     }
 
     if (search) {
-      where.OR = [
-        { tags: { has: search } },
-        { role: { contains: search, mode: "insensitive" } },
+      const s = search.toLowerCase().trim();
+      const searchOr = [
+        { tags: { has: s } },
+        { role: { contains: s, mode: "insensitive" } },
       ];
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOr }];
+        delete where.OR;
+      } else {
+        where.OR = searchOr;
+      }
     }
 
     const [items, total] = await Promise.all([
