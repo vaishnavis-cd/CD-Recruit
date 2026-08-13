@@ -77,7 +77,7 @@ async function bootstrap(): Promise<void> {
         type: "apiKey",
         name: "X-API-Key",
         in: "header",
-        description: "Partner API key (pk_live_... — issued from Settings → Integrations)",
+        description: "Partner API key (pk_live_... � issued from Settings ? Integrations)",
       },
       "X-API-Key",
     )
@@ -85,6 +85,7 @@ async function bootstrap(): Promise<void> {
     .addTag("candidate", "Candidate session management & submissions")
     .addTag("admin", "Recruiter drives, candidates & reviewer decisions")
     .addTag("partner", "Partner ATS integration endpoints (X-API-Key auth)")
+    .addTag("simulation", "Contextual simulation workspace & 4-part evaluation")
     .addTag("simulation", "Contextual simulation workspace & 4-part evaluation")
     .addTag("proctoring", "Proctoring integrity & evidence upload")
     .addTag("mcq", "MCQ assessment module")
@@ -141,7 +142,7 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  await app.listen(port, "0.0.0.0");
+  await app.listen(port);
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);
   logger.log(`Swagger UI: http://localhost:${port}/api-docs`);
@@ -152,4 +153,3 @@ bootstrap().catch((err) => {
   console.error("Fatal error during bootstrap:", err);
   process.exit(1);
 });
-

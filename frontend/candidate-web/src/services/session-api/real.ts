@@ -47,6 +47,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     const drive: Drive = {
       ...FIXTURE_DRIVE,
       id: payload?.driveId || FIXTURE_DRIVE.id,
+      scheduleStart: undefined as any,
     }
 
     let realSession: Session | null = null
@@ -55,6 +56,9 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       const data = startRes.data
       if (data.scheduledTime !== undefined) {
         invite.scheduledTime = data.scheduledTime
+      }
+      if (data.scheduleStart !== undefined) {
+        drive.scheduleStart = data.scheduleStart
       }
       if (data.bufferMinutes) {
         invite.bufferMinutes = data.bufferMinutes
@@ -192,6 +196,19 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
         sessionId,
         questionId,
         selectedOptions: optionsArray,
+        timeSpentSeconds: 0,
+      })
+      return
+    }
+
+    // Check if it is a Test Scenario question
+    const isTestScenarioQuestion = questionSummary?.moduleType === 'TEST_SCENARIOS'
+    if (isTestScenarioQuestion) {
+      const scenarioAnswer = typeof val === 'string' ? val : (val as any)?.answer || (val as any)?.text || ''
+      await apiClient.post('/test-scenarios/submit', {
+        sessionId,
+        questionId,
+        answer: scenarioAnswer,
         timeSpentSeconds: 0,
       })
       return

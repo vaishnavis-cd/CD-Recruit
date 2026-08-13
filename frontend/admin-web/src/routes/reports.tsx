@@ -136,13 +136,17 @@ const RANGES = [
   }, [allSessions]);
 
   const avgConsistency = useMemo(() => {
-    if (!allSessions.length) return 0;
-    const total = allSessions.reduce((acc, s: any) => {
-      const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore ?? 0;
+    const validSessions = allSessions.filter((s: any) => {
+      const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore;
+      return raw !== null && raw !== undefined;
+    });
+    if (!validSessions.length) return null;
+    const total = validSessions.reduce((acc, s: any) => {
+      const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore;
       const val = raw <= 1.0 ? raw * 100 : raw;
       return acc + val;
     }, 0);
-    return Math.round(total / allSessions.length);
+    return Math.round(total / validSessions.length);
   }, [allSessions]);
 
   // Dynamic Module Performance Averages

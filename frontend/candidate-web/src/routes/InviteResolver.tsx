@@ -84,12 +84,14 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
 
         // Time-Gating Check for Scheduled vs Self-Paced (Rolling) Invites
         // For null scheduledTime (self-paced partner invites): skip Too Early / Buffer / Grace states -> go directly to System Check (full mode)
-        const scheduledTimeStr = invite.scheduledTime
-        if (scheduledTimeStr) {
+        const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024'
+        const scheduledTimeStr = invite.scheduledTime || null
+        if (scheduledTimeStr && !isDemoToken) {
           const scheduledMs = new Date(scheduledTimeStr).getTime()
           const nowMs = services.time.getServerNow()
           const unlockTimeMs = scheduledMs - 15 * 60 * 1000 // System check unlocks 15m prior to test start
-          const cutoffMs = scheduledMs + 20 * 60 * 1000 // Grace period cutoff is 20m after test start (10:20 AM for 10:00 AM drive)
+          const graceMins = invite.graceMinutes || (drive as any)?.graceMinutes || 120
+          const cutoffMs = scheduledMs + graceMins * 60 * 1000 // Grace period cutoff
 
           if (!isNaN(scheduledMs)) {
             if (nowMs < unlockTimeMs) {
@@ -97,7 +99,7 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
               transitionTo({ type: 'too-early', scheduledTimeMs: scheduledMs, inviteToken: token })
               return
             } else if (nowMs > cutoffMs && !isSessionAlreadyStarted) {
-              console.log('[InviteResolver] Candidate entered after 20-min grace window. Showing expired page.')
+              console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
               transitionTo({ type: 'expired', reason: 'grace-expired' as any })
               return
             } else {

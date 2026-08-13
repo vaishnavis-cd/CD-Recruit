@@ -14,6 +14,22 @@ datasource db {
 
 // ---------- Enums ----------
 
+enum Department {
+  SOFTWARE_ENGINEERING
+  DATA_ENGINEERING
+  QA
+  SRE
+  SYSOPS
+  ITOPS
+  PMO
+  SECOPS
+}
+
+enum ExperienceLevel {
+  FRESHER
+  EXPERIENCED
+}
+
 enum ModuleType {
   MCQ
   SQL
@@ -21,6 +37,7 @@ enum ModuleType {
   DEBUGGING
   AI_PROMPTING
   SIMULATION
+  TEST_SCENARIOS
 }
 
 enum SessionStatus {
@@ -105,24 +122,6 @@ enum ConsentType {
   AUDIO
 }
 
-enum Department {
-  SOFTWARE_ENGINEERING
-  DATA_ENGINEERING
-  PMO
-  QA
-  SYSOPS
-  ITOPS
-  SECOPS
-  SRE
-}
-
-enum ExperienceLevel {
-  FRESHER
-  EXPERIENCED
-}
-
-
-
 model RoleTemplate {
   id              String           @id @default(uuid())
   roleName        String           @map("role_name")
@@ -143,28 +142,28 @@ model RoleTemplate {
 }
 
 model Drive {
-  id             String      @id @default(uuid())
-  organizationId String?     @map("organization_id")
-  name           String
-  roleTemplateId String      @map("role_template_id")
-  moduleConfig   Json        @map("module_config")
-  status         DriveStatus @default(DRAFT)
-  scheduleStart  DateTime?   @map("schedule_start")
-  scheduleEnd    DateTime?   @map("schedule_end")
-  createdById    String      @map("created_by_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  bufferMinutes  Int         @default(15) @map("buffer_minutes")
-  graceMinutes   Int         @default(5) @map("grace_minutes")
-  slotDistribution Json?     @map("slot_distribution")
-  originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
-  isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
+  id                String        @id @default(uuid())
+  organizationId    String?       @map("organization_id")
+  name              String
+  roleTemplateId    String        @map("role_template_id")
+  moduleConfig      Json          @map("module_config")
+  status            DriveStatus   @default(DRAFT)
+  scheduleStart     DateTime?     @map("schedule_start")
+  scheduleEnd       DateTime?     @map("schedule_end")
+  createdById       String        @map("created_by_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  bufferMinutes     Int           @default(15) @map("buffer_minutes")
+  graceMinutes      Int           @default(5) @map("grace_minutes")
+  slotDistribution  Json?         @map("slot_distribution")
+  originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
+  isEditingUnlocked Boolean       @default(false) @map("is_editing_unlocked")
 
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
-  createdBy      Staff         @relation(fields: [createdById], references: [id])
-  sessions       Session[]
-  invites        Invite[]
-  questions      DriveQuestion[]
+  organization Organization?   @relation(fields: [organizationId], references: [id])
+  roleTemplate RoleTemplate   @relation(fields: [roleTemplateId], references: [id])
+  createdBy    Staff          @relation(fields: [createdById], references: [id])
+  sessions     Session[]
+  invites      Invite[]
+  questions    DriveQuestion[]
 
   @@map("drive")
 }
@@ -372,13 +371,13 @@ model EvidenceClip {
 model Score {
   id                     String  @id @default(uuid())
   sessionId              String  @unique @map("session_id")
-  compositeScore         Float   @map("composite_score")
-  coreScore              Float   @default(0) @map("core_score")
-  bonusScore             Float   @default(0) @map("bonus_score")
-  totalScore             Float   @default(0) @map("total_score")
+  compositeScore         Float?  @map("composite_score")
+  coreScore              Float?  @map("core_score")
+  bonusScore             Float?  @map("bonus_score")
+  totalScore             Float?  @map("total_score")
   moduleScores           Json    @map("module_scores")
-  sayDoConsistencyScore  Float   @map("say_do_consistency_score")
-  aiConfidence           Float   @map("ai_confidence")
+  sayDoConsistencyScore  Float?  @map("say_do_consistency_score")
+  aiConfidence           Float?  @map("ai_confidence")
   humanReviewed          Boolean @default(false) @map("human_reviewed")
   sayDoRationale         String? @map("say_do_rationale")
   sayDoMismatches        Json?   @map("say_do_mismatches")

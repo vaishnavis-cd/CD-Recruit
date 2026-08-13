@@ -14,14 +14,14 @@ export interface DriveModuleConfigEntry {
 }
 
 export interface CompositeScoreResult {
-  coreScore: number;
-  bonusScore: number;
-  totalScore: number;
-  compositeScore: number;
-  sayDoConsistencyScore: number;
-  aiConfidence: number;
+  coreScore: number | null;
+  bonusScore: number | null;
+  totalScore: number | null;
+  compositeScore: number | null;
+  sayDoConsistencyScore: number | null;
+  aiConfidence: number | null;
   gradingSource: string;
-  sayDoRationale: string;
+  sayDoRationale: string | null;
   moduleScores: Record<string, number>;
 }
 
@@ -82,7 +82,8 @@ interface QuestionScoreItem {
 }
 
 // Private Readonly Constants (Replacing Magic Numbers)
-const AUTOMATED_EVALUATION_ENGINE = "AUTOMATED_EVALUATION_ENGINE";
+const MODULE_SCORING = "module_scoring";
+const NO_DATA = "no_data";
 
 const DEFAULT_MCQ_FALLBACK_SCORE = 0.8;
 const DEFAULT_CODING_FALLBACK_SCORE = 0.85;
@@ -178,6 +179,8 @@ export class SessionScoringService {
         accuracy = this.evaluateAIPrompting(payload);
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
+      } else if (mod === "TEST_SCENARIOS") {
+        accuracy = this.evaluateTestScenarios(payload);
       }
 
       moduleQuestionScores[mod].push({
@@ -201,14 +204,17 @@ export class SessionScoringService {
     const hasExecutions = codingExecutions.length > 0 || sqlExecutions.length > 0;
     const aiConfidence = this.calculateAIConfidence(responses.length, questionIds.length, hasExecutions);
 
+    const hasNoData = responses.length === 0;
+    const gradingSource = !hasNoData ? MODULE_SCORING : NO_DATA;
+
     const result: CompositeScoreResult = {
-      coreScore,
-      bonusScore,
-      totalScore,
-      compositeScore,
+      coreScore: hasNoData ? null : coreScore,
+      bonusScore: hasNoData ? null : bonusScore,
+      totalScore: hasNoData ? null : totalScore,
+      compositeScore: hasNoData ? null : compositeScore,
       sayDoConsistencyScore,
       aiConfidence,
-      gradingSource: AUTOMATED_EVALUATION_ENGINE,
+      gradingSource,
       sayDoRationale,
       moduleScores,
     };
@@ -370,6 +376,21 @@ export class SessionScoringService {
   }
 
   /**
+   * Evaluate TEST_SCENARIOS module accuracy (0.0 to 1.0).
+   */
+  private evaluateTestScenarios(payload: ResponsePayload | null): number {
+    const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+    if (typeof evalScore === "number") {
+      return evalScore > 1 ? evalScore / 100 : evalScore;
+    }
+    const ans = payload?.answer || payload?.text || payload?.response;
+    if (typeof ans === "string" && ans.trim().length > 10) {
+      return 0.85;
+    }
+    return 0.0;
+  }
+
+  /**
    * Compute normalized score per module (0.0 to 1.0).
    */
   private calculateModuleScores(
@@ -476,8 +497,8 @@ export class SessionScoringService {
       }
     }
 
-    let sayDoConsistencyScore: number;
-    let sayDoRationale: string;
+    let sayDoConsistencyScore: number | null;
+    let sayDoRationale: string | null;
 
     const scoreValues = Object.values(moduleScores);
     if (sayDoDivergences.length > 0) {
@@ -491,18 +512,18 @@ export class SessionScoringService {
       sayDoConsistencyScore = Math.max(0.0, this.roundToTwoDecimals(1.0 - stdDev));
       sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${this.roundToTwoDecimals(stdDev)}).`;
     } else {
-      sayDoConsistencyScore = Math.min(1.0, compositeScore / 100);
-      sayDoRationale = `Evaluated candidate performance across ${responses.length} response(s).`;
+      sayDoConsistencyScore = null;
+      sayDoRationale = null;
     }
 
-    return { sayDoConsistencyScore, sayDoRationale };
+    return { sayDoConsistencyScore: sayDoConsistencyScore as any, sayDoRationale: sayDoRationale as any };
   }
 
   /**
    * Compute dynamic AI Confidence score based on evaluation completeness and test executions.
    */
-  private calculateAIConfidence(responsesCount: number, questionIdsCount: number, hasExecutions: boolean): number {
-    if (responsesCount === 0) return 0.0;
+  private calculateAIConfidence(responsesCount: number, questionIdsCount: number, hasExecutions: boolean): number | null {
+    if (responsesCount === 0) return null;
 
     const completionRatio = Math.min(1.0, responsesCount / Math.max(1, questionIdsCount));
     const executionBonus = hasExecutions ? AI_CONFIDENCE_EXECUTION_BONUS : 0.0;
@@ -515,9 +536,15 @@ export class SessionScoringService {
    * Persist computed scores in database and route confidence gating.
    */
   async saveScores(sessionId: string, scoreData: CompositeScoreResult): Promise<void> {
+    const existing = await this.prisma.score.findUnique({ where: { sessionId } });
+    if (existing && existing.gradingSource !== NO_DATA && existing.gradingSource !== "placeholder" && existing.gradingSource !== "AUTOMATED_EVALUATION_ENGINE") {
+      this.logger.debug(`[saveScores] Preserving existing score for session ${sessionId} (gradingSource: ${existing.gradingSource})`);
+      return;
+    }
+
     const scoringConfig = await this.settingsService.getScoringConfig();
     const threshold = scoringConfig.aiConfidenceThreshold ?? DEFAULT_AI_CONFIDENCE_THRESHOLD;
-    const isAutoPublished = scoreData.aiConfidence >= threshold;
+    const isAutoPublished = (scoreData.aiConfidence ?? 0) >= threshold;
 
     const data = {
       compositeScore: scoreData.compositeScore,

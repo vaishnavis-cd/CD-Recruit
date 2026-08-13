@@ -100,10 +100,12 @@ function DrivesPage() {
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
-    SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
-    CODING: { enabled: true, durationMinutes: 30, weight: 0.30 },
-    AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.20 },
-    SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+    SQL: { enabled: true, durationMinutes: 20, weight: 0.15 },
+    CODING: { enabled: true, durationMinutes: 30, weight: 0.20 },
+    DEBUGGING: { enabled: true, durationMinutes: 20, weight: 0.15 },
+    AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.10 },
+    SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.10 },
+    TEST_SCENARIOS: { enabled: true, durationMinutes: 15, weight: 0.15 },
   });
 
   // Step 3: Selected Questions

@@ -2,10 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 export interface AiEvaluationResult {
-  score: number; // 0 to 100
+  score: number | null; // 0 to 100 or null if unavailable
   reasoning: string;
   feedback: string;
-  providerUsed: "GROQ" | "CEREBRAS" | "DEV_FALLBACK";
+  providerUsed: "GROQ" | "CEREBRAS" | "DEV_FALLBACK" | "UNAVAILABLE";
 }
 
 @Injectable()
@@ -148,12 +148,18 @@ Respond ONLY in strict JSON format:
         const cerebrasResult = await this.callCerebrasApi(systemPrompt, userContent);
         if (cerebrasResult) return { ...cerebrasResult, providerUsed: "CEREBRAS" };
       } catch (err: any) {
-        this.logger.warn(`Cerebras API evaluation failed: ${err.message}. Using Dev Fallback...`);
+        this.logger.warn(`Cerebras API evaluation failed: ${err.message}. Provider unavailable.`);
       }
     }
 
-    // 3. Heuristic Dev Fallback
-    return this.devFallbackEvaluation(rawTextForFallback);
+    // 3. Provider Unavailable Fallback
+    this.logger.warn("Both Groq and Cerebras providers failed or are unavailable.");
+    return {
+      score: null,
+      reasoning: "Evaluation Pending — AI evaluation provider unavailable.",
+      feedback: "AI evaluation provider unavailable.",
+      providerUsed: "UNAVAILABLE",
+    };
   }
 
   private async callGroqApi(systemPrompt: string, userContent: string) {
@@ -276,7 +282,7 @@ Respond ONLY in strict JSON format:
     try {
       const parsed = JSON.parse(content);
       return {
-        score: Math.min(100, Math.max(0, Number(parsed.score) || 75)),
+        score: typeof parsed.score === "number" && !isNaN(parsed.score) ? Math.min(100, Math.max(0, Math.round(parsed.score))) : null,
         reasoning: parsed.reasoning || "AI Evaluation completed.",
         feedback: parsed.feedback || "Good structure and relevant response.",
       };
@@ -286,19 +292,121 @@ Respond ONLY in strict JSON format:
     }
   }
 
-  private devFallbackEvaluation(rawText: string): AiEvaluationResult {
-    const length = (rawText || "").trim().length;
-    let score = 75;
-    if (length > 200) score = 88;
-    else if (length > 80) score = 78;
-    else if (length > 20) score = 65;
-    else score = 45;
+  /**
+   * Concept-checklist matching for Test Scenarios module.
+   * Matches candidate response against expected-concepts list.
+   * Score = weighted proportion of concepts matched (partial credit).
+   */
+  async evaluateTestScenarioConcepts(
+    prompt: string,
+    expectedConcepts: string[],
+    candidateResponse: string,
+  ): Promise<{
+    score: number | null;
+    conceptMatches: Array<{ concept: string; matched: boolean; reasoning: string }>;
+    providerUsed: string;
+  }> {
+    if (!candidateResponse || candidateResponse.trim().length === 0) {
+      return {
+        score: 0,
+        conceptMatches: expectedConcepts.map((c) => ({
+          concept: c,
+          matched: false,
+          reasoning: "No response submitted.",
+        })),
+        providerUsed: "NONE",
+      };
+    }
+
+    const systemPrompt = `You are a technical evaluator assessing a candidate's free-text response against a checklist of required concepts for a technical scenario.
+Scenario Prompt: "${prompt}"
+
+Required Expected Concepts Checklist:
+${JSON.stringify(expectedConcepts, null, 2)}
+
+Instructions:
+1. For EACH expected concept in the checklist, determine whether the candidate's response semantically addresses/covers it (true/false).
+2. Provide a short line of reasoning per concept.
+3. Compute overall score as the percentage of matched concepts (0 to 100).
+
+Respond strictly in JSON format:
+{
+  "conceptMatches": [
+    { "concept": "<exact expected concept string>", "matched": true|false, "reasoning": "<brief explanation>" }
+  ],
+  "matchedCount": <number>,
+  "totalConcepts": <number>,
+  "score": <number 0-100>
+}`;
+
+    const userContent = `Candidate Response:\n${candidateResponse}`;
+
+    const groqKey = this.getGroqApiKey();
+    const cerebrasKey = this.getCerebrasApiKey();
+
+    if (groqKey) {
+      try {
+        const raw = await this.callGroqApiText(systemPrompt, userContent);
+        if (raw) {
+          const jsonStart = raw.indexOf("{");
+          const jsonEnd = raw.lastIndexOf("}");
+          if (jsonStart !== -1 && jsonEnd !== -1) {
+            const parsed = JSON.parse(raw.substring(jsonStart, jsonEnd + 1));
+            if (parsed && Array.isArray(parsed.conceptMatches)) {
+              return {
+                score: typeof parsed.score === "number" ? parsed.score : Math.round((parsed.matchedCount / expectedConcepts.length) * 100),
+                conceptMatches: parsed.conceptMatches,
+                providerUsed: "GROQ",
+              };
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Groq concept evaluation failed: ${err.message}`);
+      }
+    }
+
+    if (cerebrasKey) {
+      try {
+        const raw = await this.callCerebrasApiText(systemPrompt, userContent);
+        if (raw) {
+          const jsonStart = raw.indexOf("{");
+          const jsonEnd = raw.lastIndexOf("}");
+          if (jsonStart !== -1 && jsonEnd !== -1) {
+            const parsed = JSON.parse(raw.substring(jsonStart, jsonEnd + 1));
+            if (parsed && Array.isArray(parsed.conceptMatches)) {
+              return {
+                score: typeof parsed.score === "number" ? parsed.score : Math.round((parsed.matchedCount / expectedConcepts.length) * 100),
+                conceptMatches: parsed.conceptMatches,
+                providerUsed: "CEREBRAS",
+              };
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Cerebras concept evaluation failed: ${err.message}`);
+      }
+    }
+
+    // Deterministic semantic keyword fallback if LLM providers unavailable
+    const matches = expectedConcepts.map((concept) => {
+      const keywords = concept.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      const respLower = candidateResponse.toLowerCase();
+      const matched = keywords.length > 0 && keywords.some((kw) => respLower.includes(kw));
+      return {
+        concept,
+        matched,
+        reasoning: matched ? `Semantic keyword match found in response.` : `Concept missing from candidate response.`,
+      };
+    });
+
+    const matchedCount = matches.filter((m) => m.matched).length;
+    const score = Math.round((matchedCount / expectedConcepts.length) * 100);
 
     return {
       score,
-      reasoning: "Rule-based dev fallback evaluation (length & structure check).",
-      feedback: "Candidate answer provided sufficient technical structure.",
-      providerUsed: "DEV_FALLBACK",
+      conceptMatches: matches,
+      providerUsed: "DETERMINISTIC_KEYWORD_FALLBACK",
     };
   }
 }
