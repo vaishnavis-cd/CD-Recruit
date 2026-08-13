@@ -104,13 +104,13 @@ export class PartnerCandidatesService {
       isNewDrive = true;
     }
 
-    // 3. Create Invites with scheduledTime = null and expiresAt = now + 24h via CandidateIngestionService
+    // 3. Create Invites with scheduledTime = null and expiresAt = now + 48h via CandidateIngestionService
     const candidateEntries = candidates.map((c) => ({
       name: c.name,
       candidateEmail: c.email,
     }));
 
-    const expiresAt24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt48h = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     await this.prisma.$transaction(async (tx) => {
       // Ensure drive has originChannel = PARTNER_API
@@ -127,8 +127,8 @@ export class PartnerCandidatesService {
         systemStaffId,
         true, // isGenerated = true generates candidate token
         {
-          expiresAt: expiresAt24h,
-          scheduledTime: null, // self-paced 24-hour rolling validity
+          expiresAt: expiresAt48h,
+          scheduledTime: null, // self-paced 48-hour rolling validity
           originChannel: OriginChannel.PARTNER_API,
         },
       );

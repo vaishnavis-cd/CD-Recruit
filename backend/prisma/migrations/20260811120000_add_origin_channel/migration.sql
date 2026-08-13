@@ -1,5 +1,7 @@
 -- CreateEnum
-CREATE TYPE "OriginChannel" AS ENUM ('DIRECT', 'PARTNER_API');
+DO $$ BEGIN
+  CREATE TYPE "OriginChannel" AS ENUM ('DIRECT', 'PARTNER_API');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- AlterTable
 ALTER TABLE "drive" ADD COLUMN "origin_channel" "OriginChannel" NOT NULL DEFAULT 'DIRECT',

@@ -16,7 +16,7 @@ export interface UserProfile {
   role: "ADMIN" | "RECRUITER";
 }
 
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:8085";
+const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:8080";
 const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM || "cd-recruit";
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "cd-recruit-frontend";
 

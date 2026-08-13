@@ -43,7 +43,7 @@ export class PartnerCandidatesController {
   @ApiOperation({
     summary: "Push candidates for a partner requisition",
     description:
-      "Creates or upserts a Drive keyed on (partner_id, requisition_ref), resolves the active RoleTemplate for the given department + level, and generates 24-hour rolling assessment invites for each candidate. Returns assessment links directly.",
+      "Creates or upserts a Drive keyed on (partner_id, requisition_ref), resolves the active RoleTemplate for the given department + level, and generates 48-hour rolling assessment invites for each candidate. Returns assessment links directly.",
   })
   @ApiHeader({
     name: "Idempotency-Key",

@@ -84,17 +84,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       secretOrKeyProvider: async (request, rawJwtToken, done) => {
         const secret = configService.get<string>("app.jwtSecret") || process.env.JWT_SECRET || "changeme-use-a-long-random-string";
-        const infraMode = process.env.INFRA_MODE ?? "auto";
-
-        if (infraMode === "local") {
-          return done(null, secret);
-        }
 
         try {
           const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
           if (decoded?.header?.kid) {
             const kid = decoded.header.kid;
-            const keycloakUrl = process.env.KEYCLOAK_URL || "http://localhost:8085";
+            const keycloakUrl = process.env.KEYCLOAK_URL || "http://localhost:8080";
             const realm = process.env.KEYCLOAK_REALM || "cd-recruit";
             const jwksUri = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`;
 

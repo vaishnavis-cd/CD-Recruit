@@ -1,8 +1,12 @@
 -- CreateEnum
-CREATE TYPE "Department" AS ENUM ('SOFTWARE_ENGINEERING', 'DATA_ENGINEERING', 'PMO', 'QA', 'SYSOPS', 'ITOPS', 'SECOPS', 'SRE');
+DO $$ BEGIN
+  CREATE TYPE "Department" AS ENUM ('SOFTWARE_ENGINEERING', 'DATA_ENGINEERING', 'PMO', 'QA', 'SYSOPS', 'ITOPS', 'SECOPS', 'SRE');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- CreateEnum
-CREATE TYPE "ExperienceLevel" AS ENUM ('FRESHER', 'EXPERIENCED');
+DO $$ BEGIN
+  CREATE TYPE "ExperienceLevel" AS ENUM ('FRESHER', 'EXPERIENCED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- AlterTable
 ALTER TABLE "role_template" ADD COLUMN     "department" "Department",
