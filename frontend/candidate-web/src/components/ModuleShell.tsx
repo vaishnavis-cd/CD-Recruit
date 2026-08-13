@@ -14,6 +14,7 @@ import { WatermarkOverlay } from './common/WatermarkOverlay'
 import { IntegrityAlertBanner } from './common/IntegrityAlertBanner'
 import { ProctoringEventModal } from './common/ProctoringEventModal'
 import { useIntegrityEvents } from '../hooks/useIntegrityEvents'
+import { useHeartbeat } from '../hooks/useHeartbeat'
 
 interface ModuleShellProps {
   moduleIndex: number

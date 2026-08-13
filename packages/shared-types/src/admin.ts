@@ -84,6 +84,7 @@ export interface SessionDetail {
   disconnectCount: number;
   moduleResponses: ModuleResponseDetail[];
   integrityFlags: IntegrityFlag[];
+  identityCaptures?: any[];
   questions?: any[];
   drive?: any;
   simulationSnapshot?: any;

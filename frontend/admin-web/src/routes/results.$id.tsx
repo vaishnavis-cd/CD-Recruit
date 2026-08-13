@@ -19,6 +19,7 @@ import {
   Smartphone,
   Eye,
   UserX,
+  UserCheck,
   Users,
   Mic,
   Monitor,
@@ -1321,6 +1322,103 @@ function IndividualResultPage() {
                           </div>
                         );
                       })}
+                  </div>
+                )}
+              </div>
+
+              {/* Identity Verification Timeline */}
+              <div className="bg-white border border-[#E6E6EA] rounded-xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+                  <div>
+                    <h3 className="text-[14px] font-semibold text-[#0B0B0D] flex items-center gap-2">
+                      <UserCheck size={16} className="text-[#2F5CFF]" />
+                      Identity Verification Timeline
+                    </h3>
+                    <p className="text-[11px] text-[#5B5B64] mt-0.5">
+                      Periodic random in-test identity re-verification snapshots (ArcFace match against baseline ID proof)
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#5B5B64] bg-[#F4F4F6] px-2.5 py-1 rounded-md border border-[#E4E4E7]">
+                    {(detail.identityCaptures || []).length} / 3 Scheduled Captures
+                  </span>
+                </div>
+
+                {!(detail.identityCaptures && detail.identityCaptures.length > 0) ? (
+                  <p className="text-[12px] text-[#8B8B93] italic py-2">
+                    No identity capture records found for this session.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                    {detail.identityCaptures.map((cap: any) => {
+                      const isMatched = cap.matched === true;
+                      const isMismatch = cap.matched === false;
+                      const isMissed = cap.status === "MISSED";
+                      const isClosed = cap.status === "SESSION_CLOSED";
+
+                      let badgeBg = "bg-gray-100 text-gray-700 border-gray-200";
+                      let badgeLabel = "Pending";
+
+                      if (isClosed) {
+                        badgeBg = "bg-[#F4F4F6] text-[#6E6E77] border-[#E4E4E7]";
+                        badgeLabel = "Not Reached — Test Ended Early";
+                      } else if (isMissed) {
+                        badgeBg = "bg-amber-100 text-amber-800 border-amber-200";
+                        badgeLabel = "Capture Missed";
+                      } else if (isMatched) {
+                        badgeBg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                        badgeLabel = "Matched";
+                      } else if (isMismatch) {
+                        badgeBg = "bg-red-100 text-red-800 border-red-200";
+                        badgeLabel = "Identity Mismatch";
+                      }
+
+                      return (
+                        <div
+                          key={cap.id || cap.windowIndex}
+                          className="border border-[#E6E6EA] rounded-lg p-3 bg-white space-y-2 flex flex-col justify-between"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[12px] font-semibold text-[#0B0B0D]">
+                                Window #{cap.windowIndex + 1}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeBg}`}>
+                                {badgeLabel}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-mono text-[#5B5B64]">
+                              Scheduled: {cap.scheduledAt ? cap.scheduledAt.slice(11, 19) : "N/A"}
+                            </p>
+                            {cap.capturedAt && (
+                              <p className="text-[10px] font-mono text-[#5B5B64]">
+                                Captured: {cap.capturedAt.slice(11, 19)}
+                              </p>
+                            )}
+                          </div>
+
+                          {cap.imageUrl ? (
+                            <div className="relative rounded overflow-hidden aspect-video bg-black/5 border border-[#E6E6EA]">
+                              <img
+                                src={resolveClipUrl(cap.imageUrl)}
+                                alt={`Capture Window ${cap.windowIndex + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="rounded aspect-video bg-[#F7F7F9] border border-dashed border-[#E6E6EA] flex items-center justify-center text-[10px] text-[#8B8B93] font-mono p-2 text-center">
+                              {isClosed ? "Not Reached — Test Ended Early" : isMissed ? "No Frame Received" : "Pending Trigger"}
+                            </div>
+                          )}
+
+                          {cap.distance !== null && cap.distance !== undefined && (
+                            <div className="text-[10px] font-mono text-[#5B5B64] pt-1 border-t border-[#F0F0F3] flex justify-between">
+                              <span>Dist: {typeof cap.distance === "number" ? cap.distance.toFixed(3) : cap.distance}</span>
+                              <span>Thresh: {typeof cap.threshold === "number" ? cap.threshold.toFixed(3) : cap.threshold || 0.6}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

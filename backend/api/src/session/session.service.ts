@@ -396,6 +396,41 @@ export class SessionService {
 
     this.logger.log(`Session ${sessionId} has begun.`);
 
+    // PART 2: Scheduling identity re-verification captures
+    try {
+      const durationMs = deadlineAt.getTime() - now.getTime();
+      const durationMins = durationMs / 60000;
+      if (durationMins < 5) {
+        this.logger.log(
+          `Session ${sessionId} duration (${durationMins.toFixed(1)} mins) is under 5 mins; skipping identity capture scheduling.`,
+        );
+      } else {
+        const windowMs = durationMs / 3;
+        const capturesToCreate = [];
+        for (let i = 0; i < 3; i++) {
+          const windowStart = now.getTime() + i * windowMs;
+          const windowEnd = now.getTime() + (i + 1) * windowMs;
+          const randomScheduledTime = windowStart + Math.random() * (windowEnd - windowStart);
+          capturesToCreate.push({
+            sessionId,
+            windowIndex: i,
+            scheduledAt: new Date(randomScheduledTime),
+            status: "PENDING",
+          });
+        }
+        await this.prisma.identityCapture.createMany({
+          data: capturesToCreate,
+        });
+        this.logger.log(
+          `Session ${sessionId}: Scheduled 3 identity captures across windows [0, 1, 2].`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to schedule identity captures for session ${sessionId}: ${err.message}`,
+      );
+    }
+
     try {
       await this.sandboxOrchestrator.ensureWorkspace(sessionId);
     } catch (err: any) {
@@ -466,11 +501,24 @@ export class SessionService {
       },
     });
 
+    // Check if any PENDING identity capture is due
+    const dueCapture = await this.prisma.identityCapture.findFirst({
+      where: {
+        sessionId,
+        status: "PENDING",
+        scheduledAt: { lte: now },
+      },
+      orderBy: { scheduledAt: "asc" },
+    });
+
+    const captureRequired = dueCapture ? { captureId: dueCapture.id } : null;
+
     return {
       ok: true,
       sessionStatus:
         SessionStatus.IN_PROGRESS as unknown as import("@cd-recruit/shared-types").SessionStatus,
       deadlineAt: session.deadlineAt!.toISOString(),
+      captureRequired,
     };
   }
 
@@ -629,6 +677,8 @@ export class SessionService {
         lastActivityAt: now,
       },
     });
+
+    await this.markPendingCapturesClosed(sessionId);
 
     // Calculate real module scores and composite score upon submission
     try {
@@ -802,6 +852,8 @@ export class SessionService {
         lastActivityAt: now,
       },
     });
+
+    await this.markPendingCapturesClosed(sessionId);
 
     await this.prisma.eventLog.create({
       data: {
@@ -1208,5 +1260,134 @@ export class SessionService {
       },
     });
   }
+
+  /**
+   * Transition any remaining PENDING IdentityCapture rows to SESSION_CLOSED.
+   * Called when a session moves to a terminal status (SUBMITTED, AUTO_SUBMITTED, CLOSED, ABANDONED).
+   */
+  async markPendingCapturesClosed(sessionId: string): Promise<void> {
+    try {
+      await this.prisma.identityCapture.updateMany({
+        where: {
+          sessionId,
+          status: "PENDING",
+        },
+        data: {
+          status: "SESSION_CLOSED",
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to mark pending identity captures closed for session ${sessionId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Process identity capture frame upload and perform ArcFace verification.
+   */
+  async submitIdentityCapture(
+    sessionId: string,
+    captureId: string,
+    file: any,
+  ): Promise<{ status: string }> {
+    const capture = await this.prisma.identityCapture.findUnique({
+      where: { id: captureId },
+      include: {
+        session: {
+          include: {
+            candidate: true,
+            organization: true,
+          },
+        },
+      },
+    });
+
+    if (!capture || capture.sessionId !== sessionId) {
+      throw new NotFoundException({
+        code: "CAPTURE_NOT_FOUND",
+        message: "Identity capture not found for this session.",
+      });
+    }
+
+    // Idempotency check: if already CAPTURED, return neutral response
+    if (capture.status === "CAPTURED") {
+      return { status: "received" };
+    }
+
+    const candidate = capture.session.candidate;
+    if (!candidate || !candidate.idProofEmbedding) {
+      this.logger.warn(
+        `Identity capture ${captureId}: Candidate has no ID proof embedding on file. Marking status MISSED.`,
+      );
+      await this.prisma.identityCapture.update({
+        where: { id: captureId },
+        data: { status: "MISSED" },
+      });
+      return { status: "received" };
+    }
+
+    const now = new Date();
+    const orgSlug = capture.session.organization?.slug || capture.session.organizationId || "default";
+    const objectKey = `clients/${orgSlug}/candidates/${candidate.id}/sessions/${sessionId}/identity-captures/${captureId}.jpg`;
+
+    // Upload frame to MinIO storage
+    try {
+      await this.minio.putObject(
+        this.bucketBiometric,
+        objectKey,
+        file.buffer,
+        { "Content-Type": file.mimetype || "image/jpeg" },
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to upload identity capture frame to MinIO for capture ${captureId}: ${err.message}`);
+    }
+
+    const embedding = candidate.idProofEmbedding as unknown as number[];
+    let matched: boolean | null = null;
+    let distance: number | null = null;
+    let threshold: number | null = null;
+
+    try {
+      const result = await this.faceVerifyClient.verify(
+        file.buffer,
+        file.originalname || "capture.jpg",
+        embedding,
+      );
+      matched = result.matched;
+      distance = result.distance;
+      threshold = result.threshold;
+    } catch (err: any) {
+      this.logger.error(`ArcFace face verification failed for capture ${captureId}: ${err.message}`);
+    }
+
+    await this.prisma.identityCapture.update({
+      where: { id: captureId },
+      data: {
+        status: "CAPTURED",
+        capturedAt: now,
+        imageRef: objectKey,
+        matched,
+        distance,
+        threshold,
+      },
+    });
+
+    if (matched === false) {
+      await this.prisma.integrityFlag.create({
+        data: {
+          sessionId,
+          category: "IDENTITY_MISMATCH_INTEST",
+          severity: "HIGH",
+          confidence: 1.0,
+          flaggedAt: now,
+        },
+      });
+      this.logger.warn(
+        `IDENTITY_MISMATCH_INTEST flag created for session ${sessionId} (captureId: ${captureId}, distance: ${distance})`,
+      );
+    }
+
+    return { status: "received" };
+  }
 }
+
 

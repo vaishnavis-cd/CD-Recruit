@@ -11,6 +11,9 @@ import { GraceWindowProcessor } from "./grace-window.processor";
 import { SessionModule } from "@app/session/session.module";
 import { NosqlModule } from "../modules/nosql/nosql.module";
 
+import { IdentityCaptureService } from "./identity-capture.service";
+import { IdentityCaptureMonitorProcessor } from "./identity-capture-monitor.processor";
+
 const infraMode = process.env.INFRA_MODE ?? "local";
 const isFull = infraMode === "full";
 
@@ -22,6 +25,7 @@ const isFull = infraMode === "full";
           BullModule.registerQueue(
             { name: "heartbeat-monitor" },
             { name: "grace-window" },
+            { name: "identity-capture-monitor" },
           ),
         ]
       : []),
@@ -30,7 +34,7 @@ const isFull = infraMode === "full";
   ],
   providers: [
     ...(isFull
-      ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor]
+      ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor, IdentityCaptureMonitorProcessor]
       : [LocalFakeQueueProvider, LocalFakeQueueHandlersBootstrap]),
     {
       provide: QueueProviderPort,
@@ -38,6 +42,7 @@ const isFull = infraMode === "full";
     },
     QueueScheduler,
     HeartbeatService,
+    IdentityCaptureService,
   ],
   exports: [QueueProviderPort],
 })
