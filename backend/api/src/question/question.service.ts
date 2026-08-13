@@ -2,14 +2,50 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  OnModuleInit,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateQuestionDto, UpdateQuestionDto, ListQuestionsQueryDto } from "../common/dto/question.dto";
 import { ModuleType, QuestionStatus } from "@cd-recruit/shared-types";
+import { RakeExtractor } from "../ai-prompting/ai-prompting-guardrails";
 
 @Injectable()
-export class QuestionService {
+export class QuestionService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    try {
+      const allQuestions = await this.prisma.question.findMany();
+      const debuggingIds: string[] = [];
+
+      for (const q of allQuestions) {
+        const tags = q.tags || [];
+        const promptText = (q.content as any)?.prompt || (q.content as any)?.title || (q.content as any)?.text || "";
+        const isDebug = q.moduleType === "DEBUGGING" ||
+          tags.includes("debugging") ||
+          (typeof promptText === "string" && promptText.toLowerCase().includes("debugging"));
+
+        if (isDebug) {
+          debuggingIds.push(q.id);
+          if (q.moduleType !== ("DEBUGGING" as any)) {
+            await this.prisma.question.update({
+              where: { id: q.id },
+              data: { moduleType: "DEBUGGING" as any },
+            });
+          }
+        }
+      }
+
+      if (debuggingIds.length > 0) {
+        await this.prisma.driveQuestion.updateMany({
+          where: { questionId: { in: debuggingIds } },
+          data: { moduleType: "DEBUGGING" as any },
+        });
+      }
+    } catch (err) {
+      console.warn("Failed auto-normalizing debugging questions on startup:", err);
+    }
+  }
 
   private validateQuestionContent(moduleType: ModuleType, content: any, scoringConfig: any) {
     if (!content) {
@@ -31,8 +67,9 @@ export class QuestionService {
         }
         break;
       case ModuleType.CODING:
-        if (!content.prompt || !content.starterCode) {
-          throw new BadRequestException("Coding question must contain prompt and starterCode");
+      case ModuleType.DEBUGGING:
+        if (!content.prompt || (!content.starterCode && !content.buggyCode && !content.code)) {
+          throw new BadRequestException("Coding/Debugging question must contain prompt and starterCode/buggyCode");
         }
         break;
       case ModuleType.AI_PROMPTING:
@@ -52,6 +89,11 @@ export class QuestionService {
     const { moduleType, content, scoringConfig = {}, difficulty = "medium", tags = [], status = QuestionStatus.PUBLISHED, role = "General" } = dto;
     
     this.validateQuestionContent(moduleType, content, scoringConfig);
+
+    if (moduleType === ModuleType.AI_PROMPTING) {
+      const textToExtract = content.prompt || content.text || "";
+      content.extractedKeywords = RakeExtractor.extract(textToExtract);
+    }
 
     const question = await this.prisma.question.create({
       data: {
@@ -92,8 +134,6 @@ export class QuestionService {
 
     if (search) {
       where.OR = [
-        { content: { path: ["prompt"], string_contains: search } },
-        { content: { path: ["title"], string_contains: search } },
         { tags: { has: search } },
         { role: { contains: search, mode: "insensitive" } },
       ];
@@ -105,58 +145,27 @@ export class QuestionService {
         skip,
         take,
         orderBy: { version: "desc" },
+        include: {
+          _count: {
+            select: { driveQuestions: true, moduleResponses: true },
+          },
+        },
       }),
       this.prisma.question.count({ where }),
     ]);
 
-    // Map items to include summary statistics
-    const itemsWithStats = await Promise.all(
-      items.map(async (q) => {
-        const usageCount = await this.prisma.driveQuestion.count({
-          where: { questionId: q.id },
-        });
-
-        // Compute average score on this question
-        const responses = await this.prisma.moduleResponse.findMany({
-          where: { questionId: q.id },
-          include: {
-            session: {
-              include: {
-                score: true,
-              },
-            },
-          },
-        });
-
-        let avgScore: number | null = null;
-        if (responses.length > 0) {
-          let sum = 0;
-          let count = 0;
-          for (const res of responses) {
-            const modScores = res.session.score?.moduleScores as Record<string, number>;
-            if (modScores && modScores[q.moduleType]) {
-              sum += modScores[q.moduleType];
-              count += 1;
-            }
-          }
-          if (count > 0) {
-            avgScore = Math.round((sum / count) * 100);
-          }
-        }
-
-        return {
-          id: q.id,
-          moduleType: q.moduleType,
-          content: q.content,
-          difficulty: q.difficulty,
-          tags: q.tags,
-          version: q.version,
-          status: q.status,
-          usageCount,
-          avgScore,
-        };
-      }),
-    );
+    const itemsWithStats = items.map((q) => ({
+      id: q.id,
+      moduleType: q.moduleType,
+      content: q.content,
+      difficulty: q.difficulty,
+      tags: q.tags,
+      version: q.version,
+      status: q.status,
+      role: q.role,
+      usageCount: q._count.driveQuestions,
+      avgScore: null,
+    }));
 
     return {
       items: itemsWithStats,
@@ -195,6 +204,11 @@ export class QuestionService {
     const { moduleType = question.moduleType as ModuleType, content = question.content, scoringConfig = question.scoringConfig, difficulty, tags, status, role } = dto;
 
     this.validateQuestionContent(moduleType, content, scoringConfig);
+
+    if (moduleType === ModuleType.AI_PROMPTING && content) {
+      const textToExtract = content.prompt || content.text || "";
+      content.extractedKeywords = RakeExtractor.extract(textToExtract);
+    }
 
     // Check if this question is used in any Drive
     const usageCount = await this.prisma.driveQuestion.count({
@@ -236,6 +250,7 @@ export class QuestionService {
           difficulty: difficulty ?? question.difficulty,
           tags: tags ?? question.tags,
           status: (status as any) ?? question.status,
+          version: { increment: 1 },
         },
       });
       return updated;
@@ -260,7 +275,7 @@ export class QuestionService {
   }
 
   async bulkUpload(moduleType: ModuleType, questions: any[]) {
-    const createdList = [];
+    const createdList: any[] = [];
 
     await this.prisma.$transaction(async (tx) => {
       for (const q of questions) {

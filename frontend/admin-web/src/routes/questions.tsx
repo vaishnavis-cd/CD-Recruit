@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Search,
   Plus,
@@ -17,16 +18,19 @@ import {
   Folder,
   ChevronRight,
   ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { ModuleType } from "@cd-recruit/shared-types";
+import { CodeEditor } from "../components/common/CodeEditor";
+import { processQuestionTags } from "./drives.$id";
 
 export const Route = createFileRoute("/questions")({
   component: QuestionBankPage,
   head: () => ({
     meta: [
-      { title: "Question Bank — CD-Recruit" },
+      { title: "Question Bank — Proctora" },
       {
         name: "description",
         content:
@@ -37,6 +41,7 @@ export const Route = createFileRoute("/questions")({
 });
 
 function QuestionBankPage() {
+  const navigate = useNavigate();
   const questions = useStore((s) => s.questions);
   const fetchQuestions = useStore((s) => s.fetchQuestions);
   const createQuestion = useStore((s) => s.createQuestion);
@@ -53,6 +58,21 @@ function QuestionBankPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const autoBulk = params.get("autoBulk") === "true";
+      const driveName = params.get("driveName");
+
+      if (driveName) {
+        setSelectedFolder(driveName);
+      }
+      if (autoBulk) {
+        setShowImportModal(true);
+      }
+    }
+  }, []);
+
   // Form State (Create)
   const [moduleType, setModuleType] = useState<string>("MCQ");
   const [promptText, setPromptText] = useState("");
@@ -67,6 +87,8 @@ function QuestionBankPage() {
   // SQL specific (Create)
   const [sqlSchema, setSqlSchema] = useState("");
   const [sqlSeed, setSqlSeed] = useState("");
+  const [sqlExpectedQuery, setSqlExpectedQuery] = useState("");
+
 
   // Coding specific (Create)
   const [starterCode, setStarterCode] = useState("");
@@ -75,6 +97,11 @@ function QuestionBankPage() {
   // Simulation specific (Create)
   const [simTriggers, setSimTriggers] = useState("");
   const [simRubric, setSimRubric] = useState("");
+
+  // AI Prompting specific (Create)
+  const [aiSystemContext, setAiSystemContext] = useState("");
+  const [aiTechStack, setAiTechStack] = useState("React/TypeScript");
+  const [aiIdealResponse, setAiIdealResponse] = useState("");
 
   // Edit Form State
   const [editPromptText, setEditPromptText] = useState("");
@@ -85,14 +112,28 @@ function QuestionBankPage() {
   const [editCorrectIndex, setEditCorrectIndex] = useState(0);
   const [editSqlSchema, setEditSqlSchema] = useState("");
   const [editSqlSeed, setEditSqlSeed] = useState("");
+  const [editSqlExpectedQuery, setEditSqlExpectedQuery] = useState("");
+
   const [editStarterCode, setEditStarterCode] = useState("");
   const [editTestCasesInput, setEditTestCasesInput] = useState("");
   const [editSimTriggers, setEditSimTriggers] = useState("");
   const [editSimRubric, setEditSimRubric] = useState("");
+  const [editAiSystemContext, setEditAiSystemContext] = useState("");
+  const [editAiTechStack, setEditAiTechStack] = useState("React/TypeScript");
+  const [editAiIdealResponse, setEditAiIdealResponse] = useState("");
+
+  // Preview Drawer State
+  const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
 
   // Bulk Import State
   const [importModuleType, setImportModuleType] = useState<string>("MCQ");
   const [csvFile, setCsvFile] = useState<File | null>(null);
+
+  // Confirmation Modal State
+  const [confirmArchiveQuestion, setConfirmArchiveQuestion] = useState<any | null>(null);
+  const [confirmDeleteFolder, setConfirmDeleteFolder] = useState<string | null>(null);
+
+
 
   useEffect(() => {
     fetchQuestions({
@@ -143,11 +184,20 @@ function QuestionBankPage() {
     } else if (q.moduleType === "SQL") {
       setEditSqlSchema(q.content?.schema || "");
       setEditSqlSeed(q.content?.seedData || "");
-    } else if (q.moduleType === "CODING") {
-      setEditStarterCode(q.content?.starterCode || "");
+      setEditSqlExpectedQuery(q.content?.expectedQuery || "");
+
+    } else if (q.moduleType === "CODING" || q.moduleType === "DEBUGGING") {
+      const code = typeof q.content?.starterCode === "object"
+        ? (q.content.starterCode.javascript || q.content.starterCode.python || JSON.stringify(q.content.starterCode, null, 2))
+        : (q.content?.starterCode || "");
+      setEditStarterCode(code);
       setEditTestCasesInput(
         q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : ""
       );
+    } else if (q.moduleType === "AI_PROMPTING") {
+      setEditAiSystemContext(q.content?.context || q.content?.systemContext || "");
+      setEditAiTechStack(q.content?.techStack || "React/TypeScript");
+      setEditAiIdealResponse(q.content?.idealResponseSummary || "");
     } else if (q.moduleType === "SIMULATION") {
       setEditSimTriggers(
         q.content?.triggers ? JSON.stringify(q.content.triggers, null, 2) : ""
@@ -167,36 +217,39 @@ function QuestionBankPage() {
       if (editingQuestion.moduleType === "MCQ") {
         content.options = editMcqOptions.filter((o) => o.trim());
         if (content.options.length < 2) {
-          alert("Please provide at least 2 options");
+          toast.error("Please provide at least 2 options");
           return;
         }
         scoringConfig.correctIndex = editCorrectIndex;
       } else if (editingQuestion.moduleType === "SQL") {
         content.schema = editSqlSchema;
         content.seedData = editSqlSeed;
-      } else if (editingQuestion.moduleType === "CODING") {
+        content.expectedQuery = editSqlExpectedQuery;
+      } else if (editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") {
         content.starterCode = editStarterCode;
-        content.testCases = editTestCasesInput ? JSON.parse(editTestCasesInput) : [];
+        if (editTestCasesInput.trim()) {
+          try {
+            content.testCases = JSON.parse(editTestCasesInput);
+          } catch {
+            toast.error("Invalid Test Cases JSON format");
+            return;
+          }
+        }
+      } else if (editingQuestion.moduleType === "AI_PROMPTING") {
+        content.context = editAiSystemContext;
+        content.techStack = editAiTechStack;
+        content.idealResponseSummary = editAiIdealResponse;
       } else if (editingQuestion.moduleType === "SIMULATION") {
         content.title = editPromptText;
         content.triggers = editSimTriggers ? JSON.parse(editSimTriggers) : [];
         content.rubric = editSimRubric ? JSON.parse(editSimRubric) : [];
       }
 
-      await updateQuestion(editingQuestion.id, {
-        content,
-        scoringConfig,
-        difficulty: editDifficulty,
-        role: editRole,
-        tags: editTagsInput
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-      });
-
+      await updateQuestion(editingQuestion.id, { ...editingQuestion, difficulty: editDifficulty, tags: editTagsInput.split(",").map((t) => t.trim()).filter(Boolean), role: editRole, content });
+      toast.success("Question updated successfully");
       setEditingQuestion(null);
     } catch (err: any) {
-      alert("Failed updating question: " + err.message);
+      toast.error(err.message || "Failed to update question");
     }
   };
 
@@ -208,16 +261,22 @@ function QuestionBankPage() {
       if (moduleType === "MCQ") {
         content.options = mcqOptions.filter((o) => o.trim());
         if (content.options.length < 2) {
-          alert("Please provide at least 2 options");
+          toast.error("Please provide at least 2 options");
           return;
         }
         scoringConfig.correctIndex = correctIndex;
       } else if (moduleType === "SQL") {
         content.schema = sqlSchema;
         content.seedData = sqlSeed;
-      } else if (moduleType === "CODING") {
+        content.expectedQuery = sqlExpectedQuery;
+
+      } else if (moduleType === "CODING" || moduleType === "DEBUGGING") {
         content.starterCode = starterCode;
         content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
+      } else if (moduleType === "AI_PROMPTING") {
+        content.context = aiSystemContext;
+        content.techStack = aiTechStack;
+        content.idealResponseSummary = aiIdealResponse;
       } else if (moduleType === "SIMULATION") {
         content.title = promptText;
         content.triggers = simTriggers ? JSON.parse(simTriggers) : [];
@@ -239,7 +298,7 @@ function QuestionBankPage() {
       setShowCreateModal(false);
       resetForm();
     } catch (err: any) {
-      alert("Failed creating question: " + err.message);
+      toast.error("Failed creating question: " + err.message);
     }
   };
 
@@ -251,10 +310,15 @@ function QuestionBankPage() {
     setCorrectIndex(0);
     setSqlSchema("");
     setSqlSeed("");
+    setSqlExpectedQuery("");
+
     setStarterCode("");
     setTestCasesInput("");
     setSimTriggers("");
     setSimRubric("");
+    setAiSystemContext("");
+    setAiTechStack("React/TypeScript");
+    setAiIdealResponse("");
   };
 
   // CSV Parser Utility
@@ -332,16 +396,20 @@ function QuestionBankPage() {
 
   const handleImport = () => {
     if (!csvFile) {
-      alert("Please select a CSV file first.");
+      toast.error("Please select a CSV file first.");
       return;
     }
+    const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const fromDriveId = searchParams.get("fromDriveId");
+    const driveNameParam = searchParams.get("driveName");
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
         const rows = parseCSV(text);
         if (rows.length < 2) {
-          alert("The CSV file must contain at least a header row and one data row.");
+          toast.error("The CSV file must contain at least a header row and one data row.");
           return;
         }
         const headers = rows[0].map((h) => h.toLowerCase());
@@ -363,6 +431,13 @@ function QuestionBankPage() {
             .map((t) => t.trim())
             .filter(Boolean);
 
+          if (driveNameParam) {
+            const driveTag = `Drive: ${driveNameParam}`;
+            if (!tags.some((t) => t.toLowerCase() === driveTag.toLowerCase())) {
+              tags.push(driveTag);
+            }
+          }
+
           const content: any = {};
           const scoringConfig: any = {};
 
@@ -381,8 +456,10 @@ function QuestionBankPage() {
           } else if (importModuleType === "CODING") {
             content.prompt = getVal("prompt");
             content.starterCode = getVal("starterCode");
-            const tc = getVal("testCasesJSON");
-            content.testCases = tc ? JSON.parse(tc) : [];
+            const tcVal = getVal("testCasesJSON");
+            const tcParsed = tcVal ? JSON.parse(tcVal) : [];
+            content.testCases = tcParsed;
+            content.visibleTestCases = tcParsed;
           } else if (importModuleType === "AI_PROMPTING") {
             content.prompt = getVal("prompt");
             const rub = getVal("rubricJSON");
@@ -404,12 +481,26 @@ function QuestionBankPage() {
           });
         }
 
-        await bulkUploadQuestions(importModuleType, parsedQuestions);
-        alert(`Successfully imported ${parsedQuestions.length} questions!`);
+        const created = await bulkUploadQuestions(importModuleType, parsedQuestions);
+        toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
         setCsvFile(null);
         setShowImportModal(false);
+
+        if (fromDriveId) {
+          try {
+            const driveDetail = await useStore.getState().fetchDriveDetail(fromDriveId);
+            const existingIds = driveDetail.questionIds || [];
+            const newIds = Array.isArray(created) ? created.map((q: any) => q.id) : [];
+            const combinedIds = Array.from(new Set([...existingIds, ...newIds]));
+            await useStore.getState().saveDriveQuestions(fromDriveId, combinedIds);
+            toast.success(`Linked imported questions to drive. Redirecting back to Drive Config...`);
+          } catch (e) {
+            console.error("Auto linking questions to drive failed", e);
+          }
+          navigate({ to: `/drives/${fromDriveId}` as any });
+        }
       } catch (err: any) {
-        alert("CSV Import failed: " + err.message);
+        toast.error("CSV Import failed: " + err.message);
       }
     };
     reader.readAsText(csvFile);
@@ -474,7 +565,7 @@ function QuestionBankPage() {
 
           <div className="relative group">
             <button
-              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#2448D9] cursor-pointer shadow-sm transition-colors rounded-md"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#0037FF] cursor-pointer shadow-sm transition-colors rounded-md"
             >
               <Plus size={14} /> Add Question
             </button>
@@ -499,6 +590,31 @@ function QuestionBankPage() {
         </div>
       }
     >
+      {/* Single-Click Return Banner if navigated from a Drive */}
+      {(() => {
+        if (typeof window === "undefined") return null;
+        const params = new URLSearchParams(window.location.search);
+        const driveId = params.get("driveId") || params.get("fromDrive");
+        if (!driveId) return null;
+        return (
+          <div className="mb-4 p-3 bg-[#EAF0FF] border border-[#2F5CFF]/30 rounded-xl flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2.5 text-[#15308F] text-[13px] font-medium">
+              <Sparkles size={16} className="text-[#2F5CFF]" />
+              <span>You are currently managing questions for an active Drive.</span>
+            </div>
+            <Link
+              to="/drives/$id"
+              params={{ id: driveId }}
+              search={{ tab: "questions" } as any}
+              className="px-3.5 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              <span>Return to Drive Questions</span>
+            </Link>
+          </div>
+        );
+      })()}
+
       {/* Tag Directory Navigation */}
       {query.trim() !== "" ? (
         /* Search results list */
@@ -507,12 +623,14 @@ function QuestionBankPage() {
             <h3 className="text-[13px] font-semibold text-[#0B0B0D]">
               Search Results for "{query}" ({questions.length})
             </h3>
-            <button
-              onClick={() => setQuery("")}
-              className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer"
-            >
-              Clear search
-            </button>
+            {query.trim() !== "" && (
+              <button
+                onClick={() => setQuery("")}
+                className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer"
+              >
+                Clear search
+              </button>
+            )}
           </div>
           <div className="space-y-3">
             {questions.map((q) => (
@@ -544,17 +662,27 @@ function QuestionBankPage() {
                   <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
                     {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                   </h4>
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {q.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
-                      >
-                        <Tag size={8} />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {q.tags && q.tags.length > 0 && (() => {
+                    const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {displayTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                          >
+                            <Tag size={8} />
+                            {tag}
+                          </span>
+                        ))}
+                        {hiddenDriveCount > 0 && (
+                          <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                            +{hiddenDriveCount} more drives
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-6 shrink-0">
                   <div className="text-center font-mono">
@@ -576,11 +704,7 @@ function QuestionBankPage() {
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm("Are you sure you want to archive this question?")) {
-                          archiveQuestion(q.id);
-                        }
-                      }}
+                      onClick={() => setConfirmArchiveQuestion(q)}
                       className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
                       title="Archive"
                     >
@@ -640,17 +764,27 @@ function QuestionBankPage() {
                   <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
                     {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                   </h4>
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {q.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64]"
-                      >
-                        <Tag size={8} />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {q.tags && q.tags.length > 0 && (() => {
+                    const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {displayTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                          >
+                            <Tag size={8} />
+                            {tag}
+                          </span>
+                        ))}
+                        {hiddenDriveCount > 0 && (
+                          <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                            +{hiddenDriveCount} more drives
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-6 shrink-0">
                   <div className="text-center font-mono">
@@ -672,11 +806,7 @@ function QuestionBankPage() {
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm("Are you sure you want to archive this question?")) {
-                          archiveQuestion(q.id);
-                        }
-                      }}
+                      onClick={() => setConfirmArchiveQuestion(q)}
                       className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
                       title="Archive"
                     >
@@ -707,20 +837,34 @@ function QuestionBankPage() {
                 <div
                   key={tag}
                   onClick={() => setSelectedFolder(tag)}
-                  className="p-5 bg-white border border-[#E6E6EA] rounded-[12px] shadow-sm hover:shadow-md hover:border-[#2F5CFF] transition-all cursor-pointer flex flex-col justify-between group"
+                  className="p-5 bg-white border border-[#E6E6EA] rounded-[12px] shadow-sm hover:shadow-md hover:border-[#2F5CFF] transition-all cursor-pointer flex flex-col justify-between group relative"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-[#EFF4FF] text-[#2F5CFF] rounded-lg group-hover:bg-[#2F5CFF] group-hover:text-white transition-colors">
-                      <Folder size={20} />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#EFF4FF] text-[#2F5CFF] rounded-lg group-hover:bg-[#2F5CFF] group-hover:text-white transition-colors">
+                        <Folder size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate max-w-[120px] capitalize">
+                          {tag}
+                        </h4>
+                        <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                          {list.length} {list.length === 1 ? "question" : "questions"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate max-w-[120px] capitalize">
-                        {tag}
-                      </h4>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
-                        {list.length} {list.length === 1 ? "question" : "questions"}
-                      </p>
-                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteFolder(tag);
+                      }}
+                      className="p-1.5 text-[#8B8B93] hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer shrink-0"
+                      title="Delete folder"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                   <div className="flex justify-end pt-4">
                     <span className="text-[11px] font-medium text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
@@ -885,23 +1029,37 @@ function QuestionBankPage() {
                       className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Expected Query SQL (Used for validation)
+                    </label>
+                    <textarea
+                      value={sqlExpectedQuery}
+                      onChange={(e) => setSqlExpectedQuery(e.target.value)}
+                      rows={3}
+                      placeholder="SELECT * FROM users ORDER BY name;"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+
                 </div>
               )}
 
-              {/* Coding Fields */}
-              {moduleType === "CODING" && (
+              {/* Coding & Debugging Fields */}
+              {(moduleType === "CODING" || moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                       Starter Code
                     </label>
-                    <textarea
-                      value={starterCode}
-                      onChange={(e) => setStarterCode(e.target.value)}
-                      rows={4}
-                      placeholder="function solve(arr) { \n  // write code \n}"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
+                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={starterCode}
+                        onChange={(val) => setStarterCode(val)}
+                        language="javascript"
+                        theme="light"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
@@ -913,6 +1071,53 @@ function QuestionBankPage() {
                       rows={3}
                       placeholder='[{"input": "[1, 2]", "expected": "3"}]'
                       className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* AI Prompting Fields */}
+              {moduleType === "AI_PROMPTING" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Primary Technology / Stack Selection
+                    </label>
+                    <select
+                      value={aiTechStack}
+                      onChange={(e) => setAiTechStack(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    >
+                      <option value="React/TypeScript">React / TypeScript</option>
+                      <option value="Node.js/Express">Node.js / Express</option>
+                      <option value="Python/FastAPI">Python / FastAPI</option>
+                      <option value="SQL/PostgreSQL">SQL / PostgreSQL</option>
+                      <option value="Docker/Kubernetes">Docker / Kubernetes</option>
+                      <option value="AWS/Cloud Infrastructure">AWS / Cloud Infrastructure</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      AI System Context / Role Guidelines
+                    </label>
+                    <textarea
+                      value={aiSystemContext}
+                      onChange={(e) => setAiSystemContext(e.target.value)}
+                      rows={3}
+                      placeholder="Specify system instructions for the LLM assistant (e.g. You are an expert code reviewer evaluating Express middleware request signatures...)"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Expected Response Criteria / Ideal Summary
+                    </label>
+                    <textarea
+                      value={aiIdealResponse}
+                      onChange={(e) => setAiIdealResponse(e.target.value)}
+                      rows={3}
+                      placeholder="Outline key elements that the student's prompt should instruct the LLM to cover (e.g., must include error handling, TypeScript types, edge cases)..."
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
                     />
                   </div>
                 </div>
@@ -958,7 +1163,7 @@ function QuestionBankPage() {
               </button>
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
               >
                 Create Question
               </button>
@@ -1060,7 +1265,7 @@ function QuestionBankPage() {
               <button
                 onClick={handleImport}
                 disabled={!csvFile}
-                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
               >
                 <Check size={14} />
                 Import Questions
@@ -1215,23 +1420,37 @@ function QuestionBankPage() {
                       className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                      Expected Query SQL (Used for validation)
+                    </label>
+                    <textarea
+                      value={editSqlExpectedQuery}
+                      onChange={(e) => setEditSqlExpectedQuery(e.target.value)}
+                      rows={3}
+                      placeholder="SELECT * FROM users ORDER BY name;"
+                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                    />
+                  </div>
+
                 </div>
               )}
 
-              {/* Coding Fields */}
-              {editingQuestion.moduleType === "CODING" && (
+              {/* Coding & Debugging Fields */}
+              {(editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                       Starter Code
                     </label>
-                    <textarea
-                      value={editStarterCode}
-                      onChange={(e) => setEditStarterCode(e.target.value)}
-                      rows={4}
-                      placeholder="function solve(arr) { \n  // write code \n}"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
+                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={editStarterCode}
+                        onChange={(val) => setEditStarterCode(val)}
+                        language="javascript"
+                        theme="light"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
@@ -1288,9 +1507,91 @@ function QuestionBankPage() {
               </button>
               <button
                 onClick={handleUpdate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Question Confirmation Modal */}
+      {confirmArchiveQuestion && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Archive Question?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to archive this question? The question will be removed from active use and won't appear in new drive assignments.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmArchiveQuestion(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  archiveQuestion(confirmArchiveQuestion.id);
+                  setConfirmArchiveQuestion(null);
+                }}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Archive Question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Folder Confirmation Modal */}
+      {confirmDeleteFolder && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Question Folder?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to delete the folder <strong className="text-[#0B0B0D]">"{confirmDeleteFolder}"</strong> containing{" "}
+              <strong className="text-[#0B0B0D]">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmDeleteFolder(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const tag = confirmDeleteFolder;
+                  const list = groupedQuestions[tag] || [];
+                  try {
+                    for (const q of list) {
+                      await archiveQuestion(q.id);
+                    }
+                    toast.success(`Deleted folder "${tag}" and archived ${list.length} questions`);
+                    setConfirmDeleteFolder(null);
+                  } catch (err: any) {
+                    toast.error("Failed deleting folder: " + (err.message || err));
+                  }
+                }}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete Folder &amp; Questions
               </button>
             </div>
           </div>

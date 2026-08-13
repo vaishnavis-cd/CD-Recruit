@@ -18,6 +18,16 @@ import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
+import { ProctoringModule } from "./proctoring/proctoring.module";
+import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
+import { SimulationModule } from "./simulation/simulation.module";
+import { AiPromptingModule } from "./ai-prompting/ai-prompting.module";
+import { McqModule } from "./mcq/mcq.module";
+import { RoleTemplateModule } from "./role-template/role-template.module";
+import { RedisModule } from "./common/redis/redis.module";
+import { PartnerModule } from "./partner/partner.module";
+
+const infraMode = process.env.INFRA_MODE ?? "local";
 
 @Module({
   imports: [
@@ -25,7 +35,13 @@ import { SqlModule } from "./sql/sql.module";
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, configuration],
-      envFilePath: ["../.env", "../../.env"],
+      envFilePath: [
+        require("path").resolve(process.cwd(), ".env"),
+        require("path").resolve(process.cwd(), "../../.env"),
+        "../.env",
+        "../../.env",
+        ".env",
+      ],
     }),
 
     PrismaModule,
@@ -37,20 +53,24 @@ import { SqlModule } from "./sql/sql.module";
       }),
     }),
 
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<AppConfig, true>) => {
-        const redisUrl = config.get("redisUrl", { infer: true });
-        const url = new URL(redisUrl);
-        return {
-          connection: {
-            host: url.hostname,
-            port: parseInt(url.port || "6379", 10),
-            password: url.password || undefined,
-          },
-        };
-      },
-    }),
+    ...(infraMode === "full"
+      ? [
+          BullModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService<AppConfig, true>) => {
+              const redisUrl = config.get("redisUrl", { infer: true });
+              const url = new URL(redisUrl);
+              return {
+                connection: {
+                  host: url.hostname,
+                  port: parseInt(url.port || "6379", 10),
+                  password: url.password || undefined,
+                },
+              };
+            },
+          }),
+        ]
+      : []),
 
     // ── Feature modules ──────────────────────────────────────────────────
     HealthModule,
@@ -65,6 +85,14 @@ import { SqlModule } from "./sql/sql.module";
     QueueModule,
     CodingModule,
     SqlModule,
+    ProctoringModule,
+    AiEvaluationModule,
+    SimulationModule,
+    AiPromptingModule,
+    McqModule,
+    RoleTemplateModule,
+    RedisModule,
+    PartnerModule,
   ],
 })
 export class AppModule {}

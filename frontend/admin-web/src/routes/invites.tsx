@@ -1,15 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
-import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search } from "lucide-react";
+import { toast } from "sonner";
+import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye, Trash2 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
-import { ROLE_TEMPLATES, type Invite } from "../lib/mock-data";
+import { type Invite } from "../lib/types";
+import { formatDriveName } from "../lib/utils";
 
 export const Route = createFileRoute("/invites")({
   component: InvitesPage,
   head: () => ({
     meta: [
-      { title: "Invites — CD-Recruit" },
+      { title: "Invites — Proctora" },
       { name: "description", content: "Create and manage candidate assessment invites." },
     ],
   }),
@@ -62,16 +64,20 @@ function InvitesPage() {
   const fetchDrives = useStore((s) => s.fetchDrives);
   const createInvite = useStore((s) => s.createInvite);
   const revokeInvite = useStore((s) => s.revokeInvite);
+  const deleteInvite = useStore((s) => s.deleteInvite);
   const extendExpiry = useStore((s) => s.extendExpiry);
   const regenerateToken = useStore((s) => s.regenerateToken);
   const bulkRevoke = useStore((s) => s.bulkRevoke);
+  const bulkDelete = useStore((s) => s.bulkDelete);
   const bulkResend = useStore((s) => s.bulkResend);
 
   const [open, setOpen] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [confirmDeleteInvite, setConfirmDeleteInvite] = useState<Invite | null>(null);
+  const [confirmBulkRevoke, setConfirmBulkRevoke] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [roleId, setRoleId] = useState(ROLE_TEMPLATES[0].id);
   const [selectedDriveId, setSelectedDriveId] = useState<string>("");
   const [created, setCreated] = useState<Invite | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -125,14 +131,13 @@ function InvitesPage() {
       });
       setCreated(inv);
     } catch (err: any) {
-      alert(err.message || "Failed creating invite");
+      toast.error(err.message || "Failed creating invite");
     }
   };
 
   const resetForm = () => {
     setName("");
     setEmail("");
-    setRoleId(ROLE_TEMPLATES[0].id);
     setSelectedDriveId("");
     setCreated(null);
     setOpen(false);
@@ -156,10 +161,13 @@ function InvitesPage() {
 
   const handleBulkRevoke = async () => {
     if (selectedIds.length === 0) return;
-    if (confirm(`Are you sure you want to revoke ${selectedIds.length} invite(s)?`)) {
-      await bulkRevoke(selectedIds);
-      setSelectedIds([]);
-    }
+    setConfirmBulkRevoke(true);
+  };
+
+  const confirmBulkRevokeAction = async () => {
+    await bulkRevoke(selectedIds);
+    setSelectedIds([]);
+    setConfirmBulkRevoke(false);
   };
 
   const handleBulkResend = async () => {
@@ -172,6 +180,28 @@ function InvitesPage() {
     if (!extendInviteId) return;
     await extendExpiry(extendInviteId, new Date(extendExpiryDate).toISOString());
     setExtendInviteId(null);
+  };
+
+  const handleDeleteSingle = async () => {
+    if (!confirmDeleteInvite) return;
+    try {
+      await deleteInvite(confirmDeleteInvite.id);
+      toast.success(`Deleted invite for ${confirmDeleteInvite.candidateName}`);
+      setConfirmDeleteInvite(null);
+    } catch (err: any) {
+      toast.error("Failed to delete invite: " + (err.message || err));
+    }
+  };
+
+  const handleBulkDeleteAction = async () => {
+    try {
+      await bulkDelete(selectedIds);
+      toast.success(`Deleted ${selectedIds.length} invite(s)`);
+      setSelectedIds([]);
+      setConfirmBulkDelete(false);
+    } catch (err: any) {
+      toast.error("Failed to bulk delete invites: " + (err.message || err));
+    }
   };
 
   const fmtExpires = (iso: string) => {
@@ -211,14 +241,14 @@ function InvitesPage() {
             <option value="all">All Drives</option>
             {drives.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name}
+                {formatDriveName(d.name)}
               </option>
             ))}
           </select>
 
           <button
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#2F5CFF] hover:bg-[#2448D9] text-white rounded-md text-[13px] font-medium cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded-md text-[13px] font-medium cursor-pointer shadow-sm transition-colors"
           >
             <Plus size={14} /> Create Invite
           </button>
@@ -245,6 +275,13 @@ function InvitesPage() {
             >
               <XCircle size={12} />
               Revoke selected
+            </button>
+            <button
+              onClick={() => setConfirmBulkDelete(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 cursor-pointer"
+            >
+              <Trash2 size={12} />
+              Delete selected
             </button>
           </div>
         </div>
@@ -330,6 +367,16 @@ function InvitesPage() {
                   <CalendarDays size={12} />
                 </button>
               )}
+              {inv.sessionId && (
+                <Link
+                  to="/results/$id"
+                  params={{ id: inv.sessionId }}
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] cursor-pointer"
+                  title="View Candidate Results"
+                >
+                  <Eye size={11} /> Results
+                </Link>
+              )}
               {inv.status !== "REDEEMED" && (
                 <button
                   onClick={() => regenerateToken(inv.id)}
@@ -339,6 +386,13 @@ function InvitesPage() {
                   <RefreshCw size={12} />
                 </button>
               )}
+              <button
+                onClick={() => setConfirmDeleteInvite(inv)}
+                className="p-1 border border-red-200 bg-red-50 text-red-600 rounded hover:bg-red-100 cursor-pointer"
+                title="Delete Invite"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           </div>
         ))}
@@ -381,7 +435,7 @@ function InvitesPage() {
                       <option value="">Select a Drive...</option>
                       {drives.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.name}
+                          {formatDriveName(d.name)}
                         </option>
                       ))}
                     </select>
@@ -426,7 +480,7 @@ function InvitesPage() {
                   <button
                     onClick={submit}
                     disabled={!name || !email || !selectedDriveId}
-                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#2448D9] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer"
+                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer transition-colors"
                   >
                     Generate invite link
                   </button>
@@ -442,7 +496,7 @@ function InvitesPage() {
                     </div>
                     <button
                       onClick={() => copy(created.link, created.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2448D9] text-white text-[12px] rounded cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] rounded cursor-pointer transition-colors"
                     >
                       {copiedId === created.id ? <Check size={13} /> : <Copy size={13} />}
                       {copiedId === created.id ? "Copied to clipboard" : "Copy link"}
@@ -530,9 +584,111 @@ function InvitesPage() {
               </button>
               <button
                 onClick={handleExtend}
-                className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#1E4DDF] cursor-pointer"
+                className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] cursor-pointer transition-colors"
               >
                 Save Extensions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Revoke Confirmation Modal */}
+      {confirmBulkRevoke && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-500 rounded-full">
+                <XCircle size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Revoke Multiple Invites?</h3>
+            </div>
+            
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to revoke <span className="font-semibold text-[#0B0B0D]">{selectedIds.length} invite(s)</span>? The invite links will no longer be valid and the candidates will not be able to access the assessment.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmBulkRevoke(false)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkRevokeAction}
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Revoke {selectedIds.length} Invite(s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Delete Confirmation Modal */}
+      {confirmDeleteInvite && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-600 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Invite?</h3>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to permanently delete the invite for{" "}
+              <span className="font-semibold text-[#0B0B0D]">{confirmDeleteInvite.candidateName}</span> ({confirmDeleteInvite.candidateEmail})?
+              This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmDeleteInvite(null)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSingle}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete Invite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+              <div className="p-2 bg-red-50 text-red-600 rounded-full">
+                <Trash2 size={18} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Multiple Invites?</h3>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to permanently delete <span className="font-semibold text-[#0B0B0D]">{selectedIds.length} invite(s)</span>?
+              All selected invitation records will be deleted permanently.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+              <button
+                onClick={() => setConfirmBulkDelete(false)}
+                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDeleteAction}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+              >
+                Delete {selectedIds.length} Invite(s)
               </button>
             </div>
           </div>

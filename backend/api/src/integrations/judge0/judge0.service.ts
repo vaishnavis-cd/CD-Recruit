@@ -1,8 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Judge0Client } from "./judge0.client";
 import { JUDGE0_POLLING, JUDGE0_STATUS } from "./judge0.constants";
 import { ExecutionStatus } from "@cd-recruit/shared-types";
 import { Judge0ExecutionResponse } from "./judge0.types";
+
+import { Judge0Language, JUDGE0_LANGUAGE_SLUG_MAP } from "./judge0-language.enum";
 
 @Injectable()
 export class Judge0Service {
@@ -11,31 +13,18 @@ export class Judge0Service {
   constructor(private readonly client: Judge0Client) {}
 
   /**
-   * Helper to map language string to Judge0 language ID.
+   * Map a language slug to a Judge0 language ID using typed Judge0Language enum.
+   * Throws BadRequestException for unknown languages so NestJS returns 400.
    */
   getLanguageId(language: string): number {
-    const lang = language.toLowerCase();
-    switch (lang) {
-      case "python":
-      case "python3":
-        return 71; // Python (3.8.1)
-      case "javascript":
-      case "js":
-        return 63; // JavaScript (Node.js 12.14.0)
-      case "typescript":
-      case "ts":
-        return 74; // TypeScript (3.7.4)
-      case "java":
-        return 62; // Java (JDK 13.0.1)
-      case "cpp":
-      case "c++":
-        return 54; // C++ (GCC 9.2.0)
-      case "go":
-      case "golang":
-        return 60; // Go (1.13.5)
-      default:
-        throw new Error(`Unsupported language: ${language}`);
+    const id = JUDGE0_LANGUAGE_SLUG_MAP[language.toLowerCase()];
+    if (!id) {
+      const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
+      throw new BadRequestException(
+        `Language "${language}" is not supported. Supported: ${supported.join(", ")}`,
+      );
     }
+    return id;
   }
 
   /**
@@ -74,71 +63,9 @@ export class Judge0Service {
   }
 
   /**
-   * Helper to wrap candidate code to execute test cases via standard I/O.
+   * Hook for wrapping candidate code before submission (no-op for stdin/stdout approach).
    */
-  wrapCode(sourceCode: string, language: string, questionId: string): string {
-    const lang = language.toLowerCase();
-    if (lang === "python" || lang === "python3") {
-      // Find candidate function name to call.
-      // E.g., def two_sum(...) or def is_valid(...)
-      // We can use a regex to look for "def [a-zA-Z0-9_]+"
-      const match = sourceCode.match(/def\s+([a-zA-Z0-9_]+)/);
-      const funcName = match ? match[1] : "solve";
-
-      return `${sourceCode}
-
-# --- Platform Test Runner Wrapper ---
-import sys
-import json
-
-try:
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        # Evaluate arguments safely
-        args = eval(f"({line})")
-        # Call function
-        if isinstance(args, tuple):
-            result = ${funcName}(*args)
-        else:
-            result = ${funcName}(args)
-        print(json.dumps(result))
-except Exception as e:
-    print(f"Wrapper Error: {e}", file=sys.stderr)
-    sys.exit(1)
-`;
-    }
-
-    if (lang === "javascript" || lang === "js" || lang === "typescript" || lang === "ts") {
-      // Find candidate function name.
-      // E.g., function twoSum(...) or const twoSum = (...)
-      const match = sourceCode.match(/(?:function|const|let|var)\s+([a-zA-Z0-9_]+)/);
-      const funcName = match ? match[1] : "solve";
-
-      return `${sourceCode}
-
-// --- Platform Test Runner Wrapper ---
-const fs = require('fs');
-try {
-  const input = fs.readFileSync(0, 'utf-8').trim();
-  if (input) {
-    const lines = input.split('\\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      const args = eval(\`[\${line}]\`);
-      const result = ${funcName}(...args);
-      console.log(JSON.stringify(result));
-    }
-  }
-} catch (e) {
-  console.error('Wrapper Error:', e.message);
-  process.exit(1);
-}
-`;
-    }
-
-    // Default to returning unmodified code for compiled/other languages
+  wrapCode(sourceCode: string, questionId: string): string {
     return sourceCode;
   }
 
@@ -175,7 +102,6 @@ try {
         const response = await this.client.getSubmission(token);
         const statusId = response.status.id;
 
-        // Status IDs 1 (In Queue) and 2 (Processing) mean execution is still pending.
         if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
           return response;
         }
@@ -188,7 +114,7 @@ try {
 
     this.logger.warn(`Polling exceeded max attempts (${JUDGE0_POLLING.MAX_ATTEMPTS}) for token: ${token}`);
     return {
-      status: { id: JUDGE0_STATUS.INTERNAL_ERROR, description: "Internal Error (Polling Timeout)" },
+      status: { id: JUDGE0_STATUS.TIME_LIMIT_EXCEEDED, description: "Time Limit Exceeded (Polling Timeout)" },
       stdout: null,
       stderr: null,
       compile_output: null,
@@ -198,22 +124,98 @@ try {
   }
 
   /**
-   * Run coding code against a set of test cases.
+   * Polls a batch of tokens in a single request until completion or timeout.
+   * Detects stuck queue workers (IN_QUEUE > 3s) and throws so fallback runner takes over.
+   */
+  async pollBatchSubmissions(tokens: string[]): Promise<Map<string, Judge0ExecutionResponse>> {
+    let pendingTokens = [...tokens];
+    const resultsMap = new Map<string, Judge0ExecutionResponse>();
+    let attempts = 0;
+    let inQueueStallCount = 0;
+
+    while (pendingTokens.length > 0 && attempts < JUDGE0_POLLING.MAX_ATTEMPTS) {
+      attempts++;
+      try {
+        const responses = await this.client.getBatchSubmissions(pendingTokens);
+        const stillPending: string[] = [];
+        let allInQueue = true;
+
+        for (const resp of responses) {
+          if (!resp || !resp.token) continue;
+          const statusId = resp.status?.id;
+          if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
+            resultsMap.set(resp.token, resp);
+            allInQueue = false;
+          } else {
+            stillPending.push(resp.token);
+            if (statusId !== JUDGE0_STATUS.IN_QUEUE) {
+              allInQueue = false;
+            }
+          }
+        }
+        pendingTokens = stillPending;
+
+        if (pendingTokens.length > 0 && allInQueue) {
+          inQueueStallCount++;
+          if (inQueueStallCount >= 15) {
+            this.logger.warn(`[Judge0Service] Queue worker is idle/stalled (tokens stuck IN_QUEUE for 15s). Failing execution...`);
+            throw new Error("JUDGE0_QUEUE_STALLED");
+          }
+        } else {
+          inQueueStallCount = 0;
+        }
+      } catch (err: any) {
+        if (err.message === "JUDGE0_QUEUE_STALLED") throw err;
+        this.logger.error(`Error polling batch tokens: ${err.message}`);
+      }
+
+      if (pendingTokens.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, JUDGE0_POLLING.INTERVAL_MS));
+      }
+    }
+
+    for (const token of pendingTokens) {
+      if (!resultsMap.has(token)) {
+        resultsMap.set(token, {
+          status: { id: JUDGE0_STATUS.TIME_LIMIT_EXCEEDED, description: "Time Limit Exceeded (Polling Timeout)" },
+          stdout: null,
+          stderr: null,
+          compile_output: null,
+          time: null,
+          memory: null,
+        });
+      }
+    }
+
+    return resultsMap;
+  }
+
+  /**
+   * Run coding code against a set of test cases using high-performance Batch APIs.
    */
   async runTests(
     sourceCode: string,
-    language: string,
+    languageId: number,
     questionId: string,
     testCases: Array<{ input: string; expectedOutput: string; label?: string }>,
   ): Promise<{
     status: ExecutionStatus;
     passedTests: number;
     totalTests: number;
-    executionTime: number; // in ms
-    memoryUsage: number; // in KB
+    executionTime: number;
+    memoryUsage: number;
     stdout: string;
     stderr: string;
     compileOutput: string;
+    results: Array<{
+      passed: boolean;
+      status: ExecutionStatus;
+      executionTime: number;
+      memoryUsage: number;
+      stdout: string;
+      stderr: string;
+      compileOutput: string;
+    }>;
   }> {
     if (!testCases || testCases.length === 0) {
       return {
@@ -225,44 +227,109 @@ try {
         stdout: "",
         stderr: "",
         compileOutput: "",
+        results: [],
       };
     }
 
-    const languageId = this.getLanguageId(language);
-    const wrappedCode = this.wrapCode(sourceCode, language, questionId);
+    this.logger.log(`Submitting code batch for languageId: ${languageId} to primary Judge0 API sandbox...`);
+
+    const wrappedCode = this.wrapCode(sourceCode, questionId);
     const sourceCodeBase64 = this.encodeBase64(wrappedCode);
 
-    // Submit all test cases to Judge0 in parallel
-    const submissionPromises = testCases.map(async (tc) => {
-      const stdinBase64 = this.encodeBase64(tc.input);
+    const batchItems = testCases.map((tc) => ({
+      sourceCodeBase64,
+      languageId,
+      stdinBase64: this.encodeBase64(tc.input),
+      expectedOutputBase64: this.encodeBase64(tc.expectedOutput),
+    }));
+
+    let submissionResponses: Array<Judge0ExecutionResponse & { token: string }> = [];
+    let attempts = 0;
+    const maxAttempts = 3;
+    let delay = 500;
+
+    while (attempts < maxAttempts) {
+      attempts++;
       try {
-        const token = await this.client.createSubmission(sourceCodeBase64, languageId, stdinBase64);
-        return { token, testCase: tc };
+        submissionResponses = await this.client.createBatchSubmissions(batchItems);
+        if (submissionResponses && submissionResponses.length === testCases.length) {
+          break;
+        }
       } catch (err: any) {
-        this.logger.error(`Failed to submit test case: ${err.message}`);
-        return { token: null, testCase: tc };
+        this.logger.warn(`Attempt ${attempts}/${maxAttempts} - Failed to connect to Judge0 API: ${err.message}`);
+        if (attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2;
+        }
       }
-    });
+    }
 
-    const submissions = await Promise.all(submissionPromises);
+    if (!submissionResponses || submissionResponses.length === 0 || submissionResponses.length !== testCases.length) {
+      this.logger.error(
+        `[INFRA_FAILURE_ALERT] Judge0 Sandboxed Execution Environment unavailable after ${maxAttempts} attempts. Flagging infra failure for ops intervention.`,
+      );
+      return {
+        status: ExecutionStatus.FAILED,
+        passedTests: 0,
+        totalTests: testCases.length,
+        executionTime: 0,
+        memoryUsage: 0,
+        stdout: "",
+        stderr: "Judge0 sandboxed execution environment unavailable (Infra error). Please retry or notify administrator.",
+        compileOutput: "",
+        results: testCases.map((tc) => ({
+          passed: false,
+          status: ExecutionStatus.FAILED,
+          executionTime: 0,
+          memoryUsage: 0,
+          stdout: "",
+          stderr: "Judge0 sandbox execution unavailable",
+          compileOutput: "",
+        })),
+      };
+    }
 
-    // Poll submissions in parallel
-    const pollPromises = submissions.map(async (sub) => {
-      if (!sub.token) {
+    const tokens = submissionResponses.map((r) => r.token);
+    const resultsMap = new Map<string, Judge0ExecutionResponse>();
+    const pendingTokens: string[] = [];
+
+    for (const resp of submissionResponses) {
+      const statusId = resp.status?.id;
+      if (statusId && statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
+        resultsMap.set(resp.token, resp);
+      } else if (resp.token) {
+        pendingTokens.push(resp.token);
+      }
+    }
+
+    if (pendingTokens.length > 0) {
+      try {
+        const polledMap = await this.pollBatchSubmissions(pendingTokens);
+        polledMap.forEach((val, key) => resultsMap.set(key, val));
+      } catch (err: any) {
+        this.logger.error(
+          `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
+        );
+      }
+    }
+
+    const results = testCases.map((tc, idx) => {
+      const token = tokens[idx];
+      const response = resultsMap.get(token) || submissionResponses[idx];
+
+      if (!response || !response.status) {
         return {
           passed: false,
           status: ExecutionStatus.FAILED,
           time: 0,
           memory: 0,
           stdout: "",
-          stderr: "Failed to submit to Judge0",
+          stderr: "Failed to receive submission response",
           compileOutput: "",
         };
       }
 
-      const response = await this.pollSubmission(sub.token);
       const mappedStatus = this.mapStatus(response.status.id, response.status.description);
-
       const decodedStdout = this.decodeBase64(response.stdout).trim();
       const decodedStderr = this.decodeBase64(response.stderr).trim();
       const decodedCompile = this.decodeBase64(response.compile_output).trim();
@@ -274,7 +341,7 @@ try {
       let passed = false;
       if (mappedStatus === ExecutionStatus.COMPLETED) {
         const normOut = this.normalizeOutput(decodedStdout);
-        const normExp = this.normalizeOutput(sub.testCase.expectedOutput);
+        const normExp = this.normalizeOutput(tc.expectedOutput);
         passed = normOut === normExp;
       }
 
@@ -288,8 +355,6 @@ try {
         compileOutput: decodedCompile,
       };
     });
-
-    const results = await Promise.all(pollPromises);
 
     // Aggregate values
     let totalTime = 0;
@@ -344,6 +409,21 @@ try {
       stdout: firstStdout,
       stderr: firstStderr,
       compileOutput: firstCompile,
+      results: results.map((r) => ({
+        passed: r.passed,
+        status: r.status,
+        executionTime: r.time,
+        memoryUsage: r.memory,
+        stdout: r.stdout,
+        stderr: r.stderr,
+        compileOutput: r.compileOutput,
+      })),
     };
   }
+
+  /*
+   * NOTE: runLocalFallback and evaluateLocalCode were physically removed per P0 security requirements.
+   * Executing candidate-submitted code directly on the host process (bare child_process) under any
+   * failure condition is strictly prohibited. Infrastructure failures must surface ops alerts & infra errors.
+   */
 }

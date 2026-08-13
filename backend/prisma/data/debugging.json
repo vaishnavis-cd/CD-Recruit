@@ -1,0 +1,99 @@
+[
+  {
+    "moduleType": "DEBUGGING",
+    "difficulty": "easy",
+    "content": {
+      "prompt": "DEBUGGING CHALLENGE: The following function is intended to validate whether an array of integers forms a valid sequence where each element is strictly greater than the previous element. However, QA reported that duplicate numbers and off-by-one boundary cases are passing incorrectly. Identify the bug in the logic and fix it.",
+      "starterCode": {
+        "javascript": "const fs = require('fs');\n\nfunction isStrictlyIncreasing(arr) {\n  // FIX NEEDED: Check boundary conditions and strict inequality\n  for (let i = 1; i < arr.length; i++) {\n    if (arr[i] <= arr[i - 1]) {\n      return false;\n    }\n  }\n  return true;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const arr = JSON.parse(line.trim());\n    console.log(isStrictlyIncreasing(arr) ? 'true' : 'false');\n  }\n}",
+        "python": "import sys\nimport json\n\ndef is_strictly_increasing(arr: list[int]) -> bool:\n    # FIX NEEDED: Check boundary conditions and strict inequality\n    for i in range(1, len(arr)):\n        if arr[i] <= arr[i - 1]:\n            return False\n    return True\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    arr = json.loads(line.strip())\n    print('true' if is_strictly_increasing(arr) else 'false')"
+      },
+      "testCases": [
+        {
+          "input": "[1, 2, 3, 4, 5]",
+          "expectedOutput": "true",
+          "label": "Valid Increasing Sequence"
+        },
+        {
+          "input": "[1, 2, 2, 4]",
+          "expectedOutput": "false",
+          "label": "Duplicate Element Bug Check"
+        },
+        {
+          "input": "[5, 4, 3, 2, 1]",
+          "expectedOutput": "false",
+          "label": "Decreasing Sequence Check"
+        },
+        {
+          "input": "[10]",
+          "expectedOutput": "true",
+          "label": "Single Element Array",
+          "isHidden": true
+        },
+        {
+          "input": "[1, 3, 2]",
+          "expectedOutput": "false",
+          "label": "Unsorted Array Check",
+          "isHidden": true
+        }
+      ],
+      "constraints": [
+        "1 <= arr.length <= 10^4",
+        "-10^9 <= arr[i] <= 10^9"
+      ],
+      "difficulty": "easy",
+      "explanation": "Strictly increasing sequence requires arr[i] > arr[i-1] for all i > 0, prohibiting equal adjacent elements."
+    }
+  },
+  {
+    "moduleType": "DEBUGGING",
+    "difficulty": "medium",
+    "content": {
+      "prompt": "DEBUGGING CHALLENGE: Memory Leak & Event Listener Cleanup. A frontend service accumulates orphaned window event listeners when components unmount, causing high browser memory usage over time. Inspect the handler registration logic and fix the cleanup callback function.",
+      "starterCode": {
+        "javascript": "const fs = require('fs');\n\nclass EventTracker {\n  constructor() {\n    this.listeners = [];\n  }\n\n  subscribe(event, callback) {\n    const handler = { event, callback };\n    this.listeners.push(handler);\n    return () => this.unsubscribe(event);\n  }\n\n  unsubscribe(event) {\n    this.listeners = this.listeners.filter(l => l.event !== event);\n  }\n\n  getListenerCount() {\n    return this.listeners.length;\n  }\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const tracker = new EventTracker();\n  tracker.subscribe('click', () => {});\n  tracker.subscribe('scroll', () => {});\n  tracker.unsubscribe('click');\n  console.log(tracker.getListenerCount() === 1 ? 'true' : 'false');\n}",
+        "python": "import sys\n\nclass EventTracker:\n    def __init__(self):\n        self.listeners = []\n\n    def subscribe(self, event, callback):\n        self.listeners.append({'event': event, 'callback': callback})\n\n    def unsubscribe(self, event):\n        self.listeners = [l for l in self.listeners if l['event'] != event]\n\n    def get_listener_count(self):\n        return len(self.listeners)\n\nfor line in sys.stdin:\n    tracker = EventTracker()\n    tracker.subscribe('click', lambda: None)\n    tracker.subscribe('scroll', lambda: None)\n    tracker.unsubscribe('click')\n    print('true' if tracker.get_listener_count() == 1 else 'false')"
+      },
+      "testCases": [
+        {
+          "input": "test",
+          "expectedOutput": "true",
+          "label": "Listener Unsubscribe Verification"
+        }
+      ],
+      "constraints": [
+        "Memory leak cleanup must be O(N) or better"
+      ],
+      "difficulty": "medium",
+      "explanation": "Ensure event listeners are properly removed from the array when unsubscribed."
+    }
+  },
+  {
+    "moduleType": "DEBUGGING",
+    "difficulty": "hard",
+    "content": {
+      "prompt": "DEBUGGING CHALLENGE: Rate Limiter Window Calculation. The sliding window algorithm below calculates requests per window interval, but incorrectly allows request bursts when crossing the sliding window boundary due to a timestamp rounding defect. Fix the timestamp window calculation.",
+      "starterCode": {
+        "javascript": "const fs = require('fs');\n\nfunction isRateLimited(timestamps, windowSizeMs, maxRequests) {\n  if (!timestamps || timestamps.length === 0) return false;\n  const now = timestamps[timestamps.length - 1];\n  const windowStart = now - windowSizeMs;\n  let count = 0;\n  for (let i = 0; i < timestamps.length; i++) {\n    if (timestamps[i] >= windowStart) {\n      count++;\n    }\n  }\n  return count > maxRequests;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  const lines = input.split('\\n');\n  for (const line of lines) {\n    if (!line.trim()) continue;\n    const { timestamps, windowSizeMs, maxRequests } = JSON.parse(line.trim());\n    console.log(isRateLimited(timestamps, windowSizeMs, maxRequests) ? 'true' : 'false');\n  }\n}",
+        "python": "import sys\nimport json\n\ndef is_rate_limited(timestamps: list[int], window_size_ms: int, max_requests: int) -> bool:\n    if not timestamps:\n        return False\n    now = timestamps[-1]\n    window_start = now - window_size_ms\n    count = sum(1 for t in timestamps if t >= window_start)\n    return count > max_requests\n\nfor line in sys.stdin:\n    if not line.strip():\n        continue\n    data = json.loads(line.strip())\n    print('true' if is_rate_limited(data['timestamps'], data['windowSizeMs'], data['maxRequests']) else 'false')"
+      },
+      "testCases": [
+        {
+          "input": "{\"timestamps\": [1000, 1500, 2000, 2200], \"windowSizeMs\": 1500, \"maxRequests\": 3}",
+          "expectedOutput": "true",
+          "label": "Burst Over Limit Check"
+        },
+        {
+          "input": "{\"timestamps\": [1000, 3000, 5000], \"windowSizeMs\": 1500, \"maxRequests\": 2}",
+          "expectedOutput": "false",
+          "label": "Spaced Requests Check"
+        }
+      ],
+      "constraints": [
+        "1 <= timestamps.length <= 10^5"
+      ],
+      "difficulty": "hard",
+      "explanation": "Count timestamps in the range [now - windowSizeMs, now] and return true if count exceeds maxRequests."
+    }
+  }
+]

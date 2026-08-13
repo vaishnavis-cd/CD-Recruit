@@ -1,0 +1,63 @@
+version: "3.8"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CD-Recruit — Judge0 CE Container Stack (Server + Sandboxed Worker)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: cdrecruit_judge0_server
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "2358:2358"
+    environment:
+      - JUDGE0_KEY=
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - POSTGRES_PASSWORD=cdrecruit123
+      - POSTGRES_DB=cdrecruit_judge0
+      # Security Guardrail Limits
+      - CPU_TIME_LIMIT=5.0
+      - MAX_CPU_TIME_LIMIT=10.0
+      - MEMORY_LIMIT=262144
+      - MAX_MEMORY_LIMIT=524288
+      - MAX_PROCESSES_AND_OR_THREADS=64
+      - MAX_OUTPUT_SIZE=1024
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+    restart: always
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: cdrecruit_judge0_worker
+    command: ["./scripts/workers"]
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - POSTGRES_PASSWORD=cdrecruit123
+      - POSTGRES_DB=cdrecruit_judge0
+      # Security Guardrail Limits
+      - CPU_TIME_LIMIT=5.0
+      - MAX_CPU_TIME_LIMIT=10.0
+      - MEMORY_LIMIT=262144
+      - MAX_MEMORY_LIMIT=524288
+      - MAX_PROCESSES_AND_OR_THREADS=64
+      - MAX_OUTPUT_SIZE=1024
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+    restart: always

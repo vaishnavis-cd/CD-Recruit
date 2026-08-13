@@ -1,0 +1,3 @@
+# Ignore transient candidate workspace files generated during contextual simulation execution
+*
+!.gitignore

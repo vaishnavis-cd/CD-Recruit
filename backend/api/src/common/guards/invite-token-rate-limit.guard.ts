@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { ThrottlerGuard } from "@nestjs/throttler";
+import { Injectable, Inject } from "@nestjs/common";
+import { ThrottlerGuard, ThrottlerStorage, ThrottlerModuleOptions } from "@nestjs/throttler";
+import { Reflector } from "@nestjs/core";
 
 /**
  * InviteTokenRateLimitGuard — rate-limits POST /sessions/start.
@@ -13,4 +14,12 @@ import { ThrottlerGuard } from "@nestjs/throttler";
  * prevent a buggy client from flooding the EventLog table.
  */
 @Injectable()
-export class InviteTokenRateLimitGuard extends ThrottlerGuard {}
+export class InviteTokenRateLimitGuard extends ThrottlerGuard {
+  constructor(
+    @Inject("THROTTLER:MODULE_OPTIONS") options: ThrottlerModuleOptions,
+    @Inject(ThrottlerStorage) storageService: ThrottlerStorage,
+    @Inject(Reflector) reflector: Reflector,
+  ) {
+    super(options, storageService, reflector);
+  }
+}

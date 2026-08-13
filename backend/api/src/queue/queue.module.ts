@@ -1,32 +1,42 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { Module, Global, forwardRef } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
-
+import { QueueProviderPort } from "./queue-provider.port";
+import { BullmqQueueProvider } from "./bullmq-queue.provider";
+import { LocalFakeQueueProvider } from "./local-fake-queue.provider";
+import { LocalFakeQueueHandlersBootstrap } from "./local-fake-queue-handlers.bootstrap";
+import { QueueScheduler } from "./queue.scheduler";
+import { HeartbeatService } from "./heartbeat.service";
 import { HeartbeatMonitorProcessor } from "./heartbeat-monitor.processor";
 import { GraceWindowProcessor } from "./grace-window.processor";
-import { QueueScheduler } from "./queue.scheduler";
 import { SessionModule } from "@app/session/session.module";
 
-/**
- * QueueModule — registers BullMQ queues and their processors.
- *
- * Queues:
- *   heartbeat-monitor — repeating scan every 10 s; detects stale sessions
- *   grace-window      — delayed per-session job; auto-submits after grace window
- *
- * Circular dependency: SessionModule imports QueueModule (for the grace-window
- * queue token), and QueueModule imports SessionModule (for SessionService used
- * by processors).  Resolved via forwardRef on both sides.
- *
- * The Redis connection is configured in AppModule via BullModule.forRootAsync() —
- * no connection config needed here.
- */
+const infraMode = process.env.INFRA_MODE ?? "local";
+const isFull = infraMode === "full";
+
+@Global()
 @Module({
   imports: [
-    BullModule.registerQueue({ name: "heartbeat-monitor" }),
-    BullModule.registerQueue({ name: "grace-window" }),
+    ...(isFull
+      ? [
+          BullModule.registerQueue(
+            { name: "heartbeat-monitor" },
+            { name: "grace-window" },
+          ),
+        ]
+      : []),
     forwardRef(() => SessionModule),
   ],
-  providers: [HeartbeatMonitorProcessor, GraceWindowProcessor, QueueScheduler],
-  exports: [BullModule],
+  providers: [
+    ...(isFull
+      ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor]
+      : [LocalFakeQueueProvider, LocalFakeQueueHandlersBootstrap]),
+    {
+      provide: QueueProviderPort,
+      useExisting: isFull ? BullmqQueueProvider : LocalFakeQueueProvider,
+    },
+    QueueScheduler,
+    HeartbeatService,
+  ],
+  exports: [QueueProviderPort],
 })
 export class QueueModule {}

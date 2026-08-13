@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   HttpStatus,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
@@ -15,12 +16,18 @@ import {
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
+import { InviteStatus, SessionStatus, ModuleType, OriginChannel } from "@prisma/client";
+
+import { CandidateIngestionService } from "./candidate-ingestion.service";
+import { CsvIngestionService } from "./csv-ingestion.service";
 
 @Injectable()
 export class DriveService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly candidateIngestionService: CandidateIngestionService,
+    private readonly csvIngestionService: CsvIngestionService,
   ) {}
 
   async create(dto: CreateDriveDto, staffId: string) {
@@ -34,20 +41,34 @@ export class DriveService {
       candidates = [],
     } = dto;
 
-    // 1. Verify RoleTemplate exists
-    const template = await this.prisma.roleTemplate.findUnique({
-      where: { id: roleTemplateId },
+    // 1. Verify RoleTemplate exists or auto-create custom role template
+    let template = await this.prisma.roleTemplate.findFirst({
+      where: {
+        OR: [
+          { id: roleTemplateId },
+          { roleName: { equals: roleTemplateId, mode: "insensitive" } },
+        ],
+      },
     });
+
     if (!template) {
-      throw new NotFoundException(`Role template not found with ID ${roleTemplateId}`);
+      template = await this.prisma.roleTemplate.create({
+        data: {
+          roleName: roleTemplateId.trim() || "Software Developer",
+          weightingPreset: { MCQ: 0.2, SQL: 0.2, CODING: 0.3, AI_PROMPTING: 0.15, SIMULATION: 0.15 },
+          durationMinutes: 90,
+        },
+      });
     }
+    const finalRoleTemplateId = template.id;
 
     const defaultModuleConfig = moduleConfig || {
-      MCQ: { enabled: false, durationMinutes: 15, weight: 0.2 },
-      SQL: { enabled: false, durationMinutes: 20, weight: 0.2 },
-      CODING: { enabled: false, durationMinutes: 30, weight: 0.3 },
-      AI_PROMPTING: { enabled: false, durationMinutes: 15, weight: 0.15 },
-      SIMULATION: { enabled: false, durationMinutes: 10, weight: 0.15 },
+      MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
+      SQL: { enabled: true, durationMinutes: 20, weight: 20 },
+      CODING: { enabled: true, durationMinutes: 30, weight: 25 },
+      DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
+      AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10 },
+      SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
     };
 
     // 2. Validate schedule if status is SCHEDULED or ACTIVE
@@ -98,7 +119,7 @@ export class DriveService {
       const createdDrive = await tx.drive.create({
         data: {
           name,
-          roleTemplateId,
+          roleTemplateId: finalRoleTemplateId,
           moduleConfig: defaultModuleConfig as any,
           status: status as any,
           scheduleStart: scheduleStart ? new Date(scheduleStart) : null,
@@ -107,75 +128,42 @@ export class DriveService {
         },
       });
 
-      // Link published questions matching the template/enabled modules if creating active/scheduled
-      if ((status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) && enabledModules.length > 0) {
+      // Link explicitly selected questions if provided by admin
+      if (dto.questionIds && Array.isArray(dto.questionIds) && dto.questionIds.length > 0) {
         const questionsToLink = await tx.question.findMany({
           where: {
-            moduleType: { in: enabledModules as any },
+            id: { in: dto.questionIds },
             status: "PUBLISHED",
           },
         });
 
         if (questionsToLink.length > 0) {
           await tx.driveQuestion.createMany({
-            data: questionsToLink.map((q) => ({
-              driveId: createdDrive.id,
-              questionId: q.id,
-              moduleType: q.moduleType,
-            })),
+            data: questionsToLink.map((q) => {
+              const tags = q.tags || [];
+              const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+              const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+              return {
+                driveId: createdDrive.id,
+                questionId: q.id,
+                moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+                questionVersionSnapshot: q.version ?? 1,
+              };
+            }),
           });
         }
       }
 
       // Generate Invites/Roster
       if (candidates.length > 0) {
-        const crypto = require("crypto");
-        const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + ttlHours);
-
-        const emails = candidates.map((c) => c.candidateEmail);
-        const existingCandidates = await tx.candidate.findMany({
-          where: { email: { in: emails } },
-        });
-        const existingEmails = new Set(existingCandidates.map((c) => c.email));
-        const candidatesToCreate = [];
-        const invitesData = [];
-
-        for (const cand of candidates) {
-          const inviteId = crypto.randomUUID();
-          if (!existingEmails.has(cand.candidateEmail)) {
-            candidatesToCreate.push({
-              email: cand.candidateEmail,
-              name: cand.name,
-            });
-            existingEmails.add(cand.candidateEmail);
-          }
-
-          const token = this.authService.generateInviteToken(
-            inviteId,
-            cand.candidateEmail,
-            cand.name,
-            roleTemplateId,
-          );
-
-          invitesData.push({
-            id: inviteId,
-            candidateEmail: cand.candidateEmail,
-            candidateName: cand.name,
-            roleTemplateId,
-            driveId: createdDrive.id,
-            createdById: staffId,
-            expiresAt,
-            token,
-            status: "PENDING",
-          });
-        }
-
-        if (candidatesToCreate.length > 0) {
-          await tx.candidate.createMany({ data: candidatesToCreate });
-        }
-        await tx.invite.createMany({ data: invitesData });
+        await this.candidateIngestionService.processBulkCandidates(
+          tx,
+          createdDrive.id,
+          roleTemplateId,
+          candidates,
+          staffId,
+          true,
+        );
       }
 
       // Create Audit Log
@@ -198,6 +186,160 @@ export class DriveService {
       status: drive.status,
       warning,
     };
+  }
+
+  /**
+   * Instantiate a Drive from a RoleTemplate.
+   * Copies RoleTemplateQuestion rows into DriveQuestion (with questionVersionSnapshot populated),
+   * carrying over weightingPreset and durationMinutes from the template unless explicitly overridden.
+   */
+  async createFromTemplate(roleTemplateId: string, driveMeta: any = {}, staffId: string = "system") {
+    const template = await this.prisma.roleTemplate.findUnique({
+      where: { id: roleTemplateId },
+      include: {
+        questions: {
+          include: {
+            question: true,
+          },
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+    });
+
+    if (!template) {
+      throw new NotFoundException(`RoleTemplate not found with ID ${roleTemplateId}`);
+    }
+
+    const name = driveMeta.name || `${template.roleName} Drive - ${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+    const status = driveMeta.status || DriveStatus.DRAFT;
+    const scheduleStart = driveMeta.scheduleStart;
+    const scheduleEnd = driveMeta.scheduleEnd;
+    const candidates = driveMeta.candidates || [];
+
+    // Build moduleConfig carrying over weightingPreset and durationMinutes from template unless overridden
+    let moduleConfig = driveMeta.moduleConfig;
+    if (!moduleConfig) {
+      const preset = (template.weightingPreset as Record<string, number>) || {};
+      moduleConfig = {};
+      const duration = driveMeta.durationMinutes ?? template.durationMinutes ?? 60;
+
+      for (const [mod, weight] of Object.entries(preset)) {
+        moduleConfig[mod] = {
+          enabled: true,
+          durationMinutes: duration,
+          weight: typeof weight === "number" ? weight : 0.2,
+        };
+      }
+
+      if (Object.keys(moduleConfig).length === 0) {
+        moduleConfig = {
+          MCQ: { enabled: true, durationMinutes: 15, weight: 0.2 },
+          SQL: { enabled: true, durationMinutes: 20, weight: 0.2 },
+          CODING: { enabled: true, durationMinutes: 30, weight: 0.3 },
+          AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.15 },
+          SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+        };
+      }
+    }
+
+    // Schedule validation
+    if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
+      if (!scheduleStart || !scheduleEnd) {
+        throw new BadRequestException(
+          "Schedule start and end dates are required when status is SCHEDULED or ACTIVE",
+        );
+      }
+      if (new Date(scheduleStart) >= new Date(scheduleEnd)) {
+        throw new BadRequestException("Schedule start date must be before end date");
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const createdDrive = await tx.drive.create({
+        data: {
+          name,
+          roleTemplateId: template.id,
+          organizationId: driveMeta.organizationId || undefined,
+          moduleConfig: moduleConfig as any,
+          status: status as any,
+          scheduleStart: scheduleStart ? new Date(scheduleStart) : null,
+          scheduleEnd: scheduleEnd ? new Date(scheduleEnd) : null,
+          createdById: staffId,
+          bufferMinutes: driveMeta.bufferMinutes ?? 15,
+          graceMinutes: driveMeta.graceMinutes ?? 5,
+        },
+      });
+
+      // Copy RoleTemplateQuestion rows into DriveQuestion with questionVersionSnapshot populated
+      if (template.questions && template.questions.length > 0) {
+        await tx.driveQuestion.createMany({
+          data: template.questions.map((rtq) => ({
+            driveId: createdDrive.id,
+            questionId: rtq.questionId,
+            moduleType: rtq.moduleType,
+            questionVersionSnapshot: rtq.questionVersionSnapshot ?? rtq.question?.version ?? 1,
+            pointShare: rtq.pointShare ?? null,
+          })),
+        });
+      } else if (driveMeta.questionIds && Array.isArray(driveMeta.questionIds) && driveMeta.questionIds.length > 0) {
+        const questionsToLink = await tx.question.findMany({
+          where: {
+            id: { in: driveMeta.questionIds },
+            status: "PUBLISHED",
+          },
+        });
+
+        if (questionsToLink.length > 0) {
+          await tx.driveQuestion.createMany({
+            data: questionsToLink.map((q) => ({
+              driveId: createdDrive.id,
+              questionId: q.id,
+              moduleType: q.moduleType,
+              questionVersionSnapshot: q.version ?? 1,
+            })),
+          });
+        }
+      }
+
+      // Generate Invites/Roster if candidates provided
+      if (candidates.length > 0) {
+        await this.candidateIngestionService.processBulkCandidates(
+          tx,
+          createdDrive.id,
+          template.id,
+          candidates,
+          staffId,
+          true,
+        );
+      }
+
+      // Create Audit Log
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "DRIVE_CREATED_FROM_TEMPLATE",
+          entityType: "Drive",
+          entityId: createdDrive.id,
+          metadata: {
+            roleTemplateId: template.id,
+            templateVersion: template.version,
+            department: template.department,
+            level: template.level,
+          },
+        },
+      });
+
+      return tx.drive.findUnique({
+        where: { id: createdDrive.id },
+        include: {
+          roleTemplate: true,
+          questions: {
+            include: { question: true },
+          },
+          invites: true,
+        },
+      });
+    });
   }
 
   async list(query: ListDrivesQueryDto): Promise<DriveListResponse> {
@@ -247,13 +389,14 @@ export class DriveService {
         id: drive.id,
         name: drive.name,
         roleTemplateId: drive.roleTemplateId,
-        roleTemplateName: drive.roleTemplate.roleName,
+        roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
         moduleConfig: drive.moduleConfig as any,
         status: drive.status as any,
+        originChannel: drive.originChannel,
         scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
         scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
         createdById: drive.createdById,
-        createdByName: drive.createdBy.name,
+        createdByName: drive.createdBy?.name || "System Admin",
         createdAt: drive.createdAt.toISOString(),
         invitedCount,
         startedCount,
@@ -293,7 +436,8 @@ export class DriveService {
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
-      const inviteLink = `${process.env.VITE_API_BASE_URL.replace("/api/v1", "")}/start?token=${invite.token}`;
+      const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+      const inviteLink = `${candidateAppBase}/invite/${invite.token}`;
       const session = invite.session;
 
       return {
@@ -321,17 +465,30 @@ export class DriveService {
         ["SUBMITTED", "AUTO_SUBMITTED", "CLOSED"].includes(i.session.status),
     ).length;
 
+    const baseModuleConfig = {
+      MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
+      SQL: { enabled: true, durationMinutes: 20, weight: 20 },
+      CODING: { enabled: true, durationMinutes: 30, weight: 25 },
+      DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15 },
+      AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10 },
+      SIMULATION: { enabled: true, durationMinutes: 10, weight: 10 },
+    };
+    const finalModuleConfig = {
+      ...baseModuleConfig,
+      ...((drive.moduleConfig as object) || {}),
+    };
+
     return {
       id: drive.id,
       name: drive.name,
       roleTemplateId: drive.roleTemplateId,
-      roleTemplateName: drive.roleTemplate.roleName,
-      moduleConfig: drive.moduleConfig as any,
+      roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
+      moduleConfig: finalModuleConfig as any,
       status: drive.status as any,
       scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
       scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
       createdById: drive.createdById,
-      createdByName: drive.createdBy.name,
+      createdByName: drive.createdBy?.name || "System Admin",
       createdAt: drive.createdAt.toISOString(),
       roster,
       invitedCount,
@@ -363,13 +520,24 @@ export class DriveService {
     const data: any = {};
     if (name) data.name = name;
     if (roleTemplateId) {
-      const template = await this.prisma.roleTemplate.findUnique({
-        where: { id: roleTemplateId },
+      let template = await this.prisma.roleTemplate.findFirst({
+        where: {
+          OR: [
+            { id: roleTemplateId },
+            { roleName: { equals: roleTemplateId, mode: "insensitive" } },
+          ],
+        },
       });
       if (!template) {
-        throw new NotFoundException(`Role template not found with ID ${roleTemplateId}`);
+        template = await this.prisma.roleTemplate.create({
+          data: {
+            roleName: roleTemplateId.trim() || "Software Developer",
+            weightingPreset: { MCQ: 0.2, SQL: 0.2, CODING: 0.3, AI_PROMPTING: 0.15, SIMULATION: 0.15 },
+            durationMinutes: 90,
+          },
+        });
       }
-      data.roleTemplateId = roleTemplateId;
+      data.roleTemplateId = template.id;
     }
     if (moduleConfig) data.moduleConfig = moduleConfig;
     if (scheduleStart) data.scheduleStart = new Date(scheduleStart);
@@ -384,6 +552,20 @@ export class DriveService {
       where: { id: driveId },
       data,
     });
+
+    if (moduleConfig) {
+      const validModuleTypes = Object.values(ModuleType);
+      const enabledModules = Object.entries(moduleConfig as Record<string, any>)
+        .filter(([mod, conf]) => conf?.enabled && validModuleTypes.includes(mod as any))
+        .map(([mod]) => mod as ModuleType);
+
+      await this.prisma.driveQuestion.deleteMany({
+        where: {
+          driveId,
+          moduleType: { notIn: enabledModules },
+        },
+      });
+    }
 
     // Create Audit Log
     await this.prisma.auditLog.create({
@@ -406,7 +588,7 @@ export class DriveService {
   async duplicate(driveId: string, staffId: string) {
     const sourceDrive = await this.prisma.drive.findUnique({
       where: { id: driveId },
-      include: { questions: true },
+      include: { questions: { include: { question: true } } },
     });
 
     if (!sourceDrive) {
@@ -430,6 +612,7 @@ export class DriveService {
             driveId: drive.id,
             questionId: q.questionId,
             moduleType: q.moduleType,
+            questionVersionSnapshot: (q as any).question?.version ?? q.questionVersionSnapshot ?? 1,
           })),
         });
       }
@@ -610,7 +793,11 @@ export class DriveService {
     return { success: true };
   }
 
-  async saveQuestions(driveId: string, questionIds: string[], staffId: string) {
+  async saveQuestions(
+    driveId: string,
+    payload: string[] | { questionIds?: string[]; questionAssignments?: Array<{ questionId: string; pointShare?: number }> },
+    staffId: string,
+  ) {
     const drive = await this.prisma.drive.findUnique({
       where: { id: driveId },
     });
@@ -618,16 +805,41 @@ export class DriveService {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
     }
 
-    const generatedInviteCount = await this.prisma.invite.count({
-      where: { driveId, isGenerated: true },
+    if (drive.originChannel === OriginChannel.PARTNER_API && !drive.isEditingUnlocked) {
+      throw new ForbiddenException("Question editing for partner API drives is locked by default. Explicit unlock required.");
+    }
+
+    const totalInvites = await this.prisma.invite.count({
+      where: { driveId },
+    });
+    const unGeneratedInviteCount = await this.prisma.invite.count({
+      where: { driveId, isGenerated: false },
     });
 
-    if (generatedInviteCount > 0) {
-      throw new BadRequestException("This drive questions mapping is locked because invite links have already been generated.");
+    if (totalInvites > 0 && unGeneratedInviteCount === 0) {
+      throw new BadRequestException("This drive questions mapping is locked because all candidate invite links have already been generated.");
+    }
+
+    let qIds: string[] = [];
+    const shareMap = new Map<string, number | undefined>();
+
+    if (Array.isArray(payload)) {
+      qIds = payload;
+    } else if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.questionAssignments) && payload.questionAssignments.length > 0) {
+        qIds = payload.questionAssignments.map((a) => a.questionId);
+        payload.questionAssignments.forEach((a) => {
+          if (a.pointShare !== undefined && a.pointShare !== null) {
+            shareMap.set(a.questionId, Number(a.pointShare));
+          }
+        });
+      } else if (Array.isArray(payload.questionIds)) {
+        qIds = payload.questionIds;
+      }
     }
 
     const questions = await this.prisma.question.findMany({
-      where: { id: { in: questionIds } },
+      where: { id: { in: qIds } },
     });
 
     await this.prisma.$transaction(async (tx) => {
@@ -637,11 +849,18 @@ export class DriveService {
 
       if (questions.length > 0) {
         await tx.driveQuestion.createMany({
-          data: questions.map((q) => ({
-            driveId,
-            questionId: q.id,
-            moduleType: q.moduleType,
-          })),
+          data: questions.map((q) => {
+            const tags = q.tags || [];
+            const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+            const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+            return {
+              driveId,
+              questionId: q.id,
+              moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+              pointShare: shareMap.get(q.id) ?? null,
+              questionVersionSnapshot: q.version ?? 1,
+            };
+          }),
         });
       }
 
@@ -678,60 +897,27 @@ export class DriveService {
     });
 
     if (generatedInviteCount > 0) {
-      throw new BadRequestException("This drive has already generated invite links and is locked.");
+      const now = new Date();
+      const cutoffTime = drive.scheduleStart ? new Date(new Date(drive.scheduleStart).getTime() + 15 * 60 * 1000) : null;
+      const isWithinLateWindow = cutoffTime ? now <= cutoffTime : true;
+      if (!isWithinLateWindow) {
+        throw new BadRequestException("This drive candidate roster is locked. Late candidate additions are only allowed prior to 15 minutes past schedule start.");
+      }
     }
 
     if (candidates.length === 0) {
       return { count: 0 };
     }
 
-    const emails = candidates.map((c) => c.candidateEmail);
-    const existingCandidates = await this.prisma.candidate.findMany({
-      where: { email: { in: emails } },
-    });
-    const existingEmails = new Set(existingCandidates.map((c) => c.email));
-
-    const crypto = require("crypto");
-    const invitesData: any[] = [];
-    const candidatesToCreate: any[] = [];
-
-    const expiresAt = new Date(); // Temporary placeholder, updated when links are generated
-
-    for (const cand of candidates) {
-      const inviteId = crypto.randomUUID();
-      
-      if (!existingEmails.has(cand.candidateEmail)) {
-        candidatesToCreate.push({
-          email: cand.candidateEmail,
-          name: cand.name,
-        });
-        existingEmails.add(cand.candidateEmail);
-      }
-
-      invitesData.push({
-        id: inviteId,
-        candidateEmail: cand.candidateEmail,
-        candidateName: cand.name,
-        roleTemplateId: drive.roleTemplateId,
-        driveId: drive.id,
-        createdById: staffId,
-        expiresAt,
-        token: "draft_" + crypto.randomUUID(),
-        isGenerated: false,
-        status: "PENDING",
-      });
-    }
-
     await this.prisma.$transaction(async (tx) => {
-      if (candidatesToCreate.length > 0) {
-        await tx.candidate.createMany({
-          data: candidatesToCreate,
-        });
-      }
-
-      await tx.invite.createMany({
-        data: invitesData,
-      });
+      await this.candidateIngestionService.processBulkCandidates(
+        tx,
+        driveId,
+        drive.roleTemplateId,
+        candidates,
+        staffId,
+        false,
+      );
 
       await tx.auditLog.create({
         data: {
@@ -760,11 +946,11 @@ export class DriveService {
     }
 
     const ungeneratedInvites = await this.prisma.invite.findMany({
-      where: { driveId, isGenerated: false },
+      where: { driveId },
     });
 
     if (ungeneratedInvites.length === 0) {
-      throw new BadRequestException("No ungenerated candidate invite links found for this drive.");
+      throw new BadRequestException("No candidate invites found for this drive. Please add candidates first.");
     }
 
     const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
@@ -793,6 +979,12 @@ export class DriveService {
       // Execute all updates
       await Promise.all(updates);
 
+      // Shift drive status automatically to ACTIVE
+      await tx.drive.update({
+        where: { id: driveId },
+        data: { status: DriveStatus.ACTIVE },
+      });
+
       // Log audit
       await tx.auditLog.create({
         data: {
@@ -806,5 +998,135 @@ export class DriveService {
     });
 
     return { count: ungeneratedInvites.length };
+  }
+
+  async removeCandidateFromDrive(
+    driveId: string,
+    candidateId: string,
+    staffId: string,
+  ) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    // Find invites for this candidate in this drive
+    const invites = await this.prisma.invite.findMany({
+      where: {
+        driveId,
+        OR: [
+          { id: candidateId },
+          { candidateEmail: candidateId },
+        ],
+      },
+    });
+
+    let targetCandidateId = candidateId;
+    let candidateEmails: string[] = invites.map((i) => i.candidateEmail).filter(Boolean);
+
+    if (invites.length === 0) {
+      const candidateRecord = await this.prisma.candidate.findFirst({
+        where: { OR: [{ id: candidateId }, { email: candidateId }] },
+      });
+      if (candidateRecord) {
+        targetCandidateId = candidateRecord.id;
+        candidateEmails = [candidateRecord.email];
+        const matching = await this.prisma.invite.findMany({
+          where: { driveId, candidateEmail: candidateRecord.email },
+        });
+        invites.push(...matching);
+      }
+    }
+
+    if (invites.length === 0) {
+      throw new NotFoundException("No matching candidate invite found for this drive.");
+    }
+
+    const inviteIds = Array.from(new Set(invites.map((i) => i.id)));
+
+    // Resolve candidate IDs to update session statuses
+    const candidateRecords = await this.prisma.candidate.findMany({
+      where: {
+        OR: [
+          { id: targetCandidateId },
+          { email: { in: candidateEmails } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const candidateIds = Array.from(
+      new Set([targetCandidateId, ...candidateRecords.map((c) => c.id)].filter(Boolean))
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      // Abandon any active/unsubmitted sessions for these candidates in this drive
+      if (candidateIds.length > 0) {
+        await tx.session.updateMany({
+          where: {
+            driveId,
+            candidateId: { in: candidateIds },
+            status: { in: [SessionStatus.NOT_STARTED, SessionStatus.IN_PROGRESS, SessionStatus.DISCONNECTED] },
+          },
+          data: { status: SessionStatus.ABANDONED },
+        });
+      }
+
+      // Delete the invite records
+      await tx.invite.deleteMany({
+        where: { id: { in: inviteIds } },
+      });
+
+      // Log audit
+      await tx.auditLog.create({
+        data: {
+          staffId,
+          action: "DRIVE_CANDIDATE_REMOVED",
+          entityType: "Drive",
+          entityId: driveId,
+          metadata: { candidateId, inviteIds, candidateEmails },
+        },
+      });
+    });
+
+    return { success: true, count: inviteIds.length };
+  }
+
+  async unlockEditing(driveId: string, staffId: string) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    const updated = await this.prisma.drive.update({
+      where: { id: driveId },
+      data: { isEditingUnlocked: true },
+      include: {
+        roleTemplate: true,
+        questions: { include: { question: true } },
+        invites: true,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "DRIVE_EDITING_UNLOCKED",
+        entityType: "Drive",
+        entityId: driveId,
+        metadata: {
+          driveName: drive.name,
+          unlockedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return updated;
   }
 }

@@ -1,4 +1,4 @@
-import { ModuleType } from "./enums";
+import { ModuleType } from "./enums.js";
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -72,12 +72,15 @@ export interface AiPromptingQuestionContent {
 }
 
 export interface SimulationTrigger {
+  id: string;
   type: "email" | "slack" | "ticket";
   from: string;
+  channel?: string;
   subject?: string;
   body: string;
-  /** ISO-8601 timestamp; drives display order and "when did this arrive" context. */
-  timestamp: string;
+  timeOffsetSeconds?: number;
+  triggerCondition?: "TIME_ELAPSED" | "CODE_SUBMITTED" | "ERROR_ENCOUNTERED";
+  timestamp?: string;
 }
 
 export interface SimulationRubricCriteria {
@@ -86,12 +89,19 @@ export interface SimulationRubricCriteria {
   description: string;
 }
 
+export interface DualRubricTrack {
+  fresherTrack: SimulationRubricCriteria[];
+  experiencedTrack: SimulationRubricCriteria[];
+}
+
 export interface SimulationQuestionContent {
   moduleType: ModuleType.SIMULATION;
   title: string;
   description: string;
   triggers: SimulationTrigger[];
   rubric: SimulationRubricCriteria[];
+  dualRubric?: DualRubricTrack;
+  adminConcernFlags?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +129,7 @@ export interface QuestionSummary {
   moduleType: ModuleType;
   /** Index within the module (0-based), used for free-navigation addressing. */
   moduleIndex: number;
+  content?: any;
 }
 
 /** Full question payload returned by GET /sessions/:id/questions/:questionId. */

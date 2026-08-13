@@ -1,17 +1,27 @@
 -- CreateEnum
-CREATE TYPE "ModuleType" AS ENUM ('MCQ', 'SQL', 'CODING', 'AI_PROMPTING', 'SIMULATION');
+DO $$ BEGIN
+  CREATE TYPE "ModuleType" AS ENUM ('MCQ', 'SQL', 'CODING', 'AI_PROMPTING', 'SIMULATION');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- CreateEnum
-CREATE TYPE "SessionStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'DISCONNECTED', 'AUTO_SUBMITTED', 'SUBMITTED', 'CLOSED', 'ABANDONED');
+DO $$ BEGIN
+  CREATE TYPE "SessionStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'DISCONNECTED', 'AUTO_SUBMITTED', 'SUBMITTED', 'CLOSED', 'ABANDONED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- CreateEnum
-CREATE TYPE "CvMode" AS ENUM ('FULL', 'REDUCED');
+DO $$ BEGIN
+  CREATE TYPE "CvMode" AS ENUM ('FULL', 'REDUCED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- CreateEnum
-CREATE TYPE "StaffRole" AS ENUM ('RECRUITER', 'ADMIN');
+DO $$ BEGIN
+  CREATE TYPE "StaffRole" AS ENUM ('RECRUITER', 'ADMIN');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- CreateEnum
-CREATE TYPE "DecisionType" AS ENUM ('ADVANCE', 'REJECT');
+DO $$ BEGIN
+  CREATE TYPE "DecisionType" AS ENUM ('ADVANCE', 'REJECT');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- CreateTable
 CREATE TABLE "role_template" (

@@ -1,4 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   BriefcaseBusiness,
@@ -7,14 +8,20 @@ import {
   LogOut,
   ClipboardCheck,
   Settings as SettingsIcon,
+  Award,
+  AlertTriangle,
+  Layers,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { getUserProfile, clearStoredToken } from "../lib/auth";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/drives", label: "Drives", icon: BriefcaseBusiness },
   { to: "/invites", label: "Invites", icon: Send },
+  { to: "/results", label: "Results", icon: Award },
   { to: "/reports", label: "Reports", icon: FileBarChart },
+  { to: "/templates", label: "Role Templates", icon: Layers },
   { to: "/questions", label: "Question Bank", icon: ClipboardCheck },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
@@ -29,23 +36,70 @@ export interface AppShellProps {
 
 export function AppShell({ title, count, actions, search, children }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const [userInfo, setUserInfo] = useState<{ userName: string; userRole: string; initials: string }>({
+    userName: "Rachel Brooks",
+    userRole: "recruiter",
+    initials: "RB",
+  });
+
+  const [hasUnreadResults, setHasUnreadResults] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (pathname.startsWith("/results")) {
+        localStorage.setItem("proctora_read_results_notification", "true");
+        setHasUnreadResults(false);
+      } else {
+        const isRead = localStorage.getItem("proctora_read_results_notification") === "true";
+        setHasUnreadResults(!isRead);
+      }
+    } catch {}
+  }, [pathname]);
+
+  useEffect(() => {
+    const user = getUserProfile();
+    if (user) {
+      const name = user.name || "Rachel Brooks";
+      const role = user.role ? user.role.toLowerCase() : "recruiter";
+      const inits = name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+      setUserInfo({
+        userName: name,
+        userRole: role,
+        initials: inits,
+      });
+    }
+  }, []);
+
+  const handleLogout = () => {
+    clearStoredToken();
+    setShowLogoutModal(false);
+    // Replace current location in history to prevent navigating back to protected route via browser Back button
+    window.location.replace("/login");
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F7F7F9] text-[#0B0B0D] font-sans">
       <aside className="w-[244px] shrink-0 bg-white border-r border-[#E6E6EA] text-[#0B0B0D] flex flex-col sticky top-0 h-screen">
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-[#2F5CFF] flex items-center justify-center font-mono text-[13px] font-semibold text-white">
-              CD
-            </div>
+            <img src="/Logo.png" alt="Proctora Logo" className="w-7 h-7 object-contain" />
             <div>
-              <div className="text-[13px] font-semibold tracking-tight text-[#0B0B0D]">CD-Recruit</div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#8B8B93]">
+              <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">Proctora</div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
                 admin
               </div>
             </div>
           </div>
         </div>
+
         <nav className="flex-1 py-3">
           {NAV.map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
@@ -63,25 +117,35 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
                 {active && (
                   <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-[#2F5CFF]" />
                 )}
-                <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
-                {item.label}
+                <div className="relative inline-flex items-center justify-center shrink-0">
+                  <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
+                  {item.to === "/results" && hasUnreadResults && (
+                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" title="New candidate results pending review" />
+                  )}
+                </div>
+                <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
+
         <div className="px-4 py-3 border-t border-[#E6E6EA] flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#2F5CFF] text-white flex items-center justify-center text-[11px] font-mono font-semibold">
-            RB
+            {userInfo.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] truncate text-[#0B0B0D]">Rachel Brooks</div>
+            <div className="text-[12px] truncate text-[#0B0B0D] font-medium">{userInfo.userName}</div>
             <div className="text-[10px] font-mono text-[#8B8B93] uppercase tracking-[0.14em]">
-              recruiter
+              {userInfo.userRole}
             </div>
           </div>
-          <Link to="/login" className="text-[#8B8B93] hover:text-[#0B0B0D]">
-            <LogOut size={14} />
-          </Link>
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            title="Log out"
+            className="p-1.5 text-[#8B8B93] hover:text-[#DC2626] hover:bg-[#FFF5F5] rounded-md transition-colors cursor-pointer"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </aside>
 
@@ -100,6 +164,43 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
         </header>
         <main className="px-8 py-6">{children}</main>
       </div>
+
+      {/* Blurred Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 transition-all">
+          <div className="bg-white rounded-xl border border-[#E6E6EA] shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#FFF5F5] text-[#DC2626] flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Confirm Logout</h3>
+                <p className="text-[12px] text-[#5B5B64]">End active admin session</p>
+              </div>
+            </div>
+
+            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+              Are you sure you want to log out of the Proctora Admin Console?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 text-[13px] font-medium text-[#5B5B64] hover:bg-[#EFF0F3] rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-[13px] font-medium text-white bg-[#DC2626] hover:bg-[#B91C1C] rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <LogOut size={14} />
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

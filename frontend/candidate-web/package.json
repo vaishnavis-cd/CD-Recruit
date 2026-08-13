@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "node --max-old-space-size=2048 ../../node_modules/vite/bin/vite.js",
     "build": "tsc && vite build",
     "lint": "eslint src --ext .ts,.tsx",
     "preview": "vite preview",
@@ -11,16 +11,32 @@
   },
   "dependencies": {
     "@cd-recruit/shared-types": "*",
+    "@mediapipe/tasks-vision": "^0.10.35",
+    "@monaco-editor/react": "^4.7.0",
+    "@nestjs/bullmq": "11.0.4",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-express": "11.1.28",
+    "@nestjs/swagger": "^11.4.5",
+    "@nestjs/testing": "11.1.28",
+    "@tanstack/react-query": "^5.101.1",
     "axios": "^1.7.9",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "react-router-dom": "^6.28.0",
-    "zustand": "^4.5.5"
+    "sql.js": "^1.14.1",
+    "tailwindcss": "^4.2.1",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^22.16.5",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^4.3.4",
+    "monaco-editor": "^0.53.0",
     "typescript": "^5.6.3",
     "vite": "^6.0.3"
   }

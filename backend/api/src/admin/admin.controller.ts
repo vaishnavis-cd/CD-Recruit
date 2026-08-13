@@ -2,18 +2,19 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
   UseGuards,
   HttpCode,
   HttpStatus,
+  ParseUUIDPipe,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { UUIDValidationPipe } from "../common/pipes/uuid-validation.pipe";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { AdminService } from "./admin.service";
 import { InviteService } from "./invite.service";
@@ -57,9 +58,14 @@ export class AdminController {
     return this.adminService.listSessions(query);
   }
 
+  @Get("results")
+  async listResults(@Query() query: ListSessionsQueryDto) {
+    return this.adminService.listSessions(query);
+  }
+
   @Get("sessions/:sessionId")
   async getSessionDetail(
-    @Param("sessionId", UUIDValidationPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
   ) {
     return this.adminService.getSessionDetail(sessionId);
   }
@@ -67,7 +73,7 @@ export class AdminController {
   @Post("sessions/:sessionId/decision")
   @HttpCode(HttpStatus.CREATED)
   async recordDecision(
-    @Param("sessionId", UUIDValidationPipe) sessionId: string,
+    @Param("sessionId") sessionId: string,
     @Body() dto: RecordDecisionDto,
     @CurrentUser() staff: any,
   ) {
@@ -76,14 +82,14 @@ export class AdminController {
 
   @Get("sessions/:sessionId/events")
   async getSessionEvents(
-    @Param("sessionId", UUIDValidationPipe) sessionId: string,
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ) {
     return this.adminService.getSessionEvents(sessionId);
   }
 
   @Get("sessions/:sessionId/integrity-flags")
   async getIntegrityFlags(
-    @Param("sessionId", UUIDValidationPipe) sessionId: string,
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ) {
     return this.adminService.getIntegrityFlags(sessionId);
   }
@@ -106,7 +112,7 @@ export class AdminController {
 
   @Post("invites/:inviteId/revoke")
   async revokeInvite(
-    @Param("inviteId", UUIDValidationPipe) inviteId: string,
+    @Param("inviteId", ParseUUIDPipe) inviteId: string,
     @CurrentUser() staff: any,
   ) {
     return this.inviteService.revokeInvite(inviteId, staff.id);
@@ -114,7 +120,7 @@ export class AdminController {
 
   @Post("invites/:inviteId/extend")
   async extendExpiry(
-    @Param("inviteId", UUIDValidationPipe) inviteId: string,
+    @Param("inviteId", ParseUUIDPipe) inviteId: string,
     @Body() dto: ExtendExpiryDto,
     @CurrentUser() staff: any,
   ) {
@@ -123,7 +129,7 @@ export class AdminController {
 
   @Post("invites/:inviteId/regenerate")
   async regenerateToken(
-    @Param("inviteId", UUIDValidationPipe) inviteId: string,
+    @Param("inviteId", ParseUUIDPipe) inviteId: string,
     @CurrentUser() staff: any,
   ) {
     return this.inviteService.regenerateToken(inviteId, staff.id);
@@ -141,6 +147,21 @@ export class AdminController {
     return this.inviteService.bulkResend(dto.inviteIds, staff.id);
   }
 
+  @Delete("invites/:inviteId")
+  @HttpCode(HttpStatus.OK)
+  async deleteInvite(
+    @Param("inviteId", ParseUUIDPipe) inviteId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.inviteService.deleteInvite(inviteId, staff.id);
+  }
+
+  @Post("invites/bulk-delete")
+  @HttpCode(HttpStatus.OK)
+  async bulkDelete(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
+    return this.inviteService.bulkDelete(dto.inviteIds, staff.id);
+  }
+
   @Post("sessions/compare")
   @HttpCode(HttpStatus.OK)
   async compareSessions(@Body("sessionIds") sessionIds: string[]) {
@@ -148,7 +169,7 @@ export class AdminController {
   }
 
   @Get("drives/:driveId/export")
-  async exportDrive(@Param("driveId", UUIDValidationPipe) driveId: string) {
+  async exportDrive(@Param("driveId", ParseUUIDPipe) driveId: string) {
     return this.adminService.bulkExportByDrive(driveId);
   }
 }

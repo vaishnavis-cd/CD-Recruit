@@ -1,20 +1,22 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { UUIDValidationPipe } from "../common/pipes/uuid-validation.pipe";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { SettingsService } from "./settings.service";
-import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto } from "../common/dto/settings.dto";
+import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto, UpdateAppealWindowConfigDto } from "../common/dto/settings.dto";
 
 @Controller("admin/settings")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,13 +29,29 @@ export class SettingsController {
     return this.settingsService.listStaff();
   }
 
+  @Post("staff")
+  async createStaff(
+    @Body() dto: { name: string; email: string; role: StaffRole },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.createStaff(dto, actor);
+  }
+
+  @Delete("staff/:staffId")
+  async deleteStaff(
+    @Param("staffId", ParseUUIDPipe) staffId: string,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.deleteStaff(staffId, actor);
+  }
+
   @Patch("staff/:staffId/role")
   async updateStaffRole(
-    @Param("staffId", UUIDValidationPipe) staffId: string,
+    @Param("staffId", ParseUUIDPipe) staffId: string,
     @Body() dto: UpdateStaffRoleDto,
     @CurrentUser() actor: any,
   ) {
-    return this.settingsService.updateStaffRole(staffId, dto.role, actor.id);
+    return this.settingsService.updateStaffRole(staffId, dto.role, actor);
   }
 
   @Get("scoring")
@@ -49,8 +67,22 @@ export class SettingsController {
     return this.settingsService.updateScoringConfig(
       dto.aiConfidenceThreshold,
       dto.passRateThreshold,
-      actor.id,
+      actor,
+      dto.aiIntensity,
     );
+  }
+
+  @Get("system")
+  async getSystemConfig() {
+    return this.settingsService.getTimingThresholds();
+  }
+
+  @Patch("system")
+  async updateSystemConfig(
+    @Body() dto: any,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateTimingThresholds(dto, actor);
   }
 
   @Get("retention")
@@ -65,12 +97,33 @@ export class SettingsController {
   ) {
     return this.settingsService.updateRetentionConfig(
       dto.biometricRetentionDays,
-      actor.id,
+      actor,
+    );
+  }
+
+  @Get("appeal-window")
+  async getAppealWindowConfig() {
+    return this.settingsService.getAppealWindowConfig();
+  }
+
+  @Patch("appeal-window")
+  async updateAppealWindowConfig(
+    @Body() dto: UpdateAppealWindowConfigDto,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateAppealWindowConfig(
+      dto.appealWindowDays,
+      actor,
     );
   }
 
   @Get("audit-log")
   async listAuditLogs(@Query() query: ListAuditLogQueryDto) {
+    return this.settingsService.listAuditLogs(query);
+  }
+
+  @Get("audit-logs")
+  async listAuditLogsAlias(@Query() query: ListAuditLogQueryDto) {
     return this.settingsService.listAuditLogs(query);
   }
 }

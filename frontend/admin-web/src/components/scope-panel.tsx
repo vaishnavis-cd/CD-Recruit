@@ -39,7 +39,8 @@ export function ScopePanel({
   const innerH = h - padY * 2;
 
   const { saidPath, didPath, gapPath, divergences, avgGap } = useMemo(() => {
-    if (!data.length) {
+    const safeData = Array.isArray(data) ? data : [];
+    if (!safeData.length) {
       return {
         saidPath: "",
         didPath: "",
@@ -48,37 +49,49 @@ export function ScopePanel({
         avgGap: 0,
       };
     }
-    const n = data.length;
-    const xFor = (i: number) => padX + (i / (n - 1)) * innerW;
-    const yFor = (v: number) => padY + (1 - v / 100) * innerH;
+    const n = safeData.length;
+    const denom = n > 1 ? n - 1 : 1;
+    const xFor = (i: number) => padX + (i / denom) * innerW;
+    const yFor = (v: number) => {
+      const num = Number(v) || 0;
+      return padY + (1 - Math.min(Math.max(num, 0), 100) / 100) * innerH;
+    };
 
     let saidP = "";
     let didP = "";
-    data.forEach((p, i) => {
+    safeData.forEach((p, i) => {
       const x = xFor(i);
-      saidP += (i === 0 ? "M" : "L") + x + " " + yFor(p.said) + " ";
-      didP += (i === 0 ? "M" : "L") + x + " " + yFor(p.did) + " ";
+      const saidVal = Number(p.said) || 0;
+      const didVal = Number(p.did) || 0;
+      saidP += (i === 0 ? "M" : "L") + x + " " + yFor(saidVal) + " ";
+      didP += (i === 0 ? "M" : "L") + x + " " + yFor(didVal) + " ";
     });
 
     // gap polygon (said upper - did lower, or reverse)
     let top = "";
     let bot = "";
-    data.forEach((p, i) => {
+    safeData.forEach((p, i) => {
       const x = xFor(i);
-      top += (i === 0 ? "M" : "L") + x + " " + yFor(Math.max(p.said, p.did)) + " ";
+      const saidVal = Number(p.said) || 0;
+      const didVal = Number(p.did) || 0;
+      top += (i === 0 ? "M" : "L") + x + " " + yFor(Math.max(saidVal, didVal)) + " ";
     });
     for (let i = n - 1; i >= 0; i--) {
       const x = xFor(i);
-      bot += "L" + x + " " + yFor(Math.min(data[i].said, data[i].did)) + " ";
+      const saidVal = Number(safeData[i].said) || 0;
+      const didVal = Number(safeData[i].did) || 0;
+      bot += "L" + x + " " + yFor(Math.min(saidVal, didVal)) + " ";
     }
     const gapP = top + bot + "Z";
 
     const divs: { i: number; x: number; y: number; gap: number }[] = [];
     let totalGap = 0;
-    data.forEach((p, i) => {
-      const gap = Math.abs(p.said - p.did);
+    safeData.forEach((p, i) => {
+      const saidVal = Number(p.said) || 0;
+      const didVal = Number(p.did) || 0;
+      const gap = Math.abs(saidVal - didVal);
       totalGap += gap;
-      if (gap >= 8) divs.push({ i, x: xFor(i), y: yFor(Math.min(p.said, p.did)), gap });
+      if (gap >= 8) divs.push({ i, x: xFor(i), y: yFor(Math.min(saidVal, didVal)), gap });
     });
     return {
       saidPath: saidP,
@@ -216,15 +229,20 @@ export function ScopeSpark({
   width?: number;
   height?: number;
 }) {
-  const n = data.length;
+  const safeData = Array.isArray(data) ? data : [];
+  const n = safeData.length;
   if (!n) return null;
-  const xFor = (i: number) => (i / (n - 1)) * (width - 4) + 2;
-  const yFor = (v: number) => 2 + (1 - v / 100) * (height - 4);
-  const avgGap = data.reduce((a, p) => a + Math.abs(p.said - p.did), 0) / n;
+  const denom = n > 1 ? n - 1 : 1;
+  const xFor = (i: number) => (i / denom) * (width - 4) + 2;
+  const yFor = (v: number) => {
+    const num = Number(v) || 0;
+    return 2 + (1 - Math.min(Math.max(num, 0), 100) / 100) * (height - 4);
+  };
+  const avgGap = safeData.reduce((a, p) => a + Math.abs((Number(p.said) || 0) - (Number(p.did) || 0)), 0) / n;
   const didColor = avgGap < 6 ? "#17C964" : "#2F5CFF";
   let saidP = "";
   let didP = "";
-  data.forEach((p, i) => {
+  safeData.forEach((p, i) => {
     saidP += (i === 0 ? "M" : "L") + xFor(i) + " " + yFor(p.said) + " ";
     didP += (i === 0 ? "M" : "L") + xFor(i) + " " + yFor(p.did) + " ";
   });
