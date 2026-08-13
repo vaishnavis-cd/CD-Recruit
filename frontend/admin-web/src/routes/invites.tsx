@@ -5,6 +5,7 @@ import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Se
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { type Invite } from "../lib/types";
+import { formatDriveName } from "../lib/utils";
 
 export const Route = createFileRoute("/invites")({
   component: InvitesPage,
@@ -240,7 +241,7 @@ function InvitesPage() {
             <option value="all">All Drives</option>
             {drives.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name}
+                {formatDriveName(d.name)}
               </option>
             ))}
           </select>
@@ -434,7 +435,7 @@ function InvitesPage() {
                       <option value="">Select a Drive...</option>
                       {drives.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.name}
+                          {formatDriveName(d.name)}
                         </option>
                       ))}
                     </select>

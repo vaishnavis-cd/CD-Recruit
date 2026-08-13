@@ -50,7 +50,7 @@ export class PartnerCandidatesService {
     }
 
     const customOrRoleName = dto.drive_name?.trim() || activeTemplate.roleName;
-    const driveName = `[Partner:${partner.id}:${requisition_ref}] ${customOrRoleName} (P)`;
+    const driveName = `${customOrRoleName} (P) (${requisition_ref})`;
     // "API:<partner.name>" is used as the actor label in AuditLog entries.
     // For the Drive.createdById FK, we must use a real Staff row ID.
     const auditActorLabel = `API:${partner.name}`;
@@ -72,7 +72,12 @@ export class PartnerCandidatesService {
     // 2. Upsert Drive keyed on (partner_id, requisition_ref)
     let drive = await this.prisma.drive.findFirst({
       where: {
-        name: driveName,
+        OR: [
+          { name: driveName },
+          { name: { contains: `(${requisition_ref})` } },
+          { name: { startsWith: `[Partner:${partner.id}:${requisition_ref}]` } },
+          { name: { startsWith: `[REQ:${requisition_ref}]` } },
+        ],
       },
       include: {
         questions: true,
@@ -153,12 +158,6 @@ export class PartnerCandidatesService {
           },
         },
       });
-
-      // Increment partner API hit counter
-      await tx.partner.update({
-        where: { id: partner.id },
-        data: { apiHitCount: { increment: 1 } },
-      });
     });
 
     // 4. Retrieve created invites for this drive to format candidate links
@@ -204,7 +203,11 @@ export class PartnerCandidatesService {
   async getRequisitionStatus(partner: Partner, ref: string) {
     const drive = await this.prisma.drive.findFirst({
       where: {
-        name: { startsWith: `[Partner:${partner.id}:${ref}]` },
+        OR: [
+          { name: { contains: `(${ref})` } },
+          { name: { startsWith: `[Partner:${partner.id}:${ref}]` } },
+          { name: { startsWith: `[REQ:${ref}]` } },
+        ],
       },
       include: {
         invites: {

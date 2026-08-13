@@ -19,13 +19,15 @@ function emit(event: DetectionEvent) {
   subscribers.forEach(cb => cb(event))
 }
 
+import { useSessionStore } from '../../store/sessionMachine'
+
 export function createRealCvDetectionAdapter(getSessionId?: () => string | null | undefined): CvDetectionPort & { _activeStream: () => MediaStream | null } {
   return {
     _activeStream: () => activeStream,
 
     async start(): Promise<void> {
-      const sessionId = getSessionId?.() || 'demo-session'
-      await ProctoringModule.getInstance().start(sessionId)
+      const activeSessionId = useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId || getSessionId?.() || 'demo-session'
+      await ProctoringModule.getInstance().start(activeSessionId)
     },
 
     async stop(): Promise<void> {

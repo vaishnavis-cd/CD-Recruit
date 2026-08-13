@@ -50,6 +50,7 @@ import { SingleDateTimePicker, computeRollingEndDate } from "../components/singl
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
 import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
+import { formatDriveName } from "../lib/utils";
 import {
   Select,
   SelectContent,
@@ -1013,7 +1014,7 @@ function DriveDetailPage() {
 
   return (
     <AppShell
-      title={`Drive Configuration — ${drive.name}`}
+      title={`Drive Configuration — ${formatDriveName(drive.name)}`}
       actions={
         <div className="flex items-center gap-3">
           <Link
@@ -1056,7 +1057,7 @@ function DriveDetailPage() {
       <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-5 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-[18px] font-semibold text-[#0B0B0D]">{drive.name}</h2>
+            <h2 className="text-[18px] font-semibold text-[#0B0B0D]">{formatDriveName(drive.name)}</h2>
             <div className="relative inline-flex items-center">
               <select
                 value={drive.status}
@@ -1092,8 +1093,7 @@ function DriveDetailPage() {
             >
               {(drive as any).originChannel === "PARTNER_API" ? "Partner API Origin" : "Direct Origin"}
             </span>
-            <span>•</span>
-            <span>Total Roster: {drive.roster.length} candidates</span>
+            
           </div>
         </div>
 

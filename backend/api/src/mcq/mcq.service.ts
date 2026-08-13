@@ -34,12 +34,14 @@ export class McqService {
     }
     if (!session) {
       try {
-        let candidate = await this.prisma.candidate.findFirst();
-        if (!candidate) candidate = await this.prisma.candidate.create({ data: { email: "demo@example.com", name: "Demo Candidate" } });
         let roleTemplate = await this.prisma.roleTemplate.findFirst();
         if (!roleTemplate) roleTemplate = await this.prisma.roleTemplate.create({ data: { roleName: "Dev", durationMinutes: 60, weightingPreset: {} } });
-        session = await this.prisma.session.create({
-          data: {
+        let candidate = await this.prisma.candidate.findFirst({ where: { email: `${sessionId}@example.com` } });
+        if (!candidate) candidate = await this.prisma.candidate.create({ data: { email: `${sessionId}@example.com`, name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}` } });
+        session = await this.prisma.session.upsert({
+          where: { id: sessionId },
+          update: {},
+          create: {
             id: sessionId,
             candidate: { connect: { id: candidate.id } },
             roleTemplate: { connect: { id: roleTemplate.id } },

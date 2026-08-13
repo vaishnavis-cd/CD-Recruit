@@ -32,6 +32,7 @@ import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
 import { useStore, API_BASE } from "../lib/store";
 import type { CandidateSessionDetail } from "../lib/types";
+import { formatDriveName } from "../lib/utils";
 
 export const Route = createFileRoute("/results/$id")({
   component: IndividualResultPage,
@@ -299,7 +300,7 @@ function IndividualResultPage() {
               )}
             </div>
             <p className="text-[13px] text-[#5B5B64]">
-              {detail.candidateEmail} • Drive: <span className="font-semibold text-[#0B0B0D]">{detail.driveName}</span> ({detail.roleTemplateName})
+              {detail.candidateEmail} • Drive: <span className="font-semibold text-[#0B0B0D]">{formatDriveName(detail.driveName)}</span> ({detail.roleTemplateName})
             </p>
           </div>
 
