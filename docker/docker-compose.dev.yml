@@ -126,6 +126,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Face Verify Service (FastAPI + DeepFace) ────────────────────────────────
+  face-verify-service:
+    build:
+      context: ../services/face-verify
+    container_name: cdrecruit_face_verify_dev
+    ports:
+      - "8001:8000"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/docs || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   redis_data:

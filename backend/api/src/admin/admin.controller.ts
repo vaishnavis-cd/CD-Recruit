@@ -10,7 +10,11 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
@@ -160,6 +164,19 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async bulkDelete(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
     return this.inviteService.bulkDelete(dto.inviteIds, staff.id);
+  }
+
+  @Post("invites/:inviteId/id-proof")
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor("file"))
+  async uploadIdProof(
+    @Param("inviteId", ParseUUIDPipe) inviteId: string,
+    @UploadedFile() file: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException("No image file uploaded in form field 'file'");
+    }
+    return this.inviteService.uploadIdProof(inviteId, file);
   }
 
   @Post("sessions/compare")
