@@ -29,9 +29,14 @@ async function bootstrap(): Promise<void> {
   });
 
   // ── CORS ──────────────────────────────────────────────────────────────
-  // Allows the candidate-web (localhost:3000) and admin-web to reach the API.
+  // Reads CORS_ALLOWED_ORIGINS from environment or defaults to dev endpoints.
+  const corsAllowedEnv = process.env.CORS_ALLOWED_ORIGINS;
+  const allowedOrigins = corsAllowedEnv
+    ? corsAllowedEnv.split(",").map((o) => o.trim()).filter(Boolean)
+    : true;
+
   app.enableCors({
-    origin: true, // reflect request origin in dev; lock to specific origins in prod
+    origin: allowedOrigins,
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
   });
