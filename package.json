@@ -51,10 +51,6 @@
     ],
     "*.{js,json,md,yml,yaml}": [
       "prettier --write"
-    ],
-    "*.py": [
-      "ruff check --fix",
-      "black"
     ]
   },
   "overrides": {
