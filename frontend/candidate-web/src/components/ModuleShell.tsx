@@ -67,6 +67,9 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge()
   const [networkDisconnected, setNetworkDisconnected] = React.useState(false)
 
+  // Mount 15s candidate heartbeat loop for active assessment session
+  useHeartbeat(assessment?.sessionId)
+
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
       return MODULES
