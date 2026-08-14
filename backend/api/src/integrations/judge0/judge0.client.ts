@@ -67,6 +67,7 @@ export class Judge0Client {
       wall_time_limit: 10.0,
       enable_per_process_and_thread_time_limit: true,
       enable_per_process_and_thread_memory_limit: true,
+      memory_limit: 512000,
     };
 
     let attempts = 0;

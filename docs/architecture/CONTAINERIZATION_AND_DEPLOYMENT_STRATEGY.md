@@ -1,4 +1,4 @@
-# CD-Recruit (Proctora) — Containerization & Deployment Strategy
+# Proctora — Containerization & Deployment Strategy
 **Document Version:** 1.0.0  
 **Status:** Canonical Architectural Justification & Sizing Blueprint  
 **Scope:** Phase 1 (Unified Monolith Container) ➔ Phase 2 (Hybrid AWS Staging) ➔ Phase 3 (Enterprise Cloud-Native)
@@ -154,13 +154,13 @@ To sustain at least **2–3 parallel active test candidates** in a single-node P
 Based on the resource footprint above, we sizing the host server accordingly:
 
 * **Entry-Level Instance (Minimum for 2-3 Candidates)**:
-  * **AWS Instance Type:** `t3.large` or `t3a.large` (2 vCPUs, 8 GB RAM) or `t4g.large` (ARM64, 2 vCPUs, 8 GB RAM).
+  * **AWS Instance Type:** `t3a.large` (2 vCPUs, 8 GB RAM) or `t4g.large` (ARM64, 2 vCPUs, 8 GB RAM).
   * **Justification:** Provides the 5 GB baseline for background containers plus a 3 GB buffer to handle parallel code executions and file uploads.
 * **Recommended Production-Parity Sandbox VM**:
   * **AWS Instance Type:** `t3.xlarge` (4 vCPUs, 16 GB RAM) or `c6g.xlarge` (4 vCPUs, 8 GB RAM).
   * **Justification:** Prevents CPU throttling during simultaneous coding submissions and offers faster database response times.
 * **Storage Allocation**:
-  * **Type:** 60–80 GB GP3 EBS SSD volume.
+  * **Type:** 60 GB GP3 EBS SSD volume.
   * **Justification:** Accommodates temporary database write-ahead logs, container images, and local biometric artifacts.
 
 ---

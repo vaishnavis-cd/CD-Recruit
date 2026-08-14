@@ -170,7 +170,7 @@ async function main(): Promise<void> {
         if (existing) {
           const updated = await tx.question.update({
             where: { id: existing.id },
-            data: { moduleType: targetModule as ModuleType, difficulty, tags, status: "PUBLISHED" },
+            data: { moduleType: targetModule as ModuleType, content: q.content, difficulty, tags, status: "PUBLISHED" },
           });
           createdQuestions.push(updated);
         } else {

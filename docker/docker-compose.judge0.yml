@@ -28,12 +28,13 @@ services:
       # Security Guardrail Limits
       - CPU_TIME_LIMIT=5.0
       - MAX_CPU_TIME_LIMIT=10.0
-      - MEMORY_LIMIT=262144
-      - MAX_MEMORY_LIMIT=524288
-      - MAX_PROCESSES_AND_OR_THREADS=64
+      - MEMORY_LIMIT=524288
+      - MAX_MEMORY_LIMIT=1048576
+      - MAX_PROCESSES_AND_OR_THREADS=120
       - MAX_OUTPUT_SIZE=1024
       - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
-      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
+      - JAVA_TOOL_OPTIONS=-Xmx128m -Xms32m -XX:MaxMetaspaceSize=64m -XX:CompressedClassSpaceSize=16m
     restart: always
 
   judge0-worker:
@@ -54,10 +55,11 @@ services:
       # Security Guardrail Limits
       - CPU_TIME_LIMIT=5.0
       - MAX_CPU_TIME_LIMIT=10.0
-      - MEMORY_LIMIT=262144
-      - MAX_MEMORY_LIMIT=524288
-      - MAX_PROCESSES_AND_OR_THREADS=64
+      - MEMORY_LIMIT=524288
+      - MAX_MEMORY_LIMIT=1048576
+      - MAX_PROCESSES_AND_OR_THREADS=120
       - MAX_OUTPUT_SIZE=1024
       - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
-      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
+      - JAVA_TOOL_OPTIONS=-Xmx128m -Xms32m -XX:MaxMetaspaceSize=64m -XX:CompressedClassSpaceSize=16m
     restart: always
