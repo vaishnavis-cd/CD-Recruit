@@ -137,6 +137,16 @@ export interface CandidateSessionDetail {
   submittedAt: string | null;
   deadlineAt: string | null;
   disconnectCount: number;
+  drive?: {
+    id: string;
+    name: string;
+    moduleConfig?: any;
+    questions?: any[];
+  } | null;
+  questions?: any[];
+  simulationSnapshot?: any;
+  telemetryActions?: any[];
+  submissions?: any[];
   moduleResponses: Array<{
     id: string;
     questionId: string;
@@ -161,6 +171,7 @@ export interface CandidateSessionDetail {
     humanReviewed: boolean;
     sayDoRationale?: string | null;
     gradingSource?: string | null;
+    totalScore?: number;
   } | null;
   decision?: {
     outcome: "PASS" | "FAIL";
@@ -168,6 +179,8 @@ export interface CandidateSessionDetail {
     decidedBy: string;
     note?: string;
   };
+  reviewerDecision?: any;
+  proctoringSummary?: any;
 }
 
 export interface Candidate {

@@ -151,15 +151,20 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     if (!res.ok) throw new Error("Failed to fetch session detail");
     const detail = await res.json();
     const mapped = {
+      ...detail,
       id: detail.sessionId || detail.id || sessionId,
       candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
       candidateEmail: detail.candidate?.email || detail.candidateEmail || "",
-      driveName: detail.driveName || detail.roleTemplateName || "Assessment Drive",
+      driveName: detail.driveName || detail.drive?.name || detail.roleTemplateName || "Assessment Drive",
       roleTemplateName: detail.roleTemplateName || "Software Developer",
       status: detail.status || "SUBMITTED",
       startedAt: detail.startedAt || null,
       submittedAt: detail.submittedAt || null,
       deadlineAt: detail.deadlineAt || null,
+      drive: detail.drive || null,
+      questions: detail.questions || detail.drive?.questions || [],
+      simulationSnapshot: detail.simulationSnapshot || null,
+      telemetryActions: detail.telemetryActions || [],
       score: detail.score ? {
         compositeScore: detail.score.compositeScore,
         sayDoConsistencyScore: detail.score.sayDoConsistencyScore,
@@ -167,6 +172,8 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         humanReviewed: detail.score.humanReviewed,
         sayDoRationale: detail.score.sayDoRationale,
         moduleScores: detail.score.moduleScores || {},
+        totalScore: detail.score.totalScore,
+        gradingSource: detail.score.gradingSource,
       } : null,
       proctoringSummary: detail.proctoringSummary || {
         flags: detail.integrityFlags || [],
@@ -180,6 +187,7 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       submissions: detail.submissions || detail.moduleResponses || [],
       moduleResponses: detail.moduleResponses || detail.submissions || [],
       reviewerDecision: detail.reviewerDecision || detail.decision || null,
+      decision: detail.decision || detail.reviewerDecision || null,
     };
     set({ currentSessionDetail: mapped as any });
     return mapped as any;

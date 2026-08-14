@@ -169,52 +169,76 @@ function IndividualResultPage() {
     };
 
     const flagCount = detail.integrityFlags?.length || 0;
-    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any }> = [
-      { id: "CODING", label: "Coding / DSA", icon: Code2 },
-      { id: "DEBUGGING", label: "Debugging", icon: Bug },
-      { id: "SQL", label: "SQL Execution", icon: Database },
-      { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
-      { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
-      { id: "SIMULATION", label: "Simulation Log", icon: Play },
-      { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
-    ];
+    const rawModuleConfig = (detail as any).drive?.moduleConfig || (detail as any).session?.drive?.moduleConfig || {};
+    const moduleConfig = typeof rawModuleConfig === "string" 
+      ? (() => { try { return JSON.parse(rawModuleConfig); } catch { return rawModuleConfig; } })() 
+      : rawModuleConfig;
+    const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
 
-    const moduleConfig = (detail as any).drive?.moduleConfig || (detail as any).session?.drive?.moduleConfig || {};
+    const checkIsSelected = (tabId: string) => {
+      if (tabId === "INTEGRITY") return true;
 
-    return tabs.filter((tab) => {
-      if (tab.id === "INTEGRITY") return true;
+      // Check config for enabled flag across various key formats
+      let isEnabledInConfig = false;
+      const confKeys = [
+        tabId,
+        tabId.toLowerCase(),
+        tabId === "AI_PROMPTING" ? "aiPrompting" : "",
+        tabId === "AI_PROMPTING" ? "AIPROMPTING" : "",
+        tabId === "SIMULATION" ? "simulation" : "",
+      ].filter(Boolean);
 
-      const isEnabledInConfig = Boolean(moduleConfig[tab.id]?.enabled);
+      for (const k of confKeys) {
+        if (moduleConfig && moduleConfig[k] !== undefined) {
+          const val = moduleConfig[k];
+          isEnabledInConfig = typeof val === "boolean" ? val : Boolean(val?.enabled);
+          break;
+        }
+      }
 
       const hasResponse = (detail.moduleResponses || []).some((r) => {
-        if (tab.id === "DEBUGGING") return isDebuggingItem(r);
-        if (tab.id === "CODING") {
+        if (tabId === "DEBUGGING") return isDebuggingItem(r);
+        if (tabId === "CODING") {
           const isCodingResp = r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined;
           return isCodingResp && !isDebuggingItem(r);
         }
-        return r.moduleType === tab.id || r.responsePayload?.moduleType === tab.id;
+        return r.moduleType === tabId || r.responsePayload?.moduleType === tabId;
       });
 
-      const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
       const hasQuestionInDrive = driveQuestions.some((q: any) => {
-        if (tab.id === "DEBUGGING") return isDebuggingItem(q);
-        if (tab.id === "CODING") {
+        if (tabId === "DEBUGGING") return isDebuggingItem(q);
+        if (tabId === "CODING") {
           const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
           return (qMod === "CODING" || qMod === "") && !isDebuggingItem(q);
         }
         const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
-        return qMod === tab.id;
+        return qMod === tabId;
       });
 
       return isEnabledInConfig || hasResponse || hasQuestionInDrive;
-    });
+    };
+
+    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "INTEGRITY"; label: string; icon: any; isSelected: boolean }> = [
+      { id: "CODING", label: "Coding / DSA", icon: Code2, isSelected: checkIsSelected("CODING") },
+      { id: "DEBUGGING", label: "Debugging", icon: Bug, isSelected: checkIsSelected("DEBUGGING") },
+      { id: "SQL", label: "SQL Execution", icon: Database, isSelected: checkIsSelected("SQL") },
+      { id: "MCQ", label: "MCQ Responses", icon: FileCheck2, isSelected: checkIsSelected("MCQ") },
+      { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot, isSelected: checkIsSelected("AI_PROMPTING") },
+      { id: "SIMULATION", label: "Simulation Log", icon: Play, isSelected: checkIsSelected("SIMULATION") },
+      { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert, isSelected: true },
+    ];
+
+    return tabs;
   }, [detail]);
 
   useEffect(() => {
     if (availableTabs.length > 0) {
-      const isCurrentValid = availableTabs.some((t: any) => t.id === activeTab);
+      const isCurrentValid = availableTabs.some((t: any) => t.id === activeTab && t.isSelected);
       if (!isCurrentValid) {
-        setActiveTab(availableTabs[0].id as any);
+        const firstSelected = availableTabs.find((t: any) => t.isSelected);
+        if (firstSelected) {
+          setActiveTab(firstSelected.id as any);
+        }
       }
     }
   }, [availableTabs, activeTab]);
@@ -394,29 +418,50 @@ function IndividualResultPage() {
       </div>
 
       {/* Module Navigation Tabs */}
-      <div className="flex border-b border-[#E6E6EA] mb-6 space-x-6">
+      <div className="flex border-b border-[#E6E6EA] mb-6 space-x-6 overflow-x-auto">
         {availableTabs.map((tab: any) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
+          const isSelected = tab.isSelected;
+          const isActive = activeTab === tab.id;
+
+          if (!isSelected) {
             return (
-              <button
+              <div
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
-                    ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
-                    : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
-                  }`}
+                title="This module was not selected for this assessment"
+                className="flex items-center gap-2 pb-3 text-[13px] font-medium border-b-2 border-transparent text-[#9CA3AF] opacity-60 cursor-not-allowed select-none shrink-0"
               >
                 <div className="relative inline-flex items-center justify-center shrink-0">
-                  <Icon size={16} />
-                  {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
-                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                  )}
+                  <Icon size={16} className="text-[#9CA3AF]" />
                 </div>
                 <span>{tab.label}</span>
-              </button>
+                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]">
+                  Not selected
+                </span>
+              </div>
             );
-          })}
+          }
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer relative shrink-0 ${
+                isActive
+                  ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
+                  : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
+              }`}
+            >
+              <div className="relative inline-flex items-center justify-center shrink-0">
+                <Icon size={16} />
+                {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
+                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                )}
+              </div>
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Contents */}

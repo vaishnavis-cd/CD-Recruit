@@ -291,6 +291,33 @@ export class AdminService {
       }
     }
 
+    if (session && !session.drive && session.candidate) {
+      const invite = await this.prisma.invite.findFirst({
+        where: {
+          OR: [
+            { sessionId: session.id },
+            { candidateEmail: session.candidate.email },
+          ],
+          driveId: { not: null },
+        },
+        include: {
+          drive: {
+            include: {
+              questions: {
+                include: {
+                  question: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (invite?.drive) {
+        (session as any).drive = invite.drive;
+      }
+    }
+
     if (!session) {
       const invite = await this.prisma.invite.findFirst({
         where: {
@@ -577,7 +604,9 @@ export class AdminService {
       drive: session.drive ? {
         id: session.drive.id,
         name: session.drive.name,
-        moduleConfig: session.drive.moduleConfig,
+        moduleConfig: typeof session.drive.moduleConfig === "string"
+          ? (() => { try { return JSON.parse(session.drive.moduleConfig as string); } catch { return session.drive.moduleConfig; } })()
+          : session.drive.moduleConfig,
         questions,
       } : undefined,
       simulationSnapshot: mergedSnapshot,
