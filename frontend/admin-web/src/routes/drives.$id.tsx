@@ -210,6 +210,7 @@ function DriveDetailPage() {
   const [endHour, setEndHour] = useState("11");
   const [endMinute, setEndMinute] = useState("00");
   const [endAmPm, setEndAmPm] = useState("AM");
+  const [rollingWindow, setRollingWindow] = useState<boolean>(false);
 
   // Module Config State (7 Modules)
   const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
@@ -1709,31 +1710,6 @@ function DriveDetailPage() {
                       </button>
                     );
                   })}
-              </div>
-
-              {/* Complexity / Difficulty Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
-                <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
-                  {[
-                    { id: "ALL", label: "All" },
-                    { id: "EASY", label: "Easy" },
-                    { id: "MEDIUM", label: "Medium" },
-                    { id: "HARD", label: "Hard" },
-                  ].map((diff) => (
-                    <button
-                      key={modKey}
-                      onClick={() => setQuestionModuleFilter(modKey)}
-                      className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
-                        questionModuleFilter === modKey
-                          ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                          : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
-                      }`}
-                    >
-                      <span>{MODULE_LABEL_MAP[modKey] || modKey}</span>
-                    </button>
-                  );
-                })}
               </div>
 
               {/* Complexity / Difficulty & Tier Filters */}
