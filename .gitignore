@@ -95,8 +95,8 @@ dump.rdb
 /dump.rdb
 *.rdb
 
-# ── ML Models (large binary files, exceed GitHub 100MB limit) ─────────────
-*.onnx
+# ── ML Models (non-ONNX large binaries — not tracked by LFS) ──────────────
+# NOTE: *.onnx is managed by Git LFS (see .gitattributes) — do NOT add it here.
 *.pt
 *.pth
 *.bin
