@@ -44,7 +44,7 @@ function LoginPage() {
     <div
       className="min-h-screen w-full text-[#0B0B0D] font-sans flex items-center justify-center p-4 relative overflow-hidden bg-[#F4F5F8]"
       style={{
-        backgroundImage: "url('/Login-admin-bg.png')",
+        backgroundImage: "url('/admin/Login-admin-bg.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -55,7 +55,7 @@ function LoginPage() {
 
       <div className="w-full max-w-[420px] relative z-10 bg-white/75 backdrop-blur-2xl border border-white/50 rounded-2xl p-8 shadow-2xl transition-all duration-300">
         <div className="flex items-center gap-3 mb-6">
-          <img src="/Logo.png" alt="Proctora Logo" className="w-8 h-8 object-contain" />
+          <img src="/admin/Logo.png" alt="Proctora Logo" className="w-8 h-8 object-contain" />
           <div>
             <div className="text-[19px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">
               Proctora

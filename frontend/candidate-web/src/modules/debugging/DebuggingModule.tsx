@@ -210,8 +210,8 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
       }
       setQuestionStatus(questionId, 'answered')
     } catch (err: any) {
-      console.error('[DebuggingModule] Judge0 execution failed:', err)
-      setExecError(err.message || 'Remote Judge0 code execution failed. Verify runner service.')
+      console.error('[DebuggingModule] execution failed:', err)
+      setExecError(err.message || 'Remote code execution failed. Verify runner service.')
     } finally {
       setIsRunning(false)
     }
@@ -354,7 +354,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               className="px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              <span>Run Diagnostics (Judge0)</span>
+              <span>Run Diagnostics</span>
             </button>
           </div>
 
@@ -384,7 +384,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
             <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold text-[var(--text-secondary)] flex items-center justify-between uppercase tracking-wider">
               <span className="flex items-center gap-2">
                 <TerminalIcon className="w-3.5 h-3.5 text-[var(--accent)]" />
-                <span>Judge0 Execution Console</span>
+                <span>Execution Console</span>
               </span>
               {executionResult && (
                 <span className="text-[10px] text-[var(--text-secondary)]">
@@ -397,7 +397,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               {isRunning && (
                 <div className="flex items-center gap-2 text-[var(--text-secondary)]">
                   <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
-                  <span>Submitting code payload to Judge0 remote execution sandbox...</span>
+                  <span>Submitting code to execution sandbox...</span>
                 </div>
               )}
 
@@ -459,7 +459,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
 
               {!isRunning && !execError && !executionResult && (
                 <div className="text-[var(--text-secondary)] italic">
-                  Click "Run Diagnostics (Judge0)" to execute your code against remote test cases.
+                  Click "Run Diagnostics" to execute your code against remote test cases.
                 </div>
               )}
             </div>

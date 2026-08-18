@@ -82,7 +82,7 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
     clearStoredToken();
     setShowLogoutModal(false);
     // Replace current location in history to prevent navigating back to protected route via browser Back button
-    window.location.replace("/login");
+    window.location.replace("/admin/login");
   };
 
   return (
@@ -90,7 +90,7 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
       <aside className="w-[244px] shrink-0 bg-white border-r border-[#E6E6EA] text-[#0B0B0D] flex flex-col sticky top-0 h-screen">
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2">
-            <img src="/Logo.png" alt="Proctora Logo" className="w-7 h-7 object-contain" />
+            <img src="/admin/Logo.png" alt="Proctora Logo" className="w-7 h-7 object-contain" />
             <div>
               <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">Proctora</div>
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">

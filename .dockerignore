@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.gemini
+.tanstack
+.turbo
+.vscode
+.idea
+*.log
+npm-debug.log*
+.DS_Store
+audit
+scratch
+docs

@@ -158,12 +158,18 @@ function isoToAmPm(isoString?: string | null, defaultHour = "10", defaultMin = "
 
 function amPmToIso(date: string, hour: string, minute: string, ampm: string) {
   if (!date) return null;
-  let h = parseInt(hour, 10) || 12;
+  let h = parseInt(hour, 10);
+  if (isNaN(h) || h < 1) h = 12;
+  if (h > 12) h = 12;
   if (ampm === "PM" && h < 12) h += 12;
   if (ampm === "AM" && h === 12) h = 0;
 
-  const m = parseInt(minute, 10) || 0;
+  let m = parseInt(minute, 10);
+  if (isNaN(m) || m < 0) m = 0;
+  if (m > 59) m = 59;
+
   const d = new Date(`${date}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
+  if (isNaN(d.getTime())) return null;
   return d.toISOString();
 }
 
@@ -563,15 +569,19 @@ function DriveDetailPage() {
     // Rolling window is always exactly 24 hours
     if (rollingWindow) return 24 * 60;
 
-    let sHour = parseInt(startHourStr, 10) || 10;
+    let sHour = parseInt(startHourStr, 10);
+    if (isNaN(sHour) || sHour < 1) sHour = 10;
+    if (sHour > 12) sHour = 12;
     if (startAmPmStr === "PM" && sHour < 12) sHour += 12;
     if (startAmPmStr === "AM" && sHour === 12) sHour = 0;
-    const sMin = parseInt(startMinStr, 10) || 0;
+    const sMin = Math.min(59, Math.max(0, parseInt(startMinStr, 10) || 0));
 
-    let eHour = parseInt(endHourStr, 10) || 11;
+    let eHour = parseInt(endHourStr, 10);
+    if (isNaN(eHour) || eHour < 1) eHour = 11;
+    if (eHour > 12) eHour = 12;
     if (endAmPmStr === "PM" && eHour < 12) eHour += 12;
     if (endAmPmStr === "AM" && eHour === 12) eHour = 0;
-    const eMin = parseInt(endMinStr, 10) || 0;
+    const eMin = Math.min(59, Math.max(0, parseInt(endMinStr, 10) || 0));
 
     const startTotalMins = sHour * 60 + sMin;
     const endTotalMins = eHour * 60 + eMin;

@@ -17,11 +17,15 @@ export class Judge0Client {
   private readonly apiKey: string;
 
   constructor(private readonly configService: ConfigService<AppConfig, true>) {
-    const rawUrl = this.configService.get<string>("judge0ApiUrl", { infer: true }) || "http://localhost:2358";
+    const rawUrl =
+      this.configService.get<string>("judge0ApiUrl", { infer: true }) ||
+      process.env.JUDGE0_API_URL ||
+      process.env.JUDGE0_URL ||
+      (process.env.NODE_ENV === "production" ? "http://judge0-server:2358" : "http://localhost:2358");
     this.apiUrl = rawUrl.replace(/\/+$/, "");
-    this.apiKey = this.configService.get<string>("judge0ApiKey", { infer: true });
+    this.apiKey = this.configService.get<string>("judge0ApiKey", { infer: true }) || process.env.JUDGE0_API_KEY || "";
 
-    this.logger.log(`Judge0 Primary Sandbox Engine configured at: ${this.apiUrl || "http://localhost:2358"}`);
+    this.logger.log(`Judge0 Primary Sandbox Engine configured at: ${this.apiUrl}`);
   }
 
   getApiUrl(): string {

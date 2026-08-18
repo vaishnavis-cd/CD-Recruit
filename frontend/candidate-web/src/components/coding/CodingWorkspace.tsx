@@ -583,7 +583,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
               {isRunning && (
                 <div className="flex flex-col items-center justify-center h-full gap-2 py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-accent" />
-                  <span className="text-xs text-text-secondary font-semibold">Running program on Judge0 sandbox...</span>
+                  <span className="text-xs text-text-secondary font-semibold">Running program...</span>
                 </div>
               )}
 

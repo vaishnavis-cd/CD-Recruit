@@ -56,11 +56,17 @@ function TimeInputGroup({
   const maxHour = is24h ? 23 : 12;
   const minHour = is24h ? 0 : 1;
 
+  const numHour = parseInt(hourValue, 10);
+  const isHourInvalid = !isNaN(numHour) && (numHour > maxHour || numHour < minHour);
+  const numMin = parseInt(minuteValue, 10);
+  const isMinInvalid = !isNaN(numMin) && (numMin > 59 || numMin < 0);
+
   const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, "");
     if (val.length > 2) val = val.slice(0, 2);
     onChangeHour(val);
-    if (val.length === 2) {
+    const parsed = parseInt(val, 10);
+    if (val.length === 2 && !isNaN(parsed) && parsed <= maxHour && parsed >= minHour) {
       setTimeout(() => {
         minuteRef.current?.focus();
         minuteRef.current?.select();
@@ -117,44 +123,69 @@ function TimeInputGroup({
   };
 
   return (
-    <div className="flex items-center gap-1 font-mono text-[16px] text-[#0B0B0D]">
-      <input
-        ref={hourRef}
-        type="text"
-        maxLength={2}
-        value={hourValue}
-        onChange={handleHourChange}
-        onBlur={handleHourBlur}
-        onKeyDown={handleHourKeyDown}
-        onFocus={(e) => e.target.select()}
-        className="w-8 text-center focus:outline-none bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF] rounded py-0.5 transition-colors font-semibold"
-        placeholder="HH"
-      />
-      <span className="text-[#8B8B93] font-semibold">:</span>
-      <input
-        ref={minuteRef}
-        type="text"
-        maxLength={2}
-        value={minuteValue}
-        onChange={handleMinuteChange}
-        onBlur={handleMinuteBlur}
-        onKeyDown={handleMinuteKeyDown}
-        onFocus={(e) => e.target.select()}
-        className="w-8 text-center focus:outline-none bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF] rounded py-0.5 transition-colors font-semibold"
-        placeholder="MM"
-      />
+    <div className="flex flex-col">
+      <div className="flex items-center gap-1 font-mono text-[16px] text-[#0B0B0D]">
+        <input
+          ref={hourRef}
+          type="text"
+          maxLength={2}
+          value={hourValue}
+          onChange={handleHourChange}
+          onBlur={handleHourBlur}
+          onKeyDown={handleHourKeyDown}
+          onFocus={(e) => e.target.select()}
+          className={`w-8 text-center focus:outline-none rounded py-0.5 transition-colors font-semibold ${
+            isHourInvalid
+              ? "bg-red-50 text-red-600 border border-red-300 focus:bg-red-50 focus:text-red-700"
+              : "bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF]"
+          }`}
+          placeholder="HH"
+        />
+        <span className="text-[#8B8B93] font-semibold">:</span>
+        <input
+          ref={minuteRef}
+          type="text"
+          maxLength={2}
+          value={minuteValue}
+          onChange={handleMinuteChange}
+          onBlur={handleMinuteBlur}
+          onKeyDown={handleMinuteKeyDown}
+          onFocus={(e) => e.target.select()}
+          className={`w-8 text-center focus:outline-none rounded py-0.5 transition-colors font-semibold ${
+            isMinInvalid
+              ? "bg-red-50 text-red-600 border border-red-300 focus:bg-red-50 focus:text-red-700"
+              : "bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF]"
+          }`}
+          placeholder="MM"
+        />
+      </div>
+      {isHourInvalid && (
+        <span className="text-[10px] text-red-500 font-medium mt-0.5 whitespace-nowrap">
+          {is24h ? "Must be 00–23" : "Must be 01–12"}
+        </span>
+      )}
+      {!isHourInvalid && isMinInvalid && (
+        <span className="text-[10px] text-red-500 font-medium mt-0.5 whitespace-nowrap">
+          Must be 00–59
+        </span>
+      )}
     </div>
   );
 }
 
 /** Compute end date string when rolling 24h from a start date + time */
-function computeRollingEndDate(startDate: string, startHour: string, startMinute: string, startAmPm: string): string {
+export function computeRollingEndDate(startDate: string, startHour: string, startMinute: string, startAmPm: string): string {
   if (!startDate) return startDate;
-  let h = parseInt(startHour, 10) || 0;
+  let h = parseInt(startHour, 10);
+  if (isNaN(h) || h < 1) h = 12;
+  if (h > 12) h = 12;
   if (startAmPm === "PM" && h < 12) h += 12;
   if (startAmPm === "AM" && h === 12) h = 0;
-  const m = parseInt(startMinute, 10) || 0;
+  let m = parseInt(startMinute, 10);
+  if (isNaN(m) || m < 0) m = 0;
+  if (m > 59) m = 59;
   const start = new Date(`${startDate}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
+  if (isNaN(start.getTime())) return new Date().toISOString();
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return end.toISOString();
 }
@@ -585,6 +616,3 @@ export function SingleDateTimePicker({
     </div>
   );
 }
-
-/** Export helper so drives.$id.tsx can compute endIso in rolling mode */
-export { computeRollingEndDate };

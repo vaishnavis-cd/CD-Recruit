@@ -9,8 +9,7 @@ import {
   ShieldAlert,
   Sparkles,
   Calendar,
-  Activity,
-  Search
+  Activity
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
@@ -159,10 +158,6 @@ function DashboardPage() {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("30");
 
-  // Roster search & filter state
-  const [rosterQuery, setRosterQuery] = useState("");
-  const [rosterStatus, setRosterStatus] = useState<string>("all");
-
   useEffect(() => {
     fetchActionQueue();
     fetchDrives();
@@ -194,33 +189,6 @@ function DashboardPage() {
       return true;
     });
   }, [sessions, selectedRole, selectedDrive, dateRange]);
-
-  // Roster specific filter
-  const rosterSessions = useMemo(() => {
-    return filteredSessions.filter((s: any) => {
-      if (!s) return false;
-      const cName = s.candidate?.name || s.candidateName || "";
-      const cEmail = s.candidate?.email || s.candidateEmail || "";
-      const name = cName.toLowerCase();
-      const email = cEmail.toLowerCase();
-      const q = rosterQuery.toLowerCase().trim();
-
-      if (q && !name.includes(q) && !email.includes(q)) return false;
-
-      if (rosterStatus === "pending") {
-        return (
-          s.status === "ai_scored" ||
-          s.status === "submitted" ||
-          (s.integrityFlags || []).some((f: any) => f.severity === "critical")
-        );
-      }
-      if (rosterStatus === "ai_scored") return s.status === "ai_scored";
-      if (rosterStatus === "reviewed") return s.status === "reviewed" || s.status === "decision";
-      if (rosterStatus === "decided") return s.status === "decision";
-
-      return true;
-    });
-  }, [filteredSessions, rosterQuery, rosterStatus]);
 
   const stats = useMemo(() => buildDashboardStats(filteredSessions, drives), [filteredSessions, drives]);
 
@@ -261,8 +229,8 @@ function DashboardPage() {
 
           <ExportDropdown
             data={filteredSessions}
-            filenamePrefix="proctora-candidate-roster"
-            title="Proctora Candidate Evaluation Roster"
+            filenamePrefix="proctora-candidate-evaluations"
+            title="Proctora Candidate Evaluations"
           />
         </div>
       }
@@ -393,133 +361,6 @@ function DashboardPage() {
                 );
               })}
             </div>
-          </div>
-        </div>
-
-        {/* SECTION 3: Candidate Evaluation Roster Table */}
-        <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-[16px] font-bold text-[#0B0B0D]">Candidate Evaluation Roster</h3>
-              <p className="text-[12px] text-[#8B8B93]">Actionable list of all assessment sessions requiring evaluation</p>
-            </div>
-
-            {/* Filter Tabs & Search */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={rosterQuery}
-                  onChange={(e) => setRosterQuery(e.target.value)}
-                  placeholder="Search candidate..."
-                  className="pl-8 pr-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-lg bg-[#F7F7F9] focus:outline-none focus:border-[#2F5CFF] w-48"
-                />
-                <Search size={14} className="absolute left-2.5 top-2.5 text-[#8B8B93]" />
-              </div>
-
-              <div className="flex border border-[#E6E6EA] rounded-lg p-0.5 bg-[#F7F7F9] text-[12px]">
-                {[
-                  { id: "all", label: "All" },
-                  { id: "pending", label: "Needs Audit" },
-                  { id: "reviewed", label: "Reviewed" },
-                  { id: "decided", label: "Decided" },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setRosterStatus(t.id)}
-                    className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                      rosterStatus === t.id ? "bg-white text-[#2F5CFF] shadow-xs" : "text-[#5B5B64] hover:text-[#0B0B0D]"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Roster Table */}
-          <div className="overflow-x-auto border border-[#E6E6EA] rounded-lg">
-            <table className="w-full text-left text-[13px]">
-              <thead className="bg-[#F7F7F9] text-[#5B5B64] font-semibold text-[11px] uppercase tracking-wider border-b border-[#E6E6EA]">
-                <tr>
-                  <th className="py-3 px-4">Candidate</th>
-                  <th className="py-3 px-4">Role / Drive</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Composite Score</th>
-                  <th className="py-3 px-4">Say-Do Sync</th>
-                  <th className="py-3 px-4">Risk Flags</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E6E6EA]">
-                {rosterSessions.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-[#8B8B93] text-[13px]">
-                      No candidate sessions found matching current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  rosterSessions.map((s: any) => {
-                    const flags = s.integrityFlags || [];
-                    const isCritical = flags.some((f: any) => f.severity === "critical");
-                    const isMedium = flags.some((f: any) => f.severity === "medium");
-
-                    return (
-                      <tr key={s.id} className="hover:bg-[#F7F7F9] transition-colors">
-                        <td className="py-3 px-4 font-medium text-[#0B0B0D]">
-                          <div>{s.candidate?.name || s.candidateName || "Candidate"}</div>
-                          <div className="text-[11px] text-[#8B8B93]">{s.candidate?.email || s.candidateEmail || "No email"}</div>
-                        </td>
-                        <td className="py-3 px-4 text-[#5B5B64]">
-                          <div>{s.roleTemplate?.roleName || "Software Engineer"}</div>
-                          <div className="text-[11px] text-[#8B8B93]">{s.driveName || "Drive Session"}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            s.status === "decision" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                            s.status === "reviewed" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                            "bg-amber-50 text-amber-700 border border-amber-200"
-                          }`}>
-                            {s.status === "decision" ? "Decided" : s.status === "reviewed" ? "Reviewed" : "Needs Audit"}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-semibold text-[#0B0B0D]">
-                          {s.compositeScore !== null ? `${s.compositeScore}%` : "—"}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-[#5B5B64]">
-                          {s.sayDoScore !== null ? `${s.sayDoScore}%` : "—"}
-                        </td>
-                        <td className="py-3 px-4">
-                          {isCritical ? (
-                            <span className="text-xs font-semibold text-[#E5484D] flex items-center gap-1">
-                              <ShieldAlert size={14} /> Critical Risk
-                            </span>
-                          ) : isMedium ? (
-                            <span className="text-xs font-semibold text-[#F5A623] flex items-center gap-1">
-                              <AlertTriangle size={14} /> Medium Risk
-                            </span>
-                          ) : (
-                            <span className="text-xs text-emerald-600 flex items-center gap-1">
-                              <CheckCircle size={14} /> Clean
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <Link
-                            to="/results/$id"
-                            params={{ id: s.id }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg transition-colors"
-                          >
-                            Evaluate <ArrowRight size={12} />
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
           </div>
         </div>
 

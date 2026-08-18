@@ -15,6 +15,10 @@
     "infra:up": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml down",
     "infra:logs": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml logs -f",
+    "phase1:build": "docker compose -f docker/docker-compose.prod.yml build",
+    "phase1:up": "docker compose -f docker/docker-compose.prod.yml up -d",
+    "phase1:down": "docker compose -f docker/docker-compose.prod.yml down",
+    "phase1:logs": "docker compose -f docker/docker-compose.prod.yml logs -f app",
     "setup:all": "npm run build:shared && npm run db:migrate && npm run db:seed",
     "dev:candidate": "npm run build:shared && npm --workspace=frontend/candidate-web run dev",
     "dev:admin": "npm run build:shared && npm --workspace=frontend/admin-web run dev",
@@ -63,7 +67,7 @@
     "node": ">=20.0.0"
   },
   "packageManager": "npm@10.0.0",
-  "dependencies": {
+  "optionalDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.62.2"
   },
   "allowScripts": {

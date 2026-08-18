@@ -90,9 +90,9 @@ export const realScenarioEngineAdapter: ScenarioEnginePort = {
       throw new Error('No active assessment session')
     }
 
-    await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
-      eventId: String(messageId),
-      action: 'REPLY',
+    await apiClient.post(`/sessions/${sessionId}/simulation/email-reply`, {
+      messageId,
+      text,
       replyText: text,
     })
   },

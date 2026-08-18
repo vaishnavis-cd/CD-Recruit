@@ -76,11 +76,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  beforeLoad: ({ location }) => {
-    if (typeof window !== "undefined" && location.pathname !== "/login" && !isAuthenticated()) {
-      throw redirect({ to: "/login", replace: true });
-    }
-  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -133,6 +128,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  const pathname = router.state.location.pathname;
+
+  useEffect(() => {
+    const isLoginRoute =
+      pathname === "/login" ||
+      pathname === "/admin/login" ||
+      pathname.endsWith("/login");
+
+    if (!isLoginRoute && !isAuthenticated()) {
+      router.navigate({ to: "/login", replace: true });
+    }
+  }, [pathname, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,0 +1,215 @@
+version: "3.8"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Proctora — Phase 1 Unified Monolith Production Stack (7-Container Topology)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.prod.yml up -d --build
+#   docker compose -f docker/docker-compose.prod.yml down
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  cdrecruit-net:
+    driver: bridge
+
+services:
+  # ── 1. Monolith Application Container (Nginx + NestJS API + SPAs) ───────────
+  app:
+    build:
+      context: ..
+      dockerfile: docker/app.Dockerfile
+    container_name: cdrecruit_app
+    restart: always
+    ports:
+      - "${APP_PORT:-80}:80"
+    environment:
+      - NODE_ENV=production
+      - INFRA_MODE=full
+      - PORT=3001
+      - ADMIN_PORT=3002
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - DATABASE_URL=postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit
+      - SANDBOX_DB_URL=postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit_sandbox
+      - JWT_SECRET=proctora_phase1_super_secret_jwt_key_2026
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_BIOMETRIC=cd-recruit-biometric
+      - MINIO_BUCKET_GENERAL=cd-recruit-general
+      - KEYCLOAK_BASE_URL=http://keycloak:8080
+      - KEYCLOAK_URL=http://keycloak:8080
+      - JUDGE0_API_URL=http://judge0-server:2358
+      - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SEED_DATABASE=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - cdrecruit-net
+
+  # ── 2. Postgres Database Container ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cdrecruit_postgres_dev
+    environment:
+      POSTGRES_USER: cdrecruit
+      POSTGRES_PASSWORD: cdrecruit123
+      POSTGRES_DB: cdrecruit
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdrecruit -d cdrecruit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cdrecruit-net
+
+  # ── 3. Redis Queue & Cache Container ────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cdrecruit_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cdrecruit-net
+
+  # ── 4. Keycloak Identity Provider Container ─────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: cdrecruit_keycloak_dev
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - cdrecruit-net
+
+  # ── 5. MinIO Object Storage Container ───────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: cdrecruit_minio_dev
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fs http://localhost:9000/minio/health/live || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cdrecruit-net
+
+  # ── 6. Judge0 Code Execution Server ─────────────────────────────────────────
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: cdrecruit_judge0_server
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "2358:2358"
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    environment:
+      - JUDGE0_KEY=
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - POSTGRES_PASSWORD=cdrecruit123
+      - POSTGRES_DB=cdrecruit_judge0
+      - CPU_TIME_LIMIT=5.0
+      - MAX_CPU_TIME_LIMIT=10.0
+      - MEMORY_LIMIT=524288
+      - MAX_MEMORY_LIMIT=1048576
+      - MAX_PROCESSES_AND_OR_THREADS=120
+      - MAX_OUTPUT_SIZE=1024
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
+      - JAVA_TOOL_OPTIONS=-Xmx128m -Xms32m -XX:MaxMetaspaceSize=64m -XX:CompressedClassSpaceSize=16m
+    restart: always
+    networks:
+      - cdrecruit-net
+
+  # ── 7. Judge0 Sandboxed Execution Worker ────────────────────────────────────
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: cdrecruit_judge0_worker
+    command: ["./scripts/workers"]
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - POSTGRES_PASSWORD=cdrecruit123
+      - POSTGRES_DB=cdrecruit_judge0
+      - CPU_TIME_LIMIT=5.0
+      - MAX_CPU_TIME_LIMIT=10.0
+      - MEMORY_LIMIT=524288
+      - MAX_MEMORY_LIMIT=1048576
+      - MAX_PROCESSES_AND_OR_THREADS=120
+      - MAX_OUTPUT_SIZE=1024
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
+      - JAVA_TOOL_OPTIONS=-Xmx128m -Xms32m -XX:MaxMetaspaceSize=64m -XX:CompressedClassSpaceSize=16m
+    restart: always
+    networks:
+      - cdrecruit-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

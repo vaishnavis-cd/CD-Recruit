@@ -32,8 +32,11 @@ async function getJwksKeys(jwksUri: string) {
       jwksUri,
       jwksUri.replace(":8080", ":8085"),
       jwksUri.replace(":8085", ":8080"),
+      jwksUri.replace("localhost", "keycloak"),
+      jwksUri.replace("127.0.0.1", "keycloak"),
       jwksUri.replace("localhost", "127.0.0.1"),
       jwksUri.replace("127.0.0.1", "localhost"),
+      "http://keycloak:8080/realms/cd-recruit/protocol/openid-connect/certs",
       "http://localhost:8085/realms/cd-recruit/protocol/openid-connect/certs",
       "http://127.0.0.1:8085/realms/cd-recruit/protocol/openid-connect/certs",
       "http://localhost:8080/realms/cd-recruit/protocol/openid-connect/certs",
@@ -89,7 +92,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           const decoded = jwt.decode(rawJwtToken, { complete: true }) as any;
           if (decoded?.header?.kid) {
             const kid = decoded.header.kid;
-            const keycloakUrl = process.env.KEYCLOAK_URL || "http://localhost:8080";
+            const keycloakUrl = process.env.KEYCLOAK_URL || process.env.KEYCLOAK_BASE_URL || "http://keycloak:8080";
             const realm = process.env.KEYCLOAK_REALM || "cd-recruit";
             const jwksUri = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`;
 

@@ -73,7 +73,9 @@ export class SessionOwnerGuard implements CanActivate {
       throw new NotFoundException("Session not found.");
     }
 
-    if (["SUBMITTED", "CLOSED", "ABANDONED"].includes(session.status)) {
+    const reqUrl = request.url || request.originalUrl || request.path || "";
+    const isSubmitOrSummary = reqUrl.includes("/submit") || reqUrl.includes("/summary");
+    if (!isSubmitOrSummary && ["SUBMITTED", "CLOSED", "ABANDONED"].includes(session.status)) {
       throw new ForbiddenException(`Session is already ${session.status.toLowerCase()}.`);
     }
 

@@ -156,7 +156,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 </div>
               </div>
               <p className="text-xs text-[var(--muted-foreground)] pt-1">
-                Assessment will automatically launch when the preheat countdown reaches 00:00, or click start above anytime.
+                Assessment will automatically launch when the preheat countdown reaches 00:00.
               </p>
             </div>
 
