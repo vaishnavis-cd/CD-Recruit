@@ -48,11 +48,44 @@ interface ContextSimulationWorkspaceProps {
     description: string
     starterCode: Record<string, string>
     testCases: Array<{ input: string; expectedOutput: string; isHidden?: boolean; label?: string }>
+    readonlyFiles?: Record<string, string>
+    checklist?: Array<{ id: string; label: string; detail: string; actionTab: string; channelTab?: string; selectedFile?: string }>
+    slackMessages?: Array<{ sender: string; body: string }>
+    jiraTicket?: {
+      ticketId: string
+      title: string
+      priority: string
+      status: string
+      reporter: string
+      assignee: string
+      labels: string[]
+      description: string
+    }
+    prComments?: Array<{
+      sender: string
+      role: string
+      comment: string
+      timeOffsetMinutes: number
+      replies?: Array<{ sender: string; role: string; comment: string; timeOffsetMinutes: number }>
+    }>
+    defaultFile?: string
+    terminalInfo?: {
+      repository: string
+      branch: string
+      initialLogs: string[]
+    }
+    managerEmail?: {
+      fromName: string
+      fromRole: string
+      fromEmail: string
+      subject: string
+      body: string
+    }
   }
   onSubmitSimulation: () => void
 }
 
-const READONLY_REPO_FILES: Record<string, string> = {
+const DEFAULT_READONLY_REPO_FILES: Record<string, string> = {
   'login/auth.py': `# auth.py - Core Authentication Handler\n\nfrom login_validation import validate_username\n\ndef authenticate_user(username: str, password_hash: str) -> dict:\n    if not validate_username(username):\n        raise ValueError("Invalid username format")\n    # Proceed with password verification against PostgreSQL database...\n    return {"status": "authenticated", "user": username}\n`,
   'login/middleware.py': `# middleware.py - Request Sanitation Middleware\n\nclass AuthenticationMiddleware:\n    def process_request(self, req):\n        # Pass username to validation service without modifying raw headers\n        pass\n`,
   'tests/test_validation.py': `# test_validation.py - QA Unit & Regression Test Suite\n\nimport pytest\nfrom login_validation import validate_username\n\ndef test_valid_username():\n    assert validate_username("valid_user") == True\n\ndef test_leading_space():\n    # QA REGRESSION BUG: Should reject leading spaces!\n    assert validate_username(" user_123") == False\n\ndef test_trailing_space():\n    # QA REGRESSION BUG: Should reject trailing spaces!\n    assert validate_username("user_123 ") == False\n`,
@@ -71,8 +104,11 @@ export function ContextSimulationWorkspace({
   const [activeWorkspaceSubTab, setActiveWorkspaceSubTab] = useState<'editor' | 'diff' | 'pr_discussion'>('editor')
   const [activeChannelTab, setActiveChannelTab] = useState<'slack' | 'jira' | 'pr' | 'email'>('slack')
 
+  const readonlyFiles = scenario.readonlyFiles || DEFAULT_READONLY_REPO_FILES;
+  const defaultFile = scenario.defaultFile || 'login/login_validation.py';
+
   // Selected file in repo tree & sidebar toggle
-  const [selectedFile, setSelectedFile] = useState<string>('login/login_validation.py')
+  const [selectedFile, setSelectedFile] = useState<string>(defaultFile)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   // Language & Code State
@@ -106,20 +142,25 @@ export function ContextSimulationWorkspace({
   const watermarks = ['INTERNAL', 'CONFIDENTIAL', 'ENGINEERING SANDBOX', 'CANDIDATE BUILD', 'CLOUDESTINATIONS']
 
   // Terminal Logs
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    '=========================================================================',
-    ' 🚀 INCIDENT WAR ROOM DIAGNOSTIC TERMINAL READY',
-    ' Target Repository: cdrecruit/login-service | Branch: feature/login-validation',
-    ' Environment: Staging Candidate Sandbox | Pytest 7.4.0',
-    '=========================================================================',
-    'pytest',
-    'collected 5 items',
-    'tests/test_validation.py::test_valid_user PASSED',
-    'tests/test_validation.py::test_leading_space_bug FAILED',
-    'tests/test_validation.py::test_trailing_space_bug FAILED',
-    'Coverage 96%',
-    'System ready. Modify code and click Run Diagnostics to verify fix.',
-  ])
+  const [terminalLogs, setTerminalLogs] = useState<string[]>(() => {
+    if (scenario.terminalInfo?.initialLogs) {
+      return scenario.terminalInfo.initialLogs;
+    }
+    return [
+      '=========================================================================',
+      ' 🚀 INCIDENT WAR ROOM DIAGNOSTIC TERMINAL READY',
+      ' Target Repository: cdrecruit/login-service | Branch: feature/login-validation',
+      ' Environment: Staging Candidate Sandbox | Pytest 7.4.0',
+      '=========================================================================',
+      'pytest',
+      'collected 5 items',
+      'tests/test_validation.py::test_valid_user PASSED',
+      'tests/test_validation.py::test_leading_space_bug FAILED',
+      'tests/test_validation.py::test_trailing_space_bug FAILED',
+      'Coverage 96%',
+      'System ready. Modify code and click Run Diagnostics to verify fix.',
+    ];
+  })
 
   // Hover Code Intelligence Tooltip State
   const [hoverSymbol, setHoverSymbol] = useState<{ symbol: string; refs: string[] } | null>(null)
@@ -517,74 +558,49 @@ export function ContextSimulationWorkspace({
                   </div>
 
                   <div className="space-y-1.5">
-                    <button
-                      onClick={() => {
-                        setActiveTab('channels')
-                        setActiveChannelTab('slack')
-                      }}
-                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
-                    >
-                      <MessageSquare className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">1. Review #incident-login-outage</div>
-                        <div className="text-[10px] text-[var(--text-secondary)]">Check QA reports &amp; reproduction notes</div>
-                      </div>
-                    </button>
+                    {(scenario.checklist || []).map((item) => {
+                      let IconComponent = CheckCircle2;
+                      let iconColor = 'text-blue-500';
+                      if (item.actionTab === 'channels') {
+                        if (item.channelTab === 'slack') {
+                          IconComponent = MessageSquare;
+                          iconColor = 'text-amber-500';
+                        } else if (item.channelTab === 'jira') {
+                          IconComponent = Bug;
+                          iconColor = 'text-rose-500';
+                        } else if (item.channelTab === 'email') {
+                          IconComponent = Mail;
+                          iconColor = 'text-purple-500';
+                        }
+                      } else if (item.actionTab === 'workspace') {
+                        IconComponent = FileCode;
+                        iconColor = 'text-emerald-500';
+                      } else if (item.actionTab === 'signoff') {
+                        IconComponent = CheckCircle2;
+                        iconColor = 'text-blue-500';
+                      }
 
-                    <button
-                      onClick={() => {
-                        setActiveTab('channels')
-                        setActiveChannelTab('jira')
-                      }}
-                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
-                    >
-                      <Bug className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">2. Inspect JIRA Bug Ticket</div>
-                        <div className="text-[10px] text-[var(--text-secondary)]">Review BUG-3124 acceptance criteria</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setActiveTab('channels')
-                        setActiveChannelTab('email')
-                      }}
-                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
-                    >
-                      <Mail className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">3. Reply to Manager Email</div>
-                        <div className="text-[10px] text-[var(--text-secondary)]">Provide ETA update to stakeholders</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setActiveTab('workspace')
-                        setActiveWorkspaceSubTab('editor')
-                        setSelectedFile('login/login_validation.py')
-                        emitTelemetry('FILE_OPEN', 'login/login_validation.py')
-                      }}
-                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
-                    >
-                      <FileCode className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">4. Patch login_validation.py</div>
-                        <div className="text-[10px] text-[var(--text-secondary)]">Fix leading/trailing space validation</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveTab('signoff')}
-                      className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">5. Authorize &amp; Submit Hotfix</div>
-                        <div className="text-[10px] text-[var(--text-secondary)]">Deploy patch to staging &amp; finish</div>
-                      </div>
-                    </button>
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            if (item.actionTab) setActiveTab(item.actionTab as any);
+                            if (item.channelTab) setActiveChannelTab(item.channelTab as any);
+                            if (item.selectedFile) {
+                              setSelectedFile(item.selectedFile);
+                              emitTelemetry('FILE_OPEN', item.selectedFile);
+                            }
+                          }}
+                          className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--background)] transition-all flex items-start gap-2 cursor-pointer group"
+                        >
+                          <IconComponent className={`w-4 h-4 ${iconColor} shrink-0 mt-0.5`} />
+                          <div>
+                            <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] text-[11px]">{item.label}</div>
+                            <div className="text-[10px] text-[var(--text-secondary)]">{item.detail}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -608,7 +624,7 @@ export function ContextSimulationWorkspace({
                     <FileCode className="w-4 h-4 text-[#2F5CFF]" />
                     <span>{selectedFile}</span>
                   </span>
-                  {selectedFile !== 'login/login_validation.py' && (
+                  {selectedFile !== defaultFile && (
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-500 border border-amber-500/30">
                       READ-ONLY
                     </span>
@@ -658,7 +674,7 @@ export function ContextSimulationWorkspace({
               <div className="flex-1 min-h-0 relative">
                 {activeWorkspaceSubTab === 'editor' && (
                   <div className="w-full h-full">
-                    {selectedFile === 'login/login_validation.py' ? (
+                    {selectedFile === defaultFile ? (
                       <CodeEditor
                         height="100%"
                         language={language}
@@ -669,9 +685,9 @@ export function ContextSimulationWorkspace({
                     ) : (
                       <CodeEditor
                         height="100%"
-                        language="python"
+                        language={language}
                         theme="dark"
-                        value={READONLY_REPO_FILES[selectedFile] || '# Read-only file content'}
+                        value={readonlyFiles[selectedFile] || '# Read-only file content'}
                         readOnly={true}
                       />
                     )}
@@ -681,58 +697,63 @@ export function ContextSimulationWorkspace({
                 {activeWorkspaceSubTab === 'diff' && (
                   <div className="w-full h-full p-4 overflow-y-auto font-mono text-xs bg-[#0D1117] text-white space-y-0.5 leading-relaxed">
                     <div className="text-[var(--text-secondary)] pb-2 mb-2 border-b border-gray-800">
-                      diff --git a/login/login_validation.py b/login/login_validation.py
+                      diff --git a/{defaultFile} b/{defaultFile}
                     </div>
                     {generateGitDiff().map((d, idx) => (
-                      <div
-                        key={idx}
-                        className={
-                          d.type === 'added'
-                            ? 'bg-emerald-500/20 text-emerald-400 font-bold px-2 rounded-xs'
-                            : d.type === 'removed'
-                            ? 'bg-rose-500/20 text-rose-400 font-bold px-2 rounded-xs'
-                            : 'text-gray-400 px-2'
-                        }
-                      >
-                        <span className="inline-block w-4 text-gray-600">{d.type === 'added' ? '+' : d.type === 'removed' ? '-' : ' '}</span>
-                        <span>{d.text}</span>
-                      </div>
+                       <div
+                         key={idx}
+                         className={
+                           d.type === 'added'
+                             ? 'bg-emerald-500/20 text-emerald-400 font-bold px-2 rounded-xs'
+                             : d.type === 'removed'
+                             ? 'bg-rose-500/20 text-rose-400 font-bold px-2 rounded-xs'
+                             : 'text-gray-400 px-2'
+                         }
+                       >
+                         <span className="inline-block w-4 text-gray-600">{d.type === 'added' ? '+' : d.type === 'removed' ? '-' : ' '}</span>
+                         <span>{d.text}</span>
+                       </div>
                     ))}
                   </div>
                 )}
 
                 {activeWorkspaceSubTab === 'pr_discussion' && (
                   <div className="w-full h-full p-6 overflow-y-auto space-y-4 text-xs font-sans">
-                    <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-500 border border-purple-500/30 flex items-center justify-center font-mono font-bold">
-                          AR
+                    {(scenario.prComments || []).map((comment, idx) => (
+                      <div key={idx} className="space-y-3">
+                        <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-500 border border-purple-500/30 flex items-center justify-center font-mono font-bold">
+                              {comment.sender.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <div>
+                              <span className="font-bold text-[var(--text-primary)] block">{comment.sender} ({comment.role})</span>
+                              <span className="text-[10px] text-[var(--text-secondary)]">Pull Request Comment • {comment.timeOffsetMinutes}m ago</span>
+                            </div>
+                          </div>
+                          <p className="text-[var(--text-primary)] bg-[var(--background)] p-3 rounded-lg border border-[var(--border)] leading-relaxed">
+                            "{comment.comment}"
+                          </p>
                         </div>
-                        <div>
-                          <span className="font-bold text-[var(--text-primary)] block">Alex Rivera (Senior Tech Lead)</span>
-                          <span className="text-[10px] text-[var(--text-secondary)]">Pull Request #142 Review Comment • 2 hours ago</span>
-                        </div>
-                      </div>
-                      <p className="text-[var(--text-primary)] bg-[var(--background)] p-3 rounded-lg border border-[var(--border)] leading-relaxed">
-                        "Reject invalid input. Do not silently trim leading or trailing spaces without returning explicit validation errors.
-                        Validation must fail if spaces exist at boundaries."
-                      </p>
-                    </div>
 
-                    <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-3 pl-8 border-l-2 border-l-[var(--accent)]">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-mono font-bold">
-                          RS
-                        </div>
-                        <div>
-                          <span className="font-bold text-[var(--text-primary)] block">Rahul Sharma (Junior Engineer)</span>
-                          <span className="text-[10px] text-[var(--text-secondary)]">Pull Request #142 Author Reply • 1 hour ago</span>
-                        </div>
+                        {(comment.replies || []).map((reply, ridx) => (
+                          <div key={ridx} className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-3 pl-8 border-l-2 border-l-[var(--accent)]">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-mono font-bold">
+                                {reply.sender.split(' ').map(n => n[0]).join('')}
+                              </div>
+                              <div>
+                                <span className="font-bold text-[var(--text-primary)] block">{reply.sender} ({reply.role})</span>
+                                <span className="text-[10px] text-[var(--text-secondary)]">Pull Request Author Reply • {reply.timeOffsetMinutes}m ago</span>
+                              </div>
+                            </div>
+                            <p className="text-[var(--text-primary)] bg-[var(--background)] p-3 rounded-lg border border-[var(--border)] leading-relaxed">
+                              "{reply.comment}"
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-[var(--text-primary)] bg-[var(--background)] p-3 rounded-lg border border-[var(--border)] leading-relaxed">
-                        "We should check if username length fits after trimming, or return false immediately when spaces exist at boundaries."
-                      </p>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -827,8 +848,8 @@ export function ContextSimulationWorkspace({
               <span className="text-xs font-bold font-mono text-[var(--text-secondary)] uppercase">Channels:</span>
               <div className="flex gap-2">
                 {[
-                  { id: 'slack', label: 'Slack (#incident-login-outage)' },
-                  { id: 'jira', label: 'Jira (BUG-3124)' },
+                  { id: 'slack', label: 'Slack (#incident-war-room)' },
+                  { id: 'jira', label: `Jira (${scenario.jiraTicket?.ticketId || 'BUG-3124'})` },
                   { id: 'pr', label: 'PR Comments' },
                   { id: 'email', label: 'Email Threads' },
                 ].map((ch) => (
@@ -862,49 +883,49 @@ export function ContextSimulationWorkspace({
                 <div className="max-w-3xl mx-auto space-y-4 font-sans text-xs">
                   <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-3">
                     <div className="flex items-center gap-2 font-bold text-amber-500 font-mono">
-                      <span>#incident-login-outage</span>
-                      <span className="text-[10px] text-[var(--text-secondary)]">• 4 members online</span>
+                      <span>#incident-war-room</span>
+                      <span className="text-[10px] text-[var(--text-secondary)]">• {scenario.slackMessages?.length || 0} members online</span>
                     </div>
 
                     <div className="space-y-3 pt-2">
-                      <div className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1">
-                        <span className="font-bold text-[var(--accent)]">Sarah Jenkins (QA Lead):</span>
-                        <p className="text-[var(--text-primary)]">"The username leading space issue is still reproducible in Staging build 2.4.1."</p>
-                      </div>
-
-                      <div className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1">
-                        <span className="font-bold text-purple-500">Priya Patel (Engineering Manager):</span>
-                        <p className="text-[var(--text-primary)]">"Need ETA in 15 minutes for the stakeholder deployment update."</p>
-                      </div>
-
-                      <div className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1">
-                        <span className="font-bold text-emerald-500">Michael Chen (Product Manager):</span>
-                        <p className="text-[var(--text-primary)]">"Marketing campaign release depends on this authentication fix."</p>
-                      </div>
+                      {(scenario.slackMessages || []).map((msg, idx) => {
+                        const colors = ['text-amber-500', 'text-purple-500', 'text-emerald-500', 'text-blue-500'];
+                        const color = colors[idx % colors.length];
+                        return (
+                          <div key={idx} className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1">
+                            <span className={`font-bold ${color}`}>{msg.sender}:</span>
+                            <p className="text-[var(--text-primary)]">"{msg.body}"</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               )}
 
-              {activeChannelTab === 'jira' && (
+              {activeChannelTab === 'jira' && scenario.jiraTicket && (
                 <div className="max-w-3xl mx-auto space-y-4 font-sans text-xs">
                   <div className="p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
                         <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30">
-                          BUG-3124
+                          {scenario.jiraTicket.ticketId}
                         </span>
-                        <h2 className="text-base font-bold text-[var(--text-primary)] mt-1">Username space validation regression in Login API</h2>
+                        <h2 className="text-base font-bold text-[var(--text-primary)] mt-1">{scenario.jiraTicket.title}</h2>
                       </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-500">HIGH PRIORITY</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-500">{scenario.jiraTicket.priority}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-[var(--background)] font-mono text-[11px]">
-                      <div><strong>Reporter:</strong> QA Sarah Jenkins</div>
-                      <div><strong>Assignee:</strong> Candidate Engineer</div>
-                      <div><strong>Labels:</strong> Regression, Authentication</div>
-                      <div><strong>Status:</strong> In Progress</div>
+                      <div><strong>Reporter:</strong> {scenario.jiraTicket.reporter}</div>
+                      <div><strong>Assignee:</strong> {scenario.jiraTicket.assignee}</div>
+                      <div><strong>Labels:</strong> {scenario.jiraTicket.labels.join(', ')}</div>
+                      <div><strong>Status:</strong> {scenario.jiraTicket.status}</div>
                     </div>
+
+                    <p className="text-[var(--text-primary)] bg-[var(--background)] p-4 rounded-lg border border-[var(--border)] leading-relaxed whitespace-pre-wrap">
+                      {scenario.jiraTicket.description}
+                    </p>
                   </div>
                 </div>
               )}
@@ -917,8 +938,12 @@ export function ContextSimulationWorkspace({
 
               {activeChannelTab === 'pr' && (
                 <div className="max-w-3xl mx-auto p-6 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-3 font-sans text-xs">
-                  <h3 className="font-bold text-[var(--text-primary)]">Pull Request Inline Code Review</h3>
-                  <p className="text-[var(--text-secondary)]">Senior Tech Lead Alex Rivera commented: "Ensure all edge cases including leading, trailing, and multiple internal spaces are correctly handled."</p>
+                  <h3 className="font-bold text-[var(--text-primary)]">Pull Request Code Review context</h3>
+                  {(scenario.prComments || []).slice(0, 2).map((comment, idx) => (
+                    <p key={idx} className="text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 mb-2">
+                      <strong>{comment.sender} ({comment.role}) commented:</strong> "{comment.comment}"
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
@@ -946,14 +971,7 @@ export function ContextSimulationWorkspace({
             </div>
 
             <div className="space-y-1 font-mono text-xs max-h-48 overflow-y-auto">
-              {[
-                'login/login_validation.py',
-                'login/auth.py',
-                'login/middleware.py',
-                'tests/test_validation.py',
-                'config/settings.yaml',
-                'utils/string_helpers.py',
-              ]
+              {Array.from(new Set([defaultFile, ...Object.keys(readonlyFiles)]))
                 .filter((f) => f.toLowerCase().includes(quickSearchQuery.toLowerCase()))
                 .map((f) => (
                   <button
@@ -966,7 +984,7 @@ export function ContextSimulationWorkspace({
                     className="w-full text-left px-3 py-2 rounded hover:bg-[var(--background)] text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
                   >
                     <span>{f}</span>
-                    {f === 'login/login_validation.py' && <span className="text-[10px] text-emerald-500 font-bold">EDITABLE</span>}
+                    {f === defaultFile && <span className="text-[10px] text-emerald-500 font-bold">EDITABLE</span>}
                   </button>
                 ))}
             </div>
@@ -994,7 +1012,7 @@ export function ContextSimulationWorkspace({
               </button>
             </div>
             <p className="text-xs text-slate-200 leading-relaxed">
-              <strong>Rahul Sharma (Engineering Manager)</strong> sent a high-priority email inquiry regarding deployment status, ETA, and outage risk.
+              <strong>{scenario.managerEmail?.fromName || 'Rahul Sharma'} ({scenario.managerEmail?.fromRole || 'Engineering Manager'})</strong> sent a high-priority email inquiry regarding status updates and incident mitigation.
             </p>
             <div className="pt-1 flex items-center justify-end">
               <button
