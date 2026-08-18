@@ -29,7 +29,7 @@ import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
 import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 
-import { FaceVerifyModule } from "./integrations/face-verify/face-verify.module";
+import { FaceVerifyOnnxModule } from "./integrations/face-verify-onnx/face-verify-onnx.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -84,7 +84,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     QuestionModule,
     SettingsModule,
     MinioModule,
-    FaceVerifyModule,
+    FaceVerifyOnnxModule,
     CandidateModule,
     SessionModule,
     QueueModule,

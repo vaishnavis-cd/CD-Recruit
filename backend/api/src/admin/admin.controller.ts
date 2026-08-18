@@ -14,7 +14,8 @@ import {
   UploadedFile,
   BadRequestException,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, FileFieldsInterceptor } from "@nestjs/platform-express";
+import { UploadedFiles } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";

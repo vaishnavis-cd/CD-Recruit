@@ -92,13 +92,6 @@ export class AuthService {
     });
 
     if (!invite) {
-      invite = await this.prisma.invite.findFirst({
-        orderBy: { createdAt: "desc" },
-        include: { drive: true },
-      });
-    }
-
-    if (!invite) {
       throw new UnauthorizedException("INVITE_TOKEN_INVALID");
     }
 

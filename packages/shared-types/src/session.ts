@@ -79,6 +79,7 @@ export interface HeartbeatResponse {
    */
   sessionStatus: SessionStatus;
   deadlineAt: string; // ISO-8601 — repeated so client clock can re-sync on each heartbeat
+  captureRequired?: { captureId: string } | null;
 }
 
 // ---------------------------------------------------------------------------

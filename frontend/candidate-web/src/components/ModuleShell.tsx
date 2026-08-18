@@ -14,6 +14,7 @@ import { WatermarkOverlay } from './common/WatermarkOverlay'
 import { IntegrityAlertBanner } from './common/IntegrityAlertBanner'
 import { ProctoringEventModal } from './common/ProctoringEventModal'
 import { useIntegrityEvents } from '../hooks/useIntegrityEvents'
+import { useHeartbeat } from '../hooks/useHeartbeat'
 
 interface ModuleShellProps {
   moduleIndex: number
@@ -65,6 +66,9 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const { theme, toggle } = useTheme()
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge()
   const [networkDisconnected, setNetworkDisconnected] = React.useState(false)
+
+  // Mount 15s candidate heartbeat loop for active assessment session
+  useHeartbeat(assessment?.sessionId)
 
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {

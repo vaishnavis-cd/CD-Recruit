@@ -28,8 +28,16 @@ export class QueueScheduler implements OnModuleInit {
       "biometric-retention-cleanup",
     );
 
+    await this.queueProvider.upsertRepeatable(
+      "identity-capture-monitor",
+      "scan",
+      {},
+      30_000, // every 30 seconds
+      "identity-capture-scan",
+    );
+
     this.logger.log(
-      `Heartbeat monitor registered: scanning every ${QueueScheduler.SCAN_INTERVAL_MS / 1000} s, retention cleanup scanning every 60 s`,
+      `Heartbeat monitor registered: scanning every ${QueueScheduler.SCAN_INTERVAL_MS / 1000} s, retention cleanup scanning every 60 s, identity-capture scan every 30 s`,
     );
   }
 }

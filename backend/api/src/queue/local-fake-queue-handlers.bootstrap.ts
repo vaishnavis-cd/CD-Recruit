@@ -4,6 +4,8 @@ import { SessionService } from "@app/session/session.service";
 import { HeartbeatService } from "./heartbeat.service";
 import { NosqlSandboxService } from "../modules/nosql/nosql-sandbox.service";
 
+import { IdentityCaptureService } from "./identity-capture.service";
+
 @Injectable()
 export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
   constructor(
@@ -12,6 +14,7 @@ export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
     private readonly sessionService: SessionService,
     private readonly heartbeatService: HeartbeatService,
     private readonly nosqlSandboxService: NosqlSandboxService,
+    private readonly identityCaptureService: IdentityCaptureService,
   ) {}
 
   onModuleInit() {
@@ -50,6 +53,14 @@ export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
         if (sandboxDbName) {
           await this.nosqlSandboxService.dropSandbox(sandboxDbName);
         }
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "identity-capture-monitor",
+      "scan",
+      async () => {
+        await this.identityCaptureService.scanAndMarkMissed();
       },
     );
   }

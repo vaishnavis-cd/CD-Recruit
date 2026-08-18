@@ -209,4 +209,25 @@ export class SessionController {
   ) {
     return this.sessionService.flagAndContinueIdentity(sessionId);
   }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/identity-captures/:captureId/submit
+   *
+   * Submits a periodic in-test webcam capture for identity re-verification.
+   */
+  @Post(":sessionId/identity-captures/:captureId/submit")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  @UseInterceptors(FileInterceptor("file"))
+  async submitIdentityCapture(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Param("captureId", ParseUUIDPipe) captureId: string,
+    @UploadedFile() file: any,
+  ): Promise<{ status: string }> {
+    if (!file) {
+      throw new BadRequestException("No capture file provided in 'file' form field.");
+    }
+    return this.sessionService.submitIdentityCapture(sessionId, captureId, file);
+  }
 }
+

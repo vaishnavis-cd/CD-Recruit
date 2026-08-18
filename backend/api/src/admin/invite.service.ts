@@ -14,7 +14,7 @@ import {
 } from "@cd-recruit/shared-types";
 import { ConfigService } from "@nestjs/config";
 import { MinioService } from "../integrations/minio/minio.service";
-import { FaceVerifyClient } from "../integrations/face-verify/face-verify.client";
+import { FaceVerifyOnnxService } from "../integrations/face-verify-onnx/face-verify-onnx.service";
 
 @Injectable()
 export class InviteService {
@@ -23,7 +23,7 @@ export class InviteService {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
     private readonly minioService: MinioService,
-    private readonly faceVerifyClient: FaceVerifyClient,
+    private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
   ) { }
 
   async createInvite(dto: CreateInviteDto, staffId: string) {
@@ -143,6 +143,11 @@ export class InviteService {
         include: {
           roleTemplate: true,
           createdBy: true,
+          session: {
+            include: {
+              candidate: true,
+            },
+          },
         },
       }),
       this.prisma.invite.count({ where }),
@@ -426,7 +431,7 @@ export class InviteService {
     // Enroll with Face Verify service first to ensure a face is detected
     let enrollResult: { embedding: number[]; model: string };
     try {
-      enrollResult = await this.faceVerifyClient.enroll(
+      enrollResult = await this.faceVerifyOnnxService.enroll(
         file.buffer,
         file.originalname,
       );
@@ -474,6 +479,7 @@ export class InviteService {
       redeemedAt: invite.redeemedAt ? invite.redeemedAt.toISOString() : null,
       revokedAt: invite.revokedAt ? invite.revokedAt.toISOString() : null,
       sessionId: invite.sessionId,
+      idProofRef: invite.idProofRef || invite.session?.candidate?.idProofRef || null,
     };
   }
 }
