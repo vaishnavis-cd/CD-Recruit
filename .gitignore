@@ -94,3 +94,12 @@ logs/
 dump.rdb
 /dump.rdb
 *.rdb
+
+# ── ML Models (large binary files, exceed GitHub 100MB limit) ─────────────
+*.onnx
+*.pt
+*.pth
+*.bin
+*.h5
+*.ckpt
+*.safetensors
