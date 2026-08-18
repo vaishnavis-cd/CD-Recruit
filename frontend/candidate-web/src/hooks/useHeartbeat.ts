@@ -59,9 +59,20 @@ export function useHeartbeat(sessionId: string | undefined) {
 
 async function performSilentFrameCapture(sessionId: string, captureId: string, isRetry = false) {
   try {
-    const video = WebcamService.getInstance().getVideoElement()
+    let video: HTMLVideoElement | null = WebcamService.getInstance().getVideoElement()
     if (!video || !video.videoWidth || !video.videoHeight) {
-      console.warn('[useHeartbeat] Silent capture skipped: Video element not ready.')
+      const domVideos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[]
+      const activeVideo = domVideos.find(v => (v.videoWidth > 0 && v.videoHeight > 0) || v.srcObject)
+      if (activeVideo) {
+        video = activeVideo
+      }
+    }
+
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      console.warn('[useHeartbeat] Silent capture video element not ready yet. Scheduling 1s retry...')
+      if (!isRetry) {
+        setTimeout(() => performSilentFrameCapture(sessionId, captureId, true), 1000)
+      }
       return
     }
 

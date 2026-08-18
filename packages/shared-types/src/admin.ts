@@ -131,6 +131,7 @@ export interface InviteListItem {
   redeemedAt: string | null;
   revokedAt: string | null;
   sessionId: string | null;
+  idProofRef?: string | null;
 }
 
 export interface InviteListResponse {

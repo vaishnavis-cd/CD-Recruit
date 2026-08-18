@@ -10,9 +10,17 @@ import { QueueModule } from "@app/queue/queue.module";
 import { SimulationModule } from "../simulation/simulation.module";
 
 import { SettingsModule } from "../settings/settings.module";
+import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-verify-onnx.module";
 
 @Module({
-  imports: [AuthModule, CandidateModule, forwardRef(() => QueueModule), SimulationModule, SettingsModule],
+  imports: [
+    AuthModule,
+    CandidateModule,
+    forwardRef(() => QueueModule),
+    SimulationModule,
+    SettingsModule,
+    FaceVerifyOnnxModule,
+  ],
   controllers: [SessionController],
   providers: [
     SessionService,
