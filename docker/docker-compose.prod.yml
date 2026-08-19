@@ -50,7 +50,7 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - SEED_DATABASE=false
+      - SEED_DATABASE=true
     depends_on:
       postgres:
         condition: service_healthy
