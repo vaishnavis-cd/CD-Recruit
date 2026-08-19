@@ -18,6 +18,10 @@ import { SessionModule } from "./session/session.module";
 import { QueueModule } from "./queue/queue.module";
 import { CodingModule } from "./coding/coding.module";
 import { SqlModule } from "./sql/sql.module";
+<<<<<<< HEAD
+=======
+import { NosqlModule } from "./modules/nosql/nosql.module";
+>>>>>>> origin/dev-phase2
 import { ProctoringModule } from "./proctoring/proctoring.module";
 import { AiEvaluationModule } from "./integrations/ai/ai-evaluation.module";
 import { SimulationModule } from "./simulation/simulation.module";
@@ -28,6 +32,11 @@ import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
 import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 
+<<<<<<< HEAD
+=======
+import { FaceVerifyOnnxModule } from "./integrations/face-verify-onnx/face-verify-onnx.module";
+
+>>>>>>> origin/dev-phase2
 const infraMode = process.env.INFRA_MODE ?? "local";
 
 @Module({
@@ -81,11 +90,19 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     QuestionModule,
     SettingsModule,
     MinioModule,
+<<<<<<< HEAD
+=======
+    FaceVerifyOnnxModule,
+>>>>>>> origin/dev-phase2
     CandidateModule,
     SessionModule,
     QueueModule,
     CodingModule,
     SqlModule,
+<<<<<<< HEAD
+=======
+    NosqlModule,
+>>>>>>> origin/dev-phase2
     ProctoringModule,
     AiEvaluationModule,
     SimulationModule,

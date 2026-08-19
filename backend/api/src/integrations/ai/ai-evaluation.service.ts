@@ -69,6 +69,7 @@ Respond ONLY in strict JSON format:
     return this.executeLlmEvaluation(systemPrompt, userContent, candidateActions);
   }
 
+<<<<<<< HEAD
   /**
    * Evaluate candidate Test Scenario response.
    */
@@ -101,6 +102,8 @@ Respond ONLY in strict JSON format:
     return this.executeLlmEvaluation(systemPrompt, userContent, candidateAnswer);
   }
 
+=======
+>>>>>>> origin/dev-phase2
   private getGroqApiKey(): string {
     return (
       this.groqApiKey ||
@@ -203,7 +206,11 @@ Respond ONLY in strict JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+<<<<<<< HEAD
         model: "groq/compound-mini",
+=======
+        model: "llama-3.3-70b-versatile",
+>>>>>>> origin/dev-phase2
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -261,7 +268,11 @@ Respond ONLY in strict JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+<<<<<<< HEAD
         model: "groq/compound-mini",
+=======
+        model: "llama-3.3-70b-versatile",
+>>>>>>> origin/dev-phase2
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -312,9 +323,13 @@ Respond ONLY in strict JSON format:
   private parseJsonResponse(content?: string) {
     if (!content) return null;
     try {
+<<<<<<< HEAD
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       const cleanContent = jsonMatch ? jsonMatch[0] : content;
       const parsed = JSON.parse(cleanContent);
+=======
+      const parsed = JSON.parse(content);
+>>>>>>> origin/dev-phase2
       return {
         score: typeof parsed.score === "number" && !isNaN(parsed.score) ? Math.min(100, Math.max(0, Math.round(parsed.score))) : null,
         reasoning: parsed.reasoning || "AI Evaluation completed.",

@@ -13,6 +13,7 @@ export interface AIScenarioNarrative {
   managerEmailBody: string;
 }
 
+<<<<<<< HEAD
 export interface ScenarioChecklistItem {
   id: string;
   label: string;
@@ -58,6 +59,8 @@ export interface ScenarioTerminalInfo {
   initialLogs: string[];
 }
 
+=======
+>>>>>>> origin/dev-phase2
 export interface ContextSimulationScenarioConfig {
   id: string;
   title: string;
@@ -86,6 +89,7 @@ export interface ContextSimulationScenarioConfig {
     doTechnicalWeight: number;
     sayDoCorrelationWeight: number;
   };
+<<<<<<< HEAD
   // Extended Workspace Configs
   readonlyFiles?: Record<string, string>;
   checklist?: ScenarioChecklistItem[];
@@ -97,3 +101,6 @@ export interface ContextSimulationScenarioConfig {
   expectedConcepts?: string[];
 }
 
+=======
+}
+>>>>>>> origin/dev-phase2

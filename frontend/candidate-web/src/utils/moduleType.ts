@@ -1,7 +1,10 @@
 export function getEffectiveModuleType(q: any): string {
   if (!q) return 'MCQ'
   const rawType = (q.moduleType || q.type || '').toUpperCase()
+<<<<<<< HEAD
   if (rawType === 'SIMULATION' || rawType === 'CONTEXTUAL') return 'SIMULATION'
+=======
+>>>>>>> origin/dev-phase2
   if (rawType === 'DEBUGGING') return 'DEBUGGING'
   
   const tags = q.tags || q.question?.tags || []

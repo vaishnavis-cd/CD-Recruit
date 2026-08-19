@@ -38,6 +38,10 @@ enum ModuleType {
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
+<<<<<<< HEAD
+=======
+  NOSQL
+>>>>>>> origin/dev-phase2
 }
 
 enum SessionStatus {
@@ -239,6 +243,13 @@ model Candidate {
   organizationId String?       @map("organization_id")
   email          String        @unique
   name           String
+<<<<<<< HEAD
+=======
+  idProofRef       String?   @map("id_proof_ref")
+  idProofEmbedding Json?     @map("id_proof_embedding")
+  idProofModel     String?   @map("id_proof_model")
+  idVerifiedAt     DateTime? @map("id_verified_at")
+>>>>>>> origin/dev-phase2
   createdAt      DateTime      @default(now()) @map("created_at")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
@@ -299,6 +310,10 @@ model Session {
   invite            Invite?
   codingExecutions  CodingExecution[]
   sqlExecutions     SQLExecution[]
+<<<<<<< HEAD
+=======
+  identityCaptures  IdentityCapture[]
+>>>>>>> origin/dev-phase2
 
   @@index([candidateId])
   @@index([status])
@@ -306,6 +321,26 @@ model Session {
   @@index([lastHeartbeatAt])
   @@map("session")
 }
+
+model IdentityCapture {
+  id          String    @id @default(uuid())
+  sessionId   String    @map("session_id")
+  windowIndex Int       @map("window_index")      // 0, 1, 2 — which of the 3 windows this belongs to
+  scheduledAt DateTime  @map("scheduled_at")
+  capturedAt  DateTime? @map("captured_at")
+  status      String    @default("PENDING")        // PENDING, CAPTURED, MISSED, SESSION_CLOSED
+  imageRef    String?   @map("image_ref")           // MinIO object key
+  matched     Boolean?
+  distance    Float?
+  threshold   Float?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([status])
+  @@map("identity_capture")
+}
+
 
 model ModuleResponse {
   id                String   @id @default(uuid())
@@ -315,6 +350,9 @@ model ModuleResponse {
   timeSpentSeconds  Int?     @map("time_spent_seconds")
   isDraft           Boolean  @default(true) @map("is_draft") // true until real submit overwrites it
   lastAutosavedAt   DateTime? @map("last_autosaved_at")
+  sandboxDbName     String?   @map("sandbox_db_name")
+  lastOperation     Json?     @map("last_operation")
+  executionCount    Int       @default(0) @map("execution_count")
 
   session  Session  @relation(fields: [sessionId], references: [id])
   question Question @relation(fields: [questionId], references: [id])
@@ -342,7 +380,7 @@ model EventLog {
 model IntegrityFlag {
   id         String   @id @default(uuid())
   sessionId  String   @map("session_id")
-  category   String
+  category   String   // Valid categories include standard proctoring categories plus "IDENTITY_MISMATCH" and "NO_ID_PROOF_ON_FILE"
   confidence Float
   severity   String
   flaggedAt  DateTime @default(now()) @map("flagged_at")
@@ -440,6 +478,12 @@ model Invite {
   bufferMinutes   Int          @default(15) @map("buffer_minutes")
   graceMinutes    Int          @default(5) @map("grace_minutes")
   originChannel   OriginChannel @default(DIRECT) @map("origin_channel")
+<<<<<<< HEAD
+=======
+  idProofRef        String?   @map("id_proof_ref")
+  idProofEmbedding  Json?     @map("id_proof_embedding")
+  idProofUploadedAt DateTime? @map("id_proof_uploaded_at")
+>>>>>>> origin/dev-phase2
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])

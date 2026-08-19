@@ -17,6 +17,11 @@ import * as path from "path";
 // Standardize .env contract loading
 dotenv.config({ path: path.join(__dirname, "../.env") });
 dotenv.config({ path: path.join(__dirname, "../api/.env") });
+<<<<<<< HEAD
+=======
+
+import { nosqlQuestions } from "./data/nosql";
+>>>>>>> origin/dev-phase2
 
 // ---------------------------------------------------------------------------
 // Constants & Configuration
@@ -26,11 +31,20 @@ const ROLE_NAME = "Software Developer";
 const DURATION_MINUTES = 90;
 
 const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
+<<<<<<< HEAD
   MCQ: 0.15,
   SQL: 0.15,
   CODING: 0.25,
   DEBUGGING: 0.15,
   AI_PROMPTING: 0.15,
+=======
+  MCQ: 0.10,
+  SQL: 0.15,
+  NOSQL: 0.15,
+  CODING: 0.25,
+  DEBUGGING: 0.10,
+  AI_PROMPTING: 0.10,
+>>>>>>> origin/dev-phase2
   SIMULATION: 0.15,
 };
 
@@ -53,6 +67,18 @@ function getAllQuestionSeedData(): Array<{
       questions.push(...items);
     }
   }
+<<<<<<< HEAD
+=======
+
+  questions.push(
+    ...nosqlQuestions.map((q) => ({
+      moduleType: q.moduleType as ModuleType,
+      difficulty: q.difficulty,
+      content: q.content,
+    })),
+  );
+
+>>>>>>> origin/dev-phase2
   return questions;
 }
 
@@ -227,7 +253,11 @@ async function main(): Promise<void> {
             driveId: drive.id,
             questionId: q.id,
             moduleType: q.moduleType,
+<<<<<<< HEAD
             questionVersionSnapshot: q.version ?? 1,
+=======
+            questionVersionSnapshot: (q as any).version ?? 1,
+>>>>>>> origin/dev-phase2
           },
         });
       }

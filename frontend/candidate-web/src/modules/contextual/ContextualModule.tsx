@@ -115,7 +115,11 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
     setStep('COMPLETED')
   }
 
+<<<<<<< HEAD
   const paletteItems = [{ id: scenario.id, label: scenario.title }]
+=======
+  const paletteItems = [{ id: scenario.id, label: 'QA Bug Scenario' }]
+>>>>>>> origin/dev-phase2
 
   if (step === 'LOADING') {
     return (

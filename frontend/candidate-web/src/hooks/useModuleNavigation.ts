@@ -1,6 +1,9 @@
 import React from 'react'
 import { useSessionStore } from '../store/sessionMachine'
+<<<<<<< HEAD
 import { getEffectiveModuleType } from '../utils/moduleType'
+=======
+>>>>>>> origin/dev-phase2
 
 export function useModuleNavigation(moduleIndex: number, currentQuestionIndex: number, totalQuestionsInModule: number) {
   const assessment = useSessionStore((s) => s.assessment)
@@ -13,9 +16,16 @@ export function useModuleNavigation(moduleIndex: number, currentQuestionIndex: n
     }
     const types: string[] = []
     for (const q of assessment.questions) {
+<<<<<<< HEAD
       const type = getEffectiveModuleType(q)
       if (type && !types.includes(type)) {
         types.push(type)
+=======
+      const type = q.moduleType as string
+      const norm = type === 'CONTEXTUAL' ? 'SIMULATION' : type
+      if (norm && !types.includes(norm)) {
+        types.push(norm)
+>>>>>>> origin/dev-phase2
       }
     }
     return types.length > 0 ? types.length : 5

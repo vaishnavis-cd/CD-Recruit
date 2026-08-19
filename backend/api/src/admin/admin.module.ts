@@ -5,9 +5,16 @@ import { InviteService } from "./invite.service";
 import { DashboardService } from "./dashboard.service";
 import { AuthModule } from "../auth/auth.module";
 import { SessionModule } from "../session/session.module";
+<<<<<<< HEAD
 
 @Module({
   imports: [AuthModule, SessionModule],
+=======
+import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-verify-onnx.module";
+
+@Module({
+  imports: [AuthModule, SessionModule, FaceVerifyOnnxModule],
+>>>>>>> origin/dev-phase2
   controllers: [AdminController],
   providers: [AdminService, InviteService, DashboardService],
   exports: [AdminService, InviteService, DashboardService],

@@ -9,6 +9,10 @@ import { DebuggingModule } from '../modules/debugging/DebuggingModule'
 import { PromptingModule } from '../modules/prompting/PromptingModule'
 import { ContextualModule } from '../modules/contextual/ContextualModule'
 import { TestScenariosModule } from '../modules/test-scenarios/TestScenariosModule'
+<<<<<<< HEAD
+=======
+import { NOSQLModule } from '../modules/nosql/NOSQLModule'
+>>>>>>> origin/dev-phase2
 import { getEffectiveModuleType } from '../utils/moduleType'
 
 interface AssessmentScreenProps {
@@ -22,7 +26,11 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
+<<<<<<< HEAD
       return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS']
+=======
+      return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL']
+>>>>>>> origin/dev-phase2
     }
     const types: string[] = []
     for (const q of assessment.questions) {
@@ -31,7 +39,11 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
         types.push(type)
       }
     }
+<<<<<<< HEAD
     return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS']
+=======
+    return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL']
+>>>>>>> origin/dev-phase2
   }, [assessment?.questions])
 
   // Start timer when Module 1 opens (never before)
@@ -60,6 +72,11 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
       return <DebuggingModule moduleIndex={moduleIndex} />
     case 'AI_PROMPTING':
       return <PromptingModule moduleIndex={moduleIndex} />
+<<<<<<< HEAD
+=======
+    case 'NOSQL':
+      return <NOSQLModule moduleIndex={moduleIndex} />
+>>>>>>> origin/dev-phase2
     case 'SIMULATION':
     case 'CONTEXTUAL':
       return <ContextualModule moduleIndex={moduleIndex} />

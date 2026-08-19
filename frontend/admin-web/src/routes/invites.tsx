@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
+<<<<<<< HEAD
 import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye, Trash2 } from "lucide-react";
+=======
+import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye, Trash2, Upload, ShieldCheck, AlertCircle, FileText } from "lucide-react";
+>>>>>>> origin/dev-phase2
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { type Invite } from "../lib/types";
@@ -63,6 +67,10 @@ function InvitesPage() {
   const fetchInvites = useStore((s) => s.fetchInvites);
   const fetchDrives = useStore((s) => s.fetchDrives);
   const createInvite = useStore((s) => s.createInvite);
+<<<<<<< HEAD
+=======
+  const uploadIdProofAction = useStore((s) => s.uploadIdProof);
+>>>>>>> origin/dev-phase2
   const revokeInvite = useStore((s) => s.revokeInvite);
   const deleteInvite = useStore((s) => s.deleteInvite);
   const extendExpiry = useStore((s) => s.extendExpiry);
@@ -82,6 +90,21 @@ function InvitesPage() {
   const [created, setCreated] = useState<Invite | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+<<<<<<< HEAD
+=======
+  // ID Proof Upload State for Creation Modal
+  const [idProofFile, setIdProofFile] = useState<File | null>(null);
+  const [idProofError, setIdProofError] = useState<string | null>(null);
+  const [uploadingIdProof, setUploadingIdProof] = useState(false);
+  const [idProofStatus, setIdProofStatus] = useState<{ success: boolean; error?: string } | null>(null);
+
+  // Direct ID Proof Upload Modal state (for existing table rows)
+  const [directUploadInvite, setDirectUploadInvite] = useState<Invite | null>(null);
+  const [directFile, setDirectFile] = useState<File | null>(null);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [directUploading, setDirectUploading] = useState(false);
+
+>>>>>>> origin/dev-phase2
   // Filters State
   const [driveFilter, setDriveFilter] = useState<string>("all");
   const [searchFilter, setSearchFilter] = useState("");
@@ -114,6 +137,51 @@ function InvitesPage() {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIdProofError(null);
+    const file = e.target.files?.[0];
+    if (!file) {
+      setIdProofFile(null);
+      return;
+    }
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setIdProofError("Please select a JPG, PNG, or WEBP image.");
+      setIdProofFile(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setIdProofError("File size must be under 5MB.");
+      setIdProofFile(null);
+      return;
+    }
+    setIdProofFile(file);
+  };
+
+  const handleDirectFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDirectError(null);
+    const file = e.target.files?.[0];
+    if (!file) {
+      setDirectFile(null);
+      return;
+    }
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setDirectError("Please select a JPG, PNG, or WEBP image.");
+      setDirectFile(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setDirectError("File size must be under 5MB.");
+      setDirectFile(null);
+      return;
+    }
+    setDirectFile(file);
+  };
+
+>>>>>>> origin/dev-phase2
   const submit = async () => {
     if (!name || !email || !selectedDriveId) return;
     const drive = drives.find((d) => d.id === selectedDriveId);
@@ -129,16 +197,77 @@ function InvitesPage() {
         },
         driveId: selectedDriveId,
       });
+<<<<<<< HEAD
+=======
+
+      if (idProofFile) {
+        setUploadingIdProof(true);
+        try {
+          await uploadIdProofAction(inv.id, idProofFile);
+          setIdProofStatus({ success: true });
+          toast.success("ID proof uploaded and enrolled!");
+        } catch (err: any) {
+          const errMsg = err.message || "Failed to enroll ID proof";
+          setIdProofStatus({ success: false, error: errMsg });
+          toast.error(`Invite created, but ID proof failed: ${errMsg}`);
+        } finally {
+          setUploadingIdProof(false);
+        }
+      }
+
+>>>>>>> origin/dev-phase2
       setCreated(inv);
     } catch (err: any) {
       toast.error(err.message || "Failed creating invite");
     }
   };
 
+<<<<<<< HEAD
+=======
+  const retryModalUpload = async () => {
+    if (!created || !idProofFile) return;
+    setUploadingIdProof(true);
+    try {
+      await uploadIdProofAction(created.id, idProofFile);
+      setIdProofStatus({ success: true });
+      toast.success("ID proof enrolled successfully!");
+    } catch (err: any) {
+      const errMsg = err.message || "Failed to enroll ID proof";
+      setIdProofStatus({ success: false, error: errMsg });
+      toast.error(`ID proof retry failed: ${errMsg}`);
+    } finally {
+      setUploadingIdProof(false);
+    }
+  };
+
+  const submitDirectUpload = async () => {
+    if (!directUploadInvite || !directFile) return;
+    setDirectUploading(true);
+    setDirectError(null);
+    try {
+      await uploadIdProofAction(directUploadInvite.id, directFile);
+      toast.success("ID proof uploaded and enrolled!");
+      setDirectUploadInvite(null);
+      setDirectFile(null);
+    } catch (err: any) {
+      setDirectError(err.message || "Failed to upload ID proof");
+      toast.error(err.message || "Failed to upload ID proof");
+    } finally {
+      setDirectUploading(false);
+    }
+  };
+
+>>>>>>> origin/dev-phase2
   const resetForm = () => {
     setName("");
     setEmail("");
     setSelectedDriveId("");
+<<<<<<< HEAD
+=======
+    setIdProofFile(null);
+    setIdProofError(null);
+    setIdProofStatus(null);
+>>>>>>> origin/dev-phase2
     setCreated(null);
     setOpen(false);
   };
@@ -288,7 +417,11 @@ function InvitesPage() {
       )}
 
       <div className="bg-white border border-[#E6E6EA] rounded-[10px] overflow-hidden">
+<<<<<<< HEAD
         <div className="grid grid-cols-[0.3fr_2fr_1.4fr_2fr_1fr_1fr_1.5fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
+=======
+        <div className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
+>>>>>>> origin/dev-phase2
           <div>
             <input
               type="checkbox"
@@ -300,6 +433,10 @@ function InvitesPage() {
           <div>Candidate</div>
           <div>Role</div>
           <div>Status</div>
+<<<<<<< HEAD
+=======
+          <div>ID Proof</div>
+>>>>>>> origin/dev-phase2
           <div>Created</div>
           <div>Expires</div>
           <div className="text-right">Actions</div>
@@ -307,7 +444,11 @@ function InvitesPage() {
         {invites.map((inv) => (
           <div
             key={inv.id}
+<<<<<<< HEAD
             className="grid grid-cols-[0.3fr_2fr_1.4fr_2fr_1fr_1fr_1.5fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
+=======
+            className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
+>>>>>>> origin/dev-phase2
           >
             <div>
               <input
@@ -326,6 +467,27 @@ function InvitesPage() {
               <div className="text-[#5B5B64]">{inv.roleTemplate.track}</div>
             </div>
             <StatusStepper status={inv.status} />
+<<<<<<< HEAD
+=======
+            <div>
+              {inv.idProofRef ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#15803D] bg-[#E1F8EB] px-2.5 py-1 rounded-full border border-[#22C55E]/30">
+                  <ShieldCheck size={12} /> Enrolled
+                </span>
+              ) : (
+                <button
+                  onClick={() => {
+                    setDirectUploadInvite(inv);
+                    setDirectFile(null);
+                    setDirectError(null);
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D6E4FF] px-2.5 py-1 rounded-full border border-[#B3C5FF] cursor-pointer transition-colors"
+                >
+                  <Upload size={11} /> Upload ID
+                </button>
+              )}
+            </div>
+>>>>>>> origin/dev-phase2
             <div className="font-mono text-[11px] text-[#5B5B64]">{inv.createdAt}</div>
             <div className="font-mono text-[11px] text-[#5B5B64]">
               {inv.status === "PENDING" ? fmtExpires(inv.expiresAt) : inv.expiresAt.slice(0, 10)}
@@ -401,6 +563,78 @@ function InvitesPage() {
         )}
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Direct ID Proof Upload Modal */}
+      {directUploadInvite && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => {
+            setDirectUploadInvite(null);
+            setDirectFile(null);
+            setDirectError(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-[12px] max-w-md w-full p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+              <div className="text-[15px] font-semibold text-[#0B0B0D]">
+                Upload ID Proof for {directUploadInvite.candidateName}
+              </div>
+              <button
+                onClick={() => {
+                  setDirectUploadInvite(null);
+                  setDirectFile(null);
+                  setDirectError(null);
+                }}
+                className="p-1 hover:bg-[#EFF0F3] rounded cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="text-[12px] text-[#5B5B64]">
+              Select a clear face photo from the candidate's ID proof (JPG, PNG, WEBP &lt; 5MB). DeepFace will automatically extract the face embedding vector.
+            </div>
+            <div>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleDirectFileChange}
+                className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[12px] bg-white cursor-pointer file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-medium file:bg-[#EFF0F3] file:text-[#0B0B0D]"
+              />
+              {directError && (
+                <div className="text-[11px] text-[#E5484D] mt-1.5 flex items-center gap-1">
+                  <AlertCircle size={13} /> {directError}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setDirectUploadInvite(null);
+                  setDirectFile(null);
+                  setDirectError(null);
+                }}
+                className="px-3 py-2 text-[12px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitDirectUpload}
+                disabled={!directFile || directUploading}
+                className="px-4 py-2 text-[12px] font-medium bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white rounded-md flex items-center gap-1.5 cursor-pointer"
+              >
+                {directUploading && <RefreshCw size={13} className="animate-spin" />}
+                {directUploading ? "Enrolling face..." : "Upload & Enroll"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+>>>>>>> origin/dev-phase2
       {/* Create slide-over */}
       {open && (
         <>
@@ -466,6 +700,27 @@ function InvitesPage() {
                     />
                   </div>
 
+<<<<<<< HEAD
+=======
+                  <div>
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5 flex items-center justify-between">
+                      <span>Upload ID Proof (Optional)</span>
+                      <span className="text-[10px] text-[#8B8B93] lowercase font-normal">jpg, png, webp &lt;5mb</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileChange}
+                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[12px] text-[#0B0B0D] bg-white file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-medium file:bg-[#EFF0F3] file:text-[#0B0B0D] hover:file:bg-[#E6E6EA] cursor-pointer"
+                    />
+                    {idProofError && (
+                      <div className="text-[11px] text-[#E5484D] mt-1 flex items-center gap-1">
+                        <AlertCircle size={12} /> {idProofError}
+                      </div>
+                    )}
+                  </div>
+
+>>>>>>> origin/dev-phase2
                   {selectedDriveId && (
                     <div>
                       <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
@@ -479,10 +734,18 @@ function InvitesPage() {
 
                   <button
                     onClick={submit}
+<<<<<<< HEAD
                     disabled={!name || !email || !selectedDriveId}
                     className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer transition-colors"
                   >
                     Generate invite link
+=======
+                    disabled={!name || !email || !selectedDriveId || uploadingIdProof}
+                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer transition-colors flex items-center justify-center gap-2"
+                  >
+                    {uploadingIdProof && <RefreshCw size={14} className="animate-spin" />}
+                    {uploadingIdProof ? "Enrolling ID proof..." : "Generate invite link"}
+>>>>>>> origin/dev-phase2
                   </button>
                 </div>
               ) : (
@@ -502,6 +765,43 @@ function InvitesPage() {
                       {copiedId === created.id ? "Copied to clipboard" : "Copy link"}
                     </button>
                   </div>
+<<<<<<< HEAD
+=======
+
+                  {idProofFile && (
+                    <div className="mt-4">
+                      {uploadingIdProof ? (
+                        <div className="p-3 rounded-md bg-[#EFF0F3] text-[12px] text-[#5B5B64] flex items-center gap-2">
+                          <RefreshCw size={14} className="animate-spin text-[#2F5CFF]" />
+                          Processing ArcFace facial embedding...
+                        </div>
+                      ) : idProofStatus?.success ? (
+                        <div className="p-3 rounded-md bg-[#E1F8EB] border border-[#22C55E]/30 text-[#15803D] text-[12px] flex items-center gap-2">
+                          <ShieldCheck size={16} /> ID proof enrolled successfully
+                        </div>
+                      ) : idProofStatus?.success === false ? (
+                        <div className="p-3.5 rounded-md bg-[#FFF0F0] border border-[#E5484D]/30 text-[#C5282E] text-[12px] space-y-2">
+                          <div className="font-semibold flex items-center gap-1.5">
+                            <XCircle size={15} /> ID proof upload failed
+                          </div>
+                          <div>{idProofStatus.error}</div>
+                          <div className="text-[11px] text-[#5B5B64]">
+                            Invite created successfully, but ID proof failed. You can retry below or from the invites table.
+                          </div>
+                          <button
+                            onClick={retryModalUpload}
+                            disabled={uploadingIdProof}
+                            className="mt-1 px-3 py-1.5 bg-[#E5484D] hover:bg-[#c33e42] text-white text-[11px] font-medium rounded flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <RefreshCw size={12} className={uploadingIdProof ? "animate-spin" : ""} />
+                            Retry ID Proof Upload
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+>>>>>>> origin/dev-phase2
                   <div className="mt-4 text-[12px] text-[#5B5B64]">
                     Invited <span className="text-[#0B0B0D]">{created.candidateName}</span> for{" "}
                     <span className="text-[#0B0B0D]">

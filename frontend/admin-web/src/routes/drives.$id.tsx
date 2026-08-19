@@ -210,6 +210,7 @@ function DriveDetailPage() {
   const [endHour, setEndHour] = useState("11");
   const [endMinute, setEndMinute] = useState("00");
   const [endAmPm, setEndAmPm] = useState("AM");
+<<<<<<< HEAD
 
 <<<<<<< HEAD
   /** When true the drive uses a 24-hour rolling window (scheduleEnd = scheduleStart + 24h) */
@@ -219,6 +220,11 @@ function DriveDetailPage() {
 =======
   // Module Config State (7 Modules)
 >>>>>>> ramsdevelopbranch
+=======
+  const [rollingWindow, setRollingWindow] = useState<boolean>(false);
+
+  // Module Config State (7 Modules)
+>>>>>>> origin/dev-phase2
   const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
     SQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
@@ -227,6 +233,10 @@ function DriveDetailPage() {
     AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
     SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
     TEST_SCENARIOS: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+<<<<<<< HEAD
+=======
+    NOSQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+>>>>>>> origin/dev-phase2
   });
 
   // Per-Drive System Check & Hardware Proctoring Customization State
@@ -1361,6 +1371,10 @@ function DriveDetailPage() {
                 [
                   { id: "MCQ", name: "Multiple Choice (MCQ)", icon: CheckCircle2, desc: "Evaluated deterministically" },
                   { id: "SQL", name: "SQL Queries", icon: Database, desc: "Evaluated via Judge0 DB" },
+<<<<<<< HEAD
+=======
+                  { id: "NOSQL", name: "NoSQL Queries", icon: Database, desc: "Evaluated via isolated MongoDB sandbox" },
+>>>>>>> origin/dev-phase2
                   { id: "CODING", name: "Coding / DSA", icon: Code2, desc: "Evaluated via Judge0" },
                   { id: "DEBUGGING", name: "Debugging", icon: Bug, desc: "Evaluated via Judge0" },
                   { id: "AI_PROMPTING", name: "AI Prompting", icon: Bot, desc: "Evaluated via Groq/Cerebras" },
@@ -1687,6 +1701,7 @@ function DriveDetailPage() {
                 >
                   All Modules ({allowedModules.length})
                 </button>
+<<<<<<< HEAD
                 {allowedModules.map((modKey) => {
                   return (
                     <button
@@ -1702,6 +1717,35 @@ function DriveDetailPage() {
                     </button>
                   );
                 })}
+=======
+                {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS", "NOSQL"] as const)
+                  .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
+                  .map((modKey) => {
+                    const labelMap: Record<string, string> = {
+                      MCQ: "MCQ",
+                      SQL: "SQL",
+                      CODING: "Coding",
+                      DEBUGGING: "Debugging",
+                      AI_PROMPTING: "AI Prompting",
+                      SIMULATION: "Simulation",
+                      TEST_SCENARIOS: "Test Scenarios",
+                      NOSQL: "NoSQL",
+                    };
+                    return (
+                      <button
+                        key={modKey}
+                        onClick={() => setQuestionModuleFilter(modKey)}
+                        className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                          questionModuleFilter === modKey
+                            ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
+                            : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                        }`}
+                      >
+                        <span>{labelMap[modKey] || modKey}</span>
+                      </button>
+                    );
+                  })}
+>>>>>>> origin/dev-phase2
               </div>
 
               {/* Complexity / Difficulty & Tier Filters */}

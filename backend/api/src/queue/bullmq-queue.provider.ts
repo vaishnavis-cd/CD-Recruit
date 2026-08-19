@@ -10,6 +10,11 @@ export class BullmqQueueProvider extends QueueProviderPort {
     private readonly heartbeatQueue: Queue,
     @InjectQueue("grace-window")
     private readonly graceWindowQueue: Queue,
+<<<<<<< HEAD
+=======
+    @InjectQueue("identity-capture-monitor")
+    private readonly identityCaptureQueue: Queue,
+>>>>>>> origin/dev-phase2
   ) {
     super();
   }
@@ -20,6 +25,11 @@ export class BullmqQueueProvider extends QueueProviderPort {
         return this.heartbeatQueue;
       case "grace-window":
         return this.graceWindowQueue;
+<<<<<<< HEAD
+=======
+      case "identity-capture-monitor":
+        return this.identityCaptureQueue;
+>>>>>>> origin/dev-phase2
       default:
         throw new Error(`BullmqQueueProvider: unknown queue "${queueName}"`);
     }

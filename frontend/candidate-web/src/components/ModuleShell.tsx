@@ -14,6 +14,10 @@ import { WatermarkOverlay } from './common/WatermarkOverlay'
 import { IntegrityAlertBanner } from './common/IntegrityAlertBanner'
 import { ProctoringEventModal } from './common/ProctoringEventModal'
 import { useIntegrityEvents } from '../hooks/useIntegrityEvents'
+<<<<<<< HEAD
+=======
+import { useHeartbeat } from '../hooks/useHeartbeat'
+>>>>>>> origin/dev-phase2
 
 interface ModuleShellProps {
   moduleIndex: number
@@ -66,6 +70,12 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge()
   const [networkDisconnected, setNetworkDisconnected] = React.useState(false)
 
+<<<<<<< HEAD
+=======
+  // Mount 15s candidate heartbeat loop for active assessment session
+  useHeartbeat(assessment?.sessionId)
+
+>>>>>>> origin/dev-phase2
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
       return MODULES
@@ -73,6 +83,10 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
     const MODULE_NAME_MAP: Record<string, { id: string; name: string }> = {
       MCQ: { id: 'mcq', name: 'MCQ' },
       SQL: { id: 'sql', name: 'SQL' },
+<<<<<<< HEAD
+=======
+      NOSQL: { id: 'nosql', name: 'NoSQL' },
+>>>>>>> origin/dev-phase2
       CODING: { id: 'coding', name: 'Coding' },
       DEBUGGING: { id: 'debugging', name: 'Debugging' },
       AI_PROMPTING: { id: 'prompting', name: 'AI Prompting' },

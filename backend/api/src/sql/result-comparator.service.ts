@@ -143,4 +143,85 @@ export class ResultComparatorService {
       return false;
     }
   }
+<<<<<<< HEAD
+=======
+
+  /**
+   * Recursively normalizes MongoDB values (ObjectId -> string, Date -> ISO string, trims strings, sorts arrays by _id/id).
+   */
+  normalizeMongoValue(val: any): any {
+    if (val === null || val === undefined) {
+      return null;
+    }
+    // Handle ObjectId
+    if (
+      (val && typeof val === "object" && val.constructor && (val.constructor.name === "ObjectID" || val.constructor.name === "ObjectId")) ||
+      (val && typeof val === "object" && typeof val.toHexString === "function")
+    ) {
+      return val.toString();
+    }
+    if (val && typeof val === "object" && val.$oid) {
+      return val.$oid;
+    }
+    // Handle Date
+    if (val instanceof Date) {
+      return val.toISOString();
+    }
+    if (val && typeof val === "object" && val.$date) {
+      return typeof val.$date === "string" ? val.$date : new Date(val.$date).toISOString();
+    }
+    // Handle Array
+    if (Array.isArray(val)) {
+      const normalizedArray = val.map((item) => this.normalizeMongoValue(item));
+      // Sort elements by _id or a deterministic string representation to make comparison order-insensitive
+      return normalizedArray.sort((a, b) => {
+        const idA = a && typeof a === "object" ? (a._id ?? a.id ?? JSON.stringify(a)) : JSON.stringify(a);
+        const idB = b && typeof b === "object" ? (b._id ?? b.id ?? JSON.stringify(b)) : JSON.stringify(b);
+        return String(idA).localeCompare(String(idB));
+      });
+    }
+    // Handle Object
+    if (typeof val === "object") {
+      const normalizedObj: Record<string, any> = {};
+      const sortedKeys = Object.keys(val).sort();
+      for (const key of sortedKeys) {
+        normalizedObj[key] = this.normalizeMongoValue(val[key]);
+      }
+      return normalizedObj;
+    }
+    // Handle String
+    if (typeof val === "string") {
+      return val.trim();
+    }
+    return val;
+  }
+
+  /**
+   * Compares the candidate's query output against the expected query output.
+   */
+  compareOutput(candidateResult: any, expectedResult: any): boolean {
+    try {
+      const normCand = this.normalizeMongoValue(candidateResult);
+      const normExp = this.normalizeMongoValue(expectedResult);
+      return JSON.stringify(normCand) === JSON.stringify(normExp);
+    } catch (err: any) {
+      this.logger.error(`Error comparing output in ResultComparatorService: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Compares the candidate's resulting database state snapshot against the expected database state snapshot.
+   */
+  compareState(snapshotCandidate: Record<string, any[]>, snapshotExpected: Record<string, any[]>): boolean {
+    try {
+      const normCand = this.normalizeMongoValue(snapshotCandidate);
+      const normExp = this.normalizeMongoValue(snapshotExpected);
+      return JSON.stringify(normCand) === JSON.stringify(normExp);
+    } catch (err: any) {
+      this.logger.error(`Error comparing state in ResultComparatorService: ${err.message}`);
+      return false;
+    }
+  }
+>>>>>>> origin/dev-phase2
 }

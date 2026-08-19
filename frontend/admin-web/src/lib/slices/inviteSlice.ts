@@ -12,6 +12,10 @@ export interface InviteSlice {
     roleTemplate: RoleTemplate;
     driveId: string;
   }) => Promise<Invite>;
+<<<<<<< HEAD
+=======
+  uploadIdProof: (id: string, file: File) => Promise<{ inviteId: string; status: string }>;
+>>>>>>> origin/dev-phase2
   revokeInvite: (id: string) => Promise<void>;
   deleteInvite: (id: string) => Promise<void>;
   extendExpiry: (id: string, newExpiresAt: string) => Promise<void>;
@@ -41,6 +45,11 @@ function mapBackendInvite(invite: any): Invite {
       ? invite.createdAt.slice(0, 10)
       : new Date().toISOString().slice(0, 10),
     expiresAt: invite.expiresAt || new Date().toISOString(),
+<<<<<<< HEAD
+=======
+    idProofRef: invite.idProofRef || null,
+    idProofUploadedAt: invite.idProofUploadedAt || null,
+>>>>>>> origin/dev-phase2
   };
 }
 
@@ -96,6 +105,53 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
     }
   },
 
+<<<<<<< HEAD
+=======
+  uploadIdProof: async (id, file) => {
+    try {
+      const headers = await getAuthHeaders();
+      const uploadHeaders: Record<string, string> = { ...headers };
+      delete uploadHeaders["Content-Type"];
+
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+
+      const res = await fetch(`${API_BASE}/admin/invites/${id}/id-proof`, {
+        method: "POST",
+        headers: uploadHeaders,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        let errorMsg = `Upload failed with status ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData.message) {
+            errorMsg = Array.isArray(errData.message)
+              ? errData.message.join(", ")
+              : errData.message;
+          }
+        } catch (_) {}
+        if (res.status === 422 || errorMsg.includes("No face detected")) {
+          errorMsg = "No face detected in this photo — please upload a clearer image";
+        }
+        throw new Error(errorMsg);
+      }
+
+      const data = await res.json();
+      set((state: any) => ({
+        invites: state.invites.map((i: any) =>
+          i.id === id ? { ...i, idProofRef: "enrolled", idProofUploadedAt: new Date().toISOString() } : i,
+        ),
+      }));
+      return data;
+    } catch (err: any) {
+      console.error("[uploadIdProof] Error uploading ID proof:", err);
+      throw err;
+    }
+  },
+
+>>>>>>> origin/dev-phase2
   revokeInvite: async (id) => {
     try {
       const headers = await getAuthHeaders();

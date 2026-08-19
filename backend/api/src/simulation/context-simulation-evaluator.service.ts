@@ -1,8 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { AiEvaluationService } from "../integrations/ai/ai-evaluation.service";
 import { TelemetryEvent } from "./simulation-telemetry.service";
+<<<<<<< HEAD
 import { QA_BUG_REPORT_SCENARIO } from "./scenarios/qa-bug-report.config";
 import { ContextSimulationScenarioConfig } from "./scenarios/scenario-type.interface";
+=======
+import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
+>>>>>>> origin/dev-phase2
 
 export interface EvaluationPartScore {
   score: number; // 0 to 100
@@ -222,7 +226,10 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
   evaluateSayDoCorrelation(
     initialSayText: string,
     telemetryEvents: TelemetryEvent[],
+<<<<<<< HEAD
     scenario: ContextSimulationScenarioConfig = QA_BUG_REPORT_SCENARIO,
+=======
+>>>>>>> origin/dev-phase2
   ): EvaluationPartScore {
     if (!initialSayText) {
       return {
@@ -242,6 +249,7 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
     const strengths: string[] = [];
     const weaknesses: string[] = [];
 
+<<<<<<< HEAD
     // Check plan vs execution alignment using scenario-specific expected concepts
     const concepts = scenario.expectedConcepts || ['test', 'verify', 'check', 'inspect', 'read', 'look', 'debug'];
     const testConcepts = concepts.filter(c => ['test', 'verify', 'check'].includes(c));
@@ -250,6 +258,10 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
     const saidWouldTest = testConcepts.length > 0 
       ? testConcepts.some(c => lowerSay.includes(c)) 
       : (lowerSay.includes("test") || lowerSay.includes("verify") || lowerSay.includes("check"));
+=======
+    // Check plan vs execution alignment
+    const saidWouldTest = lowerSay.includes("test") || lowerSay.includes("verify") || lowerSay.includes("check");
+>>>>>>> origin/dev-phase2
     const didRunTest = testRuns.length > 0;
 
     if (saidWouldTest && didRunTest) {
@@ -260,9 +272,13 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
       weaknesses.push("Stated intention to run tests but did not execute tests in workspace");
     }
 
+<<<<<<< HEAD
     const saidWouldInspect = inspectConcepts.length > 0 
       ? inspectConcepts.some(c => lowerSay.includes(c)) 
       : (lowerSay.includes("inspect") || lowerSay.includes("read") || lowerSay.includes("look") || lowerSay.includes("debug"));
+=======
+    const saidWouldInspect = lowerSay.includes("inspect") || lowerSay.includes("read") || lowerSay.includes("look") || lowerSay.includes("debug");
+>>>>>>> origin/dev-phase2
     const didInspectFiles = fileOpens.length > 0;
 
     if (saidWouldInspect && didInspectFiles) {
@@ -297,7 +313,11 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
     const initialSay = await this.evaluateInitialSay(initialSayText, scenario);
     const emailSay = await this.evaluateEmailSay(emailReplyText, scenario);
     const doEval = this.evaluateDoPhase(telemetryEvents, testExecutionResult);
+<<<<<<< HEAD
     const sayDo = this.evaluateSayDoCorrelation(initialSayText, telemetryEvents, scenario);
+=======
+    const sayDo = this.evaluateSayDoCorrelation(initialSayText, telemetryEvents);
+>>>>>>> origin/dev-phase2
 
     const weights = scenario.evaluationCriteria;
     const weightedSum =
