@@ -136,7 +136,7 @@ async function main(): Promise<void> {
       for (const dept of DEPARTMENTS) {
         for (const lvl of LEVELS) {
           const isExp = lvl === "EXPERIENCED";
-          const name = `${DEPT_NAMES[dept]} - ${lvl === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced"}`;
+          const name = `${DEPT_NAMES[dept]} - ${lvl === "FRESHER" ? "Fresher" : "Experienced"}`;
           await tx.roleTemplate.upsert({
             where: {
               department_level_version: {

@@ -47,7 +47,7 @@ async function main() {
       const isExperienced = lvl === "EXPERIENCED";
       const isSoftwareEng = dept === "SOFTWARE_ENGINEERING";
 
-      const roleName = `${DEPARTMENT_NAMES[dept]} - ${lvl === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced"}`;
+      const roleName = `${DEPARTMENT_NAMES[dept]} - ${lvl === "FRESHER" ? "Fresher" : "Experienced"}`;
       const durationMinutes = isExperienced ? 90 : 60;
 
       // Upsert RoleTemplate by department and level
