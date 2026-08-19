@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { SimulationTrigger } from "@cd-recruit/shared-types";
+import { DriveShufflerService } from "../drive/drive-shuffler.service";
+import { getScenarioById } from "./scenarios";
 
 export interface ActiveSimulationMessage {
   id: string;
@@ -27,27 +29,56 @@ export class ScenarioOrchestratorService {
   async getTriggeredMessages(sessionId: string): Promise<ActiveSimulationMessage[]> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
-      include: {
-        drive: {
-          include: {
-            questions: {
-              where: { moduleType: "SIMULATION" },
-              include: { question: true },
-            },
-          },
-        },
-      },
     });
 
     if (!session) {
       return [];
     }
 
-    // Use session simulationSnapshot or bound drive question
-    let content: any = session.simulationSnapshot;
-    if (!content && session.drive?.questions[0]?.question) {
-      content = session.drive.questions[0].question.content;
+    // Resolve scenario content
+    let content: any = null;
+    const snapshot = session.simulationSnapshot as any;
+    if (snapshot?.questionId) {
+      const question = await this.prisma.question.findUnique({
+        where: { id: snapshot.questionId }
+      });
+      if (question && question.content) {
+        content = question.content;
+      }
     }
+
+    if (!content && session.driveId) {
+      const driveQuestions = await this.prisma.driveQuestion.findMany({
+        where: { driveId: session.driveId },
+        include: { question: true },
+        orderBy: [
+          { moduleType: "asc" },
+          { question: { id: "asc" } },
+        ],
+      });
+
+      if (driveQuestions && driveQuestions.length > 0) {
+        const driveShuffler = new DriveShufflerService();
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          driveQuestions as any,
+          session.candidateId,
+          session.driveId
+        );
+
+        const selectedSimQuestion = shuffled.find((q: any) => q.moduleType === "SIMULATION");
+        if (selectedSimQuestion) {
+          const matchingDq = driveQuestions.find((dq) => dq.questionId === selectedSimQuestion.questionId);
+          const rawQ = matchingDq?.question;
+          if (rawQ) {
+            content = rawQ.content;
+          }
+        }
+      }
+    }
+
+    // Resolve scenario config config structure
+    const scId = content?.id || content?.title || "";
+    const scenarioConfig = getScenarioById(scId);
 
     if (!content || !Array.isArray(content.triggers)) {
       return [];

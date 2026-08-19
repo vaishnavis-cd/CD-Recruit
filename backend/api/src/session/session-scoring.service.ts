@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
 import { ModuleResponse, CodingExecution, SQLExecution, Question } from "@prisma/client";
+import { SemanticAnswerMatcher } from "../test-scenarios/semantic-answer-matcher";
 
 export interface DriveModuleConfigEntry {
   enabled?: boolean;
@@ -182,7 +183,7 @@ export class SessionScoringService {
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
       } else if (mod === "TEST_SCENARIOS") {
-        accuracy = this.evaluateTestScenarios(payload);
+        accuracy = this.evaluateTestScenarios(payload, q);
       }
 
       moduleQuestionScores[mod].push({
@@ -391,16 +392,18 @@ export class SessionScoringService {
   /**
    * Evaluate TEST_SCENARIOS module accuracy (0.0 to 1.0).
    */
-  private evaluateTestScenarios(payload: ResponsePayload | null): number {
+  private evaluateTestScenarios(payload: ResponsePayload | null, question?: any): number {
     const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
     if (typeof evalScore === "number") {
       return evalScore > 1 ? evalScore / 100 : evalScore;
     }
-    const ans = payload?.answer || payload?.text || payload?.response;
-    if (typeof ans === "string" && ans.trim().length > 10) {
-      return 0.85;
-    }
-    return 0.0;
+
+    const qContent = question?.content || {};
+    const expected = String(qContent.expectedAnswer || qContent.correctAnswer || "");
+    const answer = String(payload?.answer || payload?.text || "");
+
+    const matchRes = SemanticAnswerMatcher.matchAnswer(answer, expected);
+    return matchRes.score / 100;
   }
 
   /**
@@ -553,8 +556,8 @@ export class SessionScoringService {
    */
   async saveScores(sessionId: string, scoreData: CompositeScoreResult): Promise<void> {
     const existing = await this.prisma.score.findUnique({ where: { sessionId } });
-    if (existing && existing.gradingSource !== NO_DATA && existing.gradingSource !== "placeholder" && existing.gradingSource !== "AUTOMATED_EVALUATION_ENGINE") {
-      this.logger.debug(`[saveScores] Preserving existing score for session ${sessionId} (gradingSource: ${existing.gradingSource})`);
+    if (existing && existing.humanReviewed) {
+      this.logger.debug(`[saveScores] Preserving existing human-reviewed score for session ${sessionId}`);
       return;
     }
 

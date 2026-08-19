@@ -21,7 +21,7 @@ export class SimulationController {
 
   @Get(":id/simulation/scenario")
   getScenarioConfig(@Param("id") sessionId: string) {
-    return this.simulationService.getScenarioConfig(sessionId);
+    return this.simulationService.getSanitizedScenarioConfig(sessionId);
   }
 
   @Post(":id/simulation/initial-say")
