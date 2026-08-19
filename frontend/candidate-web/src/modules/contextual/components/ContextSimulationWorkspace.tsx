@@ -114,9 +114,17 @@ export function ContextSimulationWorkspace({
   // Language & Code State
   const [language, setLanguage] = useState<'python' | 'javascript'>('python')
   const [code, setCode] = useState(() => {
-    return scenario.starterCode?.python || scenario.starterCode?.javascript || ''
+    return (scenario as any).code || scenario.starterCode?.python || scenario.starterCode?.javascript || ''
   })
   const initialStarterCode = useRef(code)
+
+  useEffect(() => {
+    if ((scenario as any).code) {
+      setCode((scenario as any).code)
+    } else if (scenario.starterCode?.python) {
+      setCode(scenario.starterCode.python)
+    }
+  }, [scenario])
 
   // Resolution Modal, Submitting & Debrief State
   const [showResolutionModal, setShowResolutionModal] = useState(false)
@@ -350,6 +358,7 @@ export function ContextSimulationWorkspace({
     try {
       await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
         completed: true,
+        code,
         testResults: {
           passedTests: passedCount,
           totalTests: totalCount,
@@ -359,7 +368,6 @@ export function ContextSimulationWorkspace({
       })
       setIsDebriefCompleted(true)
       setActiveTab('debrief')
-      onSubmitSimulation()
     } catch (err) {
       console.error('Submission failed:', err)
       setIsSubmittingResolution(false)

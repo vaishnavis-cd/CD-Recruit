@@ -69,6 +69,38 @@ Respond ONLY in strict JSON format:
     return this.executeLlmEvaluation(systemPrompt, userContent, candidateActions);
   }
 
+  /**
+   * Evaluate candidate Test Scenario response.
+   */
+  async evaluateTestScenarioResponse(
+    promptText: string,
+    expectedAnswer: string,
+    candidateAnswer: string,
+  ): Promise<AiEvaluationResult> {
+    const systemPrompt = `You are an expert technical interviewer evaluating a candidate's response to a scenario-based engineering question.
+Evaluate the candidate's solution against the expected reference criteria.
+
+Important evaluation guidelines:
+1. Be semantically tolerant. Accept synonyms, rephrased sentences, and equivalent technical terminology. Do NOT penalize the candidate for formatting, spelling, punctuation, capitalization, or choice of words if the semantic meaning matches the expected criteria.
+2. Verify negation. If the candidate states the opposite of the expected criteria (e.g. "deploy without testing" vs "do not deploy without testing"), ensure the score is 0.
+3. Award partial credit if some expected concepts are covered but others are missing.
+4. Technical terms (e.g. authentication vs authorization) must be distinct and not generalized.
+
+Expected Reference Criteria:
+"${expectedAnswer}"
+
+Respond ONLY in strict JSON format:
+{
+  "score": <number 0-100>,
+  "reasoning": "<concise explanation of concept coverage, matched concepts, and missing concepts>",
+  "feedback": "<constructive feedback for candidate>"
+}`;
+
+    const userContent = `Scenario Question: ${promptText}\nCandidate Answer:\n${candidateAnswer}`;
+
+    return this.executeLlmEvaluation(systemPrompt, userContent, candidateAnswer);
+  }
+
   private getGroqApiKey(): string {
     return (
       this.groqApiKey ||
@@ -171,7 +203,7 @@ Respond ONLY in strict JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "groq/compound-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -229,7 +261,7 @@ Respond ONLY in strict JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "groq/compound-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -280,7 +312,9 @@ Respond ONLY in strict JSON format:
   private parseJsonResponse(content?: string) {
     if (!content) return null;
     try {
-      const parsed = JSON.parse(content);
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const cleanContent = jsonMatch ? jsonMatch[0] : content;
+      const parsed = JSON.parse(cleanContent);
       return {
         score: typeof parsed.score === "number" && !isNaN(parsed.score) ? Math.min(100, Math.max(0, Math.round(parsed.score))) : null,
         reasoning: parsed.reasoning || "AI Evaluation completed.",

@@ -398,6 +398,7 @@ function IndividualResultPage() {
         {availableTabs.map((tab: any) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const mScore = score?.moduleScores?.[tab.id];
             return (
               <button
                 key={tab.id}
@@ -413,7 +414,14 @@ function IndividualResultPage() {
                     <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
                   )}
                 </div>
-                <span>{tab.label}</span>
+                <span>
+                  {tab.label}
+                  {mScore !== undefined && mScore !== null && (
+                    <span className="ml-1.5 font-mono text-[10px] font-bold text-[#8B8B93]">
+                      ({Math.round(Number(mScore) * 100)}%)
+                    </span>
+                  )}
+                </span>
               </button>
             );
           })}
@@ -740,9 +748,16 @@ function IndividualResultPage() {
                   <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Test Scenarios Submissions &amp; Evaluation</h3>
                   <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Total Scenarios: {scenarioResponses.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  {score?.moduleScores?.TEST_SCENARIOS !== undefined && (
+                    <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-[#E8F0FF] text-[#2F5CFF] border border-blue-200">
+                      Module Score: {Math.round(score.moduleScores.TEST_SCENARIOS * 100)}%
+                    </span>
+                  )}
+                  <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Total Scenarios: {scenarioResponses.length}
+                  </span>
+                </div>
               </div>
 
               {scenarioResponses.length === 0 ? (
@@ -758,6 +773,8 @@ function IndividualResultPage() {
                     const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
                     const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
                     const category = qContent.category || qObj.category || "Scenario Evaluation";
+                    const evaluation = res.responsePayload?.evaluation;
+                    const scoreVal = evaluation?.overallScore ?? null;
 
                     return (
                       <div key={res.id || index} className="border border-[#E6E6EA] rounded-md p-5 space-y-4 bg-[#F7F7F9]">
@@ -768,6 +785,11 @@ function IndividualResultPage() {
                             </span>
                             <h4 className="text-[14px] font-bold text-[#0B0B0D]">{promptText}</h4>
                           </div>
+                          {scoreVal !== null && (
+                            <span className="px-2.5 py-1 rounded text-[11px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
+                              Score: {scoreVal}%
+                            </span>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -783,6 +805,16 @@ function IndividualResultPage() {
                           <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-[12px] text-indigo-950 space-y-1">
                             <span className="font-semibold text-indigo-900 block font-mono uppercase text-[10px]">Expected Criteria / Key Guidelines:</span>
                             <p className="leading-relaxed">{expectedAnswer}</p>
+                          </div>
+                        )}
+
+                        {evaluation?.feedback && (
+                          <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-md text-[12px] text-blue-950 space-y-1">
+                            <span className="font-semibold text-blue-900 block font-mono uppercase text-[10px]">AI Evaluation &amp; Feedback:</span>
+                            <p className="leading-relaxed">{evaluation.feedback}</p>
+                            {evaluation.reasoning && (
+                              <p className="text-[11px] text-blue-800/80 mt-1 font-medium italic">Reasoning: {evaluation.reasoning}</p>
+                            )}
                           </div>
                         )}
                       </div>

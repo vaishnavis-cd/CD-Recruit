@@ -15,6 +15,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { getScenarioById, SCENARIO_REGISTRY } from "./scenarios";
+import { DriveShufflerService } from "../drive/drive-shuffler.service";
 import { ContextSimulationScenarioConfig } from "./scenarios/scenario-type.interface";
 
 export interface SimulationInboxMessage {
@@ -42,6 +43,7 @@ export class SimulationService implements AssessmentModuleEngine {
       emailReplyText: string;
       emailTriggered: boolean;
       inboxMessages: SimulationInboxMessage[];
+      code?: string;
     }
   >();
 
@@ -64,27 +66,66 @@ export class SimulationService implements AssessmentModuleEngine {
       if (sessionId) {
         const session = await this.prisma.session.findUnique({
           where: { id: sessionId },
-          include: {
-            drive: {
-              include: {
-                questions: {
-                  where: { moduleType: "SIMULATION" },
-                  include: { question: true },
-                },
-              },
-            },
-          },
         });
 
-        const driveSimQuestion = session?.drive?.questions?.[0]?.question;
-        if (driveSimQuestion && driveSimQuestion.content) {
-          const content = driveSimQuestion.content as any;
-          const scId = content.id || content.title || "";
-          return getScenarioById(scId);
+        if (session) {
+          const snapshot = session.simulationSnapshot as any;
+          if (snapshot?.questionId) {
+            const question = await this.prisma.question.findUnique({
+              where: { id: snapshot.questionId }
+            });
+            if (question && question.content) {
+              const content = question.content as any;
+              const scId = content.id || content.title || "";
+              return getScenarioById(scId);
+            }
+          }
+
+          if (session.driveId) {
+            const driveQuestions = await this.prisma.driveQuestion.findMany({
+              where: { driveId: session.driveId },
+              include: { question: true },
+              orderBy: [
+                { moduleType: "asc" },
+                { question: { id: "asc" } },
+              ],
+            });
+
+            if (driveQuestions && driveQuestions.length > 0) {
+              const driveShuffler = new DriveShufflerService();
+              const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+                driveQuestions as any,
+                session.candidateId,
+                session.driveId
+              );
+
+              const selectedSimQuestion = shuffled.find((q: any) => q.moduleType === "SIMULATION");
+              if (selectedSimQuestion) {
+                const matchingDq = driveQuestions.find((dq) => dq.questionId === selectedSimQuestion.questionId);
+                const rawQ = matchingDq?.question;
+                if (rawQ && rawQ.content) {
+                  // Persist to snapshot
+                  await this.prisma.session.update({
+                    where: { id: sessionId },
+                    data: {
+                      simulationSnapshot: {
+                        ...(snapshot || {}),
+                        questionId: rawQ.id
+                      }
+                    }
+                  });
+
+                  const content = rawQ.content as any;
+                  const scId = content.id || content.title || "";
+                  return getScenarioById(scId);
+                }
+              }
+            }
+          }
         }
       }
 
-      // Query any published SIMULATION question from DB
+      // Query any published SIMULATION question from DB as a general fallback
       const dbSimQuestion = await this.prisma.question.findFirst({
         where: { moduleType: "SIMULATION", status: "PUBLISHED" },
       });
@@ -106,6 +147,22 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   async getSanitizedScenarioConfig(sessionId?: string): Promise<any> {
     const config = await this.getScenarioConfig(sessionId);
+    let completed = false;
+    let initialSayText = "";
+    let savedCode = "";
+    if (sessionId) {
+      try {
+        const session = await this.prisma.session.findUnique({
+          where: { id: sessionId },
+          select: { status: true, simulationSnapshot: true },
+        });
+        completed = session?.status === "SUBMITTED" || session?.status === "AUTO_SUBMITTED" || (session?.simulationSnapshot as any)?.completed || false;
+        initialSayText = (session?.simulationSnapshot as any)?.initialSayText || "";
+        savedCode = (session?.simulationSnapshot as any)?.code || "";
+      } catch (err: any) {
+        this.logger.warn(`Could not read progress for sanitized config: ${err.message}`);
+      }
+    }
     return {
       id: config.id,
       title: config.title,
@@ -128,6 +185,10 @@ export class SimulationService implements AssessmentModuleEngine {
       prComments: config.prComments,
       defaultFile: config.defaultFile,
       terminalInfo: config.terminalInfo,
+      completed,
+      initialSayText,
+      hasInitialSay: !!initialSayText,
+      code: savedCode,
     };
   }
 
@@ -153,6 +214,7 @@ export class SimulationService implements AssessmentModuleEngine {
         emailReplyText: snapshot?.emailReplyText || "",
         emailTriggered: Boolean(snapshot?.emailTriggered),
         inboxMessages: Array.isArray(snapshot?.inboxMessages) ? snapshot.inboxMessages : [],
+        code: snapshot?.code || "",
       };
       this.sessionStates.set(sessionId, state);
     }
@@ -200,6 +262,7 @@ export class SimulationService implements AssessmentModuleEngine {
             emailReplyText: state.emailReplyText || existingSnapshot.emailReplyText || null,
             emailTriggered: state.emailTriggered ?? existingSnapshot.emailTriggered ?? false,
             inboxMessages: state.inboxMessages || existingSnapshot.inboxMessages || [],
+            code: state.code || existingSnapshot.code || null,
             telemetryCount: Math.max(telemetry.length, actions.length, existingSnapshot.telemetryCount || 0),
             telemetryActions: actions.length > 0 ? actions : existingSnapshot.telemetryActions || [],
             rawTelemetryEvents: telemetry,
@@ -805,11 +868,17 @@ export class SimulationService implements AssessmentModuleEngine {
     );
 
 
+    if (submissionPayload?.code) {
+      state.code = submissionPayload.code;
+      await this.persistSessionSnapshot(sessionId);
+    }
+
     const payloadWithModule = {
       ...(typeof evaluation === "object" ? evaluation : {}),
       initialSayText: state.initialSayText,
       emailReplyText: state.emailReplyText,
       ticketReply: state.emailReplyText,
+      fixedCode: state.code || "",
       moduleType: ModuleType.SIMULATION,
     };
 
@@ -989,6 +1058,9 @@ export class SimulationService implements AssessmentModuleEngine {
     const sourceCode = dto.code || "";
 
     const state = await this.getOrCreateSessionState(sessionId);
+    state.code = sourceCode;
+    await this.persistSessionSnapshot(sessionId);
+
     if (!state.emailTriggered) {
       await this.recordTelemetry(sessionId, { type: "TEST_EXECUTE" });
     }
