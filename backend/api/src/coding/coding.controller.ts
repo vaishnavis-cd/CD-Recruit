@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards } from "@nestjs/common";
+import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards, Req } from "@nestjs/common";
+import { Request } from "express";
 import { CodingService } from "./coding.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
@@ -10,8 +11,8 @@ export class CodingController {
   @Post("run")
   @HttpCode(HttpStatus.OK)
   @UseGuards(SessionOwnerGuard)
-  async run(@Body() dto: RunCodingDto) {
-    return this.codingService.run(dto);
+  async run(@Body() dto: RunCodingDto, @Req() req: Request) {
+    return this.codingService.run(dto, req);
   }
 
   @Get("execution/:id")

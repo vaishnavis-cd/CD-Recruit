@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Request } from "express";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { Judge0Service } from "../integrations/judge0/judge0.service";
 import { QaAutomationSandboxService } from "../execution/qa-automation-sandbox.service";
@@ -11,6 +12,7 @@ import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/as
 @Injectable()
 export class CodingService implements AssessmentModuleEngine {
   readonly moduleType = ModuleType.CODING;
+  private readonly logger = new Logger(CodingService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -99,8 +101,19 @@ export class CodingService implements AssessmentModuleEngine {
   /**
    * Run candidate code against sample test cases only.
    */
-  async run(dto: RunCodingDto) {
-    this.validateSourceCodePayload(dto.sourceCode);
+  async run(dto: RunCodingDto, req?: Request) {
+    const code = dto.sourceCode || dto.code || "";
+    this.validateSourceCodePayload(code);
+
+    let isCancelled = false;
+    if (req) {
+      req.on("close", () => {
+        if (!isCancelled) {
+          isCancelled = true;
+          this.logger.log(`[Run Cancelled] Client closed connection for session ${dto.sessionId}, question ${dto.questionId}`);
+        }
+      });
+    }
 
     // 1. Validate session
     const session = await this.prisma.session.findUnique({
@@ -119,6 +132,11 @@ export class CodingService implements AssessmentModuleEngine {
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
+    }
+
+    if (isCancelled || req?.destroyed) {
+      this.logger.log(`[Run Aborted] Halting execution setup for cancelled session ${dto.sessionId}`);
+      throw new BadRequestException("Run request cancelled by client");
     }
 
     // 2. Validate question
@@ -141,12 +159,21 @@ export class CodingService implements AssessmentModuleEngine {
         questionId: dto.questionId,
         languageId,
         submissionType: SubmissionType.RUN,
-        sourceCode: dto.sourceCode,
+        sourceCode: code,
         status: ExecutionStatus.PENDING,
         passedTests: 0,
         totalTests: isAutomation ? 1 : visibleTests.length,
       },
     });
+
+    if (isCancelled || req?.destroyed) {
+      this.logger.log(`[Run Aborted] Client disconnected after execution record creation ${execution.id}`);
+      await this.prisma.codingExecution.update({
+        where: { id: execution.id },
+        data: { status: ExecutionStatus.RUNTIME_ERROR as any, stderr: "Run cancelled by client", completedAt: new Date() },
+      });
+      throw new BadRequestException("Run request cancelled by client");
+    }
 
     // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
     let result: any;
@@ -154,7 +181,7 @@ export class CodingService implements AssessmentModuleEngine {
       const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
         content?.framework || "SELENIUM",
         dto.language || content?.language || "python",
-        dto.sourceCode
+        code,
       );
       result = {
         status: sandboxRes.status,
@@ -178,11 +205,20 @@ export class CodingService implements AssessmentModuleEngine {
       };
     } else {
       result = await this.judge0Service.runTests(
-        dto.sourceCode,
+        code,
         languageId,
         dto.questionId,
         visibleTests,
       );
+    }
+
+    if (isCancelled || req?.destroyed) {
+      this.logger.log(`[Run Aborted] Client disconnected before returning results for execution ${execution.id}`);
+      await this.prisma.codingExecution.update({
+        where: { id: execution.id },
+        data: { status: ExecutionStatus.RUNTIME_ERROR as any, stderr: "Run cancelled by client", completedAt: new Date() },
+      });
+      throw new BadRequestException("Run request cancelled by client");
     }
 
     // 5. Update database record with final results
@@ -210,7 +246,7 @@ export class CodingService implements AssessmentModuleEngine {
       executionTime: updatedExecution.executionTime,
       memoryUsage: updatedExecution.memoryUsage,
       stdout: updatedExecution.stdout || updatedExecution.stderr || updatedExecution.compileOutput || "",
-      results: result.results.map((r, idx) => ({
+      results: result.results.map((r: any, idx: number) => ({
         passed: r.passed,
         status: r.status,
         executionTime: r.executionTime,
@@ -257,31 +293,23 @@ export class CodingService implements AssessmentModuleEngine {
   }
 
   /**
-   * Final submit of candidate code: runs all test cases (sample + hidden) and marks ModuleResponse as completed.
+   * Fast DB-only submission write. Saves final candidate code to ModuleResponse as isDraft: false.
+   * Zero Judge0 calls involved. (Fix D)
    */
-  async submit(dto: SubmitCodingDto) {
-    this.validateSourceCodePayload(dto.sourceCode);
+  async saveFinalSubmission(dto: SubmitCodingDto) {
+    const code = dto.sourceCode || dto.code || "";
+    this.validateSourceCodePayload(code);
 
-    // 1. Validate session
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
     });
     if (!session) {
       throw new NotFoundException("Session not found");
     }
-    if (session.status === SessionStatus.NOT_STARTED) {
-      const now = new Date();
-      await this.prisma.session.update({
-        where: { id: dto.sessionId },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
-      });
-      session.status = SessionStatus.IN_PROGRESS;
-    }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
     }
 
-    // 2. Validate question
     const question = await this.prisma.question.findUnique({
       where: { id: dto.questionId },
     });
@@ -289,81 +317,15 @@ export class CodingService implements AssessmentModuleEngine {
       throw new NotFoundException("Coding/Debugging question not found");
     }
 
-    const content = question.content as any;
-    const isAutomation = content?.category === "AUTOMATION";
-    const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
-
-    // 3. Create CodingExecution record as PENDING
-    const languageId = isAutomation ? 99 : this.judge0Service.getLanguageId(dto.language);
-    const execution = await this.prisma.codingExecution.create({
-      data: {
-        sessionId: dto.sessionId,
-        questionId: dto.questionId,
-        languageId,
-        submissionType: SubmissionType.SUBMIT,
-        sourceCode: dto.sourceCode,
-        status: ExecutionStatus.PENDING,
-        passedTests: 0,
-        totalTests: isAutomation ? 1 : allTests.length,
-      },
-    });
-
-    // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
-    let result: any;
-    if (isAutomation) {
-      const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
-        content?.framework || "SELENIUM",
-        dto.language || content?.language || "python",
-        dto.sourceCode
-      );
-      result = {
-        status: sandboxRes.status,
-        passedTests: sandboxRes.passedTests,
-        totalTests: sandboxRes.totalTests,
-        stdout: sandboxRes.stdout,
-        stderr: sandboxRes.stderr,
-        compileOutput: sandboxRes.compileOutput || "",
-        executionTime: sandboxRes.executionTime,
-        memoryUsage: sandboxRes.memoryUsage,
-      };
-    } else {
-      result = await this.judge0Service.runTests(
-        dto.sourceCode,
-        languageId,
-        dto.questionId,
-        allTests,
-      );
-    }
-
-    // 5. Update database record with final results
-    const updatedExecution = await this.prisma.codingExecution.update({
-      where: { id: execution.id },
-      data: {
-        status: result.status as any,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        compileOutput: result.compileOutput,
-        passedTests: result.passedTests,
-        totalTests: result.totalTests,
-        executionTime: result.executionTime,
-        memoryUsage: result.memoryUsage,
-        completedAt: new Date(),
-      },
-    });
-
-    // 6. Save final response in ModuleResponse
     const responsePayload = {
       moduleType: question.moduleType,
-      code: dto.sourceCode,
-      sourceCode: dto.sourceCode,
+      code,
+      sourceCode: code,
       language: dto.language,
-      status: result.status,
-      passedTests: result.passedTests,
-      totalTests: result.totalTests,
-      stdout: result.stdout,
+      status: "SUBMITTED",
     };
 
-    await this.prisma.moduleResponse.upsert({
+    const moduleResponse = await this.prisma.moduleResponse.upsert({
       where: {
         sessionId_questionId: {
           sessionId: dto.sessionId,
@@ -386,38 +348,140 @@ export class CodingService implements AssessmentModuleEngine {
       },
     });
 
-    // 7. Return summary response to frontend (hide details of hidden tests)
-    return {
-      executionId: updatedExecution.id,
-      status: updatedExecution.status,
-      passedTests: updatedExecution.passedTests,
-      totalTests: updatedExecution.totalTests,
-      executionTime: updatedExecution.executionTime,
-      memoryUsage: updatedExecution.memoryUsage,
-      results: result.results.map((r, idx) => {
-        const tc = allTests[idx];
-        if (tc?.isHidden) {
-          return {
-            passed: r.passed,
-            status: r.status,
-            isHidden: true,
-            label: tc.label || `Hidden Case ${idx + 1}`,
-          };
-        }
-        return {
-          passed: r.passed,
-          status: r.status,
-          executionTime: r.executionTime,
-          memoryUsage: r.memoryUsage,
-          stdout: r.stdout,
-          stderr: r.stderr,
-          compileOutput: r.compileOutput,
-          input: tc?.input,
-          expectedOutput: tc?.expectedOutput,
-          label: tc?.label || `Test Case ${idx + 1}`,
-          isHidden: false,
+    return { session, question, moduleResponse, code };
+  }
+
+  /**
+   * Standalone, decoupled grading trigger for an existing submission execution. (Fix D)
+   */
+  async gradeSubmissionAsync(executionId: string, dto: SubmitCodingDto, content: any): Promise<void> {
+    try {
+      const code = dto.sourceCode || dto.code || "";
+      const isAutomation = content?.category === "AUTOMATION";
+      const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
+      const languageId = isAutomation ? 99 : (dto.language ? this.judge0Service.getLanguageId(dto.language) : 71);
+
+      let result: any;
+      if (isAutomation) {
+        const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
+          content?.framework || "SELENIUM",
+          dto.language || content?.language || "python",
+          code,
+        );
+        result = {
+          status: sandboxRes.status,
+          passedTests: sandboxRes.passedTests,
+          totalTests: sandboxRes.totalTests,
+          stdout: sandboxRes.stdout,
+          stderr: sandboxRes.stderr,
+          compileOutput: sandboxRes.compileOutput || "",
+          executionTime: sandboxRes.executionTime,
+          memoryUsage: sandboxRes.memoryUsage,
         };
-      }),
+      } else {
+        result = await this.judge0Service.runTests(
+          code,
+          languageId,
+          dto.questionId,
+          allTests,
+        );
+      }
+
+      await this.prisma.codingExecution.update({
+        where: { id: executionId },
+        data: {
+          status: result.status as any,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          compileOutput: result.compileOutput,
+          passedTests: result.passedTests,
+          totalTests: result.totalTests,
+          executionTime: result.executionTime,
+          memoryUsage: result.memoryUsage,
+          completedAt: new Date(),
+        },
+      });
+
+      const existing = await this.prisma.moduleResponse.findUnique({
+        where: {
+          sessionId_questionId: {
+            sessionId: dto.sessionId,
+            questionId: dto.questionId,
+          },
+        },
+      });
+
+      if (existing) {
+        const currentPayload = (existing.responsePayload as any) || {};
+        await this.prisma.moduleResponse.update({
+          where: { id: existing.id },
+          data: {
+            responsePayload: {
+              ...currentPayload,
+              status: result.status,
+              passedTests: result.passedTests,
+              totalTests: result.totalTests,
+              stdout: result.stdout,
+            },
+          },
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(`[Async Grading Failed] Execution ${executionId} error: ${err?.message || err}`);
+      await this.prisma.codingExecution.update({
+        where: { id: executionId },
+        data: {
+          status: ExecutionStatus.RUNTIME_ERROR as any,
+          stderr: err?.message || "Grading execution failed",
+          completedAt: new Date(),
+        },
+      }).catch((e) => this.logger.warn(`Failed updating failed execution: ${e}`));
+    }
+  }
+
+  /**
+   * Final submit of candidate code: saves submission to DB immediately and triggers decoupled grading in background. (Fix D)
+   */
+  async submit(dto: SubmitCodingDto) {
+    const code = dto.sourceCode || dto.code || "";
+    // 1. Fast DB write — save candidate code immediately without Judge0 dependency
+    const { question } = await this.saveFinalSubmission(dto);
+
+    const content = question.content as any;
+    const isAutomation = content?.category === "AUTOMATION";
+    const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
+    const languageId = isAutomation ? 99 : (dto.language ? this.judge0Service.getLanguageId(dto.language) : 71);
+
+    // 2. Create CodingExecution record as PENDING
+    const execution = await this.prisma.codingExecution.create({
+      data: {
+        sessionId: dto.sessionId,
+        questionId: dto.questionId,
+        languageId,
+        submissionType: SubmissionType.SUBMIT,
+        sourceCode: code,
+        status: ExecutionStatus.PENDING,
+        passedTests: 0,
+        totalTests: isAutomation ? 1 : allTests.length,
+      },
+    });
+
+    // 3. Trigger decoupled grading in background (non-blocking)
+    setImmediate(() => {
+      this.gradeSubmissionAsync(execution.id, dto, content).catch((err) =>
+        this.logger.error(`Background grading unhandled error: ${err}`),
+      );
+    });
+
+    // 4. Return instant submission receipt confirmation to candidate
+    return {
+      executionId: execution.id,
+      status: "SUBMITTED",
+      passedTests: 0,
+      totalTests: isAutomation ? 1 : allTests.length,
+      executionTime: null,
+      memoryUsage: null,
+      stdout: "Submission saved successfully. Grading is in progress.",
     };
   }
 

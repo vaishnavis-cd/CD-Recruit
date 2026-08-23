@@ -62,14 +62,19 @@ function normaliseError(err: unknown): ApiError {
   return { status, code: "UNKNOWN", message: "An unexpected error occurred." };
 }
 
-export async function runCoding(params: {
-  sessionId: string;
-  questionId: string;
-  language: string;
-  sourceCode: string;
-}): Promise<CodingExecutionResponse> {
+export async function runCoding(
+  params: {
+    sessionId: string;
+    questionId: string;
+    language: string;
+    sourceCode: string;
+  },
+  options?: { signal?: AbortSignal },
+): Promise<CodingExecutionResponse> {
   try {
-    const { data } = await apiClient.post<CodingExecutionResponse>("/coding/run", params);
+    const { data } = await apiClient.post<CodingExecutionResponse>("/coding/run", params, {
+      signal: options?.signal,
+    });
     return data;
   } catch (err) {
     throw normaliseError(err);

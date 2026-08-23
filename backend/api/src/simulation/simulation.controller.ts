@@ -20,6 +20,7 @@ export class SimulationController {
   ) {}
 
   @Get(":id/simulation/scenario")
+  @UseGuards(SessionOwnerGuard)
   getScenarioConfig(@Param("id") sessionId: string) {
     return this.simulationService.getSanitizedScenarioConfig(sessionId);
   }

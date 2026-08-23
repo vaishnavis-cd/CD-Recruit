@@ -150,6 +150,7 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
   const [activeTab, setActiveTab] = useState<"testCases" | "console">("testCases");
 
   const activePollRef = useRef<boolean>(false);
+  const runAbortControllerRef = useRef<AbortController | null>(null);
 
   // Subscribe to proctoring active-flag state
   useEffect(() => {
@@ -189,9 +190,13 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     return () => clearTimeout(timer);
   }, [activeCode, selectedLanguage, sessionId, question.id]);
 
-  // Save on unmount (switching questions)
+  // Save on unmount (switching questions) and abort in-flight Run requests
   useEffect(() => {
     return () => {
+      if (runAbortControllerRef.current) {
+        runAbortControllerRef.current.abort();
+        runAbortControllerRef.current = null;
+      }
       const finalCode = latestCodeRef.current;
       const finalLang = latestLanguageRef.current;
       if (sessionId && finalCode.trim()) {
@@ -269,83 +274,28 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     throw new Error("Execution timed out.");
   };
 
-  const runLocalFallback = (sourceCode: string, testCases: any[], runType: "RUN" | "SUBMIT"): CodingExecutionResponse => {
-    const casesToRun = runType === "RUN" ? testCases.filter((tc) => !tc.isHidden) : testCases;
-    const testResults: TestResultDetail[] = casesToRun.map((tc, idx) => {
-      let passed = false;
-      let actualOutput = "";
-
+  const executeWithRetry = async (
+    actionFn: () => Promise<CodingExecutionResponse>,
+    maxRetries = 2,
+    baseBackoffMs = 1000,
+  ): Promise<CodingExecutionResponse> => {
+    let attempt = 0;
+    while (true) {
       try {
-        const code = (sourceCode || "").trim();
-        const expected = (tc.expectedOutput || "").trim();
-
-        if (!code) {
-          actualOutput = "No code written";
-          passed = false;
-        } else {
-          // Check if candidate wrote actual logic or just template
-          const isTemplateOnly =
-            code.includes("# Write your Python") ||
-            code.includes("// Write your JavaScript") ||
-            code.includes("// Process input") ||
-            code.includes("// Process inputs here");
-
-          if (isTemplateOnly) {
-            actualOutput = "No solution logic implemented";
-            passed = false;
-          } else {
-            actualOutput = expected || "3";
-            passed = true;
-          }
+        const response = await actionFn();
+        let finalResult = response;
+        if (response.status === "PENDING" || response.status === "RUNNING") {
+          finalResult = await pollExecution(response.executionId);
         }
-      } catch (err: any) {
-        actualOutput = err?.message || "Execution error";
-        passed = false;
+        return finalResult;
+      } catch (err) {
+        attempt++;
+        if (attempt > maxRetries || !activePollRef.current) {
+          throw err;
+        }
+        await new Promise((resolve) => setTimeout(resolve, baseBackoffMs * attempt));
       }
-
-      return {
-        testCaseIndex: idx,
-        input: tc.input || `Sample Input ${idx + 1}`,
-        expectedOutput: tc.expectedOutput || `Expected Output ${idx + 1}`,
-        actualOutput,
-        passed,
-        status: passed ? ("PASSED" as const) : ("FAILED" as const),
-        isHidden: Boolean(tc.isHidden),
-        executionTimeMs: Math.floor(Math.random() * 8) + 2,
-      };
-    });
-
-    const passedCount = testResults.filter((r) => r.passed).length;
-    return {
-      executionId: `exec_local_${Date.now()}`,
-      status: passedCount === testResults.length ? "COMPLETED" : "FAILED",
-      passedTests: passedCount,
-      totalTests: testResults.length,
-      executionTime: 14,
-      memoryUsage: 1024,
-      stdout: passedCount === testResults.length 
-        ? `All ${passedCount} test cases passed successfully!` 
-        : `Test execution finished: ${passedCount}/${testResults.length} test cases passed.`,
-      executionTimeMs: 14,
-      memoryKb: 1024,
-      testResults,
-      results: testResults.map((r: any, idx: number) => ({
-        passed: r.passed,
-        status: r.status,
-        executionTime: r.executionTimeMs,
-        memoryUsage: 1024,
-        stdout: r.actualOutput,
-        input: r.input,
-        expectedOutput: r.expectedOutput,
-        label: r.input ? `Example ${idx + 1}` : undefined,
-        isHidden: r.isHidden,
-      })),
-      summary: {
-        total: testResults.length,
-        passed: passedCount,
-        failed: testResults.length - passedCount,
-      },
-    } as any;
+    }
   };
 
   const handleRun = async () => {
@@ -358,27 +308,46 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     setActiveTab("testCases");
     activePollRef.current = true;
 
-    try {
-      const response = await runCoding({
-        sessionId,
-        questionId: question.id,
-        language: selectedLanguage,
-        sourceCode: activeCode,
-      });
+    if (runAbortControllerRef.current) {
+      runAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    runAbortControllerRef.current = controller;
 
-      let finalResult = response;
-      if (response.status === "PENDING" || response.status === "RUNNING") {
-        finalResult = await pollExecution(response.executionId);
-      }
+    try {
+      const finalResult = await executeWithRetry(() =>
+        runCoding(
+          {
+            sessionId,
+            questionId: question.id,
+            language: selectedLanguage,
+            sourceCode: activeCode,
+          },
+          { signal: controller.signal },
+        ),
+      );
 
       setExecutionResult(finalResult);
       updateStatus("answered");
     } catch (err: any) {
-      console.error("Remote execution failed:", err?.message || err);
-      setErrorMsg(err?.message || "Remote code execution failed. Please check network connectivity or backend API status.");
+      if (err?.name === "CanceledError" || err?.name === "AbortError" || controller.signal.aborted) {
+        console.log("Run execution request was aborted by candidate action.");
+        return;
+      }
+      console.error("Remote execution failed after retries:", {
+        sessionId,
+        questionId: question.id,
+        timestamp: new Date().toISOString(),
+        error: err?.message || err,
+      });
+      setErrorMsg("Execution service temporarily unavailable — please retry");
+      setExecutionResult(null);
     } finally {
       setIsRunning(false);
       activePollRef.current = false;
+      if (runAbortControllerRef.current === controller) {
+        runAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -393,23 +362,26 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     activePollRef.current = true;
 
     try {
-      const response = await submitCoding({
-        sessionId,
-        questionId: question.id,
-        language: selectedLanguage,
-        sourceCode: activeCode,
-      });
-
-      let finalResult = response;
-      if (response.status === "PENDING" || response.status === "RUNNING") {
-        finalResult = await pollExecution(response.executionId);
-      }
+      const finalResult = await executeWithRetry(() =>
+        submitCoding({
+          sessionId,
+          questionId: question.id,
+          language: selectedLanguage,
+          sourceCode: activeCode,
+        }),
+      );
 
       setExecutionResult(finalResult);
       updateStatus("answered");
     } catch (err: any) {
-      console.error("Remote submission failed:", err?.message || err);
-      setErrorMsg(err?.message || "Code submission failed. Please check backend API status.");
+      console.error("Remote submission failed after retries:", {
+        sessionId,
+        questionId: question.id,
+        timestamp: new Date().toISOString(),
+        error: err?.message || err,
+      });
+      setErrorMsg("Execution service temporarily unavailable — please retry");
+      setExecutionResult(null);
     } finally {
       setIsRunning(false);
       activePollRef.current = false;

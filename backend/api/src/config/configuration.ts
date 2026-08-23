@@ -35,6 +35,15 @@ export const configuration = () => ({
   // ── External services ────────────────────────────────────────────────────
   judge0ApiUrl: process.env.JUDGE0_API_URL ?? "",
   judge0ApiKey: process.env.JUDGE0_API_KEY ?? "",
+  judge0CpuTimeLimit: parseFloat(process.env.JUDGE0_CPU_TIME_LIMIT ?? "5.0"),
+  judge0WallTimeLimit: parseFloat(process.env.JUDGE0_WALL_TIME_LIMIT ?? "10.0"),
+  judge0MaxRetryAttempts: parseInt(process.env.JUDGE0_MAX_RETRY_ATTEMPTS ?? "3", 10),
+  judge0RetryBaseDelayMs: parseInt(process.env.JUDGE0_RETRY_BASE_DELAY_MS ?? "500", 10),
+
+  // ── Circuit Breaker ───────────────────────────────────────────────────────
+  circuitBreakerErrorThresholdPercent: parseInt(process.env.CIRCUIT_BREAKER_ERROR_THRESHOLD_PERCENT ?? "50", 10),
+  circuitBreakerResetTimeoutMs: parseInt(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT_MS ?? "10000", 10),
+  circuitBreakerVolumeThreshold: parseInt(process.env.CIRCUIT_BREAKER_VOLUME_THRESHOLD ?? "5", 10),
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   groqApiKey: process.env.GROQ_API_KEY ?? "",

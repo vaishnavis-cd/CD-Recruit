@@ -13,14 +13,9 @@ import * as vm from "vm";
 import * as fs from "fs"; 
 import * as path from "path";
 import * as os from "os";
-<<<<<<< HEAD
-import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
-import { EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./scenarios/experienced-prod-incident.config";
-=======
 import { getScenarioById, SCENARIO_REGISTRY } from "./scenarios";
 import { DriveShufflerService } from "../drive/drive-shuffler.service";
 import { ContextSimulationScenarioConfig } from "./scenarios/scenario-type.interface";
->>>>>>> simultionbranch
 
 export interface SimulationInboxMessage {
   id: number;
@@ -69,38 +64,6 @@ export class SimulationService implements AssessmentModuleEngine {
       if (sessionId) {
         const session = await this.prisma.session.findUnique({
           where: { id: sessionId },
-<<<<<<< HEAD
-          include: {
-            roleTemplate: true,
-            drive: {
-              include: {
-                questions: {
-                  where: { moduleType: "SIMULATION" },
-                  include: { question: true },
-                },
-              },
-            },
-          },
-        });
-
-        const isExperienced = session?.roleTemplate?.level === "EXPERIENCED";
-
-        const driveSimQuestion = session?.drive?.questions?.[0]?.question;
-        if (driveSimQuestion && driveSimQuestion.content) {
-          const content = driveSimQuestion.content as any;
-          return {
-            id: driveSimQuestion.id,
-            title: content.title || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.title : QA_BUG_REPORT_SCENARIO.title),
-            description: content.description || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.description : QA_BUG_REPORT_SCENARIO.description),
-            track: content.track || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.track : QA_BUG_REPORT_SCENARIO.track),
-            rubricVersion: content.rubricVersion || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.rubricVersion : QA_BUG_REPORT_SCENARIO.rubricVersion),
-            initialSayPrompt: content.initialSayPrompt || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.initialSayPrompt : QA_BUG_REPORT_SCENARIO.initialSayPrompt),
-            managerEmail: content.managerEmail || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.managerEmail : QA_BUG_REPORT_SCENARIO.managerEmail),
-            starterCode: content.starterCode || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.starterCode : QA_BUG_REPORT_SCENARIO.starterCode),
-            testCases: content.testCases || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.testCases : QA_BUG_REPORT_SCENARIO.testCases),
-            evaluationCriteria: content.evaluationCriteria || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.evaluationCriteria : QA_BUG_REPORT_SCENARIO.evaluationCriteria),
-          };
-=======
         });
 
         if (session) {
@@ -157,7 +120,6 @@ export class SimulationService implements AssessmentModuleEngine {
               }
             }
           }
->>>>>>> simultionbranch
         }
 
         if (isExperienced) {

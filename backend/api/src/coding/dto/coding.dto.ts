@@ -1,4 +1,40 @@
-import { IsString, IsNotEmpty, IsUUID, IsNumber, IsOptional, Min } from "class-validator";
+import {
+  IsString,
+  IsNotEmpty,
+  IsUUID,
+  IsNumber,
+  IsOptional,
+  Min,
+  MaxLength,
+  IsIn,
+  IsArray,
+  ArrayMaxSize,
+  ValidateNested,
+  IsBoolean,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
+
+export class TestCaseDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(5000)
+  input?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(5000)
+  expectedOutput?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isHidden?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  label?: string;
+}
 
 export class RunCodingDto {
   @IsUUID()
@@ -11,11 +47,25 @@ export class RunCodingDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsIn([...SUPPORTED_CODING_LANGUAGES])
   language: string;
 
   @IsString()
-  @IsNotEmpty()
-  sourceCode: string;
+  @IsOptional()
+  @MaxLength(20000)
+  sourceCode?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20000)
+  code?: string;
+
+  @IsArray()
+  @IsOptional()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => TestCaseDto)
+  testCases?: TestCaseDto[];
 }
 
 export class SubmitCodingDto {
@@ -29,11 +79,18 @@ export class SubmitCodingDto {
 
   @IsString()
   @IsOptional()
+  @IsIn([...SUPPORTED_CODING_LANGUAGES])
   language?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(20000)
   sourceCode?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20000)
+  code?: string;
 
   @IsNumber()
   @IsOptional()
@@ -52,11 +109,18 @@ export class DraftCodingDto {
 
   @IsString()
   @IsOptional()
+  @IsIn([...SUPPORTED_CODING_LANGUAGES])
   language?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(20000)
   sourceCode?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20000)
+  code?: string;
 
   @IsNumber()
   @IsOptional()
