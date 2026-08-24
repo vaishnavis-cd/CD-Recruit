@@ -58,7 +58,7 @@ function QuestionBankPage() {
   const [query, setQuery] = useState("");
   const [modFilter, setModFilter] = useState<string>("all");
   const [diffFilter, setDiffFilter] = useState<string>("all");
-  const [tierFilter, setTierFilter] = useState<string>("all");
+  const [targetLevelFilter, setTargetLevelFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -83,6 +83,7 @@ function QuestionBankPage() {
   const [moduleType, setModuleType] = useState<string>("MCQ");
   const [promptText, setPromptText] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
+  const [targetLevel, setTargetLevel] = useState("0-1");
   const [tagsInput, setTagsInput] = useState("");
   const [role, setRole] = useState("General");
 
@@ -118,6 +119,7 @@ function QuestionBankPage() {
   // Edit Form State
   const [editPromptText, setEditPromptText] = useState("");
   const [editDifficulty, setEditDifficulty] = useState("medium");
+  const [editTargetLevel, setEditTargetLevel] = useState("0-1");
   const [editTagsInput, setEditTagsInput] = useState("");
   const [editRole, setEditRole] = useState("General");
   const [editMcqOptions, setEditMcqOptions] = useState<string[]>(["", "", "", ""]);
@@ -156,10 +158,11 @@ function QuestionBankPage() {
     fetchQuestions({
       moduleType: modFilter !== "all" ? modFilter : undefined,
       difficulty: diffFilter !== "all" ? diffFilter : undefined,
+      targetLevel: targetLevelFilter !== "all" ? targetLevelFilter : undefined,
       role: roleFilter !== "all" ? roleFilter : undefined,
       search: query ? query : undefined,
     });
-  }, [modFilter, diffFilter, roleFilter, query]);
+  }, [modFilter, diffFilter, targetLevelFilter, roleFilter, query]);
 
   // Grouped questions helper by tags
   const groupedQuestions = useMemo(() => {
@@ -189,6 +192,7 @@ function QuestionBankPage() {
   const handleOpenEdit = (q: any) => {
     setEditingQuestion(q);
     setEditDifficulty(q.difficulty);
+    setEditTargetLevel(q.targetLevel || "0-1");
     setEditTagsInput(q.tags?.join(", ") || "");
     setEditPromptText(q.content?.prompt || q.content?.title || "");
     setEditRole(q.role || "General");
@@ -284,7 +288,14 @@ function QuestionBankPage() {
         content.rubric = editSimRubric ? JSON.parse(editSimRubric) : [];
       }
 
-      await updateQuestion(editingQuestion.id, { ...editingQuestion, difficulty: editDifficulty, tags: editTagsInput.split(",").map((t) => t.trim()).filter(Boolean), role: editRole, content });
+      await updateQuestion(editingQuestion.id, {
+        ...editingQuestion,
+        difficulty: editDifficulty,
+        targetLevel: editTargetLevel,
+        tags: editTagsInput.split(",").map((t) => t.trim()).filter(Boolean),
+        role: editRole,
+        content,
+      });
       toast.success("Question updated successfully");
       setEditingQuestion(null);
     } catch (err: any) {
@@ -339,6 +350,7 @@ function QuestionBankPage() {
         content,
         scoringConfig,
         difficulty,
+        targetLevel,
         role,
         tags: tagsInput
           .split(",")
@@ -602,18 +614,20 @@ function QuestionBankPage() {
             <option value="hard">Hard</option>
           </select>
 
-          {/* Tier Filter */}
+          {/* Target Level Filter */}
           <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
+            value={targetLevelFilter}
+            onChange={(e) => setTargetLevelFilter(e.target.value)}
             className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
           >
-            <option value="all">All Tiers</option>
-            <option value="TIER_1">Tier 1</option>
-            <option value="TIER_2">Tier 2</option>
+            <option value="all">All Levels</option>
+            <option value="0-1">0-1 yrs (Fresher)</option>
+            <option value="2-5">2-5 yrs (Level 1)</option>
+            <option value="6-10">6-10 yrs (Level 2)</option>
+            <option value="11-15">11-15 yrs (Level 3)</option>
           </select>
 
-          {/* Department / Role Filter */}
+          {/* Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -825,14 +839,8 @@ function QuestionBankPage() {
                     >
                       {q.difficulty}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
-                        extractQuestionTier(q) === "TIER_2"
-                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                          : "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                      }`}
-                    >
-                      {extractQuestionTier(q) === "TIER_2" ? "TIER 2" : "TIER 1"}
+                    <span className="px-2 py-0.5 rounded bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] text-[10px] font-medium">
+                      Level: {q.targetLevel || "All"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
                       Role: {q.role || "General"}
@@ -972,7 +980,7 @@ function QuestionBankPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                     Module Type
@@ -1003,6 +1011,21 @@ function QuestionBankPage() {
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Target Level
+                  </label>
+                  <select
+                    value={targetLevel}
+                    onChange={(e) => setTargetLevel(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  >
+                    <option value="0-1">0-1 yrs (Fresher)</option>
+                    <option value="2-5">2-5 yrs (Level 1)</option>
+                    <option value="6-10">6-10 yrs (Level 2)</option>
+                    <option value="11-15">11-15 yrs (Level 3)</option>
                   </select>
                 </div>
                 <div>
@@ -1451,7 +1474,7 @@ function QuestionBankPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
                     Module Type (Read-Only)
@@ -1474,6 +1497,21 @@ function QuestionBankPage() {
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    Target Level
+                  </label>
+                  <select
+                    value={editTargetLevel}
+                    onChange={(e) => setEditTargetLevel(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  >
+                    <option value="0-1">0-1 yrs (Fresher)</option>
+                    <option value="2-5">2-5 yrs (Level 1)</option>
+                    <option value="6-10">6-10 yrs (Level 2)</option>
+                    <option value="11-15">11-15 yrs (Level 3)</option>
                   </select>
                 </div>
                 <div>

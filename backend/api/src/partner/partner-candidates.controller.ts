@@ -55,33 +55,52 @@ export class PartnerCandidatesController {
     description: "Partner candidate ingestion payload",
     schema: {
       type: "object",
-      required: ["department_code", "level", "requisition_ref", "candidates"],
+      required: ["department_code", "requisition_ref", "candidates"],
       properties: {
         department_code: {
           type: "string",
           enum: ["SOFTWARE_ENGINEERING", "DATA_ENGINEERING", "PMO", "QA", "SYSOPS", "ITOPS", "SECOPS", "SRE"],
           example: "SOFTWARE_ENGINEERING",
-          description: "Department enum value used to look up the active RoleTemplate",
+          description: "Department enum value used to look up the active RoleTemplates",
         },
-        level: {
+        category: {
           type: "string",
           enum: ["FRESHER", "EXPERIENCED"],
           example: "EXPERIENCED",
-          description: "Experience level enum used to look up the active RoleTemplate",
+          description: "Candidate category ('FRESHER' or 'EXPERIENCED')",
+        },
+        level: {
+          type: "string",
+          example: "EXPERIENCED",
+          description: "Legacy category field alias for backwards compatibility",
         },
         requisition_ref: {
           type: "string",
           example: "REQ-2026-ENG-001",
           description: "Unique ATS requisition reference — drives are upserted keyed on this",
         },
+        drive_name: {
+          type: "string",
+          example: "Senior Full-Stack Sprint",
+          description: "Optional custom drive title",
+        },
         candidates: {
           type: "array",
+          description: "Batch array of candidates (supports up to 1,000 candidates in <2-5s)",
           items: {
             type: "object",
             required: ["name", "email"],
             properties: {
               name: { type: "string", example: "Jane Doe" },
               email: { type: "string", format: "email", example: "jane.doe@example.com" },
+              level: {
+                type: "string",
+                example: "2-5",
+                description:
+                  "Candidate experience tier. For EXPERIENCED: '2-5' (Level 1), '6-10' (Level 2), '11-15' (Level 3). For FRESHER: '0-1'",
+              },
+              phone: { type: "string", example: "+1234567890" },
+              external_candidate_ref: { type: "string", example: "ext-cand-101" },
             },
           },
         },

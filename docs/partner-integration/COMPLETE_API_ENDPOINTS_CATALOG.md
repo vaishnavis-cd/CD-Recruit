@@ -31,6 +31,7 @@ This document serves as the authoritative technical catalog of **all API endpoin
 12. [Sample CSV Template Downloads (`/admin/drives/sample-csv`)](#12-sample-csv-template-downloads-admindrivessample-csv)
 13. [Question Bank Management (`/admin/questions`)](#13-question-bank-management-adminquestions)
 14. [Platform Settings & Audit Logs (`/admin/settings`)](#14-platform-settings--audit-logs-adminsettings)
+15. [Partner ATS Integration (`/partner`)](#15-partner-ats-integration-partner)
 
 ---
 
@@ -243,3 +244,18 @@ Implemented in `backend/api/src/settings/settings.controller.ts`. **Restricted t
 | `GET` | `/api/v1/admin/settings/appeal-window` | Admin Guard | `admin-web` Compliance | **Get Candidate Appeal Window:** Returns timeframe allowed for candidate grade appeals. |
 | `PATCH` | `/api/v1/admin/settings/appeal-window` | Admin Guard | `admin-web` | **Update Appeal Window:** Updates allowed appeal days. |
 | `GET` | `/api/v1/admin/settings/audit-log` (and `/audit-logs`) | Admin Guard | `admin-web` Audit Viewer | **List Audit Logs:** Returns immutable security audit trail of staff actions (scoring changes, candidate deletions, data exports). |
+
+---
+
+### 15. Partner ATS Integration (`/partner`)
+Implemented in `backend/api/src/partner/partner-candidates.controller.ts`, `partner-requisitions.controller.ts`, and `partner-admin.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+|---|---|---|---|---|
+| `POST` | `/api/v1/partner/candidates` | `PartnerApiKeyGuard`, `IdempotencyInterceptor` | Partner ATS Ingestion | **High-Throughput Candidate Ingestion:** Ingests up to 1,000 candidates in <2–5s. Automatically parses raw resume experience strings (`"7+ experience"`, `"3.5 yrs"`), maps them to calibrated role templates (`0-1`, `2-5`, `6-10`, `11-15`), upserts the Drive for the requisition, and issues 48h rolling assessment invites. |
+| `GET` | `/api/v1/partner/requisitions/:ref/status` | `PartnerApiKeyGuard` | Partner ATS Polling | **Poll Requisition & Candidate Status:** Returns session status, progress, composite score, score band (`HIGH`, `MEDIUM`, `LOW`), and assessment link for all candidates in the requisition. |
+| `GET` | `/api/v1/admin/partners` | Admin Guard | `admin-web` Settings | **List Partners:** Lists all registered partner ATS integrations. |
+| `POST` | `/api/v1/admin/partners` | Admin Guard | `admin-web` Settings | **Create Partner:** Registers new partner ATS and issues raw `pk_live_...` API key. |
+| `POST` | `/api/v1/admin/partners/:id/rotate-key` | Admin Guard | `admin-web` Settings | **Rotate Partner API Key:** Issues new `pk_live_...` key with 24h grace period. |
+| `DELETE` | `/api/v1/admin/partners/:id` | Admin Guard | `admin-web` Settings | **Revoke Partner Access:** Immediately invalidates partner API key. |
+

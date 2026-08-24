@@ -37,6 +37,10 @@ export interface DriveCandidateRosterItem {
   compositeScore: number | null;
   submittedAt: string | null;
   isGenerated: boolean;
+  category?: string | null;
+  experienceTier?: string | null;
+  level?: string | null;
+  roleTemplateId?: string | null;
 }
 
 export interface DriveDetail extends Drive {
@@ -48,6 +52,8 @@ export interface Question {
   id: string;
   moduleType: string;
   role: string;
+  targetLevel?: string;
+  folderId?: string;
   content: any;
   scoringConfig: any;
   difficulty: string;
@@ -184,8 +190,18 @@ export interface Candidate {
 export interface RoleTemplate {
   id: string;
   roleName: string;
-  track: string;
+  track?: string;
+  department?: string;
+  level?: string;
+  category?: string;
+  experienceTier?: string;
+  version?: number;
+  isActive?: boolean;
+  durationMinutes?: number;
+  weightingPreset?: any;
+  questions?: any[];
 }
+
 
 export type SessionStatus = "submitted" | "ai_scored" | "review" | "reviewed" | "decision";
 

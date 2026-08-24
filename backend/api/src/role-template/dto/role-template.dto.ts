@@ -11,7 +11,8 @@ import {
   Min,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { Department, ExperienceLevel, ExperiencedLevel, ModuleType } from "@prisma/client";
+import { Department, ExperienceLevel, ModuleType } from "@prisma/client";
+import { CandidateCategory } from "../../common/utils/experience-tier.util";
 
 export class RoleTemplateQuestionInputDto {
   @IsString()
@@ -56,8 +57,12 @@ export class CreateRoleTemplateDto {
   level?: ExperienceLevel;
 
   @IsOptional()
-  @IsEnum(ExperiencedLevel)
-  experiencedLevel?: ExperiencedLevel;
+  @IsEnum(CandidateCategory)
+  category?: CandidateCategory;
+
+  @IsOptional()
+  @IsString()
+  experienceTier?: string;
 
   @IsOptional()
   @IsInt()
@@ -95,8 +100,12 @@ export class UpdateRoleTemplateDto {
   level?: ExperienceLevel;
 
   @IsOptional()
-  @IsEnum(ExperiencedLevel)
-  experiencedLevel?: ExperiencedLevel;
+  @IsEnum(CandidateCategory)
+  category?: CandidateCategory;
+
+  @IsOptional()
+  @IsString()
+  experienceTier?: string;
 
   @IsOptional()
   @IsInt()

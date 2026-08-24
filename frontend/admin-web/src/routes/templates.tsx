@@ -16,6 +16,7 @@ import {
   HelpCircle,
   RotateCcw,
   SlidersHorizontal,
+  Send,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { API_BASE, getAuthHeaders } from "../lib/store";
@@ -60,8 +61,14 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   SRE: "Site Reliability Engineering",
 };
 
-const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
-const EXPERIENCED_LEVELS = ["L1", "L2", "L3"] as const;
+const CATEGORIES = ["FRESHER", "EXPERIENCED"] as const;
+
+const TIERS = [
+  { value: "0-1", label: "0-1 yrs (Fresher)", category: "FRESHER" },
+  { value: "2-5", label: "2-5 yrs (Level 1)", category: "EXPERIENCED" },
+  { value: "6-10", label: "6-10 yrs (Level 2)", category: "EXPERIENCED" },
+  { value: "11-15", label: "11-15 yrs (Level 3)", category: "EXPERIENCED" },
+] as const;
 
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   MCQ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
@@ -71,6 +78,7 @@ const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }
   AI_PROMPTING: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
   SIMULATION: { bg: "bg-cyan-50", text: "text-cyan-700", border: "border-cyan-200" },
   TEST_SCENARIOS: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
+  NOSQL: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
 };
 
 export function RoleTemplatesPage() {
@@ -80,7 +88,8 @@ export function RoleTemplatesPage() {
 
   // Filters
   const [deptFilter, setDeptFilter] = useState<string>("all");
-  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [tierFilter, setTierFilter] = useState<string>("all");
   const [versionFilter, setVersionFilter] = useState<string>("latest");
   const [activeOnlyFilter, setActiveOnlyFilter] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,8 +102,8 @@ export function RoleTemplatesPage() {
   // Form State
   const [roleName, setRoleName] = useState("");
   const [department, setDepartment] = useState<string>("SOFTWARE_ENGINEERING");
-  const [level, setLevel] = useState<string>("FRESHER");
-  const [experiencedLevel, setExperiencedLevel] = useState<string>("L1");
+  const [category, setCategory] = useState<string>("EXPERIENCED");
+  const [experienceTier, setExperienceTier] = useState<string>("2-5");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [isActive, setIsActive] = useState(true);
   const [weightingPreset, setWeightingPreset] = useState({
@@ -156,8 +165,8 @@ export function RoleTemplatesPage() {
     setEditingTemplate(null);
     setRoleName("");
     setDepartment("SOFTWARE_ENGINEERING");
-    setLevel("FRESHER");
-    setExperiencedLevel("L1");
+    setCategory("EXPERIENCED");
+    setExperienceTier("2-5");
     setDurationMinutes(60);
     setIsActive(true);
     setWeightingPreset({
@@ -177,8 +186,9 @@ export function RoleTemplatesPage() {
     setEditingTemplate(tpl);
     setRoleName(tpl.roleName || "");
     setDepartment(tpl.department || "SOFTWARE_ENGINEERING");
-    setLevel(tpl.level || "FRESHER");
-    setExperiencedLevel(tpl.experiencedLevel || "L1");
+    const tCategory = tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
+    setCategory(tCategory);
+    setExperienceTier(tpl.experienceTier || (tCategory === "FRESHER" ? "0-1" : "2-5"));
     setDurationMinutes(tpl.durationMinutes || 60);
     setIsActive(tpl.isActive ?? true);
 
@@ -224,8 +234,9 @@ export function RoleTemplatesPage() {
     const payload = {
       roleName: roleName.trim(),
       department,
-      level,
-      experiencedLevel: level === "EXPERIENCED" ? experiencedLevel : null,
+      category,
+      experienceTier: category === "FRESHER" ? "0-1" : experienceTier,
+      level: category === "FRESHER" ? "FRESHER" : "EXPERIENCED",
       durationMinutes: Number(durationMinutes),
       isActive,
       weightingPreset,
@@ -241,64 +252,42 @@ export function RoleTemplatesPage() {
 
       const res = await fetch(url, {
         method,
-        headers,
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         toast.success(
           editingTemplate
-            ? "Role template updated successfully!"
-            : "Role template created successfully!"
+            ? "Role template updated successfully"
+            : "Role template created successfully"
         );
         setShowModal(false);
         fetchTemplates();
       } else {
-        const errData = await res.json().catch(() => ({}));
-        toast.error(errData.message || "Failed to save role template");
+        const err = await res.json();
+        toast.error(err.message || "Failed to save role template");
       }
     } catch (err) {
-      toast.error("Network error while saving template");
+      toast.error("An error occurred while saving the role template");
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePublishNewVersion = async (tplId: string) => {
-    setPublishingId(tplId);
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/role-templates/${tplId}/publish-version`, {
-        method: "POST",
-        headers,
-      });
-
-      if (res.ok) {
-        const published = await res.json();
-        toast.success(
-          `Published new version (v${published.version}) for ${DEPARTMENT_LABELS[published.department] || published.department}!`
-        );
-        fetchTemplates();
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        toast.error(errData.message || "Failed to publish new version");
-      }
-    } catch (err) {
-      toast.error("Network error while publishing new version");
-    } finally {
-      setPublishingId(null);
+  const handleDeleteTemplate = async (id: string, name?: string) => {
+    if (!confirm(`Are you sure you want to delete role template '${name || id}'?`)) {
+      return;
     }
-  };
-
-  const handleDeleteTemplate = async (tplId: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete the role template "${name}"?`)) return;
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/role-templates/${tplId}`, {
+      const res = await fetch(`${API_BASE}/admin/role-templates/${id}`, {
         method: "DELETE",
         headers,
       });
-
       if (res.ok) {
         toast.success("Role template deleted");
         fetchTemplates();
@@ -306,18 +295,43 @@ export function RoleTemplatesPage() {
         toast.error("Failed to delete role template");
       }
     } catch (err) {
-      toast.error("Error deleting template");
+      toast.error("Error deleting role template");
     }
   };
 
-  const toggleQuestionSelection = (q: any) => {
+  const handlePublishNewVersion = async (templateId: string) => {
+    setPublishingId(templateId);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `${API_BASE}/admin/role-templates/${templateId}/publish-version`,
+        {
+          method: "POST",
+          headers,
+        }
+      );
+      if (res.ok) {
+        toast.success("New active template version published successfully!");
+        fetchTemplates();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to publish new version");
+      }
+    } catch (err) {
+      toast.error("Error publishing new version");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const toggleQuestionSelection = (question: any) => {
     setSelectedQuestionsMap((prev) => {
       const next = { ...prev };
-      if (next[q.id]) {
-        delete next[q.id];
+      if (next[question.id]) {
+        delete next[question.id];
       } else {
-        next[q.id] = {
-          moduleType: q.moduleType,
+        next[question.id] = {
+          moduleType: question.moduleType,
           pointShare: 20,
         };
       }
@@ -327,7 +341,8 @@ export function RoleTemplatesPage() {
 
   const resetFilters = () => {
     setDeptFilter("all");
-    setLevelFilter("all");
+    setCategoryFilter("all");
+    setTierFilter("all");
     setVersionFilter("latest");
     setActiveOnlyFilter(false);
     setSearchQuery("");
@@ -335,7 +350,8 @@ export function RoleTemplatesPage() {
 
   const hasActiveFilters =
     deptFilter !== "all" ||
-    levelFilter !== "all" ||
+    categoryFilter !== "all" ||
+    tierFilter !== "all" ||
     versionFilter !== "latest" ||
     activeOnlyFilter ||
     Boolean(searchQuery.trim());
@@ -355,15 +371,14 @@ export function RoleTemplatesPage() {
   const filteredTemplates = useMemo(() => {
     let list = [...templates];
 
-    // Filter out legacy unmapped templates without department or level
-    list = list.filter((t) => Boolean(t.department && t.level));
+    // Filter out legacy unmapped templates without department
+    list = list.filter((t) => Boolean(t.department));
 
     // 1. Version filtering
     if (versionFilter === "latest") {
-      // Group by department + level and select highest version
       const groupMap = new Map<string, any>();
       for (const t of list) {
-        const key = `${t.department}__${t.level}`;
+        const key = `${t.department}__${t.category || (t.level === "FRESHER" ? "FRESHER" : "EXPERIENCED")}__${t.experienceTier || (t.level === "FRESHER" ? "0-1" : "2-5")}`;
         const existing = groupMap.get(key);
         if (!existing || (t.version || 1) > (existing.version || 1)) {
           groupMap.set(key, t);
@@ -384,17 +399,26 @@ export function RoleTemplatesPage() {
       list = list.filter((t) => t.department === deptFilter);
     }
 
-    // 3. Level filter
-    if (levelFilter !== "all") {
-      list = list.filter((t) => t.level === levelFilter);
+    // 3. Category filter
+    if (categoryFilter !== "all") {
+      list = list.filter(
+        (t) => (t.category || (t.level === "FRESHER" ? "FRESHER" : "EXPERIENCED")) === categoryFilter
+      );
     }
 
-    // 4. Active Only checkbox filter
+    // 4. Tier filter
+    if (tierFilter !== "all") {
+      list = list.filter(
+        (t) => (t.experienceTier || (t.level === "FRESHER" ? "0-1" : "2-5")) === tierFilter
+      );
+    }
+
+    // 5. Active Only checkbox filter
     if (activeOnlyFilter) {
       list = list.filter((t) => t.isActive);
     }
 
-    // 5. Search text query
+    // 6. Search text query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((t) => {
@@ -405,16 +429,16 @@ export function RoleTemplatesPage() {
       });
     }
 
-    // 6. Stable canonical sort (by department alphabetically, then FRESHER before EXPERIENCED)
+    // 7. Stable canonical sort
     return list.sort((a, b) => {
       const deptA = a.department || "";
       const deptB = b.department || "";
       if (deptA !== deptB) return deptA.localeCompare(deptB);
-      const lvlA = a.level || "";
-      const lvlB = b.level || "";
-      return lvlA === "FRESHER" ? -1 : 1;
+      const tierA = a.experienceTier || (a.level === "FRESHER" ? "0-1" : "2-5");
+      const tierB = b.experienceTier || (b.level === "FRESHER" ? "0-1" : "2-5");
+      return tierA.localeCompare(tierB);
     });
-  }, [templates, versionFilter, deptFilter, levelFilter, activeOnlyFilter, searchQuery]);
+  }, [templates, versionFilter, deptFilter, categoryFilter, tierFilter, activeOnlyFilter, searchQuery]);
 
   // Modal questions filtered
   const modalEligibleQuestions = useMemo(() => {
@@ -485,7 +509,7 @@ export function RoleTemplatesPage() {
                   onChange={(e) => setVersionFilter(e.target.value)}
                   className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                 >
-                  <option value="latest">Latest Versions (16)</option>
+                  <option value="latest">Latest Versions</option>
                   <option value="all">All Versions</option>
                   <option value="active">Active Only</option>
                   {availableVersions.map((v) => (
@@ -515,20 +539,39 @@ export function RoleTemplatesPage() {
                 </select>
               </div>
 
-              {/* Level Filter */}
+              {/* Category Filter */}
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Level:
+                  Category:
                 </span>
                 <select
-                  value={levelFilter}
-                  onChange={(e) => setLevelFilter(e.target.value)}
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
                   className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                 >
-                  <option value="all">All Levels</option>
-                  {LEVELS.map((l) => (
-                    <option key={l} value={l}>
-                      {l === "FRESHER" ? "Fresher" : "Experienced"}
+                  <option value="all">All Categories</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tier Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Tier:
+                </span>
+                <select
+                  value={tierFilter}
+                  onChange={(e) => setTierFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="all">All Tiers</option>
+                  {TIERS.map((tier) => (
+                    <option key={tier.value} value={tier.value}>
+                      {tier.label}
                     </option>
                   ))}
                 </select>
@@ -574,8 +617,8 @@ export function RoleTemplatesPage() {
             <h3 className="text-base font-semibold text-slate-800">No Role Templates Found</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               {hasActiveFilters
-                ? "No templates match your active filter criteria. Click 'Reset' to view all 16 canonical templates."
-                : "Create your first role template with department, level, duration, and question presets."}
+                ? "No templates match your active filter criteria. Click 'Reset' to view all calibrated templates."
+                : "Create your first role template with department, category, experience tier, duration, and question presets."}
             </p>
             {hasActiveFilters && (
               <button
@@ -588,97 +631,104 @@ export function RoleTemplatesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredTemplates.map((tpl) => (
-              <div
-                key={tpl.id}
-                className={`bg-white border rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-md ${
-                  tpl.isActive
-                    ? "border-blue-200/90 shadow-xs ring-1 ring-blue-500/10"
-                    : "border-slate-200 opacity-90"
-                }`}
-              >
-                <div className="space-y-3">
-                  {/* Title & Status Badges */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
-                          {tpl.roleName}
-                        </h3>
-                        <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#F0F4FF] text-[#2F5CFF] rounded">
-                          v{tpl.version}
+            {filteredTemplates.map((tpl) => {
+              const tCategory = tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
+              const tTier = tpl.experienceTier || (tCategory === "FRESHER" ? "0-1" : "2-5");
+              const matchedTier = TIERS.find((t) => t.value === tTier);
+
+              return (
+                <div
+                  key={tpl.id}
+                  className={`bg-white border rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-md ${
+                    tpl.isActive
+                      ? "border-blue-200/90 shadow-xs ring-1 ring-blue-500/10"
+                      : "border-slate-200 opacity-90"
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* Title & Status Badges */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
+                            {tpl.roleName}
+                          </h3>
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#F0F4FF] text-[#2F5CFF] rounded">
+                            v{tpl.version}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {tpl.department && (
+                            <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
+                              {tpl.department}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#EFF6FF] text-[#1E40AF] border border-[#BFDBFE] rounded">
+                            {tCategory}
+                          </span>
+                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] rounded">
+                            {matchedTier?.label || `${tTier} yrs`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full shrink-0 ${
+                          tpl.isActive
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            tpl.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                          }`}
+                        />
+                        {tpl.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+
+                    {/* Metadata Strip */}
+                    <div className="flex items-center gap-4 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={14} className="text-slate-400" />
+                        <span className="font-semibold text-slate-700">
+                          {tpl.durationMinutes || 60} mins
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {tpl.department && (
-                          <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
-                            {tpl.department}
-                          </span>
-                        )}
-                        {tpl.level && (
-                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] rounded">
-                            {tpl.level === "FRESHER" ? "Fresher (0–1 years)" : `Experienced — ${tpl.experiencedLevel || "L1"} (${tpl.experiencedLevel === "L3" ? "11–15" : tpl.experiencedLevel === "L2" ? "6–10" : "2–5"} years)`}
-                          </span>
-                        )}
+                      <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                      <div className="flex items-center gap-1.5">
+                        <HelpCircle size={14} className="text-slate-400" />
+                        <span className="font-semibold text-slate-700">
+                          {tpl.questions?.length || 0} attached question(s)
+                        </span>
                       </div>
                     </div>
 
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full shrink-0 ${
-                        tpl.isActive
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-slate-100 text-slate-600 border border-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          tpl.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-                        }`}
-                      />
-                      {tpl.isActive ? "Active" : "Inactive"}
-                    </span>
+                    {/* Question Module Badges */}
+                    {tpl.questions && tpl.questions.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        <div className="text-[11px] font-medium text-slate-400">
+                          Question Modules:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {Array.from(
+                            new Set(tpl.questions.map((q: any) => q.moduleType))
+                          ).map((mod: any) => (
+                            <span
+                              key={mod}
+                              className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 text-blue-600 border border-slate-200 rounded font-semibold"
+                            >
+                              {MODULE_LABEL_MAP[mod] || mod}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Role Template Title */}
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-base leading-snug">
-                      {tpl.roleName}
-                    </h3>
-                  </div>
-
-                  {/* Metadata Strip */}
-                  <div className="flex items-center gap-4 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={14} className="text-slate-400" />
-                      <span className="font-semibold text-slate-700">
-                        {tpl.durationMinutes || 60} mins
-                      </span>
-                    </div>
-                    <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                    <div className="flex items-center gap-1.5">
-                      <HelpCircle size={14} className="text-slate-400" />
-                      <span className="font-semibold text-slate-700">
-                        {tpl.questions?.length || 0} attached question(s)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Actions */}
-                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handlePublishNewVersion(tpl.id)}
-                    disabled={publishingId === tpl.id}
-                    title="Publish new active version (clones into next version number)"
-                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    <GitFork size={13} />
-                    <span>
-                      {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
-                    </span>
-                  </button>
-
-                  <div className="flex items-center gap-1">
+                  {/* Footer Actions */}
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
                     <button
                       onClick={() => handleOpenEdit(tpl)}
                       className="p-2 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
@@ -686,17 +736,32 @@ export function RoleTemplatesPage() {
                     >
                       <Edit3 size={15} />
                     </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(tpl.id, tpl.roleName)}
-                      className="p-2 text-slate-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Delete template"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePublishNewVersion(tpl.id)}
+                        disabled={publishingId === tpl.id}
+                        title="Publish new active version (clones into next version number)"
+                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <GitFork size={13} />
+                        <span>
+                          {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteTemplate(tpl.id, tpl.roleName)}
+                        className="p-2 text-slate-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Delete template"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -729,15 +794,15 @@ export function RoleTemplatesPage() {
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {/* Form Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Role Template Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. Software Engineering - Experienced (2-5 yrs)"
                     value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
-                    placeholder="e.g. Software Engineering - Experienced"
                     className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                   />
                 </div>
@@ -774,46 +839,47 @@ export function RoleTemplatesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                    Experience Type
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Candidate Category
                   </label>
                   <select
-                    value={level}
+                    value={category}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      setLevel(val);
-                      if (val === "EXPERIENCED" && !experiencedLevel) {
-                        setExperiencedLevel("L1");
+                      const newCat = e.target.value;
+                      setCategory(newCat);
+                      if (newCat === "FRESHER") {
+                        setExperienceTier("0-1");
+                      } else if (experienceTier === "0-1") {
+                        setExperienceTier("2-5");
                       }
                     }}
-                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
+                    className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg bg-white"
                   >
-                    {LEVELS.map((l) => (
-                      <option key={l} value={l}>
-                        {l === "FRESHER" ? "Fresher (0–1 years)" : "Experienced (2–15 years)"}
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {level === "EXPERIENCED" && (
-                  <div>
-                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                      Experienced Level
-                    </label>
-                    <select
-                      value={experiencedLevel}
-                      onChange={(e) => setExperiencedLevel(e.target.value)}
-                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
-                    >
-                      {EXPERIENCED_LEVELS.map((el) => (
-                        <option key={el} value={el}>
-                          {el === "L1" ? "L1 (2–5 years)" : el === "L2" ? "L2 (6–10 years)" : "L3 (11–15 years)"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Experience Tier
+                  </label>
+                  <select
+                    value={experienceTier}
+                    onChange={(e) => setExperienceTier(e.target.value)}
+                    disabled={category === "FRESHER"}
+                    className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
+                      <option key={tier.value} value={tier.value}>
+                        {tier.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Question Bank Selection Section */}

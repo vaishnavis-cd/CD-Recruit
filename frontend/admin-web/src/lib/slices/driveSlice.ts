@@ -22,7 +22,7 @@ export interface DriveSlice {
   saveDriveQuestions: (driveId: string, questionIds: string[]) => Promise<void>;
   addCandidatesBulk: (
     driveId: string,
-    candidates: Array<{ name: string; candidateEmail: string }>,
+    candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>,
   ) => Promise<void>;
   generateDriveLinks: (driveId: string) => Promise<void>;
   removeCandidateFromDrive: (driveId: string, candidateId: string) => Promise<void>;

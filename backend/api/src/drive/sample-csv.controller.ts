@@ -11,11 +11,11 @@ import { StaffRole } from "@cd-recruit/shared-types";
 export class SampleCsvController {
   @Get("questions")
   getSampleQuestionsCsv(@Res() res: Response) {
-    const csvContent = `moduleType,title,description,difficulty,preferredLanguage,options,correctAnswer
-MCQ,Array Complexity,What is the worst case time complexity of accessing an array element by index?,EASY,javascript,"O(1)|O(n)|O(log n)|O(n^2)",O(1)
-MCQ,SQL Joins,Which join returns all matching rows from both tables?,MEDIUM,sql,"INNER JOIN|LEFT JOIN|FULL OUTER JOIN|CROSS JOIN",FULL OUTER JOIN
-DEBUGGING,Fix Array Index Bug,Fix off-by-one error in array loop,MEDIUM,javascript,"[{\"input\":\"[1,2,3]\",\"expected\":\"3\"}]",let i=0; i<arr.length; i++
-CODING,Binary Search Implementation,Implement binary search for a sorted array,HARD,python,"[{\"input\":\"[1,3,5], 3\",\"expected\":\"1\"}]",def search(nums, target): return nums.index(target) if target in nums else -1`;
+    const csvContent = `moduleType,title,description,difficulty,targetLevel,preferredLanguage,options,correctAnswer
+MCQ,Array Complexity,What is the worst case time complexity of accessing an array element by index?,EASY,0-1,javascript,"O(1)|O(n)|O(log n)|O(n^2)",O(1)
+MCQ,SQL Joins,Which join returns all matching rows from both tables?,MEDIUM,2-5,sql,"INNER JOIN|LEFT JOIN|FULL OUTER JOIN|CROSS JOIN",FULL OUTER JOIN
+DEBUGGING,Fix Array Index Bug,Fix off-by-one error in array loop,MEDIUM,6-10,javascript,"[{\"input\":\"[1,2,3]\",\"expected\":\"3\"}]",let i=0; i<arr.length; i++
+CODING,Binary Search Implementation,Implement binary search for a sorted array,HARD,11-15,python,"[{\"input\":\"[1,3,5], 3\",\"expected\":\"1\"}]",def search(nums, target): return nums.index(target) if target in nums else -1`;
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", 'attachment; filename="sample_questions.csv"');

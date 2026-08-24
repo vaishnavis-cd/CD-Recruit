@@ -26,6 +26,10 @@ export class CreateQuestionDto {
   difficulty?: string;
 
   @IsOptional()
+  @IsString()
+  targetLevel?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
@@ -53,6 +57,10 @@ export class UpdateQuestionDto {
   @IsOptional()
   @IsString()
   difficulty?: string;
+
+  @IsOptional()
+  @IsString()
+  targetLevel?: string;
 
   @IsOptional()
   @IsArray()
@@ -89,6 +97,10 @@ export class ListQuestionsQueryDto {
   @IsOptional()
   @IsString()
   difficulty?: string;
+
+  @IsOptional()
+  @IsString()
+  targetLevel?: string;
 
   @IsOptional()
   @IsString()

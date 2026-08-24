@@ -80,178 +80,110 @@ async function buildQuestionList(
       }
     }
 
-    if (!driveId) {
-      throw new UnprocessableEntityException("No valid drive associated with this session");
-    }
-
-    const drive = await prisma.drive.findUnique({
-      where: { id: driveId },
-      include: {
-        roleTemplate: {
-          include: {
-            questions: {
-              include: { question: true },
-              orderBy: { orderIndex: "asc" },
-            },
-          },
-        },
-      },
-    });
-
-    if (!drive) {
-      throw new UnprocessableEntityException(`Drive not found with ID ${driveId}`);
-    }
-
-    const resolvedTag = resolveSeniorityTag(drive.roleTemplate);
-    const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
-    const enabledMods = Object.entries(preset)
-      .filter(([_, w]) => Number(w) > 0)
-      .map(([mod]) => mod);
-
-    const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
-    const deptUpper = deptName.toUpperCase();
-    const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
-    const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
-    const altDept = isSde ? "SDE" : deptUpper;
-
-    // A. explicitly linked DriveQuestions path
-    const driveQuestions = await prisma.driveQuestion.findMany({
-      where: { driveId },
-      include: { question: true },
-      orderBy: [
-        { moduleType: "asc" },
-        { question: { id: "asc" } },
-      ],
-    });
-
-    if (driveQuestions && driveQuestions.length > 0) {
-      // Seniority Filtering for explicit DriveQuestions
-      const filteredDriveQuestions = driveQuestions.filter(dq => {
-        const q = dq.question;
-        if (!q) return false;
-        if (q.status !== "PUBLISHED") return false;
-
-        const qRole = q.role?.toUpperCase() || "";
-        const matchesDept = qRole === primaryDept || qRole === altDept;
-        if (!matchesDept) return false;
-
-        if (!enabledMods.includes(dq.moduleType)) return false;
-
-        const qTags = (q.tags || []).map(t => t.toLowerCase());
-        return qTags.includes(resolvedTag);
+    // 1. Check candidate's calibrated RoleTemplate questions (tier-specific fairness)
+    if (session.roleTemplateId) {
+      const templateQuestions = await prisma.roleTemplateQuestion.findMany({
+        where: { roleTemplateId: session.roleTemplateId },
+        include: { question: true },
+        orderBy: [{ orderIndex: "asc" }, { moduleType: "asc" }],
       });
 
-      if (filteredDriveQuestions.length === 0) {
-        console.warn(`[buildQuestionList] Allocation shortage: 0 questions matched criteria for Drive ${driveId} and seniority ${resolvedTag}`);
-        return [];
+      if (templateQuestions && templateQuestions.length > 0) {
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          templateQuestions as any,
+          session.candidateId,
+          session.roleTemplateId,
+        );
+        return shuffled.map((q: any) => {
+          const matchingTq = templateQuestions.find((tq) => tq.questionId === q.questionId);
+          const rawQ = matchingTq?.question || q;
+          const tags = rawQ.tags || [];
+          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+          const isDebug =
+            rawQ.moduleType === "DEBUGGING" ||
+            q.moduleType === "DEBUGGING" ||
+            tags.includes("debugging") ||
+            prompt.includes("debugging challenge");
+          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+          return {
+            ...q,
+            moduleType: effectiveModuleType,
+            content: rawQ.content || q.content || {},
+            difficulty: rawQ.difficulty || q.difficulty || "medium",
+          };
+        });
       }
+    }
 
-      const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-        filteredDriveQuestions as any,
-        session.candidateId,
-        driveId
-      );
-      const resultList = shuffled.map((q: any) => {
-        const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
-        const rawQ = matchingDq?.question || q;
-        const tags = rawQ.tags || [];
-        const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
-        const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-        const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
-        return {
-          ...q,
-          moduleType: effectiveModuleType,
-          content: rawQ.content || q.content || {},
-          difficulty: rawQ.difficulty || q.difficulty || "medium",
-        };
+    // 2. Check Drive Questions
+    if (driveId) {
+      const driveQuestions = await prisma.driveQuestion.findMany({
+        where: { driveId },
+        include: { question: true },
+        orderBy: [
+          { moduleType: "asc" },
+          { question: { id: "asc" } },
+        ],
       });
 
-      const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
-      if (driveObj && driveObj.moduleConfig) {
-        const mc = driveObj.moduleConfig as Record<string, { enabled?: boolean }>;
-        if (mc.AI_PROMPTING?.enabled) {
-          const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
-          if (!hasAiPromptingQuestion) {
-            resultList.push({
-              questionId: "ai-prompting-dynamic",
-              moduleType: "AI_PROMPTING",
-              moduleIndex: 0,
-              content: {
-                title: "AI Prompting Challenge",
-                prompt: "Engage in conversational problem solving with the AI assistant.",
-              },
-              difficulty: "medium",
-            });
+      if (driveQuestions && driveQuestions.length > 0) {
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          driveQuestions as any,
+          session.candidateId,
+          driveId
+        );
+        const resultList = shuffled.map((q: any) => {
+          const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
+          const rawQ = matchingDq?.question || q;
+          const tags = rawQ.tags || [];
+          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+          return {
+            ...q,
+            moduleType: effectiveModuleType,
+            content: rawQ.content || q.content || {},
+            difficulty: rawQ.difficulty || q.difficulty || "medium",
+          };
+        });
+
+        const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
+        if (driveObj && driveObj.moduleConfig) {
+          const mc = driveObj.moduleConfig as Record<string, { enabled?: boolean }>;
+          if (mc.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
           }
         }
-      }
-      return resultList;
-    }
-
-    // B. Check template questions from RoleTemplate path
-    if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
-      const filteredTQuestions = drive.roleTemplate.questions.filter(tq => {
-        const q = tq.question;
-        if (!q) return false;
-        if (q.status !== "PUBLISHED") return false;
-
-        const qRole = q.role?.toUpperCase() || "";
-        const matchesDept = qRole === primaryDept || qRole === altDept;
-        if (!matchesDept) return false;
-
-        if (!enabledMods.includes(tq.moduleType)) return false;
-
-        const qTags = (q.tags || []).map(t => t.toLowerCase());
-        return qTags.includes(resolvedTag);
-      });
-
-      const tQuestions = filteredTQuestions.map((tq, idx) => ({
-        questionId: tq.questionId,
-        moduleType: tq.moduleType,
-        moduleIndex: idx,
-        content: tq.question?.content || {},
-        difficulty: tq.question?.difficulty || "medium",
-      }));
-      return tQuestions;
-    }
-
-    // C. Check department-scoped fallback questions path
-    if (deptName && deptName !== "UNSPECIFIED") {
-      const whereClause: any = {
-        status: "PUBLISHED",
-        OR: [
-          { role: { equals: primaryDept, mode: "insensitive" } },
-          { role: { equals: altDept, mode: "insensitive" } },
-          { content: { path: ["department"], equals: primaryDept } },
-          { content: { path: ["department"], equals: altDept } },
-        ],
-        tags: { has: resolvedTag }
-      };
-
-      if (enabledMods.length > 0) {
-        whereClause.moduleType = { in: enabledMods };
-      }
-
-      const deptQuestions = await prisma.question.findMany({
-        where: whereClause,
-        orderBy: { moduleType: "asc" },
-      });
-
-      if (deptQuestions && deptQuestions.length > 0) {
-        return deptQuestions.map((q, idx) => ({
-          questionId: q.id,
-          moduleType: q.moduleType,
-          moduleIndex: idx,
-          content: q.content,
-          difficulty: q.difficulty || "medium",
-        }));
+        return resultList;
       }
     }
 
-    // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
-    throw new UnprocessableEntityException(
-      `No questions available for department ${deptName} and seniority ${resolvedTag} — question bank not yet populated`
-    );
+    // 3. Fallback: Published questions from Question Bank
+    const fallbackQuestions = await prisma.question.findMany({
+      where: { status: "PUBLISHED" },
+      take: 30,
+      orderBy: { moduleType: "asc" },
+    });
+
+    return fallbackQuestions.map((q, idx) => ({
+      questionId: q.id,
+      moduleType: q.moduleType,
+      moduleIndex: idx,
+      content: q.content,
+      difficulty: q.difficulty || "medium",
+    }));
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
     throw err;

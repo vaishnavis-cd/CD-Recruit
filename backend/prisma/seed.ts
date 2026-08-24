@@ -31,10 +31,11 @@ const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
   MCQ: 0.10,
   SQL: 0.15,
   NOSQL: 0.15,
-  CODING: 0.25,
+  CODING: 0.20,
   DEBUGGING: 0.10,
   AI_PROMPTING: 0.10,
-  SIMULATION: 0.15,
+  SIMULATION: 0.10,
+  TEST_SCENARIOS: 0.10,
 };
 
 /**
@@ -110,7 +111,7 @@ async function main(): Promise<void> {
         console.log(`  ↩ Base RoleTemplate "${ROLE_NAME}" exists (id: ${roleTemplate.id})`);
       }
 
-      // 2b. Seed 16 Department x Experience Level Role Templates
+      // 2b. Seed 32 Department x Experience Tier Role Templates
       const DEPARTMENTS = [
         "SOFTWARE_ENGINEERING",
         "DATA_ENGINEERING",
@@ -121,7 +122,14 @@ async function main(): Promise<void> {
         "SECOPS",
         "SRE",
       ] as const;
-      const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
+
+      const TIERS = [
+        { category: "FRESHER" as const, level: "FRESHER" as const, experienceTier: "0-1", suffix: "Fresher (0-1 yrs)", duration: 60 },
+        { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "2-5", suffix: "Level 1 (2-5 yrs)", duration: 90 },
+        { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "6-10", suffix: "Level 2 (6-10 yrs)", duration: 90 },
+        { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "11-15", suffix: "Level 3 (11-15 yrs)", duration: 90 },
+      ];
+
       const DEPT_NAMES: Record<string, string> = {
         SOFTWARE_ENGINEERING: "Software Engineering",
         DATA_ENGINEERING: "Data Engineering",
@@ -134,31 +142,38 @@ async function main(): Promise<void> {
       };
 
       for (const dept of DEPARTMENTS) {
-        for (const lvl of LEVELS) {
-          const isExp = lvl === "EXPERIENCED";
-          const name = `${DEPT_NAMES[dept]} - ${lvl === "FRESHER" ? "Fresher" : "Experienced"}`;
+        for (const t of TIERS) {
+          const name = `${DEPT_NAMES[dept]} - ${t.suffix}`;
           await tx.roleTemplate.upsert({
             where: {
-              department_level_version: {
+              department_category_experienceTier_version: {
                 department: dept as any,
-                level: lvl as any,
+                category: t.category as any,
+                experienceTier: t.experienceTier,
                 version: 1,
               },
             },
-            update: { roleName: name, isActive: true, durationMinutes: isExp ? 90 : 60 },
+            update: {
+              roleName: name,
+              level: t.level as any,
+              isActive: true,
+              durationMinutes: t.duration,
+            },
             create: {
               department: dept as any,
-              level: lvl as any,
+              category: t.category as any,
+              level: t.level as any,
+              experienceTier: t.experienceTier,
               roleName: name,
               version: 1,
               isActive: true,
-              durationMinutes: isExp ? 90 : 60,
-              weightingPreset: { MCQ: 20, SQL: 20, CODING: 30, DEBUGGING: 15, AI_PROMPTING: 15 },
+              durationMinutes: t.duration,
+              weightingPreset: { MCQ: 15, SQL: 15, NOSQL: 15, CODING: 20, DEBUGGING: 10, AI_PROMPTING: 10, SIMULATION: 15 },
             },
           });
         }
       }
-      console.log(`  ✔ Seeded 16 Department / Level Role Templates`);
+      console.log(`  ✔ Seeded 32 Department / Experience Tier Role Templates`);
 
       // 3. Seed Questions from JSON Files
       const allQuestions = getAllQuestionSeedData();

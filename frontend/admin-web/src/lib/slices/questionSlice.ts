@@ -8,6 +8,7 @@ export interface QuestionSlice {
   fetchQuestions: (query?: {
     moduleType?: string;
     difficulty?: string;
+    targetLevel?: string;
     search?: string;
     status?: string;
     role?: string;
@@ -17,6 +18,7 @@ export interface QuestionSlice {
   createQuestion: (input: {
     moduleType: string;
     role?: string;
+    targetLevel?: string;
     content: any;
     scoringConfig?: any;
     difficulty?: string;
@@ -28,6 +30,7 @@ export interface QuestionSlice {
     input: {
       moduleType?: string;
       role?: string;
+      targetLevel?: string;
       content?: any;
       scoringConfig?: any;
       difficulty?: string;
@@ -50,6 +53,7 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
       let url = `${API_BASE}/admin/questions?page=${page}&pageSize=${pageSize}`;
       if (query?.moduleType) url += `&moduleType=${query.moduleType}`;
       if (query?.difficulty) url += `&difficulty=${query.difficulty}`;
+      if (query?.targetLevel) url += `&targetLevel=${query.targetLevel}`;
       if (query?.search) url += `&search=${encodeURIComponent(query.search)}`;
       if (query?.status) url += `&status=${query.status}`;
       if (query?.role) url += `&role=${encodeURIComponent(query.role)}`;

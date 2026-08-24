@@ -5,6 +5,17 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
+}
+
+generator clientApi {
+  provider = "prisma-client-js"
+  output   = "../api/node_modules/@prisma/client"
+}
+
+generator clientRoot {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -17,15 +28,20 @@ datasource db {
 enum Department {
   SOFTWARE_ENGINEERING
   DATA_ENGINEERING
+  PMO
   QA
-  SRE
   SYSOPS
   ITOPS
-  PMO
   SECOPS
+  SRE
 }
 
 enum ExperienceLevel {
+  FRESHER
+  EXPERIENCED
+}
+
+enum CandidateCategory {
   FRESHER
   EXPERIENCED
 }
@@ -130,22 +146,23 @@ enum ConsentType {
 }
 
 model RoleTemplate {
-  id              String            @id @default(uuid())
-  roleName        String            @map("role_name")
-  weightingPreset Json              @map("weighting_preset")
-  durationMinutes Int               @map("duration_minutes") // drives session.deadlineAt
-  department      Department?       @map("department")
-  level           ExperienceLevel?  @map("level")
-  experiencedLevel ExperiencedLevel? @map("experienced_level")
-  version         Int               @default(1) @map("version")
-  isActive        Boolean           @default(true) @map("is_active")
+  id              String             @id @default(uuid())
+  roleName        String             @map("role_name")
+  weightingPreset Json               @map("weighting_preset")
+  durationMinutes Int                @map("duration_minutes") // drives session.deadlineAt
+  department      Department?        @map("department")
+  level           ExperienceLevel?   @map("level")
+  category        CandidateCategory? @default(FRESHER) @map("category")
+  experienceTier  String?            @map("experience_tier")
+  version         Int                @default(1) @map("version")
+  isActive        Boolean            @default(true) @map("is_active")
 
   sessions  Session[]
   invites   Invite[]
   drives    Drive[]
   questions RoleTemplateQuestion[]
 
-  @@unique([department, level, experiencedLevel, version])
+  @@unique([department, category, experienceTier, version])
   @@map("role_template")
 }
 
@@ -214,6 +231,7 @@ model Question {
   content        Json
   scoringConfig  Json?      @map("scoring_config")
   difficulty     String?
+  targetLevel    String?    @map("target_level")
   tags           String[]
   folderId       String?    @map("folder_id")
   version        Int        @default(1)
@@ -461,9 +479,11 @@ model Invite {
   id              String       @id @default(uuid())
   candidateEmail  String       @map("candidate_email")
   candidateName   String       @map("candidate_name")
-  roleTemplateId  String       @map("role_template_id")
-  driveId         String?      @map("drive_id")
-  status          InviteStatus @default(PENDING)
+  roleTemplateId  String             @map("role_template_id")
+  driveId         String?            @map("drive_id")
+  category        CandidateCategory? @map("category")
+  experienceTier  String?            @map("experience_tier")
+  status          InviteStatus       @default(PENDING)
   token           String       @unique
   createdById     String       @map("created_by_id")
   createdAt       DateTime     @default(now()) @map("created_at")

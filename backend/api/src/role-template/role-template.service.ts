@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { Department, ExperienceLevel, ExperiencedLevel, ModuleType } from "@prisma/client";
+import { Department, ExperienceLevel, ModuleType } from "@prisma/client";
+import { CandidateCategory, normalizeCategory, normalizeExperienceTier } from "../common/utils/experience-tier.util";
 
 export interface RoleTemplateQuestionInput {
   questionId: string;
@@ -16,7 +17,8 @@ export interface CreateRoleTemplateDto {
   durationMinutes: number;
   department?: Department;
   level?: ExperienceLevel;
-  experiencedLevel?: ExperiencedLevel;
+  category?: CandidateCategory;
+  experienceTier?: string;
   version?: number;
   isActive?: boolean;
   questions?: RoleTemplateQuestionInput[];
@@ -28,7 +30,8 @@ export interface UpdateRoleTemplateDto {
   durationMinutes?: number;
   department?: Department;
   level?: ExperienceLevel;
-  experiencedLevel?: ExperiencedLevel;
+  category?: CandidateCategory;
+  experienceTier?: string;
   version?: number;
   isActive?: boolean;
   questions?: RoleTemplateQuestionInput[];
@@ -39,18 +42,24 @@ export class RoleTemplateService {
   constructor(private readonly prisma: PrismaService) { }
 
   /**
-   * Find the active RoleTemplate for a given department and level.
-   * Throws NotFoundException if no active template exists.
-   * NEVER auto-creates a placeholder template.
-   * Lookup current active RoleTemplate for a specific Department and ExperienceLevel.
+   * Lookup current active RoleTemplate for a specific Department and ExperienceLevel / Category / Tier.
    * Throws NotFoundException if no active row exists. Never auto-creates.
    */
-  async findActiveTemplate(department: Department, level: ExperienceLevel, experiencedLevel?: ExperiencedLevel) {
-    const template = await this.prisma.roleTemplate.findFirst({
+  async findActiveTemplate(
+    department: Department,
+    levelOrCategory?: string,
+    experienceTier?: string,
+  ) {
+    const norm = normalizeExperienceTier(experienceTier, levelOrCategory);
+    const category = norm?.category || normalizeCategory(levelOrCategory);
+    const tier = norm?.tier;
+
+    // 1. Try finding by (department, category, experienceTier)
+    let template = await this.prisma.roleTemplate.findFirst({
       where: {
         department,
-        level,
-        ...(experiencedLevel ? { experiencedLevel } : {}),
+        category,
+        ...(tier ? { experienceTier: tier } : {}),
         isActive: true,
       },
       include: {
@@ -63,33 +72,100 @@ export class RoleTemplateService {
           },
         },
       },
+      orderBy: { version: "desc" },
     });
+
+    // 2. Fallback to legacy level lookup (FRESHER / EXPERIENCED) if tier-specific template not found
+    if (!template && levelOrCategory) {
+      const legacyLevel = levelOrCategory.toUpperCase() as ExperienceLevel;
+      template = await this.prisma.roleTemplate.findFirst({
+        where: {
+          department,
+          level: legacyLevel,
+          isActive: true,
+        },
+        include: {
+          questions: {
+            include: {
+              question: true,
+            },
+            orderBy: {
+              orderIndex: "asc",
+            },
+          },
+        },
+        orderBy: { version: "desc" },
+      });
+    }
+
+    // 3. Fallback to any active template in department if only 1 exists
+    if (!template) {
+      template = await this.prisma.roleTemplate.findFirst({
+        where: {
+          department,
+          isActive: true,
+        },
+        include: {
+          questions: {
+            include: {
+              question: true,
+            },
+            orderBy: {
+              orderIndex: "asc",
+            },
+          },
+        },
+        orderBy: { version: "desc" },
+      });
+    }
 
     if (!template) {
       throw new NotFoundException(
-        `Active RoleTemplate not found for department '${department}', level '${level}'${experiencedLevel ? `, experiencedLevel '${experiencedLevel}'` : ""}`,
+        `Active RoleTemplate not found for department '${department}', category '${category}' and tier '${tier || "default"}'`,
       );
     }
 
     return template;
   }
 
-  private validateLevels(level?: ExperienceLevel, experiencedLevel?: ExperiencedLevel | null) {
-    if (level === "FRESHER" && experiencedLevel !== null && experiencedLevel !== undefined) {
-      throw new BadRequestException("Fresher templates must not have an experienced level");
-    }
-    if (level === "EXPERIENCED" && (experiencedLevel === null || experiencedLevel === undefined)) {
-      throw new BadRequestException("Experienced templates must specify an experienced level (L1, L2, L3)");
-    }
+  /**
+   * Retrieves all active RoleTemplates for a department (pre-fetches for high-throughput batching).
+   */
+  async findActiveTemplatesForDepartment(department: Department) {
+    return this.prisma.roleTemplate.findMany({
+      where: {
+        department,
+        isActive: true,
+      },
+      include: {
+        questions: {
+          include: { question: true },
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+      orderBy: [{ category: "asc" }, { experienceTier: "asc" }, { version: "desc" }],
+    });
   }
 
   /**
    * Standard CRUD: Create a new RoleTemplate with optional initial questions.
    */
   async create(dto: CreateRoleTemplateDto) {
-    const { roleName, weightingPreset, durationMinutes, department, level, experiencedLevel, version = 1, isActive = true, questions } = dto;
+    const {
+      roleName,
+      weightingPreset,
+      durationMinutes,
+      department,
+      level,
+      category,
+      experienceTier,
+      version = 1,
+      isActive = true,
+      questions,
+    } = dto;
 
-    this.validateLevels(level, experiencedLevel);
+    const normCategory = category || (level ? normalizeCategory(level) : CandidateCategory.FRESHER);
+    const normTier = experienceTier || (normCategory === CandidateCategory.FRESHER ? "0-1" : null);
 
     return this.prisma.roleTemplate.create({
       data: {
@@ -97,8 +173,9 @@ export class RoleTemplateService {
         weightingPreset: weightingPreset as any,
         durationMinutes,
         department,
-        level,
-        experiencedLevel,
+        level: level || (normCategory === CandidateCategory.FRESHER ? ExperienceLevel.FRESHER : ExperienceLevel.EXPERIENCED),
+        category: normCategory,
+        experienceTier: normTier,
         version,
         isActive,
         questions:
@@ -126,12 +203,19 @@ export class RoleTemplateService {
   /**
    * Standard CRUD: List all RoleTemplates with optional filtering.
    */
-  async findAll(filters?: { department?: Department; level?: ExperienceLevel; experiencedLevel?: ExperiencedLevel; isActive?: boolean }) {
+  async findAll(filters?: {
+    department?: Department;
+    level?: ExperienceLevel;
+    category?: CandidateCategory;
+    experienceTier?: string;
+    isActive?: boolean;
+  }) {
     return this.prisma.roleTemplate.findMany({
       where: {
         ...(filters?.department ? { department: filters.department } : {}),
         ...(filters?.level ? { level: filters.level } : {}),
-        ...(filters?.experiencedLevel ? { experiencedLevel: filters.experiencedLevel } : {}),
+        ...(filters?.category ? { category: filters.category } : {}),
+        ...(filters?.experienceTier ? { experienceTier: filters.experienceTier } : {}),
         ...(filters?.isActive !== undefined ? { isActive: filters.isActive } : {}),
       },
       include: {
@@ -140,7 +224,7 @@ export class RoleTemplateService {
           orderBy: { orderIndex: "asc" },
         },
       },
-      orderBy: [{ department: "asc" }, { level: "asc" }, { version: "desc" }],
+      orderBy: [{ department: "asc" }, { category: "asc" }, { experienceTier: "asc" }, { version: "desc" }],
     });
   }
 
@@ -169,16 +253,22 @@ export class RoleTemplateService {
    * Standard CRUD: Update an existing RoleTemplate.
    */
   async update(id: string, dto: UpdateRoleTemplateDto) {
-    const { roleName, weightingPreset, durationMinutes, department, level, experiencedLevel, version, isActive, questions } = dto;
-
     const current = await this.findOne(id);
-    const nextLevel = level !== undefined ? level : current.level;
-    const nextExpLevel = experiencedLevel !== undefined ? experiencedLevel : current.experiencedLevel;
-    if (nextLevel || nextExpLevel) {
-      this.validateLevels(nextLevel ?? undefined, nextExpLevel);
-    }
 
     return this.prisma.$transaction(async (tx) => {
+      const {
+        roleName,
+        weightingPreset,
+        durationMinutes,
+        department,
+        level,
+        category,
+        experienceTier,
+        version,
+        isActive,
+        questions,
+      } = dto;
+
       if (questions) {
         await tx.roleTemplateQuestion.deleteMany({
           where: { roleTemplateId: id },
@@ -206,7 +296,8 @@ export class RoleTemplateService {
           ...(durationMinutes !== undefined ? { durationMinutes } : {}),
           ...(department !== undefined ? { department } : {}),
           ...(level !== undefined ? { level } : {}),
-          ...(experiencedLevel !== undefined ? { experiencedLevel } : {}),
+          ...(category !== undefined ? { category } : {}),
+          ...(experienceTier !== undefined ? { experienceTier } : {}),
           ...(version !== undefined ? { version } : {}),
           ...(isActive !== undefined ? { isActive } : {}),
         },
@@ -250,12 +341,12 @@ export class RoleTemplateService {
 
       let nextVersion = current.version + 1;
 
-      if (current.department && current.level) {
+      if (current.department) {
         const maxVersionRow = await tx.roleTemplate.findFirst({
           where: {
             department: current.department,
-            level: current.level,
-            experiencedLevel: current.experiencedLevel,
+            category: current.category,
+            experienceTier: current.experienceTier,
           },
           orderBy: { version: "desc" },
         });
@@ -267,8 +358,8 @@ export class RoleTemplateService {
         await tx.roleTemplate.updateMany({
           where: {
             department: current.department,
-            level: current.level,
-            experiencedLevel: current.experiencedLevel,
+            category: current.category,
+            experienceTier: current.experienceTier,
             isActive: true,
           },
           data: { isActive: false },
@@ -287,7 +378,8 @@ export class RoleTemplateService {
           durationMinutes: current.durationMinutes,
           department: current.department,
           level: current.level,
-          experiencedLevel: current.experiencedLevel,
+          category: current.category,
+          experienceTier: current.experienceTier,
           version: nextVersion,
           isActive: true,
         },
