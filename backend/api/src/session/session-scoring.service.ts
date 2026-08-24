@@ -180,7 +180,7 @@ export class SessionScoringService {
         accuracy = this.evaluateAIPrompting(payload);
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
-      } else if (mod === "TEST_SCENARIOS") {
+      } else if ((mod as string) === "TEST_SCENARIOS") {
         accuracy = this.evaluateTestScenarios(payload, q);
       }
 

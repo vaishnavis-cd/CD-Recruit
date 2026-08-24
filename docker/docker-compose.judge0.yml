@@ -11,6 +11,7 @@ services:
   judge0-server:
     image: judge0/judge0:1.13.1
     container_name: cdrecruit_judge0_server
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /sys/fs/cgroup/cpuacct /sys/fs/cgroup/memory /sys/fs/cgroup/cpu /sys/fs/cgroup/cpuset /sys/fs/cgroup/pids && exec /api/docker-entrypoint.sh /api/scripts/server"]
     privileged: true
     security_opt:
       - seccomp:unconfined
@@ -34,12 +35,15 @@ services:
       - MAX_OUTPUT_SIZE=1024
       - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
       - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+    tmpfs:
+      - /tmp:exec,mode=777
+      - /sys/fs/cgroup:exec,mode=777
     restart: always
 
   judge0-worker:
     image: judge0/judge0:1.13.1
     container_name: cdrecruit_judge0_worker
-    command: ["./scripts/workers"]
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /sys/fs/cgroup/cpuacct /sys/fs/cgroup/memory /sys/fs/cgroup/cpu /sys/fs/cgroup/cpuset /sys/fs/cgroup/pids && exec /api/docker-entrypoint.sh ./scripts/workers"]
     privileged: true
     security_opt:
       - seccomp:unconfined
@@ -60,4 +64,7 @@ services:
       - MAX_OUTPUT_SIZE=1024
       - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
       - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+    tmpfs:
+      - /tmp:exec,mode=777
+      - /sys/fs/cgroup:exec,mode=777
     restart: always

@@ -107,10 +107,10 @@ export class CodingService implements AssessmentModuleEngine {
 
     let isCancelled = false;
     if (req) {
-      req.on("close", () => {
+      req.on("aborted", () => {
         if (!isCancelled) {
           isCancelled = true;
-          this.logger.log(`[Run Cancelled] Client closed connection for session ${dto.sessionId}, question ${dto.questionId}`);
+          this.logger.log(`[Run Cancelled] Client aborted connection for session ${dto.sessionId}, question ${dto.questionId}`);
         }
       });
     }
@@ -134,7 +134,7 @@ export class CodingService implements AssessmentModuleEngine {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
     }
 
-    if (isCancelled || req?.destroyed) {
+    if (isCancelled || (req as any)?.aborted) {
       this.logger.log(`[Run Aborted] Halting execution setup for cancelled session ${dto.sessionId}`);
       throw new BadRequestException("Run request cancelled by client");
     }
@@ -166,7 +166,7 @@ export class CodingService implements AssessmentModuleEngine {
       },
     });
 
-    if (isCancelled || req?.destroyed) {
+    if (isCancelled || (req as any)?.aborted) {
       this.logger.log(`[Run Aborted] Client disconnected after execution record creation ${execution.id}`);
       await this.prisma.codingExecution.update({
         where: { id: execution.id },
@@ -212,7 +212,7 @@ export class CodingService implements AssessmentModuleEngine {
       );
     }
 
-    if (isCancelled || req?.destroyed) {
+    if (isCancelled || (req as any)?.aborted) {
       this.logger.log(`[Run Aborted] Client disconnected before returning results for execution ${execution.id}`);
       await this.prisma.codingExecution.update({
         where: { id: execution.id },

@@ -17,14 +17,24 @@ export class Judge0Service {
    * Throws BadRequestException for unknown languages so NestJS returns 400.
    */
   getLanguageId(language: string): number {
-    const id = JUDGE0_LANGUAGE_SLUG_MAP[language.toLowerCase()];
-    if (!id) {
-      const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
-      throw new BadRequestException(
-        `Language "${language}" is not supported. Supported: ${supported.join(", ")}`,
-      );
+    if (!language) return Judge0Language.PYTHON;
+    const clean = language.toLowerCase().trim();
+
+    if (JUDGE0_LANGUAGE_SLUG_MAP[clean]) {
+      return JUDGE0_LANGUAGE_SLUG_MAP[clean];
     }
-    return id;
+
+    if (clean.includes("cpp") || clean.includes("c++")) return Judge0Language.CPP;
+    if (clean.includes("python")) return Judge0Language.PYTHON;
+    if (clean.includes("javascript") || clean.includes("js") || clean.includes("node")) return Judge0Language.JAVASCRIPT;
+    if (clean.includes("typescript") || clean.includes("ts")) return Judge0Language.TYPESCRIPT;
+    if (clean.includes("java")) return Judge0Language.JAVA;
+    if (clean.includes("go")) return Judge0Language.GO;
+
+    const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
+    throw new BadRequestException(
+      `Language "${language}" is not supported. Supported: ${supported.join(", ")}`,
+    );
   }
 
   /**

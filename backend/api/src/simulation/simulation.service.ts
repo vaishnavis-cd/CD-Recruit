@@ -13,7 +13,7 @@ import * as vm from "vm";
 import * as fs from "fs"; 
 import * as path from "path";
 import * as os from "os";
-import { getScenarioById, SCENARIO_REGISTRY } from "./scenarios";
+import { getScenarioById, SCENARIO_REGISTRY, EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./scenarios";
 import { DriveShufflerService } from "../drive/drive-shuffler.service";
 import { ContextSimulationScenarioConfig } from "./scenarios/scenario-type.interface";
 
@@ -122,10 +122,12 @@ export class SimulationService implements AssessmentModuleEngine {
           }
         }
 
-        if (isExperienced) {
-          return EXPERIENCED_PROD_INCIDENT_SCENARIO;
+          const snapshot = session.simulationSnapshot as any;
+          const isExperienced = snapshot?.experienceLevel === "EXPERIENCED" || (session as any)?.track === "EXPERIENCED";
+          if (isExperienced) {
+            return EXPERIENCED_PROD_INCIDENT_SCENARIO;
+          }
         }
-      }
 
       // Query any published SIMULATION question from DB as a general fallback
       const dbSimQuestion = await this.prisma.question.findFirst({

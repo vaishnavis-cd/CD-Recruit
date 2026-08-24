@@ -1,5 +1,8 @@
 import { ContextSimulationScenarioConfig } from "./scenario-type.interface";
 import { QA_BUG_REPORT_SCENARIO } from "./qa-bug-report.config";
+import { EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./experienced-prod-incident.config";
+
+export { EXPERIENCED_PROD_INCIDENT_SCENARIO };
 
 // --- Scenario 2: Database Incident ---
 export const DATABASE_INCIDENT_SCENARIO: ContextSimulationScenarioConfig = {
@@ -578,6 +581,7 @@ export const SCENARIO_REGISTRY: Record<string, ContextSimulationScenarioConfig> 
   "security-issue": SECURITY_ISSUE_SCENARIO,
   "code-refactoring": CODE_REFACTORING_SCENARIO,
   "priority-conflict": PRIORITY_CONFLICT_SCENARIO,
+  "experienced-db-connection-leak": EXPERIENCED_PROD_INCIDENT_SCENARIO,
 };
 
 export function getScenarioById(id: string): ContextSimulationScenarioConfig {

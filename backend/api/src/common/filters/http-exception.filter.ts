@@ -19,7 +19,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let code = "INTERNAL_SERVER_ERROR";
     let message = "An unexpected error occurred.";
 
-    if (exception instanceof AppException) {
+    if (
+      exception?.type === "entity.too.large" ||
+      exception?.name === "PayloadTooLargeError" ||
+      exception?.status === 413 ||
+      exception?.statusCode === 413
+    ) {
+      status = HttpStatus.PAYLOAD_TOO_LARGE;
+      code = "PAYLOAD_TOO_LARGE";
+      message = "Request payload exceeds maximum allowed size.";
+    } else if (exception instanceof AppException) {
       status = exception.getStatus();
       code = exception.code;
       message = exception.message;

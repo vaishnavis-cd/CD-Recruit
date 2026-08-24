@@ -64,11 +64,20 @@ export class DriveService {
     });
 
     if (!template) {
+      // Try to fallback to any active RoleTemplate in the database
+      template = await this.prisma.roleTemplate.findFirst({
+        where: { isActive: true },
+        orderBy: { version: "desc" },
+      });
+    }
+
+    if (!template) {
+      // If no template exists at all, create a new custom role template with null department/level to avoid unique constraint collisions
       template = await this.prisma.roleTemplate.create({
         data: {
           roleName: roleTemplateId.trim() || "Software Developer",
-          department: "SOFTWARE_ENGINEERING",
-          level: "FRESHER",
+          department: null,
+          level: null,
           weightingPreset: { MCQ: 0.15, SQL: 0.15, CODING: 0.20, DEBUGGING: 0.15, AI_PROMPTING: 0.10, SIMULATION: 0.15, TEST_SCENARIOS: 0.10 },
           durationMinutes: 90,
           isActive: true,

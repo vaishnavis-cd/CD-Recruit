@@ -12,8 +12,20 @@ import {
   ValidateNested,
   IsBoolean,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
+
+const normalizeLanguage = ({ value }: { value: any }) => {
+  if (!value || typeof value !== "string") return value;
+  const clean = value.toLowerCase().trim();
+  if (clean.includes("cpp") || clean.includes("c++")) return "cpp";
+  if (clean.includes("python")) return "python";
+  if (clean.includes("javascript") || clean.includes("js") || clean.includes("node")) return "javascript";
+  if (clean.includes("typescript") || clean.includes("ts")) return "typescript";
+  if (clean.includes("java")) return "java";
+  if (clean.includes("go")) return "go";
+  return clean;
+};
 
 export class TestCaseDto {
   @IsString()
@@ -47,7 +59,8 @@ export class RunCodingDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsIn([...SUPPORTED_CODING_LANGUAGES])
+  @Transform(normalizeLanguage)
+  @IsIn([...SUPPORTED_CODING_LANGUAGES, "python3", "python 3", "c++", "c++ (gcc)", "cpp (gcc)", "javascript (node.js)", "java (jdk)", "typescript", "go"])
   language: string;
 
   @IsString()
@@ -79,7 +92,8 @@ export class SubmitCodingDto {
 
   @IsString()
   @IsOptional()
-  @IsIn([...SUPPORTED_CODING_LANGUAGES])
+  @Transform(normalizeLanguage)
+  @IsIn([...SUPPORTED_CODING_LANGUAGES, "python3", "python 3", "c++", "c++ (gcc)", "cpp (gcc)", "javascript (node.js)", "java (jdk)", "typescript", "go"])
   language?: string;
 
   @IsString()
@@ -109,7 +123,8 @@ export class DraftCodingDto {
 
   @IsString()
   @IsOptional()
-  @IsIn([...SUPPORTED_CODING_LANGUAGES])
+  @Transform(normalizeLanguage)
+  @IsIn([...SUPPORTED_CODING_LANGUAGES, "python3", "python 3", "c++", "c++ (gcc)", "cpp (gcc)", "javascript (node.js)", "java (jdk)", "typescript", "go"])
   language?: string;
 
   @IsString()
