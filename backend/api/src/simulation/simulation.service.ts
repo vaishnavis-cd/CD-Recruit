@@ -8,24 +8,14 @@ import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { SimulationTelemetryService, TelemetryEventType, TelemetryEvent } from "./simulation-telemetry.service";
 import { ContextSimulationEvaluatorService, FullSimulationEvaluationResult } from "./context-simulation-evaluator.service";
+import { MinioService } from "../integrations/minio/minio.service";
 import { execFile } from "child_process";
 import * as vm from "vm";
 import * as fs from "fs"; 
 import * as path from "path";
 import * as os from "os";
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
-import { EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./scenarios/experienced-prod-incident.config";
-=======
 import { getScenarioById, SCENARIO_REGISTRY } from "./scenarios";
-import { DriveShufflerService } from "../drive/drive-shuffler.service";
 import { ContextSimulationScenarioConfig } from "./scenarios/scenario-type.interface";
->>>>>>> simultionbranch
-=======
-import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
-import { EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./scenarios/experienced-prod-incident.config";
->>>>>>> origin/dev-phase2
 
 export interface SimulationInboxMessage {
   id: number;
@@ -52,10 +42,6 @@ export class SimulationService implements AssessmentModuleEngine {
       emailReplyText: string;
       emailTriggered: boolean;
       inboxMessages: SimulationInboxMessage[];
-<<<<<<< HEAD
-      code?: string;
-=======
->>>>>>> origin/dev-phase2
     }
   >();
 
@@ -67,6 +53,7 @@ export class SimulationService implements AssessmentModuleEngine {
     private sandboxOrchestrator: SandboxOrchestratorService,
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,
+    @Optional() private minioService?: MinioService,
   ) {}
 
   /**
@@ -77,12 +64,7 @@ export class SimulationService implements AssessmentModuleEngine {
       if (sessionId) {
         const session = await this.prisma.session.findUnique({
           where: { id: sessionId },
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> origin/dev-phase2
           include: {
-            roleTemplate: true,
             drive: {
               include: {
                 questions: {
@@ -94,125 +76,28 @@ export class SimulationService implements AssessmentModuleEngine {
           },
         });
 
-        const isExperienced = session?.roleTemplate?.level === "EXPERIENCED";
-
         const driveSimQuestion = session?.drive?.questions?.[0]?.question;
         if (driveSimQuestion && driveSimQuestion.content) {
           const content = driveSimQuestion.content as any;
-          return {
-            id: driveSimQuestion.id,
-            title: content.title || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.title : QA_BUG_REPORT_SCENARIO.title),
-            description: content.description || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.description : QA_BUG_REPORT_SCENARIO.description),
-            track: content.track || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.track : QA_BUG_REPORT_SCENARIO.track),
-            rubricVersion: content.rubricVersion || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.rubricVersion : QA_BUG_REPORT_SCENARIO.rubricVersion),
-            initialSayPrompt: content.initialSayPrompt || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.initialSayPrompt : QA_BUG_REPORT_SCENARIO.initialSayPrompt),
-            managerEmail: content.managerEmail || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.managerEmail : QA_BUG_REPORT_SCENARIO.managerEmail),
-            starterCode: content.starterCode || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.starterCode : QA_BUG_REPORT_SCENARIO.starterCode),
-            testCases: content.testCases || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.testCases : QA_BUG_REPORT_SCENARIO.testCases),
-            evaluationCriteria: content.evaluationCriteria || (isExperienced ? EXPERIENCED_PROD_INCIDENT_SCENARIO.evaluationCriteria : QA_BUG_REPORT_SCENARIO.evaluationCriteria),
-          };
-<<<<<<< HEAD
-=======
-        });
-
-        if (session) {
-          const snapshot = session.simulationSnapshot as any;
-          if (snapshot?.questionId) {
-            const question = await this.prisma.question.findUnique({
-              where: { id: snapshot.questionId }
-            });
-            if (question && question.content) {
-              const content = question.content as any;
-              const scId = content.id || content.title || "";
-              return getScenarioById(scId);
-            }
-          }
-
-          if (session.driveId) {
-            const driveQuestions = await this.prisma.driveQuestion.findMany({
-              where: { driveId: session.driveId },
-              include: { question: true },
-              orderBy: [
-                { moduleType: "asc" },
-                { question: { id: "asc" } },
-              ],
-            });
-
-            if (driveQuestions && driveQuestions.length > 0) {
-              const driveShuffler = new DriveShufflerService();
-              const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-                driveQuestions as any,
-                session.candidateId,
-                session.driveId
-              );
-
-              const selectedSimQuestion = shuffled.find((q: any) => q.moduleType === "SIMULATION");
-              if (selectedSimQuestion) {
-                const matchingDq = driveQuestions.find((dq) => dq.questionId === selectedSimQuestion.questionId);
-                const rawQ = matchingDq?.question;
-                if (rawQ && rawQ.content) {
-                  // Persist to snapshot
-                  await this.prisma.session.update({
-                    where: { id: sessionId },
-                    data: {
-                      simulationSnapshot: {
-                        ...(snapshot || {}),
-                        questionId: rawQ.id
-                      }
-                    }
-                  });
-
-                  const content = rawQ.content as any;
-                  const scId = content.id || content.title || "";
-                  return getScenarioById(scId);
-                }
-              }
-            }
-          }
->>>>>>> simultionbranch
-=======
->>>>>>> origin/dev-phase2
-        }
-
-        if (isExperienced) {
-          return EXPERIENCED_PROD_INCIDENT_SCENARIO;
+          const scId = content.id || content.title || "";
+          return getScenarioById(scId);
         }
       }
 
-<<<<<<< HEAD
-      // Query any published SIMULATION question from DB as a general fallback
-=======
       // Query any published SIMULATION question from DB
->>>>>>> origin/dev-phase2
       const dbSimQuestion = await this.prisma.question.findFirst({
         where: { moduleType: "SIMULATION", status: "PUBLISHED" },
       });
 
       if (dbSimQuestion && dbSimQuestion.content) {
         const content = dbSimQuestion.content as any;
-<<<<<<< HEAD
         const scId = content.id || content.title || "";
         return getScenarioById(scId);
-=======
-        return {
-          id: dbSimQuestion.id,
-          title: content.title || QA_BUG_REPORT_SCENARIO.title,
-          description: content.description || QA_BUG_REPORT_SCENARIO.description,
-          track: content.track || QA_BUG_REPORT_SCENARIO.track,
-          rubricVersion: content.rubricVersion || QA_BUG_REPORT_SCENARIO.rubricVersion,
-          initialSayPrompt: content.initialSayPrompt || QA_BUG_REPORT_SCENARIO.initialSayPrompt,
-          managerEmail: content.managerEmail || QA_BUG_REPORT_SCENARIO.managerEmail,
-          starterCode: content.starterCode || QA_BUG_REPORT_SCENARIO.starterCode,
-          testCases: content.testCases || QA_BUG_REPORT_SCENARIO.testCases,
-          evaluationCriteria: content.evaluationCriteria || QA_BUG_REPORT_SCENARIO.evaluationCriteria,
-        };
->>>>>>> origin/dev-phase2
       }
     } catch (err: any) {
       this.logger.warn(`Could not load simulation question from DB: ${err.message}. Using default scenario.`);
     }
 
-<<<<<<< HEAD
     return getScenarioById("qa-bug-login-validation");
   }
 
@@ -221,22 +106,6 @@ export class SimulationService implements AssessmentModuleEngine {
    */
   async getSanitizedScenarioConfig(sessionId?: string): Promise<any> {
     const config = await this.getScenarioConfig(sessionId);
-    let completed = false;
-    let initialSayText = "";
-    let savedCode = "";
-    if (sessionId) {
-      try {
-        const session = await this.prisma.session.findUnique({
-          where: { id: sessionId },
-          select: { status: true, simulationSnapshot: true },
-        });
-        completed = session?.status === "SUBMITTED" || session?.status === "AUTO_SUBMITTED" || (session?.simulationSnapshot as any)?.completed || false;
-        initialSayText = (session?.simulationSnapshot as any)?.initialSayText || "";
-        savedCode = (session?.simulationSnapshot as any)?.code || "";
-      } catch (err: any) {
-        this.logger.warn(`Could not read progress for sanitized config: ${err.message}`);
-      }
-    }
     return {
       id: config.id,
       title: config.title,
@@ -259,21 +128,9 @@ export class SimulationService implements AssessmentModuleEngine {
       prComments: config.prComments,
       defaultFile: config.defaultFile,
       terminalInfo: config.terminalInfo,
-      completed,
-      initialSayText,
-      hasInitialSay: !!initialSayText,
-      code: savedCode,
     };
   }
 
-=======
-    return QA_BUG_REPORT_SCENARIO;
-  }
-
-  /**
-   * Helper to fetch or initialize session state with DB hydration
-   */
->>>>>>> origin/dev-phase2
   /**
    * Helper to fetch or initialize session state with DB hydration
    */
@@ -296,17 +153,12 @@ export class SimulationService implements AssessmentModuleEngine {
         emailReplyText: snapshot?.emailReplyText || "",
         emailTriggered: Boolean(snapshot?.emailTriggered),
         inboxMessages: Array.isArray(snapshot?.inboxMessages) ? snapshot.inboxMessages : [],
-<<<<<<< HEAD
-        code: snapshot?.code || "",
-=======
->>>>>>> origin/dev-phase2
       };
       this.sessionStates.set(sessionId, state);
     }
 
     // Ensure inboxMessages has the default Manager Email ONLY if emailTriggered is true
     if (state.emailTriggered && state.inboxMessages.length === 0) {
-<<<<<<< HEAD
       const scenario = await this.getScenarioConfig(sessionId);
       const managerEmailMsg: SimulationInboxMessage = {
         id: 101,
@@ -314,14 +166,6 @@ export class SimulationService implements AssessmentModuleEngine {
         role: `${scenario.managerEmail.fromRole}`,
         subject: scenario.managerEmail.subject,
         body: scenario.managerEmail.body,
-=======
-      const managerEmailMsg: SimulationInboxMessage = {
-        id: 101,
-        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
-        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
-        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
-        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
->>>>>>> origin/dev-phase2
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         read: false,
         expectsReply: true,
@@ -356,10 +200,6 @@ export class SimulationService implements AssessmentModuleEngine {
             emailReplyText: state.emailReplyText || existingSnapshot.emailReplyText || null,
             emailTriggered: state.emailTriggered ?? existingSnapshot.emailTriggered ?? false,
             inboxMessages: state.inboxMessages || existingSnapshot.inboxMessages || [],
-<<<<<<< HEAD
-            code: state.code || existingSnapshot.code || null,
-=======
->>>>>>> origin/dev-phase2
             telemetryCount: Math.max(telemetry.length, actions.length, existingSnapshot.telemetryCount || 0),
             telemetryActions: actions.length > 0 ? actions : existingSnapshot.telemetryActions || [],
             rawTelemetryEvents: telemetry,
@@ -384,29 +224,18 @@ export class SimulationService implements AssessmentModuleEngine {
       metadata: { textLength: initialSayText.length },
     });
 
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
 
     await this.sessionLogService.logAction(
       sessionId,
       scenario.id,
-=======
-    await this.sessionLogService.logAction(
-      sessionId,
-      QA_BUG_REPORT_SCENARIO.id,
->>>>>>> origin/dev-phase2
       "INITIAL_SAY_SUBMITTED",
       "Candidate submitted Initial SAY response",
       { initialSayText },
     );
 
     // Save ModuleResponse in DB
-<<<<<<< HEAD
     const questionId = scenario?.id || "qa-bug-login-validation";
-=======
-    const scenario = await this.getScenarioConfig(sessionId);
-    const questionId = scenario?.id || QA_BUG_REPORT_SCENARIO.id;
->>>>>>> origin/dev-phase2
 
     try {
       await this.prisma.moduleResponse.upsert({
@@ -472,7 +301,6 @@ export class SimulationService implements AssessmentModuleEngine {
       state.emailTriggered = true;
       justTriggered = true;
 
-<<<<<<< HEAD
       const scenarioConfig = await this.getScenarioConfig(sessionId);
 
       const managerEmailMsg: SimulationInboxMessage = {
@@ -481,14 +309,6 @@ export class SimulationService implements AssessmentModuleEngine {
         role: `${scenarioConfig.managerEmail.fromRole}`,
         subject: scenarioConfig.managerEmail.subject,
         body: scenarioConfig.managerEmail.body,
-=======
-      const managerEmailMsg: SimulationInboxMessage = {
-        id: 101,
-        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
-        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
-        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
-        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
->>>>>>> origin/dev-phase2
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         read: false,
         expectsReply: true,
@@ -503,11 +323,7 @@ export class SimulationService implements AssessmentModuleEngine {
 
       await this.sessionLogService.logAction(
         sessionId,
-<<<<<<< HEAD
         scenarioConfig.id,
-=======
-        QA_BUG_REPORT_SCENARIO.id,
->>>>>>> origin/dev-phase2
         "MANAGER_EMAIL_TRIGGERED",
         "Manager email automatically generated by backend on first code edit",
         managerEmailMsg,
@@ -521,11 +337,7 @@ export class SimulationService implements AssessmentModuleEngine {
   private formatActionLabel(type: string, payload?: Record<string, any>): string {
     const rawType = (type || "").toUpperCase();
     const rawAction = (payload?.action || "").toUpperCase();
-<<<<<<< HEAD
     const filepath = payload?.filepath || payload?.metadata?.filepath || "code_workspace";
-=======
-    const filepath = payload?.filepath || payload?.metadata?.filepath || "login_validation.py";
->>>>>>> origin/dev-phase2
 
     if (rawType.includes("FILE_EDIT") || rawAction.includes("FILE_EDIT")) {
       return `Modified ${filepath}`;
@@ -545,11 +357,7 @@ export class SimulationService implements AssessmentModuleEngine {
       return `Submitted manager email reply`;
     }
     if (rawType.includes("INITIAL_SAY") || rawAction.includes("INITIAL_SAY")) {
-<<<<<<< HEAD
       return `Submitted Initial SAY plan`;
-=======
-      return `Submitted Initial SAY debugging plan`;
->>>>>>> origin/dev-phase2
     }
     if (rawType.includes("MANAGER_EMAIL_TRIGGERED") || rawAction.includes("MANAGER_EMAIL_TRIGGERED")) {
       return `Received incoming email from Manager`;
@@ -603,11 +411,7 @@ export class SimulationService implements AssessmentModuleEngine {
             id: `evt_db_${log.id}`,
             sessionId,
             type: evtType,
-<<<<<<< HEAD
             filepath: payload.filepath || "workspace_file",
-=======
-            filepath: payload.filepath || "login_validation.py",
->>>>>>> origin/dev-phase2
             timestamp,
             metadata: payload,
           });
@@ -650,11 +454,7 @@ export class SimulationService implements AssessmentModuleEngine {
               id: `evt_synth_test`,
               sessionId,
               type: "TEST_EXECUTE",
-<<<<<<< HEAD
               filepath: "workspace_file",
-=======
-              filepath: "login_validation.py",
->>>>>>> origin/dev-phase2
               timestamp,
               metadata: { passCount: payload.passedTests ?? 3, totalCount: payload.totalTests ?? 3 },
             });
@@ -664,11 +464,7 @@ export class SimulationService implements AssessmentModuleEngine {
               id: `evt_synth_edit`,
               sessionId,
               type: "FILE_EDIT",
-<<<<<<< HEAD
               filepath: "workspace_file",
-=======
-              filepath: "login_validation.py",
->>>>>>> origin/dev-phase2
               timestamp,
               metadata: { codeLength: (payload.fixedCode || payload.code || "").length },
             });
@@ -760,11 +556,7 @@ export class SimulationService implements AssessmentModuleEngine {
         const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
         if (payload.initialSayText || payload.sayText) {
-<<<<<<< HEAD
           const label = "Submitted Initial SAY plan";
-=======
-          const label = "Submitted Initial SAY debugging plan";
->>>>>>> origin/dev-phase2
           if (!Array.from(actionsMap.values()).some((a) => a.label.includes("Initial SAY"))) {
             actionsMap.set(`${timeStr}_${label}`, {
               timestamp: timeStr,
@@ -794,11 +586,7 @@ export class SimulationService implements AssessmentModuleEngine {
           if (!Array.from(actionsMap.values()).some((a) => a.label.includes("diagnostic test suite"))) {
             actionsMap.set(`${timeStr}_${label}`, {
               timestamp: timeStr,
-<<<<<<< HEAD
               rawTime: dt.getTime() - 3000,
-=======
-              rawTime: dt.getTime() - 30000,
->>>>>>> origin/dev-phase2
               type: "TEST_EXECUTE",
               label,
             });
@@ -840,11 +628,8 @@ export class SimulationService implements AssessmentModuleEngine {
     const state = await this.getOrCreateSessionState(sessionId);
     state.emailReplyText = replyText;
 
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
 
-=======
->>>>>>> origin/dev-phase2
     let msg = state.inboxMessages.find((m) => m.id === messageId);
     if (!msg && state.inboxMessages.length > 0) {
       msg = state.inboxMessages[0];
@@ -855,17 +640,10 @@ export class SimulationService implements AssessmentModuleEngine {
     } else {
       state.inboxMessages.push({
         id: messageId || 101,
-<<<<<<< HEAD
         from: `${scenario.managerEmail.fromName}`,
         role: `${scenario.managerEmail.fromRole}`,
         subject: scenario.managerEmail.subject,
         body: scenario.managerEmail.body,
-=======
-        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
-        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
-        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
-        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
->>>>>>> origin/dev-phase2
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         read: true,
         expectsReply: true,
@@ -880,23 +658,14 @@ export class SimulationService implements AssessmentModuleEngine {
 
     await this.sessionLogService.logAction(
       sessionId,
-<<<<<<< HEAD
       scenario.id,
-=======
-      QA_BUG_REPORT_SCENARIO.id,
->>>>>>> origin/dev-phase2
       "EMAIL_REPLY_SUBMITTED",
       "Candidate submitted email reply to manager",
       { messageId, replyText },
     );
 
     // Save ModuleResponse in DB for manager email reply
-<<<<<<< HEAD
     const questionId = scenario?.id || "qa-bug-login-validation";
-=======
-    const scenario = await this.getScenarioConfig(sessionId);
-    const questionId = scenario?.id || QA_BUG_REPORT_SCENARIO.id;
->>>>>>> origin/dev-phase2
 
     try {
       const existingResp = await this.prisma.moduleResponse.findUnique({
@@ -959,18 +728,11 @@ export class SimulationService implements AssessmentModuleEngine {
       metadata: { command },
     });
 
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
     const result = await this.sandboxOrchestrator.executeCommand(sessionId, command);
     await this.sessionLogService.logAction(
       sessionId,
       scenario.id,
-=======
-    const result = await this.sandboxOrchestrator.executeCommand(sessionId, command);
-    await this.sessionLogService.logAction(
-      sessionId,
-      QA_BUG_REPORT_SCENARIO.id,
->>>>>>> origin/dev-phase2
       "terminal_command",
       "EXECUTED",
       { command, result },
@@ -986,13 +748,10 @@ export class SimulationService implements AssessmentModuleEngine {
     const telemetryEvents = await this.getUnifiedTelemetryEvents(sessionId);
     const candidateActions = await this.getCandidateActions(sessionId);
 
-<<<<<<< HEAD
     // Resolve scenario config and questionId consistently across all sources
     const scenarioConfig = await this.getScenarioConfig(sessionId);
     const questionId = scenarioConfig?.id || "qa-bug-login-validation";
 
-=======
->>>>>>> origin/dev-phase2
     // Extract test results if present in submission payload
     const testResults = submissionPayload?.testResults || null;
 
@@ -1004,11 +763,7 @@ export class SimulationService implements AssessmentModuleEngine {
         state.emailReplyText,
         telemetryEvents,
         testResults,
-<<<<<<< HEAD
         scenarioConfig,
-=======
-        QA_BUG_REPORT_SCENARIO,
->>>>>>> origin/dev-phase2
       );
     } catch (evalErr: any) {
       this.logger.warn(`[submitSimulation] Evaluation service failed for session ${sessionId}: ${evalErr.message}. Using deterministic fallback.`);
@@ -1016,11 +771,7 @@ export class SimulationService implements AssessmentModuleEngine {
       const baseScore = testResults?.isCorrect ? 75 : testResults?.passedTests && testResults?.totalTests ? Math.round((testResults.passedTests / testResults.totalTests) * 70) : 40;
       evaluation = {
         overallScore: baseScore,
-<<<<<<< HEAD
         rubricVersion: scenarioConfig.rubricVersion,
-=======
-        rubricVersion: QA_BUG_REPORT_SCENARIO.rubricVersion,
->>>>>>> origin/dev-phase2
         initialSay: { score: state.initialSayText ? 60 : 0, reasoning: 'Evaluated offline', strengths: [], weaknesses: [] },
         emailSay: { score: state.emailReplyText ? 60 : 0, reasoning: 'Evaluated offline', strengths: [], weaknesses: [] },
         doEvaluation: {
@@ -1047,7 +798,6 @@ export class SimulationService implements AssessmentModuleEngine {
     // Log evaluation completion
     await this.sessionLogService.logAction(
       sessionId,
-<<<<<<< HEAD
       scenarioConfig.id,
       "SIMULATION_SUBMITTED_AND_EVALUATED",
       "Final Context Simulation evaluation completed",
@@ -1055,31 +805,11 @@ export class SimulationService implements AssessmentModuleEngine {
     );
 
 
-    if (submissionPayload?.code) {
-      state.code = submissionPayload.code;
-      await this.persistSessionSnapshot(sessionId);
-    }
-=======
-      QA_BUG_REPORT_SCENARIO.id,
-      "SIMULATION_SUBMITTED_AND_EVALUATED",
-      "Final Context Simulation Phase 1 MVP evaluation completed",
-      evaluation,
-    );
-
-    // Resolve scenario config and questionId consistently across all sources
-    const scenarioConfig = await this.getScenarioConfig(sessionId);
-    const questionId = scenarioConfig?.id || QA_BUG_REPORT_SCENARIO.id;
->>>>>>> origin/dev-phase2
-
     const payloadWithModule = {
       ...(typeof evaluation === "object" ? evaluation : {}),
       initialSayText: state.initialSayText,
       emailReplyText: state.emailReplyText,
       ticketReply: state.emailReplyText,
-<<<<<<< HEAD
-      fixedCode: state.code || "",
-=======
->>>>>>> origin/dev-phase2
       moduleType: ModuleType.SIMULATION,
     };
 
@@ -1147,6 +877,30 @@ export class SimulationService implements AssessmentModuleEngine {
       this.logger.warn(`[submitSimulation] Score upsert failed: ${scoreErr.message}`);
     }
 
+    // Archive session telemetry & evaluation log bundle to MinIO if object storage is enabled
+    if (this.minioService) {
+      try {
+        const logBundle = {
+          sessionId,
+          evaluatedAt: evaluation.evaluatedAt,
+          initialSayText: state.initialSayText,
+          emailReplyText: state.emailReplyText,
+          evaluation,
+          telemetryEvents,
+          actionTimeline: evaluation.actionTimeline,
+        };
+        const buffer = Buffer.from(JSON.stringify(logBundle, null, 2), "utf8");
+        await this.minioService.putObject(
+          "cd-recruit-general",
+          `logs/simulation/session-log-${sessionId}.json`,
+          buffer,
+          { "Content-Type": "application/json" } as any,
+        );
+        this.logger.log(`[MinIO Log Archive] Successfully stored logs/simulation/session-log-${sessionId}.json`);
+      } catch (minioErr: any) {
+        this.logger.warn(`[MinIO Log Archive] Warning: could not archive session log: ${minioErr.message}`);
+      }
+    }
 
     await this.persistSessionSnapshot(sessionId);
     return evaluation;
@@ -1172,22 +926,15 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   async startSimulation(sessionId: string): Promise<any> {
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
     return {
       status: "IN_PROGRESS",
       scenario: await this.getSanitizedScenarioConfig(sessionId),
-=======
-    return {
-      status: "IN_PROGRESS",
-      scenario: QA_BUG_REPORT_SCENARIO,
->>>>>>> origin/dev-phase2
     };
   }
 
   async getCurrentEvent(sessionId: string): Promise<any> {
     const state = await this.getOrCreateSessionState(sessionId);
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
     const sanitizedScenario = await this.getSanitizedScenarioConfig(sessionId);
     return {
@@ -1199,17 +946,6 @@ export class SimulationService implements AssessmentModuleEngine {
         timerSeconds: 900,
       },
       scenario: sanitizedScenario,
-=======
-    return {
-      event: {
-        id: QA_BUG_REPORT_SCENARIO.id,
-        title: QA_BUG_REPORT_SCENARIO.title,
-        description: QA_BUG_REPORT_SCENARIO.description,
-        workspaceType: "coding",
-        timerSeconds: 900,
-      },
-      scenario: QA_BUG_REPORT_SCENARIO,
->>>>>>> origin/dev-phase2
       initialSayText: state.initialSayText,
       emailReplyText: state.emailReplyText,
       inbox: state.inboxMessages,
@@ -1217,12 +953,8 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   async logEventState(sessionId: string, state: string, action: string, payload?: any): Promise<void> {
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
     await this.sessionLogService.logAction(sessionId, scenario.id, state, action, payload);
-=======
-    await this.sessionLogService.logAction(sessionId, QA_BUG_REPORT_SCENARIO.id, state, action, payload);
->>>>>>> origin/dev-phase2
   }
 
   async submitEvent(sessionId: string, response: any): Promise<any> {
@@ -1235,16 +967,10 @@ export class SimulationService implements AssessmentModuleEngine {
 
   async getSessionSummary(sessionId: string): Promise<any> {
     const state = await this.getOrCreateSessionState(sessionId);
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
     return {
       module: "context_simulation",
       scenarioId: scenario.id,
-=======
-    return {
-      module: "context_simulation",
-      scenarioId: QA_BUG_REPORT_SCENARIO.id,
->>>>>>> origin/dev-phase2
       hasInitialSay: !!state.initialSayText,
       hasEmailReply: !!state.emailReplyText,
     };
@@ -1257,22 +983,12 @@ export class SimulationService implements AssessmentModuleEngine {
     sessionId: string,
     dto: { code: string; language: "python" | "javascript"; testCases?: any[] },
   ) {
-<<<<<<< HEAD
     const scenario = await this.getScenarioConfig(sessionId);
     const cases = dto.testCases || scenario.testCases;
-=======
-    const cases = dto.testCases || QA_BUG_REPORT_SCENARIO.testCases;
->>>>>>> origin/dev-phase2
     const language = dto.language || "python";
     const sourceCode = dto.code || "";
 
     const state = await this.getOrCreateSessionState(sessionId);
-<<<<<<< HEAD
-    state.code = sourceCode;
-    await this.persistSessionSnapshot(sessionId);
-
-=======
->>>>>>> origin/dev-phase2
     if (!state.emailTriggered) {
       await this.recordTelemetry(sessionId, { type: "TEST_EXECUTE" });
     }
@@ -1300,7 +1016,6 @@ test_cases = payload.get('testCases', [])
 try:
     exec_globals = {}
     exec(source_code, exec_globals)
-<<<<<<< HEAD
     
     # Generic Scenario function resolver
     fn = None
@@ -1315,10 +1030,6 @@ try:
                 fn = v
                 break
 
-=======
-    fn = exec_globals.get('validate_username') or exec_globals.get('validateUsername')
-    
->>>>>>> origin/dev-phase2
     results = []
     for tc in test_cases:
         raw_input = tc.get('input', '')
@@ -1329,17 +1040,12 @@ try:
             results.append({
                 "label": tc.get("label", "Test Case"),
                 "passed": False,
-<<<<<<< HEAD
                 "actual": "Error: Target function/class not defined",
-=======
-                "actual": "Error: Function validate_username not defined",
->>>>>>> origin/dev-phase2
                 "expected": tc.get("expectedOutput", "true")
             })
             continue
 
         try:
-<<<<<<< HEAD
             # Scenario-specific runner mapping
             if fn.__name__ in ['validate_username', 'validateUsername']:
                 res = fn(clean_arg)
@@ -1389,10 +1095,6 @@ try:
                 res = fn(clean_arg)
                 actual = str(res).lower()
                 
-=======
-            res = fn(clean_arg)
-            actual = str(bool(res)).lower()
->>>>>>> origin/dev-phase2
             passed = (actual == expected_norm)
             results.append({
                 "label": tc.get("label", "Test Case"),
@@ -1470,7 +1172,6 @@ except Exception as global_err:
         const cleanCode = sourceCode.replace(/module\.exports\s*=\s*{[^}]*};?/g, "");
         const context = vm.createContext({});
         vm.runInContext(cleanCode, context);
-<<<<<<< HEAD
         
         // Generic JS Scenario resolver
         let fn = (context as any).validateUsername || (context as any).validate_username ||
@@ -1479,34 +1180,22 @@ except Exception as global_err:
                  (context as any).loadCredentials || (context as any).load_credentials ||
                  (context as any).prioritizeIncident || (context as any).prioritize_incident ||
                  (context as any).LocalCache;
-=======
-        const fn = (context as any).validateUsername || (context as any).validate_username;
->>>>>>> origin/dev-phase2
 
         const results = testCases.map((tc) => {
           const rawInput = tc.input || "";
           const expectedNorm = String(tc.expectedOutput || "").trim().toLowerCase();
           const cleanArg = rawInput.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
 
-<<<<<<< HEAD
           if (!fn) {
             return {
               label: tc.label || "Test Case",
               passed: false,
               actual: "Error: Target function/class not found",
-=======
-          if (typeof fn !== "function") {
-            return {
-              label: tc.label || "Test Case",
-              passed: false,
-              actual: "Error: function validateUsername not found",
->>>>>>> origin/dev-phase2
               expected: tc.expectedOutput || "true",
             };
           }
 
           try {
-<<<<<<< HEAD
             let actual = "";
             
             // Check matching target function calls
@@ -1565,10 +1254,6 @@ except Exception as global_err:
               actual = String(fn(cleanArg)).toLowerCase();
             }
 
-=======
-            const res = fn(cleanArg);
-            const actual = String(Boolean(res)).toLowerCase();
->>>>>>> origin/dev-phase2
             const passed = actual === expectedNorm;
             return {
               label: tc.label || "Test Case",

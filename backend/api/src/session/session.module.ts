@@ -13,26 +13,15 @@ import { SettingsModule } from "../settings/settings.module";
 import { QueueModule } from "../queue/queue.module";
 import { SessionStatusPort } from "@app/common/ports/session-status.port";
 import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
-<<<<<<< HEAD
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
-=======
-import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-verify-onnx.module";
-
-@Module({
-  imports: [
->>>>>>> origin/dev-phase2
     AuthModule,
     CandidateModule,
     forwardRef(() => QueueModule),
     SimulationModule,
     SettingsModule,
-<<<<<<< HEAD
-=======
-    FaceVerifyOnnxModule,
->>>>>>> origin/dev-phase2
   ],
   controllers: [SessionController],
   providers: [

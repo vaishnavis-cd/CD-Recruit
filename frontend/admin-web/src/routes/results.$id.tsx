@@ -19,10 +19,6 @@ import {
   Smartphone,
   Eye,
   UserX,
-<<<<<<< HEAD
-=======
-  UserCheck,
->>>>>>> origin/dev-phase2
   Users,
   Mic,
   Monitor,
@@ -130,11 +126,7 @@ function IndividualResultPage() {
 
   const [detail, setDetail] = useState<CandidateSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "INTEGRITY">("CODING");
-=======
-  const [activeTab, setActiveTab] = useState<"CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "NOSQL" | "INTEGRITY">("CODING");
->>>>>>> origin/dev-phase2
   const [integrityCategoryFilter, setIntegrityCategoryFilter] = useState("ALL");
   const [integrityFilterOpen, setIntegrityFilterOpen] = useState(false);
 
@@ -177,11 +169,7 @@ function IndividualResultPage() {
     };
 
     const flagCount = detail.integrityFlags?.length || 0;
-<<<<<<< HEAD
     const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "INTEGRITY"; label: string; icon: any }> = [
-=======
-    const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "NOSQL" | "INTEGRITY"; label: string; icon: any }> = [
->>>>>>> origin/dev-phase2
       { id: "CODING", label: "Coding / DSA", icon: Code2 },
       { id: "DEBUGGING", label: "Debugging", icon: Bug },
       { id: "SQL", label: "SQL Execution", icon: Database },
@@ -189,10 +177,6 @@ function IndividualResultPage() {
       { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
       { id: "SIMULATION", label: "Simulation Log", icon: Play },
       { id: "TEST_SCENARIOS", label: "Test Scenarios", icon: FileCheck2 },
-<<<<<<< HEAD
-=======
-      { id: "NOSQL", label: "NoSQL Execution", icon: Database },
->>>>>>> origin/dev-phase2
       { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
     ];
 
@@ -415,10 +399,7 @@ function IndividualResultPage() {
         {availableTabs.map((tab: any) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-<<<<<<< HEAD
             const mScore = score?.moduleScores?.[tab.id];
-=======
->>>>>>> origin/dev-phase2
             return (
               <button
                 key={tab.id}
@@ -434,7 +415,6 @@ function IndividualResultPage() {
                     <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
                   )}
                 </div>
-<<<<<<< HEAD
                 <span>
                   {tab.label}
                   {mScore !== undefined && mScore !== null && (
@@ -443,9 +423,6 @@ function IndividualResultPage() {
                     </span>
                   )}
                 </span>
-=======
-                <span>{tab.label}</span>
->>>>>>> origin/dev-phase2
               </button>
             );
           })}
@@ -598,11 +575,7 @@ function IndividualResultPage() {
         {/* SQL TAB */}
         {activeTab === "SQL" && (() => {
           const sqlResponses = (detail.moduleResponses || []).filter(
-<<<<<<< HEAD
             r => r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL' || r.responsePayload?.query !== undefined || r.responsePayload?.sqlQuery !== undefined
-=======
-            r => (r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL') && r.moduleType !== 'NOSQL' && r.responsePayload?.moduleType !== 'NOSQL'
->>>>>>> origin/dev-phase2
           )
           return (
             <div className="space-y-4">
@@ -612,30 +585,12 @@ function IndividualResultPage() {
               ) : (
                 sqlResponses.map((resp, idx) => {
                   const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted"
-<<<<<<< HEAD
-=======
-                  const execResult = resp.responsePayload?.executionResult
-                  const hasResult = execResult !== undefined
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED"
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED")
-                  const badgeColor = hasResult
-                    ? (isCorrect
-                        ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300"
-                        : "bg-rose-50 text-rose-800 border-rose-300")
-                    : "bg-[#EAF0FF] text-[#15308F] border-blue-200"
-
->>>>>>> origin/dev-phase2
                   return (
                     <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">SQL Query #{idx + 1}</span>
-<<<<<<< HEAD
                         <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAF0FF] text-[#15308F]">
                           {resp.responsePayload?.status || "EXECUTED"}
-=======
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${badgeColor}`}>
-                          {statusText}
->>>>>>> origin/dev-phase2
                         </span>
                       </div>
 
@@ -655,61 +610,6 @@ function IndividualResultPage() {
           )
         })()}
 
-<<<<<<< HEAD
-=======
-        {/* NoSQL TAB */}
-        {activeTab === "NOSQL" && (() => {
-          const nosqlResponses = (detail.moduleResponses || []).filter(
-            r => (r.moduleType === 'NOSQL' || r.responsePayload?.moduleType === 'NOSQL') && r.moduleType !== 'SQL' && r.responsePayload?.moduleType !== 'SQL'
-          )
-          return (
-            <div className="space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">NoSQL Query Submissions & Execution Results</h3>
-              {nosqlResponses.length === 0 ? (
-                <p className="text-[13px] text-[#8B8B93] italic">No NoSQL queries recorded for this assessment.</p>
-              ) : (
-                nosqlResponses.map((resp, idx) => {
-                  const op = resp.responsePayload?.operation || {}
-                  const rawQuery = resp.responsePayload?.query
-                  const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2))
-                  const displayLanguage = rawQuery ? "javascript" : "json"
-
-                  const execResult = resp.responsePayload?.executionResult
-                  const hasResult = execResult !== undefined
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED"
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED")
-                  const badgeColor = hasResult
-                    ? (isCorrect
-                        ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300"
-                        : "bg-rose-50 text-rose-800 border-rose-300")
-                    : "bg-[#EAF0FF] text-[#15308F] border-blue-200"
-
-                  return (
-                    <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">NoSQL Operation #{idx + 1}</span>
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${badgeColor}`}>
-                          {statusText}
-                        </span>
-                      </div>
-
-                      <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
-                        <CodeEditor
-                          value={displayQuery}
-                          language={displayLanguage}
-                          readOnly={true}
-                          theme="dark"
-                        />
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          )
-        })()}
-
->>>>>>> origin/dev-phase2
         {/* MCQ TAB */}
         {activeTab === "MCQ" && (() => {
           const mcqResponses = (detail.moduleResponses || []).filter(
@@ -849,7 +749,6 @@ function IndividualResultPage() {
                   <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Test Scenarios Submissions &amp; Evaluation</h3>
                   <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
                 </div>
-<<<<<<< HEAD
                 <div className="flex items-center gap-2">
                   {score?.moduleScores?.TEST_SCENARIOS !== undefined && (
                     <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-[#E8F0FF] text-[#2F5CFF] border border-blue-200">
@@ -860,11 +759,6 @@ function IndividualResultPage() {
                     Total Scenarios: {scenarioResponses.length}
                   </span>
                 </div>
-=======
-                <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Total Scenarios: {scenarioResponses.length}
-                </span>
->>>>>>> origin/dev-phase2
               </div>
 
               {scenarioResponses.length === 0 ? (
@@ -880,11 +774,8 @@ function IndividualResultPage() {
                     const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
                     const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
                     const category = qContent.category || qObj.category || "Scenario Evaluation";
-<<<<<<< HEAD
                     const evaluation = res.responsePayload?.evaluation;
                     const scoreVal = evaluation?.overallScore ?? null;
-=======
->>>>>>> origin/dev-phase2
 
                     return (
                       <div key={res.id || index} className="border border-[#E6E6EA] rounded-md p-5 space-y-4 bg-[#F7F7F9]">
@@ -895,14 +786,11 @@ function IndividualResultPage() {
                             </span>
                             <h4 className="text-[14px] font-bold text-[#0B0B0D]">{promptText}</h4>
                           </div>
-<<<<<<< HEAD
                           {scoreVal !== null && (
                             <span className="px-2.5 py-1 rounded text-[11px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
                               Score: {scoreVal}%
                             </span>
                           )}
-=======
->>>>>>> origin/dev-phase2
                         </div>
 
                         <div className="space-y-2">
@@ -920,7 +808,6 @@ function IndividualResultPage() {
                             <p className="leading-relaxed">{expectedAnswer}</p>
                           </div>
                         )}
-<<<<<<< HEAD
 
                         {evaluation?.feedback && (
                           <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-md text-[12px] text-blue-950 space-y-1">
@@ -931,8 +818,6 @@ function IndividualResultPage() {
                             )}
                           </div>
                         )}
-=======
->>>>>>> origin/dev-phase2
                       </div>
                     );
                   })}
@@ -1499,106 +1384,6 @@ function IndividualResultPage() {
                   </div>
                 )}
               </div>
-<<<<<<< HEAD
-=======
-
-              {/* Identity Verification Timeline */}
-              <div className="bg-white border border-[#E6E6EA] rounded-xl p-5 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
-                  <div>
-                    <h3 className="text-[14px] font-semibold text-[#0B0B0D] flex items-center gap-2">
-                      <UserCheck size={16} className="text-[#2F5CFF]" />
-                      Identity Verification Timeline
-                    </h3>
-                    <p className="text-[11px] text-[#5B5B64] mt-0.5">
-                      Periodic random in-test identity re-verification snapshots (ArcFace match against baseline ID proof)
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-mono text-[#5B5B64] bg-[#F4F4F6] px-2.5 py-1 rounded-md border border-[#E4E4E7]">
-                    {(detail.identityCaptures || []).length} / 3 Scheduled Captures
-                  </span>
-                </div>
-
-                {!(detail.identityCaptures && detail.identityCaptures.length > 0) ? (
-                  <p className="text-[12px] text-[#8B8B93] italic py-2">
-                    No identity capture records found for this session.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                    {detail.identityCaptures.map((cap: any) => {
-                      const isMatched = cap.matched === true;
-                      const isMismatch = cap.matched === false;
-                      const isMissed = cap.status === "MISSED";
-                      const isClosed = cap.status === "SESSION_CLOSED";
-
-                      let badgeBg = "bg-gray-100 text-gray-700 border-gray-200";
-                      let badgeLabel = "Pending";
-
-                      if (isClosed) {
-                        badgeBg = "bg-[#F4F4F6] text-[#6E6E77] border-[#E4E4E7]";
-                        badgeLabel = "Not Reached — Test Ended Early";
-                      } else if (isMissed) {
-                        badgeBg = "bg-amber-100 text-amber-800 border-amber-200";
-                        badgeLabel = "Capture Missed";
-                      } else if (isMatched) {
-                        badgeBg = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                        badgeLabel = "Matched";
-                      } else if (isMismatch) {
-                        badgeBg = "bg-red-100 text-red-800 border-red-200";
-                        badgeLabel = "Identity Mismatch";
-                      }
-
-                      return (
-                        <div
-                          key={cap.id || cap.windowIndex}
-                          className="border border-[#E6E6EA] rounded-lg p-3 bg-white space-y-2 flex flex-col justify-between"
-                        >
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-[12px] font-semibold text-[#0B0B0D]">
-                                Window #{cap.windowIndex + 1}
-                              </span>
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeBg}`}>
-                                {badgeLabel}
-                              </span>
-                            </div>
-                            <p className="text-[10px] font-mono text-[#5B5B64]">
-                              Scheduled: {cap.scheduledAt ? cap.scheduledAt.slice(11, 19) : "N/A"}
-                            </p>
-                            {cap.capturedAt && (
-                              <p className="text-[10px] font-mono text-[#5B5B64]">
-                                Captured: {cap.capturedAt.slice(11, 19)}
-                              </p>
-                            )}
-                          </div>
-
-                          {cap.imageUrl ? (
-                            <div className="relative rounded overflow-hidden aspect-video bg-black/5 border border-[#E6E6EA]">
-                              <img
-                                src={resolveClipUrl(cap.imageUrl)}
-                                alt={`Capture Window ${cap.windowIndex + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="rounded aspect-video bg-[#F7F7F9] border border-dashed border-[#E6E6EA] flex items-center justify-center text-[10px] text-[#8B8B93] font-mono p-2 text-center">
-                              {isClosed ? "Not Reached — Test Ended Early" : isMissed ? "No Frame Received" : "Pending Trigger"}
-                            </div>
-                          )}
-
-                          {cap.distance !== null && cap.distance !== undefined && (
-                            <div className="text-[10px] font-mono text-[#5B5B64] pt-1 border-t border-[#F0F0F3] flex justify-between">
-                              <span>Dist: {typeof cap.distance === "number" ? cap.distance.toFixed(3) : cap.distance}</span>
-                              <span>Thresh: {typeof cap.threshold === "number" ? cap.threshold.toFixed(3) : cap.threshold || 0.6}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
->>>>>>> origin/dev-phase2
             </div>
           );
         })()}

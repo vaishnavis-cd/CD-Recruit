@@ -53,16 +53,10 @@ export class TestScenariosService {
     // 1. Run LLM evaluation asynchronously/synchronously
     let evaluationResult: any = null;
     try {
-<<<<<<< HEAD
       const evalRes = await this.aiEvaluation.evaluateTestScenarioResponse(
         promptText,
         expectedAnswer,
         answer,
-=======
-      const evalRes = await this.aiEvaluation.evaluateSimulationResponse(
-        `Scenario Prompt: ${promptText}\nExpected Criteria: ${expectedAnswer}`,
-        `Candidate Solution: ${answer}`,
->>>>>>> origin/dev-phase2
       );
       if (evalRes && typeof evalRes.score === "number") {
         evaluationResult = {

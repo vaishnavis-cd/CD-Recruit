@@ -10,13 +10,14 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  NotFoundException,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { RoleTemplateService } from "./role-template.service";
-import { Department, ExperienceLevel } from "@prisma/client";
+import { Department, ExperienceLevel, ExperiencedLevel } from "@prisma/client";
 import { CreateRoleTemplateDto, UpdateRoleTemplateDto } from "./dto/role-template.dto";
 
 @Controller("admin/role-templates")
@@ -29,18 +30,27 @@ export class RoleTemplateController {
   async findAll(
     @Query("department") department?: Department,
     @Query("level") level?: ExperienceLevel,
+    @Query("experiencedLevel") experiencedLevel?: ExperiencedLevel,
     @Query("isActive") isActive?: string,
   ) {
     const activeBool = isActive !== undefined ? isActive === "true" : undefined;
-    return this.roleTemplateService.findAll({ department, level, isActive: activeBool });
+    return this.roleTemplateService.findAll({ department, level, experiencedLevel, isActive: activeBool });
   }
 
   @Get("active")
   async findActive(
     @Query("department") department: Department,
     @Query("level") level: ExperienceLevel,
+    @Query("experiencedLevel") experiencedLevel?: ExperiencedLevel,
   ) {
-    return this.roleTemplateService.findActiveTemplate(department, level);
+    // If experiencedLevel is provided, find first matching.
+    const templates = await this.roleTemplateService.findAll({ department, level, experiencedLevel, isActive: true });
+    if (templates.length === 0) {
+      throw new NotFoundException(
+        `Active RoleTemplate not found for department '${department}', level '${level}', experiencedLevel '${experiencedLevel}'`,
+      );
+    }
+    return templates[0];
   }
 
   @Get(":id")

@@ -36,12 +36,6 @@ export const configuration = () => ({
   judge0ApiUrl: process.env.JUDGE0_API_URL ?? "",
   judge0ApiKey: process.env.JUDGE0_API_KEY ?? "",
 
-<<<<<<< HEAD
-=======
-  correlationEngineUrl: process.env.CORRELATION_ENGINE_URL ?? "",
-  correlationEngineApiKey: process.env.CORRELATION_ENGINE_API_KEY ?? "",
-
->>>>>>> origin/dev-phase2
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   groqApiKey: process.env.GROQ_API_KEY ?? "",
   cerebrasApiKey: process.env.CEREBRAS_API_KEY ?? "",

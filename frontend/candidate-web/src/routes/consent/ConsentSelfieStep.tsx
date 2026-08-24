@@ -4,26 +4,11 @@ import { StatusChip } from '../../components/common/StatusChip'
 import { RetryButton } from '../../components/common/RetryButton'
 import { useSessionStore } from '../../store/sessionMachine'
 import apiClient from '../../api/client'
-<<<<<<< HEAD
-=======
-import { Loader2, ShieldCheck, XCircle, AlertTriangle, Info, ShieldAlert } from 'lucide-react'
->>>>>>> origin/dev-phase2
 
 interface ConsentSelfieStepProps {
   onComplete: () => void
 }
 
-<<<<<<< HEAD
-=======
-type VerificationState =
-  | { type: 'idle' }
-  | { type: 'verifying' }
-  | { type: 'verified' }
-  | { type: 'not_verified'; distance?: number }
-  | { type: 'no_id_proof_on_file' }
-  | { type: 'error'; message: string }
-
->>>>>>> origin/dev-phase2
 export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [hasStream, setHasStream] = useState(false)
@@ -35,14 +20,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   const [guideFeedback, setGuideFeedback] = useState<string>("Position your face inside the circle guide")
   const [faceDetected, setFaceDetected] = useState(false)
 
-<<<<<<< HEAD
-=======
-  // Verification & Flag states
-  const [verificationState, setVerificationState] = useState<VerificationState>({ type: 'idle' })
-  const [showFlagConfirmModal, setShowFlagConfirmModal] = useState(false)
-  const [flaggingInFlight, setFlaggingInFlight] = useState(false)
-
->>>>>>> origin/dev-phase2
   const sessionId = useSessionStore(s => s.session?.id || s.assessment?.sessionId)
 
   const startWebcam = () => {
@@ -105,55 +82,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     return () => clearInterval(interval)
   }, [selfieCaptured])
 
-<<<<<<< HEAD
-=======
-  async function runIdentityVerification(dataUrl: string) {
-    if (!sessionId) return
-    setVerificationState({ type: 'verifying' })
-
-    try {
-      const res = await fetch(dataUrl)
-      const blob = await res.blob()
-
-      const formData = new FormData()
-      formData.append('file', blob, 'selfie.jpg')
-
-      const response = await apiClient.post(`/sessions/${sessionId}/verify-identity`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-
-      const data = response.data
-      console.log('[ConsentSelfieStep] Identity verification response:', data)
-
-      if (data.status === 'verified') {
-        setVerificationState({ type: 'verified' })
-        setTimeout(() => {
-          onComplete()
-        }, 800)
-      } else if (data.status === 'not_verified') {
-        setVerificationState({
-          type: 'not_verified',
-          distance: data.distance,
-        })
-      } else if (data.status === 'no_id_proof_on_file') {
-        setVerificationState({ type: 'no_id_proof_on_file' })
-      } else {
-        setVerificationState({
-          type: 'error',
-          message: 'Unexpected verification result received from server.',
-        })
-      }
-    } catch (err: any) {
-      console.error('[ConsentSelfieStep] Identity verification network error:', err)
-      const errDetail = err?.response?.data?.message || err?.message || 'Something went wrong, please try again'
-      setVerificationState({
-        type: 'error',
-        message: typeof errDetail === 'string' ? errDetail : 'Something went wrong, please try again',
-      })
-    }
-  }
-
->>>>>>> origin/dev-phase2
   async function handleCapture() {
     if (!videoRef.current || !isAligned) return
 
@@ -182,15 +110,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         } catch (err) {
           console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err)
         }
-<<<<<<< HEAD
-=======
-
-        // Trigger ArcFace identity verification endpoint
-        await runIdentityVerification(dataUrl)
-      } else {
-        // If no session ID, allow progression
-        onComplete()
->>>>>>> origin/dev-phase2
       }
     }
   }
@@ -198,10 +117,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   function handleRetake() {
     setSelfieCaptured(false)
     setCapturedDataUrl(null)
-<<<<<<< HEAD
-=======
-    setVerificationState({ type: 'idle' })
->>>>>>> origin/dev-phase2
     localStorage.removeItem('cd-recruit-selfie-data')
 
     // Re-attach video stream so element never turns black
@@ -213,23 +128,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     }
   }
 
-<<<<<<< HEAD
-=======
-  async function executeFlagAndContinue() {
-    if (!sessionId) return
-    setFlaggingInFlight(true)
-    try {
-      await apiClient.post(`/sessions/${sessionId}/flag-and-continue`)
-      setShowFlagConfirmModal(false)
-      onComplete()
-    } catch (err: any) {
-      console.error('[ConsentSelfieStep] Flag and continue failed:', err)
-      setFlaggingInFlight(false)
-      setShowFlagConfirmModal(false)
-    }
-  }
-
->>>>>>> origin/dev-phase2
   return (
     <div className="space-y-4">
       {/* Video Container */}
@@ -254,55 +152,14 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
           />
         )}
 
-<<<<<<< HEAD
-=======
-        {/* Loading overlay during verification */}
-        {verificationState.type === 'verifying' && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-white space-y-3 z-30 animate-cd-fade-in">
-            <Loader2 className="w-10 h-10 animate-spin text-[var(--accent)]" />
-            <div className="text-sm font-semibold tracking-wide">Verifying Identity...</div>
-            <div className="text-xs text-slate-300">Comparing live selfie against enrolled ID proof</div>
-          </div>
-        )}
-
->>>>>>> origin/dev-phase2
         {flash && (
           <div className="absolute inset-0 bg-white/80 animate-cd-flash pointer-events-none z-10" />
         )}
 
         <div className="absolute top-3 left-3 z-20">
           <StatusChip
-<<<<<<< HEAD
             tone={selfieCaptured ? 'success' : isAligned ? 'success' : faceDetected ? 'accent' : 'critical'}
             label={selfieCaptured ? 'Captured' : isAligned ? 'Face aligned' : faceDetected ? 'Adjust position' : 'No face'}
-=======
-            tone={
-              verificationState.type === 'verified'
-                ? 'success'
-                : verificationState.type === 'not_verified'
-                ? 'critical'
-                : selfieCaptured
-                ? 'success'
-                : isAligned
-                ? 'success'
-                : faceDetected
-                ? 'accent'
-                : 'critical'
-            }
-            label={
-              verificationState.type === 'verified'
-                ? 'Identity Verified'
-                : verificationState.type === 'not_verified'
-                ? 'Not Matched'
-                : selfieCaptured
-                ? 'Captured'
-                : isAligned
-                ? 'Face aligned'
-                : faceDetected
-                ? 'Adjust position'
-                : 'No face'
-            }
->>>>>>> origin/dev-phase2
           />
         </div>
 
@@ -337,74 +194,14 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         )}
       </div>
 
-<<<<<<< HEAD
       {/* Bottom Action Bar */}
       <div className="mt-8 flex items-center justify-between">
-=======
-      {/* Identity Verification Feedback Banners */}
-      {selfieCaptured && (
-        <div className="space-y-3">
-          {verificationState.type === 'verified' && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2.5 shadow-sm">
-              <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
-              <div>
-                <span className="font-semibold">Identity Verified Successfully.</span> Proceeding to test start...
-              </div>
-            </div>
-          )}
-
-          {verificationState.type === 'not_verified' && (
-            <div className="p-4 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs space-y-2 shadow-sm">
-              <div className="flex items-center gap-2 text-rose-300 font-semibold text-sm">
-                <XCircle size={18} className="text-rose-400" />
-                Face Identity Not Matched
-              </div>
-              <p className="text-rose-200/90 leading-relaxed">
-                The captured selfie photo could not be matched with the enrolled ID proof photo on file.
-                Please ensure good lighting and face position, then click <strong>Retake Selfie</strong> to try again.
-              </p>
-            </div>
-          )}
-
-          {verificationState.type === 'no_id_proof_on_file' && (
-            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 text-xs flex items-center gap-2.5 shadow-sm">
-              <Info size={18} className="text-amber-400 shrink-0" />
-              <div>
-                <span className="font-medium text-slate-200">Identity verification unavailable for this session.</span> You may proceed directly to test start.
-              </div>
-            </div>
-          )}
-
-          {verificationState.type === 'error' && (
-            <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between gap-2.5 shadow-sm">
-              <div className="flex items-center gap-2">
-                <AlertTriangle size={18} className="text-amber-400 shrink-0" />
-                <span>{verificationState.message}</span>
-              </div>
-              {capturedDataUrl && (
-                <button
-                  onClick={() => runIdentityVerification(capturedDataUrl)}
-                  type="button"
-                  className="px-3 py-1 bg-amber-800/60 hover:bg-amber-700/80 text-amber-100 text-xs rounded-lg transition-colors shrink-0 cursor-pointer"
-                >
-                  Retry Verification
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Bottom Action Bar */}
-      <div className="mt-6 flex items-center justify-between">
->>>>>>> origin/dev-phase2
         <p className="text-xs text-[var(--muted-foreground)]">
           Neutral expression, good lighting, no hat or sunglasses.
         </p>
 
         {selfieCaptured ? (
           <div className="flex items-center gap-3">
-<<<<<<< HEAD
             <RetryButton onClick={handleRetake} label="Retake Selfie" />
             <button
               onClick={onComplete}
@@ -413,30 +210,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
             >
               Continue
             </button>
-=======
-            {verificationState.type === 'not_verified' ? (
-              <>
-                <RetryButton onClick={handleRetake} label="Retake Selfie" />
-                <button
-                  onClick={() => setShowFlagConfirmModal(true)}
-                  type="button"
-                  className="px-4 py-2.5 rounded-lg text-xs font-semibold bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-700/50 transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <ShieldAlert size={14} /> Flag & Continue
-                </button>
-              </>
-            ) : verificationState.type === 'no_id_proof_on_file' || verificationState.type === 'idle' ? (
-              <button
-                onClick={onComplete}
-                type="button"
-                className="btn-primary text-xs font-semibold px-6 py-2.5 animate-border-ripple shadow-lg cursor-pointer"
-              >
-                Continue to Test
-              </button>
-            ) : (
-              <RetryButton onClick={handleRetake} label="Retake Selfie" />
-            )}
->>>>>>> origin/dev-phase2
           </div>
         ) : (
           <button
@@ -453,43 +226,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
           </button>
         )}
       </div>
-<<<<<<< HEAD
-=======
-
-      {/* Flag & Continue Confirmation Modal */}
-      {showFlagConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-cd-fade-in text-left">
-            <div className="flex items-center gap-3 text-rose-400 font-semibold text-base">
-              <ShieldAlert size={22} className="shrink-0" />
-              Flag Session & Continue?
-            </div>
-            <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-              This action will mark your assessment session with an identity mismatch flag for review by the recruiting team. You will be allowed to take the test, but the flag will be visible on your final report.
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowFlagConfirmModal(false)}
-                type="button"
-                disabled={flaggingInFlight}
-                className="px-4 py-2 text-xs font-medium border border-[var(--border)] rounded-lg hover:bg-[var(--muted)] text-[var(--foreground)] transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executeFlagAndContinue}
-                type="button"
-                disabled={flaggingInFlight}
-                className="px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-md"
-              >
-                {flaggingInFlight && <Loader2 size={13} className="animate-spin" />}
-                {flaggingInFlight ? 'Flagging...' : 'Confirm & Continue'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
->>>>>>> origin/dev-phase2
     </div>
   )
 }

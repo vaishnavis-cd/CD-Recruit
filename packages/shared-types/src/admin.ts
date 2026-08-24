@@ -84,10 +84,7 @@ export interface SessionDetail {
   disconnectCount: number;
   moduleResponses: ModuleResponseDetail[];
   integrityFlags: IntegrityFlag[];
-<<<<<<< HEAD
-=======
   identityCaptures?: any[];
->>>>>>> origin/dev-phase2
   questions?: any[];
   drive?: any;
   simulationSnapshot?: any;
@@ -134,10 +131,7 @@ export interface InviteListItem {
   redeemedAt: string | null;
   revokedAt: string | null;
   sessionId: string | null;
-<<<<<<< HEAD
-=======
   idProofRef?: string | null;
->>>>>>> origin/dev-phase2
 }
 
 export interface InviteListResponse {

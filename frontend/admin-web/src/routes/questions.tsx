@@ -95,15 +95,6 @@ function QuestionBankPage() {
   const [sqlSeed, setSqlSeed] = useState("");
   const [sqlExpectedQuery, setSqlExpectedQuery] = useState("");
 
-<<<<<<< HEAD
-=======
-  // NoSQL specific (Create)
-  const [nosqlCollections, setNosqlCollections] = useState("");
-  const [nosqlAllowedOps, setNosqlAllowedOps] = useState<string[]>([]);
-  const [nosqlValidatorType, setNosqlValidatorType] = useState("OUTPUT_COMPARISON");
-  const [nosqlExpectedOp, setNosqlExpectedOp] = useState("");
-  const [nosqlDatasetRef, setNosqlDatasetRef] = useState("");
->>>>>>> origin/dev-phase2
 
   // Coding specific (Create)
   const [starterCode, setStarterCode] = useState("");
@@ -128,14 +119,6 @@ function QuestionBankPage() {
   const [editSqlSchema, setEditSqlSchema] = useState("");
   const [editSqlSeed, setEditSqlSeed] = useState("");
   const [editSqlExpectedQuery, setEditSqlExpectedQuery] = useState("");
-<<<<<<< HEAD
-=======
-  const [editNosqlCollections, setEditNosqlCollections] = useState("");
-  const [editNosqlAllowedOps, setEditNosqlAllowedOps] = useState<string[]>([]);
-  const [editNosqlValidatorType, setEditNosqlValidatorType] = useState("OUTPUT_COMPARISON");
-  const [editNosqlExpectedOp, setEditNosqlExpectedOp] = useState("");
-  const [editNosqlDatasetRef, setEditNosqlDatasetRef] = useState("");
->>>>>>> origin/dev-phase2
 
   const [editStarterCode, setEditStarterCode] = useState("");
   const [editTestCasesInput, setEditTestCasesInput] = useState("");
@@ -209,18 +192,6 @@ function QuestionBankPage() {
       setEditSqlSeed(q.content?.seedData || "");
       setEditSqlExpectedQuery(q.content?.expectedQuery || "");
 
-<<<<<<< HEAD
-=======
-    } else if (q.moduleType === "NOSQL") {
-      setEditNosqlCollections(q.content?.collections?.join(", ") || "");
-      setEditNosqlAllowedOps(q.content?.allowedOperations || []);
-      setEditNosqlValidatorType(q.content?.validatorType || "OUTPUT_COMPARISON");
-      setEditNosqlExpectedOp(
-        q.content?.expectedOperation ? JSON.stringify(q.content.expectedOperation, null, 2) : ""
-      );
-      setEditNosqlDatasetRef(q.content?.datasetRef || "");
-
->>>>>>> origin/dev-phase2
     } else if (q.moduleType === "CODING" || q.moduleType === "DEBUGGING") {
       const code = typeof q.content?.starterCode === "object"
         ? (q.content.starterCode.javascript || q.content.starterCode.python || JSON.stringify(q.content.starterCode, null, 2))
@@ -260,22 +231,6 @@ function QuestionBankPage() {
         content.schema = editSqlSchema;
         content.seedData = editSqlSeed;
         content.expectedQuery = editSqlExpectedQuery;
-<<<<<<< HEAD
-=======
-      } else if (editingQuestion.moduleType === "NOSQL") {
-        content.collections = editNosqlCollections.split(",").map((c) => c.trim()).filter(Boolean);
-        content.allowedOperations = editNosqlAllowedOps;
-        content.validatorType = editNosqlValidatorType;
-        if (editNosqlExpectedOp.trim()) {
-          try {
-            content.expectedOperation = JSON.parse(editNosqlExpectedOp);
-          } catch {
-            toast.error("Invalid Expected Operation JSON format");
-            return;
-          }
-        }
-        content.datasetRef = editNosqlDatasetRef;
->>>>>>> origin/dev-phase2
       } else if (editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") {
         content.starterCode = editStarterCode;
         if (editTestCasesInput.trim()) {
@@ -320,23 +275,7 @@ function QuestionBankPage() {
         content.schema = sqlSchema;
         content.seedData = sqlSeed;
         content.expectedQuery = sqlExpectedQuery;
-<<<<<<< HEAD
 
-=======
-      } else if (moduleType === "NOSQL") {
-        content.collections = nosqlCollections.split(",").map((c) => c.trim()).filter(Boolean);
-        content.allowedOperations = nosqlAllowedOps;
-        content.validatorType = nosqlValidatorType;
-        if (nosqlExpectedOp.trim()) {
-          try {
-            content.expectedOperation = JSON.parse(nosqlExpectedOp);
-          } catch {
-            toast.error("Invalid Expected Operation JSON format");
-            return;
-          }
-        }
-        content.datasetRef = nosqlDatasetRef;
->>>>>>> origin/dev-phase2
       } else if (moduleType === "CODING" || moduleType === "DEBUGGING") {
         content.starterCode = starterCode;
         content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
@@ -590,10 +529,7 @@ function QuestionBankPage() {
       }
       actions={
         <div className="flex items-center gap-2">
-<<<<<<< HEAD
           {/* Module Filter */}
-=======
->>>>>>> origin/dev-phase2
           <select
             value={modFilter}
             onChange={(e) => setModFilter(e.target.value)}
@@ -602,10 +538,6 @@ function QuestionBankPage() {
             <option value="all">All Modules</option>
             <option value="MCQ">MCQ</option>
             <option value="SQL">SQL</option>
-<<<<<<< HEAD
-=======
-            <option value="NOSQL">NoSQL</option>
->>>>>>> origin/dev-phase2
             <option value="CODING">Coding</option>
             <option value="DEBUGGING">Debugging</option>
             <option value="AI_PROMPTING">AI Prompting</option>
@@ -1007,13 +939,7 @@ function QuestionBankPage() {
                   >
                     <option value="MCQ">MCQ</option>
                     <option value="SQL">SQL</option>
-<<<<<<< HEAD
                     <option value="CODING">Coding / DSA</option>
-=======
-                    <option value="NOSQL">NoSQL Queries</option>
-                    <option value="CODING">Coding / DSA</option>
-                    <option value="DEBUGGING">Debugging</option>
->>>>>>> origin/dev-phase2
                     <option value="AI_PROMPTING">AI Prompting</option>
                     <option value="SIMULATION">Contextual Simulation</option>
                   </select>
@@ -1151,87 +1077,6 @@ function QuestionBankPage() {
                 </div>
               )}
 
-<<<<<<< HEAD
-=======
-              {/* NoSQL Fields */}
-              {moduleType === "NOSQL" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Collections (comma-separated, e.g. employees, departments)
-                    </label>
-                    <input
-                      type="text"
-                      value={nosqlCollections}
-                      onChange={(e) => setNosqlCollections(e.target.value)}
-                      placeholder="employees, departments"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Allowed Operations
-                    </label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-[#E6E6EA] rounded-md bg-white">
-                      {["find", "aggregate", "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany", "countDocuments"].map((op) => (
-                        <label key={op} className="flex items-center gap-1 text-[11px] font-mono cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={nosqlAllowedOps.includes(op)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNosqlAllowedOps([...nosqlAllowedOps, op]);
-                              } else {
-                                setNosqlAllowedOps(nosqlAllowedOps.filter((x) => x !== op));
-                              }
-                            }}
-                          />
-                          {op}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Validator Type
-                    </label>
-                    <select
-                      value={nosqlValidatorType}
-                      onChange={(e) => setNosqlValidatorType(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
-                    >
-                      <option value="OUTPUT_COMPARISON">OUTPUT_COMPARISON</option>
-                      <option value="STATE_COMPARISON">STATE_COMPARISON</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Dataset Reference Path (MinIO object key)
-                    </label>
-                    <input
-                      type="text"
-                      value={nosqlDatasetRef}
-                      onChange={(e) => setNosqlDatasetRef(e.target.value)}
-                      placeholder="datasets/employees-seed.json"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Expected Operation (JSON format)
-                    </label>
-                    <textarea
-                      value={nosqlExpectedOp}
-                      onChange={(e) => setNosqlExpectedOp(e.target.value)}
-                      rows={4}
-                      placeholder={JSON.stringify({ collection: "employees", operator: "find", payload: { filter: { salary: { $gt: 50000 } } } }, null, 2)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
-                  </div>
-                </div>
-              )}
-
->>>>>>> origin/dev-phase2
               {/* Coding & Debugging Fields */}
               {(moduleType === "CODING" || moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
@@ -1394,13 +1239,7 @@ function QuestionBankPage() {
                 >
                   <option value="MCQ">Multiple Choice (MCQ)</option>
                   <option value="SQL">SQL Database Evaluation</option>
-<<<<<<< HEAD
                   <option value="CODING">Coding & Algorithms</option>
-=======
-                  <option value="NOSQL">NoSQL Database Evaluation</option>
-                  <option value="CODING">Coding & Algorithms</option>
-                  <option value="DEBUGGING">Debugging</option>
->>>>>>> origin/dev-phase2
                   <option value="AI_PROMPTING">AI Prompting</option>
                   <option value="SIMULATION">Contextual Simulation</option>
                 </select>
@@ -1629,87 +1468,6 @@ function QuestionBankPage() {
                 </div>
               )}
 
-<<<<<<< HEAD
-=======
-              {/* NoSQL Fields */}
-              {editingQuestion.moduleType === "NOSQL" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Collections (comma-separated, e.g. employees, departments)
-                    </label>
-                    <input
-                      type="text"
-                      value={editNosqlCollections}
-                      onChange={(e) => setEditNosqlCollections(e.target.value)}
-                      placeholder="employees, departments"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Allowed Operations
-                    </label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-[#E6E6EA] rounded-md bg-white">
-                      {["find", "aggregate", "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany", "countDocuments"].map((op) => (
-                        <label key={op} className="flex items-center gap-1 text-[11px] font-mono cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={editNosqlAllowedOps.includes(op)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setEditNosqlAllowedOps([...editNosqlAllowedOps, op]);
-                              } else {
-                                setEditNosqlAllowedOps(editNosqlAllowedOps.filter((x) => x !== op));
-                              }
-                            }}
-                          />
-                          {op}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Validator Type
-                    </label>
-                    <select
-                      value={editNosqlValidatorType}
-                      onChange={(e) => setEditNosqlValidatorType(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
-                    >
-                      <option value="OUTPUT_COMPARISON">OUTPUT_COMPARISON</option>
-                      <option value="STATE_COMPARISON">STATE_COMPARISON</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Dataset Reference Path (MinIO object key)
-                    </label>
-                    <input
-                      type="text"
-                      value={editNosqlDatasetRef}
-                      onChange={(e) => setEditNosqlDatasetRef(e.target.value)}
-                      placeholder="datasets/employees-seed.json"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Expected Operation (JSON format)
-                    </label>
-                    <textarea
-                      value={editNosqlExpectedOp}
-                      onChange={(e) => setEditNosqlExpectedOp(e.target.value)}
-                      rows={4}
-                      placeholder={JSON.stringify({ collection: "employees", operator: "find", payload: { filter: { salary: { $gt: 50000 } } } }, null, 2)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
-                  </div>
-                </div>
-              )}
-
->>>>>>> origin/dev-phase2
               {/* Coding & Debugging Fields */}
               {(editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") && (
                 <div className="space-y-3">

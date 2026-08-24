@@ -48,6 +48,7 @@ const DEPARTMENTS = [
 ] as const;
 
 const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
+const EXPERIENCED_LEVELS = ["L1", "L2", "L3"] as const;
 
 export function RoleTemplatesPage() {
   const [templates, setTemplates] = useState<any[]>([]);
@@ -68,6 +69,7 @@ export function RoleTemplatesPage() {
   const [roleName, setRoleName] = useState("");
   const [department, setDepartment] = useState<string>("SOFTWARE_ENGINEERING");
   const [level, setLevel] = useState<string>("FRESHER");
+  const [experiencedLevel, setExperiencedLevel] = useState<string>("L1");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [weightingPreset, setWeightingPreset] = useState({
     MCQ: 0.2,
@@ -105,10 +107,10 @@ export function RoleTemplatesPage() {
   const fetchQuestionsBank = async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/questions`, { headers });
+      const res = await fetch(`${API_BASE}/admin/questions?pageSize=1000`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setQuestionsBank(Array.isArray(data) ? data : data.questions || []);
+        setQuestionsBank(Array.isArray(data) ? data : data.items || data.questions || []);
       }
     } catch (err) {
       // Non-blocking
@@ -125,6 +127,7 @@ export function RoleTemplatesPage() {
     setRoleName("");
     setDepartment("SOFTWARE_ENGINEERING");
     setLevel("FRESHER");
+    setExperiencedLevel("L1");
     setDurationMinutes(60);
     setWeightingPreset({
       MCQ: 0.2,
@@ -142,6 +145,7 @@ export function RoleTemplatesPage() {
     setRoleName(tpl.roleName || "");
     setDepartment(tpl.department || "SOFTWARE_ENGINEERING");
     setLevel(tpl.level || "FRESHER");
+    setExperiencedLevel(tpl.experiencedLevel || "L1");
     setDurationMinutes(tpl.durationMinutes || 60);
 
     const preset = typeof tpl.weightingPreset === "object" && tpl.weightingPreset
@@ -183,6 +187,7 @@ export function RoleTemplatesPage() {
       roleName: roleName.trim(),
       department,
       level,
+      experiencedLevel: level === "EXPERIENCED" ? experiencedLevel : null,
       durationMinutes: Number(durationMinutes),
       weightingPreset,
       questions: questionPayload,
@@ -419,7 +424,7 @@ export function RoleTemplatesPage() {
                         )}
                         {tpl.level && (
                           <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] rounded">
-                            {tpl.level}
+                            {tpl.level === "FRESHER" ? "Fresher (0–1 years)" : `Experienced — ${tpl.experiencedLevel || "L1"} (${tpl.experiencedLevel === "L3" ? "11–15" : tpl.experiencedLevel === "L2" ? "6–10" : "2–5"} years)`}
                           </span>
                         )}
                       </div>
@@ -586,20 +591,45 @@ export function RoleTemplatesPage() {
 
                 <div>
                   <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                    Experience Level
+                    Experience Type
                   </label>
                   <select
                     value={level}
-                    onChange={(e) => setLevel(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLevel(val);
+                      if (val === "EXPERIENCED" && !experiencedLevel) {
+                        setExperiencedLevel("L1");
+                      }
+                    }}
                     className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
                   >
                     {LEVELS.map((l) => (
                       <option key={l} value={l}>
-                        {l}
+                        {l === "FRESHER" ? "Fresher (0–1 years)" : "Experienced (2–15 years)"}
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {level === "EXPERIENCED" && (
+                  <div>
+                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                      Experienced Level
+                    </label>
+                    <select
+                      value={experiencedLevel}
+                      onChange={(e) => setExperiencedLevel(e.target.value)}
+                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
+                    >
+                      {EXPERIENCED_LEVELS.map((el) => (
+                        <option key={el} value={el}>
+                          {el === "L1" ? "L1 (2–5 years)" : el === "L2" ? "L2 (6–10 years)" : "L3 (11–15 years)"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Question Bank Selection */}

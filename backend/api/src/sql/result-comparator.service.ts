@@ -143,8 +143,6 @@ export class ResultComparatorService {
       return false;
     }
   }
-<<<<<<< HEAD
-=======
 
   /**
    * Recursively normalizes MongoDB values (ObjectId -> string, Date -> ISO string, trims strings, sorts arrays by _id/id).
@@ -223,5 +221,4 @@ export class ResultComparatorService {
       return false;
     }
   }
->>>>>>> origin/dev-phase2
 }

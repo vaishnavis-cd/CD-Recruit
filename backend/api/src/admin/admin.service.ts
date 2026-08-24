@@ -286,12 +286,6 @@ export class AdminService {
                 staff: true,
               },
             },
-<<<<<<< HEAD
-=======
-            identityCaptures: {
-              orderBy: { windowIndex: "asc" },
-            },
->>>>>>> origin/dev-phase2
           },
         });
       }
@@ -565,32 +559,6 @@ export class AdminService {
         }
       : null;
 
-<<<<<<< HEAD
-=======
-    const mappedCaptures = await Promise.all(
-      ((session as any).identityCaptures || []).map(async (cap: any) => {
-        let imageUrl: string | null = null;
-        if (cap.imageRef) {
-          imageUrl = await this.storage.getSignedUrl(
-            this.bucketBiometric,
-            cap.imageRef,
-          );
-        }
-        return {
-          id: cap.id,
-          windowIndex: cap.windowIndex,
-          scheduledAt: cap.scheduledAt ? cap.scheduledAt.toISOString() : null,
-          capturedAt: cap.capturedAt ? cap.capturedAt.toISOString() : null,
-          status: cap.status,
-          imageUrl: imageUrl || cap.imageRef,
-          matched: cap.matched,
-          distance: cap.distance,
-          threshold: cap.threshold,
-        };
-      }),
-    );
-
->>>>>>> origin/dev-phase2
     return {
       sessionId: session.id,
       candidate: {
@@ -612,10 +580,6 @@ export class AdminService {
       disconnectCount: session.disconnectCount,
       moduleResponses: mappedResponses,
       integrityFlags: combinedFlags,
-<<<<<<< HEAD
-=======
-      identityCaptures: mappedCaptures,
->>>>>>> origin/dev-phase2
       questions,
       drive: session.drive ? {
         id: session.drive.id,

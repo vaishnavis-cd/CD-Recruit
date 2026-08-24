@@ -153,20 +153,6 @@ export interface CandidateSessionDetail {
     flaggedAt: string;
     evidenceClipUrl?: string | null;
   }>;
-<<<<<<< HEAD
-=======
-  identityCaptures?: Array<{
-    id: string;
-    windowIndex: number;
-    scheduledAt: string | null;
-    capturedAt: string | null;
-    status: string;
-    imageUrl?: string | null;
-    matched?: boolean | null;
-    distance?: number | null;
-    threshold?: number | null;
-  }>;
->>>>>>> origin/dev-phase2
   score: {
     compositeScore: number;
     moduleScores: Record<string, number>;
@@ -238,10 +224,5 @@ export interface Invite {
   createdAt: string;
   expiresAt: string;
   redeemedAt?: string;
-<<<<<<< HEAD
-=======
-  idProofRef?: string | null;
-  idProofUploadedAt?: string | null;
->>>>>>> origin/dev-phase2
 }
 

@@ -67,10 +67,7 @@ export enum ModuleType {
   AI_PROMPTING = "AI_PROMPTING",
   SIMULATION = "SIMULATION",
   TEST_SCENARIOS = "TEST_SCENARIOS",
-<<<<<<< HEAD
-=======
   NOSQL = "NOSQL",
->>>>>>> origin/dev-phase2
 }
 
 // ---------------------------------------------------------------------------

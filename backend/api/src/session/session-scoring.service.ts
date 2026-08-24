@@ -2,10 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
 import { ModuleResponse, CodingExecution, SQLExecution, Question } from "@prisma/client";
-<<<<<<< HEAD
 import { SemanticAnswerMatcher } from "../test-scenarios/semantic-answer-matcher";
-=======
->>>>>>> origin/dev-phase2
 
 export interface DriveModuleConfigEntry {
   enabled?: boolean;
@@ -177,11 +174,6 @@ export class SessionScoringService {
         accuracy = this.evaluateMCQ(payload, qContent);
       } else if (mod === "SQL") {
         accuracy = this.evaluateSQL(payload);
-<<<<<<< HEAD
-=======
-      } else if (mod === "NOSQL") {
-        accuracy = this.evaluateNoSQL(payload);
->>>>>>> origin/dev-phase2
       } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
         accuracy = this.evaluateCoding(payload, codingExecutionsMap.get(q.id) || []);
       } else if (mod === "AI_PROMPTING") {
@@ -189,11 +181,7 @@ export class SessionScoringService {
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
       } else if (mod === "TEST_SCENARIOS") {
-<<<<<<< HEAD
         accuracy = this.evaluateTestScenarios(payload, q);
-=======
-        accuracy = this.evaluateTestScenarios(payload);
->>>>>>> origin/dev-phase2
       }
 
       moduleQuestionScores[mod].push({
@@ -275,11 +263,7 @@ export class SessionScoringService {
   }
 
   /**
-<<<<<<< HEAD
    * Extract list of selected options from response payload.
-=======
-   * Extract selected options from MCQ payload as string array.
->>>>>>> origin/dev-phase2
    */
   private extractSelectedOptions(payload: ResponsePayload | null): string[] {
     if (!payload) return [];
@@ -299,20 +283,6 @@ export class SessionScoringService {
   }
 
   /**
-<<<<<<< HEAD
-=======
-   * Evaluate NOSQL module accuracy (0.0 to 1.0).
-   */
-  private evaluateNoSQL(payload: ResponsePayload | null): number {
-    const execResult = payload?.executionResult;
-    if (execResult?.passed || execResult?.status === "SUCCESS") {
-      return 1.0;
-    }
-    return 0.0;
-  }
-
-  /**
->>>>>>> origin/dev-phase2
    * Evaluate MCQ module accuracy (0.0 to 1.0).
    */
   private evaluateMCQ(payload: ResponsePayload | null, qContent: QuestionContent): number {
@@ -409,16 +379,11 @@ export class SessionScoringService {
   /**
    * Evaluate TEST_SCENARIOS module accuracy (0.0 to 1.0).
    */
-<<<<<<< HEAD
   private evaluateTestScenarios(payload: ResponsePayload | null, question?: any): number {
-=======
-  private evaluateTestScenarios(payload: ResponsePayload | null): number {
->>>>>>> origin/dev-phase2
     const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
     if (typeof evalScore === "number") {
       return evalScore > 1 ? evalScore / 100 : evalScore;
     }
-<<<<<<< HEAD
 
     const qContent = question?.content || {};
     const expected = String(qContent.expectedAnswer || qContent.correctAnswer || "");
@@ -426,13 +391,6 @@ export class SessionScoringService {
 
     const matchRes = SemanticAnswerMatcher.matchAnswer(answer, expected);
     return matchRes.score / 100;
-=======
-    const ans = payload?.answer || payload?.text || payload?.response;
-    if (typeof ans === "string" && ans.trim().length > 10) {
-      return 0.85;
-    }
-    return 0.0;
->>>>>>> origin/dev-phase2
   }
 
   /**
@@ -533,12 +491,6 @@ export class SessionScoringService {
           const sqlExecs = sqlExecutionsMap.get(q.id) || [];
           const lastSql = sqlExecs.length > 0 ? sqlExecs[sqlExecs.length - 1] : null;
           doValue = lastSql ? (lastSql.status === "COMPLETED" ? 1.0 : 0.0) : 0.0;
-<<<<<<< HEAD
-=======
-        } else if (q.moduleType === "NOSQL") {
-          const execResult = payload?.executionResult;
-          doValue = execResult?.passed ? 1.0 : 0.0;
->>>>>>> origin/dev-phase2
         } else {
           doValue = 0.0;
         }
@@ -588,13 +540,8 @@ export class SessionScoringService {
    */
   async saveScores(sessionId: string, scoreData: CompositeScoreResult): Promise<void> {
     const existing = await this.prisma.score.findUnique({ where: { sessionId } });
-<<<<<<< HEAD
     if (existing && existing.humanReviewed) {
       this.logger.debug(`[saveScores] Preserving existing human-reviewed score for session ${sessionId}`);
-=======
-    if (existing && existing.gradingSource !== NO_DATA && existing.gradingSource !== "placeholder" && existing.gradingSource !== "AUTOMATED_EVALUATION_ENGINE") {
-      this.logger.debug(`[saveScores] Preserving existing score for session ${sessionId} (gradingSource: ${existing.gradingSource})`);
->>>>>>> origin/dev-phase2
       return;
     }
 

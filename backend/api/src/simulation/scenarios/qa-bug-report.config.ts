@@ -1,36 +1,4 @@
-<<<<<<< HEAD
 import { ContextSimulationScenarioConfig } from "./scenario-type.interface";
-=======
-export interface ContextSimulationScenarioConfig {
-  id: string;
-  title: string;
-  description: string;
-  track: "fresher" | "experienced";
-  rubricVersion: string;
-  initialSayPrompt: string;
-  managerEmail: {
-    fromName: string;
-    fromRole: string;
-    fromEmail: string;
-    subject: string;
-    body: string;
-  };
-  starterCode: Record<string, string>;
-  testCases: Array<{
-    input: string;
-    expectedOutput: string;
-    isHidden?: boolean;
-    label?: string;
-  }>;
-  evaluationCriteria: {
-    initialSayWeight: number;
-    emailSayWeight: number;
-    doBehaviourWeight: number;
-    doTechnicalWeight: number;
-    sayDoCorrelationWeight: number;
-  };
-}
->>>>>>> origin/dev-phase2
 
 export const QA_BUG_REPORT_SCENARIO: ContextSimulationScenarioConfig = {
   id: "qa-bug-login-validation",
@@ -139,7 +107,6 @@ module.exports = { validateUsername };
     doTechnicalWeight: 0.2,
     sayDoCorrelationWeight: 0.15,
   },
-<<<<<<< HEAD
   // Dynamic Workspace configs
   readonlyFiles: {
     'login/auth.py': `# auth.py - Core Authentication Handler\n\nfrom login_validation import validate_username\n\ndef authenticate_user(username: str, password_hash: str) -> dict:\n    if not validate_username(username):\n        raise ValueError("Invalid username format")\n    # Proceed with password verification against PostgreSQL database...\n    return {"status": "authenticated", "user": username}\n`,
@@ -207,7 +174,3 @@ module.exports = { validateUsername };
   },
   expectedConcepts: ['test', 'verify', 'check', 'inspect', 'read', 'look', 'debug']
 };
-
-=======
-};
->>>>>>> origin/dev-phase2

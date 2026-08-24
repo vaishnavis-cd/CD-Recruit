@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { Department, ExperienceLevel, ModuleType } from "@prisma/client";
+import { Department, ExperienceLevel, ExperiencedLevel, ModuleType } from "@prisma/client";
 
 export interface RoleTemplateQuestionInput {
   questionId: string;
@@ -16,6 +16,7 @@ export interface CreateRoleTemplateDto {
   durationMinutes: number;
   department?: Department;
   level?: ExperienceLevel;
+  experiencedLevel?: ExperiencedLevel;
   version?: number;
   isActive?: boolean;
   questions?: RoleTemplateQuestionInput[];
@@ -27,6 +28,7 @@ export interface UpdateRoleTemplateDto {
   durationMinutes?: number;
   department?: Department;
   level?: ExperienceLevel;
+  experiencedLevel?: ExperiencedLevel;
   version?: number;
   isActive?: boolean;
   questions?: RoleTemplateQuestionInput[];
@@ -43,11 +45,12 @@ export class RoleTemplateService {
    * Lookup current active RoleTemplate for a specific Department and ExperienceLevel.
    * Throws NotFoundException if no active row exists. Never auto-creates.
    */
-  async findActiveTemplate(department: Department, level: ExperienceLevel) {
+  async findActiveTemplate(department: Department, level: ExperienceLevel, experiencedLevel?: ExperiencedLevel) {
     const template = await this.prisma.roleTemplate.findFirst({
       where: {
         department,
         level,
+        ...(experiencedLevel ? { experiencedLevel } : {}),
         isActive: true,
       },
       include: {
@@ -64,18 +67,29 @@ export class RoleTemplateService {
 
     if (!template) {
       throw new NotFoundException(
-        `Active RoleTemplate not found for department '${department}' and level '${level}'`,
+        `Active RoleTemplate not found for department '${department}', level '${level}'${experiencedLevel ? `, experiencedLevel '${experiencedLevel}'` : ""}`,
       );
     }
 
     return template;
   }
 
+  private validateLevels(level?: ExperienceLevel, experiencedLevel?: ExperiencedLevel | null) {
+    if (level === "FRESHER" && experiencedLevel !== null && experiencedLevel !== undefined) {
+      throw new BadRequestException("Fresher templates must not have an experienced level");
+    }
+    if (level === "EXPERIENCED" && (experiencedLevel === null || experiencedLevel === undefined)) {
+      throw new BadRequestException("Experienced templates must specify an experienced level (L1, L2, L3)");
+    }
+  }
+
   /**
    * Standard CRUD: Create a new RoleTemplate with optional initial questions.
    */
   async create(dto: CreateRoleTemplateDto) {
-    const { roleName, weightingPreset, durationMinutes, department, level, version = 1, isActive = true, questions } = dto;
+    const { roleName, weightingPreset, durationMinutes, department, level, experiencedLevel, version = 1, isActive = true, questions } = dto;
+
+    this.validateLevels(level, experiencedLevel);
 
     return this.prisma.roleTemplate.create({
       data: {
@@ -84,6 +98,7 @@ export class RoleTemplateService {
         durationMinutes,
         department,
         level,
+        experiencedLevel,
         version,
         isActive,
         questions:
@@ -111,11 +126,12 @@ export class RoleTemplateService {
   /**
    * Standard CRUD: List all RoleTemplates with optional filtering.
    */
-  async findAll(filters?: { department?: Department; level?: ExperienceLevel; isActive?: boolean }) {
+  async findAll(filters?: { department?: Department; level?: ExperienceLevel; experiencedLevel?: ExperiencedLevel; isActive?: boolean }) {
     return this.prisma.roleTemplate.findMany({
       where: {
         ...(filters?.department ? { department: filters.department } : {}),
         ...(filters?.level ? { level: filters.level } : {}),
+        ...(filters?.experiencedLevel ? { experiencedLevel: filters.experiencedLevel } : {}),
         ...(filters?.isActive !== undefined ? { isActive: filters.isActive } : {}),
       },
       include: {
@@ -153,11 +169,16 @@ export class RoleTemplateService {
    * Standard CRUD: Update an existing RoleTemplate.
    */
   async update(id: string, dto: UpdateRoleTemplateDto) {
-    await this.findOne(id);
+    const { roleName, weightingPreset, durationMinutes, department, level, experiencedLevel, version, isActive, questions } = dto;
+
+    const current = await this.findOne(id);
+    const nextLevel = level !== undefined ? level : current.level;
+    const nextExpLevel = experiencedLevel !== undefined ? experiencedLevel : current.experiencedLevel;
+    if (nextLevel || nextExpLevel) {
+      this.validateLevels(nextLevel ?? undefined, nextExpLevel);
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      const { roleName, weightingPreset, durationMinutes, department, level, version, isActive, questions } = dto;
-
       if (questions) {
         await tx.roleTemplateQuestion.deleteMany({
           where: { roleTemplateId: id },
@@ -185,6 +206,7 @@ export class RoleTemplateService {
           ...(durationMinutes !== undefined ? { durationMinutes } : {}),
           ...(department !== undefined ? { department } : {}),
           ...(level !== undefined ? { level } : {}),
+          ...(experiencedLevel !== undefined ? { experiencedLevel } : {}),
           ...(version !== undefined ? { version } : {}),
           ...(isActive !== undefined ? { isActive } : {}),
         },
@@ -233,6 +255,7 @@ export class RoleTemplateService {
           where: {
             department: current.department,
             level: current.level,
+            experiencedLevel: current.experiencedLevel,
           },
           orderBy: { version: "desc" },
         });
@@ -245,6 +268,7 @@ export class RoleTemplateService {
           where: {
             department: current.department,
             level: current.level,
+            experiencedLevel: current.experiencedLevel,
             isActive: true,
           },
           data: { isActive: false },
@@ -263,6 +287,7 @@ export class RoleTemplateService {
           durationMinutes: current.durationMinutes,
           department: current.department,
           level: current.level,
+          experiencedLevel: current.experiencedLevel,
           version: nextVersion,
           isActive: true,
         },

@@ -1,11 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { SimulationTrigger } from "@cd-recruit/shared-types";
-<<<<<<< HEAD
 import { DriveShufflerService } from "../drive/drive-shuffler.service";
 import { getScenarioById } from "./scenarios";
-=======
->>>>>>> origin/dev-phase2
 
 export interface ActiveSimulationMessage {
   id: string;
@@ -32,26 +29,12 @@ export class ScenarioOrchestratorService {
   async getTriggeredMessages(sessionId: string): Promise<ActiveSimulationMessage[]> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
-<<<<<<< HEAD
-=======
-      include: {
-        drive: {
-          include: {
-            questions: {
-              where: { moduleType: "SIMULATION" },
-              include: { question: true },
-            },
-          },
-        },
-      },
->>>>>>> origin/dev-phase2
     });
 
     if (!session) {
       return [];
     }
 
-<<<<<<< HEAD
     // Resolve scenario content
     let content: any = null;
     const snapshot = session.simulationSnapshot as any;
@@ -97,14 +80,6 @@ export class ScenarioOrchestratorService {
     const scId = content?.id || content?.title || "";
     const scenarioConfig = getScenarioById(scId);
 
-=======
-    // Use session simulationSnapshot or bound drive question
-    let content: any = session.simulationSnapshot;
-    if (!content && session.drive?.questions[0]?.question) {
-      content = session.drive.questions[0].question.content;
-    }
-
->>>>>>> origin/dev-phase2
     if (!content || !Array.isArray(content.triggers)) {
       return [];
     }

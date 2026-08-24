@@ -30,6 +30,12 @@ enum ExperienceLevel {
   EXPERIENCED
 }
 
+enum ExperiencedLevel {
+  L1
+  L2
+  L3
+}
+
 enum ModuleType {
   MCQ
   SQL
@@ -38,10 +44,7 @@ enum ModuleType {
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
-<<<<<<< HEAD
-=======
   NOSQL
->>>>>>> origin/dev-phase2
 }
 
 enum SessionStatus {
@@ -127,21 +130,22 @@ enum ConsentType {
 }
 
 model RoleTemplate {
-  id              String           @id @default(uuid())
-  roleName        String           @map("role_name")
-  weightingPreset Json             @map("weighting_preset")
-  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
-  department      Department?      @map("department")
-  level           ExperienceLevel? @map("level")
-  version         Int              @default(1) @map("version")
-  isActive        Boolean          @default(true) @map("is_active")
+  id              String            @id @default(uuid())
+  roleName        String            @map("role_name")
+  weightingPreset Json              @map("weighting_preset")
+  durationMinutes Int               @map("duration_minutes") // drives session.deadlineAt
+  department      Department?       @map("department")
+  level           ExperienceLevel?  @map("level")
+  experiencedLevel ExperiencedLevel? @map("experienced_level")
+  version         Int               @default(1) @map("version")
+  isActive        Boolean           @default(true) @map("is_active")
 
   sessions  Session[]
   invites   Invite[]
   drives    Drive[]
   questions RoleTemplateQuestion[]
 
-  @@unique([department, level, version])
+  @@unique([department, level, experiencedLevel, version])
   @@map("role_template")
 }
 
@@ -243,13 +247,10 @@ model Candidate {
   organizationId String?       @map("organization_id")
   email          String        @unique
   name           String
-<<<<<<< HEAD
-=======
   idProofRef       String?   @map("id_proof_ref")
   idProofEmbedding Json?     @map("id_proof_embedding")
   idProofModel     String?   @map("id_proof_model")
   idVerifiedAt     DateTime? @map("id_verified_at")
->>>>>>> origin/dev-phase2
   createdAt      DateTime      @default(now()) @map("created_at")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
@@ -310,10 +311,7 @@ model Session {
   invite            Invite?
   codingExecutions  CodingExecution[]
   sqlExecutions     SQLExecution[]
-<<<<<<< HEAD
-=======
   identityCaptures  IdentityCapture[]
->>>>>>> origin/dev-phase2
 
   @@index([candidateId])
   @@index([status])
@@ -478,12 +476,9 @@ model Invite {
   bufferMinutes   Int          @default(15) @map("buffer_minutes")
   graceMinutes    Int          @default(5) @map("grace_minutes")
   originChannel   OriginChannel @default(DIRECT) @map("origin_channel")
-<<<<<<< HEAD
-=======
   idProofRef        String?   @map("id_proof_ref")
   idProofEmbedding  Json?     @map("id_proof_embedding")
   idProofUploadedAt DateTime? @map("id_proof_uploaded_at")
->>>>>>> origin/dev-phase2
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])

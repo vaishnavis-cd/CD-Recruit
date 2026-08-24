@@ -15,10 +15,6 @@ interface DynamicModuleSummary {
 const MODULE_NAMES: Record<string, string> = {
   MCQ: 'Multiple Choice Questions',
   SQL: 'SQL Database Queries',
-<<<<<<< HEAD
-=======
-  NOSQL: 'NoSQL Database Queries',
->>>>>>> origin/dev-phase2
   CODING: 'Coding Challenges',
   DEBUGGING: 'Debugging Challenges',
   AI_PROMPTING: 'AI Prompt Engineering',

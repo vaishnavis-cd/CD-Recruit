@@ -43,6 +43,23 @@ import { DriveShufflerService } from "../drive/drive-shuffler.service";
 
 const driveShuffler = new DriveShufflerService();
 
+function resolveSeniorityTag(roleTemplate: any): string {
+  if (!roleTemplate) {
+    throw new UnprocessableEntityException("No role template found to resolve seniority");
+  }
+  if (roleTemplate.level === "FRESHER") {
+    return "fresher";
+  }
+  if (roleTemplate.level === "EXPERIENCED") {
+    const expLvl = roleTemplate.experiencedLevel;
+    if (expLvl === "L1") return "l1";
+    if (expLvl === "L2") return "l2";
+    if (expLvl === "L3") return "l3";
+    throw new UnprocessableEntityException(`Experienced templates must specify an experienced level (L1, L2, L3). Current: ${expLvl}`);
+  }
+  throw new UnprocessableEntityException(`Invalid ExperienceLevel configuration: ${roleTemplate.level}`);
+}
+
 async function buildQuestionList(
   prisma: PrismaService,
   session: Session,
@@ -63,138 +80,177 @@ async function buildQuestionList(
       }
     }
 
-    if (driveId) {
-      const driveQuestions = await prisma.driveQuestion.findMany({
-        where: { driveId },
-        include: { question: true },
-        orderBy: [
-          { moduleType: "asc" },
-          { question: { id: "asc" } },
-        ],
-      });
+    if (!driveId) {
+      throw new UnprocessableEntityException("No valid drive associated with this session");
+    }
 
-      if (driveQuestions && driveQuestions.length > 0) {
-        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-          driveQuestions as any,
-          session.candidateId,
-          driveId
-        );
-        const resultList = shuffled.map((q: any) => {
-          const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
-          const rawQ = matchingDq?.question || q;
-          const tags = rawQ.tags || [];
-          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
-          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
-          return {
-            ...q,
-            moduleType: effectiveModuleType,
-            content: rawQ.content || q.content || {},
-            difficulty: rawQ.difficulty || q.difficulty || "medium",
-          };
-        });
-
-        const drive = await prisma.drive.findUnique({ where: { id: driveId } });
-        if (drive && drive.moduleConfig) {
-          const mc = drive.moduleConfig as Record<string, { enabled?: boolean }>;
-          if (mc.AI_PROMPTING?.enabled) {
-            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
-            if (!hasAiPromptingQuestion) {
-              resultList.push({
-                questionId: "ai-prompting-dynamic",
-                moduleType: "AI_PROMPTING",
-                moduleIndex: 0,
-                content: {
-                  title: "AI Prompting Challenge",
-                  prompt: "Engage in conversational problem solving with the AI assistant.",
-                },
-                difficulty: "medium",
-              });
-            }
-          }
-        }
-        return resultList;
-      }
-
-      // If drive questions not explicitly linked, try resolving via Drive's RoleTemplate or Department
-      const drive = await prisma.drive.findUnique({
-        where: { id: driveId },
-        include: {
-          roleTemplate: {
-            include: {
-              questions: {
-                include: { question: true },
-                orderBy: { orderIndex: "asc" },
-              },
+    const drive = await prisma.drive.findUnique({
+      where: { id: driveId },
+      include: {
+        roleTemplate: {
+          include: {
+            questions: {
+              include: { question: true },
+              orderBy: { orderIndex: "asc" },
             },
           },
         },
-      });
+      },
+    });
 
-      const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
-
-      // 1. Check template questions from RoleTemplate
-      if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
-        const tQuestions = drive.roleTemplate.questions.map((tq, idx) => ({
-          questionId: tq.questionId,
-          moduleType: tq.moduleType,
-          moduleIndex: idx,
-          content: tq.question?.content || {},
-          difficulty: tq.question?.difficulty || "medium",
-        }));
-        return tQuestions;
-      }
-
-      // 2. Check department-scoped questions
-      if (deptName && deptName !== "UNSPECIFIED") {
-        const deptUpper = deptName.toUpperCase();
-        const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
-        const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
-        const altDept = isSde ? "SDE" : deptUpper;
-
-        const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
-        const enabledMods = Object.entries(preset)
-          .filter(([_, w]) => Number(w) > 0)
-          .map(([mod]) => mod);
-
-        const whereClause: any = {
-          status: "PUBLISHED",
-          OR: [
-            { role: { equals: primaryDept, mode: "insensitive" } },
-            { role: { equals: altDept, mode: "insensitive" } },
-            { content: { path: ["department"], equals: primaryDept } },
-            { content: { path: ["department"], equals: altDept } },
-          ],
-        };
-
-        if (enabledMods.length > 0) {
-          whereClause.moduleType = { in: enabledMods };
-        }
-
-        const deptQuestions = await prisma.question.findMany({
-          where: whereClause,
-          orderBy: { moduleType: "asc" },
-        });
-
-        if (deptQuestions && deptQuestions.length > 0) {
-          return deptQuestions.map((q, idx) => ({
-            questionId: q.id,
-            moduleType: q.moduleType,
-            moduleIndex: idx,
-            content: q.content,
-            difficulty: q.difficulty || "medium",
-          }));
-        }
-      }
-
-      // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
-      throw new UnprocessableEntityException(
-        `No questions available for department ${deptName} — question bank not yet populated`
-      );
+    if (!drive) {
+      throw new UnprocessableEntityException(`Drive not found with ID ${driveId}`);
     }
 
+    const resolvedTag = resolveSeniorityTag(drive.roleTemplate);
+    const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
+    const enabledMods = Object.entries(preset)
+      .filter(([_, w]) => Number(w) > 0)
+      .map(([mod]) => mod);
+
+    const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
+    const deptUpper = deptName.toUpperCase();
+    const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
+    const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
+    const altDept = isSde ? "SDE" : deptUpper;
+
+    // A. explicitly linked DriveQuestions path
+    const driveQuestions = await prisma.driveQuestion.findMany({
+      where: { driveId },
+      include: { question: true },
+      orderBy: [
+        { moduleType: "asc" },
+        { question: { id: "asc" } },
+      ],
+    });
+
+    if (driveQuestions && driveQuestions.length > 0) {
+      // Seniority Filtering for explicit DriveQuestions
+      const filteredDriveQuestions = driveQuestions.filter(dq => {
+        const q = dq.question;
+        if (!q) return false;
+        if (q.status !== "PUBLISHED") return false;
+
+        const qRole = q.role?.toUpperCase() || "";
+        const matchesDept = qRole === primaryDept || qRole === altDept;
+        if (!matchesDept) return false;
+
+        if (!enabledMods.includes(dq.moduleType)) return false;
+
+        const qTags = (q.tags || []).map(t => t.toLowerCase());
+        return qTags.includes(resolvedTag);
+      });
+
+      if (filteredDriveQuestions.length === 0) {
+        console.warn(`[buildQuestionList] Allocation shortage: 0 questions matched criteria for Drive ${driveId} and seniority ${resolvedTag}`);
+        return [];
+      }
+
+      const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+        filteredDriveQuestions as any,
+        session.candidateId,
+        driveId
+      );
+      const resultList = shuffled.map((q: any) => {
+        const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
+        const rawQ = matchingDq?.question || q;
+        const tags = rawQ.tags || [];
+        const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+        const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+        const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+        return {
+          ...q,
+          moduleType: effectiveModuleType,
+          content: rawQ.content || q.content || {},
+          difficulty: rawQ.difficulty || q.difficulty || "medium",
+        };
+      });
+
+      const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
+      if (driveObj && driveObj.moduleConfig) {
+        const mc = driveObj.moduleConfig as Record<string, { enabled?: boolean }>;
+        if (mc.AI_PROMPTING?.enabled) {
+          const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+          if (!hasAiPromptingQuestion) {
+            resultList.push({
+              questionId: "ai-prompting-dynamic",
+              moduleType: "AI_PROMPTING",
+              moduleIndex: 0,
+              content: {
+                title: "AI Prompting Challenge",
+                prompt: "Engage in conversational problem solving with the AI assistant.",
+              },
+              difficulty: "medium",
+            });
+          }
+        }
+      }
+      return resultList;
+    }
+
+    // B. Check template questions from RoleTemplate path
+    if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
+      const filteredTQuestions = drive.roleTemplate.questions.filter(tq => {
+        const q = tq.question;
+        if (!q) return false;
+        if (q.status !== "PUBLISHED") return false;
+
+        const qRole = q.role?.toUpperCase() || "";
+        const matchesDept = qRole === primaryDept || qRole === altDept;
+        if (!matchesDept) return false;
+
+        if (!enabledMods.includes(tq.moduleType)) return false;
+
+        const qTags = (q.tags || []).map(t => t.toLowerCase());
+        return qTags.includes(resolvedTag);
+      });
+
+      const tQuestions = filteredTQuestions.map((tq, idx) => ({
+        questionId: tq.questionId,
+        moduleType: tq.moduleType,
+        moduleIndex: idx,
+        content: tq.question?.content || {},
+        difficulty: tq.question?.difficulty || "medium",
+      }));
+      return tQuestions;
+    }
+
+    // C. Check department-scoped fallback questions path
+    if (deptName && deptName !== "UNSPECIFIED") {
+      const whereClause: any = {
+        status: "PUBLISHED",
+        OR: [
+          { role: { equals: primaryDept, mode: "insensitive" } },
+          { role: { equals: altDept, mode: "insensitive" } },
+          { content: { path: ["department"], equals: primaryDept } },
+          { content: { path: ["department"], equals: altDept } },
+        ],
+        tags: { has: resolvedTag }
+      };
+
+      if (enabledMods.length > 0) {
+        whereClause.moduleType = { in: enabledMods };
+      }
+
+      const deptQuestions = await prisma.question.findMany({
+        where: whereClause,
+        orderBy: { moduleType: "asc" },
+      });
+
+      if (deptQuestions && deptQuestions.length > 0) {
+        return deptQuestions.map((q, idx) => ({
+          questionId: q.id,
+          moduleType: q.moduleType,
+          moduleIndex: idx,
+          content: q.content,
+          difficulty: q.difficulty || "medium",
+        }));
+      }
+    }
+
+    // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
     throw new UnprocessableEntityException(
-      "No valid assessment drive associated with this session"
+      `No questions available for department ${deptName} and seniority ${resolvedTag} — question bank not yet populated`
     );
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
@@ -205,10 +261,6 @@ async function buildQuestionList(
 import { SessionLifecycleService } from "./session-lifecycle.service";
 import { SessionStateMachine } from "./session-state-machine";
 import { SessionScoringService } from "./session-scoring.service";
-<<<<<<< HEAD
-=======
-import { FaceVerifyOnnxService } from "../integrations/face-verify-onnx/face-verify-onnx.service";
->>>>>>> origin/dev-phase2
 
 import { SessionStatusPort } from "@app/common/ports/session-status.port";
 
@@ -234,10 +286,6 @@ export class SessionService implements SessionStatusPort {
     private readonly stateMachine: SessionStateMachine,
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
-<<<<<<< HEAD
-=======
-    private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
->>>>>>> origin/dev-phase2
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -291,7 +339,6 @@ export class SessionService implements SessionStatusPort {
       payload.candidateName,
     );
 
-<<<<<<< HEAD
     // 4. Reuse existing session if already created for this candidate
     const existingSession = await this.prisma.session.findFirst({
       where: {
@@ -317,46 +364,10 @@ export class SessionService implements SessionStatusPort {
             message: "The assessment window has expired.",
           });
         }
-=======
-    // Update candidate name if provided and different
-    if (payload.candidateName && candidateRecord.name !== payload.candidateName) {
-      await this.prisma.candidate.update({
-        where: { id: candidateRecord.id },
-        data: { name: payload.candidateName },
-      });
-      candidateRecord.name = payload.candidateName;
-    }
-
-    // 4. Reuse existing session ONLY if already created for THIS SPECIFIC invite
-    const invite = await this.prisma.invite.findUnique({
-      where: { id: payload.inviteId },
-      include: { drive: true, session: { include: { roleTemplate: true } } },
-    });
-
-    let existingSession = invite?.session || null;
-    if (!existingSession && invite?.sessionId) {
-      existingSession = await this.prisma.session.findUnique({
-        where: { id: invite.sessionId },
-        include: { roleTemplate: true },
-      });
-    }
-
-    const isNewOrNotStarted = !existingSession || existingSession.status === SessionStatus.NOT_STARTED;
-    if (isNewOrNotStarted && invite?.drive?.scheduleStart) {
-      const now = new Date();
-      const graceMinutes = 20; // 20 minutes grace window
-      const cutoff = new Date(invite.drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
-      if (now > cutoff) {
-        throw new UnauthorizedException({
-          code: "INVITE_TOKEN_EXPIRED",
-          message: "The assessment window has expired.",
-        });
->>>>>>> origin/dev-phase2
       }
     }
 
     if (existingSession) {
-<<<<<<< HEAD
       this.logger.log(`Reusing existing session ${existingSession.id} for candidate ${candidateRecord.email}`);
       const fullExisting = await this.prisma.session.findUnique({
         where: { id: existingSession.id },
@@ -364,25 +375,15 @@ export class SessionService implements SessionStatusPort {
       });
       return await this.buildStartResponse(
         fullExisting as SessionWithTemplate,
-=======
-      this.logger.log(`Reusing invite ${payload.inviteId} session ${existingSession.id} for candidate ${candidateRecord.email}`);
-      return await this.buildStartResponse(
-        existingSession as SessionWithTemplate,
->>>>>>> origin/dev-phase2
         candidateRecord.id,
       );
     }
 
-<<<<<<< HEAD
     // 5. Create the session (starts as NOT_STARTED, dates set upon /begin)
     const now = new Date();
     const invite = await this.prisma.invite.findUnique({
       where: { id: payload.inviteId },
     });
-=======
-    // 5. Create a new session dedicated to this invite
-    const now = new Date();
->>>>>>> origin/dev-phase2
 
     const session = await this.prisma.session.create({
       data: {
@@ -411,27 +412,6 @@ export class SessionService implements SessionStatusPort {
       });
     }
 
-<<<<<<< HEAD
-=======
-    if (invite?.idProofRef) {
-      await this.prisma.candidate.update({
-        where: { id: candidateRecord.id },
-        data: {
-          idProofRef: invite.idProofRef,
-          idProofEmbedding: invite.idProofEmbedding,
-          idProofModel: "ArcFace",
-        },
-      });
-    } else {
-      if (!invite) {
-        this.logger.warn(
-          `Invite ${payload.inviteId} missing during session start for session ${session.id}`,
-        );
-      }
-      await this.createNoIdProofFlag(session.id);
-    }
-
->>>>>>> origin/dev-phase2
     this.logger.log(
       `Session created: ${session.id} for candidate ${candidateRecord.id}`,
     );
@@ -483,28 +463,10 @@ export class SessionService implements SessionStatusPort {
       }
     }
 
-<<<<<<< HEAD
     let durationMinutes = session.roleTemplate.durationMinutes;
     if (session.driveId) {
       const drive = await this.prisma.drive.findUnique({
         where: { id: session.driveId },
-=======
-    let durationMinutes = session.roleTemplate?.durationMinutes || 30;
-    let driveId = session.driveId;
-
-    if (!driveId) {
-      const invite = await this.prisma.invite.findFirst({
-        where: { sessionId },
-      });
-      if (invite?.driveId) {
-        driveId = invite.driveId;
-      }
-    }
-
-    if (driveId) {
-      const drive = await this.prisma.drive.findUnique({
-        where: { id: driveId },
->>>>>>> origin/dev-phase2
       });
       if (drive && drive.moduleConfig) {
         const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
@@ -518,13 +480,6 @@ export class SessionService implements SessionStatusPort {
       }
     }
 
-<<<<<<< HEAD
-=======
-    if (!durationMinutes || durationMinutes <= 0) {
-      durationMinutes = 30;
-    }
-
->>>>>>> origin/dev-phase2
     const now = new Date();
     const deadlineAt = new Date(
       now.getTime() + durationMinutes * 60 * 1000,
@@ -544,44 +499,6 @@ export class SessionService implements SessionStatusPort {
 
     this.logger.log(`Session ${sessionId} has begun.`);
 
-<<<<<<< HEAD
-=======
-    // PART 2: Scheduling identity re-verification captures
-    try {
-      const durationMs = deadlineAt.getTime() - now.getTime();
-      const durationMins = durationMs / 60000;
-      if (durationMins < 5) {
-        this.logger.log(
-          `Session ${sessionId} duration (${durationMins.toFixed(1)} mins) is under 5 mins; skipping identity capture scheduling.`,
-        );
-      } else {
-        const windowMs = durationMs / 3;
-        const capturesToCreate = [];
-        for (let i = 0; i < 3; i++) {
-          const windowStart = now.getTime() + i * windowMs;
-          const windowEnd = now.getTime() + (i + 1) * windowMs;
-          const randomScheduledTime = windowStart + Math.random() * (windowEnd - windowStart);
-          capturesToCreate.push({
-            sessionId,
-            windowIndex: i,
-            scheduledAt: new Date(randomScheduledTime),
-            status: "PENDING",
-          });
-        }
-        await this.prisma.identityCapture.createMany({
-          data: capturesToCreate,
-        });
-        this.logger.log(
-          `Session ${sessionId}: Scheduled 3 identity captures across windows [0, 1, 2].`,
-        );
-      }
-    } catch (err: any) {
-      this.logger.error(
-        `Failed to schedule identity captures for session ${sessionId}: ${err.message}`,
-      );
-    }
-
->>>>>>> origin/dev-phase2
     try {
       await this.sandboxOrchestrator.ensureWorkspace(sessionId);
     } catch (err: any) {
@@ -652,30 +569,11 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-<<<<<<< HEAD
-=======
-    // Check if any PENDING identity capture is due
-    const dueCapture = await this.prisma.identityCapture.findFirst({
-      where: {
-        sessionId,
-        status: "PENDING",
-        scheduledAt: { lte: now },
-      },
-      orderBy: { scheduledAt: "asc" },
-    });
-
-    const captureRequired = dueCapture ? { captureId: dueCapture.id } : null;
-
->>>>>>> origin/dev-phase2
     return {
       ok: true,
       sessionStatus:
         SessionStatus.IN_PROGRESS as unknown as import("@cd-recruit/shared-types").SessionStatus,
       deadlineAt: session.deadlineAt!.toISOString(),
-<<<<<<< HEAD
-=======
-      captureRequired,
->>>>>>> origin/dev-phase2
     };
   }
 
@@ -835,17 +733,7 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-<<<<<<< HEAD
     // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
-=======
-<<<<<<< HEAD
-    // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
-=======
-    await this.markPendingCapturesClosed(sessionId);
-
-    // Calculate real module scores and composite score upon submission
->>>>>>> onnx
->>>>>>> origin/dev-phase2
     try {
       const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
       if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
@@ -864,27 +752,6 @@ export class SessionService implements SessionStatusPort {
       this.logger.warn(`Failed to reap workspace for session ${sessionId}: ${err.message}`);
     }
 
-<<<<<<< HEAD
-=======
-    try {
-      const responses = await this.prisma.moduleResponse.findMany({
-        where: { sessionId, sandboxDbName: { not: null } },
-      });
-      for (const resp of responses) {
-        if (resp.sandboxDbName) {
-          await this.queueProvider.enqueueDelayed(
-            "heartbeat-monitor",
-            "drop-sandbox",
-            { sandboxDbName: resp.sandboxDbName },
-            { delayMs: 0 },
-          );
-        }
-      }
-    } catch (err: any) {
-      this.logger.error(`Failed to enqueue sandbox drop jobs on session close for session ${sessionId}: ${err.message}`);
-    }
-
->>>>>>> origin/dev-phase2
     await this.prisma.eventLog.create({
       data: {
         sessionId,
@@ -1026,11 +893,6 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-<<<<<<< HEAD
-=======
-    await this.markPendingCapturesClosed(sessionId);
-
->>>>>>> origin/dev-phase2
     await this.prisma.eventLog.create({
       data: {
         sessionId,
@@ -1057,27 +919,6 @@ export class SessionService implements SessionStatusPort {
       this.logger.warn(`Failed to reap workspace on autoSubmit for session ${sessionId}: ${err.message}`);
     }
 
-<<<<<<< HEAD
-=======
-    try {
-      const responses = await this.prisma.moduleResponse.findMany({
-        where: { sessionId, sandboxDbName: { not: null } },
-      });
-      for (const resp of responses) {
-        if (resp.sandboxDbName) {
-          await this.queueProvider.enqueueDelayed(
-            "heartbeat-monitor",
-            "drop-sandbox",
-            { sandboxDbName: resp.sandboxDbName },
-            { delayMs: 0 },
-          );
-        }
-      }
-    } catch (err: any) {
-      this.logger.error(`Failed to enqueue sandbox drop jobs on autoSubmit for session ${sessionId}: ${err.message}`);
-    }
-
->>>>>>> origin/dev-phase2
     this.logger.warn(
       `Session ${sessionId} AUTO_SUBMITTED — grace window expired`,
     );
@@ -1220,14 +1061,6 @@ export class SessionService implements SessionStatusPort {
       return safe;
     }
 
-<<<<<<< HEAD
-=======
-    if (moduleType === "NOSQL") {
-      const { expectedOperation: _eo, ...safe } = c;
-      return safe;
-    }
-
->>>>>>> origin/dev-phase2
     if (moduleType === "CODING" || moduleType === "DEBUGGING") {
       const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
       const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
@@ -1348,238 +1181,5 @@ export class SessionService implements SessionStatusPort {
 
     return { ok: true, consentRecordId: consentRecord.id };
   }
-<<<<<<< HEAD
 }
 
-=======
-
-  async verifyIdentity(
-    sessionId: string,
-    file: { buffer: Buffer; originalname: string },
-  ): Promise<{
-    status: "no_id_proof_on_file" | "verified" | "not_verified";
-    matched: boolean | null;
-    distance: number | null;
-    threshold: number | null;
-  }> {
-    if (!file || !file.buffer) {
-      throw new BadRequestException("No selfie image provided in request");
-    }
-
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-      include: { candidate: true },
-    });
-
-    if (!session) {
-      throw new NotFoundException(`Session not found with ID ${sessionId}`);
-    }
-
-    const candidate = session.candidate;
-    if (!candidate || !candidate.idProofEmbedding) {
-      this.logger.log(
-        `Session ${sessionId} has no ID proof embedding on file for candidate ${candidate?.id}`,
-      );
-      return {
-        status: "no_id_proof_on_file",
-        matched: null,
-        distance: null,
-        threshold: null,
-      };
-    }
-
-    const embedding = candidate.idProofEmbedding as unknown as number[];
-    const result = await this.faceVerifyOnnxService.verify(
-      file.buffer,
-      file.originalname,
-      embedding,
-    );
-
-    if (result.matched) {
-      await this.prisma.candidate.update({
-        where: { id: candidate.id },
-        data: { idVerifiedAt: new Date() },
-      });
-      return {
-        status: "verified",
-        matched: true,
-        distance: result.distance,
-        threshold: result.threshold,
-      };
-    }
-
-    return {
-      status: "not_verified",
-      matched: false,
-      distance: result.distance,
-      threshold: result.threshold,
-    };
-  }
-
-  async flagAndContinueIdentity(
-    sessionId: string,
-  ): Promise<{ status: string; sessionId: string }> {
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-    });
-
-    if (!session) {
-      throw new NotFoundException(`Session not found with ID ${sessionId}`);
-    }
-
-    await this.prisma.integrityFlag.create({
-      data: {
-        sessionId: session.id,
-        category: "IDENTITY_MISMATCH",
-        severity: "HIGH",
-        confidence: 1.0,
-        flaggedAt: new Date(),
-      },
-    });
-
-    return { status: "flagged", sessionId };
-  }
-
-  private async createNoIdProofFlag(sessionId: string): Promise<void> {
-    await this.prisma.integrityFlag.create({
-      data: {
-        sessionId,
-        category: "NO_ID_PROOF_ON_FILE",
-        severity: "MEDIUM",
-        confidence: 1.0,
-        flaggedAt: new Date(),
-      },
-    });
-  }
-
-  /**
-   * Transition any remaining PENDING IdentityCapture rows to SESSION_CLOSED.
-   * Called when a session moves to a terminal status (SUBMITTED, AUTO_SUBMITTED, CLOSED, ABANDONED).
-   */
-  async markPendingCapturesClosed(sessionId: string): Promise<void> {
-    try {
-      await this.prisma.identityCapture.updateMany({
-        where: {
-          sessionId,
-          status: "PENDING",
-        },
-        data: {
-          status: "SESSION_CLOSED",
-        },
-      });
-    } catch (err: any) {
-      this.logger.warn(`Failed to mark pending identity captures closed for session ${sessionId}: ${err.message}`);
-    }
-  }
-
-  /**
-   * Process identity capture frame upload and perform ArcFace verification.
-   */
-  async submitIdentityCapture(
-    sessionId: string,
-    captureId: string,
-    file: any,
-  ): Promise<{ status: string }> {
-    const capture = await this.prisma.identityCapture.findUnique({
-      where: { id: captureId },
-      include: {
-        session: {
-          include: {
-            candidate: true,
-            organization: true,
-          },
-        },
-      },
-    });
-
-    if (!capture || capture.sessionId !== sessionId) {
-      throw new NotFoundException({
-        code: "CAPTURE_NOT_FOUND",
-        message: "Identity capture not found for this session.",
-      });
-    }
-
-    // Idempotency check: if already CAPTURED, return neutral response
-    if (capture.status === "CAPTURED") {
-      return { status: "received" };
-    }
-
-    const candidate = capture.session.candidate;
-    if (!candidate || !candidate.idProofEmbedding) {
-      this.logger.warn(
-        `Identity capture ${captureId}: Candidate has no ID proof embedding on file. Marking status MISSED.`,
-      );
-      await this.prisma.identityCapture.update({
-        where: { id: captureId },
-        data: { status: "MISSED" },
-      });
-      return { status: "received" };
-    }
-
-    const now = new Date();
-    const orgSlug = capture.session.organization?.slug || capture.session.organizationId || "default";
-    const objectKey = `clients/${orgSlug}/candidates/${candidate.id}/sessions/${sessionId}/identity-captures/${captureId}.jpg`;
-
-    // Upload frame to MinIO storage
-    try {
-      await this.minio.putObject(
-        this.bucketBiometric,
-        objectKey,
-        file.buffer,
-        { "Content-Type": file.mimetype || "image/jpeg" },
-      );
-    } catch (err: any) {
-      this.logger.error(`Failed to upload identity capture frame to MinIO for capture ${captureId}: ${err.message}`);
-    }
-
-    const embedding = candidate.idProofEmbedding as unknown as number[];
-    let matched: boolean | null = null;
-    let distance: number | null = null;
-    let threshold: number | null = null;
-
-    try {
-      const result = await this.faceVerifyOnnxService.verify(
-        file.buffer,
-        file.originalname || "capture.jpg",
-        embedding,
-      );
-      matched = result.matched;
-      distance = result.distance;
-      threshold = result.threshold;
-    } catch (err: any) {
-      this.logger.error(`ArcFace face verification failed for capture ${captureId}: ${err.message}`);
-    }
-
-    await this.prisma.identityCapture.update({
-      where: { id: captureId },
-      data: {
-        status: "CAPTURED",
-        capturedAt: now,
-        imageRef: objectKey,
-        matched,
-        distance,
-        threshold,
-      },
-    });
-
-    if (matched === false) {
-      await this.prisma.integrityFlag.create({
-        data: {
-          sessionId,
-          category: "IDENTITY_MISMATCH_INTEST",
-          severity: "HIGH",
-          confidence: 1.0,
-          flaggedAt: now,
-        },
-      });
-      this.logger.warn(
-        `IDENTITY_MISMATCH_INTEST flag created for session ${sessionId} (captureId: ${captureId}, distance: ${distance})`,
-      );
-    }
-
-    return { status: "received" };
-  }
-}
-
-
->>>>>>> origin/dev-phase2
