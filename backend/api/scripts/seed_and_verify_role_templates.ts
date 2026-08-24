@@ -1,4 +1,4 @@
-import { PrismaClient, Department, ExperienceLevel, ModuleType } from '@prisma/client';
+import { PrismaClient, Department, ExperienceLevel, ExperiencedLevel, ModuleType } from '@prisma/client';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
@@ -12,155 +12,63 @@ interface RoleTemplateDef {
   roleName: string;
   department: Department;
   level: ExperienceLevel;
+  experiencedLevel: ExperiencedLevel | null;
   durationMinutes: number;
   weightingPreset: Record<string, number>;
 }
 
-const TEMPLATE_CONFIGS: RoleTemplateDef[] = [
-  // SDE
-  {
-    roleName: 'Software Engineer (SDE) - Fresher',
-    department: Department.SOFTWARE_ENGINEERING,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: {
-      MCQ: 0.15,
-      SQL: 0.15,
-      CODING: 0.20,
-      DEBUGGING: 0.15,
-      AI_PROMPTING: 0.10,
-      SIMULATION: 0.15,
-      TEST_SCENARIOS: 0.10,
-    },
-  },
-  {
-    roleName: 'Senior Software Engineer (SDE) - Experienced',
-    department: Department.SOFTWARE_ENGINEERING,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: {
-      MCQ: 0.15,
-      SQL: 0.15,
-      CODING: 0.20,
-      DEBUGGING: 0.15,
-      AI_PROMPTING: 0.10,
-      SIMULATION: 0.15,
-      TEST_SCENARIOS: 0.10,
-    },
-  },
+const ROLE_TITLES: Record<Department, string> = {
+  SOFTWARE_ENGINEERING: "Software Engineer (SDE)",
+  DATA_ENGINEERING: "Data Engineer",
+  PMO: "Project Management Officer (PMO)",
+  QA: "QA Engineer",
+  SYSOPS: "SysOps Engineer",
+  ITOPS: "ITOps Specialist",
+  SECOPS: "SecOps Specialist",
+  SRE: "Site Reliability Engineer (SRE)",
+};
 
-  // DATA ENGINEERING
-  {
-    roleName: 'Data Engineer - Fresher',
-    department: Department.DATA_ENGINEERING,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.30, SQL: 0.35, CODING: 0.35 },
+const DEPT_WEIGHTS: Record<Department, Record<string, number>> = {
+  SOFTWARE_ENGINEERING: {
+    MCQ: 0.15,
+    SQL: 0.15,
+    CODING: 0.20,
+    DEBUGGING: 0.15,
+    AI_PROMPTING: 0.10,
+    SIMULATION: 0.15,
+    TEST_SCENARIOS: 0.10,
   },
-  {
-    roleName: 'Data Engineer - Experienced',
-    department: Department.DATA_ENGINEERING,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.30, SQL: 0.35, CODING: 0.35 },
-  },
+  DATA_ENGINEERING: { MCQ: 0.30, SQL: 0.35, CODING: 0.35 },
+  QA: { MCQ: 0.20, SQL: 0.20, CODING: 0.20, DEBUGGING: 0.20, TEST_SCENARIOS: 0.20 },
+  SRE: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+  SYSOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+  ITOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+  PMO: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+  SECOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+};
 
-  // QA
-  {
-    roleName: 'QA Engineer - Fresher',
-    department: Department.QA,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.20, SQL: 0.20, CODING: 0.20, DEBUGGING: 0.20, TEST_SCENARIOS: 0.20 },
-  },
-  {
-    roleName: 'QA Engineer - Experienced',
-    department: Department.QA,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.20, SQL: 0.20, CODING: 0.20, DEBUGGING: 0.20, TEST_SCENARIOS: 0.20 },
-  },
+const TEMPLATE_CONFIGS: RoleTemplateDef[] = [];
+const DEPARTMENTS = Object.keys(ROLE_TITLES) as Department[];
 
-  // SRE
-  {
-    roleName: 'Site Reliability Engineer (SRE) - Fresher',
-    department: Department.SRE,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-  {
-    roleName: 'Site Reliability Engineer (SRE) - Experienced',
-    department: Department.SRE,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
+for (const dept of DEPARTMENTS) {
+  const levels = [
+    { lvl: ExperienceLevel.FRESHER, expLvl: null, suffix: "Fresher" },
+    { lvl: ExperienceLevel.EXPERIENCED, expLvl: ExperiencedLevel.L1, suffix: "Experienced L1" },
+    { lvl: ExperienceLevel.EXPERIENCED, expLvl: ExperiencedLevel.L2, suffix: "Experienced L2" },
+    { lvl: ExperienceLevel.EXPERIENCED, expLvl: ExperiencedLevel.L3, suffix: "Experienced L3" },
+  ];
 
-  // SYSOPS
-  {
-    roleName: 'SysOps Engineer - Fresher',
-    department: Department.SYSOPS,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-  {
-    roleName: 'SysOps Engineer - Experienced',
-    department: Department.SYSOPS,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-
-  // ITOPS
-  {
-    roleName: 'ITOps Specialist - Fresher',
-    department: Department.ITOPS,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-  {
-    roleName: 'ITOps Specialist - Experienced',
-    department: Department.ITOPS,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-
-  // PMO
-  {
-    roleName: 'Project Management Officer (PMO) - Fresher',
-    department: Department.PMO,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-  {
-    roleName: 'Project Management Officer (PMO) - Experienced',
-    department: Department.PMO,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-
-  // SECOPS
-  {
-    roleName: 'SecOps Specialist - Fresher',
-    department: Department.SECOPS,
-    level: ExperienceLevel.FRESHER,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-  {
-    roleName: 'SecOps Specialist - Experienced',
-    department: Department.SECOPS,
-    level: ExperienceLevel.EXPERIENCED,
-    durationMinutes: 90,
-    weightingPreset: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-  },
-];
+  for (const { lvl, expLvl, suffix } of levels) {
+    TEMPLATE_CONFIGS.push({
+      roleName: `${ROLE_TITLES[dept]} - ${suffix}`,
+      department: dept,
+      level: lvl,
+      experiencedLevel: expLvl,
+      durationMinutes: 90,
+      weightingPreset: DEPT_WEIGHTS[dept],
+    });
+  }
+}
 
 async function seedAndVerifyRoleTemplates() {
   console.log('============================================================');
@@ -175,6 +83,7 @@ async function seedAndVerifyRoleTemplates() {
       where: {
         department: conf.department,
         level: conf.level,
+        experiencedLevel: conf.experiencedLevel,
         isActive: true,
       },
     });
@@ -188,7 +97,7 @@ async function seedAndVerifyRoleTemplates() {
           weightingPreset: conf.weightingPreset as any,
         },
       });
-      console.log(`  🔄 Updated Active RoleTemplate: [${conf.department} / ${conf.level}] -> ${conf.roleName}`);
+      console.log(`  🔄 Updated Active RoleTemplate: [${conf.department} / ${conf.level}${conf.experiencedLevel ? ` / ${conf.experiencedLevel}` : ''}] -> ${conf.roleName}`);
       updatedCount++;
     } else {
       await prisma.roleTemplate.create({
@@ -196,21 +105,63 @@ async function seedAndVerifyRoleTemplates() {
           roleName: conf.roleName,
           department: conf.department,
           level: conf.level,
+          experiencedLevel: conf.experiencedLevel,
           durationMinutes: conf.durationMinutes,
           version: 1,
           isActive: true,
           weightingPreset: conf.weightingPreset as any,
         },
       });
-      console.log(`  ✨ Created Active RoleTemplate: [${conf.department} / ${conf.level}] -> ${conf.roleName}`);
+      console.log(`  ✨ Created Active RoleTemplate: [${conf.department} / ${conf.level}${conf.experiencedLevel ? ` / ${conf.experiencedLevel}` : ''}] -> ${conf.roleName}`);
       createdCount++;
     }
   }
 
   console.log(`\nSeed Complete: ${createdCount} created, ${updatedCount} updated.\n`);
 
+  // Cleanup obsolete Role Templates
+  const keepNames = [
+    "Software Developer",
+    ...TEMPLATE_CONFIGS.map(t => t.roleName)
+  ];
+
+  const templatesToDelete = await prisma.roleTemplate.findMany({
+    where: {
+      roleName: { notIn: keepNames }
+    },
+    select: { id: true, roleName: true }
+  });
+
+  if (templatesToDelete.length > 0) {
+    console.log('🧹 Cleaning up obsolete RoleTemplates...');
+    const ids = templatesToDelete.map(t => t.id);
+    
+    await prisma.roleTemplateQuestion.deleteMany({
+      where: { roleTemplateId: { in: ids } }
+    });
+
+    for (const t of templatesToDelete) {
+      const isReferencedInDrive = await prisma.drive.findFirst({ where: { roleTemplateId: t.id } });
+      const isReferencedInInvite = await prisma.invite.findFirst({ where: { roleTemplateId: t.id } });
+      const isReferencedInSession = await prisma.session.findFirst({ where: { roleTemplateId: t.id } });
+
+      if (isReferencedInDrive || isReferencedInInvite || isReferencedInSession) {
+        await prisma.roleTemplate.update({
+          where: { id: t.id },
+          data: { isActive: false }
+        });
+        console.log(`  💤 Deactivated referenced obsolete RoleTemplate: ${t.roleName}`);
+      } else {
+        await prisma.roleTemplate.delete({
+          where: { id: t.id }
+        });
+        console.log(`  🗑 Deleted obsolete RoleTemplate: ${t.roleName}`);
+      }
+    }
+  }
+
   console.log('============================================================');
-  console.log('VERIFYING ROLETEMPLATES FOR ALL 16 DEPARTMENT/LEVEL PAIRS');
+  console.log('VERIFYING ROLETEMPLATES FOR ALL 32 DEPARTMENT/LEVEL/EXPERIENCED_LEVEL COMBINATIONS');
   console.log('============================================================\n');
 
   const matrix: any[] = [];
@@ -221,6 +172,7 @@ async function seedAndVerifyRoleTemplates() {
       where: {
         department: conf.department,
         level: conf.level,
+        experiencedLevel: conf.experiencedLevel,
         isActive: true,
       },
     });
@@ -230,6 +182,7 @@ async function seedAndVerifyRoleTemplates() {
     matrix.push({
       Department: conf.department,
       Level: conf.level,
+      ExpLevel: conf.experiencedLevel || 'N/A',
       RoleName: active ? active.roleName : 'MISSING',
       Active: active ? active.isActive : false,
       Version: active ? active.version : 0,
@@ -241,9 +194,9 @@ async function seedAndVerifyRoleTemplates() {
   console.table(matrix);
 
   if (allActiveFound) {
-    console.log('✅ ALL 16 Department/Level pairs have active, valid RoleTemplates!\n');
+    console.log('✅ ALL 32 Department/Level/ExpLevel combinations have active, valid RoleTemplates!\n');
   } else {
-    console.error('❌ DISCREPANCY: Some department/level pairs are still missing active RoleTemplates!\n');
+    console.error('❌ DISCREPANCY: Some combinations are still missing active RoleTemplates!\n');
   }
 
   await prisma.$disconnect();

@@ -15,6 +15,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Standardize .env contract loading
+dotenv.config({ path: path.join(__dirname, "../../.env") });
 dotenv.config({ path: path.join(__dirname, "../.env") });
 dotenv.config({ path: path.join(__dirname, "../api/.env") });
 
@@ -109,7 +110,7 @@ async function main(): Promise<void> {
         console.log(`  ↩ Base RoleTemplate "${ROLE_NAME}" exists (id: ${roleTemplate.id})`);
       }
 
-      // 2b. Seed 16 Department x Experience Level Role Templates
+      // 2b. Seed 32 Department x Experience Level Role Templates
       const DEPARTMENTS = [
         "SOFTWARE_ENGINEERING",
         "DATA_ENGINEERING",
@@ -120,44 +121,128 @@ async function main(): Promise<void> {
         "SECOPS",
         "SRE",
       ] as const;
-      const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
-      const DEPT_NAMES: Record<string, string> = {
-        SOFTWARE_ENGINEERING: "Software Engineering",
-        DATA_ENGINEERING: "Data Engineering",
-        PMO: "Project Management Office",
-        QA: "Quality Assurance",
-        SYSOPS: "System Operations",
-        ITOPS: "IT Operations",
-        SECOPS: "Security Operations",
-        SRE: "Site Reliability Engineering",
+
+      const ROLE_TITLES: Record<string, string> = {
+        SOFTWARE_ENGINEERING: "Software Engineer (SDE)",
+        DATA_ENGINEERING: "Data Engineer",
+        PMO: "Project Management Officer (PMO)",
+        QA: "QA Engineer",
+        SYSOPS: "SysOps Engineer",
+        ITOPS: "ITOps Specialist",
+        SECOPS: "SecOps Specialist",
+        SRE: "Site Reliability Engineer (SRE)",
+      };
+
+      const DEPT_WEIGHTS: Record<string, Record<string, number>> = {
+        SOFTWARE_ENGINEERING: {
+          MCQ: 0.15,
+          SQL: 0.15,
+          CODING: 0.20,
+          DEBUGGING: 0.15,
+          AI_PROMPTING: 0.10,
+          SIMULATION: 0.15,
+          TEST_SCENARIOS: 0.10,
+        },
+        DATA_ENGINEERING: { MCQ: 0.30, SQL: 0.35, CODING: 0.35 },
+        QA: { MCQ: 0.20, SQL: 0.20, CODING: 0.20, DEBUGGING: 0.20, TEST_SCENARIOS: 0.20 },
+        SRE: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+        SYSOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+        ITOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+        PMO: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+        SECOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
       };
 
       for (const dept of DEPARTMENTS) {
-        for (const lvl of LEVELS) {
-          const isExp = lvl === "EXPERIENCED";
-          const name = `${DEPT_NAMES[dept]} - ${lvl === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced"}`;
-          await tx.roleTemplate.upsert({
+        const levelsToSeed = [
+          { lvl: "FRESHER", expLvl: null, suffix: "Fresher" },
+          { lvl: "EXPERIENCED", expLvl: "L1", suffix: "Experienced L1" },
+          { lvl: "EXPERIENCED", expLvl: "L2", suffix: "Experienced L2" },
+          { lvl: "EXPERIENCED", expLvl: "L3", suffix: "Experienced L3" },
+        ];
+
+        for (const { lvl, expLvl, suffix } of levelsToSeed) {
+          const name = `${ROLE_TITLES[dept]} - ${suffix}`;
+          const existing = await tx.roleTemplate.findFirst({
             where: {
-              department_level_version: {
-                department: dept as any,
-                level: lvl as any,
-                version: 1,
-              },
-            },
-            update: { roleName: name, isActive: true, durationMinutes: isExp ? 90 : 60 },
-            create: {
               department: dept as any,
               level: lvl as any,
-              roleName: name,
+              experiencedLevel: expLvl as any,
               version: 1,
-              isActive: true,
-              durationMinutes: isExp ? 90 : 60,
-              weightingPreset: { MCQ: 20, SQL: 20, CODING: 30, DEBUGGING: 15, AI_PROMPTING: 15 },
             },
           });
+
+          if (existing) {
+            await tx.roleTemplate.update({
+              where: { id: existing.id },
+              data: {
+                roleName: name,
+                isActive: true,
+                durationMinutes: 90,
+                weightingPreset: DEPT_WEIGHTS[dept] as any,
+              },
+            });
+          } else {
+            await tx.roleTemplate.create({
+              data: {
+                department: dept as any,
+                level: lvl as any,
+                experiencedLevel: expLvl as any,
+                roleName: name,
+                version: 1,
+                isActive: true,
+                durationMinutes: 90,
+                weightingPreset: DEPT_WEIGHTS[dept] as any,
+              },
+            });
+          }
         }
       }
-      console.log(`  ✔ Seeded 16 Department / Level Role Templates`);
+      console.log(`  ✔ Seeded 32 Department / Level Role Templates`);
+
+      // Cleanup obsolete Role Templates
+      const keepNames = [
+        "Software Developer",
+        ...DEPARTMENTS.flatMap(dept => [
+          `${ROLE_TITLES[dept]} - Fresher`,
+          `${ROLE_TITLES[dept]} - Experienced L1`,
+          `${ROLE_TITLES[dept]} - Experienced L2`,
+          `${ROLE_TITLES[dept]} - Experienced L3`,
+        ])
+      ];
+
+      const templatesToDelete = await tx.roleTemplate.findMany({
+        where: {
+          roleName: { notIn: keepNames }
+        },
+        select: { id: true, roleName: true }
+      });
+
+      if (templatesToDelete.length > 0) {
+        const ids = templatesToDelete.map(t => t.id);
+        
+        await tx.roleTemplateQuestion.deleteMany({
+          where: { roleTemplateId: { in: ids } }
+        });
+
+        for (const t of templatesToDelete) {
+          const isReferencedInDrive = await tx.drive.findFirst({ where: { roleTemplateId: t.id } });
+          const isReferencedInInvite = await tx.invite.findFirst({ where: { roleTemplateId: t.id } });
+          const isReferencedInSession = await tx.session.findFirst({ where: { roleTemplateId: t.id } });
+
+          if (isReferencedInDrive || isReferencedInInvite || isReferencedInSession) {
+            await tx.roleTemplate.update({
+              where: { id: t.id },
+              data: { isActive: false }
+            });
+            console.log(`  💤 Deactivated referenced obsolete RoleTemplate: ${t.roleName}`);
+          } else {
+            await tx.roleTemplate.delete({
+              where: { id: t.id }
+            });
+            console.log(`  🗑 Deleted obsolete RoleTemplate: ${t.roleName}`);
+          }
+        }
+      }
 
       // 3. Seed Questions from JSON Files
       const allQuestions = getAllQuestionSeedData();
