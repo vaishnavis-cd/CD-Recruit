@@ -180,12 +180,20 @@ function DriveDetailPage() {
   const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
   const removeCandidateFromDrive = useStore((s) => s.removeCandidateFromDrive);
+  const roleTemplates = useStore((s) => s.roleTemplates);
+  const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
 
   const [drive, setDrive] = useState<DriveDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [isEditingUnlocked, setIsEditingUnlocked] = useState<boolean>(false);
   const [showUnlockConfirmModal, setShowUnlockConfirmModal] = useState<boolean>(false);
+
+  // Select Role Template Modal State
+  const [showSelectTemplateModal, setShowSelectTemplateModal] = useState<boolean>(false);
+  const [selectedTemplateForDrive, setSelectedTemplateForDrive] = useState<string>("");
+  const [templateDeptFilter, setTemplateDeptFilter] = useState<string>("all");
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
 
   // Tab State
   const [activeTab, setActiveTab] = useState<"roster" | "questions" | "configuration">("configuration");
@@ -253,6 +261,7 @@ function DriveDetailPage() {
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
   const [candidateNameInput, setCandidateNameInput] = useState("");
   const [candidateEmailInput, setCandidateEmailInput] = useState("");
+  const [candidateLevelInput, setCandidateLevelInput] = useState("2-5");
 
   // Bulk Import Modal State
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
@@ -262,7 +271,7 @@ function DriveDetailPage() {
 
   const parseBulkCandidates = (text: string) => {
     const lines = text.split("\n");
-    const parsed: Array<{ name: string; candidateEmail: string }> = [];
+    const parsed: Array<{ name: string; candidateEmail: string; level: string }> = [];
     const errors: string[] = [];
     const emailsInInput = new Set<string>();
     const existingRosterEmails = new Set((drive?.roster || []).map((c) => c.candidateEmail.toLowerCase()));
@@ -273,12 +282,13 @@ function DriveDetailPage() {
 
       const parts = trimmed.split(/[,;\t]+/);
       if (parts.length < 2) {
-        errors.push(`Line ${idx + 1}: Must contain name and email separated by a comma (e.g. "John Doe, john@example.com").`);
+        errors.push(`Line ${idx + 1}: Must contain name and email separated by a comma (e.g. "John Doe, john@example.com, 2-5").`);
         return;
       }
 
       const name = parts[0].trim();
       const email = parts[1].trim().toLowerCase();
+      const rawLevel = parts.length >= 3 ? parts[2].trim() : "2-5";
 
       if (!name) {
         errors.push(`Line ${idx + 1}: Name is missing.`);
@@ -304,7 +314,7 @@ function DriveDetailPage() {
       }
 
       emailsInInput.add(email);
-      parsed.push({ name, candidateEmail: email });
+      parsed.push({ name, candidateEmail: email, level: rawLevel });
     });
 
     return { parsed, errors };
@@ -498,6 +508,7 @@ function DriveDetailPage() {
   useEffect(() => {
     loadData();
     fetchQuestions({ pageSize: 1000 });
+    fetchRoleTemplates();
   }, [driveId]);
 
   const handleUnlockEditing = async () => {
@@ -517,6 +528,65 @@ function DriveDetailPage() {
       await loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to unlock drive editing");
+    }
+  };
+
+  const handleApplyRoleTemplate = async (templateId: string) => {
+    const tpl = roleTemplates.find((r) => r.id === templateId);
+    if (!tpl) {
+      toast.error("Role template not found.");
+      return;
+    }
+
+    try {
+      const headers = await getAuthHeaders();
+
+      // 1. Update drive's roleTemplateId
+      const updateRes = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ roleTemplateId: templateId }),
+      });
+
+      if (!updateRes.ok) {
+        throw new Error("Failed to update drive role template.");
+      }
+
+      // 2. Fetch template details to extract question IDs & weighting presets
+      const tplRes = await fetch(`${API_BASE}/admin/role-templates/${templateId}`, { headers });
+      if (tplRes.ok) {
+        const tplData = await tplRes.json();
+        const tplQuestionIds = (tplData.questions || []).map((q: any) => q.questionId).filter(Boolean);
+
+        if (tplQuestionIds.length > 0) {
+          await saveDriveQuestions(driveId, tplQuestionIds);
+          setAssignedQuestions(tplQuestionIds);
+          setSavedAssignedQuestions(tplQuestionIds);
+        }
+
+        if (tplData.weightingPreset) {
+          const preset = tplData.weightingPreset as Record<string, number>;
+          setModuleConfig((prev) => {
+            const updated = { ...prev };
+            Object.entries(preset).forEach(([mod, w]) => {
+              if (updated[mod]) {
+                updated[mod] = {
+                  ...updated[mod],
+                  enabled: true,
+                  weight: typeof w === "number" ? Math.round(w <= 1 ? w * 100 : w) : updated[mod].weight,
+                };
+              }
+            });
+            return updated;
+          });
+        }
+      }
+
+      toast.success(`Role Template "${tpl.roleName}" applied to drive!`);
+      setShowSelectTemplateModal(false);
+      await loadData();
+    } catch (err: any) {
+      toast.error("Failed applying template: " + (err.message || err));
     }
   };
 
@@ -893,12 +963,14 @@ function DriveDetailPage() {
         {
           name: candidateNameInput.trim(),
           candidateEmail: email,
+          level: candidateLevelInput,
         },
       ]);
       toast.success("Candidate added successfully!");
       setShowAddCandidateModal(false);
       setCandidateNameInput("");
       setCandidateEmailInput("");
+      setCandidateLevelInput("2-5");
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to add candidate");
@@ -1076,13 +1148,24 @@ function DriveDetailPage() {
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="CLOSED">CLOSED</option>
               </select>
-              
             </div>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap text-[12px] text-[#5B5B64]">
-            <span>
-              Role Template: <span className="font-semibold text-[#0B0B0D]">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName}</span> (v{(drive as any).roleTemplate?.version || 1})
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span>
+                Role Template: <span className="font-semibold text-[#0B0B0D]">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName}</span> (v{(drive as any).roleTemplate?.version || 1})
+              </span>
+              <button
+                onClick={() => {
+                  setSelectedTemplateForDrive((drive as any).roleTemplateId || "");
+                  setShowSelectTemplateModal(true);
+                }}
+                className="px-2 py-0.5 text-[11px] font-medium text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D6E4FF] rounded transition-colors cursor-pointer border border-[#B3C5FF] flex items-center gap-1"
+                title="Select or apply Role Template to this drive"
+              >
+                <Sparkles size={11} /> Select / Change Template
+              </button>
+            </div>
             <span>•</span>
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
@@ -1093,7 +1176,6 @@ function DriveDetailPage() {
             >
               {(drive as any).originChannel === "PARTNER_API" ? "Partner API Origin" : "Direct Origin"}
             </span>
-            
           </div>
         </div>
 
@@ -1802,6 +1884,7 @@ function DriveDetailPage() {
                   <tr className="bg-[#F7F7F9] text-[11px] font-mono uppercase text-[#5B5B64] border-b border-[#E6E6EA]">
                     <th className="p-3">Candidate</th>
                     <th className="p-3">Email</th>
+                    <th className="p-3">Level / Tier</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Invite Link</th>
                     <th className="p-3 text-right">Action</th>
@@ -1810,7 +1893,7 @@ function DriveDetailPage() {
                 <tbody className="divide-y divide-[#EFF0F3]">
                   {drive.roster.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
+                      <td colSpan={6} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
                         No candidates added to roster yet. Click "Add Candidate" above to get started.
                       </td>
                     </tr>
@@ -1819,6 +1902,11 @@ function DriveDetailPage() {
                       <tr key={c.candidateId} className="hover:bg-[#F7F7F9]">
                         <td className="p-3 font-semibold text-[#0B0B0D]">{c.candidateName}</td>
                         <td className="p-3 font-mono text-[12px] text-[#5B5B64]">{c.candidateEmail}</td>
+                        <td className="p-3 font-mono text-[11px]">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">
+                            {c.experienceTier || c.level || "0-1"}
+                          </span>
+                        </td>
                         <td className="p-3 font-mono text-[11px]">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase font-mono ${
@@ -2084,6 +2172,22 @@ function DriveDetailPage() {
                   placeholder="e.g. john.doe@example.com"
                   className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md focus:outline-none focus:border-[#2F5CFF]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                  Experience Level
+                </label>
+                <select
+                  value={candidateLevelInput}
+                  onChange={(e) => setCandidateLevelInput(e.target.value)}
+                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md focus:outline-none focus:border-[#2F5CFF] bg-white text-[#0B0B0D]"
+                >
+                  <option value="0-1">0-1 yrs (Fresher)</option>
+                  <option value="2-5">2-5 yrs (Level 1)</option>
+                  <option value="6-10">6-10 yrs (Level 2)</option>
+                  <option value="11-15">11-15 yrs (Level 3)</option>
+                </select>
               </div>
             </div>
 
@@ -2360,6 +2464,133 @@ function DriveDetailPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select / Change Role Template Modal */}
+      {showSelectTemplateModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[540px] shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Select &amp; Apply Role Template</h3>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                  Link a Role Template to automatically import questions and preset module weights.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSelectTemplateModal(false)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Department</label>
+                  <select
+                    value={templateDeptFilter}
+                    onChange={(e) => setTemplateDeptFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                  >
+                    <option value="all">All Departments</option>
+                    <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                    <option value="DATA_ENGINEERING">Data Engineering</option>
+                    <option value="QA_TESTING">QA &amp; Testing</option>
+                    <option value="DEVOPS_SRE">DevOps &amp; SRE</option>
+                    <option value="CYBERSECURITY">Cybersecurity</option>
+                    <option value="PRODUCT_DESIGN">Product &amp; Design</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Category</label>
+                  <select
+                    value={templateCategoryFilter}
+                    onChange={(e) => setTemplateCategoryFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="FRESHER">Fresher (0-1 yrs)</option>
+                    <option value="EXPERIENCED">Experienced (2-15 yrs)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                  Select Role Template <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedTemplateForDrive}
+                  onChange={(e) => setSelectedTemplateForDrive(e.target.value)}
+                  className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+                >
+                  <option value="">-- Choose Role Template --</option>
+                  {(roleTemplates || [])
+                    .filter((rt) => {
+                      if (templateDeptFilter !== "all" && rt.department !== templateDeptFilter) return false;
+                      if (templateCategoryFilter !== "all" && ((rt as any).category || "FRESHER") !== templateCategoryFilter) return false;
+                      return true;
+                    })
+                    .map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.roleName} [{((tpl as any).category || "FRESHER") === "FRESHER" ? "Fresher (0-1 yrs)" : `${(tpl as any).experienceTier || "2-5"} yrs`}] ({tpl.department || "General"})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {selectedTemplateForDrive && (
+                <div className="p-3.5 bg-[#F4F6FF] border border-[#C5D7FE] rounded-lg space-y-2 text-[12px]">
+                  {(() => {
+                    const tpl = roleTemplates.find((r) => r.id === selectedTemplateForDrive);
+                    if (!tpl) return null;
+                    return (
+                      <>
+                        <div className="flex items-center justify-between font-semibold text-[#15308F]">
+                          <span>{tpl.roleName}</span>
+                          <span className="px-2 py-0.5 bg-[#2F5CFF] text-white rounded text-[10px] uppercase font-mono">
+                            {(tpl as any).experienceTier || "0-1"} yrs
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[#5B5B64] text-[11px]">
+                          <span>Department: <strong className="text-[#0B0B0D]">{tpl.department || "General"}</strong></span>
+                          <span>•</span>
+                          <span>Category: <strong className="text-[#0B0B0D]">{(tpl as any).category || "FRESHER"}</strong></span>
+                          <span>•</span>
+                          <span>Duration: <strong className="text-[#0B0B0D]">{tpl.durationMinutes || 60}m</strong></span>
+                        </div>
+                        <p className="text-[11px] text-[#2F5CFF] italic pt-1 border-t border-[#C5D7FE]">
+                          💡 Applying this template will update the drive's template reference, link default questions, and apply module weighting presets.
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSelectTemplateModal(false)}
+                className="px-3.5 py-2 text-[12px] font-medium text-[#5B5B64] hover:bg-[#E6E6EA] rounded-md transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyRoleTemplate(selectedTemplateForDrive)}
+                disabled={!selectedTemplateForDrive}
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                <Sparkles size={14} /> Apply Template &amp; Sync Questions
+              </button>
             </div>
           </div>
         </div>

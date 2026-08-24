@@ -128,7 +128,9 @@ export class DriveService {
         },
       });
 
-      // Link explicitly selected questions if provided by admin
+      // Link explicitly selected questions if provided by admin, or copy from RoleTemplate
+      let questionEntriesToLink: Array<{ questionId: string; moduleType: any; version?: number }> = [];
+
       if (dto.questionIds && Array.isArray(dto.questionIds) && dto.questionIds.length > 0) {
         const questionsToLink = await tx.question.findMany({
           where: {
@@ -136,22 +138,39 @@ export class DriveService {
             status: "PUBLISHED",
           },
         });
-
-        if (questionsToLink.length > 0) {
-          await tx.driveQuestion.createMany({
-            data: questionsToLink.map((q) => {
-              const tags = q.tags || [];
-              const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
-              const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-              return {
-                driveId: createdDrive.id,
-                questionId: q.id,
-                moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
-                questionVersionSnapshot: q.version ?? 1,
-              };
-            }),
-          });
+        questionEntriesToLink = questionsToLink.map((q) => {
+          const tags = q.tags || [];
+          const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+          const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+          return {
+            questionId: q.id,
+            moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+            version: q.version ?? 1,
+          };
+        });
+      } else if (finalRoleTemplateId) {
+        const tplQuestions = await tx.roleTemplateQuestion.findMany({
+          where: { roleTemplateId: finalRoleTemplateId },
+          include: { question: true },
+        });
+        if (tplQuestions.length > 0) {
+          questionEntriesToLink = tplQuestions.map((tq) => ({
+            questionId: tq.questionId,
+            moduleType: tq.moduleType,
+            version: tq.questionVersionSnapshot || tq.question?.version || 1,
+          }));
         }
+      }
+
+      if (questionEntriesToLink.length > 0) {
+        await tx.driveQuestion.createMany({
+          data: questionEntriesToLink.map((entry) => ({
+            driveId: createdDrive.id,
+            questionId: entry.questionId,
+            moduleType: entry.moduleType,
+            questionVersionSnapshot: entry.version ?? 1,
+          })),
+        });
       }
 
       // Generate Invites/Roster
@@ -452,6 +471,10 @@ export class DriveService {
         compositeScore: session?.score?.compositeScore ?? null,
         submittedAt: session?.submittedAt ? session.submittedAt.toISOString() : null,
         isGenerated: invite.isGenerated,
+        category: invite.category,
+        experienceTier: invite.experienceTier,
+        level: invite.experienceTier || (invite.category === "EXPERIENCED" ? "2-5" : "0-1"),
+        roleTemplateId: invite.roleTemplateId,
       };
     });
 

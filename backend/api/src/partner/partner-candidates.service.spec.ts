@@ -1,5 +1,4 @@
 import { PartnerCandidatesService } from "./partner-candidates.service";
-import { Department, ExperienceLevel } from "@prisma/client";
 import assert from "node:assert";
 
 async function runPartnerCandidatesServiceTests() {
@@ -10,21 +9,62 @@ async function runPartnerCandidatesServiceTests() {
     name: "Greenhouse ATS Partner",
   };
 
-  const mockActiveTemplate: any = {
-    id: "tpl-active-1",
-    roleName: "Senior Software Engineer",
-    department: "SOFTWARE_ENGINEERING",
-    level: "EXPERIENCED",
-    version: 1,
-    isActive: true,
-  };
+  const mockActiveTemplates: any[] = [
+    {
+      id: "tpl-fresher",
+      roleName: "Software Engineer - Fresher",
+      department: "SOFTWARE_ENGINEERING",
+      category: "FRESHER",
+      level: "FRESHER",
+      experienceTier: "0-1",
+      version: 1,
+      isActive: true,
+    },
+    {
+      id: "tpl-l1",
+      roleName: "Software Engineer - Level 1",
+      department: "SOFTWARE_ENGINEERING",
+      category: "EXPERIENCED",
+      level: "EXPERIENCED",
+      experienceTier: "2-5",
+      version: 1,
+      isActive: true,
+    },
+    {
+      id: "tpl-l2",
+      roleName: "Software Engineer - Level 2",
+      department: "SOFTWARE_ENGINEERING",
+      category: "EXPERIENCED",
+      level: "EXPERIENCED",
+      experienceTier: "6-10",
+      version: 1,
+      isActive: true,
+    },
+    {
+      id: "tpl-l3",
+      roleName: "Software Engineer - Level 3",
+      department: "SOFTWARE_ENGINEERING",
+      category: "EXPERIENCED",
+      level: "EXPERIENCED",
+      experienceTier: "11-15",
+      version: 1,
+      isActive: true,
+    },
+  ];
 
   const mockRoleTemplateService: any = {
-    findActiveTemplate: async (dept: string, lvl: string) => {
-      if (dept === "SOFTWARE_ENGINEERING" && lvl === "EXPERIENCED") {
-        return mockActiveTemplate;
-      }
+    findActiveTemplate: async (dept: string, category: string, tier?: string) => {
+      const match = mockActiveTemplates.find(
+        (t) =>
+          t.department === dept &&
+          (t.category === category || t.level === category) &&
+          (!tier || t.experienceTier === tier),
+      );
+      if (match) return match;
       throw new Error("NotFoundException: Active role template not found");
+    },
+    findActiveTemplatesForDepartment: async (dept: string) => {
+      return mockActiveTemplates.filter((t) => t.department === dept && t.isActive);
     },
   };
 
@@ -35,9 +75,23 @@ async function runPartnerCandidatesServiceTests() {
   const mockPrisma: any = {
     drive: {
       findFirst: async ({ where }: any) => {
-        const searchName = typeof where?.name === "string" ? where.name : where?.name?.startsWith;
-        if (!searchName) return createdDrives[0] || null;
-        const found = createdDrives.find((d) => d.name.includes(searchName));
+        let found = createdDrives[0] || null;
+        if (where?.OR && Array.isArray(where.OR)) {
+          found = createdDrives.find((d) =>
+            where.OR.some((clause: any) =>
+              clause.name?.contains
+                ? d.name.includes(clause.name.contains)
+                : clause.name?.startsWith
+                ? d.name.startsWith(clause.name.startsWith)
+                : false,
+            ),
+          ) || createdDrives[0];
+        } else if (where?.name) {
+          const searchName = typeof where.name === "string" ? where.name : where.name?.startsWith;
+          if (searchName) {
+            found = createdDrives.find((d) => d.name.includes(searchName)) || null;
+          }
+        }
         if (found) {
           return {
             ...found,
@@ -63,6 +117,9 @@ async function runPartnerCandidatesServiceTests() {
         auditLogs.push(data);
         return data;
       },
+    },
+    staff: {
+      findFirst: async () => ({ id: "staff-admin-1", name: "Admin Staff", role: "ADMIN" }),
     },
     $transaction: async (cb: any) => cb(mockPrisma),
   };
@@ -91,20 +148,31 @@ async function runPartnerCandidatesServiceTests() {
       isGenerated: boolean,
       options: any,
     ) => {
-      candidates.forEach((c) => {
-        createdInvites.push({
+      const summaries = candidates.map((c) => {
+        const item = {
           id: "inv-" + c.candidateEmail,
           driveId,
-          roleTemplateId,
+          roleTemplateId: c.roleTemplateId || roleTemplateId,
           candidateEmail: c.candidateEmail,
           candidateName: c.name,
+          category: c.category || "EXPERIENCED",
+          experienceTier: c.experienceTier || "2-5",
           token: "jwt_token_" + c.candidateEmail,
           expiresAt: options.expiresAt,
           scheduledTime: options.scheduledTime,
           createdById: staffId,
-        });
+        };
+        createdInvites.push(item);
+        return {
+          id: item.id,
+          candidateEmail: item.candidateEmail,
+          candidateName: item.candidateName,
+          token: item.token,
+          expiresAt: item.expiresAt,
+          roleTemplateId: item.roleTemplateId,
+        };
       });
-      return { count: candidates.length };
+      return { count: candidates.length, createdInvites: summaries };
     },
   };
 
@@ -120,12 +188,12 @@ async function runPartnerCandidatesServiceTests() {
     mockConfigService,
   );
 
-  // Test 1: Throws 422 UnprocessableEntityException when active template is missing
+  // Test 1: Throws 422 UnprocessableEntityException when active template is missing for department
   let threw422 = false;
   try {
     await service.pushCandidates(mockPartner, {
       department_code: "SRE",
-      level: "FRESHER",
+      category: "FRESHER",
       requisition_ref: "REQ-001",
       candidates: [{ name: "Alice", email: "alice@example.com" }],
     });
@@ -137,47 +205,54 @@ async function runPartnerCandidatesServiceTests() {
   assert.strictEqual(threw422, true, "Should throw 422 when active template missing");
   console.log("  ✔ Throws 422 UnprocessableEntityException when active role template missing");
 
-  // Test 2: First call for requisition creates Drive via createFromTemplate and sets 48h rolling invites
+  // Test 2: Ingest candidates with multi-tier levels (2-5, 6-10, 11-15) and map to calibrated role templates
   const res1 = await service.pushCandidates(mockPartner, {
     department_code: "SOFTWARE_ENGINEERING",
-    level: "EXPERIENCED",
+    category: "EXPERIENCED",
     requisition_ref: "REQ-100",
-    candidates: [{ name: "Bob Martin", email: "bob@example.com" }],
+    candidates: [
+      { name: "Bob Martin", email: "bob@example.com", level: "2-5" },
+      { name: "Carol Danvers", email: "carol@example.com", level: "6-10" },
+      { name: "Dave Miller", email: "dave@example.com", level: "11-15" },
+    ],
   });
 
   assert.strictEqual(res1.success, true);
   assert.strictEqual(res1.requisition_ref, "REQ-100");
-  assert.strictEqual(res1.invites.length, 1);
+  assert.strictEqual(res1.invites.length, 3);
   assert.strictEqual(res1.invites[0].candidate_email, "bob@example.com");
+  assert.strictEqual(res1.invites[0].experience_tier, "2-5");
+  assert.strictEqual(res1.invites[1].experience_tier, "6-10");
+  assert.strictEqual(res1.invites[2].experience_tier, "11-15");
   assert(res1.invites[0].assessment_link.includes("/invite/jwt_token_bob@example.com"));
 
   const lastAudit = auditLogs[auditLogs.length - 1];
-  assert.strictEqual(lastAudit.staffId, "API:Greenhouse ATS Partner");
-  console.log("  ✔ First call creates Drive via createFromTemplate and returns candidate assessment link");
+  assert.strictEqual(lastAudit.metadata.actorLabel, "API:Greenhouse ATS Partner");
+  console.log("  ✔ Ingests multi-tier candidates and maps to calibrated RoleTemplates");
 
   // Test 3: Subsequent call for same requisition reuses existing Drive
   const initialDriveCount = createdDrives.length;
   const res2 = await service.pushCandidates(mockPartner, {
     department_code: "SOFTWARE_ENGINEERING",
-    level: "EXPERIENCED",
+    category: "EXPERIENCED",
     requisition_ref: "REQ-100",
-    candidates: [{ name: "Charlie Day", email: "charlie@example.com" }],
+    candidates: [{ name: "Charlie Day", email: "charlie@example.com", level: "2-5" }],
   });
 
   assert.strictEqual(createdDrives.length, initialDriveCount, "Should not create a duplicate Drive for same requisition");
   assert.strictEqual(res2.drive_id, res1.drive_id);
   console.log("  ✔ Subsequent call for same requisition reuses existing Drive");
 
-  // Test 4: getRequisitionStatus returns status with PENDING score_status when Score row is missing
+  // Test 4: getRequisitionStatus returns status with is_scored: false when Score row is missing
   const statusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
   assert.strictEqual(statusRes.requisition_ref, "REQ-100");
-  assert.strictEqual(statusRes.total_candidates, 2);
-  assert.strictEqual(statusRes.candidates[0].score_status, "PENDING");
+  assert.strictEqual(statusRes.candidates.length, 4);
+  assert.strictEqual(statusRes.candidates[0].is_scored, false);
   assert.strictEqual(statusRes.candidates[0].composite_score, null);
-  assert.strictEqual(statusRes.candidates[0].composite_score_band, null);
-  console.log("  ✔ getRequisitionStatus returns PENDING score_status when Score row is missing");
+  assert.strictEqual(statusRes.candidates[0].score_band, null);
+  console.log("  ✔ getRequisitionStatus returns is_scored: false when Score row is missing");
 
-  // Test 5: getRequisitionStatus populates SCORED and composite_score_band when real Score row exists
+  // Test 5: getRequisitionStatus populates is_scored: true and score_band when real Score row exists
   createdInvites[0].session = {
     id: "sess-1",
     status: "COMPLETED",
@@ -190,10 +265,10 @@ async function runPartnerCandidatesServiceTests() {
   const scoredStatusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
   const scoredCand = scoredStatusRes.candidates.find((c: any) => c.candidate_email === "bob@example.com");
   if (!scoredCand) throw new Error("scoredCand not found in response");
-  assert.strictEqual(scoredCand.score_status, "SCORED");
+  assert.strictEqual(scoredCand.is_scored, true);
   assert.strictEqual(scoredCand.composite_score, 88.5);
-  assert.strictEqual(scoredCand.composite_score_band, "STRONG_PASS");
-  console.log("  ✔ getRequisitionStatus populates SCORED and STRONG_PASS band when real Score row exists");
+  assert.strictEqual(scoredCand.score_band, "HIGH");
+  console.log("  ✔ getRequisitionStatus populates is_scored: true and score_band HIGH when real Score row exists");
 
   console.log("✅ All PartnerCandidatesService characterization tests passed successfully!");
 }

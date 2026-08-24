@@ -1,8 +1,12 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
+import { normalizeExperienceTier, CandidateCategory } from "../common/utils/experience-tier.util";
 
 export interface ParsedCandidateRow {
   name: string;
   candidateEmail: string;
+  level?: string;
+  category?: CandidateCategory;
+  experienceTier?: string;
 }
 
 export interface CsvParseResult {
@@ -15,9 +19,9 @@ export class CsvIngestionService {
   private readonly emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   /**
-   * Parse a raw CSV text content or buffer into structured candidate rows.
+   * Parse a raw CSV text content or buffer into structured candidate rows (with level support).
    */
-  parseCandidateCsv(csvContent: string): CsvParseResult {
+  parseCandidateCsv(csvContent: string, defaultCategory = CandidateCategory.FRESHER): CsvParseResult {
     if (!csvContent || !csvContent.trim()) {
       throw new BadRequestException("CSV file content is empty");
     }
@@ -30,6 +34,7 @@ export class CsvIngestionService {
     const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
     const nameIdx = headers.findIndex((h) => h.includes("name"));
     const emailIdx = headers.findIndex((h) => h.includes("email"));
+    const levelIdx = headers.findIndex((h) => h.includes("level") || h.includes("tier") || h.includes("exp"));
 
     if (nameIdx === -1 || emailIdx === -1) {
       throw new BadRequestException("CSV headers must contain 'name' and 'email' columns");
@@ -42,6 +47,7 @@ export class CsvIngestionService {
       const columns = lines[i].split(",").map((c) => c.trim());
       const name = columns[nameIdx] ?? "";
       const email = columns[emailIdx] ?? "";
+      const rawLevel = levelIdx !== -1 ? (columns[levelIdx] ?? "") : "";
 
       if (!name || !email) {
         errors.push(`Row ${i + 1}: Missing name or email`);
@@ -53,7 +59,27 @@ export class CsvIngestionService {
         continue;
       }
 
-      valid.push({ name, candidateEmail: email.toLowerCase() });
+      let category = defaultCategory;
+      let experienceTier = defaultCategory === CandidateCategory.FRESHER ? "0-1" : "2-5";
+
+      if (rawLevel) {
+        const norm = normalizeExperienceTier(rawLevel, defaultCategory);
+        if (norm) {
+          category = norm.category;
+          experienceTier = norm.tier;
+        } else if (defaultCategory === CandidateCategory.EXPERIENCED) {
+          errors.push(`Row ${i + 1}: Invalid experience level '${rawLevel}'. Expected '0-1', '2-5', '6-10', or '11-15'`);
+          continue;
+        }
+      }
+
+      valid.push({
+        name,
+        candidateEmail: email.toLowerCase(),
+        level: experienceTier,
+        category,
+        experienceTier,
+      });
     }
 
     return { valid, errors };

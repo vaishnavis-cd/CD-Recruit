@@ -37,6 +37,10 @@ export interface DriveCandidateRosterItem {
   compositeScore: number | null;
   submittedAt: string | null;
   isGenerated: boolean;
+  category?: string | null;
+  experienceTier?: string | null;
+  level?: string | null;
+  roleTemplateId?: string | null;
 }
 
 export interface DriveDetail extends Drive {

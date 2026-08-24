@@ -63,6 +63,42 @@ async function buildQuestionList(
       }
     }
 
+    // 1. Check candidate's calibrated RoleTemplate questions (tier-specific fairness)
+    if (session.roleTemplateId) {
+      const templateQuestions = await prisma.roleTemplateQuestion.findMany({
+        where: { roleTemplateId: session.roleTemplateId },
+        include: { question: true },
+        orderBy: [{ orderIndex: "asc" }, { moduleType: "asc" }],
+      });
+
+      if (templateQuestions && templateQuestions.length > 0) {
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          templateQuestions as any,
+          session.candidateId,
+          session.roleTemplateId,
+        );
+        return shuffled.map((q: any) => {
+          const matchingTq = templateQuestions.find((tq) => tq.questionId === q.questionId);
+          const rawQ = matchingTq?.question || q;
+          const tags = rawQ.tags || [];
+          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+          const isDebug =
+            rawQ.moduleType === "DEBUGGING" ||
+            q.moduleType === "DEBUGGING" ||
+            tags.includes("debugging") ||
+            prompt.includes("debugging challenge");
+          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+          return {
+            ...q,
+            moduleType: effectiveModuleType,
+            content: rawQ.content || q.content || {},
+            difficulty: rawQ.difficulty || q.difficulty || "medium",
+          };
+        });
+      }
+    }
+
+    // 2. Check Drive Questions
     if (driveId) {
       const driveQuestions = await prisma.driveQuestion.findMany({
         where: { driveId },
@@ -117,7 +153,7 @@ async function buildQuestionList(
       }
     }
 
-    // Fallback: Published questions from Question Bank
+    // 3. Fallback: Published questions from Question Bank
     const fallbackQuestions = await prisma.question.findMany({
       where: { status: "PUBLISHED" },
       take: 30,

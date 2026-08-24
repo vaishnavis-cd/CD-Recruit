@@ -42,7 +42,14 @@ const DEPARTMENTS = [
   "SRE",
 ] as const;
 
-const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
+const CATEGORIES = ["FRESHER", "EXPERIENCED"] as const;
+
+const TIERS = [
+  { value: "0-1", label: "0-1 yrs (Fresher)", category: "FRESHER" },
+  { value: "2-5", label: "2-5 yrs (Level 1)", category: "EXPERIENCED" },
+  { value: "6-10", label: "6-10 yrs (Level 2)", category: "EXPERIENCED" },
+  { value: "11-15", label: "11-15 yrs (Level 3)", category: "EXPERIENCED" },
+] as const;
 
 export function RoleTemplatesPage() {
   const [templates, setTemplates] = useState<any[]>([]);
@@ -51,7 +58,8 @@ export function RoleTemplatesPage() {
 
   // Filters
   const [deptFilter, setDeptFilter] = useState<string>("all");
-  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [tierFilter, setTierFilter] = useState<string>("all");
   const [activeOnlyFilter, setActiveOnlyFilter] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -62,7 +70,8 @@ export function RoleTemplatesPage() {
   // Form State
   const [roleName, setRoleName] = useState("");
   const [department, setDepartment] = useState<string>("SOFTWARE_ENGINEERING");
-  const [level, setLevel] = useState<string>("FRESHER");
+  const [category, setCategory] = useState<string>("EXPERIENCED");
+  const [experienceTier, setExperienceTier] = useState<string>("2-5");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [weightingPreset, setWeightingPreset] = useState({
     MCQ: 0.2,
@@ -119,7 +128,8 @@ export function RoleTemplatesPage() {
     setEditingTemplate(null);
     setRoleName("");
     setDepartment("SOFTWARE_ENGINEERING");
-    setLevel("FRESHER");
+    setCategory("EXPERIENCED");
+    setExperienceTier("2-5");
     setDurationMinutes(60);
     setWeightingPreset({
       MCQ: 0.2,
@@ -136,7 +146,8 @@ export function RoleTemplatesPage() {
     setEditingTemplate(tpl);
     setRoleName(tpl.roleName || "");
     setDepartment(tpl.department || "SOFTWARE_ENGINEERING");
-    setLevel(tpl.level || "FRESHER");
+    setCategory(tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED"));
+    setExperienceTier(tpl.experienceTier || (tpl.level === "FRESHER" ? "0-1" : "2-5"));
     setDurationMinutes(tpl.durationMinutes || 60);
 
     const preset = typeof tpl.weightingPreset === "object" && tpl.weightingPreset
@@ -177,7 +188,9 @@ export function RoleTemplatesPage() {
     const payload = {
       roleName: roleName.trim(),
       department,
-      level,
+      category,
+      experienceTier: category === "FRESHER" ? "0-1" : experienceTier,
+      level: category === "FRESHER" ? "FRESHER" : "EXPERIENCED",
       durationMinutes: Number(durationMinutes),
       weightingPreset,
       questions: questionPayload,
@@ -280,7 +293,10 @@ export function RoleTemplatesPage() {
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
       if (deptFilter !== "all" && t.department !== deptFilter) return false;
-      if (levelFilter !== "all" && t.level !== levelFilter) return false;
+      const tCategory = t.category || (t.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
+      if (categoryFilter !== "all" && tCategory !== categoryFilter) return false;
+      const tTier = t.experienceTier || (t.level === "FRESHER" ? "0-1" : "2-5");
+      if (tierFilter !== "all" && tTier !== tierFilter) return false;
       if (activeOnlyFilter && !t.isActive) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -290,7 +306,7 @@ export function RoleTemplatesPage() {
       }
       return true;
     });
-  }, [templates, deptFilter, levelFilter, activeOnlyFilter, searchQuery]);
+  }, [templates, deptFilter, categoryFilter, tierFilter, activeOnlyFilter, searchQuery]);
 
   return (
     <AppShell
@@ -341,17 +357,33 @@ export function RoleTemplatesPage() {
               </select>
             </div>
 
-            {/* Level Filter */}
+            {/* Category Filter */}
             <div>
               <select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value)}
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
                 className="px-3 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#5B5B64]"
               >
-                <option value="all">All Levels</option>
-                {LEVELS.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
+                <option value="all">All Categories</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tier Filter */}
+            <div>
+              <select
+                value={tierFilter}
+                onChange={(e) => setTierFilter(e.target.value)}
+                className="px-3 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#5B5B64]"
+              >
+                <option value="all">All Experience Tiers</option>
+                {TIERS.map((tier) => (
+                  <option key={tier.value} value={tier.value}>
+                    {tier.label}
                   </option>
                 ))}
               </select>
@@ -382,180 +414,173 @@ export function RoleTemplatesPage() {
               No Role Templates Found
             </h3>
             <p className="text-[13px] text-[#8B8B93] max-w-sm mx-auto">
-              Create your first role template with department, level, duration, and question presets.
+              Create your first role template with department, category, experience tier, duration, and question presets.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTemplates.map((tpl) => (
-              <div
-                key={tpl.id}
-                className={`bg-white border rounded-xl p-5 space-y-4 flex flex-col justify-between transition-shadow hover:shadow-md ${
-                  tpl.isActive ? "border-[#C6D4FF]" : "border-[#E6E6EA]"
-                }`}
-              >
-                <div className="space-y-3">
-                  {/* Title & Status Badges */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
-                          {tpl.roleName}
-                        </h3>
-                        <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#F0F4FF] text-[#2F5CFF] rounded">
-                          v{tpl.version}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {tpl.department && (
-                          <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
-                            {tpl.department}
+            {filteredTemplates.map((tpl) => {
+              const tTier = tpl.experienceTier || (tpl.level === "FRESHER" ? "0-1" : "2-5");
+              const matchedTier = TIERS.find((t) => t.value === tTier);
+              return (
+                <div
+                  key={tpl.id}
+                  className={`bg-white border rounded-xl p-5 space-y-4 flex flex-col justify-between transition-shadow hover:shadow-md ${
+                    tpl.isActive ? "border-[#C6D4FF]" : "border-[#E6E6EA]"
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* Title & Status Badges */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
+                            {tpl.roleName}
+                          </h3>
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#F0F4FF] text-[#2F5CFF] rounded">
+                            v{tpl.version}
                           </span>
-                        )}
-                        {tpl.level && (
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {tpl.department && (
+                            <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
+                              {tpl.department}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#EFF6FF] text-[#1E40AF] border border-[#BFDBFE] rounded">
+                            {tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED")}
+                          </span>
                           <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] rounded">
-                            {tpl.level}
+                            {matchedTier?.label || tTier}
                           </span>
-                        )}
+                        </div>
                       </div>
-                    </div>
 
-                    <span
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-full shrink-0 ${
-                        tpl.isActive
-                          ? "bg-[#DCFCE7] text-[#15803D]"
-                          : "bg-[#F3F4F6] text-[#6B7280]"
-                      }`}
-                    >
-                      {tpl.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-
-                  {/* Details summary */}
-                  <div className="flex items-center gap-4 text-[12px] text-[#5B5B64]">
-                    <div className="flex items-center gap-1">
-                      <Clock size={13} className="text-[#8B8B93]" />
-                      <span>{tpl.durationMinutes} mins</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <HelpCircle size={13} className="text-[#8B8B93]" />
-                      <span>
-                        {tpl.questions?.length || 0} attached question(s)
+                      <span
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-full shrink-0 ${
+                          tpl.isActive
+                            ? "bg-[#DCFCE7] text-[#15803D]"
+                            : "bg-[#F3F4F6] text-[#6B7280]"
+                        }`}
+                      >
+                        {tpl.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
-                  </div>
 
-                  {/* Attached Questions Preview */}
-                  {tpl.questions && tpl.questions.length > 0 && (
-                    <div className="space-y-1 pt-1">
-                      <div className="text-[11px] font-medium text-[#8B8B93] uppercase tracking-wider">
-                        Attached Questions:
+                    {/* Details summary */}
+                    <div className="flex items-center gap-4 text-[12px] text-[#5B5B64]">
+                      <div className="flex items-center gap-1">
+                        <Clock size={13} className="text-[#8B8B93]" />
+                        <span>{tpl.durationMinutes} mins</span>
                       </div>
-                      <div className="max-h-28 overflow-y-auto space-y-1">
-                        {tpl.questions.map((q: any, idx: number) => (
-                          <div
-                            key={q.id || idx}
-                            className="flex items-center justify-between px-2.5 py-1 bg-[#F7F7F9] rounded text-[11px]"
-                          >
-                            <span className="font-mono text-[#2F5CFF] font-medium">
-                              [{q.moduleType}]
-                            </span>
-                            <span className="truncate max-w-[170px] text-[#374151]">
-                              {q.question?.content?.prompt ||
-                                q.question?.content?.title ||
-                                `Question #${idx + 1}`}
-                            </span>
-                            <span className="text-[10px] text-[#8B8B93]">
-                              v{q.questionVersionSnapshot || 1}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-1">
+                        <HelpCircle size={13} className="text-[#8B8B93]" />
+                        <span>
+                          {tpl.questions?.length || 0} attached question(s)
+                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Footer Action Bar */}
-                <div className="pt-3 border-t border-[#E6E6EA] flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handlePublishNewVersion(tpl.id)}
-                    disabled={publishingId === tpl.id}
-                    title="Publish new active version (clones into next version number)"
-                    className="px-2.5 py-1.5 bg-[#F0F4FF] hover:bg-[#D9E4FF] text-[#2F5CFF] text-[11px] font-semibold rounded flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    <GitFork size={12} />
-                    <span>
-                      {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
-                    </span>
-                  </button>
+                    {/* Attached Questions Preview */}
+                    {tpl.questions && tpl.questions.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        <div className="text-[11px] font-medium text-[#8B8B93]">
+                          Question Modules:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {Array.from(
+                            new Set(tpl.questions.map((q: any) => q.moduleType))
+                          ).map((mod: any) => (
+                            <span
+                              key={mod}
+                              className="px-1.5 py-0.5 text-[10px] font-mono bg-[#F7F7F9] text-[#2F5CFF] rounded"
+                            >
+                              {mod}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                  <div className="flex items-center gap-1">
+                  {/* Actions footer */}
+                  <div className="pt-3 border-t border-[#E6E6EA] flex items-center justify-between gap-2">
                     <button
                       onClick={() => handleOpenEdit(tpl)}
-                      className="p-1.5 text-[#5B5B64] hover:text-[#2F5CFF] rounded hover:bg-[#F7F7F9]"
-                      title="Edit template"
+                      className="px-3 py-1.5 text-[12px] font-medium text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-[#F7F7F9] rounded flex items-center gap-1 cursor-pointer transition-colors"
                     >
-                      <Edit2 size={14} />
+                      <Edit3 size={13} />
+                      <span>Edit</span>
                     </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(tpl.id)}
-                      className="p-1.5 text-[#5B5B64] hover:text-red-600 rounded hover:bg-[#F7F7F9]"
-                      title="Delete template"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      {!tpl.isActive && (
+                        <button
+                          onClick={() => handlePublishNewVersion(tpl.id)}
+                          disabled={publishingId === tpl.id}
+                          className="px-2.5 py-1 text-[11px] font-medium text-[#2F5CFF] hover:bg-[#F0F4FF] rounded flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        >
+                          <Send size={12} />
+                          <span>Publish Active</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteTemplate(tpl.id)}
+                        className="p-1.5 text-[#8B8B93] hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded cursor-pointer transition-colors"
+                        title="Delete template"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* Authoring / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-xl">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between bg-[#F7F7F9]">
-              <div>
-                <h2 className="text-[16px] font-semibold text-[#0B0B0D]">
-                  {editingTemplate ? `Edit Role Template (${editingTemplate.roleName})` : "Create Role Template"}
-                </h2>
-                <p className="text-[12px] text-[#5B5B64]">
-                  Configure role metadata, duration, module weightings, and select questions from Question Bank.
-                </p>
-              </div>
+            <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">
+                {editingTemplate ? "Edit Role Template" : "New Role Template"}
+              </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="p-1 text-[#8B8B93] hover:text-[#0B0B0D] rounded cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Body */}
-            <div className="p-6 overflow-y-auto space-y-5 flex-1">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
                   <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                    Role Template Name <span className="text-red-500">*</span>
+                    Role Name *
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. Senior Software Engineer"
                     value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
-                    placeholder="e.g. Software Engineer"
-                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md"
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md focus:border-[#2F5CFF] focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                    Duration (Minutes) <span className="text-red-500">*</span>
+                    Duration (Minutes)
                   </label>
                   <input
                     type="number"
+                    min={15}
+                    max={240}
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(Number(e.target.value))}
                     className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md"
@@ -581,16 +606,42 @@ export function RoleTemplatesPage() {
 
                 <div>
                   <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                    Experience Level
+                    Category
                   </label>
                   <select
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
+                    value={category}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      setCategory(newCat);
+                      if (newCat === "FRESHER") {
+                        setExperienceTier("0-1");
+                      } else if (experienceTier === "0-1") {
+                        setExperienceTier("2-5");
+                      }
+                    }}
                     className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
                   >
-                    {LEVELS.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                    Experience Tier
+                  </label>
+                  <select
+                    value={experienceTier}
+                    onChange={(e) => setExperienceTier(e.target.value)}
+                    disabled={category === "FRESHER"}
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white disabled:bg-[#F7F7F9] disabled:text-[#8B8B93]"
+                  >
+                    {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
+                      <option key={tier.value} value={tier.value}>
+                        {tier.label}
                       </option>
                     ))}
                   </select>

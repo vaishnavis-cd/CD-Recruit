@@ -116,4 +116,252 @@ export enum StaffRole {
   ADMIN = "ADMIN",
 }
 
+// ---------------------------------------------------------------------------
+// Department & Experience Tiering
+// ---------------------------------------------------------------------------
+
+export enum Department {
+  SOFTWARE_ENGINEERING = "SOFTWARE_ENGINEERING",
+  DATA_ENGINEERING = "DATA_ENGINEERING",
+  PMO = "PMO",
+  QA = "QA",
+  SYSOPS = "SYSOPS",
+  ITOPS = "ITOPS",
+  SECOPS = "SECOPS",
+  SRE = "SRE",
+}
+
+export enum CandidateCategory {
+  FRESHER = "FRESHER",
+  EXPERIENCED = "EXPERIENCED",
+}
+
+export enum ExperienceLevelCode {
+  FRESHER = "FRESHER",
+  LEVEL_1 = "LEVEL_1",
+  LEVEL_2 = "LEVEL_2",
+  LEVEL_3 = "LEVEL_3",
+}
+
+export enum ExperienceTier {
+  TIER_0_1 = "0-1",
+  TIER_2_5 = "2-5",
+  TIER_6_10 = "6-10",
+  TIER_11_15 = "11-15",
+}
+
+export const EXPERIENCE_TIER_CONFIG = {
+  "0-1": {
+    code: ExperienceLevelCode.FRESHER,
+    tier: "0-1",
+    label: "0-1 yrs (Fresher)",
+    shortLabel: "0-1 yrs",
+    category: CandidateCategory.FRESHER,
+    years: "0-1",
+  },
+  "2-5": {
+    code: ExperienceLevelCode.LEVEL_1,
+    tier: "2-5",
+    label: "2-5 yrs (Level 1)",
+    shortLabel: "2-5 yrs",
+    category: CandidateCategory.EXPERIENCED,
+    years: "2-5",
+  },
+  "6-10": {
+    code: ExperienceLevelCode.LEVEL_2,
+    tier: "6-10",
+    label: "6-10 yrs (Level 2)",
+    shortLabel: "6-10 yrs",
+    category: CandidateCategory.EXPERIENCED,
+    years: "6-10",
+  },
+  "11-15": {
+    code: ExperienceLevelCode.LEVEL_3,
+    tier: "11-15",
+    label: "11-15 yrs (Level 3)",
+    shortLabel: "11-15 yrs",
+    category: CandidateCategory.EXPERIENCED,
+    years: "11-15",
+  },
+} as const;
+
+/**
+ * Normalizes any variation of level input string into canonical tier ("0-1", "2-5", "6-10", "11-15").
+ * Supports raw resume parsed strings like "7+ experience", "7 years", "3.5 yrs", ranges "3-5 yrs".
+ * Returns null if invalid.
+ */
+export function normalizeExperienceTier(
+  input?: string | null,
+  category?: CandidateCategory | string,
+): { tier: string; code: ExperienceLevelCode; category: CandidateCategory; label: string } | null {
+  const normCategory = (category || "").trim().toUpperCase();
+  if (!input && normCategory === CandidateCategory.FRESHER) {
+    return {
+      tier: "0-1",
+      code: ExperienceLevelCode.FRESHER,
+      category: CandidateCategory.FRESHER,
+      label: "0-1 yrs (Fresher)",
+    };
+  }
+
+  if (!input || !input.trim()) return null;
+
+  const raw = input.trim();
+  const cleaned = raw.toLowerCase().replace(/\s+/g, "").replace(/_+/g, "-");
+
+  // 1. Direct tier / alias matching
+  if (
+    cleaned === "0-1" ||
+    cleaned === "0-1yrs" ||
+    cleaned === "0-1years" ||
+    cleaned === "0-1yr" ||
+    cleaned === "0to1" ||
+    cleaned === "fresher" ||
+    cleaned === "fresh" ||
+    cleaned === "freshgraduate" ||
+    cleaned === "entry" ||
+    cleaned === "intern" ||
+    cleaned === "0" ||
+    cleaned === "1"
+  ) {
+    return {
+      tier: "0-1",
+      code: ExperienceLevelCode.FRESHER,
+      category: CandidateCategory.FRESHER,
+      label: "0-1 yrs (Fresher)",
+    };
+  }
+
+  if (
+    cleaned === "2-5" ||
+    cleaned === "2-5yrs" ||
+    cleaned === "2-5years" ||
+    cleaned === "2to5" ||
+    cleaned === "level-1" ||
+    cleaned === "level1" ||
+    cleaned === "l1" ||
+    cleaned === "junior" ||
+    cleaned === "mid" ||
+    cleaned === "2" ||
+    cleaned === "3" ||
+    cleaned === "4" ||
+    cleaned === "5"
+  ) {
+    return {
+      tier: "2-5",
+      code: ExperienceLevelCode.LEVEL_1,
+      category: CandidateCategory.EXPERIENCED,
+      label: "2-5 yrs (Level 1)",
+    };
+  }
+
+  if (
+    cleaned === "6-10" ||
+    cleaned === "6-10yrs" ||
+    cleaned === "6-10years" ||
+    cleaned === "6to10" ||
+    cleaned === "level-2" ||
+    cleaned === "level2" ||
+    cleaned === "l2" ||
+    cleaned === "senior" ||
+    cleaned === "sr" ||
+    cleaned === "6" ||
+    cleaned === "7" ||
+    cleaned === "8" ||
+    cleaned === "9" ||
+    cleaned === "10"
+  ) {
+    return {
+      tier: "6-10",
+      code: ExperienceLevelCode.LEVEL_2,
+      category: CandidateCategory.EXPERIENCED,
+      label: "6-10 yrs (Level 2)",
+    };
+  }
+
+  if (
+    cleaned === "11-15" ||
+    cleaned === "11-15yrs" ||
+    cleaned === "11-15years" ||
+    cleaned === "11to15" ||
+    cleaned === "10+" ||
+    cleaned === "11+" ||
+    cleaned === "15+" ||
+    cleaned === "level-3" ||
+    cleaned === "level3" ||
+    cleaned === "l3" ||
+    cleaned === "lead" ||
+    cleaned === "staff" ||
+    cleaned === "principal" ||
+    cleaned === "architect"
+  ) {
+    return {
+      tier: "11-15",
+      code: ExperienceLevelCode.LEVEL_3,
+      category: CandidateCategory.EXPERIENCED,
+      label: "11-15 yrs (Level 3)",
+    };
+  }
+
+  // 2. Range match (e.g. "3-5 years", "6-8 yrs", "7 to 10 yrs")
+  const rangeMatch = raw.match(/(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)/i);
+  if (rangeMatch) {
+    const minVal = parseFloat(rangeMatch[1]);
+    const maxVal = parseFloat(rangeMatch[2]);
+    if (!isNaN(minVal) && !isNaN(maxVal)) {
+      const avgVal = (minVal + maxVal) / 2;
+      return resolveTierFromNumericYears(avgVal);
+    }
+  }
+
+  // 3. Single numeric extraction (e.g. "7+ experience", "7 years", "3.5 yrs", "12+ yrs")
+  const numMatch = raw.match(/(\d+(?:\.\d+)?)\s*(\+)?\s*(?:years?|yrs?|yr|y|yoe|exp|experience)?/i);
+  if (numMatch) {
+    let val = parseFloat(numMatch[1]);
+    const hasPlus = !!numMatch[2] || raw.includes("+");
+    if (!isNaN(val)) {
+      if (val === 10 && hasPlus) {
+        val = 11;
+      }
+      return resolveTierFromNumericYears(val);
+    }
+  }
+
+  return null;
+}
+
+function resolveTierFromNumericYears(years: number) {
+  if (isNaN(years) || years < 2) {
+    return {
+      tier: "0-1",
+      code: ExperienceLevelCode.FRESHER,
+      category: CandidateCategory.FRESHER,
+      label: "0-1 yrs (Fresher)",
+    };
+  }
+  if (years < 6) {
+    return {
+      tier: "2-5",
+      code: ExperienceLevelCode.LEVEL_1,
+      category: CandidateCategory.EXPERIENCED,
+      label: "2-5 yrs (Level 1)",
+    };
+  }
+  if (years < 11) {
+    return {
+      tier: "6-10",
+      code: ExperienceLevelCode.LEVEL_2,
+      category: CandidateCategory.EXPERIENCED,
+      label: "6-10 yrs (Level 2)",
+    };
+  }
+  return {
+    tier: "11-15",
+    code: ExperienceLevelCode.LEVEL_3,
+    category: CandidateCategory.EXPERIENCED,
+    label: "11-15 yrs (Level 3)",
+  };
+}
+
 export const SUPPORTED_CODING_LANGUAGES = ["python", "javascript", "java", "cpp"] as const;
+

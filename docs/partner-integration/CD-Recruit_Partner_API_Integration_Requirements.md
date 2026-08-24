@@ -62,15 +62,23 @@ Creates or updates a requisition and issues assessment invites for the submitted
 
 ```json
 {
-  "requisition_ref": "string",
-  "department_code": "string",
-  "level": "string",
+  "requisition_ref": "REQ-2026-ENG-006",
+  "department_code": "SOFTWARE_ENGINEERING",
+  "category": "EXPERIENCED",
+  "drive_name": "Senior Full-Stack Sprint",
   "candidates": [
     {
-      "external_candidate_ref": "string",
-      "name": "string",
-      "email": "string",
-      "phone": "string"
+      "name": "Jane Doe",
+      "email": "jane.doe@example.com",
+      "level": "3.5 yrs",
+      "external_candidate_ref": "ext-cand-101",
+      "phone": "+1234567890"
+    },
+    {
+      "name": "John Smith",
+      "email": "john.smith@example.com",
+      "level": "7+ experience",
+      "external_candidate_ref": "ext-cand-102"
     }
   ]
 }
@@ -82,30 +90,66 @@ Creates or updates a requisition and issues assessment invites for the submitted
 |---|---|---|---|
 | `requisition_ref` | string | Yes | 1–128 chars. Must be stable for the life of the requisition — reused on every subsequent push of new candidates to the same job opening. Determines Drive assignment (see Section 3.1). |
 | `department_code` | string | Yes | Must be exactly one of the values in Section 4.1. Any other value returns `422`. |
-| `level` | string | Yes | Must be exactly one of the values in Section 4.2. |
-| `candidates` | array | Yes | 1–150 items per request. Larger batches must be split across multiple calls. |
-| `candidates[].external_candidate_ref` | string | Yes | 1–128 chars. Must be unique and stable per candidate in your system — used as the retry/dedupe key on our side. |
-| `candidates[].name` | string | Yes | 1–200 chars. |
-| `candidates[].email` | string | Yes | Valid email format. Used to match against existing CD-Recruit candidate records — if this candidate already exists in our system (from any source), the existing record is reused rather than duplicated. |
+| `category` | string | Yes | Candidate category: `"FRESHER"` or `"EXPERIENCED"`. (Legacy parameter `level` is accepted as an alias for backwards compatibility). |
+| `drive_name` | string | No | Optional human-readable drive title (e.g. "Senior Full-Stack Sprint"). |
+| `candidates` | array | Yes | Batch array supporting **up to 1,000 candidates per single HTTP request** processed under 2–5s (payload size ~160 KB). |
+| `candidates[].name` | string | Yes | 1–200 chars candidate full name. |
+| `candidates[].email` | string | Yes | Valid email format. Used for deduplication and unique assessment session assignment. |
+| `candidates[].level` | string | No | Candidate experience tier. Accepts standard canonical codes or **raw parsed resume text** (e.g. `"7+ experience"`, `"7 years"`, `"3.5 yrs"`, `"12+ years"`, `"3-5 yrs"`). <br/>• `< 2.0 yrs`: `"0-1"` (Fresher)<br/>• `2.0 – 5.9 yrs`: `"2-5"` (Level 1)<br/>• `6.0 – 10.9 yrs`: `"6-10"` (Level 2)<br/>• `≥ 11.0 yrs`: `"11-15"` (Level 3). <br/>*CD-Recruit automatically parses and assigns the candidate to the calibrated role template.* |
+| `candidates[].external_candidate_ref` | string | No | Optional ATS candidate reference ID for deduplication, tracking, and status correlation. |
 | `candidates[].phone` | string | No | E.164 format recommended if provided. |
 
-### 3.1 Requisition-to-Drive Mapping
+### 3.1 Automatic Resume Experience Parsing & Calibration
 
-The first candidate push for a given `requisition_ref` creates a new Drive. Every subsequent push using the same `requisition_ref` adds candidates to that same Drive rather than creating a new one. Do not generate a new `requisition_ref` for follow-up batches against the same job opening — this will fragment reporting on your side and ours.
+Candidates submitted with arbitrary experience strings extracted from resumes or ATS profiles are automatically parsed and allocated into the calibrated role templates:
+
+| Parsed Resume Input Example | Extracted Years | Resolved Tier | Assessment Calibrated Template |
+|---|---|---|---|
+| `"0.5 yrs"`, `"1 year"`, `"Fresh graduate"`, `"0-1"` | `< 2.0 yrs` | **`"0-1"`** | Fresher (0–1 yrs) |
+| `"3.5 yrs"`, `"4 years exp"`, `"3-5 years"`, `"Level 1"` | `2.0 – 5.9 yrs` | **`"2-5"`** | Level 1 (2–5 yrs) |
+| `"7+ experience"`, `"7 years"`, `"8 yoe"`, `"Level 2"` | `6.0 – 10.9 yrs` | **`"6-10"`** | Level 2 (6–10 yrs) |
+| `"12+ years"`, `"15 yrs exp"`, `"10+ yrs"`, `"Level 3"` | `≥ 11.0 yrs` | **`"11-15"`** | Level 3 (11–15+ yrs) |
+
+- **Batch Size Limit:** Up to **1,000 candidates per single HTTP request**.
+- **Execution Target:** Processed and committed within **2–5 seconds** using zero-requery in-memory invite summary construction and batch database transactions.
+- **Re-Push Updates:** Re-submitting candidates to an existing requisition updates their experience tier and calibrated template in-place.
+
+### 3.2 Requisition-to-Drive Mapping
+
+The first candidate push for a given `requisition_ref` creates a new Drive. Every subsequent push using the same `requisition_ref` adds or updates candidates in that same Drive rather than creating a new one. Do not generate a new `requisition_ref` for follow-up batches against the same job opening — this will fragment reporting on your side and ours.
 
 ### Response — `201 Created`
 
 ```json
 {
-  "drive_id": "uuid",
-  "requisition_ref": "string",
-  "results": [
+  "success": true,
+  "drive_id": "7711eae3-f2e4-4d21-8a17-7cdb4fb48b41",
+  "requisition_ref": "REQ-2026-ENG-006",
+  "department_code": "SOFTWARE_ENGINEERING",
+  "category": "EXPERIENCED",
+  "level": "EXPERIENCED",
+  "candidate_count": 2,
+  "created_count": 2,
+  "invites": [
     {
-      "external_candidate_ref": "string",
-      "invite_id": "uuid",
-      "link": "https://...",
-      "expires_at": "2026-08-11T09:00:00Z",
-      "status": "created"
+      "candidate_email": "jane.doe@example.com",
+      "candidate_name": "Jane Doe",
+      "category": "EXPERIENCED",
+      "level": "2-5",
+      "experience_tier": "2-5",
+      "level_label": "2-5 yrs (Level 1)",
+      "assessment_link": "https://assess.cd-recruit.example.com/invite/inv_388028344eb54b291d2ee8f9",
+      "expires_at": "2026-08-26T06:51:25.071Z"
+    },
+    {
+      "candidate_email": "john.smith@example.com",
+      "candidate_name": "John Smith",
+      "category": "EXPERIENCED",
+      "level": "6-10",
+      "experience_tier": "6-10",
+      "level_label": "6-10 yrs (Level 2)",
+      "assessment_link": "https://assess.cd-recruit.example.com/invite/inv_c55b88e90cb05af862165e19",
+      "expires_at": "2026-08-26T06:51:25.071Z"
     }
   ],
   "drive_warnings": []
@@ -114,13 +158,15 @@ The first candidate push for a given `requisition_ref` creates a new Drive. Ever
 
 | Field | Meaning |
 |---|---|
-| `results[].status` | `created` — new invite issued. `duplicate_skipped` — this `external_candidate_ref` or email already has an active, non-expired invite for this requisition; no new invite was created, the existing `invite_id`/`link`/`expires_at` are returned instead. |
-| `results[].expires_at` | Exactly 24 hours from the moment this response was generated — not from when you deliver the link. See Section 5. |
-| `drive_warnings` | Non-blocking advisory strings — e.g. a concurrency warning if this batch pushes total scheduled starts above safe capacity for the window. The request still succeeds; treat these as "review this," not an error. |
+| `invites[].assessment_link` | Complete unique URL for the candidate to launch their proctored assessment. Deliver this directly to the candidate. |
+| `invites[].level` / `experience_tier` | The resolved calibrated experience tier (`0-1`, `2-5`, `6-10`, `11-15`) mapped from the candidate's parsed resume text. |
+| `invites[].level_label` | Human-readable experience tier label (e.g. `"2-5 yrs (Level 1)"`, `"6-10 yrs (Level 2)"`). |
+| `invites[].expires_at` | Rolling 48-hour validity deadline from the moment of invite creation. |
+| `drive_warnings` | Non-blocking advisory strings — e.g. a concurrency warning if this batch pushes total scheduled starts above safe capacity for the window. |
 
 ---
 
-## 4. Required Enums
+## 4. Required Enums & Categories
 
 ### 4.1 `department_code`
 
@@ -137,14 +183,13 @@ SRE
 
 Your JD categorization must resolve to exactly one of these eight values before calling this API. Any mapping from your internal taxonomy to this list happens on your side.
 
-### 4.2 `level`
+### 4.2 Top-Level `category` & Candidate `level`
 
-```
-FRESHER
-EXPERIENCED
-```
-
-Set at the requisition level. If your system needs to override level for an individual candidate within a requisition in the future, that is not supported in v1 — such a candidate must be pushed under a separate `requisition_ref`.
+- **Requisition `category`**: `"FRESHER"` or `"EXPERIENCED"`. (Legacy top-level field `level` is accepted as an alias).
+- **Candidate `level`**: Specified per candidate in `candidates[].level`. Accepts:
+  - Exact tier codes: `"0-1"`, `"2-5"`, `"6-10"`, `"11-15"`.
+  - Parsed text: e.g. `"7+ experience"`, `"7 years"`, `"3.5 yrs"`, `"12+ yrs"`, `"3-5 yrs"`.
+  - Role titles: e.g. `"Junior"`, `"Senior"`, `"Lead"`, `"Principal"`, `"Fresher"`.
 
 ---
 
@@ -240,8 +285,8 @@ All error responses share this shape:
 ## 9. Rate Limits & Volume
 
 - **60 requests per minute** per API key across all endpoints.
-- **150 candidates per `POST /partner/candidates` call**, split larger batches across multiple calls.
-- If a single requisition anticipates more than ~200 candidate starts within a short window (e.g. a campus-drive-style batch), notify CD-Recruit in advance of the push so assessment sandbox capacity can be confirmed. This is a current-phase limit tied to fixed infrastructure capacity, not a permanent ceiling — it will be revisited as volume grows.
+- **Up to 1,000 candidates per `POST /partner/candidates` call** (processed and committed in under 2–5 seconds).
+- If a single requisition anticipates more than ~250 candidate starts within a short window, advisory capacity warnings are returned in `drive_warnings`. Ensure evaluation pools are scaled appropriately.
 
 ---
 

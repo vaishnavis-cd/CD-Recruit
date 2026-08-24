@@ -14,6 +14,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Trash2,
+  Sparkles,
+  PenLine,
+  BookOpen,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -89,6 +92,10 @@ function DrivesPage() {
 
   // Wizard State
   const [step, setStep] = useState(1);
+  const [creationMode, setCreationMode] = useState<"TEMPLATE" | "CUSTOM">("TEMPLATE");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [templateDeptFilter, setTemplateDeptFilter] = useState<string>("all");
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
   const [driveName, setDriveName] = useState("");
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
@@ -96,6 +103,27 @@ function DrivesPage() {
   const [activeTemplatePreview, setActiveTemplatePreview] = useState<any | null>(null);
   const [isLoadingTemplatePreview, setIsLoadingTemplatePreview] = useState(false);
   const [templatePreviewError, setTemplatePreviewError] = useState<string | null>(null);
+
+  const filteredTemplates = useMemo(() => {
+    return (roleTemplates || []).filter((rt) => {
+      if (templateDeptFilter !== "all" && rt.department !== templateDeptFilter) return false;
+      if (templateCategoryFilter !== "all" && ((rt as any).category || "FRESHER") !== templateCategoryFilter) return false;
+      return true;
+    });
+  }, [roleTemplates, templateDeptFilter, templateCategoryFilter]);
+
+  const selectedTemplateObj = useMemo(() => {
+    return (roleTemplates || []).find((rt) => rt.id === selectedTemplateId);
+  }, [roleTemplates, selectedTemplateId]);
+
+  const handleSelectTemplate = (template: any) => {
+    setSelectedTemplateId(template.id);
+    setRole(template.roleName || "");
+    const dateStr = new Date().toLocaleString("en-US", { month: "short", year: "numeric" });
+    if (!driveName || driveName.includes("Drive")) {
+      setDriveName(`${template.roleName} Drive - ${dateStr}`);
+    }
+  };
   
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
@@ -544,43 +572,149 @@ function DrivesPage() {
       {/* Streamlined Drive Creation Modal */}
       {showWizard && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[480px] shadow-2xl flex flex-col">
+          <div className="bg-white rounded-[12px] w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
               <div>
                 <h2 className="text-[16px] font-semibold text-[#0B0B0D]">Create New Drive</h2>
-                <p className="text-[12px] text-[#5B5B64] mt-0.5">Enter drive name and target role to begin configuration.</p>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">Select a Role Template or define custom role settings for direct drive creation.</p>
               </div>
               <button onClick={() => setShowWizard(false)} className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto">
+              {/* Creation Mode Toggle */}
+              <div className="flex bg-[#F7F7F9] p-1 rounded-lg border border-[#E6E6EA]">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("TEMPLATE")}
+                  className={`flex-1 py-1.5 px-3 text-[12px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    creationMode === "TEMPLATE"
+                      ? "bg-white text-[#2F5CFF] shadow-sm"
+                      : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                  }`}
+                >
+                  <Sparkles size={14} /> Use Role Template (Recommended)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreationMode("CUSTOM");
+                    setSelectedTemplateId("");
+                  }}
+                  className={`flex-1 py-1.5 px-3 text-[12px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    creationMode === "CUSTOM"
+                      ? "bg-white text-[#2F5CFF] shadow-sm"
+                      : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                  }`}
+                >
+                  <PenLine size={14} /> Custom Role (No Template)
+                </button>
+              </div>
+
+              {creationMode === "TEMPLATE" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Department</label>
+                      <select
+                        value={templateDeptFilter}
+                        onChange={(e) => setTemplateDeptFilter(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                      >
+                        <option value="all">All Departments</option>
+                        <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                        <option value="DATA_ENGINEERING">Data Engineering</option>
+                        <option value="QA_TESTING">QA &amp; Testing</option>
+                        <option value="DEVOPS_SRE">DevOps &amp; SRE</option>
+                        <option value="CYBERSECURITY">Cybersecurity</option>
+                        <option value="PRODUCT_DESIGN">Product &amp; Design</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Category</label>
+                      <select
+                        value={templateCategoryFilter}
+                        onChange={(e) => setTemplateCategoryFilter(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                      >
+                        <option value="all">All Categories</option>
+                        <option value="FRESHER">Fresher (0-1 yrs)</option>
+                        <option value="EXPERIENCED">Experienced (2-15 yrs)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                      Select Role Template <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => {
+                        const tpl = roleTemplates.find((r) => r.id === e.target.value);
+                        if (tpl) handleSelectTemplate(tpl);
+                        else setSelectedTemplateId("");
+                      }}
+                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+                    >
+                      <option value="">-- Choose a Role Template --</option>
+                      {filteredTemplates.map((tpl) => (
+                        <option key={tpl.id} value={tpl.id}>
+                          {tpl.roleName} [{((tpl as any).category || "FRESHER") === "FRESHER" ? "Fresher (0-1 yrs)" : `${(tpl as any).experienceTier || "2-5"} yrs`}] ({tpl.department || "General"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedTemplateObj && (
+                    <div className="p-3 bg-[#F4F6FF] border border-[#C5D7FE] rounded-lg space-y-1.5 text-[12px]">
+                      <div className="flex items-center justify-between font-semibold text-[#15308F]">
+                        <span>{selectedTemplateObj.roleName}</span>
+                        <span className="px-2 py-0.5 bg-[#2F5CFF] text-white rounded text-[10px] uppercase font-mono">
+                          {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[#5B5B64] text-[11px]">
+                        <span>Department: <strong className="text-[#0B0B0D]">{selectedTemplateObj.department || "General"}</strong></span>
+                        <span>•</span>
+                        <span>Category: <strong className="text-[#0B0B0D]">{(selectedTemplateObj as any).category || "FRESHER"}</strong></span>
+                        <span>•</span>
+                        <span>Questions: <strong className="text-[#0B0B0D]">{((selectedTemplateObj as any).questions || []).length}</strong></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
-                <label className="block text-[14px] font-medium text-[#5B5B64] mb-1.5">
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
                   Drive Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={driveName}
                   onChange={(e) => setDriveName(e.target.value)}
-                  placeholder="e.g. Software Developer Drive - July 2026"
+                  placeholder="e.g. Senior Software Engineer Drive - August 2026"
                   className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
                 />
               </div>
 
-              <div>
-                <label className="block text-[14px] font-medium text-[#5B5B64] mb-1.5">
-                  Role <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  placeholder="e.g. Software Developer"
-                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                />
-              </div>
+              {creationMode === "CUSTOM" && (
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                    Role Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    placeholder="e.g. Full-Stack Developer"
+                    className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
@@ -596,27 +730,28 @@ function DrivesPage() {
                     toast.error("Please enter a drive name.");
                     return;
                   }
-                  try {
-                    if (!role.trim()) {
-                      toast.error("Please enter a role.");
-                      return;
-                    }
-                    const matchedTemplate = roleTemplates.find(
-                      (rt) =>
-                        (rt.roleName || (rt as any).name || "").toLowerCase() ===
-                        role.trim().toLowerCase()
-                    );
-                    const effectiveRoleTemplateId = matchedTemplate
-                      ? matchedTemplate.id
+                  if (creationMode === "TEMPLATE" && !selectedTemplateId) {
+                    toast.error("Please select a Role Template.");
+                    return;
+                  }
+                  if (creationMode === "CUSTOM" && !role.trim()) {
+                    toast.error("Please enter a role title.");
+                    return;
+                  }
+
+                  const effectiveRoleTemplateId =
+                    creationMode === "TEMPLATE" && selectedTemplateId
+                      ? selectedTemplateId
                       : role.trim();
 
+                  try {
                     const res = await createDrive({
                       name: driveName.trim(),
                       roleTemplateId: effectiveRoleTemplateId,
                       status: "DRAFT",
                     });
                     const targetId = res?.driveId || res?.id;
-                    toast.success("Drive created! Opening configuration screen...");
+                    toast.success("Drive created with selected template! Opening configuration screen...");
                     setShowWizard(false);
                     if (targetId) {
                       navigate({ to: "/drives/$id", params: { id: targetId } });
@@ -627,7 +762,7 @@ function DrivesPage() {
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
               >
-                Create & Configure Drive
+                Create &amp; Configure Drive
                 <ArrowRight size={14} />
               </button>
             </div>
