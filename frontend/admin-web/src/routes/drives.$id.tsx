@@ -212,7 +212,10 @@ function DriveDetailPage() {
   const [endAmPm, setEndAmPm] = useState("AM");
   const [rollingWindow, setRollingWindow] = useState<boolean>(false);
 
-  // Module Config State (7 Modules)
+  /** When true the drive uses a 24-hour rolling window (scheduleEnd = scheduleStart + 24h) */
+  const [rollingWindow, setRollingWindow] = useState(false);
+
+  // Module Config State (6 Modules)
   const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
     SQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },

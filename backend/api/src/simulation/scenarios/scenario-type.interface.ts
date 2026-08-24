@@ -96,4 +96,3 @@ export interface ContextSimulationScenarioConfig {
   terminalInfo?: ScenarioTerminalInfo;
   expectedConcepts?: string[];
 }
-

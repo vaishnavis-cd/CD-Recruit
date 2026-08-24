@@ -174,4 +174,3 @@ module.exports = { validateUsername };
   },
   expectedConcepts: ['test', 'verify', 'check', 'inspect', 'read', 'look', 'debug']
 };
-

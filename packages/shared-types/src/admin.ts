@@ -84,6 +84,7 @@ export interface SessionDetail {
   disconnectCount: number;
   moduleResponses: ModuleResponseDetail[];
   integrityFlags: IntegrityFlag[];
+  identityCaptures?: any[];
   questions?: any[];
   drive?: any;
   simulationSnapshot?: any;
@@ -130,6 +131,7 @@ export interface InviteListItem {
   redeemedAt: string | null;
   revokedAt: string | null;
   sessionId: string | null;
+  idProofRef?: string | null;
 }
 
 export interface InviteListResponse {

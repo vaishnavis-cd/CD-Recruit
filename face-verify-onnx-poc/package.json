@@ -1,0 +1,19 @@
+{
+  "name": "face-verify-onnx-poc",
+  "version": "1.0.0",
+  "description": "Standalone Node.js / TypeScript ONNX Runtime Proof of Concept for Face Verification (RetinaFace + ArcFace)",
+  "main": "verify_test.ts",
+  "scripts": {
+    "test": "ts-node verify_test.ts"
+  },
+  "dependencies": {
+    "onnxruntime-node": "1.27.0",
+    "onnxruntime-web": "^1.27.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

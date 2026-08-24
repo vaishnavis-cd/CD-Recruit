@@ -30,6 +30,12 @@ enum ExperienceLevel {
   EXPERIENCED
 }
 
+enum ExperiencedLevel {
+  L1
+  L2
+  L3
+}
+
 enum ModuleType {
   MCQ
   SQL
@@ -124,21 +130,22 @@ enum ConsentType {
 }
 
 model RoleTemplate {
-  id              String           @id @default(uuid())
-  roleName        String           @map("role_name")
-  weightingPreset Json             @map("weighting_preset")
-  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
-  department      Department?      @map("department")
-  level           ExperienceLevel? @map("level")
-  version         Int              @default(1) @map("version")
-  isActive        Boolean          @default(true) @map("is_active")
+  id              String            @id @default(uuid())
+  roleName        String            @map("role_name")
+  weightingPreset Json              @map("weighting_preset")
+  durationMinutes Int               @map("duration_minutes") // drives session.deadlineAt
+  department      Department?       @map("department")
+  level           ExperienceLevel?  @map("level")
+  experiencedLevel ExperiencedLevel? @map("experienced_level")
+  version         Int               @default(1) @map("version")
+  isActive        Boolean           @default(true) @map("is_active")
 
   sessions  Session[]
   invites   Invite[]
   drives    Drive[]
   questions RoleTemplateQuestion[]
 
-  @@unique([department, level, version])
+  @@unique([department, level, experiencedLevel, version])
   @@map("role_template")
 }
 
@@ -304,6 +311,7 @@ model Session {
   invite            Invite?
   codingExecutions  CodingExecution[]
   sqlExecutions     SQLExecution[]
+  identityCaptures  IdentityCapture[]
 
   @@index([candidateId])
   @@index([status])
@@ -311,6 +319,26 @@ model Session {
   @@index([lastHeartbeatAt])
   @@map("session")
 }
+
+model IdentityCapture {
+  id          String    @id @default(uuid())
+  sessionId   String    @map("session_id")
+  windowIndex Int       @map("window_index")      // 0, 1, 2 — which of the 3 windows this belongs to
+  scheduledAt DateTime  @map("scheduled_at")
+  capturedAt  DateTime? @map("captured_at")
+  status      String    @default("PENDING")        // PENDING, CAPTURED, MISSED, SESSION_CLOSED
+  imageRef    String?   @map("image_ref")           // MinIO object key
+  matched     Boolean?
+  distance    Float?
+  threshold   Float?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([status])
+  @@map("identity_capture")
+}
+
 
 model ModuleResponse {
   id                String   @id @default(uuid())

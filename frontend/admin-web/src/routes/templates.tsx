@@ -61,6 +61,7 @@ const DEPARTMENT_LABELS: Record<string, string> = {
 };
 
 const LEVELS = ["FRESHER", "EXPERIENCED"] as const;
+const EXPERIENCED_LEVELS = ["L1", "L2", "L3"] as const;
 
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   MCQ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
@@ -93,6 +94,7 @@ export function RoleTemplatesPage() {
   const [roleName, setRoleName] = useState("");
   const [department, setDepartment] = useState<string>("SOFTWARE_ENGINEERING");
   const [level, setLevel] = useState<string>("FRESHER");
+  const [experiencedLevel, setExperiencedLevel] = useState<string>("L1");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [isActive, setIsActive] = useState(true);
   const [weightingPreset, setWeightingPreset] = useState({
@@ -135,11 +137,10 @@ export function RoleTemplatesPage() {
   const fetchQuestionsBank = async () => {
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/questions?pageSize=500`, { headers });
+      const res = await fetch(`${API_BASE}/admin/questions?pageSize=1000`, { headers });
       if (res.ok) {
         const data = await res.json();
-        const qList = Array.isArray(data) ? data : data.items || data.questions || [];
-        setQuestionsBank(qList);
+        setQuestionsBank(Array.isArray(data) ? data : data.items || data.questions || []);
       }
     } catch (err) {
       console.warn("Could not load question bank:", err);
@@ -156,6 +157,7 @@ export function RoleTemplatesPage() {
     setRoleName("");
     setDepartment("SOFTWARE_ENGINEERING");
     setLevel("FRESHER");
+    setExperiencedLevel("L1");
     setDurationMinutes(60);
     setIsActive(true);
     setWeightingPreset({
@@ -176,6 +178,7 @@ export function RoleTemplatesPage() {
     setRoleName(tpl.roleName || "");
     setDepartment(tpl.department || "SOFTWARE_ENGINEERING");
     setLevel(tpl.level || "FRESHER");
+    setExperiencedLevel(tpl.experiencedLevel || "L1");
     setDurationMinutes(tpl.durationMinutes || 60);
     setIsActive(tpl.isActive ?? true);
 
@@ -222,6 +225,7 @@ export function RoleTemplatesPage() {
       roleName: roleName.trim(),
       department,
       level,
+      experiencedLevel: level === "EXPERIENCED" ? experiencedLevel : null,
       durationMinutes: Number(durationMinutes),
       isActive,
       weightingPreset,
@@ -593,12 +597,31 @@ export function RoleTemplatesPage() {
                     : "border-slate-200 opacity-90"
                 }`}
               >
-                <div className="space-y-3.5">
-                  {/* Card Header: Version Pill & Status Indicator (Without redundant department/level tags) */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-2.5 py-0.5 text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                      v{tpl.version ?? 1}
-                    </span>
+                <div className="space-y-3">
+                  {/* Title & Status Badges */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
+                          {tpl.roleName}
+                        </h3>
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#F0F4FF] text-[#2F5CFF] rounded">
+                          v{tpl.version}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {tpl.department && (
+                          <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
+                            {tpl.department}
+                          </span>
+                        )}
+                        {tpl.level && (
+                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] rounded">
+                            {tpl.level === "FRESHER" ? "Fresher (0–1 years)" : `Experienced — ${tpl.experiencedLevel || "L1"} (${tpl.experiencedLevel === "L3" ? "11–15" : tpl.experiencedLevel === "L2" ? "6–10" : "2–5"} years)`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full shrink-0 ${
@@ -751,21 +774,46 @@ export function RoleTemplatesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Experience Level
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                    Experience Type
                   </label>
                   <select
                     value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLevel(val);
+                      if (val === "EXPERIENCED" && !experiencedLevel) {
+                        setExperiencedLevel("L1");
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
                   >
                     {LEVELS.map((l) => (
                       <option key={l} value={l}>
-                        {l === "FRESHER" ? "Fresher" : "Experienced"}
+                        {l === "FRESHER" ? "Fresher (0–1 years)" : "Experienced (2–15 years)"}
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {level === "EXPERIENCED" && (
+                  <div>
+                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
+                      Experienced Level
+                    </label>
+                    <select
+                      value={experiencedLevel}
+                      onChange={(e) => setExperiencedLevel(e.target.value)}
+                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
+                    >
+                      {EXPERIENCED_LEVELS.map((el) => (
+                        <option key={el} value={el}>
+                          {el === "L1" ? "L1 (2–5 years)" : el === "L2" ? "L2 (6–10 years)" : "L3 (11–15 years)"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Question Bank Selection Section */}

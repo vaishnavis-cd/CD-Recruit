@@ -93,4 +93,17 @@ logs/
 # ── Redis ─────────────────────────────────────
 dump.rdb
 /dump.rdb
+<<<<<<< HEAD
 *.rdb
+=======
+*.rdb
+
+# ── ML Models (non-ONNX large binaries — not tracked by LFS) ──────────────
+# NOTE: *.onnx is managed by Git LFS (see .gitattributes) — do NOT add it here.
+*.pt
+*.pth
+*.bin
+*.h5
+*.ckpt
+*.safetensors
+>>>>>>> origin/dev-phase2
