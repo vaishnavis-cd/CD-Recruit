@@ -85,6 +85,84 @@ export function RoleTemplatesPage() {
   >({});
 
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [filterByRoleAndLevel, setFilterByRoleAndLevel] = useState(true);
+
+  const getEligibleQuestions = (
+    dept: string,
+    lvl: string,
+    expLvl: string | null
+  ) => {
+    const allowedMods = getDepartmentAllowedModules(dept);
+    return questionsBank.filter((q) => {
+      if (!allowedMods.includes(q.moduleType)) return false;
+
+      // Role / Department Match
+      const qRole = (q.role || "").toUpperCase();
+      const currentDept = dept.toUpperCase();
+      const isGeneral = !qRole || qRole === "GENERAL";
+
+      let isRoleMatch = isGeneral;
+      if (!isRoleMatch) {
+        if (currentDept === "SOFTWARE_ENGINEERING") {
+          isRoleMatch = qRole === "SDE" || qRole === "SOFTWARE_ENGINEERING";
+        } else {
+          isRoleMatch = qRole === currentDept;
+        }
+      }
+      if (!isRoleMatch) return false;
+
+      // Experience Level / Tier Match
+      const qTags = (q.tags || []).map((t: string) => t.toLowerCase());
+      const hasTier1 = qTags.includes("tier_1") || qTags.includes("tier1");
+      const hasTier2 = qTags.includes("tier_2") || qTags.includes("tier2");
+      const qDiff = (q.difficulty || "").toLowerCase();
+
+      const hasSpecificL1 = qTags.includes("l1");
+      const hasSpecificL2 = qTags.includes("l2");
+      const hasSpecificL3 = qTags.includes("l3");
+
+      if (lvl === "FRESHER") {
+        if (hasSpecificL1 || hasSpecificL2 || hasSpecificL3) return false;
+        if (hasTier2) return false;
+        if (!hasTier1 && qDiff === "hard") return false;
+      } else {
+        const targetLvl = (expLvl || "L1").toLowerCase();
+        if (targetLvl === "l1") {
+          if (hasSpecificL2 || hasSpecificL3) return false;
+          if (!hasSpecificL1) {
+            if (hasTier1) return false;
+            if (!hasTier2 && qDiff === "easy") return false;
+          }
+        } else if (targetLvl === "l2") {
+          if (hasSpecificL1 || hasSpecificL3) return false;
+          if (!hasSpecificL2) {
+            if (hasTier1) return false;
+            if (!hasTier2 && qDiff === "easy") return false;
+          }
+        } else if (targetLvl === "l3") {
+          if (hasSpecificL1 || hasSpecificL2) return false;
+          if (!hasSpecificL3) {
+            if (hasTier1) return false;
+            if (!hasTier2 && qDiff === "easy") return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const autoSelectQuestionsFor = (dept: string, lvl: string, expLvl: string | null) => {
+    const eligible = getEligibleQuestions(dept, lvl, expLvl);
+    const newMap: Record<string, { moduleType: string; pointShare: number }> = {};
+    eligible.forEach((q) => {
+      newMap[q.id] = {
+        moduleType: q.moduleType,
+        pointShare: 1.0,
+      };
+    });
+    setSelectedQuestionsMap(newMap);
+  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -136,8 +214,12 @@ export function RoleTemplatesPage() {
       AI_PROMPTING: 0.15,
       SIMULATION: 0.15,
     });
-    setSelectedQuestionsMap({});
+    setFilterByRoleAndLevel(true);
     setShowModal(true);
+    // Auto select questions for SDE Fresher on open
+    setTimeout(() => {
+      autoSelectQuestionsFor("SOFTWARE_ENGINEERING", "FRESHER", "L1");
+    }, 0);
   };
 
   const handleOpenEdit = (tpl: any) => {
@@ -154,7 +236,8 @@ export function RoleTemplatesPage() {
     setWeightingPreset(preset);
 
     const qMap: Record<string, { moduleType: string; pointShare: number }> = {};
-    if (tpl.questions && Array.isArray(tpl.questions)) {
+    const hasExistingQuestions = tpl.questions && Array.isArray(tpl.questions) && tpl.questions.length > 0;
+    if (hasExistingQuestions) {
       tpl.questions.forEach((q: any) => {
         qMap[q.questionId] = {
           moduleType: q.moduleType,
@@ -163,7 +246,19 @@ export function RoleTemplatesPage() {
       });
     }
     setSelectedQuestionsMap(qMap);
+    setFilterByRoleAndLevel(true);
     setShowModal(true);
+
+    // If template has 0 questions assigned in the database, automatically select matching ones on open
+    if (!hasExistingQuestions) {
+      setTimeout(() => {
+        autoSelectQuestionsFor(
+          tpl.department || "SOFTWARE_ENGINEERING",
+          tpl.level || "FRESHER",
+          tpl.experiencedLevel || "L1"
+        );
+      }, 0);
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -578,7 +673,11 @@ export function RoleTemplatesPage() {
                   </label>
                   <select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDepartment(val);
+                      autoSelectQuestionsFor(val, level, experiencedLevel);
+                    }}
                     className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
                   >
                     {DEPARTMENTS.map((d) => (
@@ -598,9 +697,11 @@ export function RoleTemplatesPage() {
                     onChange={(e) => {
                       const val = e.target.value;
                       setLevel(val);
+                      const nextExpLvl = val === "EXPERIENCED" && !experiencedLevel ? "L1" : experiencedLevel;
                       if (val === "EXPERIENCED" && !experiencedLevel) {
                         setExperiencedLevel("L1");
                       }
+                      autoSelectQuestionsFor(department, val, nextExpLvl);
                     }}
                     className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
                   >
@@ -619,7 +720,11 @@ export function RoleTemplatesPage() {
                     </label>
                     <select
                       value={experiencedLevel}
-                      onChange={(e) => setExperiencedLevel(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExperiencedLevel(val);
+                        autoSelectQuestionsFor(department, level, val);
+                      }}
                       className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white"
                     >
                       {EXPERIENCED_LEVELS.map((el) => (
@@ -635,9 +740,20 @@ export function RoleTemplatesPage() {
               {/* Question Bank Selection */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-2">
-                  <h4 className="text-[14px] font-semibold text-[#0B0B0D]">
-                    Attach Questions from Question Bank ({department})
-                  </h4>
+                  <div className="flex flex-col gap-1">
+                    <h4 className="text-[14px] font-semibold text-[#0B0B0D]">
+                      Attach Questions from Question Bank ({department})
+                    </h4>
+                    <label className="flex items-center gap-1.5 text-[11px] text-[#5B5B64] cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={filterByRoleAndLevel}
+                        onChange={(e) => setFilterByRoleAndLevel(e.target.checked)}
+                        className="rounded border-[#E6E6EA] text-[#2F5CFF] focus:ring-0"
+                      />
+                      <span>Filter by department & experience level (recommended)</span>
+                    </label>
+                  </div>
                   <span className="text-[12px] font-medium text-[#2F5CFF]">
                     {Object.keys(selectedQuestionsMap).length} question(s) selected
                   </span>
@@ -645,7 +761,9 @@ export function RoleTemplatesPage() {
 
                 {(() => {
                   const allowedMods = getDepartmentAllowedModules(department);
-                  const eligibleQuestions = questionsBank.filter((q) => allowedMods.includes(q.moduleType));
+                  const eligibleQuestions = filterByRoleAndLevel
+                    ? getEligibleQuestions(department, level, experiencedLevel)
+                    : questionsBank.filter((q) => allowedMods.includes(q.moduleType));
 
                   if (eligibleQuestions.length === 0) {
                     return (

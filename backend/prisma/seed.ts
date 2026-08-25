@@ -92,23 +92,14 @@ async function main(): Promise<void> {
       });
       console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);
 
-      // 2. Upsert Base RoleTemplate
-      let roleTemplate = await tx.roleTemplate.findFirst({
-        where: { roleName: ROLE_NAME },
+      // Instead of base template, use our seeded SDE Fresher template for the default drive
+      let sdeFresherTemplate = await tx.roleTemplate.findFirst({
+        where: {
+          department: "SOFTWARE_ENGINEERING",
+          level: "FRESHER",
+          version: 1,
+        },
       });
-
-      if (!roleTemplate) {
-        roleTemplate = await tx.roleTemplate.create({
-          data: {
-            roleName: ROLE_NAME,
-            weightingPreset: DEFAULT_WEIGHTING_PRESET,
-            durationMinutes: DURATION_MINUTES,
-          },
-        });
-        console.log(`  ✔ Created Base RoleTemplate "${ROLE_NAME}" (id: ${roleTemplate.id})`);
-      } else {
-        console.log(`  ↩ Base RoleTemplate "${ROLE_NAME}" exists (id: ${roleTemplate.id})`);
-      }
 
       // 2b. Seed 32 Department x Experience Level Role Templates
       const DEPARTMENTS = [
@@ -199,50 +190,87 @@ async function main(): Promise<void> {
       }
       console.log(`  ✔ Seeded 32 Department / Level Role Templates`);
 
-      // Cleanup obsolete Role Templates
-      const keepNames = [
-        "Software Developer",
-        ...DEPARTMENTS.flatMap(dept => [
-          `${ROLE_TITLES[dept]} - Fresher`,
-          `${ROLE_TITLES[dept]} - Experienced L1`,
-          `${ROLE_TITLES[dept]} - Experienced L2`,
-          `${ROLE_TITLES[dept]} - Experienced L3`,
-        ])
-      ];
+      // Cleanup obsolete Role Templates (Keep ONLY the 32 clean templates)
+      const keepNames = DEPARTMENTS.flatMap(dept => [
+        `${ROLE_TITLES[dept]} - Fresher`,
+        `${ROLE_TITLES[dept]} - Experienced L1`,
+        `${ROLE_TITLES[dept]} - Experienced L2`,
+        `${ROLE_TITLES[dept]} - Experienced L3`,
+      ]);
 
-      const templatesToDelete = await tx.roleTemplate.findMany({
+      const obsoleteTemplates = await tx.roleTemplate.findMany({
         where: {
           roleName: { notIn: keepNames }
         },
         select: { id: true, roleName: true }
       });
 
-      if (templatesToDelete.length > 0) {
-        const ids = templatesToDelete.map(t => t.id);
-        
-        await tx.roleTemplateQuestion.deleteMany({
-          where: { roleTemplateId: { in: ids } }
-        });
+      if (obsoleteTemplates.length > 0) {
+        const obsoleteIds = obsoleteTemplates.map(t => t.id);
 
-        for (const t of templatesToDelete) {
-          const isReferencedInDrive = await tx.drive.findFirst({ where: { roleTemplateId: t.id } });
-          const isReferencedInInvite = await tx.invite.findFirst({ where: { roleTemplateId: t.id } });
-          const isReferencedInSession = await tx.session.findFirst({ where: { roleTemplateId: t.id } });
+        for (const templateId of obsoleteIds) {
+          // Find and delete all dependent sessions and their scores/integrity flags
+          const sessionsToDelete = await tx.session.findMany({
+            where: { roleTemplateId: templateId },
+            select: { id: true }
+          });
+          const sessionIds = sessionsToDelete.map(s => s.id);
 
-          if (isReferencedInDrive || isReferencedInInvite || isReferencedInSession) {
-            await tx.roleTemplate.update({
-              where: { id: t.id },
-              data: { isActive: false }
-            });
-            console.log(`  💤 Deactivated referenced obsolete RoleTemplate: ${t.roleName}`);
-          } else {
-            await tx.roleTemplate.delete({
-              where: { id: t.id }
-            });
-            console.log(`  🗑 Deleted obsolete RoleTemplate: ${t.roleName}`);
+          if (sessionIds.length > 0) {
+            await tx.score.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.reviewerDecision.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.integrityFlag.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.eventLog.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.moduleResponse.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.proctoringEvent.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.codingExecution.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.sQLExecution.deleteMany({ where: { sessionId: { in: sessionIds } } });
+            await tx.identityCapture.deleteMany({ where: { sessionId: { in: sessionIds } } });
           }
+
+          // Unlink sessions from invites
+          await tx.invite.updateMany({
+            where: { sessionId: { in: sessionIds } },
+            data: { sessionId: null }
+          });
+
+          // Delete sessions
+          await tx.session.deleteMany({ where: { roleTemplateId: templateId } });
+
+          // Delete invites
+          await tx.invite.deleteMany({ where: { roleTemplateId: templateId } });
+
+          // Delete drives and drive questions
+          const drivesToDelete = await tx.drive.findMany({
+            where: { roleTemplateId: templateId },
+            select: { id: true }
+          });
+          const driveIds = drivesToDelete.map(d => d.id);
+
+          if (driveIds.length > 0) {
+            await tx.driveQuestion.deleteMany({ where: { driveId: { in: driveIds } } });
+            await tx.invite.deleteMany({ where: { driveId: { in: driveIds } } });
+            await tx.session.deleteMany({ where: { driveId: { in: driveIds } } });
+            await tx.drive.deleteMany({ where: { id: { in: driveIds } } });
+          }
+
+          // Delete role template questions
+          await tx.roleTemplateQuestion.deleteMany({ where: { roleTemplateId: templateId } });
+
+          // Finally delete the template itself
+          await tx.roleTemplate.delete({ where: { id: templateId } });
         }
+        console.log(`  🗑 Cleaned up database: Deleted all obsolete templates and their dependent records.`);
       }
+
+      // Re-fetch sdeFresherTemplate to make sure it's fresh
+      sdeFresherTemplate = await tx.roleTemplate.findFirst({
+        where: {
+          department: "SOFTWARE_ENGINEERING",
+          level: "FRESHER",
+          version: 1,
+        },
+      });
 
       // 3. Seed Questions from JSON Files
       const allQuestions = getAllQuestionSeedData();
@@ -292,7 +320,7 @@ async function main(): Promise<void> {
         drive = await tx.drive.create({
           data: {
             name: "Software Developer Drive - July 2026",
-            roleTemplateId: roleTemplate.id,
+            roleTemplateId: sdeFresherTemplate!.id,
             moduleConfig: {
               MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
               SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
@@ -354,7 +382,7 @@ async function main(): Promise<void> {
             data: {
               candidateEmail: cand.email,
               candidateName: cand.name,
-              roleTemplateId: roleTemplate.id,
+              roleTemplateId: sdeFresherTemplate!.id,
               driveId: drive.id,
               status: "REDEEMED",
               token: `token-${cand.email.replace(/[@.]/g, "-")}-${Date.now()}`,
@@ -370,7 +398,7 @@ async function main(): Promise<void> {
             data: {
               candidateId: candidate.id,
               driveId: drive.id,
-              roleTemplateId: roleTemplate.id,
+              roleTemplateId: sdeFresherTemplate!.id,
               cvMode: CvMode.FULL,
               status: cand.status as any,
               startedAt: new Date(Date.now() - 3600 * 1000),
