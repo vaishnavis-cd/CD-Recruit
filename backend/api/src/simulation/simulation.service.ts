@@ -1090,6 +1090,12 @@ try:
                     actual = str(cache.get("key0") is None and cache.get("key5") is not None).lower()
                 else:
                     actual = "true"
+            elif fn.__name__ in ['prioritize_incident', 'prioritizeIncident']:
+                res = fn(5, 4)
+                if clean_arg == "impact" or clean_arg == "mitigation":
+                    actual = str(isinstance(res, (str, dict)) and res != "no_strategy").lower()
+                else:
+                    actual = "true"
             else:
                 # Default calling fallback
                 res = fn(clean_arg)
@@ -1127,8 +1133,8 @@ except Exception as global_err:
     }
 
     return new Promise((resolve) => {
-      const pyCmd = process.platform === "win32" ? "py" : "python3";
-      const args = process.platform === "win32" ? ["-3", tempFile] : [tempFile];
+      const pyCmd = process.platform === "win32" ? "python" : "python3";
+      const args = [tempFile];
 
       execFile(pyCmd, args, { timeout: 4000 }, (error, stdout, stderr) => {
         // Clean up temp file
@@ -1228,6 +1234,13 @@ except Exception as global_err:
               } else if (cleanArg === "no_secrets") {
                 const vals = Object.values(creds || {});
                 actual = String(!vals.some(v => String(v).includes("AKIAIOS") || String(v).includes("wJalr"))).toLowerCase();
+              } else {
+                actual = "true";
+              }
+            } else if (fn.name === "prioritizeIncident" || fn.name === "prioritize_incident") {
+              const res = fn(5, 4);
+              if (cleanArg === "impact" || cleanArg === "mitigation") {
+                actual = String(typeof res === "string" && res !== "no_strategy" || typeof res === "object").toLowerCase();
               } else {
                 actual = "true";
               }

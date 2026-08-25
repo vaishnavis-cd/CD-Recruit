@@ -507,6 +507,13 @@ export class SessionScoringService {
         } else if (q.moduleType === "NOSQL") {
           const execResult = payload?.executionResult;
           doValue = execResult?.passed ? 1.0 : 0.0;
+        } else if (q.moduleType === "SIMULATION") {
+          const simScore = (payload as any)?.sayDoScore ?? (payload as any)?.sayDoCorrelationScore ?? (payload as any)?.evaluation?.sayDoCorrelation?.score;
+          if (typeof simScore === "number") {
+            doValue = simScore > 1 ? simScore / 100 : simScore;
+          } else {
+            doValue = payload?.executionResult?.passed ? 1.0 : 0.7;
+          }
         } else {
           doValue = 0.0;
         }
