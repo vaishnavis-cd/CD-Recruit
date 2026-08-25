@@ -28,10 +28,10 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
       try {
         const { invite, drive, session } = await services.sessionApi.resolveInvite(token)
 
-        // If session was already submitted or completed, lock access and show link expired screen
+        // If session was already submitted or completed, lock access and show DoneScreen (Thank You page)
         if (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED') {
           if (session) setSession(session)
-          transitionTo({ type: 'expired', reason: 'already-submitted' as any })
+          transitionTo({ type: 'done', referenceId: session?.id || 'COMPLETED', sessionId: session?.id || 'COMPLETED', auto: false })
           return
         }
 

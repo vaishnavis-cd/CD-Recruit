@@ -4,7 +4,7 @@ import { ModuleShell } from '../../components/ModuleShell'
 import { CodeEditor } from '../../components/common/CodeEditor'
 import apiClient from '../../api/client'
 import { runCoding, TestResultDetail, CodingExecutionResponse } from '../../api/coding'
-import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown } from 'lucide-react'
+import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown, ChevronLeft } from 'lucide-react'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import { getEffectiveModuleType } from '../../utils/moduleType'
 
@@ -24,7 +24,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
   const questionId = debuggingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
 
-  const { handleNext: triggerNext } = useModuleNavigation(moduleIndex, currentIndex, debuggingQuestions.length || 1)
+  const { handleNext: triggerNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, debuggingQuestions.length || 1)
 
   const [questionData, setQuestionData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -342,20 +342,11 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                 <span>Interactive Fix Editor</span>
               </div>
 
-              {/* Target Language Badge (Preferred language selector removed) */}
+              {/* Target Language Badge */}
               <div className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
                 {activeLang.toUpperCase()}
               </div>
             </div>
-
-            <button
-              onClick={handleRunDiagnostics}
-              disabled={isRunning}
-              className="px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              <span>Run Diagnostics (Judge0)</span>
-            </button>
           </div>
 
           {/* Code Editor Container */}
@@ -464,6 +455,40 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               )}
             </div>
           </div>
+
+          {/* Standardized Pinned Bottom Navigation Bar */}
+          <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+            <button
+              onClick={handleRunDiagnostics}
+              disabled={isRunning}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+            >
+              {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+              <span>Run Diagnostics (Judge0)</span>
+            </button>
+
+            <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+              Debugging Task {currentIndex + 1} of {debuggingQuestions.length || 1}
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+                disabled={currentIndex === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Previous question"
+              >
+                <ChevronLeft size={14} />
+                <span>Previous</span>
+              </button>
+              <button
+                onClick={handleSaveAndNext}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+              >
+                <span>{nextButtonLabel}</span>
+              </button>
+            </div>
+          </footer>
         </div>
       </div>
     </ModuleShell>

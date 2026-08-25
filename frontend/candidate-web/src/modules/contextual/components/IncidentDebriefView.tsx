@@ -134,8 +134,8 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Replay Timeline */}
         <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[#2F5CFF] flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#2F5CFF]" />
+          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-accent flex items-center gap-2">
+            <Clock className="w-4 h-4 text-accent" />
             <span>Incident Replay Timeline</span>
           </h3>
 

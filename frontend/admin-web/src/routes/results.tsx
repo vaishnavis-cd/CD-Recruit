@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
+import { formatTimestamp } from "../lib/utils";
+import { ExportDropdown } from "../components/export-dropdown";
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
@@ -132,56 +134,64 @@ function ResultsPage() {
       count={filtered.length}
       search={
         <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search candidate name or email…"
-            className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-[#F7F7F9] focus:outline-none focus:border-[#2F5CFF]"
+            className="w-full pl-9 pr-3 py-2 text-[13px] border border-line rounded-md bg-bg-soft focus:outline-none focus:border-brand"
           />
         </div>
       }
       actions={
-        <button
-          onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] transition-colors cursor-pointer"
-        >
-          <Download size={13} />
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-brand bg-brand/10 border border-brand/30 rounded hover:bg-brand/20 transition-colors cursor-pointer"
+            title="Download full candidate evaluation CSV dataset from server"
+          >
+            <Download size={13} />
+            Export Server CSV
+          </button>
+          <ExportDropdown
+            data={filtered}
+            filenamePrefix="proctora-candidate-results"
+            title="Candidate Assessment Results"
+          />
+        </div>
       }
     >
       {/* Metric Cards Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#8B8B93] mb-1">
+        <div className="bg-white border border-line rounded-[10px] p-4 shadow-sm">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-stext-2 mb-1">
             Total Evaluated
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#0B0B0D]">{stats.total}</div>
+          <div className="text-[22px] font-mono font-semibold text-ink">{stats.total}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
+        <div className="bg-white border border-line rounded-[10px] p-4 shadow-sm">
           <div className="text-[11px] font-mono uppercase tracking-wider text-amber-600 mb-1">
             Pending Review
           </div>
           <div className="text-[22px] font-mono font-semibold text-amber-700">{stats.pending}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#0C6B58] mb-1">
+        <div className="bg-white border border-line rounded-[10px] p-4 shadow-sm">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-1">
             Approved (Pass)
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#0C6B58]">{stats.approved}</div>
+          <div className="text-[22px] font-mono font-semibold text-emerald-700">{stats.approved}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#C0392B] mb-1">
+        <div className="bg-white border border-line rounded-[10px] p-4 shadow-sm">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-danger mb-1">
             Rejected (Fail)
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#C0392B]">{stats.rejected}</div>
+          <div className="text-[22px] font-mono font-semibold text-danger">{stats.rejected}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#2F5CFF] mb-1">
+        <div className="bg-white border border-line rounded-[10px] p-4 shadow-sm">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-brand mb-1">
             Avg Composite Score
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#2F5CFF]">{stats.avgScore}%</div>
+          <div className="text-[22px] font-mono font-semibold text-brand">{stats.avgScore}%</div>
         </div>
       </div>
 
@@ -201,8 +211,8 @@ function ResultsPage() {
               onClick={() => setStatusFilter(chip.id)}
               className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
                 statusFilter === chip.id
-                  ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                  : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
+                  ? "bg-brand text-white border-brand"
+                  : "bg-white text-ink-2 border-line hover:border-line-strong"
               }`}
             >
               {chip.label}
@@ -211,11 +221,11 @@ function ResultsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-[12px] text-[#5B5B64] font-medium">Filter by Drive:</label>
+          <label className="text-[12px] text-ink-2 font-medium">Filter by Drive:</label>
           <select
             value={driveFilter}
             onChange={(e) => setDriveFilter(e.target.value)}
-            className="px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+            className="px-3 py-1.5 text-[12px] border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
           >
             <option value="all">All Drives</option>
             {drives.map((d) => (
@@ -228,17 +238,17 @@ function ResultsPage() {
       </div>
 
       {/* Results Data Table */}
-      <div className="bg-white border border-[#E6E6EA] rounded-[10px] shadow-sm overflow-hidden">
+      <div className="bg-white border border-line rounded-[10px] shadow-sm overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-12 text-center">
-            <FileSpreadsheet size={32} className="mx-auto text-[#D6D7DC] mb-2" />
-            <p className="text-[13px] text-[#8B8B93] italic">No candidate evaluation results found.</p>
+            <FileSpreadsheet size={32} className="mx-auto text-line-strong mb-2" />
+            <p className="text-[13px] text-stext-2 italic">No candidate evaluation results found.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] border-collapse">
               <thead>
-                <tr className="bg-[#F7F7F9] border-b border-[#E6E6EA] text-[11px] font-mono uppercase tracking-wider text-[#5B5B64]">
+                <tr className="bg-bg-soft border-b border-line text-[11px] font-mono uppercase tracking-wider text-ink-2">
                   <th className="py-3 px-4 font-semibold">Candidate</th>
                   <th className="py-3 px-4 font-semibold">Drive & Track</th>
                   <th className="py-3 px-4 font-semibold">Submitted</th>
@@ -248,16 +258,16 @@ function ResultsPage() {
                   <th className="py-3 px-4 font-semibold text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EFF0F3]">
+              <tbody className="divide-y divide-bg-inset">
                 {filtered.map((item: any) => {
                   const rawScore = item.compositeScore;
                   const scoreVal = rawScore !== null && rawScore !== undefined ? (rawScore <= 1.0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
                   const scoreColor =
                     scoreVal >= 75
-                      ? "text-[#0C6B58] bg-[#E3F9F2]"
+                      ? "text-emerald-700 bg-emerald-50"
                       : scoreVal >= 50
                       ? "text-amber-700 bg-amber-50"
-                      : "text-[#C0392B] bg-[#FFF5F5]";
+                      : "text-danger bg-rose-50";
 
                   const flagsCount = item.integrityFlagsCount ?? 0;
                   const decStr = String(item.decision?.outcome || item.decision || "");
@@ -265,19 +275,19 @@ function ResultsPage() {
                   const isRejected = decStr === "FAIL" || decStr === "REJECT";
 
                   return (
-                    <tr key={item.id || item.sessionId} className="hover:bg-[#F7F7F9] transition-colors">
+                    <tr key={item.id || item.sessionId} className="hover:bg-bg-soft transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-[#0B0B0D]">{item.candidateName}</div>
-                        <div className="text-[11px] font-mono text-[#8B8B93]">{item.candidateEmail}</div>
+                        <div className="font-semibold text-ink">{item.candidateName}</div>
+                        <div className="text-[11px] font-mono text-stext-2">{item.candidateEmail}</div>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-[#0B0B0D] font-medium truncate max-w-[200px]">
+                        <div className="text-ink font-medium truncate max-w-[200px]">
                           {item.driveName || "General Drive"}
                         </div>
-                        <div className="text-[11px] text-[#5B5B64]">{item.roleTemplateName || "Software Engineer"}</div>
+                        <div className="text-[11px] text-ink-2">{item.roleTemplateName || "Software Engineer"}</div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-[12px] text-[#5B5B64]">
-                        {item.submittedAt ? item.submittedAt.slice(0, 16).replace("T", " ") : "In Progress"}
+                      <td className="py-3 px-4 font-mono text-[12px] text-ink-2">
+                        {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span
@@ -301,12 +311,12 @@ function ResultsPage() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         {isApproved ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58]">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">
                             <CheckCircle2 size={12} />
                             Approved
                           </span>
                         ) : isRejected ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B]">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-danger">
                             <XCircle size={12} />
                             Rejected
                           </span>
@@ -321,7 +331,7 @@ function ResultsPage() {
                         <Link
                           to="/results/$id"
                           params={{ id: item.sessionId || item.id }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D6E4FF] rounded-md transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-brand bg-brand/10 hover:bg-brand/20 rounded-md transition-colors"
                         >
                           <Eye size={12} />
                           Evaluate

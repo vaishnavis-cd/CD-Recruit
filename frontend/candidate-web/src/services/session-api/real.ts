@@ -72,7 +72,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
         tutorialMode: 'full',
         startedAt: data.startedAt,
         submittedAt: null,
-        status: data.status === 'SUBMITTED' ? 'submitted' : 'active',
+        status: (data.status === 'SUBMITTED' || data.status === 'AUTO_SUBMITTED' || data.status === 'CLOSED' || data.status === 'submitted') ? 'submitted' : 'active',
         questions: data.questions,
         durationMinutes: data.durationMinutes || 60,
       }

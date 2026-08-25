@@ -86,14 +86,14 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F7F7F9] text-[#0B0B0D] font-sans">
-      <aside className="w-[244px] shrink-0 bg-white border-r border-[#E6E6EA] text-[#0B0B0D] flex flex-col sticky top-0 h-screen">
+    <div className="flex min-h-screen bg-bg-soft text-ink font-sans">
+      <aside className="w-[244px] shrink-0 bg-white border-r border-line text-ink flex flex-col sticky top-0 h-screen">
         <div className="px-4 pt-5 pb-3">
           <div className="flex items-center gap-2">
             <img src="/Logo.png" alt="Proctora Logo" className="w-7 h-7 object-contain" />
             <div>
-              <div className="text-[17px] font-bold tracking-tight text-[#0B0B0D]">Proctora</div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#8B8B93] leading-none">
+              <div className="text-[17px] font-bold tracking-tight text-ink">Proctora</div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-stext-2 leading-none">
                 admin
               </div>
             </div>
@@ -110,12 +110,12 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
                 to={item.to}
                 className={`relative flex items-center gap-3 px-4 py-2 text-[13px] transition-colors ${
                   active
-                    ? "text-[#2F5CFF] bg-gradient-to-r from-transparent to-[rgba(47,92,255,0.12)] font-medium"
-                    : "text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-[#EFF0F3]"
+                    ? "text-brand bg-gradient-to-r from-transparent to-[rgba(47,92,255,0.12)] font-medium"
+                    : "text-ink-2 hover:text-ink hover:bg-bg-inset"
                 }`}
               >
                 {active && (
-                  <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-[#2F5CFF]" />
+                  <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-brand" />
                 )}
                 <div className="relative inline-flex items-center justify-center shrink-0">
                   <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
@@ -129,20 +129,20 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
           })}
         </nav>
 
-        <div className="px-4 py-3 border-t border-[#E6E6EA] flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#2F5CFF] text-white flex items-center justify-center text-[11px] font-mono font-semibold">
+        <div className="px-4 py-3 border-t border-line flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-[11px] font-mono font-semibold">
             {userInfo.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] truncate text-[#0B0B0D] font-medium">{userInfo.userName}</div>
-            <div className="text-[10px] font-mono text-[#8B8B93] uppercase tracking-[0.14em]">
+            <div className="text-[12px] truncate text-ink font-medium">{userInfo.userName}</div>
+            <div className="text-[10px] font-mono text-stext-2 uppercase tracking-[0.14em]">
               {userInfo.userRole}
             </div>
           </div>
           <button
             onClick={() => setShowLogoutModal(true)}
             title="Log out"
-            className="p-1.5 text-[#8B8B93] hover:text-[#DC2626] hover:bg-[#FFF5F5] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-stext-2 hover:text-danger hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
           >
             <LogOut size={16} />
           </button>
@@ -150,11 +150,11 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
       </aside>
 
       <div className="flex-1 min-w-0">
-        <header className="sticky top-0 z-10 bg-white border-b border-[#E6E6EA] px-8 h-[64px] flex items-center gap-4">
+        <header className="sticky top-0 z-10 bg-white border-b border-line px-8 h-[64px] flex items-center gap-4">
           <div className="flex items-baseline gap-3 flex-1 min-w-0">
             <h1 className="text-[18px] font-semibold tracking-tight">{title}</h1>
             {count !== undefined && (
-              <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] px-1.5 py-0.5 bg-[#EFF0F3] rounded">
+              <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 px-1.5 py-0.5 bg-bg-inset rounded">
                 {count}
               </span>
             )}
@@ -168,31 +168,31 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
       {/* Blurred Logout Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 transition-all">
-          <div className="bg-white rounded-xl border border-[#E6E6EA] shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-xl border border-line shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#FFF5F5] text-[#DC2626] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-rose-50 text-danger flex items-center justify-center shrink-0">
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Confirm Logout</h3>
-                <p className="text-[12px] text-[#5B5B64]">End active admin session</p>
+                <h3 className="text-[16px] font-semibold text-ink">Confirm Logout</h3>
+                <p className="text-[12px] text-ink-2">End active admin session</p>
               </div>
             </div>
 
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+            <p className="text-[13px] text-ink-2 leading-relaxed">
               Are you sure you want to log out of the Proctora Admin Console?
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="px-4 py-2 text-[13px] font-medium text-[#5B5B64] hover:bg-[#EFF0F3] rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 text-[13px] font-medium text-ink-2 hover:bg-bg-inset rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-[13px] font-medium text-white bg-[#DC2626] hover:bg-[#B91C1C] rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                className="px-4 py-2 text-[13px] font-medium text-white bg-danger hover:bg-danger/90 rounded-lg transition-colors cursor-pointer flex items-center gap-2"
               >
                 <LogOut size={14} />
                 Log out

@@ -136,7 +136,7 @@ export function ExportDropdown({ data = [], filenamePrefix = "proctora-export", 
     <div className="relative inline-block text-left" ref={containerRef}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded-lg shadow-sm transition-colors cursor-pointer"
+        className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold bg-brand hover:bg-brand/90 text-white rounded-lg shadow-sm transition-colors cursor-pointer"
       >
         <Download size={14} />
         <span>Export</span>
@@ -144,24 +144,24 @@ export function ExportDropdown({ data = [], filenamePrefix = "proctora-export", 
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white border border-[#E6E6EA] shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white border border-line shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-[12px] font-medium text-[#0B0B0D] hover:bg-[#F7F7F9] rounded-lg transition-colors cursor-pointer text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-[12px] font-medium text-ink hover:bg-bg-soft rounded-lg transition-colors cursor-pointer text-left"
           >
-            <FileText size={14} className="text-[#2F5CFF]" />
+            <FileText size={14} className="text-brand" />
             <span>Export PDF Report</span>
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-[12px] font-medium text-[#0B0B0D] hover:bg-[#F7F7F9] rounded-lg transition-colors cursor-pointer text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-[12px] font-medium text-ink hover:bg-bg-soft rounded-lg transition-colors cursor-pointer text-left"
           >
             <FileSpreadsheet size={14} className="text-emerald-600" />
             <span>Export Excel / CSV</span>
           </button>
           <button
             onClick={handleExportJSON}
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-[12px] font-medium text-[#0B0B0D] hover:bg-[#F7F7F9] rounded-lg transition-colors cursor-pointer text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-[12px] font-medium text-ink hover:bg-bg-soft rounded-lg transition-colors cursor-pointer text-left"
           >
             <FileCode size={14} className="text-amber-600" />
             <span>Export JSON Data</span>

@@ -212,154 +212,166 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex-1 overflow-y-auto h-full min-h-0 px-6 py-6 space-y-4 max-w-4xl mx-auto">
-        {/* Candidate Evaluation Guidance Banner */}
-        <div className="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--text-secondary)] flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
-            <span>Iterate freely on your prompt. <strong>Only your final active prompt &amp; generated output submission</strong> will be evaluated by the grading engine.</span>
-          </div>
-          <span className="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-[10px] font-mono font-semibold">
-            Task Scoped AI Sandbox
-          </span>
-        </div>
-
-        <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-1">
-          Prompt {currentIndex + 1} of {questions.length}
-        </div>
-
-        {/* System context */}
-        {question.systemContext && (
-          <div className="mb-4 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs">
-            <span className="font-medium text-[var(--text-secondary)]">Context: </span>
-            <span className="text-[var(--text-secondary)]">{question.systemContext}</span>
-          </div>
-        )}
-
-        {/* Task */}
-        <div className="mb-6 p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-          <p className="text-sm text-[var(--text-primary)] leading-relaxed">{question.text}</p>
-        </div>
-
-        {/* Prompt input */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor={`prompt-${question.id}`} className="block text-sm font-medium text-[var(--text-primary)]">
-              Your prompt to the AI assistant
-            </label>
-            {isVerbatimPrompt && (
-              <StatusChip
-                variant="warning"
-                label="Direct Copy Detected — Add Persona & Constraints"
-                size="sm"
-              />
-            )}
-          </div>
-
-          <textarea
-            id={`prompt-${question.id}`}
-            value={promptText}
-            onChange={handlePromptChange}
-            onPaste={handlePaste}
-            disabled={loadingPrompt}
-            placeholder="Write your prompt here..."
-            rows={6}
-            aria-label="Enter your prompt to the AI assistant"
-            className="w-full px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-xs font-mono placeholder:text-[var(--text-secondary)] placeholder:font-sans resize-y focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] disabled:opacity-60 transition-colors"
-          />
-          {isVerbatimPrompt && (
-            <div className="mt-2 text-xs text-[var(--warning)] flex items-start gap-1.5">
-              <Lightbulb size={14} className="shrink-0 mt-0.5" />
-              <span><strong>Prompt Tip:</strong> Directly repeating the question will cause the AI assistant to ask for clarifying instructions rather than solving the task for you. Provide explicit persona framing, output formatting, or constraints.</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 mb-8">
-          <button
-            onClick={handleSubmitPrompt}
-            disabled={loadingPrompt || !promptText.trim()}
-            aria-label="Submit prompt to AI assistant"
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 flex items-center gap-2 cursor-pointer shadow-[var(--shadow-sm)]"
-          >
-            {loadingPrompt ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                <span>Getting response…</span>
-              </>
-            ) : submitted ? (
-              <span>Resubmit Prompt</span>
-            ) : (
-              <span>Submit Prompt</span>
-            )}
-          </button>
-          {submitted && (
-            <button
-              onClick={handleRevise}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
-            >
-              Revise prompt
-            </button>
-          )}
-        </div>
-
-        {/* AI response area */}
-        {loadingPrompt && (
-          <div
-            aria-live="polite"
-            aria-label="AI response loading"
-            className="p-5 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-subtle)]"
-          >
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--accent)]">
-              <Loader2 size={16} className="animate-spin" />
-              <span>Generating response from AI assistant…</span>
-            </div>
-          </div>
-        )}
-
-        {aiResponse && !loadingPrompt && (
-          <div
-            role="region"
-            aria-label="AI assistant response"
-            aria-live="polite"
-            className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles size={14} className="text-[var(--accent)]" />
-                <span>AI Response</span>
+      <div className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-background">
+        {/* Scrollable Question & Prompt Sandbox Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {/* Candidate Evaluation Guidance Banner */}
+            <div className="p-3.5 rounded-xl bg-surface border border-border text-xs text-muted-foreground flex items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-accent" />
+                <span>Iterate freely on your prompt. <strong>Only your final active prompt &amp; generated output submission</strong> will be evaluated by the grading engine.</span>
               </div>
+              <span className="px-2 py-0.5 rounded bg-background border border-border text-[10px] font-mono font-semibold">
+                Task Scoped AI Sandbox
+              </span>
+            </div>
+
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Prompt {currentIndex + 1} of {questions.length}
+            </div>
+
+            {/* System context */}
+            {question.systemContext && (
+              <div className="p-3 rounded-lg border border-border bg-surface text-xs">
+                <span className="font-medium text-muted-foreground">Context: </span>
+                <span className="text-muted-foreground">{question.systemContext}</span>
+              </div>
+            )}
+
+            {/* Task */}
+            <div className="p-4 rounded-lg border border-border bg-surface">
+              <p className="text-sm text-foreground leading-relaxed">{question.text}</p>
+            </div>
+
+            {/* Prompt input */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor={`prompt-${question.id}`} className="block text-sm font-medium text-foreground">
+                  Your prompt to the AI assistant
+                </label>
+                {isVerbatimPrompt && (
+                  <StatusChip
+                    variant="warning"
+                    label="Direct Copy Detected — Add Persona & Constraints"
+                    size="sm"
+                  />
+                )}
+              </div>
+
+              <textarea
+                id={`prompt-${question.id}`}
+                value={promptText}
+                onChange={handlePromptChange}
+                onPaste={handlePaste}
+                disabled={loadingPrompt}
+                placeholder="Write your prompt here..."
+                rows={6}
+                aria-label="Enter your prompt to the AI assistant"
+                className="w-full px-3.5 py-3 rounded-xl border border-border bg-background text-foreground text-xs font-mono placeholder:text-muted-foreground placeholder:font-sans resize-y focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:opacity-60 transition-colors"
+              />
               {isVerbatimPrompt && (
-                <StatusChip
-                  variant="warning"
-                  label="Socratic Mode Active"
-                  size="sm"
-                />
+                <div className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                  <Lightbulb size={14} className="shrink-0 mt-0.5" />
+                  <span><strong>Prompt Tip:</strong> Directly repeating the question will cause the AI assistant to ask for clarifying instructions rather than solving the task for you. Provide explicit persona framing, output formatting, or constraints.</span>
+                </div>
               )}
             </div>
-            <div className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-mono bg-[var(--bg)] p-4 rounded-xl border border-[var(--border)]">
-              {aiResponse}
-            </div>
-          </div>
-        )}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-[var(--border)]">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSubmitPrompt}
+                disabled={loadingPrompt || !promptText.trim()}
+                aria-label="Submit prompt to AI assistant"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-accent text-white hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-accent flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                {loadingPrompt ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Getting response…</span>
+                  </>
+                ) : submitted ? (
+                  <span>Resubmit Prompt</span>
+                ) : (
+                  <span>Submit Prompt</span>
+                )}
+              </button>
+              {submitted && (
+                <button
+                  onClick={handleRevise}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-border bg-surface text-muted-foreground hover:text-foreground hover:border-border transition-colors cursor-pointer"
+                >
+                  Revise prompt
+                </button>
+              )}
+            </div>
+
+            {/* AI response area */}
+            {loadingPrompt && (
+              <div
+                aria-live="polite"
+                aria-label="AI response loading"
+                className="p-5 rounded-2xl border border-accent/30 bg-accent/10"
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold text-accent">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Generating response from AI assistant…</span>
+                </div>
+              </div>
+            )}
+
+            {aiResponse && !loadingPrompt && (
+              <div
+                role="region"
+                aria-label="AI assistant response"
+                aria-live="polite"
+                className="p-5 rounded-2xl border border-border bg-surface shadow-xs space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-accent" />
+                    <span>AI Response</span>
+                  </div>
+                  {isVerbatimPrompt && (
+                    <StatusChip
+                      variant="warning"
+                      label="Socratic Mode Active"
+                      size="sm"
+                    />
+                  )}
+                </div>
+                <div className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-mono bg-background p-4 rounded-xl border border-border">
+                  {aiResponse}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Standardized Pinned Bottom Navigation Bar */}
+        <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="px-4 py-2 rounded text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] inline-flex items-center gap-1.5"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="Previous prompt"
           >
             <ChevronLeft size={14} />
             <span>Previous</span>
           </button>
+
+          <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+            Prompt {currentIndex + 1} of {questions.length}
+          </span>
+
           <button
             onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-            className="px-4 py-2 rounded text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+            aria-label={nextButtonLabel}
           >
-            {nextButtonLabel}
+            <span>{nextButtonLabel}</span>
           </button>
-        </div>
+        </footer>
       </div>
     </ModuleShell>
   )

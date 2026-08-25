@@ -64,15 +64,15 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
           </div>
           <div>
             <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent)]">
-              All done
+              Assessment Completed
             </div>
-            <h1 id="done-heading" className="text-[36px] font-semibold tracking-tight mt-1 text-[var(--foreground)]">
-              {auto ? 'Assessment Submitted' : 'Thanks for completing your assessment'}
+            <h1 id="done-heading" className="text-[32px] sm:text-[36px] font-bold tracking-tight mt-1 text-[var(--foreground)]">
+              The assessment ended for you
             </h1>
-            <p className="mt-3 text-[15px] text-[var(--muted-foreground)]">
+            <p className="mt-3 text-[15px] text-[var(--muted-foreground)] leading-relaxed">
               {auto
-                ? 'Time limit reached — your last-saved answers were submitted automatically.'
-                : 'Your responses have been securely sent for review. Keep the reference below handy if you need to contact support.'
+                ? 'Time limit reached — your answers were submitted automatically and recorded.'
+                : 'Your responses have been securely submitted and recorded for review. You cannot re-take or re-enter this assessment.'
               }
             </p>
 

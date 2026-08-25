@@ -42,7 +42,7 @@ function LoginPage() {
 
   return (
     <div
-      className="min-h-screen w-full text-[#0B0B0D] font-sans flex items-center justify-center p-4 relative overflow-hidden bg-[#F4F5F8]"
+      className="min-h-screen w-full text-ink font-sans flex items-center justify-center p-4 relative overflow-hidden bg-bg-soft"
       style={{
         backgroundImage: "url('/Login-admin-bg.png')",
         backgroundSize: "cover",
@@ -57,10 +57,10 @@ function LoginPage() {
         <div className="flex items-center gap-3 mb-6">
           <img src="/Logo.png" alt="Proctora Logo" className="w-8 h-8 object-contain" />
           <div>
-            <div className="text-[19px] font-bold tracking-tight text-[#0B0B0D] leading-none mb-1">
+            <div className="text-[19px] font-bold tracking-tight text-ink leading-none mb-1">
               Proctora
             </div>
-            <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#5B5B64] leading-none">
+            <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-ink-2 leading-none">
               admin console
             </div>
           </div>
@@ -68,14 +68,14 @@ function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 rounded-lg bg-[#FFF5F5] border border-[#FECACA] flex items-start gap-2.5 text-[#DC2626] text-[12px] shadow-sm">
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-danger text-[12px] shadow-sm">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+            <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5">
               email / username
             </label>
             <input
@@ -84,12 +84,12 @@ function LoginPage() {
               type="text"
               placeholder="admin@cdrecruit.local or email"
               disabled={loading}
-              className="w-full bg-white border border-[#E6E6EA] rounded-lg px-3.5 py-2.5 text-[13px] text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] focus:ring-2 focus:ring-[#2F5CFF]/20 transition-all disabled:opacity-50"
+              className="w-full bg-white border border-line rounded-lg px-3.5 py-2.5 text-[13px] text-ink focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all disabled:opacity-50"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+            <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5">
               password
             </label>
             <input
@@ -98,14 +98,14 @@ function LoginPage() {
               type="password"
               placeholder="••••••••"
               disabled={loading}
-              className="w-full bg-white border border-[#E6E6EA] rounded-lg px-3.5 py-2.5 text-[13px] text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] focus:ring-2 focus:ring-[#2F5CFF]/20 transition-all disabled:opacity-50"
+              className="w-full bg-white border border-line rounded-lg px-3.5 py-2.5 text-[13px] text-ink focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all disabled:opacity-50"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#2F5CFF] hover:bg-[#0037FF] active:scale-[0.99] text-white font-medium text-[13px] py-2.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+            className="w-full bg-brand hover:bg-brand/90 active:scale-[0.99] text-white font-medium text-[13px] py-2.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
           >
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? "Signing in..." : "Sign in"}

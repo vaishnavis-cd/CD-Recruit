@@ -122,7 +122,7 @@ export class QuestionService implements OnModuleInit {
   }
 
   async list(query: ListQuestionsQueryDto) {
-    const { page, pageSize, moduleType, difficulty, targetLevel, search, status, role, department, tier } = query as any;
+    const { page, pageSize, moduleType, difficulty, targetLevel, search, status, role, department } = query as any;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
 
@@ -172,16 +172,6 @@ export class QuestionService implements OnModuleInit {
       where.role = { contains: role, mode: "insensitive" };
     }
 
-    // Tier filtering
-    if (tier && tier !== "all") {
-      const tierUpper = tier.toUpperCase();
-      if (tierUpper === "TIER_2" || tierUpper === "TIER2") {
-        where.tags = { hasSome: ["tier_2", "tier2"] };
-      } else if (tierUpper === "TIER_1" || tierUpper === "TIER1") {
-        where.NOT = { tags: { hasSome: ["tier_2", "tier2"] } };
-      }
-    }
-
     if (status) {
       where.status = status;
     } else {
@@ -189,17 +179,20 @@ export class QuestionService implements OnModuleInit {
     }
 
     if (search) {
-      const s = search.toLowerCase().trim();
-      const searchOr = [
-        { tags: { has: s } },
-        { role: { contains: s, mode: "insensitive" } },
-      ];
-      if (where.OR) {
-        where.AND = [{ OR: where.OR }, { OR: searchOr }];
-        delete where.OR;
-      } else {
-        where.OR = searchOr;
-      }
+      const s = `%${search.toLowerCase().trim()}%`;
+      const matched: { id: string }[] = await this.prisma.$queryRaw`
+        SELECT id FROM "question"
+        WHERE (
+          "content"::text ILIKE ${s}
+          OR array_to_string("tags", ' ') ILIKE ${s}
+          OR "role" ILIKE ${s}
+          OR "difficulty" ILIKE ${s}
+          OR "module_type"::text ILIKE ${s}
+          OR "target_level" ILIKE ${s}
+        )
+      `;
+      const matchedIds = matched.map((m) => m.id);
+      where.id = { in: matchedIds };
     }
 
     const [items, total] = await Promise.all([
@@ -207,7 +200,7 @@ export class QuestionService implements OnModuleInit {
         where,
         skip,
         take,
-        orderBy: { version: "desc" },
+        orderBy: [{ moduleType: "asc" }, { id: "asc" }],
         include: {
           _count: {
             select: { driveQuestions: true, moduleResponses: true },

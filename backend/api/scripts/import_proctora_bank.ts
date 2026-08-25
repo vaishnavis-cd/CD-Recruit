@@ -71,12 +71,10 @@ async function main() {
         }
 
         const difficulty = (q.difficulty || 'MEDIUM').toLowerCase();
-        const tierTag = (q.tier || 'TIER_1').toLowerCase();
         const categoryTag = (q.category || '').toLowerCase();
         const tags = [
           q.department.toLowerCase(),
           q.module.toLowerCase(),
-          tierTag,
           difficulty,
         ];
         if (categoryTag) tags.push(categoryTag);
@@ -85,7 +83,6 @@ async function main() {
           prompt: q.question,
           question: q.question,
           category: q.category,
-          tier: q.tier,
           estimatedTimeMinutes: q.estimatedTimeMinutes,
           difficulty: q.difficulty,
         };

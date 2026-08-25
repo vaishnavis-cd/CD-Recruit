@@ -2,14 +2,21 @@
  * backend/prisma/seed.ts
  *
  * Prisma seed script for the CD-Recruit assessment platform.
- * Reads seed question datasets from declarative JSON files in backend/prisma/data/.
+ * Reads seed question datasets from declarative JSON files in backend/prisma/data/
+ * and seniority_l2_l3_question_batch.json.
+ *
+ * Populates:
+ * - Exactly 32 Role Templates (8 Departments x 4 Experience Tiers) with 90 min duration.
+ * - ~600-700 Questions with Department & Seniority tagging (Fresher, L1, L2, L3).
+ * - RoleTemplateQuestion mappings for every template.
+ * - Default Drive and candidate test sessions.
  *
  * Run via:
  *   npx prisma db seed
- *   (or directly: npx tsx backend/prisma/seed.ts)
+ *   (or: npm run db:seed)
  */
 
-import { PrismaClient, ModuleType, CvMode, DecisionType } from "@prisma/client";
+import { PrismaClient, ModuleType, CvMode, DecisionType, Department, CandidateCategory, ExperienceLevel } from "@prisma/client";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
@@ -21,63 +28,102 @@ dotenv.config({ path: path.join(__dirname, "../api/.env") });
 
 import { nosqlQuestions } from "./data/nosql";
 
+const prisma = new PrismaClient();
+
 // ---------------------------------------------------------------------------
 // Constants & Configuration
 // ---------------------------------------------------------------------------
 
-const ROLE_NAME = "Software Developer";
 const DURATION_MINUTES = 90;
 
-const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
-  MCQ: 0.10,
-  SQL: 0.15,
-  NOSQL: 0.15,
-  CODING: 0.20,
-  DEBUGGING: 0.10,
-  AI_PROMPTING: 0.10,
-  SIMULATION: 0.10,
-  TEST_SCENARIOS: 0.10,
+const DEPARTMENTS = [
+  "SOFTWARE_ENGINEERING",
+  "DATA_ENGINEERING",
+  "PMO",
+  "QA",
+  "SYSOPS",
+  "ITOPS",
+  "SECOPS",
+  "SRE",
+] as const;
+
+const DEPT_NAMES: Record<string, string> = {
+  SOFTWARE_ENGINEERING: "Software Engineering",
+  DATA_ENGINEERING: "Data Engineering",
+  PMO: "Project Management Office",
+  QA: "Quality Assurance",
+  SYSOPS: "System Operations",
+  ITOPS: "IT Operations",
+  SECOPS: "Security Operations",
+  SRE: "Site Reliability Engineering",
 };
 
-/**
- * Reads all declarative JSON seed question files from backend/prisma/data/
- */
-function getAllQuestionSeedData(): Array<{
-  moduleType: ModuleType;
-  difficulty?: string;
-  content: any;
-}> {
-  const dataDir = path.join(__dirname, "data");
-  const jsonFiles = ["mcq.json", "sql.json", "coding.json", "debugging.json", "aiPrompting.json", "simulation.json"];
-  const questions: Array<{ moduleType: ModuleType; difficulty?: string; content: any }> = [];
+const TIERS = [
+  { category: "FRESHER" as const, level: "FRESHER" as const, experienceTier: "0-1", suffix: "Fresher (0-1 yrs)", seniorityTag: "fresher" },
+  { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "2-5", suffix: "Level 1 (2-5 yrs)", seniorityTag: "l1" },
+  { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "6-10", suffix: "Level 2 (6-10 yrs)", seniorityTag: "l2" },
+  { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "11-15", suffix: "Level 3 (11-15 yrs)", seniorityTag: "l3" },
+];
 
-  for (const file of jsonFiles) {
-    const filePath = path.join(dataDir, file);
-    if (fs.existsSync(filePath)) {
-      const items = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      questions.push(...items);
-    }
+const DEFAULT_WEIGHTING_PRESET: Record<string, number> = {
+  MCQ: 15,
+  SQL: 15,
+  NOSQL: 15,
+  CODING: 20,
+  DEBUGGING: 10,
+  AI_PROMPTING: 10,
+  SIMULATION: 15,
+};
+
+// Department mapping helper
+function normalizeDepartment(deptStr: string | undefined): Department {
+  if (!deptStr) return "SOFTWARE_ENGINEERING";
+  const upper = deptStr.toUpperCase().replace(/\s+/g, "_");
+  if (upper === "SDE" || upper === "SOFTWARE" || upper === "DEV") return "SOFTWARE_ENGINEERING";
+  if (upper === "DATA" || upper === "DE" || upper === "DATA_ENGINEERING") return "DATA_ENGINEERING";
+  if (upper === "QA" || upper === "TESTING") return "QA";
+  if (upper === "SRE") return "SRE";
+  if (upper === "SYSOPS" || upper === "SYS_OPS") return "SYSOPS";
+  if (upper === "ITOPS" || upper === "IT_OPS") return "ITOPS";
+  if (upper === "SECOPS" || upper === "SEC_OPS" || upper === "SECURITY") return "SECOPS";
+  if (upper === "PMO" || upper === "PROJECT_MANAGEMENT") return "PMO";
+  if (upper in DEPT_NAMES) return upper as Department;
+  return "SOFTWARE_ENGINEERING";
+}
+
+// Module type normalization helper
+function normalizeModuleType(modStr: string | undefined): ModuleType {
+  if (!modStr) return "MCQ";
+  const upper = modStr.toUpperCase().replace(/[\s-]+/g, "_");
+  if (upper === "CONTEXT_SIMULATION" || upper === "SIMULATION") return "SIMULATION";
+  if (upper === "AI" || upper === "AI_PROMPTING" || upper === "AIPROMPTING") return "AI_PROMPTING";
+  if (upper === "DEBUG" || upper === "DEBUGGING") return "DEBUGGING";
+  if (upper === "CODE" || upper === "CODING" || upper === "DSA") return "CODING";
+  if (upper === "SQL") return "SQL";
+  if (upper === "NOSQL") return "NOSQL";
+  if (upper === "TEST_SCENARIOS" || upper === "TESTSCENARIOS") return "TEST_SCENARIOS";
+  if (upper === "MCQ") return "MCQ";
+  return "MCQ";
+}
+
+// Seniority determination helper
+function determineSeniorityTags(difficulty?: string, explicitSeniority?: string[]): string[] {
+  if (explicitSeniority && explicitSeniority.length > 0) {
+    return explicitSeniority.map(s => s.toLowerCase());
   }
-
-  questions.push(
-    ...nosqlQuestions.map((q) => ({
-      moduleType: q.moduleType as ModuleType,
-      difficulty: q.difficulty,
-      content: q.content,
-    })),
-  );
-
-  return questions;
+  const diff = (difficulty || "medium").toLowerCase();
+  if (diff === "easy") return ["fresher", "l1"];
+  if (diff === "medium") return ["l1", "l2"];
+  if (diff === "hard") return ["l2", "l3"];
+  return ["fresher", "l1", "l2", "l3"];
 }
 
 // ---------------------------------------------------------------------------
 // Main Seeder
 // ---------------------------------------------------------------------------
 
-const prisma = new PrismaClient();
-
 async function main(): Promise<void> {
-  console.log("🌱 Starting seed…");
+  console.log("🌱 Starting CD-Recruit comprehensive database seed…\n");
 
   await prisma.$transaction(
     async (tx) => {
@@ -94,110 +140,55 @@ async function main(): Promise<void> {
       });
       console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);
 
-      // Instead of base template, use our seeded SDE Fresher template for the default drive
-      let sdeFresherTemplate = await tx.roleTemplate.findFirst({
-        where: {
-          department: "SOFTWARE_ENGINEERING",
-          level: "FRESHER",
-          version: 1,
-        },
-      });
-
-      // 2b. Seed 32 Department x Experience Level Role Templates
-      const DEPARTMENTS = [
-        "SOFTWARE_ENGINEERING",
-        "DATA_ENGINEERING",
-        "PMO",
-        "QA",
-        "SYSOPS",
-        "ITOPS",
-        "SECOPS",
-        "SRE",
-      ] as const;
-
-      const ROLE_TITLES: Record<string, string> = {
-        SOFTWARE_ENGINEERING: "Software Engineer (SDE)",
-        DATA_ENGINEERING: "Data Engineer",
-        PMO: "Project Management Officer (PMO)",
-        QA: "QA Engineer",
-        SYSOPS: "SysOps Engineer",
-        ITOPS: "ITOps Specialist",
-        SECOPS: "SecOps Specialist",
-        SRE: "Site Reliability Engineer (SRE)",
-      };
-
-      const DEPT_WEIGHTS: Record<string, Record<string, number>> = {
-        SOFTWARE_ENGINEERING: {
-          MCQ: 0.15,
-          SQL: 0.15,
-          CODING: 0.30,
-          DEBUGGING: 0.10,
-          TEST_SCENARIOS: 0.15,
-          AI_PROMPTING: 0.05,
-          SIMULATION: 0.10,
-        },
-        DATA_ENGINEERING: { MCQ: 0.20, SQL: 0.30, CODING: 0.20, TEST_SCENARIOS: 0.20, AI_PROMPTING: 0.10 },
-        QA: { MCQ: 0.20, CODING: 0.15, DEBUGGING: 0.20, TEST_SCENARIOS: 0.35, AI_PROMPTING: 0.10 },
-        SRE: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
-        SYSOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
-        ITOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
-        PMO: { MCQ: 0.25, TEST_SCENARIOS: 0.50, AI_PROMPTING: 0.25 },
-        SECOPS: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
-      };
+      // 2. Upsert exactly 32 Department x Experience Tier Role Templates
+      console.log(`  🔨 Upserting exactly 32 Role Templates (8 Departments x 4 Tiers, 90 mins each)...`);
+      const seededTemplates: Record<string, any> = {};
+      const validTemplateIds: string[] = [];
 
       for (const dept of DEPARTMENTS) {
-        const levelsToSeed = [
-          { lvl: "FRESHER", expLvl: null, suffix: "Fresher" },
-          { lvl: "EXPERIENCED", expLvl: "L1", suffix: "Experienced L1" },
-          { lvl: "EXPERIENCED", expLvl: "L2", suffix: "Experienced L2" },
-          { lvl: "EXPERIENCED", expLvl: "L3", suffix: "Experienced L3" },
-        ];
+        for (const t of TIERS) {
+          const roleName = `${DEPT_NAMES[dept]} - ${t.suffix}`;
+          const key = `${dept}__${t.experienceTier}`;
 
-        for (const { lvl, expLvl, suffix } of levelsToSeed) {
-          const name = `${ROLE_TITLES[dept]} - ${suffix}`;
-          const existing = await tx.roleTemplate.findFirst({
+          const template = await tx.roleTemplate.upsert({
             where: {
-              department: dept as any,
-              level: lvl as any,
-              experiencedLevel: expLvl as any,
+              department_category_experienceTier_version: {
+                department: dept as Department,
+                category: t.category as CandidateCategory,
+                experienceTier: t.experienceTier,
+                version: 1,
+              },
+            },
+            update: {
+              roleName,
+              level: t.level as ExperienceLevel,
+              isActive: true,
+              durationMinutes: DURATION_MINUTES,
+              weightingPreset: DEFAULT_WEIGHTING_PRESET,
+            },
+            create: {
+              department: dept as Department,
+              category: t.category as CandidateCategory,
+              level: t.level as ExperienceLevel,
+              experienceTier: t.experienceTier,
+              roleName,
               version: 1,
+              isActive: true,
+              durationMinutes: DURATION_MINUTES,
+              weightingPreset: DEFAULT_WEIGHTING_PRESET,
             },
           });
-
-          if (existing) {
-            await tx.roleTemplate.update({
-              where: { id: existing.id },
-              data: {
-                roleName: name,
-                isActive: true,
-                durationMinutes: 90,
-                weightingPreset: DEPT_WEIGHTS[dept] as any,
-              },
-            });
-          } else {
-            await tx.roleTemplate.create({
-              data: {
-                department: dept as any,
-                level: lvl as any,
-                experiencedLevel: expLvl as any,
-                roleName: name,
-                version: 1,
-                isActive: true,
-                durationMinutes: 90,
-                weightingPreset: DEPT_WEIGHTS[dept] as any,
-              },
-            });
-          }
+          seededTemplates[key] = template;
+          validTemplateIds.push(template.id);
         }
       }
-      console.log(`  ✔ Seeded 32 Department / Level Role Templates`);
+      console.log(`  ✔ Successfully ensured 32 standardized Role Templates`);
 
       // Seed global ModuleSetting records
       console.log("  🌱 Seeding global ModuleSettings...");
       for (const dept of DEPARTMENTS) {
-        const defaultWeights = DEPT_WEIGHTS[dept];
         for (const moduleType of Object.values(ModuleType)) {
-          const isEnabled = defaultWeights && defaultWeights[moduleType] !== undefined && defaultWeights[moduleType] > 0;
+          const isEnabled = DEFAULT_WEIGHTING_PRESET && DEFAULT_WEIGHTING_PRESET[moduleType] !== undefined && DEFAULT_WEIGHTING_PRESET[moduleType] > 0;
           await tx.moduleSetting.upsert({
             where: {
               department_moduleType: {
@@ -218,140 +209,391 @@ async function main(): Promise<void> {
       }
       console.log("  ✔ Seeded global ModuleSettings successfully.");
 
-      // Cleanup obsolete Role Templates
-      const keepNames = [
-        "Software Developer",
-        ...DEPARTMENTS.flatMap(dept => [
-          `${ROLE_TITLES[dept]} - Fresher`,
-          `${ROLE_TITLES[dept]} - Experienced L1`,
-          `${ROLE_TITLES[dept]} - Experienced L2`,
-          `${ROLE_TITLES[dept]} - Experienced L3`,
-        ])
+      const defaultTemplate = seededTemplates["SOFTWARE_ENGINEERING__0-1"];
+
+      // 3. Reassign and clean up any legacy / un-tiered Role Templates
+      const legacyTemplates = await tx.roleTemplate.findMany({
+        where: {
+          id: { notIn: validTemplateIds },
+        },
+      });
+      if (legacyTemplates.length > 0) {
+        console.log(`  🔄 Reassigning relations and removing ${legacyTemplates.length} legacy/duplicate role templates...`);
+        for (const lt of legacyTemplates) {
+          // Reassign drives, invites, and sessions to the valid default template
+          await tx.drive.updateMany({
+            where: { roleTemplateId: lt.id },
+            data: { roleTemplateId: defaultTemplate.id },
+          });
+          await tx.invite.updateMany({
+            where: { roleTemplateId: lt.id },
+            data: { roleTemplateId: defaultTemplate.id },
+          });
+          await tx.session.updateMany({
+            where: { roleTemplateId: lt.id },
+            data: { roleTemplateId: defaultTemplate.id },
+          });
+          await tx.roleTemplateQuestion.deleteMany({
+            where: { roleTemplateId: lt.id },
+          });
+          await tx.roleTemplate.delete({
+            where: { id: lt.id },
+          });
+        }
+      }
+
+      // 4. Ingest and Seed Questions from all sources
+      console.log(`  📥 Cleaning legacy question records and loading fresh questions from dataset files...`);
+      await tx.$executeRawUnsafe('TRUNCATE TABLE "question", "drive_question", "role_template_question" CASCADE;');
+
+      const allQuestionItems: Array<{
+        moduleType: ModuleType;
+        department: Department;
+        difficulty: string;
+        tags: string[];
+        targetLevel?: string;
+        content: any;
+        scoringConfig?: any;
+      }> = [];
+
+      // Source A: proctora_question_bank.json (500 questions)
+      const bankPath = path.join(__dirname, "data/proctora_question_bank.json");
+      if (fs.existsSync(bankPath)) {
+        const bankData = JSON.parse(fs.readFileSync(bankPath, "utf8"));
+        if (Array.isArray(bankData.questions)) {
+          for (const q of bankData.questions) {
+            const dept = normalizeDepartment(q.department || q.dept);
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+            const rawMod = (q.module || q.moduleType || "").toUpperCase();
+
+            let modType: ModuleType = "MCQ";
+            if (!hasOptions || rawMod.includes("SCENARIO") || rawMod.includes("TEST")) {
+              modType = "TEST_SCENARIOS";
+            } else if (rawMod.includes("PROMPT") || rawMod.includes("AI")) {
+              modType = "AI_PROMPTING";
+            } else if (rawMod.includes("SIMULATION") || rawMod.includes("CONTEXT")) {
+              modType = "SIMULATION";
+            } else {
+              modType = "MCQ";
+            }
+
+            const diff = (q.difficulty || "medium").toLowerCase();
+            const seniority = determineSeniorityTags(diff);
+            const tags = Array.from(new Set([
+              dept.toLowerCase(),
+              modType.toLowerCase(),
+              ...seniority,
+              ...(q.tags || []),
+              ...(q.category ? [q.category.toLowerCase().replace(/\s+/g, "-")] : []),
+            ]));
+
+            const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
+            const content = {
+              prompt: q.question || q.prompt || "",
+              options: q.options || [],
+              correctAnswer: correctAns,
+              explanation: q.explanation || "",
+              category: q.category || "",
+            };
+
+            const scoringConfig = q.scoringConfig || {
+              correctIndex: hasOptions ? q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0 : 0,
+              correctAnswer: correctAns,
+              points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
+            };
+
+            allQuestionItems.push({
+              moduleType: modType,
+              department: dept,
+              difficulty: diff,
+              tags,
+              targetLevel: seniority.includes("l3") ? "L3" : seniority.includes("l2") ? "L2" : seniority.includes("l1") ? "L1" : "FRESHER",
+              content,
+              scoringConfig,
+            });
+          }
+        }
+      }
+
+      // Source B: seniority_l2_l3_question_batch.json (96 questions)
+      const batchPath = path.join(__dirname, "../../seniority_l2_l3_question_batch.json");
+      if (fs.existsSync(batchPath)) {
+        const batchData = JSON.parse(fs.readFileSync(batchPath, "utf8"));
+        if (Array.isArray(batchData)) {
+          for (const q of batchData) {
+            const dept = normalizeDepartment(q.department);
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+            const rawMod = (q.moduleType || q.module || "").toUpperCase();
+
+            let modType: ModuleType = "MCQ";
+            if (!hasOptions || rawMod.includes("SCENARIO") || rawMod.includes("TEST")) {
+              modType = "TEST_SCENARIOS";
+            } else if (rawMod.includes("PROMPT") || rawMod.includes("AI")) {
+              modType = "AI_PROMPTING";
+            } else if (rawMod.includes("SIMULATION") || rawMod.includes("CONTEXT")) {
+              modType = "SIMULATION";
+            } else {
+              modType = "MCQ";
+            }
+
+            const diff = (q.difficulty || "hard").toLowerCase();
+            const seniority = determineSeniorityTags(diff, q.seniority);
+            const tags = Array.from(new Set([
+              dept.toLowerCase(),
+              modType.toLowerCase(),
+              ...seniority,
+              ...(q.tags || []),
+              ...(q.topic ? [q.topic.toLowerCase().replace(/\s+/g, "-")] : []),
+            ]));
+
+            const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
+            allQuestionItems.push({
+              moduleType: modType,
+              department: dept,
+              difficulty: diff,
+              tags,
+              targetLevel: seniority.includes("l3") ? "L3" : "L2",
+              content: q.content || {
+                prompt: q.question || "",
+                options: q.options || [],
+                correctAnswer: correctAns,
+                explanation: q.explanation || "",
+              },
+              scoringConfig: q.scoringConfig || {
+                correctIndex: hasOptions ? q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0 : 0,
+                correctAnswer: correctAns,
+                points: 3,
+              },
+            });
+          }
+        }
+      }
+
+      // Source C: Module-specific files (mcq, sql, coding, debugging, aiPrompting, simulation)
+      const moduleFiles = [
+        { file: "mcq.json", defaultMod: "MCQ" as ModuleType, depts: ["SOFTWARE_ENGINEERING"] as Department[] },
+        { file: "sql.json", defaultMod: "SQL" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "DATA_ENGINEERING", "QA"] as Department[] },
+        { file: "coding.json", defaultMod: "CODING" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "DATA_ENGINEERING", "QA"] as Department[] },
+        { file: "debugging.json", defaultMod: "DEBUGGING" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "QA"] as Department[] },
+        { file: "aiPrompting.json", defaultMod: "AI_PROMPTING" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "PMO"] as Department[] },
+        { file: "simulation.json", defaultMod: "SIMULATION" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "SRE", "SYSOPS"] as Department[] },
       ];
 
-      const obsoleteTemplates = await tx.roleTemplate.findMany({
-        where: {
-          roleName: { notIn: keepNames }
-        },
-        select: { id: true, roleName: true }
-      });
+      for (const mf of moduleFiles) {
+        const fPath = path.join(__dirname, "data", mf.file);
+        if (fs.existsSync(fPath)) {
+          const items = JSON.parse(fs.readFileSync(fPath, "utf8"));
+          if (Array.isArray(items)) {
+            for (const item of items) {
+              const modType = item.moduleType ? normalizeModuleType(item.moduleType) : mf.defaultMod;
+              const diff = (item.difficulty || item.content?.difficulty || "medium").toLowerCase();
+              const seniority = determineSeniorityTags(diff);
+              const deptTags = mf.depts.map(d => d.toLowerCase());
+              const tags = Array.from(new Set([
+                ...deptTags,
+                modType.toLowerCase(),
+                ...seniority,
+                ...(item.tags || []),
+              ]));
 
-      if (obsoleteTemplates.length > 0) {
-        const obsoleteIds = obsoleteTemplates.map(t => t.id);
+              const content = item.content || item;
+              if (modType === "MCQ" && content.options && content.options.length > 0) {
+                if (!content.correctAnswer && content.correctIndex !== undefined) {
+                  content.correctAnswer = content.options[content.correctIndex];
+                }
+              }
 
-        for (const templateId of obsoleteIds) {
-          // Find and delete all dependent sessions and their scores/integrity flags
-          const sessionsToDelete = await tx.session.findMany({
-            where: { roleTemplateId: templateId },
-            select: { id: true }
-          });
-          const sessionIds = sessionsToDelete.map(s => s.id);
-
-          if (sessionIds.length > 0) {
-            await tx.score.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.reviewerDecision.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.integrityFlag.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.eventLog.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.moduleResponse.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.proctoringEvent.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.codingExecution.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.sQLExecution.deleteMany({ where: { sessionId: { in: sessionIds } } });
-            await tx.identityCapture.deleteMany({ where: { sessionId: { in: sessionIds } } });
+              allQuestionItems.push({
+                moduleType: modType,
+                department: mf.depts[0],
+                difficulty: diff,
+                tags,
+                targetLevel: seniority.includes("l3") ? "L3" : seniority.includes("l2") ? "L2" : seniority.includes("l1") ? "L1" : "FRESHER",
+                content,
+                scoringConfig: item.scoringConfig || {
+                  correctIndex: content.options && content.correctAnswer ? content.options.indexOf(content.correctAnswer) : (content.correctIndex || 0),
+                  points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
+                },
+              });
+            }
           }
-
-          // Unlink sessions from invites
-          await tx.invite.updateMany({
-            where: { sessionId: { in: sessionIds } },
-            data: { sessionId: null }
-          });
-
-          // Delete sessions
-          await tx.session.deleteMany({ where: { roleTemplateId: templateId } });
-
-          // Delete invites
-          await tx.invite.deleteMany({ where: { roleTemplateId: templateId } });
-
-          // Delete drives and drive questions
-          const drivesToDelete = await tx.drive.findMany({
-            where: { roleTemplateId: templateId },
-            select: { id: true }
-          });
-          const driveIds = drivesToDelete.map(d => d.id);
-
-          if (driveIds.length > 0) {
-            await tx.driveQuestion.deleteMany({ where: { driveId: { in: driveIds } } });
-            await tx.invite.deleteMany({ where: { driveId: { in: driveIds } } });
-            await tx.session.deleteMany({ where: { driveId: { in: driveIds } } });
-            await tx.drive.deleteMany({ where: { id: { in: driveIds } } });
-          }
-
-          // Delete role template questions
-          await tx.roleTemplateQuestion.deleteMany({ where: { roleTemplateId: templateId } });
-
-          // Finally delete the template itself
-          await tx.roleTemplate.delete({ where: { id: templateId } });
         }
-        console.log(`  🗑 Cleaned up database: Deleted all obsolete templates and their dependent records.`);
       }
 
-      // Re-fetch sdeFresherTemplate to make sure it's fresh
-      sdeFresherTemplate = await tx.roleTemplate.findFirst({
-        where: {
+      // Source D: NoSQL module questions
+      for (const nq of nosqlQuestions) {
+        const diff = (nq.difficulty || "medium").toLowerCase();
+        const seniority = determineSeniorityTags(diff);
+        allQuestionItems.push({
+          moduleType: "NOSQL",
           department: "SOFTWARE_ENGINEERING",
-          level: "FRESHER",
-          version: 1,
-        },
-      });
+          difficulty: diff,
+          tags: Array.from(new Set(["software_engineering", "data_engineering", "nosql", ...seniority])),
+          targetLevel: seniority.includes("l2") ? "L2" : "L1",
+          content: nq.content,
+          scoringConfig: { points: 2 },
+        });
+      }
 
-      // 3. Seed Questions from JSON Files
-      const allQuestions = getAllQuestionSeedData();
-      const createdQuestions = [];
-
-      for (const q of allQuestions) {
-        const prompt = q.content?.prompt || q.content?.title || "";
-        const matchPath = q.content?.prompt ? ["prompt"] : ["title"];
-        const difficulty = (q.difficulty || q.content?.difficulty || "medium").toLowerCase();
-        const isDebugging = q.moduleType === "DEBUGGING" || prompt.toLowerCase().includes("debugging");
-        const targetModule = isDebugging ? "DEBUGGING" : q.moduleType;
-        const tags = isDebugging ? ["debugging", "coding"] : [q.moduleType.toLowerCase()];
-
-        const existing = await tx.question.findFirst({
-          where: {
-            moduleType: targetModule as ModuleType,
-            content: { path: matchPath, equals: prompt },
+      // Ingest all questions into database
+      const createdQuestions: any[] = [];
+      for (const q of allQuestionItems) {
+        const created = await tx.question.create({
+          data: {
+            moduleType: q.moduleType,
+            content: q.content,
+            scoringConfig: q.scoringConfig,
+            difficulty: q.difficulty,
+            tags: q.tags,
+            targetLevel: q.targetLevel,
+            status: "PUBLISHED",
+            role: DEPT_NAMES[q.department] || "General",
           },
         });
+        createdQuestions.push({ ...created, department: q.department });
+      }
+      console.log(`  ✔ Ingested and synchronized ${createdQuestions.length} clean questions into Question repository`);
 
-        if (existing) {
-          const updated = await tx.question.update({
-            where: { id: existing.id },
-            data: { moduleType: targetModule as ModuleType, difficulty, tags, status: "PUBLISHED" },
+      // 5. Assign Balanced Multi-Module Questions to each of the 32 Role Templates
+      console.log(`  🔗 Assigning questions to all 32 Role Templates via RoleTemplateQuestion...`);
+      for (const dept of DEPARTMENTS) {
+        for (const t of TIERS) {
+          const key = `${dept}__${t.experienceTier}`;
+          const template = seededTemplates[key];
+          if (!template) continue;
+
+          // Clear existing assigned questions for clean assignment
+          await tx.roleTemplateQuestion.deleteMany({
+            where: { roleTemplateId: template.id },
           });
-          createdQuestions.push(updated);
-        } else {
-          const created = await tx.question.create({
-            data: {
-              moduleType: targetModule as ModuleType,
-              content: q.content,
-              difficulty,
-              tags,
-              status: "PUBLISHED",
-            },
-          });
-          createdQuestions.push(created);
+
+          const deptTag = dept.toLowerCase();
+          const targetTag = t.seniorityTag; // "fresher", "l1", "l2", "l3"
+
+          // 1. MCQ questions for this department & seniority (target 8-10)
+          let deptMcqs = createdQuestions.filter(q =>
+            q.moduleType === "MCQ" &&
+            (q.tags.includes(deptTag) || q.department === dept) &&
+            q.tags.includes(targetTag)
+          );
+          if (deptMcqs.length < 8) {
+            const fallbackMcqs = createdQuestions.filter(q =>
+              q.moduleType === "MCQ" && q.tags.includes(targetTag)
+            );
+            deptMcqs = Array.from(new Set([...deptMcqs, ...fallbackMcqs]));
+          }
+          const selectedMcqs = deptMcqs.slice(0, 8);
+
+          // 2. CODING questions (target 2)
+          let codings = createdQuestions.filter(q =>
+            q.moduleType === "CODING" && q.tags.includes(targetTag)
+          );
+          if (codings.length < 2) {
+            codings = createdQuestions.filter(q => q.moduleType === "CODING");
+          }
+          const selectedCodings = codings.slice(0, 2);
+
+          // 3. SQL questions (target 2)
+          let sqls = createdQuestions.filter(q =>
+            q.moduleType === "SQL" && q.tags.includes(targetTag)
+          );
+          if (sqls.length < 2) {
+            sqls = createdQuestions.filter(q => q.moduleType === "SQL");
+          }
+          const selectedSqls = sqls.slice(0, 2);
+
+          // 4. DEBUGGING questions (target 1)
+          let debugs = createdQuestions.filter(q =>
+            q.moduleType === "DEBUGGING" && q.tags.includes(targetTag)
+          );
+          if (debugs.length === 0) {
+            debugs = createdQuestions.filter(q => q.moduleType === "DEBUGGING");
+          }
+          const selectedDebugs = debugs.slice(0, 1);
+
+          // 5. NOSQL questions (target 1)
+          const nosqls = createdQuestions.filter(q => q.moduleType === "NOSQL");
+          const selectedNosqls = nosqls.slice(0, 1);
+
+          // 6. AI PROMPTING (target 1)
+          const promptings = createdQuestions.filter(q => q.moduleType === "AI_PROMPTING");
+          const selectedPromptings = promptings.slice(0, 1);
+
+          // 7. SIMULATION (target 1)
+          const simulations = createdQuestions.filter(q => q.moduleType === "SIMULATION");
+          const selectedSimulations = simulations.slice(0, 1);
+
+          // 8. TEST SCENARIOS (target 2)
+          let scenarios = createdQuestions.filter(q =>
+            q.moduleType === "TEST_SCENARIOS" &&
+            (q.tags.includes(deptTag) || q.department === dept)
+          );
+          if (scenarios.length < 2) {
+            scenarios = createdQuestions.filter(q => q.moduleType === "TEST_SCENARIOS");
+          }
+          const selectedScenarios = scenarios.slice(0, 2);
+
+          // Combine all selected questions
+          const combinedQuestions = [
+            ...selectedMcqs,
+            ...selectedCodings,
+            ...selectedSqls,
+            ...selectedDebugs,
+            ...selectedNosqls,
+            ...selectedPromptings,
+            ...selectedSimulations,
+            ...selectedScenarios,
+          ];
+
+          // Deduplicate
+          const seenIds = new Set<string>();
+          const finalTemplateQuestions: any[] = [];
+          for (const q of combinedQuestions) {
+            if (!seenIds.has(q.id)) {
+              seenIds.add(q.id);
+              finalTemplateQuestions.push(q);
+            }
+          }
+
+          let orderIndex = 0;
+          for (const q of finalTemplateQuestions) {
+            await tx.roleTemplateQuestion.upsert({
+              where: {
+                roleTemplateId_questionId: {
+                  roleTemplateId: template.id,
+                  questionId: q.id,
+                },
+              },
+              update: {
+                orderIndex: orderIndex++,
+                moduleType: q.moduleType,
+                pointShare: 1.0,
+                questionVersionSnapshot: q.version || 1,
+              },
+              create: {
+                roleTemplateId: template.id,
+                questionId: q.id,
+                moduleType: q.moduleType,
+                orderIndex: orderIndex++,
+                pointShare: 1.0,
+                questionVersionSnapshot: q.version || 1,
+              },
+            });
+          }
         }
       }
-      console.log(`  ✔ Ensured ${createdQuestions.length} JSON seed questions exist and published`);
+      console.log(`  ✔ Successfully assigned balanced multi-module questions across all 32 Role Templates`);
 
-      // 4. Upsert Default Recruitment Drive
+      // 6. Upsert Default Recruitment Drive linked to Software Engineering Fresher template
       let drive = await tx.drive.findFirst({
         where: { name: "Software Developer Drive - July 2026" },
       });
+
       if (!drive) {
         drive = await tx.drive.create({
           data: {
             name: "Software Developer Drive - July 2026",
-            roleTemplateId: sdeFresherTemplate!.id,
+            roleTemplateId: defaultTemplate.id,
             moduleConfig: {
               MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
               SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
@@ -366,29 +608,39 @@ async function main(): Promise<void> {
           },
         });
         console.log(`  ✔ Created Drive "${drive.name}" (id: ${drive.id})`);
+      } else {
+        await tx.drive.update({
+          where: { id: drive.id },
+          data: { roleTemplateId: defaultTemplate.id },
+        });
       }
 
-      // 5. Link Questions to the Drive
-      for (const q of createdQuestions) {
+      // 7. Link Questions to the Drive
+      const defaultTemplateQuestions = await tx.roleTemplateQuestion.findMany({
+        where: { roleTemplateId: defaultTemplate.id },
+        include: { question: true },
+      });
+
+      for (const rtq of defaultTemplateQuestions) {
         await tx.driveQuestion.upsert({
           where: {
             driveId_questionId: {
               driveId: drive.id,
-              questionId: q.id,
+              questionId: rtq.questionId,
             },
           },
           update: {},
           create: {
             driveId: drive.id,
-            questionId: q.id,
-            moduleType: q.moduleType,
-            questionVersionSnapshot: (q as any).version ?? 1,
+            questionId: rtq.questionId,
+            moduleType: rtq.moduleType,
+            questionVersionSnapshot: rtq.questionVersionSnapshot || 1,
           },
         });
       }
-      console.log(`  ✔ Linked questions to Drive "${drive.name}"`);
+      console.log(`  ✔ Linked ${defaultTemplateQuestions.length} questions to Drive "${drive.name}"`);
 
-      // 6. Seed Candidates, Invites, Sessions, Scores, Integrity Flags, and Reviewer Decisions
+      // 8. Seed Candidates, Invites, Sessions, Scores, Integrity Flags, and Reviewer Decisions
       const candidatesData = [
         { name: "Alice Johnson", email: "alice.johnson@example.com", score: 88, status: "SUBMITTED", decision: DecisionType.ADVANCE, flags: 0 },
         { name: "Bob Smith", email: "bob.smith@example.com", score: 74, status: "SUBMITTED", decision: null, flags: 1 },
@@ -413,7 +665,7 @@ async function main(): Promise<void> {
             data: {
               candidateEmail: cand.email,
               candidateName: cand.name,
-              roleTemplateId: sdeFresherTemplate!.id,
+              roleTemplateId: defaultTemplate.id,
               driveId: drive.id,
               status: "REDEEMED",
               token: `token-${cand.email.replace(/[@.]/g, "-")}-${Date.now()}`,
@@ -429,7 +681,7 @@ async function main(): Promise<void> {
             data: {
               candidateId: candidate.id,
               driveId: drive.id,
-              roleTemplateId: sdeFresherTemplate!.id,
+              roleTemplateId: defaultTemplate.id,
               cvMode: CvMode.FULL,
               status: cand.status as any,
               startedAt: new Date(Date.now() - 3600 * 1000),
@@ -480,10 +732,10 @@ async function main(): Promise<void> {
       }
       console.log(`  ✔ Seeded candidate sessions, scores, integrity flags, and reviewer decisions.`);
     },
-    { timeout: 30000 },
+    { timeout: 120000 },
   );
 
-  console.log("✅ Seed complete.");
+  console.log("\n✅ Database seed completed successfully.");
 }
 
 // ---------------------------------------------------------------------------

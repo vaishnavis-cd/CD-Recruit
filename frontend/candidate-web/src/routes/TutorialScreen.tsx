@@ -121,13 +121,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
       const sessionDuration = (newSession.durationMinutes || allocatedMinutes) * 60
       initAssessment(newSession.id, sessionDuration, newSession.questions)
-
-      if (isSelfPaced || !(newSession as any)?.invite?.scheduledTime) {
-        // Self-paced rolling-window candidate: skip waiting-room, assessment begins whenever candidate finishes
-        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: newSession.id })
-      } else {
-        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
-      }
+      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
     } catch (err: any) {
       const code = err?.response?.data?.code ?? err?.response?.data?.error
       console.error('[TutorialScreen] Failed to create session:', code, err)
@@ -136,19 +130,11 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
       if (currentSession?.id) {
         const sessionDuration = (currentSession.durationMinutes || allocatedMinutes) * 60
         initAssessment(currentSession.id, sessionDuration, currentSession.questions)
-        if (isSelfPaced) {
-          transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: currentSession.id })
-        } else {
-          transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
-        }
+        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
         return
       }
 
-      if (isSelfPaced) {
-        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: 'sess_candidate' })
-      } else {
-        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
-      }
+      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken })
     }
   }
 

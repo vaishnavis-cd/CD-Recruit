@@ -1,6 +1,7 @@
 export const ALL_MODULE_KEYS = [
   "MCQ",
   "SQL",
+  "NOSQL",
   "CODING",
   "DEBUGGING",
   "AI_PROMPTING",
@@ -13,6 +14,7 @@ export type ModuleKey = (typeof ALL_MODULE_KEYS)[number];
 export const MODULE_LABEL_MAP: Record<string, string> = {
   MCQ: "MCQ",
   SQL: "SQL",
+  NOSQL: "NoSQL",
   CODING: "Coding",
   DEBUGGING: "Debugging",
   AI_PROMPTING: "AI Prompting",
@@ -46,18 +48,4 @@ export function getDepartmentAllowedModules(department?: string | null): string[
   if (deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER")) return DEPARTMENT_ALLOWED_MODULES.SOFTWARE_ENGINEERING;
 
   return DEPARTMENT_ALLOWED_MODULES[deptUpper] || [...ALL_MODULE_KEYS];
-}
-
-export function extractQuestionTier(q: any): "TIER_1" | "TIER_2" {
-  const tags = (q?.tags || []).map((t: string) => t.toLowerCase());
-  const contentTier = (q?.content?.tier || q?.content?.tierLevel || "").toString().toLowerCase();
-
-  const isTier2 =
-    tags.includes("tier_2") ||
-    tags.includes("tier2") ||
-    contentTier === "tier_2" ||
-    contentTier === "tier2" ||
-    contentTier === "2";
-
-  return isTier2 ? "TIER_2" : "TIER_1";
 }

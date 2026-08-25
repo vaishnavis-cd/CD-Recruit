@@ -28,7 +28,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
   const questionId = codingQuestions[currentIndex]?.questionId ?? ''
   const isValidUUID = UUID_RE.test(questionId)
 
-  const { handleNext: triggerNext } = useModuleNavigation(moduleIndex, currentIndex, codingQuestions.length || 1)
+  const { handleNext: triggerNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, codingQuestions.length || 1)
 
   const [questionData, setQuestionData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -316,7 +316,11 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
         <div className="flex-1 h-full flex flex-col min-w-0 overflow-hidden">
           <CodingWorkspace
             question={workspaceQuestion}
-            onNext={handleNext}
+            currentIndex={currentIndex}
+            totalQuestions={codingQuestions.length}
+            onPrevious={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+            onNext={() => triggerNext(() => setCurrentIndex((i) => Math.min(codingQuestions.length - 1, i + 1)))}
+            nextButtonLabel={nextButtonLabel}
             updateStatus={handleUpdateStatus}
           />
         </div>

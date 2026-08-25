@@ -202,6 +202,72 @@ export class AdminService {
     };
   }
 
+  async exportResultsCsv(query: ListSessionsQueryDto): Promise<string> {
+    const listResult = await this.listSessions({
+      ...query,
+      page: 1,
+      pageSize: 5000,
+    });
+
+    const headers = [
+      "Candidate Name",
+      "Candidate Email",
+      "Drive Name",
+      "Role Track",
+      "Session Status",
+      "Total Score (%)",
+      "MCQ Score (%)",
+      "Coding Score (%)",
+      "Debugging Score (%)",
+      "SQL Score (%)",
+      "Simulation Score (%)",
+      "Say/Do Consistency (%)",
+      "Integrity Flags",
+      "Decision Status",
+      "Started At",
+      "Submitted At",
+    ];
+
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const val = String(str).replace(/"/g, '""');
+      return `"${val}"`;
+    };
+
+    const formatPercent = (val: any) => {
+      if (val === null || val === undefined) return "N/A";
+      const num = Number(val);
+      if (isNaN(num)) return "N/A";
+      return num <= 1.0 ? `${Math.round(num * 100)}%` : `${Math.round(num)}%`;
+    };
+
+    const rows = listResult.items.map((item: any) => {
+      const modScores = item.moduleScores || {};
+      const dec = item.decision;
+
+      return [
+        escapeCsv(item.candidateName || "N/A"),
+        escapeCsv(item.candidateEmail || "N/A"),
+        escapeCsv(item.driveName || "General Drive"),
+        escapeCsv(item.roleTemplateName || "General"),
+        escapeCsv(item.status),
+        escapeCsv(formatPercent(item.compositeScore)),
+        escapeCsv(formatPercent(modScores.MCQ)),
+        escapeCsv(formatPercent(modScores.CODING)),
+        escapeCsv(formatPercent(modScores.DEBUGGING)),
+        escapeCsv(formatPercent(modScores.SQL)),
+        escapeCsv(formatPercent(modScores.SIMULATION)),
+        escapeCsv(formatPercent(item.sayDoConsistencyScore)),
+        escapeCsv(item.integrityFlagsCount ?? 0),
+        escapeCsv(dec?.outcome || "PENDING"),
+        escapeCsv(item.startedAt || ""),
+        escapeCsv(item.submittedAt || ""),
+      ].join(",");
+    });
+
+    return [headers.join(","), ...rows].join("\r\n");
+  }
+
   async getSessionDetail(sessionId: string): Promise<SessionDetail> {
     let session = await this.prisma.session.findUnique({
       where: { id: sessionId },

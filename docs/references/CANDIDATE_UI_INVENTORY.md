@@ -171,7 +171,7 @@ Used by all 5 module types as the outer chrome wrapper.
 
 **Header (header element):**
 - Left: Module name + Q{n} of {total} (hidden on < sm)
-- Center-right: ProctoringIndicator + Timer + module nav tabs + theme toggle (emoji) + Review & Submit button
+- Center-right: ProctoringIndicator + Timer + module nav tabs + theme toggle (emoji) + Final Review & Submit button
 - Module tabs: px-2.5 py-1 rounded text-xs pills; active = bg-[var(--accent)] text-white
 - Theme toggle: emoji moon/sun — no icon library used
 
@@ -245,7 +245,7 @@ Used by all 5 module types as the outer chrome wrapper.
 - Restores persisted response from backend responsePayload.selectedOptions
 - Custom radio/checkbox indicators: native input sr-only, visual circle/square span filled bg-[var(--accent)] when selected
 - Option cards: flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all
-- Navigation: Previous | Skip | Next / Next Module / Review & Submit
+- Navigation: Previous | Skip | Next / Next Module / Final Review & Submit
 - Loading: animate-pulse text. Error: text-[var(--warning)] message.
 
 ---

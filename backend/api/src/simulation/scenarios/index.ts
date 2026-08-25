@@ -29,14 +29,14 @@ Thanks,
 Sarah`,
   },
   starterCode: {
-    python: `# db_config.py
+    python: `# connection_pool.py
 
 def get_connection_pool_settings(env: str) -> dict:
     """
     Returns database pool configuration.
     Requirements:
     - Default pool size for production must be at least 15 connections.
-    - Max connections must be at least 30 to support traffic spikes.
+    - Max overflow must be at least 15 connections to support traffic spikes.
     """
     # BUG: Connection limits are set too low for production!
     return {
@@ -45,7 +45,7 @@ def get_connection_pool_settings(env: str) -> dict:
         "timeout": 30
     }
 `,
-    javascript: `// db_config.js
+    javascript: `// connection_pool.js
 
 function getConnectionPoolSettings(env) {
   // BUG: Connection limits are set too low for production!
@@ -86,14 +86,48 @@ module.exports = { getConnectionPoolSettings };
     doTechnicalWeight: 0.2,
     sayDoCorrelationWeight: 0.15,
   },
+  defaultFile: "src/db/connection_pool.py",
   readonlyFiles: {
-    "config/settings.yaml": `database:\n  host: db-prod-primary\n  port: 5432\n  name: user_service\n`,
-    "utils/logger.py": `def log_db_connection(pool_id): print(f"[DB] Pool initialized with id {pool_id}")\n`,
+    "src/db/pool_manager.py": `# pool_manager.py - Core Connection Lifecycle
+from connection_pool import get_connection_pool_settings
+
+class DatabasePoolManager:
+    def __init__(self, env="production"):
+        self.config = get_connection_pool_settings(env)
+        self.active_connections = 0
+
+    def acquire(self):
+        max_total = self.config.get("pool_size", 10) + self.config.get("max_overflow", 10)
+        if self.active_connections >= max_total:
+            raise TimeoutError("ConnectionTimeoutError: Pool limit exceeded")
+        self.active_connections += 1
+        return {"connection_id": f"conn_{self.active_connections}", "status": "open"}
+`,
+    "config/database.yaml": `database:
+  host: db-prod-primary.internal
+  port: 5432
+  name: user_service_prod
+  ssl_mode: require
+  health_check_interval_seconds: 5
+`,
+    "logs/postgres_slow_queries.log": `2026-08-25 10:14:02 UTC [3102]: [FATAL] remaining connection slots are reserved for non-replication superuser connections
+2026-08-25 10:14:15 UTC [3110]: [ERROR] ConnectionTimeoutError: pool size (2) exhausted. 142 clients queued.
+2026-08-25 10:14:22 UTC [3115]: [WARN] query duration 11840ms: SELECT * FROM users WHERE active = true
+`,
+    "tests/test_pool.py": `# test_pool.py
+import pytest
+from connection_pool import get_connection_pool_settings
+
+def test_production_pool_capacity():
+    cfg = get_connection_pool_settings("production")
+    assert cfg.get("pool_size", 0) >= 15, "Pool size must be at least 15"
+    assert cfg.get("max_overflow", 0) >= 15, "Max overflow must be at least 15"
+`
   },
   checklist: [
     { id: "review_logs", label: "1. Review Production Logs", detail: "Inspect slow query logs and pool limit exceptions", actionTab: "channels", channelTab: "slack" },
     { id: "reply_manager", label: "2. Respond to Sarah", detail: "Acknowledge the pool limit status and ETA", actionTab: "channels", channelTab: "email" },
-    { id: "modify_pool", label: "3. Update db_config pool limits", detail: "Increase pool_size and max_overflow in db_config", actionTab: "workspace", selectedFile: "login/login_validation.py" }, // Reuse main workspace editor file slot
+    { id: "modify_pool", label: "3. Update connection_pool.py", detail: "Increase pool_size and max_overflow in src/db/connection_pool.py", actionTab: "workspace", selectedFile: "src/db/connection_pool.py" },
     { id: "submit_fix", label: "4. Deploy & Verify", detail: "Deploy database connection config fix", actionTab: "signoff" }
   ],
   slackMessages: [
@@ -110,14 +144,21 @@ module.exports = { getConnectionPoolSettings };
     labels: ["Database", "Outage"],
     description: "App servers are timing out attempting to acquire a DB connection. Production logs report ConnectionTimeoutError: pool limit reached."
   },
-  defaultFile: "login/login_validation.py",
   terminalInfo: {
-    repository: "cdrecruit/db-service",
-    branch: "hotfix/db-pool-exhaustion",
+    repository: "cdrecruit/database-service",
+    branch: "hotfix/connection-pool-limit",
     initialLogs: [
-      "[ERR] ConnectionTimeoutError: pool limit reached on db-prod-primary.",
-      "[WARN] Slow query detected: SELECT * FROM audit_logs ORDER BY created_at DESC; (Duration: 12450ms)",
-      "Ready to configure db_config.py."
+      "pytest tests/test_pool.py",
+      "============================= test session starts =============================",
+      "platform linux -- Python 3.11.8, pytest-7.4.4",
+      "rootdir: /workspace/database-service",
+      "collected 1 item",
+      "",
+      "tests/test_pool.py::test_production_pool_capacity FAILED                  [100%]",
+      "",
+      "================================== FAILURES ===================================",
+      "FAILED tests/test_pool.py::test_production_pool_capacity - AssertionError: Pool size must be at least 15 (Got 2)",
+      "============================== 1 failed in 0.03s =============================="
     ]
   },
   expectedConcepts: ["pool", "connection", "exhaustion", "increase", "limit", "overflow"]
@@ -167,6 +208,7 @@ def should_skip_husky(env: dict) -> bool:
 
 function shouldSkipHusky(env) {
   // BUG: Always returns false instead of checking CI flags
+  if (!env) return false;
   return false;
 }
 
@@ -194,17 +236,48 @@ module.exports = { shouldSkipHusky };
     doTechnicalWeight: 0.15,
     sayDoCorrelationWeight: 0.15,
   },
+  defaultFile: "scripts/ci_prepare.js",
   readonlyFiles: {
-    ".github/workflows/ci.yml": "name: Node.js CI\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@v2\n      - run: npm install\n",
+    ".github/workflows/deploy.yml": `name: Production Deploy Pipeline
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: npm ci
+`,
+    "package.json": `{
+  "name": "enterprise-app",
+  "version": "1.0.0",
+  "scripts": {
+    "prepare": "node scripts/ci_prepare.js"
+  }
+}
+`,
+    "scripts/build.js": `// build.js - Asset Compilation
+console.log("[Build] Compiling production bundle...");
+`,
+    "tests/test_ci.js": `// test_ci.js
+const { shouldSkipHusky } = require("../scripts/ci_prepare");
+
+console.log("Checking CI bypass:", shouldSkipHusky({ CI: "true" }));
+`
   },
   checklist: [
     { id: "read_build_logs", label: "1. Check Build Logs", detail: "Read the GitHub Actions prepare script execution logs", actionTab: "channels", channelTab: "slack" },
     { id: "email_priya", label: "2. Respond to Priya", detail: "Explain the Husky error and the bypass proposal", actionTab: "channels", channelTab: "email" },
-    { id: "fix_ci_script", label: "3. Patch ci_prepare script", detail: "Modify should_skip_husky logic to check environment variables", actionTab: "workspace", selectedFile: "login/login_validation.py" },
+    { id: "fix_ci_script", label: "3. Patch scripts/ci_prepare.js", detail: "Modify shouldSkipHusky logic to check environment variables", actionTab: "workspace", selectedFile: "scripts/ci_prepare.js" },
     { id: "submit_pipeline", label: "4. Deploy and Run CI", detail: "Submit the build script and verify green status", actionTab: "signoff" }
   ],
   slackMessages: [
-    { sender: "GHA Runner Bot", body: "Build #1042 failed: Prepare script failed with error." },
+    { sender: "GHA Runner Bot", body: "Build #1042 failed: Prepare script failed with error in step 'npm ci'." },
     { sender: "Dave (CI/CD)", body: "The runner environment is headless and does not initialize a .git folder before npm install, causing husky to crash." }
   ],
   jiraTicket: {
@@ -217,14 +290,17 @@ module.exports = { shouldSkipHusky };
     labels: ["CI/CD", "Husky"],
     description: "Build pipeline is blocked at npm install. npm prepare fails because git directory is not found by husky."
   },
-  defaultFile: "login/login_validation.py",
   terminalInfo: {
     repository: "cdrecruit/build-pipeline",
-    branch: "fix/husky-ci-bypass",
+    branch: "fix/husky-ci-runner",
     initialLogs: [
-      "npm error Lifecycle script `prepare` failed with error:",
-      "npm error Command failed: husky",
-      "npm error husky - Git directory not found"
+      "npm ci",
+      "npm error code 1",
+      "npm error path /workspace/build-pipeline",
+      "npm error command failed",
+      "npm error command sh -c husky",
+      "npm error husky - .git can't be found (see https://typicode.github.io/husky/#/?id=custom-directory)",
+      "npm error A complete log of this run can be found in: /root/.npm/_logs/2026-08-25T10_12_04_312Z-debug-0.log"
     ]
   },
   expectedConcepts: ["bypass", "skip", "ci", "headless", "environment", "variable"]
@@ -234,7 +310,7 @@ module.exports = { shouldSkipHusky };
 export const SECURITY_ISSUE_SCENARIO: ContextSimulationScenarioConfig = {
   id: "security-issue",
   title: "Security Issue: Secrets Leakage",
-  description: "A automated scanner alerts that AWS credentials have been pushed to a public config file. Deactivate/rotate keys, transition configuration to environment variables, and verify that no hardcoded credentials remain.",
+  description: "An automated scanner alerts that AWS credentials have been pushed to a public config file. Deactivate/rotate keys, transition configuration to environment variables, and verify that no hardcoded credentials remain.",
   track: "experienced",
   rubricVersion: "1.0.0",
   initialSayPrompt: "What is your immediate plan to contain this secret leak and secure the AWS resources?",
@@ -258,10 +334,10 @@ Thanks,
 Marcus`,
   },
   starterCode: {
-    python: `# aws_loader.py
+    python: `# aws_client.py
 import os
 
-def load_credentials(config: dict) -> dict:
+def load_credentials(config: dict = None) -> dict:
     """
     Loads AWS credentials securely.
     Requirements:
@@ -274,7 +350,7 @@ def load_credentials(config: dict) -> dict:
         "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     }
 `,
-    javascript: `// aws_loader.js
+    javascript: `// aws_client.js
 
 function loadCredentials(config) {
   // BUG: Hardcoded credentials!
@@ -308,13 +384,46 @@ module.exports = { loadCredentials };
     doTechnicalWeight: 0.15,
     sayDoCorrelationWeight: 0.15,
   },
+  defaultFile: "src/config/aws_client.py",
   readonlyFiles: {
-    "src/config/aws.ts": "export const AWS_CONFIG = {\n  region: 'us-east-1'\n};\n",
+    "src/config/secrets_manager.py": `# secrets_manager.py - AWS KMS Integration
+import os
+
+def get_secret(secret_name: str) -> str:
+    return os.environ.get(secret_name, "")
+`,
+    ".env.example": `# .env.example - Environment Template
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=us-east-1
+`,
+    "audit/snyk_scan.json": `{
+  "vulnerabilities": [
+    {
+      "id": "SNYK-AWS-SECRET-LEAK-2026",
+      "severity": "CRITICAL",
+      "file": "src/config/aws_client.py",
+      "line": 12,
+      "rule": "Hardcoded AWS Access Key ID detected"
+    }
+  ]
+}
+`,
+    "tests/test_secrets.py": `# test_secrets.py
+import pytest
+from aws_client import load_credentials
+
+def test_no_hardcoded_keys():
+    creds = load_credentials({})
+    for key, val in creds.items():
+        assert "AKIA" not in str(val), "Hardcoded AWS key prefix detected"
+        assert "EXAMPLEKEY" not in str(val), "Hardcoded AWS secret detected"
+`
   },
   checklist: [
     { id: "read_security_alert", label: "1. View Snyk Alert", detail: "Review Snyk / GitHub secrets scanner incident details", actionTab: "channels", channelTab: "slack" },
     { id: "email_marcus", label: "2. Respond to Marcus", detail: "Confirm key revocation status and rotation ETA", actionTab: "channels", channelTab: "email" },
-    { id: "remove_keys", label: "3. Remove hardcoded keys", detail: "Modify aws_loader to pull from environment variables", actionTab: "workspace", selectedFile: "login/login_validation.py" },
+    { id: "remove_keys", label: "3. Remove hardcoded keys", detail: "Modify aws_client.py to pull from environment variables", actionTab: "workspace", selectedFile: "src/config/aws_client.py" },
     { id: "submit_security", label: "4. Verify containment", detail: "Confirm remediation is complete and submit", actionTab: "signoff" }
   ],
   slackMessages: [
@@ -329,15 +438,20 @@ module.exports = { loadCredentials };
     reporter: "Marcus Vance",
     assignee: "Candidate SRE",
     labels: ["Security", "Vulnerability"],
-    description: "GitHub Automated secrets scanner alerted that valid credentials were found in src/config/aws.ts."
+    description: "GitHub Automated secrets scanner alerted that valid credentials were found in src/config/aws_client.py."
   },
-  defaultFile: "login/login_validation.py",
   terminalInfo: {
-    repository: "cdrecruit/api-service",
-    branch: "remediate/secrets-leak",
+    repository: "cdrecruit/core-api",
+    branch: "secops/rotate-leaked-keys",
     initialLogs: [
-      "[ALERT] Exposed AWS keys detected. Deactivate key in IAM first.",
-      "Update aws_loader.py to read environment variables."
+      "snyk test --json > audit/snyk_scan.json",
+      "Testing /workspace/core-api...",
+      "",
+      "✗ [CRITICAL] Hardcoded AWS Access Key ID detected",
+      "  Path: src/config/aws_client.py, line 12",
+      "  Remediation: Remove raw credentials and use os.environ['AWS_ACCESS_KEY_ID']",
+      "",
+      "1 vulnerable path detected."
     ]
   },
   expectedConcepts: ["rotate", "revoke", "iam", "environment", "variable", "deactivate"]
@@ -371,7 +485,7 @@ Thanks,
 Dave`,
   },
   starterCode: {
-    python: `# cache_layer.py
+    python: `# lru_cache.py
 
 class LocalCache:
     """
@@ -392,7 +506,7 @@ class LocalCache:
         # BUG: Memory leak - stores indefinitely without eviction!
         cls.store[key] = value
 `,
-    javascript: `// cache_layer.js
+    javascript: `// lru_cache.js
 
 class LocalCache {
   // BUG: Memory leak - stores indefinitely
@@ -431,13 +545,35 @@ module.exports = { LocalCache };
     doTechnicalWeight: 0.2,
     sayDoCorrelationWeight: 0.15,
   },
+  defaultFile: "src/cache/lru_cache.py",
   readonlyFiles: {
-    "src/utils/cache_test.py": "def test_cache_perf(): pass\n",
+    "src/cache/store.py": `# store.py - Cache Provider Interface
+class CacheStore:
+    def __init__(self, driver="local"):
+        self.driver = driver
+`,
+    "config/cache_config.yaml": `cache:
+  driver: memory
+  max_entries: 5
+  ttl_seconds: 300
+  eviction_policy: lru
+`,
+    "tests/test_lru_cache.py": `# test_lru_cache.py
+import pytest
+from lru_cache import LocalCache
+
+def test_cache_capacity_bound():
+    LocalCache.store = {}
+    LocalCache.keys_order = []
+    for i in range(10):
+        LocalCache.set(f"key_{i}", i)
+    assert len(LocalCache.store) <= 5, "Cache must not exceed 5 items"
+`
   },
   checklist: [
     { id: "analyze_leak", label: "1. Analyze memory profile", detail: "Read tech architect cache review comments", actionTab: "channels", channelTab: "slack" },
     { id: "reply_dave", label: "2. Respond to Dave", detail: "Outline cache eviction strategy and timeline", actionTab: "channels", channelTab: "email" },
-    { id: "refactor_cache", label: "3. Patch cache_layer", detail: "Add key tracking and capacity enforcement to cache set()", actionTab: "workspace", selectedFile: "login/login_validation.py" },
+    { id: "refactor_cache", label: "3. Patch src/cache/lru_cache.py", detail: "Add key tracking and capacity enforcement to cache set()", actionTab: "workspace", selectedFile: "src/cache/lru_cache.py" },
     { id: "submit_refactor", label: "4. Run tests & submit", detail: "Confirm size limits are respected and submit code", actionTab: "signoff" }
   ],
   slackMessages: [
@@ -453,13 +589,21 @@ module.exports = { LocalCache };
     labels: ["Refactor", "MemoryLeak"],
     description: "Restrict LocalCache size to 5 keys. When new keys are added, drop the oldest keys."
   },
-  defaultFile: "login/login_validation.py",
   terminalInfo: {
     repository: "cdrecruit/core-cache",
-    branch: "refactor/cache-capacity",
+    branch: "refactor/lru-capacity-limit",
     initialLogs: [
-      "[WARN] Memory usage exceeding 90% in container api-router.",
-      "LocalCache contains 40,000 keys. Eviction layer missing."
+      "pytest tests/test_lru_cache.py",
+      "============================= test session starts =============================",
+      "platform linux -- Python 3.11.8, pytest-7.4.4",
+      "rootdir: /workspace/core-cache",
+      "collected 1 item",
+      "",
+      "tests/test_lru_cache.py::test_cache_capacity_bound FAILED               [100%]",
+      "",
+      "================================== FAILURES ===================================",
+      "FAILED tests/test_lru_cache.py::test_cache_capacity_bound - AssertionError: Cache must not exceed 5 items (Got 10)",
+      "============================== 1 failed in 0.03s =============================="
     ]
   },
   expectedConcepts: ["evict", "size", "limit", "capacity", "leak", "clean", "oldest"]
@@ -495,12 +639,11 @@ Priya`,
   starterCode: {
     python: `# priority_planner.py
 
-def prioritize_incident(checkout_severity: int, memory_leak_severity: int) -> str:
+def prioritize_incident(checkout_severity: int = 5, memory_leak_severity: int = 4) -> str:
     """
     Determines priority strategy.
     Requirements:
-    - Returns 'billing_first' if checkout has higher impact.
-    - Must justify the timeline to avoid concurrent deployment conflicts.
+    - Returns 'billing_first' or 'mitigate_both' with structured impact reasoning.
     """
     # BUG: Naive response structure
     return "no_strategy"
@@ -535,13 +678,28 @@ module.exports = { prioritizeIncident };
     doTechnicalWeight: 0.1,
     sayDoCorrelationWeight: 0.15,
   },
+  defaultFile: "src/planner/priority_planner.py",
   readonlyFiles: {
-    "docs/incidents.md": "Incident 1: Stripe checkout regional outage\nIncident 2: Cache memory leak container crashes\n",
+    "docs/sprint_backlog.md": `# Sprint Backlog - Active Incidents
+- Incident 1: Stripe checkout regional outage ($5k/hour loss)
+- Incident 2: Cache memory leak container crashes (Pods restart every 40 mins)
+`,
+    "src/billing/stripe_handler.py": `# stripe_handler.py
+def process_stripe_checkout(order_id: str):
+    pass
+`,
+    "tests/test_planner.py": `# test_planner.py
+from priority_planner import prioritize_incident
+
+def test_planner_output():
+    res = prioritize_incident(5, 4)
+    assert res != "no_strategy", "Priority decision must be formulated"
+`
   },
   checklist: [
     { id: "read_conflict", label: "1. Review Slack thread", detail: "Read the debate between Clara and Dave on Slack", actionTab: "channels", channelTab: "slack" },
     { id: "reply_priya", label: "2. Respond to Priya", detail: "Present your prioritization logic and communication strategy", actionTab: "channels", channelTab: "email" },
-    { id: "fix_planner", label: "3. Write priority decision", detail: "Update priority_planner with a structured response", actionTab: "workspace", selectedFile: "login/login_validation.py" },
+    { id: "fix_planner", label: "3. Write priority decision", detail: "Update src/planner/priority_planner.py with a structured response", actionTab: "workspace", selectedFile: "src/planner/priority_planner.py" },
     { id: "submit_conflict", label: "4. Confirm alignment", detail: "Submit incident priority plan and finish", actionTab: "signoff" }
   ],
   slackMessages: [
@@ -558,13 +716,21 @@ module.exports = { prioritizeIncident };
     labels: ["Priority", "Conflict", "Incident"],
     description: "Disagreement on deployment sequence between PM (Stripe bug checkout) and Tech Lead (cache eviction stability)."
   },
-  defaultFile: "login/login_validation.py",
   terminalInfo: {
     repository: "cdrecruit/incident-warroom",
-    branch: "incident/priority-resolution",
+    branch: "lead/priority-alignment",
     initialLogs: [
-      "Simulated priority planner ready.",
-      "Dave demands cache refactor. Clara demands Stripe checkout fix."
+      "pytest tests/test_planner.py",
+      "============================= test session starts =============================",
+      "platform linux -- Python 3.11.8, pytest-7.4.4",
+      "rootdir: /workspace/incident-warroom",
+      "collected 1 item",
+      "",
+      "tests/test_planner.py::test_planner_output FAILED                         [100%]",
+      "",
+      "================================== FAILURES ===================================",
+      "FAILED tests/test_planner.py::test_planner_output - AssertionError: Priority decision must be formulated",
+      "============================== 1 failed in 0.03s =============================="
     ]
   },
   expectedConcepts: ["prioritize", "impact", "sequence", "mitigate", "compromise", "communicate"]

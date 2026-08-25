@@ -1,23 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import { useSessionStore } from '../../store/sessionMachine'
-import { ModuleShell } from '../../components/ModuleShell'
-import { InitialSayStep } from './components/InitialSayStep'
 import { ContextSimulationWorkspace } from './components/ContextSimulationWorkspace'
+import { InitialSayStep } from './components/InitialSayStep'
+import { useModuleNavigation } from '../../hooks/useModuleNavigation'
+import { getEffectiveModuleType } from '../../utils/moduleType'
 import apiClient from '../../api/client'
-import { Loader2, CheckCircle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 interface ContextualModuleProps {
   moduleIndex: number
 }
 
-const DEFAULT_QA_BUG_SCENARIO = {
+const DEFAULT_SCENARIO = {
   id: 'qa-bug-login-validation',
   title: 'QA Bug Report: Login Validation Error',
   description:
     'During regression testing, QA discovered that login validation incorrectly accepts usernames with leading or trailing spaces. The issue has been reproduced consistently and marked as High Priority. Investigate the issue, implement a fix and verify that existing functionality is not affected.',
+  initialSayPrompt: 'What would you do to solve this issue?',
   starterCode: {
-    python: `# login_validation.py\n\ndef validate_username(username: str) -> bool:\n    """\n    Validates a username for login.\n    Requirements:\n    - Must be between 3 and 20 characters long.\n    - Must NOT contain leading or trailing spaces.\n    - Must only contain alphanumeric characters or underscores.\n    """\n    if not username:\n        return False\n    \n    # QA BUG: Missing leading/trailing space validation!\n    if len(username) < 3 or len(username) > 20:\n        return False\n        \n    return all(c.isalnum() or c == '_' or c == ' ' for c in username)\n`,
-    javascript: `// login_validation.js\n\nfunction validateUsername(username) {\n  if (!username || typeof username !== 'string') {\n    return false;\n  }\n\n  // QA BUG: Missing leading/trailing space check!\n  if (username.length < 3 || username.length > 20) {\n    return false;\n  }\n\n  return /^[a-zA-Z0-9_ ]+$/.test(username);\n}\n\nmodule.exports = { validateUsername };\n`,
+    python: `# validation.py\n\ndef validate_username(username: str) -> bool:\n    """\n    Validates a username for login.\n    Requirements:\n    - Must be between 3 and 20 characters long.\n    - Must NOT contain leading or trailing spaces.\n    - Must only contain alphanumeric characters or underscores.\n    """\n    if not username:\n        return False\n    \n    # QA BUG: Missing leading/trailing space validation!\n    if len(username) < 3 or len(username) > 20:\n        return False\n        \n    return all(c.isalnum() or c == '_' or c == ' ' for c in username)\n`,
+    javascript: `// validation.js\n\nfunction validateUsername(username) {\n  if (!username || typeof username !== 'string') {\n    return false;\n  }\n\n  // QA BUG: Missing leading/trailing space check!\n  if (username.length < 3 || username.length > 20) {\n    return false;\n  }\n\n  return /^[a-zA-Z0-9_ ]+$/.test(username);\n}\n\nmodule.exports = { validateUsername };\n`,
   },
   testCases: [
     { input: '"valid_user"', expectedOutput: 'true', label: 'Sample Valid Username', isHidden: false },
@@ -29,25 +31,59 @@ const DEFAULT_QA_BUG_SCENARIO = {
 }
 
 export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
+  const [currentIndex, setCurrentIndex] = useState(0)
   const assessment = useSessionStore(s => s.assessment)
+  const transitionTo = useSessionStore(s => s.transitionTo)
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
+  const setResponse = useSessionStore(s => s.setResponse)
+  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
+
   const sessionId = assessment?.sessionId || ''
 
-  const [step, setStep] = useState<'LOADING' | 'INITIAL_SAY' | 'INTERSTITIAL' | 'WORKSPACE' | 'COMPLETED'>('LOADING')
-  const [scenario, setScenario] = useState(DEFAULT_QA_BUG_SCENARIO)
+  // Active module tabs
+  const activeModules = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) {
+      return ['SIMULATION']
+    }
+    const types: string[] = []
+    for (const q of assessment.questions) {
+      const type = getEffectiveModuleType(q)
+      if (type && !types.includes(type)) {
+        types.push(type)
+      }
+    }
+    return types.length > 0 ? types : ['SIMULATION']
+  }, [assessment?.questions])
 
-  // Fetch Scenario Config & restore step state from session store / backend DB
+  const assignedSimQuestions = React.useMemo(() => {
+    if (!assessment?.questions || assessment.questions.length === 0) return [{ questionId: 'qa-bug-login-validation' }]
+    const list = assessment.questions.filter((q) => {
+      const t = getEffectiveModuleType(q)
+      return t === 'SIMULATION' || t === 'CONTEXTUAL'
+    })
+    return list.length > 0 ? list : [{ questionId: 'qa-bug-login-validation' }]
+  }, [assessment?.questions])
+
+  const { handleNext } = useModuleNavigation(moduleIndex, currentIndex, assignedSimQuestions.length)
+
+  const [step, setStep] = useState<'LOADING' | 'BRIEFING' | 'WORKSPACE'>('LOADING')
+  const [scenario, setScenario] = useState<any>(DEFAULT_SCENARIO)
+
+  useEffect(() => {
+    setCurrentQuestion(moduleIndex, currentIndex)
+  }, [currentIndex, moduleIndex, setCurrentQuestion])
+
+  // Fetch Scenario Config from backend & restore step
   useEffect(() => {
     const savedResponse = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : undefined) as { initialSayText?: string; completed?: boolean } | undefined
 
-    if (savedResponse?.completed) {
-      setStep('COMPLETED')
-    } else if (savedResponse?.initialSayText) {
+    if (savedResponse?.initialSayText) {
       setStep('WORKSPACE')
     }
 
     if (!sessionId) {
-      if (!savedResponse?.initialSayText && !savedResponse?.completed) {
-        setStep('INITIAL_SAY')
+      if (!savedResponse?.initialSayText) {
+        setStep('BRIEFING')
       }
       return
     }
@@ -56,134 +92,113 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
       .then(res => {
         if (res.data) {
           setScenario({
-            ...DEFAULT_QA_BUG_SCENARIO,
+            ...DEFAULT_SCENARIO,
             ...res.data,
           })
-          const isCompleted = res.data.completed || savedResponse?.completed
           const hasSay = res.data.hasInitialSay || !!res.data.initialSayText || !!savedResponse?.initialSayText
-          if (isCompleted) {
-            setStep('COMPLETED')
-          } else if (hasSay) {
+          if (hasSay) {
             setStep('WORKSPACE')
-          } else if (!savedResponse?.completed && !savedResponse?.initialSayText) {
-            setStep('INITIAL_SAY')
+          } else {
+            setStep('BRIEFING')
           }
         }
       })
       .catch(err => {
-        console.warn('[ContextualModule] Could not fetch remote scenario config, using default QA Bug scenario:', err)
-        if (!savedResponse?.initialSayText && !savedResponse?.completed) {
-          setStep('INITIAL_SAY')
+        console.warn('[ContextualModule] Using default scenario:', err)
+        if (!savedResponse?.initialSayText) {
+          setStep('BRIEFING')
         }
       })
-  }, [sessionId, scenario?.id])
+      .finally(() => {
+        if (step === 'LOADING') {
+          setStep(savedResponse?.initialSayText ? 'WORKSPACE' : 'BRIEFING')
+        }
+      })
+  }, [sessionId, currentIndex])
 
-  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
-  const setResponse = useSessionStore(s => s.setResponse)
-
-  // Handle Initial SAY submission
+  // Handle Initial SAY submit from Briefing
   const handleInitialSaySubmit = async (initialSayText: string) => {
-    setStep('INTERSTITIAL')
     if (sessionId) {
       try {
         await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
           text: initialSayText,
         })
       } catch (err) {
-        console.warn('Error persisting initial say text:', err)
+        console.warn('Error saving initial say:', err)
       }
     }
-    const currentResp = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : {}) || {}
-    setQuestionStatus(scenario.id, 'answered')
-    setResponse(scenario.id, { ...currentResp, initialSayText, completed: false })
 
-    setTimeout(() => {
-      setStep('WORKSPACE')
-    }, 1500)
+    const questionId = scenario?.id || 'simulation-question'
+    const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {}
+    setQuestionStatus(questionId, 'answered')
+    setResponse(questionId, { ...currentResp, initialSayText, completed: false })
+
+    // Transition directly into live workstation!
+    setStep('WORKSPACE')
   }
 
-  // Handle final simulation submit
-  const handleSimulationSubmit = async () => {
+  // Handle final simulation submit & immediately advance to next question / module
+  const handleSimulationSubmit = async (signoffData?: any) => {
     if (sessionId) {
-      await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
-        completed: true,
-      }).catch(() => {})
+      try {
+        await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
+          completed: true,
+          ...signoffData,
+        })
+      } catch (err) {
+        console.warn('Simulation submit error:', err)
+      }
     }
-    const currentResp = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : {}) || {}
-    setQuestionStatus(scenario.id, 'answered')
-    setResponse(scenario.id, { ...currentResp, completed: true })
-    setStep('COMPLETED')
+
+    const questionId = scenario?.id || 'simulation-question'
+    const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {}
+    setQuestionStatus(questionId, 'answered')
+    setResponse(questionId, { ...currentResp, completed: true, ...signoffData })
+
+    // Seamless instant advancement
+    handleNext(() => setCurrentIndex(i => i + 1))
   }
 
-  const paletteItems = [{ id: scenario.id, label: scenario.title }]
+  const handleNavigateModule = (idx: number) => {
+    if (sessionId) {
+      transitionTo({ type: 'assessment', moduleIndex: idx, sessionId })
+    }
+  }
 
   if (step === 'LOADING') {
     return (
-      <ModuleShell
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-background text-foreground gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        <span className="text-sm font-medium text-muted-foreground">Connecting to Developer Incident Workstation...</span>
+      </div>
+    )
+  }
+
+  if (step === 'BRIEFING') {
+    return (
+      <InitialSayStep
+        scenario={scenario}
         moduleIndex={moduleIndex}
-        questions={paletteItems}
-        currentQuestionIndex={0}
-        onNavigate={() => {}}
-      >
-        <div className="flex flex-col items-center justify-center h-full gap-3 py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
-          <span className="text-sm font-medium text-[var(--text-secondary)]">Loading Context Simulation scenario...</span>
-        </div>
-      </ModuleShell>
+        activeModules={activeModules}
+        onNavigateModule={handleNavigateModule}
+        onSubmit={handleInitialSaySubmit}
+      />
     )
   }
 
   return (
-    <ModuleShell
-      moduleIndex={moduleIndex}
-      questions={paletteItems}
-      currentQuestionIndex={0}
-      onNavigate={() => {}}
-    >
-      <div className="h-full w-full overflow-y-auto bg-[var(--background)]">
-        {step === 'INITIAL_SAY' && (
-          <InitialSayStep
-            scenarioTitle={scenario.title}
-            scenarioDescription={scenario.description}
-            prompt="What would you do to solve this issue?"
-            onSubmit={handleInitialSaySubmit}
-          />
-        )}
-
-        {step === 'INTERSTITIAL' && (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8 animate-in fade-in duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/30 flex items-center justify-center shadow-lg">
-              <Loader2 className="w-7 h-7 animate-spin" />
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">Setting up your workspace</h2>
-              <p className="text-xs text-[var(--text-secondary)] max-w-sm">
-                Configuring the engineering sandbox and incident environment based on your debugging plan...
-              </p>
-            </div>
-          </div>
-        )}
-
-        {step === 'WORKSPACE' && (
-          <ContextSimulationWorkspace
-            sessionId={sessionId}
-            scenario={scenario}
-            onSubmitSimulation={handleSimulationSubmit}
-          />
-        )}
-
-        {step === 'COMPLETED' && (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6" />
-            </div>
-            <h2 className="text-xl font-bold text-[var(--text-primary)]">Context Simulation Complete</h2>
-            <p className="text-sm text-[var(--text-secondary)] max-w-md">
-              Your Initial SAY plan, DO workspace telemetry, manager email reply, and technical fix have been successfully evaluated.
-            </p>
-          </div>
-        )}
-      </div>
-    </ModuleShell>
+    <div className="h-screen w-screen overflow-hidden bg-background">
+      <ContextSimulationWorkspace
+        sessionId={sessionId}
+        scenario={scenario}
+        moduleIndex={moduleIndex}
+        currentIndex={currentIndex}
+        totalQuestions={assignedSimQuestions.length}
+        onBackToBriefing={() => setStep('BRIEFING')}
+        onNavigateModule={handleNavigateModule}
+        onAdvanceNext={() => handleNext(() => setCurrentIndex(i => i + 1))}
+        onSubmitSimulation={handleSimulationSubmit}
+      />
+    </div>
   )
 }

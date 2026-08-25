@@ -17,7 +17,6 @@ import { NosqlSandboxService } from "./nosql-sandbox.service";
 import { NosqlExecutionService } from "./nosql-execution.service";
 import { ResultComparatorService } from "../../sql/result-comparator.service";
 import { SessionOwnerGuard } from "../../common/guards/session-owner.guard";
-import { ThrottlerGuard } from "@nestjs/throttler";
 import { QueueProviderPort } from "../../queue/queue-provider.port";
 import { StartNosqlDto, RunNosqlDto, ResetNosqlDto, SubmitNosqlDto } from "./dto/nosql.dto";
 import { SessionStatus, ModuleType } from "@prisma/client";
@@ -105,7 +104,7 @@ export class NosqlController {
 
   @Post("run")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(SessionOwnerGuard, ThrottlerGuard)
+  @UseGuards(SessionOwnerGuard)
   async run(@Body() dto: RunNosqlDto) {
     await this.validateActiveSession(dto.sessionId);
 
