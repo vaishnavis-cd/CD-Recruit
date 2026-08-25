@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -14,6 +15,7 @@ import {
   UploadedFile,
   BadRequestException,
 } from "@nestjs/common";
+import type { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
@@ -65,6 +67,34 @@ export class AdminController {
   @Get("results")
   async listResults(@Query() query: ListSessionsQueryDto) {
     return this.adminService.listSessions(query);
+  }
+
+  @Get("results/export")
+  async exportResults(
+    @Query() query: ListSessionsQueryDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.adminService.exportResultsCsv(query);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="candidate_results_export_${new Date().toISOString().slice(0, 10)}.csv"`,
+    );
+    return res.send(csv);
+  }
+
+  @Get("sessions/export")
+  async exportSessions(
+    @Query() query: ListSessionsQueryDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.adminService.exportResultsCsv(query);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="candidate_sessions_export_${new Date().toISOString().slice(0, 10)}.csv"`,
+    );
+    return res.send(csv);
   }
 
   @Get("sessions/:sessionId")

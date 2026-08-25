@@ -250,11 +250,23 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       let url = `${API_BASE}/admin/results/export`;
       if (driveId) url += `?driveId=${driveId}`;
       const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed to export CSV");
-      return await res.text();
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Failed to export CSV: ${res.status} ${errText}`);
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `candidate_results_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      return await blob.text();
     } catch (err: any) {
-      console.error(err);
-      return "";
+      console.error("Export results CSV error:", err);
+      throw err;
     }
   },
 });

@@ -42,7 +42,7 @@ export function useModuleNavigation(moduleIndex: number, currentQuestionIndex: n
 
   const nextButtonLabel = isLastQuestionInModule
     ? isLastModule
-      ? 'Review & Submit'
+      ? 'Final Review & Submit'
       : 'Next Module'
     : 'Next'
 

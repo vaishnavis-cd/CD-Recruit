@@ -342,20 +342,11 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                 <span>Interactive Fix Editor</span>
               </div>
 
-              {/* Target Language Badge (Preferred language selector removed) */}
+              {/* Target Language Badge */}
               <div className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
                 {activeLang.toUpperCase()}
               </div>
             </div>
-
-            <button
-              onClick={handleRunDiagnostics}
-              disabled={isRunning}
-              className="px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              <span>Run Diagnostics (Judge0)</span>
-            </button>
           </div>
 
           {/* Code Editor Container */}

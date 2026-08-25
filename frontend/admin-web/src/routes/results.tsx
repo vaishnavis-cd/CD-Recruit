@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
+import { formatTimestamp } from "../lib/utils";
+import { ExportDropdown } from "../components/export-dropdown";
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
@@ -142,13 +144,21 @@ function ResultsPage() {
         </div>
       }
       actions={
-        <button
-          onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-brand bg-brand/10 border border-brand/30 rounded hover:bg-brand/20 transition-colors cursor-pointer"
-        >
-          <Download size={13} />
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-brand bg-brand/10 border border-brand/30 rounded hover:bg-brand/20 transition-colors cursor-pointer"
+            title="Download full candidate evaluation CSV dataset from server"
+          >
+            <Download size={13} />
+            Export Server CSV
+          </button>
+          <ExportDropdown
+            data={filtered}
+            filenamePrefix="proctora-candidate-results"
+            title="Candidate Assessment Results"
+          />
+        </div>
       }
     >
       {/* Metric Cards Summary */}
@@ -277,7 +287,7 @@ function ResultsPage() {
                         <div className="text-[11px] text-ink-2">{item.roleTemplateName || "Software Engineer"}</div>
                       </td>
                       <td className="py-3 px-4 font-mono text-[12px] text-ink-2">
-                        {item.submittedAt ? item.submittedAt.slice(0, 16).replace("T", " ") : "In Progress"}
+                        {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span

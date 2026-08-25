@@ -32,7 +32,7 @@ import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
 import { useStore, API_BASE } from "../lib/store";
 import type { CandidateSessionDetail } from "../lib/types";
-import { formatDriveName } from "../lib/utils";
+import { formatDriveName, formatTimestamp, formatDuration } from "../lib/utils";
 
 export const Route = createFileRoute("/results/$id")({
   component: IndividualResultPage,
@@ -301,8 +301,18 @@ function IndividualResultPage() {
                 </span>
               )}
             </div>
-            <p className="text-[13px] text-ink-2">
-              {detail.candidateEmail} • Drive: <span className="font-semibold text-ink">{formatDriveName(detail.driveName)}</span> ({detail.roleTemplateName})
+            <p className="text-[13px] text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>{detail.candidateEmail}</span>
+              <span>•</span>
+              <span>Drive: <strong className="font-semibold text-ink">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
+              <span>•</span>
+              <span className="font-mono text-[12px] text-ink">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
+              {detail.startedAt && detail.submittedAt && (
+                <>
+                  <span>•</span>
+                  <span className="font-mono text-[12px] text-brand">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
+                </>
+              )}
             </p>
           </div>
 
@@ -1106,10 +1116,14 @@ function IndividualResultPage() {
                 </span>
                 <div className="p-3 bg-bg-soft border border-line rounded text-[12px] text-ink whitespace-pre-wrap min-h-[90px]">
                   {(detail as any).simulationSnapshot?.emailReplyText || 
-                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply)?.responsePayload?.emailReplyText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply)?.responsePayload?.ticketReply ||
-                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText)?.responsePayload?.ticketReply ||
+                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.replyText ||
+                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.reply ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.replyText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReply ||
+                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
+                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
                    "No manager email reply recorded."}
                 </div>
               </div>

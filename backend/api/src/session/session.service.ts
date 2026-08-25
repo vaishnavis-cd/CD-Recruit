@@ -273,6 +273,25 @@ export class SessionService implements SessionStatusPort {
       payload.candidateName,
     );
 
+    // 3.5 Check if candidate already has a SUBMITTED or COMPLETED session for this drive
+    const submittedSession = await this.prisma.session.findFirst({
+      where: {
+        candidateId: candidateRecord.id,
+        driveId: payload.driveId || undefined,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED] },
+      },
+      orderBy: { submittedAt: "desc" },
+      include: { roleTemplate: true },
+    });
+
+    if (submittedSession) {
+      this.logger.warn(`Candidate ${candidateRecord.email} already completed session ${submittedSession.id}.`);
+      return await this.buildStartResponse(
+        submittedSession as SessionWithTemplate,
+        candidateRecord.id,
+      );
+    }
+
     // 4. Reuse existing session if already created for this candidate
     const existingSession = await this.prisma.session.findFirst({
       where: {

@@ -752,6 +752,14 @@ export class SimulationService implements AssessmentModuleEngine {
     const scenarioConfig = await this.getScenarioConfig(sessionId);
     const questionId = scenarioConfig?.id || "qa-bug-login-validation";
 
+    // Ensure state captures email reply and say text passed in signoffData
+    if (submissionPayload?.emailReplyText && !state.emailReplyText) {
+      state.emailReplyText = submissionPayload.emailReplyText;
+    }
+    if (submissionPayload?.initialSayText && !state.initialSayText) {
+      state.initialSayText = submissionPayload.initialSayText;
+    }
+
     // Extract test results if present in submission payload
     const testResults = submissionPayload?.testResults || null;
 

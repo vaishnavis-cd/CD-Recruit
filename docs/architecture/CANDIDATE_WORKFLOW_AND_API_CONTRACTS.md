@@ -80,14 +80,14 @@ stateDiagram-v2
 
 ### 3.1 Shared Outer Chrome (`ModuleShell.tsx`)
 All module types are embedded inside the `ModuleShell` container, which maintains session integrity and layout:
-* **Header:** Displays Module Name, Question Count (`Q{n} of {total}`), Live Proctoring Camera Indicator, Countdown Timer, Theme Toggle (Light/Dark mode), and Review & Submit CTA.
+* **Header:** Displays Module Name, Question Count (`Q{n} of {total}`), Live Proctoring Camera Indicator, Countdown Timer, Theme Toggle (Light/Dark mode), and Final Review & Submit CTA.
 * **Proctoring Camera Thumbnail (`ProctoringIndicator.tsx`):** Displays a $64 \times 48\text{ px}$ mirrored video feed in the header with a pulsing green/amber status indicator. Can be expanded into a floating $288\text{ px}$ panel.
 * **Countdown Timer (`Timer.tsx`):** Monospace clock displaying remaining session time. Color changes from neutral $\rightarrow$ amber at 10 min $\rightarrow$ bold amber at 5 min $\rightarrow$ pulsing bold amber at 1 min. Triggers auto-submit to `syncing` state on expiration.
 * **Navigation Palette (`QuestionPalette.tsx`):** Fixed left sidebar showing question status grid (Unvisited, Answered, Skipped, Flagged). Supports keyboard shortcut `F` to flag/unflag questions.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ [Logo] MCQ Module  Q1 of 5   [📷 Live Camera]  [⏱️ 01:25:40]  [🌓] [Review & Submit]    │
+│ [Logo] MCQ Module  Q1 of 5   [📷 Live Camera]  [⏱️ 01:25:40]  [🌓] [Final Review & Submit]    │
 ├─────────────────┬──────────────────────────────────────────────────────────────────────┤
 │ QUESTION PALETTE│ QUESTION CONTENT PANEL                                               │
 │                 │                                                                      │

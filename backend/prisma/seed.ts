@@ -217,7 +217,9 @@ async function main(): Promise<void> {
       }
 
       // 4. Ingest and Seed Questions from all sources
-      console.log(`  📥 Loading and ingesting questions from all dataset files...`);
+      console.log(`  📥 Cleaning legacy question records and loading fresh questions from dataset files...`);
+      await tx.$executeRawUnsafe('TRUNCATE TABLE "question", "drive_question", "role_template_question" CASCADE;');
+
       const allQuestionItems: Array<{
         moduleType: ModuleType;
         department: Department;
@@ -235,7 +237,20 @@ async function main(): Promise<void> {
         if (Array.isArray(bankData.questions)) {
           for (const q of bankData.questions) {
             const dept = normalizeDepartment(q.department || q.dept);
-            const modType = normalizeModuleType(q.module || q.moduleType);
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+            const rawMod = (q.module || q.moduleType || "").toUpperCase();
+
+            let modType: ModuleType = "MCQ";
+            if (!hasOptions || rawMod.includes("SCENARIO") || rawMod.includes("TEST")) {
+              modType = "TEST_SCENARIOS";
+            } else if (rawMod.includes("PROMPT") || rawMod.includes("AI")) {
+              modType = "AI_PROMPTING";
+            } else if (rawMod.includes("SIMULATION") || rawMod.includes("CONTEXT")) {
+              modType = "SIMULATION";
+            } else {
+              modType = "MCQ";
+            }
+
             const diff = (q.difficulty || "medium").toLowerCase();
             const seniority = determineSeniorityTags(diff);
             const tags = Array.from(new Set([
@@ -246,17 +261,19 @@ async function main(): Promise<void> {
               ...(q.category ? [q.category.toLowerCase().replace(/\s+/g, "-")] : []),
             ]));
 
+            const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
             const content = {
               prompt: q.question || q.prompt || "",
               options: q.options || [],
-              correctAnswer: q.correctAnswer || "",
+              correctAnswer: correctAns,
               explanation: q.explanation || "",
               category: q.category || "",
               tier: q.tier || "TIER_1",
             };
 
             const scoringConfig = q.scoringConfig || {
-              correctIndex: q.options ? q.options.indexOf(q.correctAnswer) : 0,
+              correctIndex: hasOptions ? q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0 : 0,
+              correctAnswer: correctAns,
               points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
             };
 
@@ -280,7 +297,20 @@ async function main(): Promise<void> {
         if (Array.isArray(batchData)) {
           for (const q of batchData) {
             const dept = normalizeDepartment(q.department);
-            const modType = normalizeModuleType(q.moduleType);
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+            const rawMod = (q.moduleType || q.module || "").toUpperCase();
+
+            let modType: ModuleType = "MCQ";
+            if (!hasOptions || rawMod.includes("SCENARIO") || rawMod.includes("TEST")) {
+              modType = "TEST_SCENARIOS";
+            } else if (rawMod.includes("PROMPT") || rawMod.includes("AI")) {
+              modType = "AI_PROMPTING";
+            } else if (rawMod.includes("SIMULATION") || rawMod.includes("CONTEXT")) {
+              modType = "SIMULATION";
+            } else {
+              modType = "MCQ";
+            }
+
             const diff = (q.difficulty || "hard").toLowerCase();
             const seniority = determineSeniorityTags(diff, q.seniority);
             const tags = Array.from(new Set([
@@ -291,6 +321,7 @@ async function main(): Promise<void> {
               ...(q.topic ? [q.topic.toLowerCase().replace(/\s+/g, "-")] : []),
             ]));
 
+            const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
             allQuestionItems.push({
               moduleType: modType,
               department: dept,
@@ -300,23 +331,27 @@ async function main(): Promise<void> {
               content: q.content || {
                 prompt: q.question || "",
                 options: q.options || [],
-                correctAnswer: q.correctAnswer || "",
+                correctAnswer: correctAns,
                 explanation: q.explanation || "",
               },
-              scoringConfig: q.scoringConfig || { points: 3 },
+              scoringConfig: q.scoringConfig || {
+                correctIndex: hasOptions ? q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0 : 0,
+                correctAnswer: correctAns,
+                points: 3,
+              },
             });
           }
         }
       }
 
-      // Source C: Module-specific files (mcq, sql, coding, debugging, aiPrompting, simulation, nosql)
+      // Source C: Module-specific files (mcq, sql, coding, debugging, aiPrompting, simulation)
       const moduleFiles = [
-        { file: "mcq.json", defaultMod: "MCQ" as ModuleType },
-        { file: "sql.json", defaultMod: "SQL" as ModuleType },
-        { file: "coding.json", defaultMod: "CODING" as ModuleType },
-        { file: "debugging.json", defaultMod: "DEBUGGING" as ModuleType },
-        { file: "aiPrompting.json", defaultMod: "AI_PROMPTING" as ModuleType },
-        { file: "simulation.json", defaultMod: "SIMULATION" as ModuleType },
+        { file: "mcq.json", defaultMod: "MCQ" as ModuleType, depts: ["SOFTWARE_ENGINEERING"] as Department[] },
+        { file: "sql.json", defaultMod: "SQL" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "DATA_ENGINEERING", "QA"] as Department[] },
+        { file: "coding.json", defaultMod: "CODING" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "DATA_ENGINEERING", "QA"] as Department[] },
+        { file: "debugging.json", defaultMod: "DEBUGGING" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "QA"] as Department[] },
+        { file: "aiPrompting.json", defaultMod: "AI_PROMPTING" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "PMO"] as Department[] },
+        { file: "simulation.json", defaultMod: "SIMULATION" as ModuleType, depts: ["SOFTWARE_ENGINEERING", "SRE", "SYSOPS"] as Department[] },
       ];
 
       for (const mf of moduleFiles) {
@@ -328,22 +363,32 @@ async function main(): Promise<void> {
               const modType = item.moduleType ? normalizeModuleType(item.moduleType) : mf.defaultMod;
               const diff = (item.difficulty || item.content?.difficulty || "medium").toLowerCase();
               const seniority = determineSeniorityTags(diff);
-              const dept: Department = "SOFTWARE_ENGINEERING";
+              const deptTags = mf.depts.map(d => d.toLowerCase());
               const tags = Array.from(new Set([
-                dept.toLowerCase(),
+                ...deptTags,
                 modType.toLowerCase(),
                 ...seniority,
                 ...(item.tags || []),
               ]));
 
+              const content = item.content || item;
+              if (modType === "MCQ" && content.options && content.options.length > 0) {
+                if (!content.correctAnswer && content.correctIndex !== undefined) {
+                  content.correctAnswer = content.options[content.correctIndex];
+                }
+              }
+
               allQuestionItems.push({
                 moduleType: modType,
-                department: dept,
+                department: mf.depts[0],
                 difficulty: diff,
                 tags,
                 targetLevel: seniority.includes("l3") ? "L3" : seniority.includes("l2") ? "L2" : seniority.includes("l1") ? "L1" : "FRESHER",
-                content: item.content || item,
-                scoringConfig: item.scoringConfig || { points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1 },
+                content,
+                scoringConfig: item.scoringConfig || {
+                  correctIndex: content.options && content.correctAnswer ? content.options.indexOf(content.correctAnswer) : (content.correctIndex || 0),
+                  points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
+                },
               });
             }
           }
@@ -354,12 +399,11 @@ async function main(): Promise<void> {
       for (const nq of nosqlQuestions) {
         const diff = (nq.difficulty || "medium").toLowerCase();
         const seniority = determineSeniorityTags(diff);
-        const dept: Department = "SOFTWARE_ENGINEERING";
         allQuestionItems.push({
           moduleType: "NOSQL",
-          department: dept,
+          department: "SOFTWARE_ENGINEERING",
           difficulty: diff,
-          tags: Array.from(new Set([dept.toLowerCase(), "nosql", ...seniority])),
+          tags: Array.from(new Set(["software_engineering", "data_engineering", "nosql", ...seniority])),
           targetLevel: seniority.includes("l2") ? "L2" : "L1",
           content: nq.content,
           scoringConfig: { points: 2 },
@@ -369,48 +413,23 @@ async function main(): Promise<void> {
       // Ingest all questions into database
       const createdQuestions: any[] = [];
       for (const q of allQuestionItems) {
-        const prompt = q.content?.prompt || q.content?.title || q.content?.question || "";
-        const matchPath = q.content?.prompt ? ["prompt"] : q.content?.title ? ["title"] : ["question"];
-
-        const existing = await tx.question.findFirst({
-          where: {
+        const created = await tx.question.create({
+          data: {
             moduleType: q.moduleType,
-            content: { path: matchPath, equals: prompt },
+            content: q.content,
+            scoringConfig: q.scoringConfig,
+            difficulty: q.difficulty,
+            tags: q.tags,
+            targetLevel: q.targetLevel,
+            status: "PUBLISHED",
+            role: DEPT_NAMES[q.department] || "General",
           },
         });
-
-        if (existing) {
-          const updated = await tx.question.update({
-            where: { id: existing.id },
-            data: {
-              moduleType: q.moduleType,
-              difficulty: q.difficulty,
-              tags: q.tags,
-              targetLevel: q.targetLevel,
-              status: "PUBLISHED",
-              role: DEPT_NAMES[q.department] || "General",
-            },
-          });
-          createdQuestions.push({ ...updated, department: q.department });
-        } else {
-          const created = await tx.question.create({
-            data: {
-              moduleType: q.moduleType,
-              content: q.content,
-              scoringConfig: q.scoringConfig,
-              difficulty: q.difficulty,
-              tags: q.tags,
-              targetLevel: q.targetLevel,
-              status: "PUBLISHED",
-              role: DEPT_NAMES[q.department] || "General",
-            },
-          });
-          createdQuestions.push({ ...created, department: q.department });
-        }
+        createdQuestions.push({ ...created, department: q.department });
       }
-      console.log(`  ✔ Ingested and synchronized ${createdQuestions.length} questions into Question repository`);
+      console.log(`  ✔ Ingested and synchronized ${createdQuestions.length} clean questions into Question repository`);
 
-      // 5. Assign Departmental & Seniority-Tier Questions to each of the 32 Role Templates
+      // 5. Assign Balanced Multi-Module Questions to each of the 32 Role Templates
       console.log(`  🔗 Assigning questions to all 32 Role Templates via RoleTemplateQuestion...`);
       for (const dept of DEPARTMENTS) {
         for (const t of TIERS) {
@@ -423,40 +442,96 @@ async function main(): Promise<void> {
             where: { roleTemplateId: template.id },
           });
 
-          // Match questions for this department & seniority tier
           const deptTag = dept.toLowerCase();
           const targetTag = t.seniorityTag; // "fresher", "l1", "l2", "l3"
 
-          let matching = createdQuestions.filter(q => {
-            const hasDept = q.tags.includes(deptTag) || q.department === dept;
-            const hasSeniority = q.tags.includes(targetTag);
-            return hasDept && hasSeniority;
-          });
-
-          // Fallback if not enough department-specific questions: include core Software Engineering / general questions
-          if (matching.length < 10) {
-            const fallback = createdQuestions.filter(q => {
-              const hasSeniority = q.tags.includes(targetTag);
-              return hasSeniority && (q.tags.includes("software_engineering") || q.tags.includes("sde"));
-            });
-            matching = Array.from(new Set([...matching, ...fallback]));
+          // 1. MCQ questions for this department & seniority (target 8-10)
+          let deptMcqs = createdQuestions.filter(q =>
+            q.moduleType === "MCQ" &&
+            (q.tags.includes(deptTag) || q.department === dept) &&
+            q.tags.includes(targetTag)
+          );
+          if (deptMcqs.length < 8) {
+            const fallbackMcqs = createdQuestions.filter(q =>
+              q.moduleType === "MCQ" && q.tags.includes(targetTag)
+            );
+            deptMcqs = Array.from(new Set([...deptMcqs, ...fallbackMcqs]));
           }
+          const selectedMcqs = deptMcqs.slice(0, 8);
 
-          // Deduplicate questions by question id
-          const seenQuestionIds = new Set<string>();
-          const uniqueSelectedQuestions: any[] = [];
-          for (const q of matching) {
-            if (!seenQuestionIds.has(q.id)) {
-              seenQuestionIds.add(q.id);
-              uniqueSelectedQuestions.push(q);
+          // 2. CODING questions (target 2)
+          let codings = createdQuestions.filter(q =>
+            q.moduleType === "CODING" && q.tags.includes(targetTag)
+          );
+          if (codings.length < 2) {
+            codings = createdQuestions.filter(q => q.moduleType === "CODING");
+          }
+          const selectedCodings = codings.slice(0, 2);
+
+          // 3. SQL questions (target 2)
+          let sqls = createdQuestions.filter(q =>
+            q.moduleType === "SQL" && q.tags.includes(targetTag)
+          );
+          if (sqls.length < 2) {
+            sqls = createdQuestions.filter(q => q.moduleType === "SQL");
+          }
+          const selectedSqls = sqls.slice(0, 2);
+
+          // 4. DEBUGGING questions (target 1)
+          let debugs = createdQuestions.filter(q =>
+            q.moduleType === "DEBUGGING" && q.tags.includes(targetTag)
+          );
+          if (debugs.length === 0) {
+            debugs = createdQuestions.filter(q => q.moduleType === "DEBUGGING");
+          }
+          const selectedDebugs = debugs.slice(0, 1);
+
+          // 5. NOSQL questions (target 1)
+          const nosqls = createdQuestions.filter(q => q.moduleType === "NOSQL");
+          const selectedNosqls = nosqls.slice(0, 1);
+
+          // 6. AI PROMPTING (target 1)
+          const promptings = createdQuestions.filter(q => q.moduleType === "AI_PROMPTING");
+          const selectedPromptings = promptings.slice(0, 1);
+
+          // 7. SIMULATION (target 1)
+          const simulations = createdQuestions.filter(q => q.moduleType === "SIMULATION");
+          const selectedSimulations = simulations.slice(0, 1);
+
+          // 8. TEST SCENARIOS (target 2)
+          let scenarios = createdQuestions.filter(q =>
+            q.moduleType === "TEST_SCENARIOS" &&
+            (q.tags.includes(deptTag) || q.department === dept)
+          );
+          if (scenarios.length < 2) {
+            scenarios = createdQuestions.filter(q => q.moduleType === "TEST_SCENARIOS");
+          }
+          const selectedScenarios = scenarios.slice(0, 2);
+
+          // Combine all selected questions
+          const combinedQuestions = [
+            ...selectedMcqs,
+            ...selectedCodings,
+            ...selectedSqls,
+            ...selectedDebugs,
+            ...selectedNosqls,
+            ...selectedPromptings,
+            ...selectedSimulations,
+            ...selectedScenarios,
+          ];
+
+          // Deduplicate
+          const seenIds = new Set<string>();
+          const finalTemplateQuestions: any[] = [];
+          for (const q of combinedQuestions) {
+            if (!seenIds.has(q.id)) {
+              seenIds.add(q.id);
+              finalTemplateQuestions.push(q);
             }
           }
 
-          // Select a balanced set of 15 to 25 questions per template
-          const selectedQuestions = uniqueSelectedQuestions.slice(0, 20);
-
           let orderIndex = 0;
-          for (const q of selectedQuestions) {
+          for (const q of finalTemplateQuestions) {
             await tx.roleTemplateQuestion.upsert({
               where: {
                 roleTemplateId_questionId: {
@@ -482,7 +557,7 @@ async function main(): Promise<void> {
           }
         }
       }
-      console.log(`  ✔ Successfully assigned questions across all 32 Role Templates`);
+      console.log(`  ✔ Successfully assigned balanced multi-module questions across all 32 Role Templates`);
 
       // 6. Upsert Default Recruitment Drive linked to Software Engineering Fresher template
       let drive = await tx.drive.findFirst({

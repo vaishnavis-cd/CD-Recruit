@@ -491,34 +491,6 @@ export function CodingWorkspace({
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset Code</span>
           </button>
-
-          <button
-            onClick={handleRun}
-            disabled={isRunning || !activeCode.trim()}
-            className="btn-secondary inline-flex items-center gap-1.5 text-xs cursor-pointer"
-            title="Run code against sample test cases"
-          >
-            {isRunning && runType === "RUN" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
-            ) : (
-              <Play className="w-3.5 h-3.5 text-[var(--success)]" />
-            )}
-            <span>Run Code</span>
-          </button>
-          
-          <button
-            onClick={handleSubmit}
-            disabled={isRunning || !activeCode.trim()}
-            className="btn-primary inline-flex items-center gap-1.5 text-xs cursor-pointer"
-            title="Submit solution against all test cases"
-          >
-            {isRunning && runType === "SUBMIT" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Server className="w-3.5 h-3.5" />
-            )}
-            <span>Submit Solution</span>
-          </button>
         </div>
       </div>
 
@@ -792,7 +764,7 @@ export function CodingWorkspace({
           <button
             onClick={handleSubmit}
             disabled={isRunning || !activeCode.trim()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
             title="Submit solution against all test cases"
           >
             {isRunning && runType === "SUBMIT" ? (

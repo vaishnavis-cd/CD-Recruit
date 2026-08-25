@@ -73,10 +73,10 @@ export class SimulationController {
   @UseGuards(SessionOwnerGuard)
   async saveEmailReply(
     @Param("id") sessionId: string,
-    @Body() body: { messageId?: number; text?: string; replyText?: string },
+    @Body() body: { messageId?: number; text?: string; replyText?: string; reply?: string },
   ) {
     const msgId = Number(body.messageId) || 101;
-    const text = body.replyText || body.text || "";
+    const text = body.replyText || body.reply || body.text || "";
     return this.simulationService.saveEmailReply(sessionId, msgId, text);
   }
 
