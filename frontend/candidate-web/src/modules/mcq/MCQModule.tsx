@@ -159,103 +159,112 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="max-w-3xl mx-auto py-10 px-6 animate-cd-fade-in">
-        {/* Question Header */}
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] font-mono-data">
-            Question {currentIndex + 1} of {questions.length}
-          </span>
-          {question?.allowMultiple && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--accent)] font-medium">
-              Multiple select
-            </span>
-          )}
+      <div className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-background">
+        {/* Scrollable Question Content Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6">
+          <div className="max-w-3xl mx-auto space-y-6 animate-cd-fade-in">
+            {/* Question Header */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold tracking-wider uppercase text-accent font-mono">
+                Question {currentIndex + 1} of {questions.length}
+              </span>
+              {question?.allowMultiple && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border text-accent font-medium">
+                  Multiple select
+                </span>
+              )}
+            </div>
+
+            {/* Question Text */}
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground leading-relaxed">
+              {question?.text}
+            </h2>
+
+            {/* Options */}
+            <fieldset aria-label={`Question ${currentIndex + 1} options`}>
+              <legend className="sr-only">Options</legend>
+              <div className="space-y-3">
+                {question?.options.map(option => {
+                  const isSelected = currentSelection.includes(option.id)
+                  const inputType = question.allowMultiple ? 'checkbox' : 'radio'
+
+                  return (
+                    <label
+                      key={option.id}
+                      className={`
+                        flex items-center gap-4 p-4 rounded-xl border text-sm transition-all cursor-pointer select-none
+                        ${isSelected
+                          ? 'border-accent bg-accent/10 text-foreground font-medium shadow-xs ring-1 ring-accent/30'
+                          : 'border-border bg-surface text-muted-foreground hover:border-foreground hover:text-foreground'
+                        }
+                      `}
+                    >
+                      <input
+                        type={inputType}
+                        name={`question-${question.id}`}
+                        value={option.id}
+                        checked={isSelected}
+                        onChange={() => handleOptionSelect(option.id)}
+                        className="sr-only"
+                      />
+
+                      {/* Custom Indicator */}
+                      <span
+                        aria-hidden
+                        className={`
+                          w-5 h-5 flex items-center justify-center border text-xs font-bold transition-colors shrink-0
+                          ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
+                          ${isSelected
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-border bg-background text-muted-foreground'
+                          }
+                        `}
+                      >
+                        {isSelected ? <Check size={12} strokeWidth={3} /> : null}
+                      </span>
+
+                      <span className="flex-1">{option.text}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
+          </div>
         </div>
 
-        {/* Question Text */}
-        <h2 className="text-xl font-semibold text-[var(--foreground)] mb-6 leading-relaxed">
-          {question?.text}
-        </h2>
-
-        {/* Options */}
-        <fieldset aria-label={`Question ${currentIndex + 1} options`}>
-          <legend className="sr-only">Options</legend>
-          <div className="space-y-3">
-            {question?.options.map(option => {
-              const isSelected = currentSelection.includes(option.id)
-              const inputType = question.allowMultiple ? 'checkbox' : 'radio'
-
-              return (
-                <label
-                  key={option.id}
-                  className={`
-                    flex items-center gap-4 p-4 rounded-xl border text-sm transition-all cursor-pointer select-none
-                    ${isSelected
-                      ? 'border-[var(--accent)] bg-[var(--surface)] text-[var(--foreground)] font-medium shadow-xs'
-                      : 'border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]'
-                    }
-                  `}
-                >
-                  <input
-                    type={inputType}
-                    name={`question-${question.id}`}
-                    value={option.id}
-                    checked={isSelected}
-                    onChange={() => handleOptionSelect(option.id)}
-                    className="sr-only"
-                  />
-
-                  {/* Custom Indicator */}
-                  <span
-                    aria-hidden
-                    className={`
-                      w-5 h-5 flex items-center justify-center border text-xs font-bold transition-colors shrink-0
-                      ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
-                      ${isSelected
-                        ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                        : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted-foreground)]'
-                      }
-                    `}
-                  >
-                    {isSelected ? <Check size={12} strokeWidth={3} /> : null}
-                  </span>
-
-                  <span className="flex-1">{option.text}</span>
-                </label>
-              )
-            })}
-          </div>
-        </fieldset>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-[var(--border)]">
+        {/* Standardized Pinned Bottom Navigation Bar */}
+        <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="btn-secondary text-xs cursor-pointer inline-flex items-center gap-1.5"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             aria-label="Previous question"
           >
             <ChevronLeft size={14} />
             <span>Previous</span>
           </button>
 
-          <div className="flex gap-3">
+          <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+            Question {currentIndex + 1} of {questions.length}
+          </span>
+
+          <div className="flex items-center gap-3">
             <button
               onClick={handleSkip}
-              className="btn-secondary text-xs cursor-pointer"
+              className="px-3.5 py-2 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
               aria-label="Skip this question"
             >
               Skip
             </button>
             <button
               onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-              className="btn-primary text-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
               aria-label={nextButtonLabel}
             >
-              {nextButtonLabel}
+              <span>{nextButtonLabel}</span>
             </button>
           </div>
-        </div>
+        </footer>
       </div>
     </ModuleShell>
   )

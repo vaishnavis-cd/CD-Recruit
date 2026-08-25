@@ -543,7 +543,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         </div>
 
         {/* Right Column: SQL Editor & Output */}
-        <div className="flex-1 h-full flex flex-col min-w-0 bg-[var(--background)] select-text">
+        <div className="flex-1 h-full flex flex-col min-w-0 bg-background select-text overflow-hidden">
           {/* Editor Area */}
           <div className="flex-1 min-h-0 relative">
             <CodeEditor
@@ -555,70 +555,25 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
             />
           </div>
 
-          {/* Action Controls Bar */}
-          <div className="flex items-center gap-3 px-6 py-3 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
-            <button
-              onClick={handleRun}
-              disabled={running || !query.trim()}
-              className="px-4 py-2 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
-            >
-              {running ? 'Running…' : '▶ Run Query'}
-            </button>
-
-            <button
-              onClick={handleSubmitQuery}
-              disabled={submitting || !query.trim()}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
-            >
-              {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Submit Answer'}
-            </button>
-
-            {evalResult && (
-              <div className={`px-3 py-1 rounded-full text-xs font-mono font-medium flex items-center gap-1.5 ${
-                evalResult.passed 
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
-                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-              }`}>
-                <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
-                <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
-              </div>
-            )}
-
-            <div className="flex-1" />
-            <button
-              onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-              disabled={currentIndex === 0}
-              className="p-2 rounded-xl border border-[var(--border)] bg-[var(--background)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 cursor-pointer"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-              className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] font-bold cursor-pointer hover:bg-[var(--background)]"
-            >
-              {nextButtonLabel}
-            </button>
-          </div>
-
           {/* Results Output Panel & Vertical Resizer */}
           {(results || error) && (
             <>
               {/* Vertical Resizer handle with grip dots */}
               <div
                 onMouseDown={handleVerticalMouseDown}
-                className="h-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 border-y border-[var(--border)] cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
+                className="h-3 bg-surface hover:bg-accent/30 border-y border-border cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
                 title="Drag vertically to adjust results terminal height"
               >
                 <div className="h-1.5 w-8 flex justify-between items-center opacity-60 group-hover:opacity-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground group-hover:bg-accent" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground group-hover:bg-accent" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground group-hover:bg-accent" />
                 </div>
               </div>
 
               <div
                 style={{ height: `${resultsHeight}px` }}
-                className="bg-[var(--surface)] overflow-auto shrink-0"
+                className="bg-surface overflow-auto shrink-0 max-h-[50vh]"
               >
                 {error ? (
                   <div role="alert" className="p-4 text-xs font-mono text-rose-500 bg-rose-500/10">
@@ -626,15 +581,15 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                   </div>
                 ) : results ? (
                   <div>
-                    <div className="px-4 py-2 bg-[var(--background)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)] flex justify-between">
+                    <div className="px-4 py-2 bg-background border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex justify-between">
                       <span>Query Output Results</span>
                       <span>{results.rows.length} rows</span>
                     </div>
                     <table className="w-full text-xs font-mono">
                       <thead>
-                        <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                        <tr className="border-b border-border bg-surface">
                           {results.columns.map(col => (
-                            <th key={col} className="text-left px-3 py-2 text-[var(--text-secondary)] font-medium">
+                            <th key={col} className="text-left px-3 py-2 text-muted-foreground font-medium">
                               {col}
                             </th>
                           ))}
@@ -642,10 +597,10 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                       </thead>
                       <tbody>
                         {results.rows.map((row, ri) => (
-                          <tr key={ri} className="border-b border-[var(--border)]/40 hover:bg-[var(--background)]/50">
+                          <tr key={ri} className="border-b border-border/40 hover:bg-background/50">
                             {row.map((cell: any, ci: number) => (
-                              <td key={ci} className="px-3 py-1.5 text-[var(--text-primary)]">
-                                {cell === null ? <span className="text-[var(--text-secondary)] italic">NULL</span> : String(cell)}
+                              <td key={ci} className="px-3 py-1.5 text-foreground">
+                                {cell === null ? <span className="text-muted-foreground italic">NULL</span> : String(cell)}
                               </td>
                             ))}
                           </tr>
@@ -657,6 +612,60 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
               </div>
             </>
           )}
+
+          {/* Standardized Pinned Bottom Navigation Bar */}
+          <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRun}
+                disabled={running || !query.trim()}
+                className="px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                {running ? 'Running…' : '▶ Run Query'}
+              </button>
+
+              <button
+                onClick={handleSubmitQuery}
+                disabled={submitting || !query.trim()}
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Save Answer'}
+              </button>
+
+              {evalResult && (
+                <div className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-medium flex items-center gap-1.5 ${
+                  evalResult.passed 
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                }`}>
+                  <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
+                  <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
+                </div>
+              )}
+            </div>
+
+            <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+              SQL Task {currentIndex + 1} of {questions.length}
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+                disabled={currentIndex === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Previous question"
+              >
+                <ChevronLeft size={14} />
+                <span>Previous</span>
+              </button>
+              <button
+                onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+              >
+                <span>{nextButtonLabel}</span>
+              </button>
+            </div>
+          </footer>
         </div>
       </div>
     </ModuleShell>

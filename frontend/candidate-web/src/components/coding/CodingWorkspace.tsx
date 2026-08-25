@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { CodeEditor, PasteEventData } from "@/components/common/CodeEditor";
-import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, GripHorizontal, RotateCcw } from "lucide-react";
+import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, GripHorizontal, RotateCcw } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
 import { useSessionStore } from "@/store/sessionMachine";
 import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
@@ -28,7 +28,11 @@ interface CodingWorkspaceProps {
       isDraft?: boolean;
     } | null;
   };
+  currentIndex?: number;
+  totalQuestions?: number;
+  onPrevious?: () => void;
   onNext: () => void;
+  nextButtonLabel?: string;
   updateStatus: (status: "unvisited" | "skipped" | "flagged" | "answered") => void;
 }
 
@@ -55,7 +59,15 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   cpp: "#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string line;\n    while (getline(cin, line)) {\n        // Process input\n    }\n    return 0;\n}\n",
 };
 
-export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorkspaceProps) {
+export function CodingWorkspace({
+  question,
+  currentIndex = 0,
+  totalQuestions = 1,
+  onPrevious,
+  onNext,
+  nextButtonLabel = "Next Question",
+  updateStatus,
+}: CodingWorkspaceProps) {
   const sessionId = useSessionStore((s: any) => s.assessment?.sessionId || s.session?.id) || "";
   const starter = question.content?.starterCode || {};
   const { theme } = useTheme();
@@ -759,6 +771,64 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
           </div>
         )}
       </div>
+
+      {/* Standardized Pinned Bottom Navigation Bar */}
+      <footer className="h-14 border-t border-border-token bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRun}
+            disabled={isRunning || !activeCode.trim()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border-token bg-background text-xs font-bold text-text-primary hover:bg-surface disabled:opacity-40 cursor-pointer shadow-xs"
+            title="Run code against sample test cases"
+          >
+            {isRunning && runType === "RUN" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+            ) : (
+              <Play className="w-3.5 h-3.5 text-success" />
+            )}
+            <span>Run Code</span>
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            disabled={isRunning || !activeCode.trim()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+            title="Submit solution against all test cases"
+          >
+            {isRunning && runType === "SUBMIT" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Server className="w-3.5 h-3.5" />
+            )}
+            <span>Submit Solution</span>
+          </button>
+        </div>
+
+        <span className="text-xs font-mono font-medium text-text-secondary hidden sm:inline">
+          Coding Challenge {currentIndex + 1} of {totalQuestions}
+        </span>
+
+        <div className="flex items-center gap-2">
+          {onPrevious && (
+            <button
+              onClick={onPrevious}
+              disabled={currentIndex === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-token bg-background text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              aria-label="Previous question"
+            >
+              <ChevronLeft size={14} />
+              <span>Previous</span>
+            </button>
+          )}
+
+          <button
+            onClick={onNext}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+          >
+            <span>{nextButtonLabel}</span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

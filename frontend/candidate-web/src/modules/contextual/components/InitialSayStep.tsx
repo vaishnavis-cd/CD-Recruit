@@ -59,7 +59,7 @@ export function InitialSayStep({
   const isNextAvailable = moduleIndex < activeModules.length - 1
 
   return (
-    <div className="min-h-screen w-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
+    <div className="h-screen w-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 overflow-hidden">
       
       {/* ────────────────── TOP NAVIGATION HEADER ────────────────── */}
       <header className="h-14 border-b border-border bg-surface px-6 flex items-center justify-between shrink-0 shadow-xs">
