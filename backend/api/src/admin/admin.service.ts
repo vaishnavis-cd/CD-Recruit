@@ -19,6 +19,9 @@ import { ListSessionsQueryDto } from "../common/dto/admin.dto";
 import { AppException } from "../common/filters/app-exception";
 import { HttpStatus } from "@nestjs/common";
 
+import { AadhaarOcrService } from "../integrations/ocr/aadhaar-ocr.service";
+import { NameMatchService } from "../common/services/name-match.service";
+
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
@@ -31,6 +34,8 @@ export class AdminService {
     private readonly configService: ConfigService,
     private readonly scoringService: SessionScoringService,
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
+    private readonly aadhaarOcrService: AadhaarOcrService,
+    private readonly nameMatchService: NameMatchService,
   ) {
     this.bucketBiometric = this.configService.get<string>(
       "app.minio.bucketBiometric",
@@ -996,21 +1001,80 @@ export class AdminService {
           }
         }
 
-        if (!idProofEmb || !selfieEmb) {
+        // Lazy OCR trigger if candidate.idProofExtractedName is missing but idProofRef exists
+        let extractedName = candidate.idProofExtractedName;
+        let ocrConfidence = candidate.ocrConfidence ?? null;
+        let ocrRaw = candidate.idProofOcrRaw;
+
+        if (!extractedName && idProofRef) {
+          try {
+            const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
+            if (buf) {
+              const ocrRes = await this.aadhaarOcrService.parseAadhaar(buf);
+              if (ocrRes) {
+                extractedName = ocrRes.name;
+                ocrConfidence = ocrRes.confidence;
+                ocrRaw = ocrRes.rawText;
+
+                await this.prisma.candidate.update({
+                  where: { id: candidate.id },
+                  data: {
+                    idProofExtractedName: extractedName,
+                    idProofOcrRaw: ocrRaw,
+                    ocrConfidence,
+                  },
+                });
+              }
+            }
+          } catch (e: any) {
+            this.logger.warn(`MinIO/OCR processing failed for idProofRef ${idProofRef}: ${e.message}`);
+          }
+        }
+
+        const registeredName = session?.invite?.candidateName || candidate.name;
+
+        // Check for insufficient data
+        if (!idProofEmb || !selfieEmb || !extractedName || (ocrConfidence !== null && ocrConfidence < 0.40)) {
           const missing: string[] = [];
-          if (!idProofEmb) missing.push("id_proof");
+          if (!idProofEmb) missing.push("id_proof_face");
           if (!selfieEmb) missing.push("baseline_selfie");
+          if (!extractedName || (ocrConfidence !== null && ocrConfidence < 0.40)) missing.push("name_ocr");
+
           insufficientData++;
-          results.push({ candidateId: targetId, status: "insufficient_data", missing });
+          results.push({
+            candidateId: targetId,
+            status: "insufficient_data",
+            missing,
+            registeredName,
+            extractedName: extractedName || null,
+            ocrConfidence: ocrConfidence || 0.0,
+          });
           continue;
         }
 
-        const verification = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmb, idProofEmb);
+        // Run Face Verification (0.60 threshold preserved)
+        const faceRes = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmb, idProofEmb);
+
+        // Run Name Verification (0.75 threshold placeholder)
+        const nameRes = this.nameMatchService.compareNames(registeredName, extractedName);
+
+        const overallMatched = faceRes.matched && nameRes.matched;
 
         const identityVerificationResult = {
-          matched: verification.matched,
-          distance: verification.distance,
-          threshold: verification.threshold,
+          matched: overallMatched,
+          face: {
+            matched: faceRes.matched,
+            distance: faceRes.distance,
+            threshold: faceRes.threshold,
+          },
+          name: {
+            matched: nameRes.matched,
+            similarity: nameRes.similarity,
+            threshold: nameRes.threshold,
+            extractedName: nameRes.extractedName,
+            registeredName: nameRes.registeredName,
+          },
+          ocrConfidence,
           verifiedAt: new Date().toISOString(),
           verifiedBy: staffId,
         };
@@ -1018,12 +1082,18 @@ export class AdminService {
         if (session) {
           await this.prisma.session.update({
             where: { id: session.id },
-            data: { identityVerificationResult, idVerifiedAt: verification.matched ? new Date() : undefined },
+            data: {
+              identityVerificationResult,
+              idVerifiedAt: overallMatched ? new Date() : undefined,
+            },
           });
         }
         await this.prisma.candidate.update({
           where: { id: candidate.id },
-          data: { identityVerificationResult, idVerifiedAt: verification.matched ? new Date() : undefined },
+          data: {
+            identityVerificationResult,
+            idVerifiedAt: overallMatched ? new Date() : undefined,
+          },
         });
 
         await this.prisma.auditLog.create({
@@ -1033,21 +1103,23 @@ export class AdminService {
             entityType: "Candidate",
             entityId: candidate.id,
             metadata: {
-              matched: verification.matched,
-              distance: verification.distance,
+              matched: overallMatched,
+              face: faceRes as any,
+              name: nameRes as any,
               bulk: true,
             },
           },
         });
 
         completed++;
-        if (verification.matched) matched++; else mismatched++;
+        if (overallMatched) matched++; else mismatched++;
         results.push({
           candidateId: targetId,
           status: "completed",
-          matched: verification.matched,
-          distance: verification.distance,
-          threshold: verification.threshold,
+          matched: overallMatched,
+          face: faceRes,
+          name: nameRes,
+          ocrConfidence,
         });
       } catch (err: any) {
         this.logger.error(

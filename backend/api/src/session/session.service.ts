@@ -148,6 +148,8 @@ import { SessionStatusPort } from "@app/common/ports/session-status.port";
 // SessionService
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { AadhaarOcrService } from "../integrations/ocr/aadhaar-ocr.service";
+
 @Injectable()
 export class SessionService implements SessionStatusPort {
   private readonly logger = new Logger(SessionService.name);
@@ -167,6 +169,7 @@ export class SessionService implements SessionStatusPort {
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
+    private readonly aadhaarOcrService: AadhaarOcrService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -1022,6 +1025,25 @@ export class SessionService implements SessionStatusPort {
         idProofEmbedding: embedding ? (embedding as any) : undefined,
         idProofModel: modelName,
       },
+    });
+
+    // Non-blocking background Aadhaar OCR processing (does not slow down candidate response)
+    setImmediate(async () => {
+      try {
+        const ocrRes = await this.aadhaarOcrService.parseAadhaar(imageBuffer);
+        if (ocrRes) {
+          await this.prisma.candidate.update({
+            where: { id: session.candidateId },
+            data: {
+              idProofExtractedName: ocrRes.name,
+              idProofOcrRaw: ocrRes.rawText,
+              ocrConfidence: ocrRes.confidence,
+            },
+          });
+        }
+      } catch (ocrErr: any) {
+        this.logger.warn(`Async Aadhaar OCR background processing failed for session ${sessionId}: ${ocrErr.message}`);
+      }
     });
 
     return { ok: true, embeddingCreated: !!embedding };

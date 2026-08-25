@@ -24,9 +24,12 @@ import {
   Monitor,
   Filter,
   Layers,
-  ChevronDown,
   Check,
   Bug,
+  ChevronDown,
+  UserCheck,
+  Camera,
+  FileText,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
@@ -1079,8 +1082,101 @@ function IndividualResultPage() {
           const videoClips = filteredFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef));
           const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && !f.clipUrl && !f.storageRef);
 
+          const idVerifyResult = detail.candidate?.identityVerificationResult || (detail as any).identityVerificationResult;
+          const faceVerify = idVerifyResult?.face;
+          const nameVerify = idVerifyResult?.name;
+
           return (
             <div className="space-y-6">
+              {/* Baseline Identity Verification Section */}
+              <div className="bg-white border border-[#E6E6EA] rounded-xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-[#F0F0F4] pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-[#EAF0FF] rounded-lg text-[#2F5CFF]">
+                      <UserCheck size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-[14px] font-bold text-[#0B0B0D]">Baseline Identity Verification</h3>
+                      <p className="text-[11px] text-[#8B8B93]">Dual-factor verification: ArcFace ONNX Face Matching + Aadhaar OCR Name Verification</p>
+                    </div>
+                  </div>
+                  {idVerifyResult?.verifiedAt && (
+                    <span className="text-[11px] font-mono text-[#8B8B93]">
+                      Verified: {new Date(idVerifyResult.verifiedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Face Verification Card */}
+                  <div className="p-4 rounded-lg border border-[#E6E6EA] bg-[#FAFBFD] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-semibold text-[#0B0B0D] flex items-center gap-1.5">
+                        <Camera size={14} className="text-[#2F5CFF]" />
+                        Face Matching (ArcFace ONNX)
+                      </span>
+                      {faceVerify ? (
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${faceVerify.matched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                          {faceVerify.matched ? "✓ Face Matched" : "✗ Face Mismatch"}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-gray-100 text-gray-500">Not Verified</span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-white p-2.5 rounded border border-[#E6E6EA]">
+                      <div>
+                        <span className="text-[#8B8B93] block">Cosine Distance</span>
+                        <span className="font-semibold text-[#0B0B0D]">{faceVerify?.distance !== undefined ? faceVerify.distance.toFixed(4) : "N/A"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8B8B93] block">Threshold</span>
+                        <span className="font-semibold text-[#0B0B0D]">{faceVerify?.threshold ?? 0.60}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Aadhaar Name Verification Card */}
+                  <div className="p-4 rounded-lg border border-[#E6E6EA] bg-[#FAFBFD] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-semibold text-[#0B0B0D] flex items-center gap-1.5">
+                        <FileText size={14} className="text-[#2F5CFF]" />
+                        Aadhaar Name Verification (OCR)
+                      </span>
+                      {nameVerify ? (
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${nameVerify.matched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                          {nameVerify.matched ? "✓ Name Matched" : "✗ Name Mismatch"}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 italic">Pending / Low Conf</span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px] font-mono bg-white p-2.5 rounded border border-[#E6E6EA]">
+                      <div className="flex justify-between">
+                        <span className="text-[#8B8B93]">Registered Name:</span>
+                        <span className="font-semibold text-[#0B0B0D]">{nameVerify?.registeredName || detail.candidate?.name || "N/A"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#8B8B93]">OCR Extracted Name:</span>
+                        <span className="font-semibold text-[#2F5CFF]">{nameVerify?.extractedName || detail.candidate?.idProofExtractedName || "Not Extracted"}</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-[#F0F0F4]">
+                        <span className="text-[#8B8B93]">Fuzzy Similarity:</span>
+                        <span className="font-semibold text-[#0B0B0D]">
+                          {nameVerify?.similarity !== undefined ? `${Math.round(nameVerify.similarity * 100)}% (Threshold: ${Math.round((nameVerify.threshold || 0.75) * 100)}%)` : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#8B8B93]">OCR Confidence:</span>
+                        <span className="font-semibold text-[#0B0B0D]">
+                          {detail.candidate?.ocrConfidence !== undefined && detail.candidate?.ocrConfidence !== null ? `${Math.round(detail.candidate.ocrConfidence * 100)}%` : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Custom Styled Dropdown Component with Rounded Corners & Theme Blue (50%) */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-[#E6E6EA] rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-3">

@@ -368,7 +368,7 @@ function ResultsPage() {
                       </span>
                     );
                   } else {
-                    const svr = sessionVerifyResults[item.candidateId];
+                    const svr = sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId];
                     if (!svr || svr.status === "error") {
                       idVerifyBadge = (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
@@ -377,23 +377,38 @@ function ResultsPage() {
                       );
                     } else if (svr.status === "insufficient_data") {
                       idVerifyBadge = (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#8B8B93] border border-[#E6E6EA] italic">
-                          Missing Data
-                        </span>
-                      );
-                    } else if (svr.matched === true) {
-                      idVerifyBadge = (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58] border border-[#A3E4D7]">
-                          <CheckCircle2 size={11} />
-                          Matched
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 italic">
+                            Missing Data / Low Conf
+                          </span>
+                          {svr.extractedName && (
+                            <span className="text-[10px] text-gray-500 font-mono" title={`OCR: ${svr.extractedName}`}>
+                              OCR: {svr.extractedName}
+                            </span>
+                          )}
+                        </div>
                       );
                     } else {
+                      const faceOk = svr.face ? svr.face.matched : svr.matched;
+                      const nameOk = svr.name ? svr.name.matched : true;
+                      const extracted = svr.name?.extractedName || svr.extractedName;
+
                       idVerifyBadge = (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#FFF5F5] text-[#C0392B] border border-[#FFCCCC]">
-                          <XCircle size={11} />
-                          Mismatch
-                        </span>
+                        <div className="flex flex-col gap-1" title={extracted ? `OCR Extracted: "${extracted}" vs Registered: "${item.candidateName}"` : undefined}>
+                          <div className="flex items-center gap-1">
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono ${faceOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                              Face {faceOk ? '✓' : '✗'}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono ${nameOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                              Name {nameOk ? '✓' : '✗'}
+                            </span>
+                          </div>
+                          {extracted && (
+                            <span className="text-[10px] text-gray-500 font-mono truncate max-w-[130px]">
+                              OCR: {extracted}
+                            </span>
+                          )}
+                        </div>
                       );
                     }
                   }
