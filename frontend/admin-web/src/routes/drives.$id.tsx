@@ -53,7 +53,6 @@ import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-rec
 import { formatDriveName } from "../lib/utils";
 import {
   getDepartmentAllowedModules,
-  extractQuestionTier,
   MODULE_LABEL_MAP,
   ALL_MODULE_KEYS,
 } from "../lib/roleModules";
@@ -261,7 +260,6 @@ function DriveDetailPage() {
   const [pendingTabSwitch, setPendingTabSwitch] = useState<"roster" | "configuration" | null>(null);
   const [questionModuleFilter, setQuestionModuleFilter] = useState<string>("ALL");
   const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState<string>("ALL");
-  const [questionTierFilter, setQuestionTierFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
 
@@ -1149,11 +1147,6 @@ function DriveDetailPage() {
         if (diff !== questionDifficultyFilter.toUpperCase()) return false;
       }
 
-      if (questionTierFilter !== "ALL") {
-        const qTier = extractQuestionTier(q);
-        if (qTier !== questionTierFilter) return false;
-      }
-
       if (questionSearch.trim()) {
         const s = questionSearch.toLowerCase().trim();
         const title = (
@@ -1823,33 +1816,6 @@ function DriveDetailPage() {
                     ))}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-ink-2 uppercase tracking-wider hidden sm:inline">Tier:</span>
-                  <div className="flex items-center bg-white p-0.5 rounded-md border border-line">
-                    {[
-                      { id: "ALL", label: "All" },
-                      { id: "TIER_1", label: "Tier 1" },
-                      { id: "TIER_2", label: "Tier 2" },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setQuestionTierFilter(t.id)}
-                        className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
-                          questionTierFilter === t.id
-                            ? t.id === "TIER_1"
-                              ? "bg-indigo-100 text-indigo-900 font-bold"
-                              : t.id === "TIER_2"
-                              ? "bg-purple-100 text-purple-900 font-bold"
-                              : "bg-brand text-white font-bold"
-                            : "text-ink-2 hover:text-ink"
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               <div className="relative w-full sm:w-[200px]">
@@ -1882,7 +1848,6 @@ function DriveDetailPage() {
                   const isSelected = assignedQuestions.includes(q.id);
                   const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
                   const difficulty = q.difficulty || "MEDIUM";
-                  const qTier = extractQuestionTier(q);
                   const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
                   const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
                   const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
@@ -1912,16 +1877,6 @@ function DriveDetailPage() {
                               }`}
                             >
                               {difficulty}
-                            </span>
-
-                            <span
-                              className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${
-                                qTier === "TIER_2"
-                                  ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                  : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                              }`}
-                            >
-                              {qTier === "TIER_2" ? "TIER 2" : "TIER 1"}
                             </span>
 
                             {displayTags.length > 0 && (

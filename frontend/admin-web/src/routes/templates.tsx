@@ -22,7 +22,6 @@ import { AppShell } from "../components/app-shell";
 import { API_BASE, getAuthHeaders } from "../lib/store";
 import {
   getDepartmentAllowedModules,
-  extractQuestionTier,
   MODULE_LABEL_MAP,
 } from "../lib/roleModules";
 
@@ -947,7 +946,6 @@ export function RoleTemplatesPage() {
                   <div className="max-h-72 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/30">
                     {modalEligibleQuestions.map((q) => {
                       const isSelected = !!selectedQuestionsMap[q.id];
-                      const qTier = extractQuestionTier(q);
                       const modStyle =
                         MODULE_COLORS[q.moduleType] || {
                           bg: "bg-slate-100",
@@ -994,15 +992,6 @@ export function RoleTemplatesPage() {
                                     {q.difficulty}
                                   </span>
                                 )}
-                                <span
-                                  className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
-                                    qTier === "TIER_2"
-                                      ? "bg-purple-50 text-purple-700 border-purple-200"
-                                      : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  }`}
-                                >
-                                  {qTier === "TIER_2" ? "Tier 2" : "Tier 1"}
-                                </span>
                                 <span className="text-[10px] text-slate-400 font-mono">
                                   v{q.version || 1}
                                 </span>

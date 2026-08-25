@@ -28,154 +28,309 @@ import { ModuleType } from "@cd-recruit/shared-types";
 import { CodeEditor } from "../components/common/CodeEditor";
 import { processQuestionTags } from "./drives.$id";
 import {
-  extractQuestionTier,
   MODULE_LABEL_MAP,
   getDepartmentAllowedModules,
 } from "../lib/roleModules";
 
 export type TagSectionType = "module" | "level" | "topic" | "drive";
 
+export const CANONICAL_MODULES: Array<{ key: string; label: string; aliases: string[] }> = [
+  { key: "AI_PROMPTING", label: "AI Prompting", aliases: ["ai_prompting", "ai-prompting", "aiprompting", "prompting", "ai"] },
+  { key: "CODING", label: "Coding", aliases: ["coding", "code", "dsa"] },
+  { key: "DEBUGGING", label: "Debugging", aliases: ["debugging", "debug"] },
+  { key: "MCQ", label: "MCQ", aliases: ["mcq", "multiplechoice", "multiple_choice"] },
+  { key: "NOSQL", label: "NoSQL", aliases: ["nosql", "mongodb"] },
+  { key: "SIMULATION", label: "Context Simulation", aliases: ["simulation", "contextsimulation", "contextualsimulation"] },
+  { key: "SQL", label: "SQL", aliases: ["sql"] },
+  { key: "TEST_SCENARIOS", label: "Test Scenarios", aliases: ["test_scenarios", "test-scenarios", "testscenarios", "scenarios", "testscenario"] },
+];
+
+export const CANONICAL_LEVELS: Array<{ key: string; label: string; tier: string; aliases: string[] }> = [
+  { key: "0-1", label: "Fresher (0-1 yrs)", tier: "0-1", aliases: ["fresher", "freshers", "intern", "0-1", "0-1 yrs", "entry", "01"] },
+  { key: "2-5", label: "Level 1 (2-5 yrs)", tier: "2-5", aliases: ["l1", "level1", "level 1", "2-5", "2-5 yrs", "junior", "25"] },
+  { key: "6-10", label: "Level 2 (6-10 yrs)", tier: "6-10", aliases: ["l2", "level2", "level 2", "6-10", "6-10 yrs", "mid", "senior", "610"] },
+  { key: "11-15", label: "Level 3 (11-15 yrs)", tier: "11-15", aliases: ["l3", "level3", "level 3", "11-15", "11-15 yrs", "lead", "staff", "principal", "1115"] },
+];
+
+export const TOPIC_TAXONOMY_MAP: Record<string, string> = {
+  // Algorithms & DSA
+  "algorithm": "Algorithms",
+  "algorithms": "Algorithms",
+  "data-structure": "Data Structures",
+  "data-structures": "Data Structures",
+  "data_structures": "Data Structures",
+  "array": "Arrays",
+  "arrays": "Arrays",
+  "string": "Strings",
+  "strings": "Strings",
+  "tree": "Trees",
+  "trees": "Trees",
+  "binary-tree": "Binary Trees",
+  "binary-search": "Binary Search",
+  "stack": "Stacks",
+  "stacks": "Stacks",
+  "queue": "Queues",
+  "queues": "Queues",
+  "graph": "Graphs",
+  "graphs": "Graphs",
+  "hash-map": "Hash Maps",
+  "hash-maps": "Hash Maps",
+  "hash-tables": "Hash Tables",
+  "linked-list": "Linked Lists",
+  "linked-lists": "Linked Lists",
+  "dynamic-programming": "Dynamic Programming",
+  "dp": "Dynamic Programming",
+  "recursion": "Recursion",
+  "backtracking": "Backtracking",
+  "two-pointers": "Two Pointers",
+  "sliding-window": "Sliding Window",
+  "sorting": "Sorting Algorithms",
+  "time-complexity": "Time Complexity & Big-O",
+
+  // Operating Systems & Infrastructure
+  "os": "Operating Systems",
+  "operating-systems": "Operating Systems",
+  "operating-system": "Operating Systems",
+  "linux": "Linux",
+  "windows": "Windows Administration",
+  "active-directory": "Active Directory",
+  "active_directory": "Active Directory",
+  "bitlocker": "BitLocker & Key Mgmt",
+  "bitlocker/key-management": "BitLocker & Key Mgmt",
+  "mdm-rollout": "MDM Rollout",
+  "automated-patching": "Automated Patching",
+  "patch-management": "Patch Management",
+  "hardware": "Hardware Lifecycle",
+  "hardware-lifecycle": "Hardware Lifecycle",
+  "endpoint": "Endpoint Management",
+  "endpoint-management": "Endpoint Management",
+
+  // Software Engineering & Languages
+  "software_engineering": "Software Engineering",
+  "software-engineering": "Software Engineering",
+  "software engineering": "Software Engineering",
+  "sde": "Software Engineering",
+  "java": "Java",
+  "java-oop": "Java & OOP",
+  "core-java-&-oop": "Java & OOP",
+  "python": "Python",
+  "javascript": "JavaScript",
+  "typescript": "TypeScript",
+  "oop": "OOP Concepts",
+  "concurrency": "Concurrency & Multithreading",
+  "thread-safety": "Thread Safety",
+  "code-quality": "Code Quality",
+  "code-review": "Code Review",
+  "refactoring": "Refactoring",
+  "design-patterns": "Design Patterns",
+  "system-design": "System Design",
+  "microservices": "Microservices",
+  "docker": "Docker",
+  "kubernetes": "Kubernetes",
+  "terraform": "Terraform",
+  "ci/cd": "CI/CD Pipelines",
+  "pipeline": "CI/CD Pipelines",
+
+  // Database & SQL
+  "sql-basics": "SQL Fundamentals",
+  "sql basics": "SQL Fundamentals",
+  "sql-debugging": "SQL Debugging",
+  "sql-assistance": "SQL Optimization",
+  "joins": "SQL Joins",
+  "subqueries": "SQL Subqueries",
+  "subquery": "SQL Subqueries",
+  "group-by": "SQL Aggregation & Grouping",
+  "group-by/having": "SQL Aggregation & Grouping",
+  "having": "SQL Aggregation & Grouping",
+  "aggregation": "SQL Aggregation & Grouping",
+  "cte": "Common Table Expressions (CTE)",
+  "window-functions": "Window Functions",
+  "indexes": "Database Indexing",
+  "indexing": "Database Indexing",
+  "normalization": "Database Normalization",
+  "transactions": "Database Transactions",
+  "nulls": "Null Handling",
+  "null-handling": "Null Handling",
+
+  // SRE & DevOps
+  "sre": "SRE & System Reliability",
+  "reliability-engineering": "SRE & System Reliability",
+  "system-reliability": "SRE & System Reliability",
+  "observability": "Observability & Telemetry",
+  "monitoring": "Monitoring & Alerting",
+  "alert-triage": "Alert Triage",
+  "slo": "SLO & SLA Management",
+  "slo/sla-management": "SLO & SLA Management",
+  "incident": "Incident Response",
+  "incident-response": "Incident Response",
+  "incident-command": "Incident Command",
+  "incident-post-mortems": "Post-Mortems & RCA",
+  "postmortem": "Post-Mortems & RCA",
+  "rca": "Post-Mortems & RCA",
+  "root-cause": "Root Cause Analysis",
+  "dr": "Disaster Recovery",
+  "disaster-recovery": "Disaster Recovery",
+  "disaster-recovery-drill": "Disaster Recovery",
+  "disaster-recovery-&-outage": "Disaster Recovery",
+  "capacity": "Capacity Planning",
+  "capacity-planning": "Capacity Planning",
+  "high-load-traffic-estimation": "Traffic Estimation & Load",
+  "caching": "Caching Architectures",
+  "caching-architectures": "Caching Architectures",
+  "circuit-breakers": "Circuit Breakers & Resilience",
+
+  // Security & Compliance
+  "security": "Cybersecurity Fundamentals",
+  "cybersecurity-fundamentals": "Cybersecurity Fundamentals",
+  "security-testing": "Security Testing",
+  "security-tools": "Security Tools",
+  "security-logging": "Security Logging & Audit",
+  "security-monitoring": "Security Monitoring",
+  "application-security": "Application Security",
+  "cloud-security": "Cloud Security",
+  "network-security": "Network Security",
+  "iam": "IAM & Access Control",
+  "iam-hardening": "IAM Hardening",
+  "iam-privilege-audit": "IAM Privilege Audit",
+  "cloud-iam-policies": "Cloud IAM Policies",
+  "authentication": "Authentication",
+  "authorization": "Authorization",
+  "threat-hunting": "Threat Hunting",
+  "vulnerability": "Vulnerability Management",
+  "malware": "Malware & Ransomware",
+  "ransomware": "Malware & Ransomware",
+  "ransomware-containment": "Ransomware Containment",
+  "phishing": "Phishing & Email Security",
+  "email-security": "Email Security",
+  "siem": "SIEM & SOC Operations",
+  "soc": "SIEM & SOC Operations",
+  "defense-in-depth": "Defense-in-Depth",
+
+  // Networking
+  "network": "Networking",
+  "networking": "Networking",
+  "protocols": "Network Protocols & Ports",
+  "ports": "Network Protocols & Ports",
+  "osi": "OSI Model & Routing",
+  "firewall": "Firewalls & VPNs",
+  "vpn": "Firewalls & VPNs",
+
+  // QA & Testing
+  "qa": "QA Methodologies",
+  "testing": "Testing Concepts",
+  "testing-concepts": "Testing Concepts",
+  "acceptance": "Acceptance Criteria & Testing",
+  "acceptance-criteria": "Acceptance Criteria & Testing",
+  "boundary": "Boundary Value Analysis",
+  "boundary-testing": "Boundary Value Analysis",
+  "regression": "Regression Testing",
+  "negative-testing": "Negative Testing",
+  "flaky-tests": "Flaky Tests Triage",
+  "scenario-testing": "Scenario Testing",
+  "automation": "Test Automation",
+  "automation-design": "Test Automation Design",
+  "automation-scenario": "Automation Scenarios",
+  "playwright": "Playwright Automation",
+  "selenium": "Selenium WebDriver",
+  "gherkin": "Gherkin & BDD Scenarios",
+  "api-testing": "API Testing",
+  "api-contract": "API Contracts",
+
+  // PMO, Agile & Management
+  "pmo": "Project Management",
+  "agile": "Agile & Scrum",
+  "agile-velocity-fluctuations": "Velocity & Sprint Health",
+  "meeting": "Meetings & Ceremonies",
+  "meetings": "Meetings & Ceremonies",
+  "stakeholder": "Stakeholder Management",
+  "stakeholders": "Stakeholder Management",
+  "stakeholder-communication": "Stakeholder Communication",
+  "stakeholder-conflicts": "Stakeholder Alignment",
+  "change": "Change Management",
+  "change-control": "Change Management",
+  "change-management": "Change Management",
+  "scope": "Scope & Scope Creep",
+  "scope-creep": "Scope & Scope Creep",
+  "risk": "Risk Management",
+  "risk-management": "Risk Management",
+  "milestone-delays": "Milestone & Schedule Mgmt",
+  "schedule": "Milestone & Schedule Mgmt",
+  "vendor": "Vendor Management",
+  "vendor-sla-management": "Vendor Management",
+  "sow": "SOW & Contracts",
+  "say-do": "Say-Do Consistency",
+  "say-do-consistency": "Say-Do Consistency",
+  "decision-making": "Decision Making",
+  "communication": "Technical Communication",
+  "technical-communication": "Technical Communication",
+};
+
 export function classifyTag(rawTag: string): TagSectionType {
   const tag = rawTag.trim().toLowerCase();
 
-  // 1. Drives: bulk imported tags starting with drive: or #drive: or similar
-  if (
-    tag.startsWith("drive:") ||
-    tag.startsWith("#drive:") ||
-    tag.startsWith("drive-") ||
-    tag.startsWith("drive_") ||
-    tag.startsWith("[drive]") ||
-    tag.startsWith("drive ") ||
-    tag.includes("drive:")
-  ) {
-    return "drive";
-  }
+  if (tag.startsWith("module:")) return "module";
+  if (tag.startsWith("level:")) return "level";
+  if (tag.startsWith("topic:")) return "topic";
+  if (tag.startsWith("drive:") || tag.startsWith("#drive:") || tag.startsWith("[drive]")) return "drive";
 
-  // 2. Module types: mcq, sql, nosql, coding, debugging, ai_prompting, simulation, test_scenarios
-  const cleanMod = tag.replace(/[-_\s]+/g, "");
-  const moduleAliases = [
-    "mcq",
-    "multiplechoice",
-    "sql",
-    "nosql",
-    "coding",
-    "code",
-    "dsa",
-    "debugging",
-    "debug",
-    "aiprompting",
-    "prompting",
-    "simulation",
-    "contextsimulation",
-    "contextualsimulation",
-    "testscenarios",
-    "scenarios",
-    "testscenario",
-  ];
-  if (moduleAliases.includes(cleanMod) || tag === "ai" || tag === "ai prompting") {
-    return "module";
-  }
+  // Check aliases
+  if (CANONICAL_MODULES.some((m) => m.aliases.includes(tag.replace(/[-_\s]+/g, "")))) return "module";
+  if (CANONICAL_LEVELS.some((l) => l.aliases.includes(tag.replace(/[-_\s]+/g, "")))) return "level";
+  if (tag.includes("drive:") || tag.includes("drive-") || tag.includes("drive_")) return "drive";
 
-  // 3. Levels: fresher, l1, l2, l3, 0-1, 2-5, 6-10, 11-15, tier_1, tier_2
-  const cleanLevel = tag.replace(/[-_\s]+/g, "");
-  const levelAliases = [
-    "fresher",
-    "freshers",
-    "intern",
-    "entry",
-    "entrylevel",
-    "l1",
-    "l2",
-    "l3",
-    "l4",
-    "level1",
-    "level2",
-    "level3",
-    "level4",
-    "01",
-    "01yr",
-    "01yrs",
-    "01years",
-    "25",
-    "25yr",
-    "25yrs",
-    "25years",
-    "610",
-    "610yr",
-    "610yrs",
-    "610years",
-    "1115",
-    "1115yr",
-    "1115yrs",
-    "1115years",
-    "tier1",
-    "tier2",
-    "tier3",
-    "junior",
-    "mid",
-    "midlevel",
-    "senior",
-    "lead",
-    "staff",
-    "principal",
-  ];
-  if (
-    levelAliases.includes(cleanLevel) ||
-    /^\d+\s*-\s*\d+(\s*(yrs|years|yr))?$/.test(tag) ||
-    /^tier[_\s-]?\d+$/i.test(tag) ||
-    /^level[_\s-]?\d+$/i.test(tag) ||
-    /^l\d+$/i.test(tag)
-  ) {
-    return "level";
-  }
-
-  // 4. Topics: rest of it all
   return "topic";
 }
 
-export function formatTagDisplayName(tag: string, section: TagSectionType): { title: string; subtitle: string } {
-  if (section === "drive") {
-    const cleaned = tag.replace(/^(#?drive\s*:\s*|#?drive\s*-\s*|\[drive\]\s*)/i, "").trim();
-    return {
-      title: cleaned || tag,
-      subtitle: "Drive Import",
-    };
-  }
+export function formatTagDisplayName(tag: string, section?: TagSectionType): { title: string; subtitle: string } {
+  const sec = section || classifyTag(tag);
+  const raw = tag.replace(/^(module:|level:|topic:|drive:)/i, "").trim();
 
-  if (section === "module") {
-    const upper = tag.toUpperCase().replace(/[-_\s]+/g, "_");
-    if (MODULE_LABEL_MAP[upper]) {
-      return { title: MODULE_LABEL_MAP[upper], subtitle: "Assessment Module" };
-    }
-    const clean = tag.replace(/[_-]/g, " ");
+  if (sec === "module") {
+    const cleanNorm = raw.toLowerCase().replace(/[-_\s]+/g, "");
+    const matched = CANONICAL_MODULES.find(
+      (m) => m.key.toLowerCase() === raw.toLowerCase() || m.aliases.includes(cleanNorm),
+    );
+    if (matched) return { title: matched.label, subtitle: "Assessment Module" };
+    if (MODULE_LABEL_MAP[raw.toUpperCase()]) return { title: MODULE_LABEL_MAP[raw.toUpperCase()], subtitle: "Assessment Module" };
+    const clean = raw.replace(/[_-]/g, " ");
     return {
       title: clean.charAt(0).toUpperCase() + clean.slice(1),
       subtitle: "Assessment Module",
     };
   }
 
-  if (section === "level") {
-    const lower = tag.toLowerCase().trim();
-    if (lower === "fresher" || lower === "freshers") return { title: "Fresher (0-1 yrs)", subtitle: "Seniority Tier" };
-    if (lower === "l1" || lower === "level 1" || lower === "level1") return { title: "Level 1 (2-5 yrs)", subtitle: "Seniority Tier" };
-    if (lower === "l2" || lower === "level 2" || lower === "level2") return { title: "Level 2 (6-10 yrs)", subtitle: "Seniority Tier" };
-    if (lower === "l3" || lower === "level 3" || lower === "level3") return { title: "Level 3 (11-15 yrs)", subtitle: "Seniority Tier" };
-    if (lower === "0-1" || lower === "0-1 yrs") return { title: "0-1 yrs (Fresher)", subtitle: "Experience Tier" };
-    if (lower === "2-5" || lower === "2-5 yrs") return { title: "2-5 yrs (Level 1)", subtitle: "Experience Tier" };
-    if (lower === "6-10" || lower === "6-10 yrs") return { title: "6-10 yrs (Level 2)", subtitle: "Experience Tier" };
-    if (lower === "11-15" || lower === "11-15 yrs") return { title: "11-15 yrs (Level 3)", subtitle: "Experience Tier" };
-    if (lower === "tier_1" || lower === "tier1" || lower === "tier 1") return { title: "Tier 1", subtitle: "Standard Tier" };
-    if (lower === "tier_2" || lower === "tier2" || lower === "tier 2") return { title: "Tier 2", subtitle: "Advanced Tier" };
-    return { title: tag.toUpperCase(), subtitle: "Seniority Tier" };
+  if (sec === "level") {
+    const cleanNorm = raw.toLowerCase().replace(/[-_\s]+/g, "");
+    const matched = CANONICAL_LEVELS.find(
+      (l) => l.key.toLowerCase() === raw.toLowerCase() || l.aliases.includes(cleanNorm),
+    );
+    if (matched) return { title: matched.label, subtitle: "Seniority Tier" };
+    return { title: raw.toUpperCase(), subtitle: "Seniority Tier" };
+  }
+
+  if (sec === "drive") {
+    const cleaned = raw.replace(/^(#?drive\s*:\s*|#?drive\s*-\s*|\[drive\]\s*)/i, "").trim();
+    return {
+      title: cleaned || raw,
+      subtitle: "Drive Import",
+    };
   }
 
   // Topic
-  if (tag.toLowerCase() === "untagged") {
+  const cleanLower = raw.toLowerCase().trim();
+  if (cleanLower === "untagged") {
     return { title: "Untagged Questions", subtitle: "General" };
   }
-  const clean = tag.replace(/[_-]/g, " ");
+  if (TOPIC_TAXONOMY_MAP[cleanLower]) {
+    return { title: TOPIC_TAXONOMY_MAP[cleanLower], subtitle: "Topic" };
+  }
+  const cleanTitle = cleanLower
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
   return {
-    title: clean.charAt(0).toUpperCase() + clean.slice(1),
+    title: cleanTitle,
     subtitle: "Topic",
   };
 }
@@ -316,58 +471,145 @@ function QuestionBankPage() {
     return () => clearTimeout(timer);
   }, [modFilter, diffFilter, targetLevelFilter, roleFilter, query]);
 
-  // Grouped questions helper by tags
-  const groupedQuestions = useMemo(() => {
+  // Grouped questions helper by canonical sections
+  const { groupedQuestions, categorizedTagGroups } = useMemo(() => {
     const groups: Record<string, typeof questions> = {};
-    questions.forEach((q) => {
-      if (!q.tags || q.tags.length === 0) {
-        if (!groups["untagged"]) {
-          groups["untagged"] = [];
-        }
-        groups["untagged"].push(q);
-      } else {
-        q.tags.forEach((tag) => {
-          const t = tag.trim().toLowerCase();
-          if (!t) return;
-          if (!groups[t]) {
-            groups[t] = [];
-          }
-          if (!groups[t].some((x) => x.id === q.id)) {
-            groups[t].push(q);
-          }
-        });
-      }
-    });
-    return groups;
-  }, [questions]);
 
-  // Segregate into 4 sections with auto alphabetical sorting
-  const categorizedTagGroups = useMemo(() => {
-    const result: Record<TagSectionType, Array<{ tag: string; title: string; subtitle: string; questions: typeof questions }>> = {
+    const categorized: Record<
+      TagSectionType,
+      Array<{ tag: string; title: string; subtitle: string; questions: typeof questions }>
+    > = {
       module: [],
       level: [],
       topic: [],
       drive: [],
     };
 
-    Object.entries(groupedQuestions).forEach(([tag, qList]) => {
-      const section = classifyTag(tag);
-      const { title, subtitle } = formatTagDisplayName(tag, section);
-      result[section].push({
-        tag,
+    // 1. Group Module Types by canonical key
+    CANONICAL_MODULES.forEach((mod) => {
+      const folderKey = `module:${mod.key}`;
+      const matchingQuestions = questions.filter((q) => {
+        const qMod = (q.moduleType || "").toUpperCase();
+        if (qMod === mod.key) return true;
+        const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
+        return mod.aliases.some((alias) => qTags.includes(alias));
+      });
+
+      if (matchingQuestions.length > 0) {
+        groups[folderKey] = matchingQuestions;
+        groups[mod.key.toLowerCase()] = matchingQuestions;
+        categorized.module.push({
+          tag: folderKey,
+          title: mod.label,
+          subtitle: "Assessment Module",
+          questions: matchingQuestions,
+        });
+      }
+    });
+
+    // 2. Group Experience Levels by canonical tier
+    CANONICAL_LEVELS.forEach((lvl) => {
+      const folderKey = `level:${lvl.key}`;
+      const matchingQuestions = questions.filter((q) => {
+        if (q.targetLevel === lvl.tier) return true;
+        const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
+        return lvl.aliases.some((alias) => qTags.includes(alias));
+      });
+
+      if (matchingQuestions.length > 0) {
+        groups[folderKey] = matchingQuestions;
+        groups[lvl.key] = matchingQuestions;
+        categorized.level.push({
+          tag: folderKey,
+          title: lvl.label,
+          subtitle: "Seniority Tier",
+          questions: matchingQuestions,
+        });
+      }
+    });
+
+    // 3. Group Topics & Drives
+    const driveTagMap = new Map<string, typeof questions>();
+    const topicTagMap = new Map<string, { title: string; questions: typeof questions }>();
+
+    questions.forEach((q) => {
+      const rawTags = q.tags && q.tags.length > 0 ? q.tags : ["untagged"];
+      rawTags.forEach((rawTag) => {
+        const cleanTag = rawTag.trim().toLowerCase();
+        if (!cleanTag) return;
+
+        // Is Drive
+        if (
+          cleanTag.startsWith("drive:") ||
+          cleanTag.startsWith("#drive:") ||
+          cleanTag.startsWith("drive-") ||
+          cleanTag.startsWith("drive_") ||
+          cleanTag.startsWith("[drive]") ||
+          cleanTag.includes("drive:")
+        ) {
+          const driveKey = `drive:${cleanTag}`;
+          if (!driveTagMap.has(driveKey)) {
+            driveTagMap.set(driveKey, []);
+          }
+          const list = driveTagMap.get(driveKey)!;
+          if (!list.some((x) => x.id === q.id)) {
+            list.push(q);
+          }
+          return;
+        }
+
+        // Skip module & level tags from topics cloud to keep topics cloud clean
+        const cleanNormalized = cleanTag.replace(/[-_\s]+/g, "");
+        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized))) return;
+        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized))) return;
+
+        // Canonical topic mapping
+        const canonicalTitle = formatTagDisplayName(cleanTag, "topic").title;
+        const topicKey = `topic:${canonicalTitle}`;
+
+        if (!topicTagMap.has(topicKey)) {
+          topicTagMap.set(topicKey, { title: canonicalTitle, questions: [] });
+        }
+        const topicEntry = topicTagMap.get(topicKey)!;
+        if (!topicEntry.questions.some((x) => x.id === q.id)) {
+          topicEntry.questions.push(q);
+        }
+      });
+    });
+
+    // Populate Drive section
+    driveTagMap.forEach((qList, driveKey) => {
+      groups[driveKey] = qList;
+      const raw = driveKey.replace(/^drive:/, "");
+      groups[raw] = qList;
+      const { title, subtitle } = formatTagDisplayName(raw, "drive");
+      categorized.drive.push({
+        tag: driveKey,
         title,
         subtitle,
         questions: qList,
       });
     });
 
-    // Auto-sort alphabetically within each section (A to Z)
-    (Object.keys(result) as TagSectionType[]).forEach((sec) => {
-      result[sec].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    // Populate Topic section
+    topicTagMap.forEach((entry, topicKey) => {
+      groups[topicKey] = entry.questions;
+      groups[entry.title] = entry.questions;
+      categorized.topic.push({
+        tag: topicKey,
+        title: entry.title,
+        subtitle: "Topic",
+        questions: entry.questions,
+      });
     });
 
-    return result;
-  }, [groupedQuestions]);
+    // Auto-sort alphabetically within each section (A to Z)
+    (Object.keys(categorized) as TagSectionType[]).forEach((sec) => {
+      categorized[sec].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    });
+
+    return { groupedQuestions: groups, categorizedTagGroups: categorized };
+  }, [questions]);
 
   const handleOpenEdit = (q: any) => {
     setEditingQuestion(q);
@@ -1224,20 +1466,7 @@ function QuestionBankPage() {
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDeleteFolder(item.tag);
-                        }}
-                        className="p-1 text-stext-2 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                        title="Delete folder"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                      <ChevronRight size={13} className="text-stext-2 group-hover:text-brand transition-colors" />
-                    </div>
+                    <ChevronRight size={14} className="text-stext-2 group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1274,20 +1503,7 @@ function QuestionBankPage() {
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDeleteFolder(item.tag);
-                        }}
-                        className="p-1 text-stext-2 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                        title="Delete folder"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                      <ChevronRight size={13} className="text-stext-2 group-hover:text-brand transition-colors" />
-                    </div>
+                    <ChevronRight size={14} className="text-stext-2 group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1359,20 +1575,7 @@ function QuestionBankPage() {
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDeleteFolder(item.tag);
-                        }}
-                        className="p-1 text-stext-2 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                        title="Delete folder"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                      <ChevronRight size={13} className="text-stext-2 group-hover:text-brand transition-colors" />
-                    </div>
+                    <ChevronRight size={14} className="text-stext-2 group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>

@@ -137,7 +137,6 @@ export function TestScenariosModule({ moduleIndex }: TestScenariosModuleProps) {
   const scenarioPrompt = content.prompt || content.question || content.description || content.text || 'Scenario evaluation question prompt.'
   const category = content.category || questionData?.category || 'Scenario Evaluation'
   const difficulty = (questionData?.difficulty || (questionMetadata as any)?.difficulty || 'MEDIUM').toString().toUpperCase()
-  const tier = (content.tier || 'TIER_1').toString().toUpperCase()
 
   const wordCount = responseText.trim() ? responseText.trim().split(/\s+/).length : 0
 
@@ -225,9 +224,6 @@ export function TestScenariosModule({ moduleIndex }: TestScenariosModuleProps) {
                   <div className="flex items-center justify-between border-b border-border pb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{category}</span>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 text-[11px] font-semibold font-mono rounded bg-background text-muted-foreground border border-border">
-                        {tier}
-                      </span>
                       <span
                         className={`px-2 py-0.5 text-[11px] font-semibold rounded font-mono ${
                           difficulty === 'HARD'

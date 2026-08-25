@@ -122,7 +122,7 @@ export class QuestionService implements OnModuleInit {
   }
 
   async list(query: ListQuestionsQueryDto) {
-    const { page, pageSize, moduleType, difficulty, targetLevel, search, status, role, department, tier } = query as any;
+    const { page, pageSize, moduleType, difficulty, targetLevel, search, status, role, department } = query as any;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
 
@@ -172,16 +172,6 @@ export class QuestionService implements OnModuleInit {
       where.role = { contains: role, mode: "insensitive" };
     }
 
-    // Tier filtering
-    if (tier && tier !== "all") {
-      const tierUpper = tier.toUpperCase();
-      if (tierUpper === "TIER_2" || tierUpper === "TIER2") {
-        where.tags = { hasSome: ["tier_2", "tier2"] };
-      } else if (tierUpper === "TIER_1" || tierUpper === "TIER1") {
-        where.NOT = { tags: { hasSome: ["tier_2", "tier2"] } };
-      }
-    }
-
     if (status) {
       where.status = status;
     } else {
@@ -210,7 +200,7 @@ export class QuestionService implements OnModuleInit {
         where,
         skip,
         take,
-        orderBy: { version: "desc" },
+        orderBy: [{ moduleType: "asc" }, { id: "asc" }],
         include: {
           _count: {
             select: { driveQuestions: true, moduleResponses: true },

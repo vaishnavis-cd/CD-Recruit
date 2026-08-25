@@ -49,7 +49,7 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
     try {
       const headers = await getAuthHeaders();
       const page = query?.page || 1;
-      const pageSize = query?.pageSize || 500;
+      const pageSize = query?.pageSize || 2000;
       let url = `${API_BASE}/admin/questions?page=${page}&pageSize=${pageSize}`;
       if (query?.moduleType) url += `&moduleType=${query.moduleType}`;
       if (query?.difficulty) url += `&difficulty=${query.difficulty}`;

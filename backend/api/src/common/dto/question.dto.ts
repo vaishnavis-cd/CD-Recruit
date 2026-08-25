@@ -86,7 +86,7 @@ export class ListQuestionsQueryDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(1000)
+  @Max(5000)
   @Type(() => Number)
   pageSize: number = 20;
 

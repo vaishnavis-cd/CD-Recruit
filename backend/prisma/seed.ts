@@ -268,7 +268,6 @@ async function main(): Promise<void> {
               correctAnswer: correctAns,
               explanation: q.explanation || "",
               category: q.category || "",
-              tier: q.tier || "TIER_1",
             };
 
             const scoringConfig = q.scoringConfig || {
