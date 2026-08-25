@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AppConfig } from "../../config/configuration";
 import { Judge0ExecutionResponse, Judge0SubmissionResponse } from "./judge0.types";
-import CircuitBreaker from "opossum";
+import CircuitBreaker = require("opossum");
 
 export interface BatchSubmissionItem {
   sourceCodeBase64: string;
@@ -175,22 +175,88 @@ export class Judge0Client {
   }
 
   /**
-   * Submit a batch of test cases to Judge0 in parallel synchronous HTTP POST requests with wait=true.
+   * Internal batch submission call executing retry-with-backoff using POST /submissions/batch.
    */
-  async createBatchSubmissions(items: BatchSubmissionItem[]): Promise<Array<Judge0ExecutionResponse & { token: string }>> {
+  private async executeBatchSubmissionWithRetry(
+    items: BatchSubmissionItem[],
+  ): Promise<Array<{ token: string }>> {
+    const url = `${this.apiUrl}/submissions/batch?base64_encoded=true`;
+    const payload = {
+      submissions: items.map((item) => ({
+        source_code: item.sourceCodeBase64,
+        language_id: item.languageId,
+        stdin: item.stdinBase64 || null,
+        expected_output: item.expectedOutputBase64 || null,
+        cpu_time_limit: this.cpuTimeLimit,
+        wall_time_limit: this.wallTimeLimit,
+        enable_per_process_and_thread_time_limit: true,
+        enable_per_process_and_thread_memory_limit: true,
+        // Note: callback_url: "..." for async webhook push notifications will be wired here in follow-up task
+      })),
+    };
+
+    let attempts = 0;
+    let delay = this.retryBaseDelayMs;
+
+    while (attempts < this.maxRetryAttempts) {
+      attempts++;
+      try {
+        this.logger.log(`Submitting batch of ${items.length} items to Judge0 POST /submissions/batch (attempt ${attempts})...`);
+        const response = await fetch(url, {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify(payload),
+        });
+
+        if (response.status === 429 || response.status === 503) {
+          if (attempts === this.maxRetryAttempts) {
+            throw new Error(`Rate limit/Server busy (${response.status}) after ${this.maxRetryAttempts} attempts.`);
+          }
+          this.logger.warn(`Judge0 server busy/rate limited (${response.status}). Retrying batch in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2;
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          this.logger.error(`Judge0 batch submission failed: ${response.status} - ${errorText}`);
+          const nonRetryableError = new Error(`Judge0 API error: ${response.statusText} (${response.status})`);
+          (nonRetryableError as any).isNonRetryable = true;
+          throw nonRetryableError;
+        }
+
+        const tokens = (await response.json()) as Array<{ token: string }>;
+        return tokens;
+      } catch (error: any) {
+        if (error?.isNonRetryable || attempts === this.maxRetryAttempts) {
+          this.logger.error(`Error submitting batch to Judge0: ${error.message}`);
+          throw error;
+        }
+        this.logger.warn(`Network/transient error on batch attempt ${attempts}: ${error.message}. Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+
+    throw new Error("Failed to submit batch to Judge0.");
+  }
+
+  /**
+   * Submit a batch of test cases to Judge0 in a single async POST /submissions/batch request through Circuit Breaker.
+   */
+  async createBatchSubmissions(items: BatchSubmissionItem[]): Promise<Array<{ token: string }>> {
     if (items.length === 0) return [];
-    
-    // Execute all test cases concurrently using synchronous POST requests (wait=true)
-    return Promise.all(
-      items.map((item) =>
-        this.createSubmission(
-          item.sourceCodeBase64,
-          item.languageId,
-          item.stdinBase64,
-          item.expectedOutputBase64
-        )
-      )
-    );
+    try {
+      return (await this.breaker.fire(() =>
+        this.executeBatchSubmissionWithRetry(items),
+      )) as Array<{ token: string }>;
+    } catch (error: any) {
+      if (error?.code === "EOPENBREAKER" || this.breaker.opened) {
+        throw new Error("Execution service is currently busy, please try again shortly");
+      }
+      throw error;
+    }
   }
 
   /**

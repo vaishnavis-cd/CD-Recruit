@@ -11,10 +11,10 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./",
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "paths": {
       "@app/*": ["src/*"],
-      "rxjs": ["node_modules/rxjs", "../../node_modules/rxjs"],
-      "rxjs/*": ["node_modules/rxjs/*", "../../node_modules/rxjs/*"]
+      "opossum": ["../../node_modules/opossum/index.d.ts", "../../node_modules/opossum"]
     },
     "incremental": true,
     "skipLibCheck": true,

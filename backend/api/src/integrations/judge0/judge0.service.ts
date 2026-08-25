@@ -134,12 +134,18 @@ export class Judge0Service {
   }
 
   /**
-   * Polls a batch of tokens in a single request until completion or timeout.
-   * Detects stuck queue workers (IN_QUEUE > 3s) and throws so fallback runner takes over.
+   * Polls a batch of tokens in single requests until all tokens complete or timeout.
+   * Diffing per-token status on each poll tick fires onEachResult callback as individual test cases finish.
+   * Detects stuck queue workers (tokens stuck IN_QUEUE for 15s) and throws JUDGE0_QUEUE_STALLED.
    */
-  async pollBatchSubmissions(tokens: string[]): Promise<Map<string, Judge0ExecutionResponse>> {
+  async pollBatchSubmissions(
+    tokens: string[],
+    onEachResult?: (token: string, result: Judge0ExecutionResponse) => void,
+    pollIntervalMs: number = JUDGE0_POLLING.INTERVAL_MS,
+  ): Promise<Map<string, Judge0ExecutionResponse>> {
     let pendingTokens = [...tokens];
     const resultsMap = new Map<string, Judge0ExecutionResponse>();
+    const finishedTokens = new Set<string>();
     let attempts = 0;
     let inQueueStallCount = 0;
 
@@ -156,6 +162,12 @@ export class Judge0Service {
           if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
             resultsMap.set(resp.token, resp);
             allInQueue = false;
+            if (!finishedTokens.has(resp.token)) {
+              finishedTokens.add(resp.token);
+              if (onEachResult) {
+                onEachResult(resp.token, resp);
+              }
+            }
           } else {
             stillPending.push(resp.token);
             if (statusId !== JUDGE0_STATUS.IN_QUEUE) {
@@ -180,7 +192,7 @@ export class Judge0Service {
       }
 
       if (pendingTokens.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, JUDGE0_POLLING.INTERVAL_MS));
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
       }
     }
 
@@ -253,7 +265,7 @@ export class Judge0Service {
       expectedOutputBase64: this.encodeBase64(tc.expectedOutput),
     }));
 
-    let submissionResponses: Array<Judge0ExecutionResponse & { token: string }> = [];
+    let submissionResponses: Array<{ token: string }> = [];
     let attempts = 0;
     const maxAttempts = 3;
     let delay = 500;
@@ -301,31 +313,19 @@ export class Judge0Service {
 
     const tokens = submissionResponses.map((r) => r.token);
     const resultsMap = new Map<string, Judge0ExecutionResponse>();
-    const pendingTokens: string[] = [];
 
-    for (const resp of submissionResponses) {
-      const statusId = resp.status?.id;
-      if (statusId && statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
-        resultsMap.set(resp.token, resp);
-      } else if (resp.token) {
-        pendingTokens.push(resp.token);
-      }
-    }
-
-    if (pendingTokens.length > 0) {
-      try {
-        const polledMap = await this.pollBatchSubmissions(pendingTokens);
-        polledMap.forEach((val, key) => resultsMap.set(key, val));
-      } catch (err: any) {
-        this.logger.error(
-          `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
-        );
-      }
+    try {
+      const polledMap = await this.pollBatchSubmissions(tokens);
+      polledMap.forEach((val, key) => resultsMap.set(key, val));
+    } catch (err: any) {
+      this.logger.error(
+        `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
+      );
     }
 
     const results = testCases.map((tc, idx) => {
       const token = tokens[idx];
-      const response = resultsMap.get(token) || submissionResponses[idx];
+      const response = resultsMap.get(token);
 
       if (!response || !response.status) {
         return {
