@@ -17,6 +17,7 @@ import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
 import { MinioService } from "@app/integrations/minio/minio.service";
+import { FaceVerifyOnnxService } from "@app/integrations/face-verify-onnx/face-verify-onnx.service";
 import { QueueProviderPort } from "@app/queue/queue-provider.port";
 import { SandboxOrchestratorService } from "../simulation/sandbox/sandbox-orchestrator.service";
 import {
@@ -165,6 +166,7 @@ export class SessionService implements SessionStatusPort {
     private readonly stateMachine: SessionStateMachine,
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
+    private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -942,11 +944,96 @@ export class SessionService implements SessionStatusPort {
   }
 
   /**
-   * Upload baseline selfie to MinIO and store the object key in baselineSelfieRef
+   * Upload candidate ID proof to MinIO, extract ONNX embedding, and update Candidate record
    */
-  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean }> {
+  async uploadIdProof(sessionId: string, base64Image: string): Promise<{ ok: boolean; embeddingCreated: boolean }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: { candidate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new UnprocessableEntityException({
+        code: "INVALID_IMAGE_FORMAT",
+        message: "Invalid image data format. Expected base64 data URL.",
+      });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], "base64");
+    const sessionFolder = `sessions/${sessionId}`;
+    const candidateFolder = `candidates/${session.candidateId}`;
+    const objectKey = `${sessionFolder}/id-proof.jpg`;
+    const candidateKey = `${candidateFolder}/id-proof.jpg`;
+
+    // Upload to MinIO (both per-session and per-candidate path)
+    const uploaded = await this.minio.putObject(
+      this.bucketBiometric,
+      objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+    await this.minio.putObject(
+      this.bucketBiometric,
+      candidateKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+
+    if (!uploaded) {
+      throw new UnprocessableEntityException({
+        code: "UPLOAD_FAILED",
+        message: "Failed to upload ID proof to MinIO storage.",
+      });
+    }
+
+    let embedding: number[] | null = null;
+    let modelName: string = "ArcFace-ONNX-ResNet50";
+
+    try {
+      const enrollResult = await this.faceVerifyOnnxService.enroll(imageBuffer, `id-proof-${sessionId}.jpg`);
+      embedding = enrollResult.embedding;
+      modelName = enrollResult.model;
+    } catch (err: any) {
+      this.logger.warn(`Could not extract ONNX embedding for candidate ID proof: ${err.message}`);
+    }
+
+    // Update Session DB
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        idProofRef: objectKey,
+        idProofEmbedding: embedding ? (embedding as any) : undefined,
+      },
+    });
+
+    // Update Candidate DB
+    await this.prisma.candidate.update({
+      where: { id: session.candidateId },
+      data: {
+        idProofRef: candidateKey,
+        idProofEmbedding: embedding ? (embedding as any) : undefined,
+        idProofModel: modelName,
+      },
+    });
+
+    return { ok: true, embeddingCreated: !!embedding };
+  }
+
+  /**
+   * Upload baseline selfie to MinIO, extract ONNX embedding, and update Session/Candidate records
+   */
+  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean; verified?: boolean }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { candidate: true },
     });
 
     if (!session) {
@@ -974,12 +1061,21 @@ export class SessionService implements SessionStatusPort {
     }
 
     const imageBuffer = Buffer.from(matches[2], "base64");
-    const objectKey = `selfie-${sessionId}.jpg`;
+    const sessionFolder = `sessions/${sessionId}`;
+    const candidateFolder = `candidates/${session.candidateId}`;
+    const objectKey = `${sessionFolder}/baseline-selfie.jpg`;
+    const candidateKey = `${candidateFolder}/baseline-selfie.jpg`;
 
     // Upload to MinIO
     const uploaded = await this.minio.putObject(
       this.bucketBiometric,
       objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+    await this.minio.putObject(
+      this.bucketBiometric,
+      candidateKey,
       imageBuffer,
       { "Content-Type": "image/jpeg" }
     );
@@ -991,15 +1087,55 @@ export class SessionService implements SessionStatusPort {
       });
     }
 
-    // Update DB
+    let selfieEmbedding: number[] | null = null;
+    try {
+      const enrollResult = await this.faceVerifyOnnxService.enroll(imageBuffer, `selfie-${sessionId}.jpg`);
+      selfieEmbedding = enrollResult.embedding;
+    } catch (err: any) {
+      this.logger.warn(`Could not extract ONNX embedding for baseline selfie: ${err.message}`);
+    }
+
+    let verificationResult: any = null;
+    let isVerified = false;
+
+    const idProofEmb = (session.idProofEmbedding || session.candidate?.idProofEmbedding) as unknown as number[];
+    if (selfieEmbedding && idProofEmb) {
+      try {
+        const verifyRes = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmbedding, idProofEmb);
+        isVerified = verifyRes.matched;
+        verificationResult = {
+          status: verifyRes.matched ? "verified" : "mismatch",
+          distance: verifyRes.distance,
+          threshold: verifyRes.threshold,
+          verifiedAt: new Date().toISOString(),
+        };
+      } catch (err: any) {
+        this.logger.warn(`Failed ONNX verification comparison during selfie upload: ${err.message}`);
+      }
+    }
+
+    // Update DB Session & Candidate
     await this.prisma.session.update({
       where: { id: sessionId },
       data: {
         baselineSelfieRef: objectKey,
+        baselineSelfieEmbedding: selfieEmbedding ? (selfieEmbedding as any) : undefined,
+        idVerifiedAt: isVerified ? new Date() : undefined,
+        identityVerificationResult: verificationResult ? (verificationResult as any) : undefined,
       },
     });
 
-    return { ok: true };
+    await this.prisma.candidate.update({
+      where: { id: session.candidateId },
+      data: {
+        baselineSelfieRef: candidateKey,
+        baselineSelfieEmbedding: selfieEmbedding ? (selfieEmbedding as any) : undefined,
+        idVerifiedAt: isVerified ? new Date() : undefined,
+        identityVerificationResult: verificationResult ? (verificationResult as any) : undefined,
+      },
+    });
+
+    return { ok: true, verified: isVerified };
   }
 
   /**

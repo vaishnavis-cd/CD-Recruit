@@ -80,6 +80,21 @@ export class SessionController {
   }
 
   /**
+   * POST /api/v1/sessions/:sessionId/id-proof
+   *
+   * Upload candidate ID proof image during consent.
+   */
+  @Post(":sessionId/id-proof")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async idProof(
+    @Param("sessionId") sessionId: string,
+    @Body("image") image: string,
+  ): Promise<{ ok: boolean; embeddingCreated: boolean }> {
+    return this.sessionService.uploadIdProof(sessionId, image);
+  }
+
+  /**
    * POST /api/v1/sessions/:sessionId/consent
    *
    * Persist candidate consent record in PostgreSQL.

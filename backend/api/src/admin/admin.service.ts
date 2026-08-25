@@ -108,10 +108,10 @@ export class AdminService {
         where,
         skip,
         take,
-        orderBy,
-        include: {
+        orderBy,        include: {
           candidate: true,
           roleTemplate: true,
+          invite: true,
           score: true,
           reviewerDecision: {
             include: { staff: true },
@@ -146,6 +146,7 @@ export class AdminService {
         }
       }
     }
+
     const deduplicatedItems = Array.from(sessionMap.values());
 
     // Map to SessionListItem interface
@@ -166,12 +167,14 @@ export class AdminService {
       const flagCount = (session.integrityFlags ? session.integrityFlags.length : 0) +
         ((session as any).proctoringEvents ? (session as any).proctoringEvents.length : 0);
 
+      const sessVerification = (session as any).identityVerificationResult || session.candidate.identityVerificationResult;
+
       return {
         sessionId: session.id,
         // candidateId is the candidate's DB UUID — required for the bulk
         // identity-verify endpoint and the ID Verify badge in the results table.
         candidateId: session.candidate.id,
-        candidateName: session.candidate.name,
+        candidateName: session.invite?.candidateName || session.candidate.name,
         candidateEmail: session.candidate.email,
         roleTemplateName: session.roleTemplate.roleName,
         status: session.status as SessionStatus,
@@ -926,29 +929,82 @@ export class AdminService {
     let errors = 0;
     const results: any[] = [];
 
-    for (const candidateId of candidateIds) {
+    for (const targetId of candidateIds) {
       try {
-        const candidate = await this.prisma.candidate.findUnique({
-          where: { id: candidateId },
+        let candidate: any = null;
+        let session: any = null;
+
+        // Try looking up as Session ID first
+        session = await this.prisma.session.findUnique({
+          where: { id: targetId },
+          include: { candidate: true, invite: true },
         });
+
+        if (session) {
+          candidate = session.candidate;
+        } else {
+          // Fall back to Candidate ID lookup
+          candidate = await this.prisma.candidate.findUnique({
+            where: { id: targetId },
+            include: { sessions: { orderBy: { actualStartAt: "desc" }, take: 1 } },
+          });
+          if (candidate?.sessions?.length) {
+            session = candidate.sessions[0];
+          }
+        }
 
         if (!candidate) {
           errors++;
-          results.push({ candidateId, status: "error", message: "Candidate not found" });
+          results.push({ candidateId: targetId, status: "error", message: "Candidate not found" });
           continue;
         }
 
-        if (!candidate.idProofEmbedding || !candidate.baselineSelfieEmbedding) {
+        let idProofEmb = (session?.idProofEmbedding || candidate.idProofEmbedding) as unknown as number[];
+        let selfieEmb = (session?.baselineSelfieEmbedding || candidate.baselineSelfieEmbedding) as unknown as number[];
+        const idProofRef = session?.idProofRef || candidate.idProofRef;
+        const selfieRef = session?.baselineSelfieRef || candidate.baselineSelfieRef;
+
+        if (!idProofEmb && idProofRef) {
+          try {
+            const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
+            if (buf) {
+              const res = await this.faceVerifyOnnxService.enroll(buf, idProofRef);
+              idProofEmb = res.embedding;
+              if (session) {
+                await this.prisma.session.update({ where: { id: session.id }, data: { idProofEmbedding: idProofEmb as any } });
+              }
+              await this.prisma.candidate.update({ where: { id: candidate.id }, data: { idProofEmbedding: idProofEmb as any } });
+            }
+          } catch (e: any) {
+            this.logger.warn(`MinIO download failed for idProofRef ${idProofRef}: ${e.message}`);
+          }
+        }
+
+        if (!selfieEmb && selfieRef) {
+          try {
+            const buf = await this.storage.getObject(this.bucketBiometric, selfieRef);
+            if (buf) {
+              const res = await this.faceVerifyOnnxService.enroll(buf, selfieRef);
+              selfieEmb = res.embedding;
+              if (session) {
+                await this.prisma.session.update({ where: { id: session.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
+              }
+              await this.prisma.candidate.update({ where: { id: candidate.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
+            }
+          } catch (e: any) {
+            this.logger.warn(`MinIO download failed for selfieRef ${selfieRef}: ${e.message}`);
+          }
+        }
+
+        if (!idProofEmb || !selfieEmb) {
           const missing: string[] = [];
-          if (!candidate.idProofEmbedding) missing.push("id_proof");
-          if (!candidate.baselineSelfieEmbedding) missing.push("baseline_selfie");
+          if (!idProofEmb) missing.push("id_proof");
+          if (!selfieEmb) missing.push("baseline_selfie");
           insufficientData++;
-          results.push({ candidateId, status: "insufficient_data", missing });
+          results.push({ candidateId: targetId, status: "insufficient_data", missing });
           continue;
         }
 
-        const idProofEmb = candidate.idProofEmbedding as number[];
-        const selfieEmb = candidate.baselineSelfieEmbedding as number[];
         const verification = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmb, idProofEmb);
 
         const identityVerificationResult = {
@@ -959,9 +1015,15 @@ export class AdminService {
           verifiedBy: staffId,
         };
 
+        if (session) {
+          await this.prisma.session.update({
+            where: { id: session.id },
+            data: { identityVerificationResult, idVerifiedAt: verification.matched ? new Date() : undefined },
+          });
+        }
         await this.prisma.candidate.update({
-          where: { id: candidateId },
-          data: { identityVerificationResult },
+          where: { id: candidate.id },
+          data: { identityVerificationResult, idVerifiedAt: verification.matched ? new Date() : undefined },
         });
 
         await this.prisma.auditLog.create({
@@ -969,7 +1031,7 @@ export class AdminService {
             staffId,
             action: "CANDIDATE_IDENTITY_VERIFIED",
             entityType: "Candidate",
-            entityId: candidateId,
+            entityId: candidate.id,
             metadata: {
               matched: verification.matched,
               distance: verification.distance,
@@ -981,7 +1043,7 @@ export class AdminService {
         completed++;
         if (verification.matched) matched++; else mismatched++;
         results.push({
-          candidateId,
+          candidateId: targetId,
           status: "completed",
           matched: verification.matched,
           distance: verification.distance,
@@ -989,10 +1051,10 @@ export class AdminService {
         });
       } catch (err: any) {
         this.logger.error(
-          `Bulk verify: unexpected error for candidate ${candidateId}: ${err.message}`,
+          `Bulk verify: unexpected error for candidate ${targetId}: ${err.message}`,
         );
         errors++;
-        results.push({ candidateId, status: "error", message: err.message });
+        results.push({ candidateId: targetId, status: "error", message: err.message });
       }
     }
 

@@ -14,6 +14,8 @@ import { QueueModule } from "../queue/queue.module";
 import { SessionStatusPort } from "@app/common/ports/session-status.port";
 import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
 
+import { FaceVerifyOnnxModule } from "@app/integrations/face-verify-onnx/face-verify-onnx.module";
+
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
@@ -22,6 +24,7 @@ import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-
     forwardRef(() => QueueModule),
     SimulationModule,
     SettingsModule,
+    FaceVerifyOnnxModule,
   ],
   controllers: [SessionController],
   providers: [

@@ -277,7 +277,12 @@ model Session {
   driveId            String?       @map("drive_id")
   cvMode             CvMode        @map("cv_mode")
   status             SessionStatus @default(NOT_STARTED)
-  baselineSelfieRef  String?       @map("baseline_selfie_ref")
+  baselineSelfieRef          String?       @map("baseline_selfie_ref")
+  baselineSelfieEmbedding    Json?         @map("baseline_selfie_embedding")
+  idProofRef                 String?       @map("id_proof_ref")
+  idProofEmbedding           Json?         @map("id_proof_embedding")
+  idVerifiedAt               DateTime?     @map("id_verified_at")
+  identityVerificationResult Json?         @map("identity_verification_result")
   tutorialMode       String        @default("full") @map("tutorial_mode")
   actualStartAt      DateTime?     @map("actual_start_at")
 

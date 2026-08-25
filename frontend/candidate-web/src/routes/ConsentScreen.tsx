@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { ConsentSimpleAgreementStep } from './consent/ConsentSimpleAgreementStep'
 import { ConsentBiometricStep } from './consent/ConsentBiometricStep'
+import { ConsentIdProofStep } from './consent/ConsentIdProofStep'
 import { ConsentLivenessStep } from './consent/ConsentLivenessStep'
 import { ConsentSelfieStep } from './consent/ConsentSelfieStep'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
@@ -27,13 +28,14 @@ async function persistConsent(sessionId: string, consentType: ConsentType): Prom
 }
 
 interface ConsentScreenProps {
-  step: 'terms' | 'biometric' | 'liveness' | 'selfie' | 'audio'
+  step: 'terms' | 'biometric' | 'id-proof' | 'liveness' | 'selfie' | 'audio'
   inviteToken: string
 }
 
 const STEPS: Array<{ key: ConsentScreenProps['step']; label: string; title: string; subtitle?: string }> = [
   { key: 'terms', label: 'Terms', title: 'Terms of Use', subtitle: 'Please read carefully before continuing.' },
   { key: 'biometric', label: 'Biometric', title: 'Biometric consent', subtitle: 'A quick, transparent summary of what we collect and why.' },
+  { key: 'id-proof', label: 'ID Proof', title: 'Identity verification document', subtitle: 'Upload or capture your government-issued ID proof.' },
   { key: 'liveness', label: 'Liveness', title: 'Liveness challenge', subtitle: 'Follow the prompts. Each step confirms automatically.' },
   { key: 'selfie', label: 'Selfie', title: 'Baseline selfie', subtitle: 'Position your face inside the guide, then capture.' },
   { key: 'audio', label: 'Audio', title: 'Audio check', subtitle: 'Confirm your microphone is working.' },
@@ -75,6 +77,10 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
   function handleBiometricComplete() {
     if (sessionId) persistConsent(sessionId, 'BIOMETRIC')
+    advanceStep('id-proof')
+  }
+
+  function handleIdProofComplete() {
     advanceStep('liveness')
   }
 
@@ -134,7 +140,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
           </div>
         </div>
 
-        {/* 5-segment thin progress bar */}
+        {/* 6-segment thin progress bar */}
         <div className="flex gap-1.5 mb-8" role="progressbar" aria-valuenow={currentStepIndex + 1} aria-valuemax={STEPS.length}>
           {STEPS.map((s, idx) => (
             <div
@@ -162,6 +168,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
         <div className="mt-6">
           {step === 'terms' && <ConsentSimpleAgreementStep type="terms" onAgree={handleTermsComplete} />}
           {step === 'biometric' && <ConsentBiometricStep onConsent={handleBiometricComplete} />}
+          {step === 'id-proof' && <ConsentIdProofStep onComplete={handleIdProofComplete} />}
           {step === 'liveness' && <ConsentLivenessStep onComplete={handleLivenessComplete} />}
           {step === 'selfie' && <ConsentSelfieStep onComplete={handleSelfieComplete} />}
           {step === 'audio' && <ConsentSimpleAgreementStep type="audio" onAgree={handleAudioComplete} />}

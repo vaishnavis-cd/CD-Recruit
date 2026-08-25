@@ -13,6 +13,8 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { MinioService } from "./integrations/minio/minio.service";
 
+import { json, urlencoded } from "express";
+
 async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
 
@@ -20,6 +22,10 @@ async function bootstrap(): Promise<void> {
     // Structured JSON logs — easier to parse in prod; readable in dev
     logger: ["error", "warn", "log", "debug"],
   });
+
+  // Enable large payload body parsing for base64 biometrics / ID proof uploads
+  app.use(json({ limit: "50mb" }));
+  app.use(urlencoded({ limit: "50mb", extended: true }));
 
   // ── Global prefix ──────────────────────────────────────────────────────
   // Every route is served under /api/v1 — matches API_CONTRACT.md base URL.
