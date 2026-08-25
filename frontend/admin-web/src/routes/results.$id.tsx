@@ -1174,6 +1174,69 @@ function IndividualResultPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* In-Test Periodic Identity Captures Verification Card */}
+                  <div className="p-4 rounded-lg border border-[#E6E6EA] bg-[#FAFBFD] space-y-3 col-span-1 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-semibold text-[#0B0B0D] flex items-center gap-1.5">
+                        <Camera size={14} className="text-[#2F5CFF]" />
+                        In-Test Periodic Identity Captures (3 Windows)
+                      </span>
+                      {(() => {
+                        const itc = (detail.candidate as any)?.identityVerificationResult?.inTestCaptures;
+                        if (!itc || itc.total === 0) {
+                          return <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-gray-100 text-gray-500">No Captures</span>;
+                        }
+                        const isAll = itc.matched === itc.total && itc.total > 0;
+                        const isFail = itc.mismatched > 0 || itc.failed > 0;
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${isAll ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : isFail ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                            {itc.matched}/{itc.total} Matched {itc.mismatched > 0 ? `(${itc.mismatched} Mismatch)` : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {(((detail.candidate as any)?.identityVerificationResult?.inTestCaptures?.windows && (detail.candidate as any)?.identityVerificationResult?.inTestCaptures?.windows.length > 0)
+                        ? (detail.candidate as any).identityVerificationResult.inTestCaptures.windows
+                        : (detail as any).identityCaptures || []
+                      ).map((w: any, idx: number) => {
+                        const wIndex = w.windowIndex || (idx + 1);
+                        const isCompleted = w.status === "COMPLETED";
+                        const isMatched = w.matched === true;
+
+                        return (
+                          <div key={wIndex} className="p-2.5 rounded border border-[#E6E6EA] bg-white space-y-1 text-[11px] font-mono">
+                            <div className="flex items-center justify-between font-semibold text-[#0B0B0D]">
+                              <span>Window {wIndex}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                !isCompleted
+                                  ? 'bg-gray-100 text-gray-600'
+                                  : isMatched
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {!isCompleted ? w.status : isMatched ? '✓ Match' : '✗ Mismatch'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-[#8B8B93] text-[10px]">
+                              <span>Status:</span>
+                              <span className="font-semibold text-[#0B0B0D]">{w.status}</span>
+                            </div>
+                            {isCompleted && (
+                              <div className="flex justify-between text-[#8B8B93] text-[10px]">
+                                <span>Distance:</span>
+                                <span className="font-semibold text-[#2F5CFF]">
+                                  {w.distance !== undefined && w.distance !== null ? w.distance.toFixed(4) : "N/A"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
 

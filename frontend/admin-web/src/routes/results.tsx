@@ -329,7 +329,10 @@ function ResultsPage() {
                   <th className="py-3 px-4 font-semibold text-center">Score</th>
                   <th className="py-3 px-4 font-semibold text-center">Integrity Risk</th>
                   {statusFilter === "PASS" && (
-                    <th className="py-3 px-4 font-semibold text-center">ID Verify</th>
+                    <>
+                      <th className="py-3 px-4 font-semibold text-center">ID Verify</th>
+                      <th className="py-3 px-4 font-semibold text-center">In-Test Verify</th>
+                    </>
                   )}
                   <th className="py-3 px-4 font-semibold text-center">Decision Status</th>
                   <th className="py-3 px-4 font-semibold text-right">Action</th>
@@ -361,8 +364,15 @@ function ResultsPage() {
                   // this session → always show Pending regardless of stored DB data.
                   // Only after clicking Verify All do we show the actual result.
                   let idVerifyBadge: React.ReactNode;
+                  let inTestVerifyBadge: React.ReactNode;
+
                   if (sessionVerifyResults === null) {
                     idVerifyBadge = (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-600 border border-amber-200">
+                        Pending
+                      </span>
+                    );
+                    inTestVerifyBadge = (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-600 border border-amber-200">
                         Pending
                       </span>
@@ -371,6 +381,11 @@ function ResultsPage() {
                     const svr = sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId];
                     if (!svr || svr.status === "error") {
                       idVerifyBadge = (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
+                          Not Verified
+                        </span>
+                      );
+                      inTestVerifyBadge = (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
                           Not Verified
                         </span>
@@ -411,6 +426,45 @@ function ResultsPage() {
                         </div>
                       );
                     }
+
+                    // Render In-Test Periodic Captures Badge
+                    const itc = svr?.inTestCaptures || item.identityVerificationResult?.inTestCaptures;
+                    if (!itc || itc.total === 0) {
+                      inTestVerifyBadge = (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
+                          No captures
+                        </span>
+                      );
+                    } else {
+                      const parts: string[] = [`${itc.matched}/${itc.total} matched`];
+                      if (itc.mismatched > 0) parts.push(`${itc.mismatched} mismatch`);
+                      if (itc.skipped > 0) parts.push(`${itc.skipped} skipped`);
+                      if (itc.failed > 0) parts.push(`${itc.failed} failed`);
+                      if (itc.pending > 0) parts.push(`${itc.pending} pending`);
+
+                      const summaryText = parts.join(", ");
+                      const isAllMatched = itc.matched === itc.total && itc.total > 0;
+                      const hasFailures = itc.mismatched > 0 || itc.failed > 0;
+
+                      const tooltipText = (itc.windows || [])
+                        .map((w: any) => `Win ${w.windowIndex}: ${w.status}${w.status === "COMPLETED" ? (w.matched ? " (Match ✓)" : " (Mismatch ✗)") : ""}${w.distance !== null && w.distance !== undefined ? ` [dist: ${w.distance.toFixed(2)}]` : ""}`)
+                        .join("\n");
+
+                      inTestVerifyBadge = (
+                        <span
+                          title={tooltipText || undefined}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono border ${
+                            isAllMatched
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : hasFailures
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}
+                        >
+                          {summaryText}
+                        </span>
+                      );
+                    }
                   }
 
                   return (
@@ -447,7 +501,10 @@ function ResultsPage() {
                         )}
                       </td>
                       {statusFilter === "PASS" && (
-                        <td className="py-3 px-4 text-center">{idVerifyBadge}</td>
+                        <>
+                          <td className="py-3 px-4 text-center">{idVerifyBadge}</td>
+                          <td className="py-3 px-4 text-center">{inTestVerifyBadge}</td>
+                        </>
                       )}
                       <td className="py-3 px-4 text-center">
                         {isApproved ? (

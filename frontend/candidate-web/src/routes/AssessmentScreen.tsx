@@ -9,6 +9,7 @@ import { DebuggingModule } from '../modules/debugging/DebuggingModule'
 import { PromptingModule } from '../modules/prompting/PromptingModule'
 import { ContextualModule } from '../modules/contextual/ContextualModule'
 import { getEffectiveModuleType } from '../utils/moduleType'
+import { IdentityCaptureScheduler } from '../proctoring/identity-capture.scheduler'
 
 interface AssessmentScreenProps {
   moduleIndex: number
@@ -16,7 +17,7 @@ interface AssessmentScreenProps {
 }
 
 export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenProps) {
-  const { setTimerStart, assessment } = useSessionStore()
+  const { setTimerStart, assessment, session } = useSessionStore()
 
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
@@ -39,7 +40,22 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
       const nowMs = services.time.getServerNow()
       setTimerStart(nowMs)
     }
-  }, [moduleIndex, sessionId])
+
+    if (assessment?.sessionId || sessionId) {
+      const activeSessionId = assessment?.sessionId || sessionId
+      const durationMinutes = assessment?.totalSeconds
+        ? Math.max(1, Math.round(assessment.totalSeconds / 60))
+        : session?.durationMinutes || 15
+      const startedAt = session?.startedAt || null
+
+      console.log(`[AssessmentScreen] Initializing IdentityCaptureScheduler for session ${activeSessionId} (${durationMinutes} mins)...`)
+      IdentityCaptureScheduler.getInstance().start(
+        activeSessionId,
+        durationMinutes,
+        startedAt,
+      )
+    }
+  }, [moduleIndex, sessionId, assessment?.sessionId, assessment?.totalSeconds, session?.durationMinutes, session?.startedAt])
 
   // The timer hook handles auto-submit on expiry
   useAssessmentTimer()

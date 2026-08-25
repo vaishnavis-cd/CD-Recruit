@@ -187,4 +187,23 @@ export class SessionController {
   ): Promise<CloseSessionResponse> {
     return this.sessionService.closeSession(sessionId);
   }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/identity-capture
+   *
+   * Save periodic in-test identity snapshot capture to MinIO & verify face embedding.
+   */
+  @Post(":sessionId/identity-capture")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async saveIdentityCapture(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() dto: { windowIndex: number; imageBase64: string },
+  ) {
+    return this.sessionService.saveIdentityCapture(
+      sessionId,
+      dto.windowIndex,
+      dto.imageBase64,
+    );
+  }
 }

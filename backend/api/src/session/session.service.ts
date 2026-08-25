@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   UnauthorizedException,
@@ -382,6 +383,36 @@ export class SessionService implements SessionStatusPort {
     });
 
     this.logger.log(`Session ${sessionId} has begun.`);
+
+    // Create 3 duration-proportional IdentityCapture records (30%, 60%, 90% split)
+    const splitRatios = [0.30, 0.60, 0.90];
+    const durationMs = durationMinutes * 60 * 1000;
+
+    try {
+      await this.prisma.identityCapture.deleteMany({
+        where: { sessionId },
+      });
+
+      for (let i = 0; i < splitRatios.length; i++) {
+        const windowIndex = i + 1;
+        const scheduledOffsetMs = Math.round(durationMs * splitRatios[i]);
+        const scheduledAt = new Date(now.getTime() + scheduledOffsetMs);
+
+        await this.prisma.identityCapture.create({
+          data: {
+            sessionId,
+            windowIndex,
+            scheduledAt,
+            status: "PENDING",
+          },
+        });
+        this.logger.log(
+          `[IdentityCapture] DB_RECORD_CREATED: sessionId=${sessionId}, windowIndex=${windowIndex}, scheduledAt=${scheduledAt.toISOString()} (${(scheduledOffsetMs / 1000 / 60).toFixed(1)}m from start)`,
+        );
+      }
+    } catch (capErr: any) {
+      this.logger.warn(`Failed to schedule identity captures for session ${sessionId}: ${capErr.message}`);
+    }
 
     try {
       await this.sandboxOrchestrator.ensureWorkspace(sessionId);
@@ -1207,6 +1238,113 @@ export class SessionService implements SessionStatusPort {
     );
 
     return { ok: true, consentRecordId: consentRecord.id };
+  }
+
+  /**
+   * Save an in-test identity snapshot capture to MinIO and verify face embeddings against baseline selfie.
+   */
+  async saveIdentityCapture(
+    sessionId: string,
+    windowIndex: number,
+    imageBase64: string,
+  ) {
+    this.logger.log(
+      `[SessionService] SAVE_IDENTITY_CAPTURE_REQUESTED: sessionId=${sessionId}, windowIndex=${windowIndex}, payloadLength=${imageBase64?.length ?? 0}`,
+    );
+
+    if (!imageBase64 || typeof windowIndex !== "number") {
+      throw new BadRequestException("Missing imageBase64 or windowIndex");
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { candidate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const imageBuffer = Buffer.from(cleanBase64, "base64");
+
+    const objectKey = `sessions/${sessionId}/identity-captures/window_${windowIndex}.jpg`;
+
+    try {
+      // 1. Upload snapshot to MinIO bucket cd-recruit-biometric
+      await this.minio.putObject(
+        this.bucketBiometric,
+        objectKey,
+        imageBuffer,
+        { "Content-Type": "image/jpeg" },
+      );
+      this.logger.log(
+        `[SessionService] MINIO_UPLOAD_SUCCESS: bucket=${this.bucketBiometric}, objectKey=${objectKey}, bytes=${imageBuffer.length}`,
+      );
+
+      // 2. Upsert IdentityCapture record in DB with status COMPLETED and imageRef (verification runs on Verify All)
+      const capture = await this.prisma.identityCapture.upsert({
+        where: {
+          sessionId_windowIndex: {
+            sessionId,
+            windowIndex,
+          },
+        },
+        create: {
+          sessionId,
+          windowIndex,
+          scheduledAt: new Date(),
+          capturedAt: new Date(),
+          status: "COMPLETED",
+          imageRef: objectKey,
+        },
+        update: {
+          capturedAt: new Date(),
+          status: "COMPLETED",
+          imageRef: objectKey,
+        },
+      });
+
+      this.logger.log(
+        `[SessionService] IDENTITY_CAPTURE_DB_UPDATED: windowIndex=${windowIndex}, status=COMPLETED, id=${capture.id}`,
+      );
+
+      return {
+        ok: true,
+        captureId: capture.id,
+        imageRef: objectKey,
+        matched: capture.matched,
+        distance: capture.distance,
+      };
+    } catch (err: any) {
+      this.logger.error(
+        `[SessionService] SAVE_IDENTITY_CAPTURE_FAILED: windowIndex=${windowIndex}, error=${err.message}`,
+        err.stack,
+      );
+
+      // Mark as FAILED in database
+      await this.prisma.identityCapture.upsert({
+        where: {
+          sessionId_windowIndex: {
+            sessionId,
+            windowIndex,
+          },
+        },
+        create: {
+          sessionId,
+          windowIndex,
+          scheduledAt: new Date(),
+          status: "FAILED",
+        },
+        update: {
+          status: "FAILED",
+        },
+      }).catch((e) => this.logger.warn(`Failed to update FAILED status: ${e.message}`));
+
+      throw new InternalServerErrorException(
+        `Failed to save identity capture: ${err.message}`,
+      );
+    }
   }
 }
 

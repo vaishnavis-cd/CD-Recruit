@@ -948,13 +948,18 @@ export class AdminService {
         if (session) {
           candidate = session.candidate;
         } else {
-          // Fall back to Candidate ID lookup
+          // Fall back to Candidate ID lookup (fetch sessions ordered by submittedAt and pick session with identityCaptures)
           candidate = await this.prisma.candidate.findUnique({
             where: { id: targetId },
-            include: { sessions: { orderBy: { actualStartAt: "desc" }, take: 1 } },
+            include: {
+              sessions: {
+                orderBy: { submittedAt: "desc" },
+                include: { identityCaptures: true },
+              },
+            },
           });
           if (candidate?.sessions?.length) {
-            session = candidate.sessions[0];
+            session = candidate.sessions.find((s: any) => s.identityCaptures && s.identityCaptures.length > 0) || candidate.sessions[0];
           }
         }
 
@@ -1060,6 +1065,98 @@ export class AdminService {
 
         const overallMatched = faceRes.matched && nameRes.matched;
 
+        // In-Test Periodic Identity Captures Verification (3 windows)
+        let inTestCapturesResult: any = {
+          total: 0,
+          matched: 0,
+          mismatched: 0,
+          skipped: 0,
+          failed: 0,
+          pending: 0,
+          windows: [],
+        };
+
+        if (session) {
+          try {
+            const captures = await this.prisma.identityCapture.findMany({
+              where: { sessionId: session.id },
+              orderBy: { windowIndex: "asc" },
+            });
+
+            if (captures.length > 0) {
+              const windowsList: any[] = [];
+              for (const cap of captures) {
+                let wMatched = cap.matched;
+                let wDistance = cap.distance;
+                let wThreshold = cap.threshold || 0.60;
+                let verifiedAtIso = cap.verifiedAt?.toISOString() || null;
+
+                // Download image and verify if status is COMPLETED and imageRef is available
+                if (cap.status === "COMPLETED" && cap.imageRef) {
+                  try {
+                    const buf = await this.storage.getObject(this.bucketBiometric, cap.imageRef);
+                    const baselineSelfie = (session.baselineSelfieEmbedding || candidate.baselineSelfieEmbedding) as number[] | null;
+
+                    if (buf && baselineSelfie && Array.isArray(baselineSelfie) && baselineSelfie.length > 0) {
+                      const enrollRes = await this.faceVerifyOnnxService.enroll(buf, cap.imageRef);
+                      if (enrollRes.embedding && enrollRes.embedding.length > 0) {
+                        const vRes = this.faceVerifyOnnxService.verifyEmbeddings(enrollRes.embedding, baselineSelfie);
+                        wMatched = vRes.matched;
+                        wDistance = vRes.distance;
+                        wThreshold = vRes.threshold;
+                        verifiedAtIso = new Date().toISOString();
+
+                        // Update DB record
+                        await this.prisma.identityCapture.update({
+                          where: { id: cap.id },
+                          data: {
+                            matched: wMatched,
+                            distance: wDistance,
+                            threshold: wThreshold,
+                            verifiedAt: new Date(),
+                          },
+                        });
+                      }
+                    }
+                  } catch (vErr: any) {
+                    this.logger.warn(
+                      `[AdminService] In-test capture verification failed for window ${cap.windowIndex} (session ${session.id}): ${vErr.message}`,
+                    );
+                  }
+                }
+
+                windowsList.push({
+                  windowIndex: cap.windowIndex,
+                  status: cap.status,
+                  matched: wMatched,
+                  distance: wDistance,
+                  threshold: wThreshold,
+                  verifiedAt: verifiedAtIso,
+                });
+              }
+
+              const total = captures.length;
+              const matchedCount = windowsList.filter((w) => w.status === "COMPLETED" && w.matched === true).length;
+              const mismatchedCount = windowsList.filter((w) => w.status === "COMPLETED" && w.matched === false).length;
+              const skippedCount = windowsList.filter((w) => w.status === "SKIPPED").length;
+              const failedCount = windowsList.filter((w) => w.status === "FAILED").length;
+              const pendingCount = windowsList.filter((w) => w.status === "PENDING").length;
+
+              inTestCapturesResult = {
+                total,
+                matched: matchedCount,
+                mismatched: mismatchedCount,
+                skipped: skippedCount,
+                failed: failedCount,
+                pending: pendingCount,
+                windows: windowsList,
+              };
+            }
+          } catch (inTestErr: any) {
+            this.logger.warn(`In-test captures bulk verification failed for session ${session.id}: ${inTestErr.message}`);
+          }
+        }
+
         const identityVerificationResult = {
           matched: overallMatched,
           face: {
@@ -1074,6 +1171,7 @@ export class AdminService {
             extractedName: nameRes.extractedName,
             registeredName: nameRes.registeredName,
           },
+          inTestCaptures: inTestCapturesResult,
           ocrConfidence,
           verifiedAt: new Date().toISOString(),
           verifiedBy: staffId,
@@ -1119,6 +1217,7 @@ export class AdminService {
           matched: overallMatched,
           face: faceRes,
           name: nameRes,
+          inTestCaptures: inTestCapturesResult,
           ocrConfidence,
         });
       } catch (err: any) {

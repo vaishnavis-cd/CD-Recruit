@@ -590,9 +590,11 @@ model IdentityCapture {
   matched     Boolean?
   distance    Float?
   threshold   Float?
+  verifiedAt  DateTime? @map("verified_at")
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@unique([sessionId, windowIndex])
   @@index([sessionId])
   @@index([status])
   @@map("identity_capture")
