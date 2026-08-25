@@ -650,23 +650,23 @@ export function RoleTemplatesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
+                          <h3 className="font-semibold text-[15px] text-ink">
                             {tpl.roleName}
                           </h3>
-                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#F0F4FF] text-[#2F5CFF] rounded">
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-brand/10 text-brand rounded">
                             v{tpl.version}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {tpl.department && (
-                            <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
+                            <span className="px-2 py-0.5 text-[11px] font-mono bg-bg-soft text-ink-2 border border-line rounded">
                               {tpl.department}
                             </span>
                           )}
-                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#EFF6FF] text-[#1E40AF] border border-[#BFDBFE] rounded">
+                          <span className="px-2 py-0.5 text-[11px] font-medium bg-brand/10 text-brand-ink border border-brand/30 rounded">
                             {tCategory}
                           </span>
-                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] rounded">
+                          <span className="px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-300 rounded">
                             {matchedTier?.label || `${tTier} yrs`}
                           </span>
                         </div>

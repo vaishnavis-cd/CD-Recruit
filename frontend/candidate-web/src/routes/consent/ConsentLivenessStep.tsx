@@ -93,7 +93,7 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
   return (
     <div>
       {/* Video Container matching Image 1 */}
-      <div className="relative rounded-xl overflow-hidden aspect-video bg-[#1a1d24] border border-[var(--border)]">
+      <div className="relative rounded-xl overflow-hidden aspect-video bg-surface border border-border">
         <video
           ref={videoRef}
           autoPlay

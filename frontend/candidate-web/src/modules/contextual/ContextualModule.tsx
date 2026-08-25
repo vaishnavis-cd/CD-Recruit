@@ -167,9 +167,9 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
 
   if (step === 'LOADING') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-white dark:bg-[#0d1117] text-slate-800 dark:text-[#c9d1d9] gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-[#58a6ff]" />
-        <span className="text-sm font-medium text-slate-500 dark:text-[#8b949e]">Connecting to Developer Incident Workstation...</span>
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-background text-foreground gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        <span className="text-sm font-medium text-muted-foreground">Connecting to Developer Incident Workstation...</span>
       </div>
     )
   }
@@ -187,7 +187,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0d1117]">
+    <div className="h-screen w-screen overflow-hidden bg-background">
       <ContextSimulationWorkspace
         sessionId={sessionId}
         scenario={scenario}

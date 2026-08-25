@@ -44,18 +44,18 @@ function Header() {
       style={{ background: 'rgba(255,255,255,0.88)', borderColor: 'rgba(0,0,0,0.06)', boxShadow: scrolled ? '0 1px 20px rgba(0,0,0,0.06)' : 'none' }}>
       <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-between h-[72px]">
         <a href="#" className="flex items-center gap-2.5 no-underline" aria-label="Proctora home">
-          <span className="font-bold text-[18px] text-[#111827] tracking-[-0.02em]">Proctora</span>
+          <span className="font-bold text-[18px] text-foreground tracking-[-0.02em]">Proctora</span>
         </a>
 
         <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
           {([['Platform', '#how-it-works'], ['The Say-Do Score', '#say-do'], ['Security', '#trust']] as [string, string][]).map(([label, href]) => (
-            <a key={href} href={href} className="text-[14px] font-medium text-[#4B5563] hover:text-[#111827] transition-colors no-underline">{label}</a>
+            <a key={href} href={href} className="text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors no-underline">{label}</a>
           ))}
         </nav>
 
         <div className="flex items-center gap-3">
           <a href="#start"
-            className="hidden sm:inline-flex items-center px-4 py-2 text-[13px] font-semibold text-[#111827] border border-[#E5E7EB] rounded-lg bg-white hover:bg-[#F3F4F6] hover:border-[#D1D5DB] transition-all no-underline">
+            className="hidden sm:inline-flex items-center px-4 py-2 text-[13px] font-semibold text-foreground border border-border rounded-lg bg-white hover:bg-surface hover:border-border transition-all no-underline">
             Have an invite?
           </a>
           <a href="mailto:hello@proctora.com?subject=Demo%20request"
@@ -94,7 +94,7 @@ function InviteWidget() {
 
   return (
     <div id="start" className="max-w-[480px] mx-auto">
-      <div className="flex gap-2 p-2 rounded-xl border border-[#E5E7EB] bg-white"
+      <div className="flex gap-2 p-2 rounded-xl border border-border bg-white"
         style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
         <input
           type="text"
@@ -105,7 +105,7 @@ function InviteWidget() {
           spellCheck={false}
           autoComplete="off"
           aria-label="Paste your assessment invite link or ID"
-          className="flex-1 min-w-0 bg-transparent border-none font-mono text-[14px] text-[#111827] placeholder:text-[#9CA3AF] outline-none px-4 py-3"
+          className="flex-1 min-w-0 bg-transparent border-none font-mono text-[14px] text-foreground placeholder:text-muted-foreground outline-none px-4 py-3"
         />
         <button
           onClick={handleStart}
@@ -128,7 +128,7 @@ function InviteWidget() {
           transition={{ duration: 0.2 }}
           role="status"
           aria-live="polite"
-          className={`mt-3 text-[13px] font-mono text-center ${state === 'error' ? 'text-[#EF4444]' : state === 'success' ? 'text-[#10B981]' : 'text-[#9CA3AF]'}`}
+          className={`mt-3 text-[13px] font-mono text-center ${state === 'error' ? 'text-critical' : state === 'success' ? 'text-success' : 'text-muted-foreground'}`}
         >
           {msg}
         </motion.p>
@@ -150,17 +150,17 @@ function BrowserMockup() {
           animate={inView ? { rotateX: 0, scale: 1 } : {}}
           whileHover={{ rotateX: 0, scale: 1 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="rounded-xl border border-[#E5E7EB] overflow-hidden bg-white text-left"
+          className="rounded-xl border border-border overflow-hidden bg-white text-left"
           style={{ boxShadow: '0 30px 100px -10px rgba(37,99,235,0.15)', transformOrigin: 'top center' }}
         >
           {/* Chrome bar */}
-          <div className="flex items-center gap-4 px-5 py-3 border-b border-[#E5E7EB]" style={{ background: '#F9FAFB' }}>
+          <div className="flex items-center gap-4 px-5 py-3 border-b border-border" style={{ background: '#F9FAFB' }}>
             <div className="flex gap-2">
               {['#D1D5DB', '#D1D5DB', '#D1D5DB'].map((c, i) => (
                 <span key={i} className="w-3 h-3 rounded-full" style={{ background: c }} />
               ))}
             </div>
-            <div className="flex-1 text-center text-[12px] font-mono text-[#6B7280] bg-white border border-[#E5E7EB] rounded-md py-1.5 px-4 max-w-[400px] mx-auto">
+            <div className="flex-1 text-center text-[12px] font-mono text-muted-foreground bg-white border border-border rounded-md py-1.5 px-4 max-w-[400px] mx-auto">
               assess.proctora.com/workspace/●●●●●●
             </div>
           </div>
@@ -168,13 +168,13 @@ function BrowserMockup() {
           {/* Panes */}
           <div className="grid grid-cols-[1fr_1.5fr] min-h-[400px]">
             {/* Inbox */}
-            <div className="bg-white p-6 border-r border-[#E5E7EB]">
-              <div className="border border-[#2563EB] rounded-lg p-4" style={{ background: 'rgba(37,99,235,0.07)' }}>
+            <div className="bg-white p-6 border-r border-border">
+              <div className="border border-accent rounded-lg p-4" style={{ background: 'rgba(37,99,235,0.07)' }}>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }} />
-                  <span className="text-[14px] font-semibold text-[#111827]">Priya Shah · Eng Manager</span>
+                  <span className="text-[14px] font-semibold text-foreground">Priya Shah · Eng Manager</span>
                 </div>
-                <p className="text-[13px] text-[#111827] leading-relaxed m-0">
+                <p className="text-[13px] text-foreground leading-relaxed m-0">
                   "Good catch — I'll make sure to add payload validation before this ships to prod."
                 </p>
               </div>
@@ -182,8 +182,8 @@ function BrowserMockup() {
 
             {/* Code pane */}
             <div className="p-6 font-mono text-[14px] leading-[1.8]" style={{ background: '#F8FAFC', color: '#334155' }}>
-              <div className="text-[#64748B]">{'// Candidate promised: payload validation'}</div>
-              <div className="text-[#64748B]">{'// Status: Say-Do gap detected. No validation found.'}</div>
+              <div className="text-muted-foreground">{'// Candidate promised: payload validation'}</div>
+              <div className="text-muted-foreground">{'// Status: Say-Do gap detected. No validation found.'}</div>
               <div className="mt-4">
                 <span style={{ color: '#D946EF' }}>export async function </span>
                 <span style={{ color: '#2563EB' }}>saveUser</span>
@@ -290,7 +290,7 @@ export function LandingPage() {
                   transition: 'all 0.3s ease',
                 }}
               >
-                <div className="text-[20px] font-bold text-[#111827] mb-4 tracking-[-0.01em]">What Proctora sees</div>
+                <div className="text-[20px] font-bold text-foreground mb-4 tracking-[-0.01em]">What Proctora sees</div>
                 <h3 className="font-extrabold tracking-[-0.02em] mb-3" style={{ fontSize: 32, color: '#2563EB' }}>The Full Picture.</h3>
                 <p className="mb-6 leading-[1.6]" style={{ fontSize: 18, color: '#4B5563', maxWidth: 500 }}>
                   We check the tests, the syntax, and the speed. But more importantly, we check if the code actually matches what they told a teammate they'd do.
@@ -423,7 +423,7 @@ export function LandingPage() {
             <div>
               <a href="#" className="flex items-center gap-2.5 no-underline mb-4">
               
-                <span className="font-bold text-[18px] text-[#111827] tracking-[-0.02em]">Proctora</span>
+                <span className="font-bold text-[18px] text-foreground tracking-[-0.02em]">Proctora</span>
               </a>
               <p className="text-[14px] leading-[1.65] m-0" style={{ color: '#4B5563', maxWidth: 250 }}>
                 Technical hiring that checks whether candidates meant what they said, not just whether the code runs.

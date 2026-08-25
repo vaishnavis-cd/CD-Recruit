@@ -30,26 +30,26 @@ function StatusStepper({ status }: { status: Invite["status"] }) {
           <div key={s} className="flex items-center gap-1.5">
             <div
               className={`w-1.5 h-1.5 rounded-full ${
-                terminal ? "bg-[#D6D7DC]" : done ? "bg-[#2F5CFF]" : "bg-[#D6D7DC]"
+                terminal ? "bg-line-strong" : done ? "bg-brand" : "bg-line-strong"
               }`}
             />
             <span
               className={`text-[10px] font-mono uppercase tracking-[0.14em] ${
-                terminal ? "text-[#9C9CA5]" : done ? "text-[#0B0B0D]" : "text-[#9C9CA5]"
+                terminal ? "text-ink-3" : done ? "text-ink" : "text-ink-3"
               }`}
             >
               {s}
             </span>
             {i < STEPS.length - 1 && (
               <span
-                className={`inline-block w-4 h-px ${terminal ? "bg-[#D6D7DC]" : done && i < activeIdx ? "bg-[#2F5CFF]" : "bg-[#D6D7DC]"}`}
+                className={`inline-block w-4 h-px ${terminal ? "bg-line-strong" : done && i < activeIdx ? "bg-brand" : "bg-line-strong"}`}
               />
             )}
           </div>
         );
       })}
       {terminal && (
-        <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.14em] px-1.5 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64]">
+        <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.14em] px-1.5 py-0.5 rounded bg-bg-inset text-ink-2">
           {status}
         </span>
       )}
@@ -328,12 +328,12 @@ function InvitesPage() {
       count={invites.length}
       search={
         <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             placeholder="Search candidate name or email…"
-            className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+            className="w-full pl-9 pr-3 py-2 text-[13px] border border-line rounded-md bg-white focus:outline-none focus:border-brand"
           />
         </div>
       }
@@ -343,7 +343,7 @@ function InvitesPage() {
           <select
             value={driveFilter}
             onChange={(e) => setDriveFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] focus:outline-none"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-[12px] text-ink-2 focus:outline-none"
           >
             <option value="all">All Drives</option>
             {drives.map((d) => (
@@ -355,7 +355,7 @@ function InvitesPage() {
 
           <button
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#2F5CFF] hover:bg-[#0037FF] text-white rounded-md text-[13px] font-medium cursor-pointer shadow-sm transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand hover:bg-brand/90 text-white rounded-md text-[13px] font-medium cursor-pointer shadow-sm transition-colors"
           >
             <Plus size={14} /> Create Invite
           </button>
@@ -364,21 +364,21 @@ function InvitesPage() {
     >
       {/* Bulk actions bar */}
       {selectedIds.length > 0 && (
-        <div className="mb-4 p-3 bg-[#EAF0FF] border border-[#B3C5FF] rounded-[10px] flex items-center justify-between animate-fade-in text-[13px]">
-          <span className="font-medium text-[#15308F]">
+        <div className="mb-4 p-3 bg-brand/10 border border-brand/30 rounded-[10px] flex items-center justify-between animate-fade-in text-[13px]">
+          <span className="font-medium text-brand-ink">
             {selectedIds.length} candidate(s) selected
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={handleBulkResend}
-              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-white text-[#15308F] border border-[#B3C5FF] rounded hover:bg-[#F0F4FF] cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-white text-brand-ink border border-brand/30 rounded hover:bg-brand/10 cursor-pointer"
             >
               <RefreshCw size={12} />
               Resend selected
             </button>
             <button
               onClick={handleBulkRevoke}
-              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-[#FEF2F2] text-[#EF4444] border border-[#FCA5A5] rounded hover:bg-[#FEE2E2] cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-rose-50 text-danger border border-rose-200 rounded hover:bg-rose-50 cursor-pointer"
             >
               <XCircle size={12} />
               Revoke selected
@@ -394,14 +394,14 @@ function InvitesPage() {
         </div>
       )}
 
-      <div className="bg-white border border-[#E6E6EA] rounded-[10px] overflow-hidden">
-        <div className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
+      <div className="bg-white border border-line rounded-[10px] overflow-hidden">
+        <div className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-line bg-bg-soft text-[10px] font-mono uppercase tracking-[0.14em] text-ink-2 items-center">
           <div>
             <input
               type="checkbox"
               checked={invites.length > 0 && selectedIds.length === invites.length}
               onChange={toggleSelectAll}
-              className="w-3.5 h-3.5 text-[#2F5CFF] border-[#E6E6EA]"
+              className="w-3.5 h-3.5 text-brand border-line"
             />
           </div>
           <div>Candidate</div>
@@ -415,28 +415,28 @@ function InvitesPage() {
         {invites.map((inv) => (
           <div
             key={inv.id}
-            className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
+            className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-3 border-b border-line last:border-b-0 items-center"
           >
             <div>
               <input
                 type="checkbox"
                 checked={selectedIds.includes(inv.id)}
                 onChange={() => toggleSelect(inv.id)}
-                className="w-3.5 h-3.5 text-[#2F5CFF] border-[#E6E6EA]"
+                className="w-3.5 h-3.5 text-brand border-line"
               />
             </div>
             <div className="min-w-0">
-              <div className="text-[13px] text-[#0B0B0D] truncate">{inv.candidateName}</div>
-              <div className="text-[11px] text-[#5B5B64] truncate">{inv.candidateEmail}</div>
+              <div className="text-[13px] text-ink truncate">{inv.candidateName}</div>
+              <div className="text-[11px] text-ink-2 truncate">{inv.candidateEmail}</div>
             </div>
             <div className="text-[12px]">
-              <div className="text-[#0B0B0D]">{inv.roleTemplate.roleName}</div>
-              <div className="text-[#5B5B64]">{inv.roleTemplate.track}</div>
+              <div className="text-ink">{inv.roleTemplate.roleName}</div>
+              <div className="text-ink-2">{inv.roleTemplate.track}</div>
             </div>
             <StatusStepper status={inv.status} />
             <div>
               {inv.idProofRef ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#15803D] bg-[#E1F8EB] px-2.5 py-1 rounded-full border border-[#22C55E]/30">
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-300">
                   <ShieldCheck size={12} /> Enrolled
                 </span>
               ) : (
@@ -446,14 +446,14 @@ function InvitesPage() {
                     setDirectFile(null);
                     setDirectError(null);
                   }}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D6E4FF] px-2.5 py-1 rounded-full border border-[#B3C5FF] cursor-pointer transition-colors"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-brand bg-brand/10 hover:bg-brand/20 px-2.5 py-1 rounded-full border border-brand/30 cursor-pointer transition-colors"
                 >
                   <Upload size={11} /> Upload ID
                 </button>
               )}
             </div>
-            <div className="font-mono text-[11px] text-[#5B5B64]">{inv.createdAt}</div>
-            <div className="font-mono text-[11px] text-[#5B5B64]">
+            <div className="font-mono text-[11px] text-ink-2">{inv.createdAt}</div>
+            <div className="font-mono text-[11px] text-ink-2">
               {inv.status === "PENDING" ? fmtExpires(inv.expiresAt) : inv.expiresAt.slice(0, 10)}
             </div>
             <div className="flex gap-1.5 justify-end">
@@ -461,10 +461,10 @@ function InvitesPage() {
                 <>
                   <button
                     onClick={() => copy(inv.link, inv.id)}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] border border-line rounded hover:bg-bg-soft text-ink-2 cursor-pointer"
                   >
                     {copiedId === inv.id ? (
-                      <Check size={12} className="text-[#17C964]" />
+                      <Check size={12} className="text-emerald-600" />
                     ) : (
                       <Copy size={12} />
                     )}
@@ -472,7 +472,7 @@ function InvitesPage() {
                   </button>
                   <button
                     onClick={() => setConfirmRevoke(inv.id)}
-                    className="p-1 border border-[#FEE2E2] bg-[#FEF2F2] text-[#EF4444] rounded hover:bg-[#FEE2E2] cursor-pointer"
+                    className="p-1 border border-rose-200 bg-rose-50 text-danger rounded hover:bg-rose-50 cursor-pointer"
                     title="Revoke Invite"
                   >
                     <XCircle size={12} />
@@ -487,7 +487,7 @@ function InvitesPage() {
                       new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16),
                     );
                   }}
-                  className="p-1 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] cursor-pointer"
+                  className="p-1 border border-line rounded hover:bg-bg-soft text-ink-2 cursor-pointer"
                   title="Extend Expiry"
                 >
                   <CalendarDays size={12} />
@@ -497,7 +497,7 @@ function InvitesPage() {
                 <Link
                   to="/results/$id"
                   params={{ id: inv.sessionId }}
-                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold bg-[#EAF0FF] text-[#2F5CFF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] cursor-pointer"
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold bg-brand/10 text-brand border border-brand/30 rounded hover:bg-brand/20 cursor-pointer"
                   title="View Candidate Results"
                 >
                   <Eye size={11} /> Results
@@ -506,7 +506,7 @@ function InvitesPage() {
               {inv.status !== "REDEEMED" && (
                 <button
                   onClick={() => regenerateToken(inv.id)}
-                  className="p-1 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] cursor-pointer"
+                  className="p-1 border border-line rounded hover:bg-bg-soft text-ink-2 cursor-pointer"
                   title="Regenerate Token / Resend"
                 >
                   <RefreshCw size={12} />
@@ -523,7 +523,7 @@ function InvitesPage() {
           </div>
         ))}
         {invites.length === 0 && (
-          <div className="p-8 text-center text-[13px] text-[#8B8B93]">No invitations found.</div>
+          <div className="p-8 text-center text-[13px] text-stext-2">No invitations found.</div>
         )}
       </div>
 
@@ -541,8 +541,8 @@ function InvitesPage() {
             className="bg-white rounded-[12px] max-w-md w-full p-6 shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
-              <div className="text-[15px] font-semibold text-[#0B0B0D]">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="text-[15px] font-semibold text-ink">
                 Upload ID Proof for {directUploadInvite.candidateName}
               </div>
               <button
@@ -551,12 +551,12 @@ function InvitesPage() {
                   setDirectFile(null);
                   setDirectError(null);
                 }}
-                className="p-1 hover:bg-[#EFF0F3] rounded cursor-pointer"
+                className="p-1 hover:bg-bg-inset rounded cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
-            <div className="text-[12px] text-[#5B5B64]">
+            <div className="text-[12px] text-ink-2">
               Select a clear face photo from the candidate's ID proof (JPG, PNG, WEBP &lt; 5MB). DeepFace will automatically extract the face embedding vector.
             </div>
             <div>
@@ -564,10 +564,10 @@ function InvitesPage() {
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleDirectFileChange}
-                className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[12px] bg-white cursor-pointer file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-medium file:bg-[#EFF0F3] file:text-[#0B0B0D]"
+                className="w-full border border-line rounded-md px-3 py-2 text-[12px] bg-white cursor-pointer file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-medium file:bg-bg-inset file:text-ink"
               />
               {directError && (
-                <div className="text-[11px] text-[#E5484D] mt-1.5 flex items-center gap-1">
+                <div className="text-[11px] text-danger mt-1.5 flex items-center gap-1">
                   <AlertCircle size={13} /> {directError}
                 </div>
               )}
@@ -579,14 +579,14 @@ function InvitesPage() {
                   setDirectFile(null);
                   setDirectError(null);
                 }}
-                className="px-3 py-2 text-[12px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+                className="px-3 py-2 text-[12px] border border-line rounded-md hover:bg-bg-soft cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={submitDirectUpload}
                 disabled={!directFile || directUploading}
-                className="px-4 py-2 text-[12px] font-medium bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white rounded-md flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 text-[12px] font-medium bg-brand hover:bg-brand/90 disabled:bg-line-strong disabled:cursor-not-allowed text-white rounded-md flex items-center gap-1.5 cursor-pointer"
               >
                 {directUploading && <RefreshCw size={13} className="animate-spin" />}
                 {directUploading ? "Enrolling face..." : "Upload & Enroll"}
@@ -602,16 +602,16 @@ function InvitesPage() {
           <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={resetForm} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-[12px] w-full max-w-[480px] shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="px-6 py-5 border-b border-[#E6E6EA] flex items-center justify-between">
+              <div className="px-6 py-5 border-b border-line flex items-center justify-between">
                 <div>
-                  <div className="text-[16px] font-semibold text-[#0B0B0D]">
+                  <div className="text-[16px] font-semibold text-ink">
                     {created ? "Invite ready" : "Create invite"}
                   </div>
-                  <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mt-0.5">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mt-0.5">
                     {created ? "share the link below" : "expires in 48 hours"}
                   </div>
                 </div>
-                <button onClick={resetForm} className="p-1.5 hover:bg-[#EFF0F3] rounded">
+                <button onClick={resetForm} className="p-1.5 hover:bg-bg-inset rounded">
                   <X size={16} />
                 </button>
               </div>
@@ -619,13 +619,13 @@ function InvitesPage() {
               {!created ? (
                 <div className="p-6 flex-1 overflow-y-auto space-y-4">
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5">
                       Target recruiting Drive
                     </label>
                     <select
                       value={selectedDriveId}
                       onChange={(e) => setSelectedDriveId(e.target.value)}
-                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#2F5CFF]"
+                      className="w-full border border-line rounded-md px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-brand"
                     >
                       <option value="">Select a Drive...</option>
                       {drives.map((d) => (
@@ -637,43 +637,43 @@ function InvitesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5">
                       Candidate name
                     </label>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                      className="w-full border border-line rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-brand"
                       placeholder="Jane Doe"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5">
                       Email
                     </label>
                     <input
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       type="email"
-                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                      className="w-full border border-line rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-brand"
                       placeholder="jane@example.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5 flex items-center justify-between">
+                    <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5 flex items-center justify-between">
                       <span>Upload ID Proof (Optional)</span>
-                      <span className="text-[10px] text-[#8B8B93] lowercase font-normal">jpg, png, webp &lt;5mb</span>
+                      <span className="text-[10px] text-stext-2 lowercase font-normal">jpg, png, webp &lt;5mb</span>
                     </label>
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       onChange={handleFileChange}
-                      className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[12px] text-[#0B0B0D] bg-white file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-medium file:bg-[#EFF0F3] file:text-[#0B0B0D] hover:file:bg-[#E6E6EA] cursor-pointer"
+                      className="w-full border border-line rounded-md px-3 py-2 text-[12px] text-ink bg-white file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-medium file:bg-bg-inset file:text-ink hover:file:bg-line cursor-pointer"
                     />
                     {idProofError && (
-                      <div className="text-[11px] text-[#E5484D] mt-1 flex items-center gap-1">
+                      <div className="text-[11px] text-danger mt-1 flex items-center gap-1">
                         <AlertCircle size={12} /> {idProofError}
                       </div>
                     )}
@@ -681,10 +681,10 @@ function InvitesPage() {
 
                   {selectedDriveId && (
                     <div>
-                      <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] mb-1.5">
+                      <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-ink-2 mb-1.5">
                         Role template (derived from Drive)
                       </label>
-                      <div className="w-full border border-[#E6E6EA] rounded-md px-3 py-2 text-[13px] bg-[#F7F7F9] text-[#5B5B64]">
+                      <div className="w-full border border-line rounded-md px-3 py-2 text-[13px] bg-bg-soft text-ink-2">
                         {drives.find((d) => d.id === selectedDriveId)?.roleTemplateName}
                       </div>
                     </div>
@@ -693,7 +693,7 @@ function InvitesPage() {
                   <button
                     onClick={submit}
                     disabled={!name || !email || !selectedDriveId || uploadingIdProof}
-                    className="mt-6 w-full py-2.5 bg-[#2F5CFF] hover:bg-[#0037FF] disabled:bg-[#D6D7DC] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer transition-colors flex items-center justify-center gap-2"
+                    className="mt-6 w-full py-2.5 bg-brand hover:bg-brand/90 disabled:bg-line-strong disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md cursor-pointer transition-colors flex items-center justify-center gap-2"
                   >
                     {uploadingIdProof && <RefreshCw size={14} className="animate-spin" />}
                     {uploadingIdProof ? "Enrolling ID proof..." : "Generate invite link"}
@@ -701,16 +701,16 @@ function InvitesPage() {
                 </div>
               ) : (
                 <div className="p-6 flex-1 overflow-y-auto">
-                  <div className="rounded-[10px] bg-[#0B0B0D] p-4 text-[#EDEDEF]">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#8B8B93] mb-2">
+                  <div className="rounded-[10px] bg-ink p-4 text-stext">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-stext-2 mb-2">
                       invite link
                     </div>
-                    <div className="font-mono text-[12px] break-all text-[#EDEDEF] mb-3">
+                    <div className="font-mono text-[12px] break-all text-stext mb-3">
                       {created.link}
                     </div>
                     <button
                       onClick={() => copy(created.link, created.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] rounded cursor-pointer transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand hover:bg-brand/90 text-white text-[12px] rounded cursor-pointer transition-colors"
                     >
                       {copiedId === created.id ? <Check size={13} /> : <Copy size={13} />}
                       {copiedId === created.id ? "Copied to clipboard" : "Copy link"}
@@ -720,27 +720,27 @@ function InvitesPage() {
                   {idProofFile && (
                     <div className="mt-4">
                       {uploadingIdProof ? (
-                        <div className="p-3 rounded-md bg-[#EFF0F3] text-[12px] text-[#5B5B64] flex items-center gap-2">
-                          <RefreshCw size={14} className="animate-spin text-[#2F5CFF]" />
+                        <div className="p-3 rounded-md bg-bg-inset text-[12px] text-ink-2 flex items-center gap-2">
+                          <RefreshCw size={14} className="animate-spin text-brand" />
                           Processing ArcFace facial embedding...
                         </div>
                       ) : idProofStatus?.success ? (
-                        <div className="p-3 rounded-md bg-[#E1F8EB] border border-[#22C55E]/30 text-[#15803D] text-[12px] flex items-center gap-2">
+                        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-700 text-[12px] flex items-center gap-2">
                           <ShieldCheck size={16} /> ID proof enrolled successfully
                         </div>
                       ) : idProofStatus?.success === false ? (
-                        <div className="p-3.5 rounded-md bg-[#FFF0F0] border border-[#E5484D]/30 text-[#C5282E] text-[12px] space-y-2">
+                        <div className="p-3.5 rounded-md bg-rose-50 border border-danger/30 text-danger text-[12px] space-y-2">
                           <div className="font-semibold flex items-center gap-1.5">
                             <XCircle size={15} /> ID proof upload failed
                           </div>
                           <div>{idProofStatus.error}</div>
-                          <div className="text-[11px] text-[#5B5B64]">
+                          <div className="text-[11px] text-ink-2">
                             Invite created successfully, but ID proof failed. You can retry below or from the invites table.
                           </div>
                           <button
                             onClick={retryModalUpload}
                             disabled={uploadingIdProof}
-                            className="mt-1 px-3 py-1.5 bg-[#E5484D] hover:bg-[#c33e42] text-white text-[11px] font-medium rounded flex items-center gap-1.5 cursor-pointer"
+                            className="mt-1 px-3 py-1.5 bg-danger hover:bg-danger/90 text-white text-[11px] font-medium rounded flex items-center gap-1.5 cursor-pointer"
                           >
                             <RefreshCw size={12} className={uploadingIdProof ? "animate-spin" : ""} />
                             Retry ID Proof Upload
@@ -750,16 +750,16 @@ function InvitesPage() {
                     </div>
                   )}
 
-                  <div className="mt-4 text-[12px] text-[#5B5B64]">
-                    Invited <span className="text-[#0B0B0D]">{created.candidateName}</span> for{" "}
-                    <span className="text-[#0B0B0D]">
+                  <div className="mt-4 text-[12px] text-ink-2">
+                    Invited <span className="text-ink">{created.candidateName}</span> for{" "}
+                    <span className="text-ink">
                       {created.roleTemplate.roleName} · {created.roleTemplate.track}
                     </span>
                     . Expires {fmtExpires(created.expiresAt)}.
                   </div>
                   <button
                     onClick={resetForm}
-                    className="mt-6 w-full py-2.5 border border-[#E6E6EA] text-[#0B0B0D] text-[13px] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+                    className="mt-6 w-full py-2.5 border border-line text-ink text-[13px] rounded-md hover:bg-bg-soft cursor-pointer"
                   >
                     Done
                   </button>
@@ -780,14 +780,14 @@ function InvitesPage() {
             className="bg-white rounded-[10px] p-6 max-w-sm w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-[15px] font-semibold text-[#0B0B0D] mb-2">Revoke this invite?</div>
-            <div className="text-[13px] text-[#5B5B64] mb-5">
+            <div className="text-[15px] font-semibold text-ink mb-2">Revoke this invite?</div>
+            <div className="text-[13px] text-ink-2 mb-5">
               The candidate will no longer be able to redeem the link. This can't be undone.
             </div>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setConfirmRevoke(null)}
-                className="px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9]"
+                className="px-3 py-2 text-[13px] border border-line rounded-md hover:bg-bg-soft"
               >
                 Cancel
               </button>
@@ -796,7 +796,7 @@ function InvitesPage() {
                   revokeInvite(confirmRevoke);
                   setConfirmRevoke(null);
                 }}
-                className="px-3 py-2 text-[13px] bg-[#E5484D] hover:bg-[#c33e42] text-white rounded-md cursor-pointer"
+                className="px-3 py-2 text-[13px] bg-danger hover:bg-danger/90 text-white rounded-md cursor-pointer"
               >
                 Revoke invite
               </button>
@@ -810,8 +810,8 @@ function InvitesPage() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-[10px] w-full max-w-[400px] p-5 shadow-2xl space-y-4">
             <div>
-              <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Extend Invite Expiration</h3>
-              <p className="text-[11px] text-[#8B8B93] mt-0.5">
+              <h3 className="text-[14px] font-semibold text-ink">Extend Invite Expiration</h3>
+              <p className="text-[11px] text-stext-2 mt-0.5">
                 Select a new date and time for expiration:
               </p>
             </div>
@@ -820,19 +820,19 @@ function InvitesPage() {
                 type="datetime-local"
                 value={extendExpiryDate}
                 onChange={(e) => setExtendExpiryDate(e.target.value)}
-                className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                className="w-full px-3 py-2 border border-line rounded-md bg-white text-[13px]"
               />
             </div>
             <div className="flex justify-end gap-2 text-[12px]">
               <button
                 onClick={() => setExtendInviteId(null)}
-                className="px-3 py-1.5 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9]"
+                className="px-3 py-1.5 border border-line rounded hover:bg-bg-soft"
               >
                 Cancel
               </button>
               <button
                 onClick={handleExtend}
-                className="px-3.5 py-1.5 text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] cursor-pointer transition-colors"
+                className="px-3.5 py-1.5 text-white bg-brand rounded hover:bg-brand/90 cursor-pointer transition-colors"
               >
                 Save Extensions
               </button>
@@ -845,21 +845,21 @@ function InvitesPage() {
       {confirmBulkRevoke && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <XCircle size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Revoke Multiple Invites?</h3>
+              <h3 className="text-[16px] font-semibold text-ink">Revoke Multiple Invites?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to revoke <span className="font-semibold text-[#0B0B0D]">{selectedIds.length} invite(s)</span>? The invite links will no longer be valid and the candidates will not be able to access the assessment.
+            <p className="text-[13px] text-ink-2 leading-relaxed">
+              Are you sure you want to revoke <span className="font-semibold text-ink">{selectedIds.length} invite(s)</span>? The invite links will no longer be valid and the candidates will not be able to access the assessment.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
               <button
                 onClick={() => setConfirmBulkRevoke(false)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-bg-soft text-ink-2 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -878,23 +878,23 @@ function InvitesPage() {
       {confirmDeleteInvite && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-600 rounded-full">
                 <Trash2 size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Invite?</h3>
+              <h3 className="text-[16px] font-semibold text-ink">Delete Invite?</h3>
             </div>
 
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+            <p className="text-[13px] text-ink-2 leading-relaxed">
               Are you sure you want to permanently delete the invite for{" "}
-              <span className="font-semibold text-[#0B0B0D]">{confirmDeleteInvite.candidateName}</span> ({confirmDeleteInvite.candidateEmail})?
+              <span className="font-semibold text-ink">{confirmDeleteInvite.candidateName}</span> ({confirmDeleteInvite.candidateEmail})?
               This action cannot be undone.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
               <button
                 onClick={() => setConfirmDeleteInvite(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-bg-soft text-ink-2 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -913,22 +913,22 @@ function InvitesPage() {
       {confirmBulkDelete && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-600 rounded-full">
                 <Trash2 size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Multiple Invites?</h3>
+              <h3 className="text-[16px] font-semibold text-ink">Delete Multiple Invites?</h3>
             </div>
 
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to permanently delete <span className="font-semibold text-[#0B0B0D]">{selectedIds.length} invite(s)</span>?
+            <p className="text-[13px] text-ink-2 leading-relaxed">
+              Are you sure you want to permanently delete <span className="font-semibold text-ink">{selectedIds.length} invite(s)</span>?
               All selected invitation records will be deleted permanently.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
               <button
                 onClick={() => setConfirmBulkDelete(false)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-bg-soft text-ink-2 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
