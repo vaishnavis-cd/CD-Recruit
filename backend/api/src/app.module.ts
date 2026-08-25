@@ -26,6 +26,7 @@ import { McqModule } from "./mcq/mcq.module";
 import { RoleTemplateModule } from "./role-template/role-template.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
+import { FaceVerifyOnnxModule } from "./integrations/face-verify-onnx/face-verify-onnx.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 
@@ -65,12 +66,12 @@ const infraMode = process.env.INFRA_MODE ?? "local";
                   host: url.hostname,
                   port: parseInt(url.port || "6379", 10),
                   password: url.password || undefined,
-                },
-              };
-            },
-          }),
-        ]
-      : []),
+                  },
+                };
+              },
+            }),
+          ]
+        : []),
 
     // ── Feature modules ──────────────────────────────────────────────────
     HealthModule,
@@ -93,6 +94,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     RoleTemplateModule,
     RedisModule,
     PartnerModule,
+    FaceVerifyOnnxModule,
   ],
 })
 export class AppModule {}

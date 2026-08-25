@@ -13,7 +13,7 @@ export class PrismaService
     const rawUrl =
       configService.get<string>("databaseUrl") ||
       process.env.DATABASE_URL ||
-      "postgresql://cdrecruit:cdrecruit123@localhost:5432/cdrecruit";
+      "postgresql://cdrecruit:cdrecruit123@localhost:5434/cdrecruit";
 
     super({
       datasources: {

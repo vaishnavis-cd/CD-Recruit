@@ -236,11 +236,18 @@ model Organization {
 }
 
 model Candidate {
-  id             String        @id @default(uuid())
-  organizationId String?       @map("organization_id")
-  email          String        @unique
-  name           String
-  createdAt      DateTime      @default(now()) @map("created_at")
+  id                         String        @id @default(uuid())
+  organizationId             String?       @map("organization_id")
+  email                      String        @unique
+  name                       String
+  idProofRef                 String?       @map("id_proof_ref")
+  idProofEmbedding           Json?         @map("id_proof_embedding")
+  idProofModel               String?       @map("id_proof_model")
+  idVerifiedAt               DateTime?     @map("id_verified_at")
+  baselineSelfieEmbedding    Json?         @map("baseline_selfie_embedding")
+  baselineSelfieRef          String?       @map("baseline_selfie_ref")
+  identityVerificationResult Json?         @map("identity_verification_result")
+  createdAt                  DateTime      @default(now()) @map("created_at")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
   sessions       Session[]
@@ -300,6 +307,7 @@ model Session {
   invite            Invite?
   codingExecutions  CodingExecution[]
   sqlExecutions     SQLExecution[]
+  identityCaptures  IdentityCapture[]
 
   @@index([candidateId])
   @@index([status])
@@ -561,4 +569,23 @@ model Partner {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("partner")
+}
+
+model IdentityCapture {
+  id          String    @id @default(uuid())
+  sessionId   String    @map("session_id")
+  windowIndex Int       @map("window_index")
+  scheduledAt DateTime  @map("scheduled_at")
+  capturedAt  DateTime? @map("captured_at")
+  status      String    @default("PENDING")
+  imageRef    String?   @map("image_ref")
+  matched     Boolean?
+  distance    Float?
+  threshold   Float?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([status])
+  @@map("identity_capture")
 }
