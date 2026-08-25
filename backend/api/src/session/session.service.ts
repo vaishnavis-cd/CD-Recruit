@@ -43,7 +43,7 @@ import { DriveShufflerService } from "../drive/drive-shuffler.service";
 
 const driveShuffler = new DriveShufflerService();
 
-function resolveSeniorityTag(roleTemplate: any): string {
+export function resolveSeniorityTag(roleTemplate: any): string {
   if (!roleTemplate) {
     throw new UnprocessableEntityException("No role template found to resolve seniority");
   }
@@ -60,7 +60,122 @@ function resolveSeniorityTag(roleTemplate: any): string {
   throw new UnprocessableEntityException(`Invalid ExperienceLevel configuration: ${roleTemplate.level}`);
 }
 
-async function buildQuestionList(
+const TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 1.5, HARD: 2 },
+  SQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  CODING: { EASY: 10, MEDIUM: 15, HARD: 25 },
+  DEBUGGING: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  AI_PROMPTING: { EASY: 3, MEDIUM: 5, HARD: 7 },
+  SIMULATION: { EASY: 6, MEDIUM: 10, HARD: 15 },
+  NOSQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+};
+
+const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
+  fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
+  l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
+  l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
+  l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
+};
+
+export function getRequiredQuestionCount(
+  moduleType: string,
+  weight: number,
+  totalDuration: number,
+  seniority: string,
+): number {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const avgTime =
+    ratios.easy * times.EASY +
+    ratios.medium * times.MEDIUM +
+    ratios.hard * times.HARD;
+  const timeBudget = totalDuration * (weight / 100);
+
+  if (moduleType === "MCQ") {
+    return Math.max(1, Math.round(timeBudget / 1.8));
+  }
+  return Math.max(1, Math.round(timeBudget / avgTime));
+}
+
+export function getDefaultDifficultyDistribution(
+  requiredCount: number,
+  seniority: string,
+): { easy: number; medium: number; hard: number } {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  let easy = Math.round(requiredCount * ratios.easy);
+  let medium = Math.round(requiredCount * ratios.medium);
+  let hard = requiredCount - easy - medium;
+
+  if (hard < 0) {
+    medium += hard;
+    hard = 0;
+  }
+  if (medium < 0) {
+    easy += medium;
+    medium = 0;
+  }
+  return { easy, medium, hard };
+}
+
+function allocateQuestions(
+  pool: any[],
+  moduleConfig: Record<
+    string,
+    {
+      enabled: boolean;
+      weight: number;
+      requiredCount?: number;
+      difficultyDistribution?: { easy: number; medium: number; hard: number };
+    }
+  >,
+  totalDuration: number,
+  resolvedTag: string,
+): any[] {
+  const selected: any[] = [];
+  const activeModules = Object.keys(moduleConfig).filter(
+    (mod) => moduleConfig[mod].enabled && moduleConfig[mod].weight > 0
+  );
+
+  for (const mod of activeModules) {
+    const conf = moduleConfig[mod];
+    const reqCount =
+      conf.requiredCount !== undefined
+        ? conf.requiredCount
+        : getRequiredQuestionCount(mod, conf.weight, totalDuration, resolvedTag);
+    const dist =
+      conf.difficultyDistribution !== undefined
+        ? conf.difficultyDistribution
+        : getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+    const modPool = pool.filter((q) => q.moduleType === mod);
+    const easyPool = modPool.filter(
+      (q) => (q.difficulty || "medium").toUpperCase() === "EASY"
+    );
+    const mediumPool = modPool.filter(
+      (q) => (q.difficulty || "medium").toUpperCase() === "MEDIUM"
+    );
+    const hardPool = modPool.filter(
+      (q) => (q.difficulty || "medium").toUpperCase() === "HARD"
+    );
+
+    const shuffledEasy = [...easyPool].sort(() => Math.random() - 0.5);
+    const shuffledMedium = [...mediumPool].sort(() => Math.random() - 0.5);
+    const shuffledHard = [...hardPool].sort(() => Math.random() - 0.5);
+
+    const easyCount = Math.min(dist.easy, shuffledEasy.length);
+    const mediumCount = Math.min(dist.medium, shuffledMedium.length);
+    const hardCount = Math.min(dist.hard, shuffledHard.length);
+
+    for (let i = 0; i < easyCount; i++) selected.push(shuffledEasy[i]);
+    for (let i = 0; i < mediumCount; i++) selected.push(shuffledMedium[i]);
+    for (let i = 0; i < hardCount; i++) selected.push(shuffledHard[i]);
+  }
+
+  return selected;
+}
+
+export async function buildQuestionList(
   prisma: PrismaService,
   session: Session,
 ): Promise<any[]> {

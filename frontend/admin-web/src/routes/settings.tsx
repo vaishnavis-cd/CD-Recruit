@@ -5,6 +5,7 @@ import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Tra
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
+import { getUserProfile } from "../lib/auth";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -21,8 +22,16 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
+  const profile = getUserProfile();
+  const isAdmin = profile?.role === "ADMIN";
+
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+
+  // Assessment Modules Settings state
+  const [moduleSettings, setModuleSettings] = useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [savingModule, setSavingModule] = useState<string | null>(null);
 
   // Admin Profile state
   const [adminName, setAdminName] = useState("Lead Proctor Admin");
@@ -347,6 +356,52 @@ function SettingsPage() {
     }
   };
 
+  const loadModuleSettings = async () => {
+    setLoadingModules(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/modules`, { headers });
+      if (!res.ok) throw new Error("Failed to load module settings");
+      const data = await res.json();
+      setModuleSettings(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load module settings");
+    } finally {
+      setLoadingModules(false);
+    }
+  };
+
+  const handleToggleModule = async (department: string, moduleType: string, currentVal: boolean) => {
+    const key = `${department}-${moduleType}`;
+    setSavingModule(key);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/modules`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          department,
+          moduleType,
+          isEnabled: !currentVal,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update module configuration");
+      }
+
+      toast.success(`Module ${moduleType} for ${department} updated successfully`);
+      loadModuleSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to toggle module setting");
+    } finally {
+      setSavingModule(null);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
     if (activeTab === "scoring") loadScoringConfig();
@@ -354,6 +409,7 @@ function SettingsPage() {
     if (activeTab === "retention") loadRetentionConfig();
     if (activeTab === "audit") loadAuditLogs();
     if (activeTab === "integrations") loadPartnerList();
+    if (activeTab === "modules") loadModuleSettings();
   }, [activeTab, logsQuery]);
 
   const handleUpdateRole = async (staffId: string, newRole: string) => {
@@ -535,6 +591,17 @@ function SettingsPage() {
           >
             <Key size={14} />
             Integrations
+          </button>
+          <button
+            onClick={() => setActiveTab("modules")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
+              activeTab === "modules"
+                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
+                : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            }`}
+          >
+            <Sliders size={14} />
+            Assessment Modules
           </button>
         </div>
 
@@ -1122,6 +1189,75 @@ function SettingsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 6: Assessment Modules */}
+          {activeTab === "modules" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-[16px] font-bold text-[#0B0B0D]">Assessment Modules</h3>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                  Configure the global availability of assessment modules per department. Enabling a module makes it available for Drive configurations.
+                </p>
+              </div>
+
+              {loadingModules ? (
+                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-8">
+                  Loading assessment module configurations…
+                </p>
+              ) : (
+                <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
+                  <div className="grid grid-cols-[1.5fr_2.5fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
+                    <div>Department</div>
+                    <div>Module Availability Settings</div>
+                  </div>
+                  <div className="divide-y divide-[#E6E6EA] font-mono text-[11px]">
+                    {[
+                      "SOFTWARE_ENGINEERING",
+                      "DATA_ENGINEERING",
+                      "QA",
+                      "SRE",
+                      "SYSOPS",
+                      "ITOPS",
+                      "SECOPS",
+                      "PMO"
+                    ].map((dept) => {
+                      const modulesList = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"];
+                      return (
+                        <div key={dept} className="grid grid-cols-[1.5fr_2.5fr] gap-3 px-4 py-3 items-center hover:bg-[#F7F7F9]/50 transition-colors">
+                          <div className="font-bold text-[#0B0B0D]">{dept.replace("_", " ")}</div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-2">
+                            {modulesList.map((mod) => {
+                              const setting = moduleSettings.find(
+                                (s) => s.department === dept && s.moduleType === mod
+                              );
+                              const isEnabled = setting ? setting.isEnabled : false;
+                              const key = `${dept}-${mod}`;
+                              const isSaving = savingModule === key;
+
+                              return (
+                                <label key={mod} className="flex items-center gap-1.5 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={isEnabled}
+                                    disabled={isSaving || !isAdmin}
+                                    onChange={() => handleToggleModule(dept, mod, isEnabled)}
+                                    className="rounded border-[#E6E6EA] text-[#2F5CFF] focus:ring-[#2F5CFF]/30 w-3.5 h-3.5 cursor-pointer disabled:opacity-50"
+                                  />
+                                  <span className={`text-[11px] ${isEnabled ? "text-[#2F5CFF] font-semibold" : "text-[#8B8B93]"}`}>
+                                    {mod}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

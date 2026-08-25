@@ -5,17 +5,16 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
 }
 
 generator clientApi {
   provider = "prisma-client-js"
-  output   = "../api/node_modules/@prisma/client"
+  output   = "../api/node_modules/.prisma/client"
 }
 
 generator clientRoot {
   provider = "prisma-client-js"
-  output   = "../../node_modules/@prisma/client"
+  output   = "../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -620,3 +619,14 @@ model Partner {
 
   @@map("partner")
 }
+
+model ModuleSetting {
+  id         String     @id @default(uuid())
+  department Department
+  moduleType ModuleType @map("module_type")
+  isEnabled  Boolean    @default(true) @map("is_enabled")
+
+  @@unique([department, moduleType])
+  @@map("module_setting")
+}
+

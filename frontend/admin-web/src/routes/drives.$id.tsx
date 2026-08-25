@@ -78,6 +78,64 @@ export const Route = createFileRoute("/drives/$id")({
   }),
 });
 
+const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
+  fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
+  l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
+  l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
+  l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
+};
+
+const TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 1.5, HARD: 2 },
+  SQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  CODING: { EASY: 10, MEDIUM: 15, HARD: 25 },
+  DEBUGGING: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  AI_PROMPTING: { EASY: 3, MEDIUM: 5, HARD: 7 },
+  SIMULATION: { EASY: 6, MEDIUM: 10, HARD: 15 },
+  NOSQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+};
+
+export function getRequiredQuestionCount(
+  moduleType: string,
+  weight: number,
+  totalDuration: number,
+  seniority: string,
+): number {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const avgTime =
+    ratios.easy * times.EASY +
+    ratios.medium * times.MEDIUM +
+    ratios.hard * times.HARD;
+  const timeBudget = totalDuration * (weight / 100);
+
+  if (moduleType === "MCQ") {
+    return Math.max(1, Math.round(timeBudget / 1.8));
+  }
+  return Math.max(1, Math.round(timeBudget / avgTime));
+}
+
+export function getDefaultDifficultyDistribution(
+  requiredCount: number,
+  seniority: string,
+): { easy: number; medium: number; hard: number } {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  let easy = Math.round(requiredCount * ratios.easy);
+  let medium = Math.round(requiredCount * ratios.medium);
+  let hard = requiredCount - easy - medium;
+
+  if (hard < 0) {
+    medium += hard;
+    hard = 0;
+  }
+  if (medium < 0) {
+    easy += medium;
+    medium = 0;
+  }
+  return { easy, medium, hard };
+}
+
 // Helper to filter out module subtags and restrict drive tags to last 3
 export function processQuestionTags(tags?: string[], moduleType?: string) {
   if (!tags || !Array.isArray(tags)) return { displayTags: [], hiddenDriveCount: 0 };
@@ -222,10 +280,11 @@ function DriveDetailPage() {
   /** When true the drive uses a 24-hour rolling window (scheduleEnd = scheduleStart + 24h) */
   const [rollingWindow, setRollingWindow] = useState(false);
 
-  // Module Config State (6 Modules)
+  // Module Config State
   const [moduleConfig, setModuleConfig] = useState<Record<string, DriveModuleConfigEntry>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
     SQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
+    NOSQL: { enabled: false, durationMinutes: 20, weight: 0, isBonus: false, questionWeighting: { mode: "equal" } },
     CODING: { enabled: true, durationMinutes: 30, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
     DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
     AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
@@ -233,6 +292,8 @@ function DriveDetailPage() {
     TEST_SCENARIOS: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
     NOSQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
   });
+
+  const [globalEnabledModules, setGlobalEnabledModules] = useState<string[]>([]);
 
   // Per-Drive System Check & Hardware Proctoring Customization State
   const [proctoringConfig, setProctoringConfig] = useState({
@@ -483,16 +544,56 @@ function DriveDetailPage() {
       const defaultModules: Record<string, DriveModuleConfigEntry> = {
         MCQ: { enabled: true, durationMinutes: 15, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
         SQL: { enabled: true, durationMinutes: 20, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
+        NOSQL: { enabled: false, durationMinutes: 20, weight: 0, isBonus: false, questionWeighting: { mode: "equal" } },
         CODING: { enabled: true, durationMinutes: 30, weight: 25, isBonus: false, questionWeighting: { mode: "equal" } },
         DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
         AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
         SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
+        TEST_SCENARIOS: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
       };
+
+      // Fetch global modules configuration from settings to filter available modules
+      let enabledForDept: string[] = [];
+      try {
+        const headers = await getAuthHeaders();
+        const settingsRes = await fetch(`${API_BASE}/admin/settings/modules`, { headers });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          const dept = (data as any).roleTemplate?.department || "SOFTWARE_ENGINEERING";
+          enabledForDept = settingsData
+            .filter((s: any) => s.department === dept && s.isEnabled)
+            .map((s: any) => s.moduleType);
+          setGlobalEnabledModules(enabledForDept);
+        }
+      } catch (settingsErr) {
+        console.warn("Failed fetching global module settings: ", settingsErr);
+      }
 
       let initialConfig = {
         ...defaultModules,
-        ...(data.moduleConfig || {}),
       };
+
+      const hasConfig = data.moduleConfig && typeof data.moduleConfig === "object" && Object.keys(data.moduleConfig).length > 0;
+      if (hasConfig) {
+        initialConfig = {
+          ...initialConfig,
+          ...(data.moduleConfig || {}),
+        };
+      } else {
+        const preset = ((data as any).roleTemplate?.weightingPreset as Record<string, number>) || {};
+        Object.keys(initialConfig).forEach((mod) => {
+          const isGloballyEnabled = enabledForDept.includes(mod);
+          const presetWeightFraction = preset[mod] !== undefined ? Number(preset[mod]) : 0;
+          const weight = isGloballyEnabled ? presetWeightFraction * 100 : 0;
+          const enabled = isGloballyEnabled && weight > 0;
+          
+          initialConfig[mod] = {
+            ...initialConfig[mod],
+            enabled,
+            weight,
+          };
+        });
+      }
 
       if ((data.moduleConfig as any)?.proctoringConfig) {
         setProctoringConfig((data.moduleConfig as any).proctoringConfig);
@@ -836,6 +937,25 @@ function DriveDetailPage() {
       return;
     }
 
+    // Validate difficulty distribution totals
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    for (const [modId, conf] of Object.entries(moduleConfig)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+      if (dist.easy + dist.medium + dist.hard !== reqCount) {
+        toast.error(`Difficulty distribution for ${modId} must total exactly ${reqCount} questions. Currently it is ${dist.easy + dist.medium + dist.hard}.`);
+        return;
+      }
+    }
+
     const enabledMods = Object.values(moduleConfig).filter((m) => m.enabled);
     if (enabledMods.length === 0) {
       toast.error("At least one assessment module must be enabled.");
@@ -920,6 +1040,31 @@ function DriveDetailPage() {
       toast.error("Drive questions are locked because all candidate links have already been generated.");
       return;
     }
+
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    for (const [modId, conf] of Object.entries(moduleConfig)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+      const poolQuestions = (questionsBank || []).filter(q => assignedQuestions.includes(q.id) && q.moduleType === modId);
+      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+
+      if (easyAvail < dist.easy || mediumAvail < dist.medium || hardAvail < dist.hard) {
+        toast.error(`Insufficient question pool for ${modId}. Please ensure the assigned questions pool has at least: Easy = ${dist.easy}, Medium = ${dist.medium}, Hard = ${dist.hard}.`);
+        return;
+      }
+    }
+
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
@@ -936,6 +1081,31 @@ function DriveDetailPage() {
       setActiveTab("roster");
       return;
     }
+
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    for (const [modId, conf] of Object.entries(moduleConfig)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+      const poolQuestions = (questionsBank || []).filter(q => assignedQuestions.includes(q.id) && q.moduleType === modId);
+      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+
+      if (easyAvail < dist.easy || mediumAvail < dist.medium || hardAvail < dist.hard) {
+        toast.error(`Insufficient question pool for ${modId}. Please ensure the assigned questions pool has at least: Easy = ${dist.easy}, Medium = ${dist.medium}, Hard = ${dist.hard}.`);
+        return;
+      }
+    }
+
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
@@ -1430,7 +1600,7 @@ function DriveDetailPage() {
               </div>
             </div>
 
-            {/* 7 Modules Grid */}
+            {/* Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
               {(
                 [
@@ -1443,7 +1613,11 @@ function DriveDetailPage() {
                   { id: "SIMULATION", name: "Contextual Simulation", icon: Play, desc: "On-call incident & ticket simulation evaluated via LLM" },
                   { id: "TEST_SCENARIOS", name: "Test Scenarios", icon: FileText, desc: "Role-specific scenario questions evaluated via structured criteria" },
                 ] as const
-              ).map((mod) => {
+              ).filter((mod) => {
+                const isGloballyEnabled = globalEnabledModules.includes(mod.id);
+                const isAlreadyEnabled = moduleConfig[mod.id]?.enabled === true;
+                return isGloballyEnabled || isAlreadyEnabled;
+              }).map((mod) => {
                 const Icon = mod.icon;
                 const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isBonus: false, isFixed: false };
                 return (
@@ -1571,6 +1745,91 @@ function DriveDetailPage() {
                             </Select>
                           </div>
                         )}
+
+                        {(() => {
+                          const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                          const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                            lowerName.includes("l1") ? "l1" : (
+                              lowerName.includes("l2") ? "l2" : "l3"
+                            )
+                          );
+                          const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                          const reqCount = getRequiredQuestionCount(mod.id, conf.weight, totalDuration, resolvedTag);
+                          const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+                          return (
+                            <div className="col-span-2 pt-2 border-t border-[#EFF0F3] space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-semibold text-[#0B0B0D]">Difficulty Target (Required: {reqCount})</span>
+                                {dist.easy + dist.medium + dist.hard !== reqCount && (
+                                  <span className="text-[10px] text-rose-600 font-bold">⚠ Must total {reqCount}</span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <div>
+                                  <label className="block text-[9px] text-emerald-800 font-medium mb-0.5 uppercase tracking-wide">Easy</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.easy}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: {
+                                          ...conf,
+                                          requiredCount: reqCount,
+                                          difficultyDistribution: { ...dist, easy: val },
+                                        },
+                                      } as any);
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border border-[#E6E6EA] rounded font-mono text-[11px]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-amber-800 font-medium mb-0.5 uppercase tracking-wide">Medium</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.medium}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: {
+                                          ...conf,
+                                          requiredCount: reqCount,
+                                          difficultyDistribution: { ...dist, medium: val },
+                                        },
+                                      } as any);
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border border-[#E6E6EA] rounded font-mono text-[11px]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-rose-800 font-medium mb-0.5 uppercase tracking-wide">Hard</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.hard}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: {
+                                          ...conf,
+                                          requiredCount: reqCount,
+                                          difficultyDistribution: { ...dist, hard: val },
+                                        },
+                                      } as any);
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border border-[#E6E6EA] rounded font-mono text-[11px]"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1578,6 +1837,126 @@ function DriveDetailPage() {
               })}
             </div>
           </div>
+
+          {/* Assessment Composition Summary */}
+          {(() => {
+            const TIME_MATRIX: Record<string, Record<string, number>> = {
+              MCQ: { EASY: 1, MEDIUM: 1.5, HARD: 2 },
+              SQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+              CODING: { EASY: 10, MEDIUM: 15, HARD: 25 },
+              DEBUGGING: { EASY: 3, MEDIUM: 5, HARD: 8 },
+              TEST_SCENARIOS: { EASY: 3, MEDIUM: 5, HARD: 8 },
+              AI_PROMPTING: { EASY: 3, MEDIUM: 5, HARD: 7 },
+              SIMULATION: { EASY: 6, MEDIUM: 10, HARD: 15 },
+              NOSQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+            };
+
+            const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+            const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+              lowerName.includes("l1") ? "l1" : (
+                lowerName.includes("l2") ? "l2" : "l3"
+              )
+            );
+
+            const isSde = lowerName.includes("software") || lowerName.includes("sde") || lowerName.includes("developer");
+            const isQa = lowerName.includes("qa") || lowerName.includes("quality");
+            const isData = lowerName.includes("data") || lowerName.includes("bi") || lowerName.includes("analytics");
+            const isSre = lowerName.includes("sre") || lowerName.includes("reliability") || lowerName.includes("devops");
+            
+            const deptName = isSde ? "SOFTWARE_ENGINEERING" : (
+              isQa ? "QA" : (
+                isData ? "DATA_ENGINEERING" : (
+                  isSre ? "SRE" : "SOFTWARE_ENGINEERING"
+                )
+              )
+            );
+
+            const primaryDept = deptName;
+            const altDept = isSde ? "SDE" : deptName;
+
+            const basePool = assignedQuestions && assignedQuestions.length > 0
+              ? (questionsBank || []).filter((q: any) => assignedQuestions.includes(q.id))
+              : (questionsBank || []);
+
+            const filteredPool = basePool.filter((q: any) => {
+              if (q.status !== "PUBLISHED") return false;
+              const qRole = q.role?.toUpperCase() || "";
+              const matchesDept = qRole === primaryDept || qRole === altDept;
+              if (!matchesDept) return false;
+              const qTags = (q.tags || []).map((t: string) => t.toLowerCase());
+              return qTags.includes(resolvedTag);
+            });
+
+            const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+            const summaryData = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"]
+              .map((modId) => {
+                const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
+                if (!conf.enabled || Number(conf.weight) <= 0) {
+                  return { modId, enabled: false, weight: 0, marks: 0, count: 0, estTime: 0 };
+                }
+
+                const weight = Number(conf.weight) || 0;
+                const reqCount = getRequiredQuestionCount(modId, weight, totalDuration, resolvedTag);
+                const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+                const times = TIME_MATRIX[modId] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+                const estTime = (dist.easy * times.EASY) + (dist.medium * times.MEDIUM) + (dist.hard * times.HARD);
+
+                return {
+                  modId,
+                  enabled: true,
+                  weight,
+                  marks: weight,
+                  count: reqCount,
+                  estTime,
+                };
+              })
+              .filter((m) => m.enabled);
+
+            return (
+              <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-[#EFF0F3] pb-3">
+                  <Settings size={18} className="text-[#2F5CFF]" />
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Assessment Composition Summary (Time-Aware)</h3>
+                    <p className="text-[12px] text-[#8B8B93]">Estimated question counts and expected candidate duration based on module weightages.</p>
+                  </div>
+                </div>
+
+                <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#F7F7F9] border-b border-[#E6E6EA] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
+                        <th className="px-4 py-2.5">Module</th>
+                        <th className="px-4 py-2.5 text-center">Weight</th>
+                        <th className="px-4 py-2.5 text-center">Marks</th>
+                        <th className="px-4 py-2.5 text-center">Questions</th>
+                        <th className="px-4 py-2.5 text-right">Estimated Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E6EA] font-mono text-[11px]">
+                      {summaryData.map((m) => (
+                        <tr key={m.modId} className="hover:bg-[#F7F7F9]/50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-[#0B0B0D]">{m.modId}</td>
+                          <td className="px-4 py-3 text-center text-[#2F5CFF] font-semibold">{m.weight}%</td>
+                          <td className="px-4 py-3 text-center text-[#0B0B0D]">{m.marks} marks</td>
+                          <td className="px-4 py-3 text-center text-[#0B0B0D]">{m.count} questions</td>
+                          <td className="px-4 py-3 text-right text-[#5B5B64] font-medium">{m.estTime} min</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-[#F7F7F9]/50 font-bold border-t border-[#E6E6EA]">
+                        <td className="px-4 py-3 text-[#0B0B0D]">Total Summary</td>
+                        <td className="px-4 py-3 text-center text-[#2F5CFF]">{summaryData.reduce((sum, m) => sum + m.weight, 0)}%</td>
+                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{summaryData.reduce((sum, m) => sum + m.marks, 0)} marks</td>
+                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{summaryData.reduce((sum, m) => sum + m.count, 0)} questions</td>
+                        <td className="px-4 py-3 text-right text-[#0B0B0D]">{summaryData.reduce((sum, m) => sum + m.estTime, 0)} min (out of {totalDuration} min)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* SECTION 3: System Checks & Proctoring Customization */}
           <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
@@ -1750,6 +2129,98 @@ function DriveDetailPage() {
               )}
             </div>
 
+            {/* Pool Sufficiency & Status Banners */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              {allowedModules.map((modId) => {
+                const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
+                if (!conf.enabled || Number(conf.weight) <= 0) return null;
+
+                const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                  lowerName.includes("l1") ? "l1" : (
+                    lowerName.includes("l2") ? "l2" : "l3"
+                  )
+                );
+                const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+                const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+                // Find pool questions for this module
+                const poolQuestions = (questionsBank || []).filter(q => assignedQuestions.includes(q.id) && q.moduleType === modId);
+                const poolSize = poolQuestions.length;
+
+                const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+                const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+                const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+
+                // Validate sufficiency
+                const errors: string[] = [];
+                if (easyAvail < dist.easy) errors.push(`Insufficient Easy questions. Required: ${dist.easy}, Available: ${easyAvail}.`);
+                if (mediumAvail < dist.medium) errors.push(`Insufficient Medium questions. Required: ${dist.medium}, Available: ${mediumAvail}.`);
+                if (hardAvail < dist.hard) errors.push(`Insufficient Hard questions. Required: ${dist.hard}, Available: ${hardAvail}.`);
+
+                const isSufficient = errors.length === 0;
+
+                return (
+                  <div key={modId} className="bg-white border border-[#E6E6EA] rounded-lg p-3 space-y-2 text-[12px] shadow-sm">
+                    <div className="flex items-center justify-between font-semibold border-b border-[#EFF0F3] pb-1.5">
+                      <span className="text-[#0B0B0D] font-bold text-[13px]">{modId} Module Target Composition</span>
+                      <span className="text-[#2F5CFF] font-semibold">Required: {reqCount}</span>
+                    </div>
+
+                    <div className="space-y-1 font-mono text-[11px] text-[#5B5B64]">
+                      <div className="flex justify-between">
+                        <span>Target composition:</span>
+                        <span className="font-bold">
+                          Easy: {dist.easy} • Medium: {dist.medium} • Hard: {dist.hard}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Pool composition:</span>
+                        <span>
+                          Easy: {easyAvail} • Medium: {mediumAvail} • Hard: {hardAvail}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-sans text-[12px] pt-1">
+                        <span>Selected Pool:</span>
+                        <span className="font-semibold text-[#0B0B0D]">{poolSize} questions</span>
+                      </div>
+                    </div>
+
+                    {/* Status message */}
+                    <div className="pt-1.5 border-t border-[#EFF0F3] text-[11px] space-y-1">
+                      {poolSize < reqCount ? (
+                        <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
+                          ⚠ {poolSize} / {reqCount} required questions selected.
+                        </div>
+                      ) : poolSize === reqCount ? (
+                        <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded">
+                          ✓ Required question count reached. You can continue adding questions to the pool for candidate randomization.
+                        </div>
+                      ) : (
+                        <div className="text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded">
+                          ℹ Pool contains {poolSize - reqCount} additional questions for randomization.
+                        </div>
+                      )}
+
+                      {/* Sufficiency message */}
+                      {isSufficient ? (
+                        <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
+                          ✓ Sufficient question pool.
+                        </div>
+                      ) : (
+                        errors.map((err, idx) => (
+                          <div key={idx} className="text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded">
+                            ⚠ {err}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Horizontal Module Filter Chips & Search Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F7F7F9] p-3 rounded-lg border border-[#E6E6EA]">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -1823,33 +2294,6 @@ function DriveDetailPage() {
                     ))}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Tier:</span>
-                  <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
-                    {[
-                      { id: "ALL", label: "All" },
-                      { id: "TIER_1", label: "Tier 1" },
-                      { id: "TIER_2", label: "Tier 2" },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setQuestionTierFilter(t.id)}
-                        className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
-                          questionTierFilter === t.id
-                            ? t.id === "TIER_1"
-                              ? "bg-indigo-100 text-indigo-900 font-bold"
-                              : t.id === "TIER_2"
-                              ? "bg-purple-100 text-purple-900 font-bold"
-                              : "bg-[#2F5CFF] text-white font-bold"
-                            : "text-[#5B5B64] hover:text-[#0B0B0D]"
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               <div className="relative w-full sm:w-[200px]">
@@ -1912,16 +2356,6 @@ function DriveDetailPage() {
                               }`}
                             >
                               {difficulty}
-                            </span>
-
-                            <span
-                              className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${
-                                qTier === "TIER_2"
-                                  ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                  : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                              }`}
-                            >
-                              {qTier === "TIER_2" ? "TIER 2" : "TIER 1"}
                             </span>
 
                             {displayTags.length > 0 && (

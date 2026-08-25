@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from "@nestjs/comm
 import { PrismaService } from "../prisma/prisma.service";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { ListAuditLogQueryDto } from "../common/dto/settings.dto";
+import { Department, ModuleType } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -376,5 +377,52 @@ export class SettingsService {
       page,
       pageSize,
     };
+  }
+
+  async getModuleSettings() {
+    const settings = await this.prisma.moduleSetting.findMany({
+      orderBy: [
+        { department: "asc" },
+        { moduleType: "asc" },
+      ],
+    });
+    return settings;
+  }
+
+  async updateModuleSetting(
+    department: Department,
+    moduleType: ModuleType,
+    isEnabled: boolean,
+    actor: any,
+  ) {
+    const actorId = await this.resolveStaffId(actor);
+    const updated = await this.prisma.moduleSetting.upsert({
+      where: {
+        department_moduleType: {
+          department,
+          moduleType,
+        },
+      },
+      update: {
+        isEnabled,
+      },
+      create: {
+        department,
+        moduleType,
+        isEnabled,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "MODULE_SETTING_UPDATED",
+        entityType: "ModuleSetting",
+        entityId: updated.id,
+        metadata: { department, moduleType, isEnabled },
+      },
+    });
+
+    return updated;
   }
 }

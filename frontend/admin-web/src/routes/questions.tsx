@@ -627,7 +627,7 @@ function QuestionBankPage() {
             <option value="11-15">11-15 yrs (Level 3)</option>
           </select>
 
-          {/* Role Filter */}
+          {/* Department / Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}

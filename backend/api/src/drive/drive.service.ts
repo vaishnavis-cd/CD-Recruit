@@ -76,19 +76,61 @@ export class DriveService {
       });
     }
     const finalRoleTemplateId = template.id;
+    const targetDept = template.department || "SOFTWARE_ENGINEERING";
 
-    const preset = (template.weightingPreset as Record<string, number>) || {};
-    const hasPresetKeys = Object.keys(preset).length > 0;
+    const dbSettings = await this.prisma.moduleSetting.findMany({
+      where: { department: targetDept },
+    });
+    const enabledModules = new Set(
+      dbSettings.filter((s) => s.isEnabled).map((s) => s.moduleType)
+    );
 
-    const defaultModuleConfig = moduleConfig || {
-      MCQ: { enabled: hasPresetKeys ? (Number(preset.MCQ) || 0) > 0 : true, durationMinutes: 15, weight: (Number(preset.MCQ) || 0.2) * 100 },
-      SQL: { enabled: hasPresetKeys ? (Number(preset.SQL) || 0) > 0 : false, durationMinutes: 20, weight: (Number(preset.SQL) || 0) * 100 },
-      CODING: { enabled: hasPresetKeys ? (Number(preset.CODING) || 0) > 0 : false, durationMinutes: 30, weight: (Number(preset.CODING) || 0) * 100 },
-      DEBUGGING: { enabled: hasPresetKeys ? (Number(preset.DEBUGGING) || 0) > 0 : false, durationMinutes: 20, weight: (Number(preset.DEBUGGING) || 0) * 100 },
-      AI_PROMPTING: { enabled: hasPresetKeys ? (Number(preset.AI_PROMPTING) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.AI_PROMPTING) || 0) * 100 },
-      SIMULATION: { enabled: hasPresetKeys ? (Number(preset.SIMULATION) || 0) > 0 : false, durationMinutes: 10, weight: (Number(preset.SIMULATION) || 0) * 100 },
-      TEST_SCENARIOS: { enabled: hasPresetKeys ? (Number(preset.TEST_SCENARIOS) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.TEST_SCENARIOS) || 0) * 100 },
-    };
+    let defaultModuleConfig: any;
+
+    if (moduleConfig) {
+      defaultModuleConfig = moduleConfig;
+      let totalWeight = 0;
+      for (const [moduleType, modConf] of Object.entries(defaultModuleConfig)) {
+        const conf = modConf as any;
+        if (!conf) continue;
+        const weight = Number(conf.weight) || 0;
+        if (weight < 0) {
+          throw new BadRequestException(`Weight for module ${moduleType} cannot be negative.`);
+        }
+        const isEnabled = conf.enabled === true;
+        if (!enabledModules.has(moduleType as any)) {
+          if (isEnabled || weight > 0) {
+            throw new BadRequestException(`Module ${moduleType} is globally disabled for department ${targetDept} and cannot be enabled or receive weight.`);
+          }
+        }
+        if (isEnabled) {
+          totalWeight += weight;
+        }
+      }
+      if (totalWeight !== 100) {
+        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      }
+    } else {
+      const preset = (template.weightingPreset as Record<string, number>) || {};
+      const allModules = Object.values(ModuleType);
+      const configMap: Record<string, any> = {};
+      let totalWeight = 0;
+      for (const mod of allModules) {
+        const isGloballyEnabled = enabledModules.has(mod);
+        const presetWeightFraction = preset[mod] !== undefined ? Number(preset[mod]) : 0;
+        const weight = isGloballyEnabled ? presetWeightFraction * 100 : 0;
+        const enabled = isGloballyEnabled && weight > 0;
+        configMap[mod] = {
+          enabled,
+          durationMinutes: mod === "CODING" ? 30 : mod === "SQL" || mod === "DEBUGGING" || mod === "NOSQL" ? 20 : mod === "SIMULATION" ? 10 : 15,
+          weight,
+        };
+        if (enabled) {
+          totalWeight += weight;
+        }
+      }
+      defaultModuleConfig = configMap;
+    }
 
     // 2. Validate schedule if status is SCHEDULED or ACTIVE
     if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
@@ -103,14 +145,14 @@ export class DriveService {
     }
 
     // 3. Completeness check
-    const enabledModules = Object.entries(defaultModuleConfig)
+    const activeEnabledModules = Object.entries(defaultModuleConfig)
       .filter(([_, conf]: [string, any]) => conf.enabled)
       .map(([mod, _]) => mod);
 
-    const targetDept = template.department || template.roleName;
+    const completenessTargetDept = template.department || template.roleName;
 
     if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
-      for (const mod of enabledModules) {
+      for (const mod of activeEnabledModules) {
         if (mod === "AI_PROMPTING") continue;
 
         let qCount = 0;
@@ -128,8 +170,8 @@ export class DriveService {
               moduleType: mod as any,
               status: "PUBLISHED",
               OR: [
-                { role: { equals: targetDept, mode: "insensitive" } },
-                { content: { path: ["department"], equals: targetDept } },
+                { role: { equals: completenessTargetDept, mode: "insensitive" } },
+                { content: { path: ["department"], equals: completenessTargetDept } },
               ],
             },
           });
@@ -635,7 +677,47 @@ export class DriveService {
       }
       data.roleTemplateId = template.id;
     }
-    if (moduleConfig) data.moduleConfig = moduleConfig;
+    if (moduleConfig) {
+      const templateId = roleTemplateId || drive.roleTemplateId;
+      const template = await this.prisma.roleTemplate.findUnique({
+        where: { id: templateId },
+      });
+      if (!template) {
+        throw new NotFoundException(`Role template not found`);
+      }
+      const targetDept = template.department || "SOFTWARE_ENGINEERING";
+
+      const dbSettings = await this.prisma.moduleSetting.findMany({
+        where: { department: targetDept },
+      });
+      const enabledModules = new Set(
+        dbSettings.filter((s) => s.isEnabled).map((s) => s.moduleType)
+      );
+
+      let totalWeight = 0;
+      for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
+        const conf = modConf as any;
+        if (!conf) continue;
+        const weight = Number(conf.weight) || 0;
+        if (weight < 0) {
+          throw new BadRequestException(`Weight for module ${moduleType} cannot be negative.`);
+        }
+        const isEnabled = conf.enabled === true;
+        if (!enabledModules.has(moduleType as any)) {
+          if (isEnabled || weight > 0) {
+            throw new BadRequestException(`Module ${moduleType} is globally disabled for department ${targetDept} and cannot be enabled or receive weight.`);
+          }
+        }
+        if (isEnabled) {
+          totalWeight += weight;
+        }
+      }
+      if (totalWeight !== 100) {
+        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      }
+
+      data.moduleConfig = moduleConfig;
+    }
     if (scheduleStart) data.scheduleStart = new Date(scheduleStart);
     if (scheduleEnd) data.scheduleEnd = new Date(scheduleEnd);
     if (status) data.status = status;

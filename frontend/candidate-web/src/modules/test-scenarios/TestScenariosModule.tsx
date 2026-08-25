@@ -222,9 +222,6 @@ export function TestScenariosModule({ moduleIndex }: TestScenariosModuleProps) {
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{category}</span>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 text-[11px] font-semibold font-mono rounded bg-slate-100 text-slate-700">
-                    {tier}
-                  </span>
                   <span
                     className={`px-2 py-0.5 text-[11px] font-semibold rounded font-mono ${
                       difficulty === 'HARD'

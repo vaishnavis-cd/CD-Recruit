@@ -1,4 +1,10 @@
 import { PrismaClient, Department, ExperienceLevel, ModuleType } from "@prisma/client";
+import * as dotenv from "dotenv";
+import * as path from "path";
+
+dotenv.config({ path: path.join(__dirname, "../../.env") });
+dotenv.config({ path: path.join(__dirname, "../.env") });
+dotenv.config({ path: path.join(__dirname, "../api/.env") });
 
 const databaseUrl = process.env.DATABASE_URL || "postgresql://cdrecruit:cdrecruit123@localhost:5433/cdrecruit";
 const prisma = new PrismaClient({
@@ -34,7 +40,7 @@ const DEPARTMENT_NAMES: Record<Department, string> = {
 };
 
 async function main() {
-  console.log("🌱 Seeding 16 Role Templates (8 Departments x 2 Experience Levels)...");
+  console.log("🌱 Seeding 32 Role Templates (8 Departments x 4 Experience Levels)...");
 
   // Fetch some existing published questions to attach to Software Engineering / Experienced
   const sampleQuestions = await prisma.question.findMany({
@@ -42,53 +48,107 @@ async function main() {
     take: 6,
   });
 
+  const ROLE_TITLES: Record<string, string> = {
+    SOFTWARE_ENGINEERING: "Software Engineer (SDE)",
+    DATA_ENGINEERING: "Data Engineer",
+    PMO: "Project Management Officer (PMO)",
+    QA: "QA Engineer",
+    SYSOPS: "SysOps Engineer",
+    ITOPS: "ITOps Specialist",
+    SECOPS: "SecOps Specialist",
+    SRE: "Site Reliability Engineer (SRE)",
+  };
+
+  const DEPT_WEIGHTS: Record<string, Record<string, number>> = {
+    SOFTWARE_ENGINEERING: {
+      MCQ: 0.15,
+      SQL: 0.15,
+      CODING: 0.30,
+      DEBUGGING: 0.10,
+      TEST_SCENARIOS: 0.15,
+      AI_PROMPTING: 0.05,
+      SIMULATION: 0.10,
+    },
+    DATA_ENGINEERING: { MCQ: 0.20, SQL: 0.30, CODING: 0.20, TEST_SCENARIOS: 0.20, AI_PROMPTING: 0.10 },
+    QA: { MCQ: 0.20, CODING: 0.15, DEBUGGING: 0.20, TEST_SCENARIOS: 0.35, AI_PROMPTING: 0.10 },
+    SRE: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
+    SYSOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+    ITOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+    PMO: { MCQ: 0.25, TEST_SCENARIOS: 0.50, AI_PROMPTING: 0.25 },
+    SECOPS: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
+  };
+
   for (const dept of DEPARTMENTS) {
-    for (const lvl of LEVELS) {
+    const levelsToSeed = [
+      { lvl: "FRESHER", expLvl: null, suffix: "Fresher" },
+      { lvl: "EXPERIENCED", expLvl: "L1", suffix: "Experienced L1" },
+      { lvl: "EXPERIENCED", expLvl: "L2", suffix: "Experienced L2" },
+      { lvl: "EXPERIENCED", expLvl: "L3", suffix: "Experienced L3" },
+    ];
+
+    for (const { lvl, expLvl, suffix } of levelsToSeed) {
+      const roleName = `${ROLE_TITLES[dept]} - ${suffix}`;
+      const durationMinutes = 90;
       const isExperienced = lvl === "EXPERIENCED";
       const isSoftwareEng = dept === "SOFTWARE_ENGINEERING";
 
-      const roleName = `${DEPARTMENT_NAMES[dept]} - ${lvl === "FRESHER" ? "Fresher" : "Experienced"}`;
-      const durationMinutes = isExperienced ? 90 : 60;
-
-      // Upsert RoleTemplate by department and level
-      const template = await prisma.roleTemplate.upsert({
+      // Find or create RoleTemplate by department, level, experiencedLevel
+      let template = await prisma.roleTemplate.findFirst({
         where: {
-          department_level_version: {
-            department: dept,
-            level: lvl,
-            version: 1,
-          },
-        },
-        update: {
-          roleName,
-          isActive: true,
-          durationMinutes,
-          weightingPreset: {
-            MCQ: 20,
-            SQL: 20,
-            CODING: 30,
-            DEBUGGING: 15,
-            AI_PROMPTING: 15,
-          },
-        },
-        create: {
           department: dept,
-          level: lvl,
-          roleName,
+          level: lvl as any,
+          experiencedLevel: expLvl as any,
           version: 1,
-          isActive: true,
-          durationMinutes,
-          weightingPreset: {
-            MCQ: 20,
-            SQL: 20,
-            CODING: 30,
-            DEBUGGING: 15,
-            AI_PROMPTING: 15,
-          },
         },
       });
 
-      console.log(`  ✓ Template: [${dept} / ${lvl}] → ${roleName} (ID: ${template.id})`);
+      if (template) {
+        template = await prisma.roleTemplate.update({
+          where: { id: template.id },
+          data: {
+            roleName,
+            isActive: true,
+            durationMinutes,
+            weightingPreset: DEPT_WEIGHTS[dept] as any,
+          },
+        });
+      } else {
+        template = await prisma.roleTemplate.create({
+          data: {
+            department: dept,
+            level: lvl as any,
+            experiencedLevel: expLvl as any,
+            roleName,
+            version: 1,
+            isActive: true,
+            durationMinutes,
+            weightingPreset: DEPT_WEIGHTS[dept] as any,
+          },
+        });
+      }
+
+      // Seed global ModuleSetting records for this department and module types
+      for (const moduleType of Object.values(ModuleType)) {
+        const isEnabled = DEPT_WEIGHTS[dept] && DEPT_WEIGHTS[dept][moduleType] !== undefined && DEPT_WEIGHTS[dept][moduleType] > 0;
+        await prisma.moduleSetting.upsert({
+          where: {
+            department_moduleType: {
+              department: dept,
+              moduleType,
+            },
+          },
+          update: {
+            isEnabled,
+          },
+          create: {
+            department: dept,
+            moduleType,
+            isEnabled,
+          },
+        });
+      }
+
+      console.log(`  ✓ Template: [${dept} / ${lvl}${expLvl ? ` / ${expLvl}` : ""}] → ${roleName} (ID: ${template.id})`);
 
       // For SOFTWARE_ENGINEERING / EXPERIENCED, attach questions if sample questions exist
       if (isSoftwareEng && isExperienced && sampleQuestions.length > 0) {
@@ -110,7 +170,7 @@ async function main() {
           data: templateQuestionsData,
         });
 
-        console.log(`    ↳ Attached ${sampleQuestions.length} active questions to [SOFTWARE_ENGINEERING / EXPERIENCED] template.`);
+        console.log(`    ↳ Attached ${sampleQuestions.length} active questions to [SOFTWARE_ENGINEERING / EXPERIENCED / ${expLvl}] template.`);
       }
     }
   }

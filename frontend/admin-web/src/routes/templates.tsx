@@ -124,6 +124,84 @@ export function RoleTemplatesPage() {
   >({});
 
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [filterByRoleAndLevel, setFilterByRoleAndLevel] = useState(true);
+
+  const getEligibleQuestions = (
+    dept: string,
+    lvl: string,
+    expLvl: string | null
+  ) => {
+    const allowedMods = getDepartmentAllowedModules(dept);
+    return questionsBank.filter((q) => {
+      if (!allowedMods.includes(q.moduleType)) return false;
+
+      // Role / Department Match
+      const qRole = (q.role || "").toUpperCase();
+      const currentDept = dept.toUpperCase();
+      const isGeneral = !qRole || qRole === "GENERAL";
+
+      let isRoleMatch = isGeneral;
+      if (!isRoleMatch) {
+        if (currentDept === "SOFTWARE_ENGINEERING") {
+          isRoleMatch = qRole === "SDE" || qRole === "SOFTWARE_ENGINEERING";
+        } else {
+          isRoleMatch = qRole === currentDept;
+        }
+      }
+      if (!isRoleMatch) return false;
+
+      // Experience Level / Tier Match
+      const qTags = (q.tags || []).map((t: string) => t.toLowerCase());
+      const hasTier1 = qTags.includes("tier_1") || qTags.includes("tier1");
+      const hasTier2 = qTags.includes("tier_2") || qTags.includes("tier2");
+      const qDiff = (q.difficulty || "").toLowerCase();
+
+      const hasSpecificL1 = qTags.includes("l1");
+      const hasSpecificL2 = qTags.includes("l2");
+      const hasSpecificL3 = qTags.includes("l3");
+
+      if (lvl === "FRESHER") {
+        if (hasSpecificL1 || hasSpecificL2 || hasSpecificL3) return false;
+        if (hasTier2) return false;
+        if (!hasTier1 && qDiff === "hard") return false;
+      } else {
+        const targetLvl = (expLvl || "L1").toLowerCase();
+        if (targetLvl === "l1") {
+          if (hasSpecificL2 || hasSpecificL3) return false;
+          if (!hasSpecificL1) {
+            if (hasTier1) return false;
+            if (!hasTier2 && qDiff === "easy") return false;
+          }
+        } else if (targetLvl === "l2") {
+          if (hasSpecificL1 || hasSpecificL3) return false;
+          if (!hasSpecificL2) {
+            if (hasTier1) return false;
+            if (!hasTier2 && qDiff === "easy") return false;
+          }
+        } else if (targetLvl === "l3") {
+          if (hasSpecificL1 || hasSpecificL2) return false;
+          if (!hasSpecificL3) {
+            if (hasTier1) return false;
+            if (!hasTier2 && qDiff === "easy") return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const autoSelectQuestionsFor = (dept: string, lvl: string, expLvl: string | null) => {
+    const eligible = getEligibleQuestions(dept, lvl, expLvl);
+    const newMap: Record<string, { moduleType: string; pointShare: number }> = {};
+    eligible.forEach((q) => {
+      newMap[q.id] = {
+        moduleType: q.moduleType,
+        pointShare: 1.0,
+      };
+    });
+    setSelectedQuestionsMap(newMap);
+  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -180,6 +258,10 @@ export function RoleTemplatesPage() {
     setModalQuestionSearch("");
     setModalModuleFilter("all");
     setShowModal(true);
+    // Auto select questions for SDE Fresher on open
+    setTimeout(() => {
+      autoSelectQuestionsFor("SOFTWARE_ENGINEERING", "FRESHER", "L1");
+    }, 0);
   };
 
   const handleOpenEdit = (tpl: any) => {
@@ -199,7 +281,8 @@ export function RoleTemplatesPage() {
     setWeightingPreset(preset);
 
     const qMap: Record<string, { moduleType: string; pointShare: number }> = {};
-    if (tpl.questions && Array.isArray(tpl.questions)) {
+    const hasExistingQuestions = tpl.questions && Array.isArray(tpl.questions) && tpl.questions.length > 0;
+    if (hasExistingQuestions) {
       tpl.questions.forEach((q: any) => {
         qMap[q.questionId] = {
           moduleType: q.moduleType,
@@ -211,6 +294,17 @@ export function RoleTemplatesPage() {
     setModalQuestionSearch("");
     setModalModuleFilter("all");
     setShowModal(true);
+
+    // If template has 0 questions assigned in the database, automatically select matching ones on open
+    if (!hasExistingQuestions) {
+      setTimeout(() => {
+        autoSelectQuestionsFor(
+          tpl.department || "SOFTWARE_ENGINEERING",
+          tpl.level || "FRESHER",
+          tpl.experiencedLevel || "L1"
+        );
+      }, 0);
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -947,7 +1041,6 @@ export function RoleTemplatesPage() {
                   <div className="max-h-72 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/30">
                     {modalEligibleQuestions.map((q) => {
                       const isSelected = !!selectedQuestionsMap[q.id];
-                      const qTier = extractQuestionTier(q);
                       const modStyle =
                         MODULE_COLORS[q.moduleType] || {
                           bg: "bg-slate-100",
@@ -994,15 +1087,6 @@ export function RoleTemplatesPage() {
                                     {q.difficulty}
                                   </span>
                                 )}
-                                <span
-                                  className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
-                                    qTier === "TIER_2"
-                                      ? "bg-purple-50 text-purple-700 border-purple-200"
-                                      : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  }`}
-                                >
-                                  {qTier === "TIER_2" ? "Tier 2" : "Tier 1"}
-                                </span>
                                 <span className="text-[10px] text-slate-400 font-mono">
                                   v{q.version || 1}
                                 </span>
