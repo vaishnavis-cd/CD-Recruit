@@ -128,19 +128,19 @@ async function main(): Promise<void> {
         SOFTWARE_ENGINEERING: {
           MCQ: 0.15,
           SQL: 0.15,
-          CODING: 0.20,
-          DEBUGGING: 0.15,
-          AI_PROMPTING: 0.10,
-          SIMULATION: 0.15,
-          TEST_SCENARIOS: 0.10,
+          CODING: 0.30,
+          DEBUGGING: 0.10,
+          TEST_SCENARIOS: 0.15,
+          AI_PROMPTING: 0.05,
+          SIMULATION: 0.10,
         },
-        DATA_ENGINEERING: { MCQ: 0.30, SQL: 0.35, CODING: 0.35 },
-        QA: { MCQ: 0.20, SQL: 0.20, CODING: 0.20, DEBUGGING: 0.20, TEST_SCENARIOS: 0.20 },
-        SRE: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-        SYSOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-        ITOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-        PMO: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-        SECOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+        DATA_ENGINEERING: { MCQ: 0.20, SQL: 0.30, CODING: 0.20, TEST_SCENARIOS: 0.20, AI_PROMPTING: 0.10 },
+        QA: { MCQ: 0.20, CODING: 0.15, DEBUGGING: 0.20, TEST_SCENARIOS: 0.35, AI_PROMPTING: 0.10 },
+        SRE: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
+        SYSOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+        ITOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+        PMO: { MCQ: 0.25, TEST_SCENARIOS: 0.50, AI_PROMPTING: 0.25 },
+        SECOPS: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
       };
 
       for (const dept of DEPARTMENTS) {
@@ -190,13 +190,42 @@ async function main(): Promise<void> {
       }
       console.log(`  ✔ Seeded 32 Department / Level Role Templates`);
 
-      // Cleanup obsolete Role Templates (Keep ONLY the 32 clean templates)
-      const keepNames = DEPARTMENTS.flatMap(dept => [
-        `${ROLE_TITLES[dept]} - Fresher`,
-        `${ROLE_TITLES[dept]} - Experienced L1`,
-        `${ROLE_TITLES[dept]} - Experienced L2`,
-        `${ROLE_TITLES[dept]} - Experienced L3`,
-      ]);
+      // Seed global ModuleSetting records
+      console.log("  🌱 Seeding global ModuleSettings...");
+      for (const dept of DEPARTMENTS) {
+        const defaultWeights = DEPT_WEIGHTS[dept];
+        for (const moduleType of Object.values(ModuleType)) {
+          const isEnabled = defaultWeights && defaultWeights[moduleType] !== undefined && defaultWeights[moduleType] > 0;
+          await tx.moduleSetting.upsert({
+            where: {
+              department_moduleType: {
+                department: dept as any,
+                moduleType: moduleType as any,
+              },
+            },
+            update: {
+              isEnabled,
+            },
+            create: {
+              department: dept as any,
+              moduleType: moduleType as any,
+              isEnabled,
+            },
+          });
+        }
+      }
+      console.log("  ✔ Seeded global ModuleSettings successfully.");
+
+      // Cleanup obsolete Role Templates
+      const keepNames = [
+        "Software Developer",
+        ...DEPARTMENTS.flatMap(dept => [
+          `${ROLE_TITLES[dept]} - Fresher`,
+          `${ROLE_TITLES[dept]} - Experienced L1`,
+          `${ROLE_TITLES[dept]} - Experienced L2`,
+          `${ROLE_TITLES[dept]} - Experienced L3`,
+        ])
+      ];
 
       const obsoleteTemplates = await tx.roleTemplate.findMany({
         where: {

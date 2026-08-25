@@ -63,19 +63,19 @@ async function main() {
     SOFTWARE_ENGINEERING: {
       MCQ: 0.15,
       SQL: 0.15,
-      CODING: 0.20,
-      DEBUGGING: 0.15,
-      AI_PROMPTING: 0.10,
-      SIMULATION: 0.15,
-      TEST_SCENARIOS: 0.10,
+      CODING: 0.30,
+      DEBUGGING: 0.10,
+      TEST_SCENARIOS: 0.15,
+      AI_PROMPTING: 0.05,
+      SIMULATION: 0.10,
     },
-    DATA_ENGINEERING: { MCQ: 0.30, SQL: 0.35, CODING: 0.35 },
-    QA: { MCQ: 0.20, SQL: 0.20, CODING: 0.20, DEBUGGING: 0.20, TEST_SCENARIOS: 0.20 },
-    SRE: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-    SYSOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-    ITOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-    PMO: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
-    SECOPS: { MCQ: 0.50, TEST_SCENARIOS: 0.50 },
+    DATA_ENGINEERING: { MCQ: 0.20, SQL: 0.30, CODING: 0.20, TEST_SCENARIOS: 0.20, AI_PROMPTING: 0.10 },
+    QA: { MCQ: 0.20, CODING: 0.15, DEBUGGING: 0.20, TEST_SCENARIOS: 0.35, AI_PROMPTING: 0.10 },
+    SRE: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
+    SYSOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+    ITOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+    PMO: { MCQ: 0.25, TEST_SCENARIOS: 0.50, AI_PROMPTING: 0.25 },
+    SECOPS: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
   };
 
   for (const dept of DEPARTMENTS) {
@@ -123,6 +123,27 @@ async function main() {
             isActive: true,
             durationMinutes,
             weightingPreset: DEPT_WEIGHTS[dept] as any,
+          },
+        });
+      }
+
+      // Seed global ModuleSetting records for this department and module types
+      for (const moduleType of Object.values(ModuleType)) {
+        const isEnabled = DEPT_WEIGHTS[dept] && DEPT_WEIGHTS[dept][moduleType] !== undefined && DEPT_WEIGHTS[dept][moduleType] > 0;
+        await prisma.moduleSetting.upsert({
+          where: {
+            department_moduleType: {
+              department: dept,
+              moduleType,
+            },
+          },
+          update: {
+            isEnabled,
+          },
+          create: {
+            department: dept,
+            moduleType,
+            isEnabled,
           },
         });
       }

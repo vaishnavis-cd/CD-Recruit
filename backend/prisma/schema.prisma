@@ -600,3 +600,14 @@ model Partner {
 
   @@map("partner")
 }
+
+model ModuleSetting {
+  id         String     @id @default(uuid())
+  department Department
+  moduleType ModuleType @map("module_type")
+  isEnabled  Boolean    @default(true) @map("is_enabled")
+
+  @@unique([department, moduleType])
+  @@map("module_setting")
+}
+

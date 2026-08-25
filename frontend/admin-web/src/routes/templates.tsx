@@ -806,9 +806,6 @@ export function RoleTemplatesPage() {
                                   {q.difficulty && (
                                     <span className="uppercase text-[10px] bg-gray-100 px-1 py-0.2 rounded">{q.difficulty}</span>
                                   )}
-                                  <span className={`text-[10px] font-mono font-bold uppercase px-1 py-0.2 rounded ${qTier === "TIER_2" ? "bg-purple-100 text-purple-800" : "bg-indigo-100 text-indigo-800"}`}>
-                                    {qTier === "TIER_2" ? "TIER 2" : "TIER 1"}
-                                  </span>
                                   <span>v{q.version || 1}</span>
                                 </div>
                               </div>

@@ -124,12 +124,19 @@ function DrivesPage() {
   const [candidateInput, setCandidateInput] = useState("");
   const [candidateList, setCandidateList] = useState<Array<{ name: string; email: string }>>([]);
   const [candidateErrors, setCandidateErrors] = useState<string[]>([]);
+  const [globalModuleSettings, setGlobalModuleSettings] = useState<any[]>([]);
 
   // Fetch all questions and drives when modal opens/mounts
   useEffect(() => {
     fetchQuestions();
     fetchDrives();
     fetchRoleTemplates();
+    getAuthHeaders().then((headers) => {
+      fetch(`${API_BASE}/admin/settings/modules`, { headers })
+        .then((res) => res.json())
+        .then((data) => setGlobalModuleSettings(Array.isArray(data) ? data : []))
+        .catch((e) => console.error("Failed to load module settings: ", e));
+    });
   }, []);
 
   // Fetch active RoleTemplate preview when department and level are selected
@@ -652,18 +659,25 @@ function DrivesPage() {
                   {activeTemplatePreview.questions && activeTemplatePreview.questions.length > 0 ? (
                     <div className="space-y-1 pt-1">
                       <div className="text-[11px] font-medium text-[#4B5563] uppercase tracking-wider">
-                        Attached Questions ({activeTemplatePreview.questions.length}):
+                        Attached Questions:
                       </div>
                       <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
-                        {activeTemplatePreview.questions.map((q: any, idx: number) => (
-                          <div key={q.id || idx} className="flex items-center justify-between px-2.5 py-1 bg-white border border-[#E0E7FF] rounded text-[12px]">
-                            <span className="font-mono text-[#2F5CFF] font-medium">[{q.moduleType}]</span>
-                            <span className="truncate max-w-[220px] text-[#374151]">
-                              {q.question?.content?.prompt || q.question?.content?.title || `Question #${idx + 1}`}
-                            </span>
-                            <span className="text-[11px] text-[#6B7280]">v{q.questionVersionSnapshot || q.question?.version || 1}</span>
-                          </div>
-                        ))}
+                        {activeTemplatePreview.questions
+                          .filter((q: any) => {
+                            const setting = globalModuleSettings.find(
+                              (s) => s.department === department && s.moduleType === q.moduleType
+                            );
+                            return setting ? setting.isEnabled : true;
+                          })
+                          .map((q: any, idx: number) => (
+                            <div key={q.id || idx} className="flex items-center justify-between px-2.5 py-1 bg-white border border-[#E0E7FF] rounded text-[12px]">
+                              <span className="font-mono text-[#2F5CFF] font-medium">[{q.moduleType}]</span>
+                              <span className="truncate max-w-[220px] text-[#374151]">
+                                {q.question?.content?.prompt || q.question?.content?.title || `Question #${idx + 1}`}
+                              </span>
+                              <span className="text-[11px] text-[#6B7280]">v{q.questionVersionSnapshot || q.question?.version || 1}</span>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   ) : (
