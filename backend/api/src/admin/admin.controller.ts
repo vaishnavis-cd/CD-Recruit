@@ -10,7 +10,12 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from "@nestjs/common";
+import { FileInterceptor, FileFieldsInterceptor } from "@nestjs/platform-express";
+import { UploadedFiles } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
@@ -26,6 +31,7 @@ import {
   ListInvitesQueryDto,
   ExtendExpiryDto,
   BulkInviteActionDto,
+  BulkVerifyIdentityDto,
 } from "../common/dto/admin.dto";
 
 @Controller("admin")
@@ -160,6 +166,24 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async bulkDelete(@Body() dto: BulkInviteActionDto, @CurrentUser() staff: any) {
     return this.inviteService.bulkDelete(dto.inviteIds, staff.id);
+  }
+
+  @Post("candidates/verify-identity/bulk")
+  @HttpCode(HttpStatus.OK)
+  async bulkVerifyCandidateIdentity(
+    @Body() dto: BulkVerifyIdentityDto,
+    @CurrentUser() staff: any,
+  ) {
+    return this.adminService.bulkVerifyCandidateIdentity(dto.candidateIds, staff.id);
+  }
+
+  @Post("candidates/:candidateId/verify-identity")
+  @HttpCode(HttpStatus.OK)
+  async verifyCandidateIdentity(
+    @Param("candidateId", ParseUUIDPipe) candidateId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.adminService.verifyCandidateIdentity(candidateId, staff.id);
   }
 
   @Post("sessions/compare")

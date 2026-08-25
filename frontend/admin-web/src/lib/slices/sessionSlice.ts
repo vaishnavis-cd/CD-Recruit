@@ -21,6 +21,15 @@ export interface SessionSlice {
   fetchResults: (query?: { driveId?: string; status?: string; search?: string }) => Promise<void>;
   recordCandidateDecision: (sessionId: string, decision: "PASS" | "FAIL", note?: string) => Promise<void>;
   exportResultsCsv: (driveId?: string) => Promise<string>;
+  bulkVerifyIdentity: (candidateIds: string[]) => Promise<{
+    total: number;
+    completed: number;
+    matched: number;
+    mismatched: number;
+    insufficientData: number;
+    errors: number;
+    results: any[];
+  }>;
 }
 
 function mapBackendStatus(
@@ -152,6 +161,18 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     const detail = await res.json();
     const mapped = {
       id: detail.sessionId || detail.id || sessionId,
+      candidate: detail.candidate
+        ? {
+            id: detail.candidate.id || "",
+            name: detail.candidate.name || detail.candidateName || "Candidate",
+            email: detail.candidate.email || detail.candidateEmail || "",
+            identityVerificationResult: detail.candidate.identityVerificationResult || null,
+            baselineSelfieRef: detail.candidate.baselineSelfieRef || null,
+            idProofRef: detail.candidate.idProofRef || null,
+            baselineSelfieUrl: detail.candidate.baselineSelfieUrl || null,
+            idProofUrl: detail.candidate.idProofUrl || null,
+          }
+        : null,
       candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
       candidateEmail: detail.candidate?.email || detail.candidateEmail || "",
       driveName: detail.driveName || detail.roleTemplateName || "Assessment Drive",
@@ -184,6 +205,7 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     set({ currentSessionDetail: mapped as any });
     return mapped as any;
   },
+
 
   recordDecision: async (sessionId, outcome, note) => {
     try {
@@ -250,5 +272,19 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       console.error(err);
       return "";
     }
+  },
+
+  bulkVerifyIdentity: async (candidateIds) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/candidates/verify-identity/bulk`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ candidateIds }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || `Bulk verify failed (${res.status})`);
+    }
+    return res.json();
   },
 });

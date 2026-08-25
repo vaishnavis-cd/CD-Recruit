@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   FileSpreadsheet,
+  ScanFace,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -36,17 +38,26 @@ function ResultsPage() {
   const resultsList = useStore((s) => s.resultsList);
   const fetchResults = useStore((s) => s.fetchResults);
   const exportResultsCsv = useStore((s) => s.exportResultsCsv);
+  const bulkVerifyIdentity = useStore((s) => s.bulkVerifyIdentity);
   const drives = useStore((s) => s.drives);
   const fetchDrives = useStore((s) => s.fetchDrives);
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "PASS" | "FAIL">("all");
   const [driveFilter, setDriveFilter] = useState<string>("all");
+  const [verifying, setVerifying] = useState(false);
+  // sessionVerifyResults: null = Verify All not yet clicked this session.
+  // Populated only after the user explicitly clicks Verify All.
+  // Keyed by candidateId → per-candidate result from the API response.
+  const [sessionVerifyResults, setSessionVerifyResults] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     if (isExactResults) {
       fetchResults({ driveId: driveFilter !== "all" ? driveFilter : undefined });
       fetchDrives();
+      // Reset session verify results whenever the drive filter changes
+      // so the column always starts as Pending for the new filter context.
+      setSessionVerifyResults(null);
     }
   }, [isExactResults, driveFilter]);
 
@@ -81,7 +92,7 @@ function ResultsPage() {
     });
   }, [resultsList, query, statusFilter, driveFilter]);
 
-  // Summary counts
+  // Summary counts (always over full resultsList, not filtered view)
   const stats = useMemo(() => {
     let pending = 0;
     let approved = 0;
@@ -104,13 +115,7 @@ function ResultsPage() {
 
     const avgScore = scoredCount > 0 ? Math.round(totalScoreSum / scoredCount) : 0;
 
-    return {
-      total: resultsList.length,
-      pending,
-      approved,
-      rejected,
-      avgScore,
-    };
+    return { total: resultsList.length, pending, approved, rejected, avgScore };
   }, [resultsList]);
 
   const handleExportCsv = async () => {
@@ -119,6 +124,51 @@ function ResultsPage() {
       toast.success("Candidate evaluation CSV exported successfully!");
     } catch (err: any) {
       toast.error("Failed to export CSV: " + (err.message || err));
+    }
+  };
+
+  /**
+   * Collect candidateIds from the currently-filtered approved candidates
+   * (already scoped to the active Drive filter via the API call + client filter)
+   * and run bulk identity verification.
+   */
+  const handleVerifyAll = async () => {
+    const candidateIds = filtered
+      .map((item: any) => item.candidateId)
+      .filter(Boolean) as string[];
+
+    if (candidateIds.length === 0) return;
+
+    setVerifying(true);
+    try {
+      const summary = await bulkVerifyIdentity(candidateIds);
+
+      // Index results by candidateId so badges can be driven from this
+      // session-local state rather than re-fetched DB data.
+      const resultMap: Record<string, any> = {};
+      for (const r of summary.results) {
+        resultMap[r.candidateId] = r;
+      }
+      setSessionVerifyResults(resultMap);
+
+      const parts: string[] = [];
+      if (summary.completed > 0) {
+        parts.push(`${summary.matched} matched, ${summary.mismatched} mismatch`);
+      }
+      if (summary.insufficientData > 0) parts.push(`${summary.insufficientData} missing data`);
+      if (summary.errors > 0) parts.push(`${summary.errors} error(s)`);
+
+      const msg = `${summary.completed}/${summary.total} verified — ${parts.join(", ")}`;
+
+      if (summary.mismatched > 0 || summary.errors > 0) {
+        toast.warning(msg);
+      } else {
+        toast.success(msg);
+      }
+    } catch (err: any) {
+      toast.error("Bulk verification failed: " + (err.message || err));
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -142,13 +192,47 @@ function ResultsPage() {
         </div>
       }
       actions={
-        <button
-          onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] transition-colors cursor-pointer"
-        >
-          <Download size={13} />
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Verify All — only visible when the Approved tab is active */}
+          {statusFilter === "PASS" && (
+            <button
+              id="verify-all-btn"
+              onClick={handleVerifyAll}
+              disabled={verifying || filtered.length === 0}
+              title={
+                filtered.length === 0
+                  ? "No approved candidates to verify"
+                  : `Verify identity for ${filtered.length} approved candidate${filtered.length === 1 ? "" : "s"}`
+              }
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded border transition-colors
+                ${
+                  filtered.length === 0 || verifying
+                    ? "bg-[#F7F7F9] text-[#9C9CA5] border-[#E6E6EA] cursor-not-allowed"
+                    : "text-[#0C6B58] bg-[#E3F9F2] border-[#A3E4D7] hover:bg-[#C7F5E8] cursor-pointer"
+                }`}
+            >
+              {verifying ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  Verifying {filtered.length} candidate{filtered.length === 1 ? "" : "s"}…
+                </>
+              ) : (
+                <>
+                  <ScanFace size={13} />
+                  Verify All{filtered.length > 0 ? ` (${filtered.length})` : ""}
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] transition-colors cursor-pointer"
+          >
+            <Download size={13} />
+            Export CSV
+          </button>
+        </div>
       }
     >
       {/* Metric Cards Summary */}
@@ -240,10 +324,13 @@ function ResultsPage() {
               <thead>
                 <tr className="bg-[#F7F7F9] border-b border-[#E6E6EA] text-[11px] font-mono uppercase tracking-wider text-[#5B5B64]">
                   <th className="py-3 px-4 font-semibold">Candidate</th>
-                  <th className="py-3 px-4 font-semibold">Drive & Track</th>
+                  <th className="py-3 px-4 font-semibold">Drive &amp; Track</th>
                   <th className="py-3 px-4 font-semibold">Submitted</th>
                   <th className="py-3 px-4 font-semibold text-center">Score</th>
                   <th className="py-3 px-4 font-semibold text-center">Integrity Risk</th>
+                  {statusFilter === "PASS" && (
+                    <th className="py-3 px-4 font-semibold text-center">ID Verify</th>
+                  )}
                   <th className="py-3 px-4 font-semibold text-center">Decision Status</th>
                   <th className="py-3 px-4 font-semibold text-right">Action</th>
                 </tr>
@@ -251,7 +338,12 @@ function ResultsPage() {
               <tbody className="divide-y divide-[#EFF0F3]">
                 {filtered.map((item: any) => {
                   const rawScore = item.compositeScore;
-                  const scoreVal = rawScore !== null && rawScore !== undefined ? (rawScore <= 1.0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
+                  const scoreVal =
+                    rawScore !== null && rawScore !== undefined
+                      ? rawScore <= 1.0
+                        ? Math.round(rawScore * 100)
+                        : Math.round(rawScore)
+                      : 0;
                   const scoreColor =
                     scoreVal >= 75
                       ? "text-[#0C6B58] bg-[#E3F9F2]"
@@ -264,6 +356,48 @@ function ResultsPage() {
                   const isApproved = decStr === "PASS" || decStr === "ADVANCE";
                   const isRejected = decStr === "FAIL" || decStr === "REJECT";
 
+                  // ID Verify badge
+                  // sessionVerifyResults === null means Verify All has NOT been clicked
+                  // this session → always show Pending regardless of stored DB data.
+                  // Only after clicking Verify All do we show the actual result.
+                  let idVerifyBadge: React.ReactNode;
+                  if (sessionVerifyResults === null) {
+                    idVerifyBadge = (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-600 border border-amber-200">
+                        Pending
+                      </span>
+                    );
+                  } else {
+                    const svr = sessionVerifyResults[item.candidateId];
+                    if (!svr || svr.status === "error") {
+                      idVerifyBadge = (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
+                          Not Verified
+                        </span>
+                      );
+                    } else if (svr.status === "insufficient_data") {
+                      idVerifyBadge = (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#8B8B93] border border-[#E6E6EA] italic">
+                          Missing Data
+                        </span>
+                      );
+                    } else if (svr.matched === true) {
+                      idVerifyBadge = (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#E3F9F2] text-[#0C6B58] border border-[#A3E4D7]">
+                          <CheckCircle2 size={11} />
+                          Matched
+                        </span>
+                      );
+                    } else {
+                      idVerifyBadge = (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#FFF5F5] text-[#C0392B] border border-[#FFCCCC]">
+                          <XCircle size={11} />
+                          Mismatch
+                        </span>
+                      );
+                    }
+                  }
+
                   return (
                     <tr key={item.id || item.sessionId} className="hover:bg-[#F7F7F9] transition-colors">
                       <td className="py-3 px-4">
@@ -271,7 +405,7 @@ function ResultsPage() {
                         <div className="text-[11px] font-mono text-[#8B8B93]">{item.candidateEmail}</div>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-[#0B0B0D] font-medium truncate max-w-[200px]">
+                        <div className="text-[#0B0B0D] font-medium truncate max-w-[180px]">
                           {item.driveName || "General Drive"}
                         </div>
                         <div className="text-[11px] text-[#5B5B64]">{item.roleTemplateName || "Software Engineer"}</div>
@@ -280,9 +414,7 @@ function ResultsPage() {
                         {item.submittedAt ? item.submittedAt.slice(0, 16).replace("T", " ") : "In Progress"}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[12px] font-semibold ${scoreColor}`}
-                        >
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[12px] font-semibold ${scoreColor}`}>
                           {scoreVal}%
                         </span>
                       </td>
@@ -299,6 +431,9 @@ function ResultsPage() {
                           </span>
                         )}
                       </td>
+                      {statusFilter === "PASS" && (
+                        <td className="py-3 px-4 text-center">{idVerifyBadge}</td>
+                      )}
                       <td className="py-3 px-4 text-center">
                         {isApproved ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58]">

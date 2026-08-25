@@ -122,3 +122,9 @@ export class BulkInviteActionDto {
   @IsUUID(undefined, { each: true })
   inviteIds: string[];
 }
+
+export class BulkVerifyIdentityDto {
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  candidateIds: string[];
+}

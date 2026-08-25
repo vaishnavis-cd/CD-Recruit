@@ -118,6 +118,13 @@ export interface SessionResultItem {
   aiConfidence?: number | null;
   humanReviewed?: boolean;
   integrityFlagsCount?: number;
+  identityVerificationResult?: {
+    matched: boolean;
+    distance: number;
+    threshold: number;
+    verifiedAt: string;
+    verifiedBy?: string;
+  } | null;
   decision?: {
     outcome: "PASS" | "FAIL";
     decidedAt: string;
@@ -128,6 +135,17 @@ export interface SessionResultItem {
 
 export interface CandidateSessionDetail {
   id: string;
+  candidate: {
+    id: string;
+    name: string;
+    email: string;
+    identityVerificationResult?: any;
+    baselineSelfieRef?: string | null;
+    idProofRef?: string | null;
+    baselineSelfieUrl?: string | null;
+    idProofUrl?: string | null;
+  } | null;
+
   candidateName: string;
   candidateEmail: string;
   driveName: string;
@@ -152,6 +170,17 @@ export interface CandidateSessionDetail {
     confidence: number;
     flaggedAt: string;
     evidenceClipUrl?: string | null;
+  }>;
+  identityCaptures?: Array<{
+    id: string;
+    windowIndex: number;
+    scheduledAt: string | null;
+    capturedAt: string | null;
+    status: string;
+    imageUrl?: string | null;
+    matched?: boolean | null;
+    distance?: number | null;
+    threshold?: number | null;
   }>;
   score: {
     compositeScore: number;
@@ -220,5 +249,7 @@ export interface Invite {
   createdAt: string;
   expiresAt: string;
   redeemedAt?: string;
+  idProofRef?: string | null;
+  idProofUploadedAt?: string | null;
 }
 
