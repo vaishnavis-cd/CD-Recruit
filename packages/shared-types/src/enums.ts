@@ -145,19 +145,9 @@ export enum StaffRole {
 }
 
 // ---------------------------------------------------------------------------
-// Department & Experience Tiering
+// Experience Tiering
 // ---------------------------------------------------------------------------
 
-export enum Department {
-  SOFTWARE_ENGINEERING = "SOFTWARE_ENGINEERING",
-  DATA_ENGINEERING = "DATA_ENGINEERING",
-  PMO = "PMO",
-  QA = "QA",
-  SYSOPS = "SYSOPS",
-  ITOPS = "ITOPS",
-  SECOPS = "SECOPS",
-  SRE = "SRE",
-}
 
 export enum CandidateCategory {
   FRESHER = "FRESHER",

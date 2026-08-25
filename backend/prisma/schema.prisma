@@ -5,18 +5,8 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
 }
 
-generator clientApi {
-  provider = "prisma-client-js"
-  output   = "../api/node_modules/@prisma/client"
-}
-
-generator clientRoot {
-  provider = "prisma-client-js"
-  output   = "../../node_modules/@prisma/client"
-}
 
 datasource db {
   provider = "postgresql"
