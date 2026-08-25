@@ -43,7 +43,7 @@ import { DriveShufflerService } from "../drive/drive-shuffler.service";
 
 const driveShuffler = new DriveShufflerService();
 
-function resolveSeniorityTag(roleTemplate: any): string {
+export function resolveSeniorityTag(roleTemplate: any): string {
   if (!roleTemplate) {
     throw new UnprocessableEntityException("No role template found to resolve seniority");
   }
@@ -60,7 +60,122 @@ function resolveSeniorityTag(roleTemplate: any): string {
   throw new UnprocessableEntityException(`Invalid ExperienceLevel configuration: ${roleTemplate.level}`);
 }
 
-async function buildQuestionList(
+const TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 1.5, HARD: 2 },
+  SQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  CODING: { EASY: 10, MEDIUM: 15, HARD: 25 },
+  DEBUGGING: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 5, HARD: 8 },
+  AI_PROMPTING: { EASY: 3, MEDIUM: 5, HARD: 7 },
+  SIMULATION: { EASY: 6, MEDIUM: 10, HARD: 15 },
+  NOSQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+};
+
+const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
+  fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
+  l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
+  l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
+  l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
+};
+
+export function getRequiredQuestionCount(
+  moduleType: string,
+  weight: number,
+  totalDuration: number,
+  seniority: string,
+): number {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const avgTime =
+    ratios.easy * times.EASY +
+    ratios.medium * times.MEDIUM +
+    ratios.hard * times.HARD;
+  const timeBudget = totalDuration * (weight / 100);
+
+  if (moduleType === "MCQ") {
+    return Math.max(1, Math.round(timeBudget / 1.8));
+  }
+  return Math.max(1, Math.round(timeBudget / avgTime));
+}
+
+export function getDefaultDifficultyDistribution(
+  requiredCount: number,
+  seniority: string,
+): { easy: number; medium: number; hard: number } {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  let easy = Math.round(requiredCount * ratios.easy);
+  let medium = Math.round(requiredCount * ratios.medium);
+  let hard = requiredCount - easy - medium;
+
+  if (hard < 0) {
+    medium += hard;
+    hard = 0;
+  }
+  if (medium < 0) {
+    easy += medium;
+    medium = 0;
+  }
+  return { easy, medium, hard };
+}
+
+function allocateQuestions(
+  pool: any[],
+  moduleConfig: Record<
+    string,
+    {
+      enabled: boolean;
+      weight: number;
+      requiredCount?: number;
+      difficultyDistribution?: { easy: number; medium: number; hard: number };
+    }
+  >,
+  totalDuration: number,
+  resolvedTag: string,
+): any[] {
+  const selected: any[] = [];
+  const activeModules = Object.keys(moduleConfig).filter(
+    (mod) => moduleConfig[mod].enabled && moduleConfig[mod].weight > 0
+  );
+
+  for (const mod of activeModules) {
+    const conf = moduleConfig[mod];
+    const reqCount =
+      conf.requiredCount !== undefined
+        ? conf.requiredCount
+        : getRequiredQuestionCount(mod, conf.weight, totalDuration, resolvedTag);
+    const dist =
+      conf.difficultyDistribution !== undefined
+        ? conf.difficultyDistribution
+        : getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+    const modPool = pool.filter((q) => q.moduleType === mod);
+    const easyPool = modPool.filter(
+      (q) => (q.difficulty || "medium").toUpperCase() === "EASY"
+    );
+    const mediumPool = modPool.filter(
+      (q) => (q.difficulty || "medium").toUpperCase() === "MEDIUM"
+    );
+    const hardPool = modPool.filter(
+      (q) => (q.difficulty || "medium").toUpperCase() === "HARD"
+    );
+
+    const shuffledEasy = [...easyPool].sort(() => Math.random() - 0.5);
+    const shuffledMedium = [...mediumPool].sort(() => Math.random() - 0.5);
+    const shuffledHard = [...hardPool].sort(() => Math.random() - 0.5);
+
+    const easyCount = Math.min(dist.easy, shuffledEasy.length);
+    const mediumCount = Math.min(dist.medium, shuffledMedium.length);
+    const hardCount = Math.min(dist.hard, shuffledHard.length);
+
+    for (let i = 0; i < easyCount; i++) selected.push(shuffledEasy[i]);
+    for (let i = 0; i < mediumCount; i++) selected.push(shuffledMedium[i]);
+    for (let i = 0; i < hardCount; i++) selected.push(shuffledHard[i]);
+  }
+
+  return selected;
+}
+
+export async function buildQuestionList(
   prisma: PrismaService,
   session: Session,
 ): Promise<any[]> {
@@ -103,16 +218,72 @@ async function buildQuestionList(
     }
 
     const resolvedTag = resolveSeniorityTag(drive.roleTemplate);
-    const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
-    const enabledMods = Object.entries(preset)
-      .filter(([_, w]) => Number(w) > 0)
-      .map(([mod]) => mod);
+    const totalDuration = drive.roleTemplate.durationMinutes || 90;
 
-    const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
+    const resolvedModuleConfig: Record<
+      string,
+      {
+        enabled: boolean;
+        weight: number;
+        requiredCount?: number;
+        difficultyDistribution?: { easy: number; medium: number; hard: number };
+      }
+    > = {};
+    let enabledMods: string[] = [];
+
+    if (
+      drive.moduleConfig &&
+      typeof drive.moduleConfig === "object" &&
+      Object.keys(drive.moduleConfig).length > 0
+    ) {
+      const mc = drive.moduleConfig as Record<
+        string,
+        {
+          enabled?: boolean;
+          weight?: number;
+          requiredCount?: number;
+          difficultyDistribution?: { easy: number; medium: number; hard: number };
+        }
+      >;
+      for (const [mod, conf] of Object.entries(mc)) {
+        const enabled =
+          conf.enabled === true ||
+          (conf.weight !== undefined && Number(conf.weight) > 0);
+        resolvedModuleConfig[mod] = {
+          enabled,
+          weight: conf.weight !== undefined ? Number(conf.weight) : 0,
+          requiredCount: conf.requiredCount,
+          difficultyDistribution: conf.difficultyDistribution,
+        };
+        if (enabled) enabledMods.push(mod);
+      }
+    } else {
+      const preset =
+        (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
+      for (const [mod, w] of Object.entries(preset)) {
+        const weight = Number(w) * 100;
+        const enabled = weight > 0;
+        resolvedModuleConfig[mod] = {
+          enabled,
+          weight,
+        };
+        if (enabled) enabledMods.push(mod);
+      }
+    }
+
+    const deptName =
+      drive?.roleTemplate?.department ||
+      drive?.roleTemplate?.roleName ||
+      "UNSPECIFIED";
     const deptUpper = deptName.toUpperCase();
-    const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
+    const isSde =
+      deptUpper.includes("SOFTWARE") ||
+      deptUpper.includes("SDE") ||
+      deptUpper.includes("DEVELOPER");
     const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
     const altDept = isSde ? "SDE" : deptUpper;
+
+    let matchedPool: any[] = [];
 
     // A. explicitly linked DriveQuestions path
     const driveQuestions = await prisma.driveQuestion.findMany({
@@ -125,7 +296,6 @@ async function buildQuestionList(
     });
 
     if (driveQuestions && driveQuestions.length > 0) {
-      // Seniority Filtering for explicit DriveQuestions
       const filteredDriveQuestions = driveQuestions.filter(dq => {
         const q = dq.question;
         if (!q) return false;
@@ -141,17 +311,13 @@ async function buildQuestionList(
         return qTags.includes(resolvedTag);
       });
 
-      if (filteredDriveQuestions.length === 0) {
-        console.warn(`[buildQuestionList] Allocation shortage: 0 questions matched criteria for Drive ${driveId} and seniority ${resolvedTag}`);
-        return [];
-      }
-
       const shuffled = driveShuffler.shuffleQuestionsForCandidate(
         filteredDriveQuestions as any,
         session.candidateId,
         driveId
       );
-      const resultList = shuffled.map((q: any) => {
+
+      matchedPool = shuffled.map((q: any) => {
         const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
         const rawQ = matchingDq?.question || q;
         const tags = rawQ.tags || [];
@@ -159,37 +325,15 @@ async function buildQuestionList(
         const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
         const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
         return {
-          ...q,
+          questionId: rawQ.id || q.questionId,
           moduleType: effectiveModuleType,
           content: rawQ.content || q.content || {},
           difficulty: rawQ.difficulty || q.difficulty || "medium",
         };
       });
-
-      const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
-      if (driveObj && driveObj.moduleConfig) {
-        const mc = driveObj.moduleConfig as Record<string, { enabled?: boolean }>;
-        if (mc.AI_PROMPTING?.enabled) {
-          const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
-          if (!hasAiPromptingQuestion) {
-            resultList.push({
-              questionId: "ai-prompting-dynamic",
-              moduleType: "AI_PROMPTING",
-              moduleIndex: 0,
-              content: {
-                title: "AI Prompting Challenge",
-                prompt: "Engage in conversational problem solving with the AI assistant.",
-              },
-              difficulty: "medium",
-            });
-          }
-        }
-      }
-      return resultList;
     }
-
     // B. Check template questions from RoleTemplate path
-    if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
+    else if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
       const filteredTQuestions = drive.roleTemplate.questions.filter(tq => {
         const q = tq.question;
         if (!q) return false;
@@ -205,18 +349,25 @@ async function buildQuestionList(
         return qTags.includes(resolvedTag);
       });
 
-      const tQuestions = filteredTQuestions.map((tq, idx) => ({
-        questionId: tq.questionId,
-        moduleType: tq.moduleType,
-        moduleIndex: idx,
-        content: tq.question?.content || {},
-        difficulty: tq.question?.difficulty || "medium",
-      }));
-      return tQuestions;
-    }
+      const shuffledTQuestions = driveShuffler.shuffleQuestionsForCandidate(
+        filteredTQuestions as any,
+        session.candidateId,
+        driveId
+      );
 
+      matchedPool = shuffledTQuestions.map((tq: any) => {
+        const matchingTq = drive.roleTemplate.questions.find((x) => x.questionId === tq.questionId);
+        const q = matchingTq?.question || tq;
+        return {
+          questionId: q.id || tq.questionId,
+          moduleType: tq.moduleType,
+          content: q.content || {},
+          difficulty: q.difficulty || "medium",
+        };
+      });
+    }
     // C. Check department-scoped fallback questions path
-    if (deptName && deptName !== "UNSPECIFIED") {
+    else if (deptName && deptName !== "UNSPECIFIED") {
       const whereClause: any = {
         status: "PUBLISHED",
         OR: [
@@ -238,20 +389,99 @@ async function buildQuestionList(
       });
 
       if (deptQuestions && deptQuestions.length > 0) {
-        return deptQuestions.map((q, idx) => ({
+        matchedPool = deptQuestions.map((q) => ({
           questionId: q.id,
           moduleType: q.moduleType,
-          moduleIndex: idx,
           content: q.content,
           difficulty: q.difficulty || "medium",
         }));
       }
     }
 
-    // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
-    throw new UnprocessableEntityException(
-      `No questions available for department ${deptName} and seniority ${resolvedTag} — question bank not yet populated`
-    );
+    if (matchedPool.length === 0) {
+      throw new UnprocessableEntityException(
+        `No questions available for department ${deptName} and seniority ${resolvedTag} — question bank not yet populated`
+      );
+    }
+
+    // Validate pool sufficiency for required distribution only if recruiter has assigned questions
+    if (driveQuestions && driveQuestions.length > 0) {
+      for (const mod of enabledMods) {
+        const conf = resolvedModuleConfig[mod];
+        const reqCount =
+          conf.requiredCount !== undefined
+            ? conf.requiredCount
+            : getRequiredQuestionCount(mod, conf.weight, totalDuration, resolvedTag);
+        const dist =
+          conf.difficultyDistribution !== undefined
+            ? conf.difficultyDistribution
+            : getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+        const modPool = matchedPool.filter((q) => q.moduleType === mod);
+        const easyAvail = modPool.filter(
+          (q) => (q.difficulty || "medium").toUpperCase() === "EASY"
+        ).length;
+        const mediumAvail = modPool.filter(
+          (q) => (q.difficulty || "medium").toUpperCase() === "MEDIUM"
+        ).length;
+        const hardAvail = modPool.filter(
+          (q) => (q.difficulty || "medium").toUpperCase() === "HARD"
+        ).length;
+
+        if (easyAvail < dist.easy) {
+          throw new UnprocessableEntityException(
+            `Insufficient Easy questions for module ${mod}. Required: ${dist.easy}, Available: ${easyAvail}.`
+          );
+        }
+        if (mediumAvail < dist.medium) {
+          throw new UnprocessableEntityException(
+            `Insufficient Medium questions for module ${mod}. Required: ${dist.medium}, Available: ${mediumAvail}.`
+          );
+        }
+        if (hardAvail < dist.hard) {
+          throw new UnprocessableEntityException(
+            `Insufficient Hard questions for module ${mod}. Required: ${dist.hard}, Available: ${hardAvail}.`
+          );
+        }
+      }
+    }
+
+    // Run greedy allocation
+    const allocated = allocateQuestions(matchedPool, resolvedModuleConfig, totalDuration, resolvedTag);
+
+    // Map moduleIndex
+    const moduleCounts: Record<string, number> = {};
+    const finalQuestions = allocated.map((q) => {
+      const mod = q.moduleType;
+      if (moduleCounts[mod] === undefined) {
+        moduleCounts[mod] = 0;
+      } else {
+        moduleCounts[mod]++;
+      }
+      return {
+        ...q,
+        moduleIndex: moduleCounts[mod],
+      };
+    });
+
+    // Add dynamic AI_PROMPTING question if enabled but not allocated
+    if (resolvedModuleConfig.AI_PROMPTING?.enabled) {
+      const hasAiPrompting = finalQuestions.some((q) => q.moduleType === "AI_PROMPTING");
+      if (!hasAiPrompting) {
+        finalQuestions.push({
+          questionId: "ai-prompting-dynamic",
+          moduleType: "AI_PROMPTING",
+          moduleIndex: 0,
+          content: {
+            title: "AI Prompting Challenge",
+            prompt: "Engage in conversational problem solving with the AI assistant.",
+          },
+          difficulty: "medium",
+        });
+      }
+    }
+
+    return finalQuestions;
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
     throw err;

@@ -557,17 +557,6 @@ function QuestionBankPage() {
             <option value="hard">Hard</option>
           </select>
 
-          {/* Tier Filter */}
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
-          >
-            <option value="all">All Tiers</option>
-            <option value="TIER_1">Tier 1</option>
-            <option value="TIER_2">Tier 2</option>
-          </select>
-
           {/* Department / Role Filter */}
           <select
             value={roleFilter}
@@ -779,15 +768,6 @@ function QuestionBankPage() {
                       }`}
                     >
                       {q.difficulty}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
-                        extractQuestionTier(q) === "TIER_2"
-                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                          : "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                      }`}
-                    >
-                      {extractQuestionTier(q) === "TIER_2" ? "TIER 2" : "TIER 1"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
                       Role: {q.role || "General"}
