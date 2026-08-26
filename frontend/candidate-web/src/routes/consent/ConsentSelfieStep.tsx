@@ -162,21 +162,20 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       setCapturedDataUrl(dataUrl);
       setSelfieCaptured(true);
 
-      // Upload baseline selfie directly to MinIO if sessionId available
+      // Upload baseline selfie directly to MinIO and extract embedding in PostgreSQL
       if (sessionId) {
         try {
           await apiClient.post(`/sessions/${sessionId}/selfie`, { image: dataUrl });
-          console.log('[ConsentSelfieStep] Baseline selfie uploaded to MinIO storage.');
+          console.log('[ConsentSelfieStep] Baseline selfie uploaded and enrolled successfully.');
         } catch (err) {
           console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err);
         }
-
-        // Trigger ArcFace identity verification endpoint
-        await runIdentityVerification(dataUrl);
-      } else {
-        // If no session ID, allow progression
-        onComplete();
       }
+
+      // Proceed to next step / test start without blocking on auto-verification
+      setTimeout(() => {
+        onComplete();
+      }, 700);
     }
   }
 

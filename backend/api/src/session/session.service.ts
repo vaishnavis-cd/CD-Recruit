@@ -1343,7 +1343,7 @@ export class SessionService implements SessionStatusPort {
   /**
    * Upload baseline selfie to MinIO, extract ONNX embedding, and update Session/Candidate records
    */
-  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean; verified?: boolean }> {
+  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean; verified?: boolean; enrolled?: boolean }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: { candidate: true },
@@ -1408,33 +1408,12 @@ export class SessionService implements SessionStatusPort {
       this.logger.warn(`Could not extract ONNX embedding for baseline selfie: ${err.message}`);
     }
 
-    let verificationResult: any = null;
-    let isVerified = false;
-
-    const idProofEmb = (session.idProofEmbedding || session.candidate?.idProofEmbedding) as unknown as number[];
-    if (selfieEmbedding && idProofEmb) {
-      try {
-        const verifyRes = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmbedding, idProofEmb);
-        isVerified = verifyRes.matched;
-        verificationResult = {
-          status: verifyRes.matched ? "verified" : "mismatch",
-          distance: verifyRes.distance,
-          threshold: verifyRes.threshold,
-          verifiedAt: new Date().toISOString(),
-        };
-      } catch (err: any) {
-        this.logger.warn(`Failed ONNX verification comparison during selfie upload: ${err.message}`);
-      }
-    }
-
-    // Update DB Session & Candidate
+    // Update DB Session & Candidate (store embeddings & MinIO refs only, no auto-verification)
     await this.prisma.session.update({
       where: { id: sessionId },
       data: {
         baselineSelfieRef: objectKey,
         baselineSelfieEmbedding: selfieEmbedding ? (selfieEmbedding as any) : undefined,
-        idVerifiedAt: isVerified ? new Date() : undefined,
-        identityVerificationResult: verificationResult ? (verificationResult as any) : undefined,
       },
     });
 
@@ -1443,12 +1422,10 @@ export class SessionService implements SessionStatusPort {
       data: {
         baselineSelfieRef: candidateKey,
         baselineSelfieEmbedding: selfieEmbedding ? (selfieEmbedding as any) : undefined,
-        idVerifiedAt: isVerified ? new Date() : undefined,
-        identityVerificationResult: verificationResult ? (verificationResult as any) : undefined,
       },
     });
 
-    return { ok: true, verified: isVerified };
+    return { ok: true, enrolled: !!selfieEmbedding };
   }
 
   /**

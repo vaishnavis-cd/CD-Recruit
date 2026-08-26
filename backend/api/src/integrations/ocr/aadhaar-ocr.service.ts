@@ -127,6 +127,13 @@ export class AadhaarOcrService {
       "MOTHER",
       "HUSBAND",
       "INDIA",
+      "BHARAT",
+      "SARKAR",
+      "PEHCHAN",
+      "MERA",
+      "MERI",
+      "VID",
+      "HELP",
     ];
 
     if (candidateNameLineIndex >= 0) {
@@ -140,7 +147,9 @@ export class AadhaarOcrService {
         if (cleanedLine.length >= 3) {
           const upperLine = cleanedLine.toUpperCase();
           const isNoise = noiseWords.some((nw) => upperLine.includes(nw));
-          if (!isNoise) {
+          const words = cleanedLine.split(/\s+/).filter((w) => w.length >= 3);
+
+          if (!isNoise && words.length >= 1) {
             extractedName = cleanedLine;
             break;
           }
@@ -148,14 +157,18 @@ export class AadhaarOcrService {
       }
     }
 
-    // If no candidate line found before anchors, search top 5 lines for a clean Latin name
+    // If no candidate line found before anchors, search top lines for a clean Latin name
     if (!extractedName) {
-      for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      for (let i = 0; i < Math.min(lines.length, 6); i++) {
         const line = lines[i];
-        if (/^[A-Za-z\s\.\-']{3,}$/.test(line)) {
-          const upperLine = line.toUpperCase();
-          if (!noiseWords.some((nw) => upperLine.includes(nw))) {
-            extractedName = line.trim();
+        const cleanedLine = line.replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
+        if (cleanedLine.length >= 3) {
+          const upperLine = cleanedLine.toUpperCase();
+          const isNoise = noiseWords.some((nw) => upperLine.includes(nw));
+          const words = cleanedLine.split(/\s+/).filter((w) => w.length >= 3);
+
+          if (!isNoise && words.length >= 1) {
+            extractedName = cleanedLine;
             break;
           }
         }
@@ -163,14 +176,14 @@ export class AadhaarOcrService {
     }
 
     // Calculate Confidence Score
-    let confidence = 0.2; // Base confidence
+    let confidence = 0.5; // Base confidence
     if (aadhaarNumber && dob) {
-      confidence = 0.9;
+      confidence = 1.0;
     } else if (aadhaarNumber || dob) {
-      confidence = 0.6;
+      confidence = 0.8;
     }
     if (extractedName && extractedName.length >= 3) {
-      confidence += 0.1;
+      confidence = Math.min(1.0, confidence + 0.1);
     }
 
     return {
