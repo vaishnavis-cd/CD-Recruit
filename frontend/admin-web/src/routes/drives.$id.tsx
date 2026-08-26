@@ -755,7 +755,10 @@ function DriveDetailPage() {
     endMinStr: string,
     endAmPmStr: string
   ): number => {
-    if (rollingWindow) return 24 * 60;
+    const templateDuration = (drive as any)?.roleTemplate?.durationMinutes || 90;
+    if (rollingWindow || (drive as any)?.originChannel === "PARTNER_API") {
+      return templateDuration;
+    }
 
     let sHour = parseInt(startHourStr, 10) || 10;
     if (startAmPmStr === "PM" && sHour < 12) sHour += 12;
@@ -772,6 +775,7 @@ function DriveDetailPage() {
     let diff = endTotalMins - startTotalMins;
 
     if (diff <= 0) diff += 24 * 60;
+    if (diff > 240) return templateDuration;
     return diff > 0 ? diff : 60;
   };
 
@@ -815,33 +819,144 @@ function DriveDetailPage() {
     return updated;
   };
 
-  const handleAutoBalanceDurations = () => {
-    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
-    const enabledKeys = Object.keys(moduleConfig).filter((k) => moduleConfig[k]?.enabled);
-    if (enabledKeys.length === 0) return;
+  const ALL_DRIVE_MODULES = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"] as const;
 
-    const fixedKeys = enabledKeys.filter((k) => moduleConfig[k]?.isFixed);
-    const unfixedKeys = enabledKeys.filter((k) => !moduleConfig[k]?.isFixed);
+  const autoAlignModuleConfig = (
+    baseConfig: Record<string, any>,
+    targetDuration: number,
+    resolvedTag: string
+  ): Record<string, any> => {
+    const enabledKeys = ALL_DRIVE_MODULES.filter((m) => {
+      const conf = baseConfig[m];
+      if (!conf || !conf.enabled) return false;
+      if (globalEnabledModules.length > 0 && !globalEnabledModules.includes(m)) return false;
+      return true;
+    });
+    const nextConfig: Record<string, any> = { ...baseConfig };
 
-    if (unfixedKeys.length === 0) {
-      const totalFixedMins = fixedKeys.reduce(
-        (sum, k) => sum + (Number(moduleConfig[k]?.durationMinutes) || 0),
-        0
-      );
-
-      if (totalFixedMins === windowMins) {
-        toast.success(`All module durations are manually fixed and match the total scheduled window (${windowMins} mins)!`);
-      } else {
-        toast.error(
-          `All enabled modules are manually fixed, but cumulative time (${totalFixedMins} mins) does not equal the selected time range (${windowMins} mins). Total is ${totalFixedMins} mins vs ${windowMins} mins.`
-        );
-      }
-      return;
+    if (enabledKeys.length === 0) {
+      return nextConfig;
     }
 
-    const reallocated = autoAllocateModuleDurations(moduleConfig, windowMins);
-    setModuleConfig(reallocated);
-    toast.success("Module durations auto-balanced (preserving manually set module times)!");
+    // 1. Auto-balance weights of enabled core modules so they strictly sum to 100%
+    const baseWeight = Math.floor(100 / enabledKeys.length);
+    const remainder = 100 - baseWeight * enabledKeys.length;
+    const weights: Record<string, number> = {};
+
+    enabledKeys.forEach((key, idx) => {
+      weights[key] = baseWeight + (idx < remainder ? 1 : 0);
+    });
+
+    // 2. Compute initial required counts and default difficulty distributions
+    const distMap: Record<string, { easy: number; medium: number; hard: number; reqCount: number }> = {};
+
+    enabledKeys.forEach((key) => {
+      const w = weights[key];
+      const reqCount = getRequiredQuestionCount(key, w, targetDuration, resolvedTag);
+      const defaultDist = getDefaultDifficultyDistribution(reqCount, resolvedTag);
+      distMap[key] = {
+        ...defaultDist,
+        reqCount,
+      };
+    });
+
+    // 3. Compute total estimated duration helper
+    const computeTotalEst = () => {
+      return enabledKeys.reduce((sum, key) => {
+        const d = distMap[key];
+        return sum + getEstimatedModuleDuration(key, d);
+      }, 0);
+    };
+
+    let totalEst = computeTotalEst();
+
+    // 4. Iteratively optimize/downgrade difficulty if totalEst > targetDuration
+    const priorityModules = ["SIMULATION", "CODING", "DEBUGGING", "SQL", "NOSQL", "TEST_SCENARIOS", "AI_PROMPTING", "MCQ"];
+    let maxIterations = 200;
+
+    while (totalEst > targetDuration && maxIterations > 0) {
+      maxIterations--;
+      let reduced = false;
+
+      // Pass 1: Shift Hard -> Medium in heaviest modules
+      for (const mod of priorityModules) {
+        if (!enabledKeys.includes(mod)) continue;
+        const d = distMap[mod];
+        if (d.hard > 0) {
+          d.hard--;
+          d.medium++;
+          reduced = true;
+          totalEst = computeTotalEst();
+          if (totalEst <= targetDuration) break;
+        }
+      }
+
+      if (totalEst <= targetDuration) break;
+
+      // Pass 2: Shift Medium -> Easy in heaviest modules
+      if (!reduced || totalEst > targetDuration) {
+        for (const mod of priorityModules) {
+          if (!enabledKeys.includes(mod)) continue;
+          const d = distMap[mod];
+          if (d.medium > 0) {
+            d.medium--;
+            d.easy++;
+            reduced = true;
+            totalEst = computeTotalEst();
+            if (totalEst <= targetDuration) break;
+          }
+        }
+      }
+
+      if (!reduced) break;
+    }
+
+    // 5. Allocate durationMinutes budgets and update config
+    const totalEstTimeFinal = computeTotalEst();
+    ALL_DRIVE_MODULES.forEach((key) => {
+      if (enabledKeys.includes(key)) {
+        const d = distMap[key];
+        const estTime = getEstimatedModuleDuration(key, d);
+        const allocatedDurationMinutes = Math.max(1, Math.round((estTime / (totalEstTimeFinal || 1)) * targetDuration));
+
+        nextConfig[key] = {
+          ...(nextConfig[key] || {}),
+          enabled: true,
+          weight: weights[key],
+          requiredCount: d.reqCount,
+          durationMinutes: allocatedDurationMinutes,
+          difficultyDistribution: {
+            easy: d.easy,
+            medium: d.medium,
+            hard: d.hard,
+          },
+        };
+      } else {
+        nextConfig[key] = {
+          ...(nextConfig[key] || {}),
+          enabled: false,
+          weight: 0,
+          requiredCount: 0,
+          durationMinutes: 0,
+          difficultyDistribution: { easy: 0, medium: 0, hard: 0 },
+        };
+      }
+    });
+
+    return nextConfig;
+  };
+
+  const handleAutoBalanceDurations = () => {
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag);
+    setModuleConfig(aligned);
+    toast.success(`Module durations and difficulty benchmarks auto-balanced to ${windowMins} min!`);
   };
 
   const weightValidation = useMemo(() => {
@@ -849,27 +964,29 @@ function DriveDetailPage() {
   }, [moduleConfig]);
 
   const handleAutoBalanceWeights = () => {
-    const coreKeys = Object.keys(moduleConfig).filter(
-      (k) => moduleConfig[k].enabled && !moduleConfig[k].isBonus
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
     );
-    if (coreKeys.length === 0) {
-      toast.error("No enabled Core modules found to auto-balance.");
-      return;
-    }
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag);
+    setModuleConfig(aligned);
+    toast.success("Core scoring weights auto-balanced to sum to 100 points and aligned to window!");
+  };
 
-    const equalWeight = Math.floor(100 / coreKeys.length);
-    const remainder = 100 - equalWeight * coreKeys.length;
-
-    const updated = { ...moduleConfig };
-    coreKeys.forEach((k, idx) => {
-      updated[k] = {
-        ...updated[k],
-        weight: equalWeight + (idx === 0 ? remainder : 0),
-      };
-    });
-
-    setModuleConfig(updated);
-    toast.success("Core scoring weights auto-balanced to sum to 100 points!");
+  const handleAutoAlignAssessment = () => {
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const targetDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const aligned = autoAlignModuleConfig(moduleConfig, targetDuration, resolvedTag);
+    setModuleConfig(aligned);
+    toast.success(`Assessment auto-aligned to ${targetDuration} min (all weights = 100%, timings aligned)!`);
   };
 
   const validateDateTimeConfig = (): { valid: boolean; error?: string } => {
@@ -1705,6 +1822,15 @@ function DriveDetailPage() {
                   Total Weight: {weightValidation.coreSum} / 100 pts
                 </span>
                 <button
+                  type="button"
+                  onClick={handleAutoAlignAssessment}
+                  className="px-3.5 py-1 text-[11px] font-bold text-white bg-gradient-to-r from-[#2F5CFF] to-[#1A44D6] hover:from-[#1A44D6] hover:to-[#1233A8] rounded shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  title="One-click automatic alignment of weights, required question counts, difficulty distributions, and timings to fit session window"
+                >
+                  <Sparkles size={13} className="text-amber-300" />
+                  <span>Auto-Align Assessment</span>
+                </button>
+                <button
                   onClick={handleAutoBalanceDurations}
                   className="px-3 py-1 text-[11px] font-semibold text-[#0C6B58] bg-[#E3F9F2] hover:bg-[#D1F4E9] rounded border border-[#A3E6D5] transition-colors cursor-pointer flex items-center gap-1"
                   title="Auto-balance module durations (preserves manually changed times)"
@@ -1750,9 +1876,15 @@ function DriveDetailPage() {
                         ...moduleConfig,
                         [mod.id]: { ...conf, enabled: isNowEnabled },
                       };
-                      const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
-                      const reallocated = autoAllocateModuleDurations(nextConfig, winMins);
-                      setModuleConfig(reallocated);
+                      const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                      const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                      const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                        lowerName.includes("l1") ? "l1" : (
+                          lowerName.includes("l2") ? "l2" : "l3"
+                        )
+                      );
+                      const aligned = autoAlignModuleConfig(nextConfig, winMins, resolvedTag);
+                      setModuleConfig(aligned);
                     }}
                     className={`border rounded-md p-4 space-y-3 transition-colors select-none ${
                       !isGloballyEnabled
@@ -1801,10 +1933,10 @@ function DriveDetailPage() {
                                     [mod.id]: { ...conf, isFixed: false },
                                   });
                                 }}
-                                title="Time manually fixed. Click to unfix and auto-balance"
-                                className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 flex items-center gap-0.5 cursor-pointer hover:bg-amber-100"
+                                className="text-[10px] text-amber-600 hover:text-amber-800 font-medium cursor-pointer"
+                                title="Click to unlock auto-adjustment"
                               >
-                                <Lock size={10} /> Fixed
+                                Fixed
                               </button>
                             )}
                           </div>
@@ -1836,9 +1968,24 @@ function DriveDetailPage() {
                             onChange={(e) => {
                               const raw = e.target.value;
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                              const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                              const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                                lowerName.includes("l1") ? "l1" : (
+                                  lowerName.includes("l2") ? "l2" : "l3"
+                                )
+                              );
+                              const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                              const newReqCount = getRequiredQuestionCount(mod.id, val, totalDuration, resolvedTag);
+                              const newDist = getDefaultDifficultyDistribution(newReqCount, resolvedTag);
+
                               setModuleConfig({
                                 ...moduleConfig,
-                                [mod.id]: { ...conf, weight: val },
+                                [mod.id]: {
+                                  ...conf,
+                                  weight: val,
+                                  requiredCount: newReqCount,
+                                  difficultyDistribution: newDist,
+                                },
                               });
                             }}
                             onFocus={(e) => e.target.select()}
@@ -2047,16 +2194,26 @@ function DriveDetailPage() {
 
                 {/* Status Banners */}
                 {isOverTime ? (
-                  <div className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-[12px] text-rose-900">
-                    <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold">
-                        ⚠ Estimated assessment time exceeds the configured {totalDuration}-minute limit by {overflowMinutes} minutes.
-                      </p>
-                      <p className="text-[11px] text-rose-700 mt-0.5">
-                        The configuration cannot be saved or scheduled until the estimated duration fits within the {totalDuration}-minute window. Please adjust module weights, change difficulty distributions, or extend the scheduled window.
-                      </p>
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-[12px] text-rose-900">
+                    <div className="flex items-start gap-2.5 max-w-2xl">
+                      <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">
+                          ⚠ Estimated assessment time exceeds the configured {totalDuration}-minute limit by {overflowMinutes} minutes.
+                        </p>
+                        <p className="text-[11px] text-rose-700 mt-0.5">
+                          The configuration cannot be saved or scheduled until the estimated duration fits within the {totalDuration}-minute window. Click Auto-Align to automatically optimize module difficulties and timings.
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleAutoAlignAssessment}
+                      className="shrink-0 px-3.5 py-2 bg-[#2F5CFF] hover:bg-[#1A44D6] text-white text-[12px] font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles size={14} className="text-amber-300" />
+                      <span>Auto-Align to {totalDuration} min</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-[12px] text-emerald-800 font-medium">

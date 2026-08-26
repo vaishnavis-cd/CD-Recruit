@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -17,6 +17,7 @@ import {
   Sparkles,
   PenLine,
   BookOpen,
+  RefreshCw,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -90,6 +91,21 @@ function DrivesPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
   const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [newDriveIds, setNewDriveIds] = useState<Set<string>>(new Set());
+  const knownDriveIdsRef = useRef<Set<string>>(new Set());
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchDrives(undefined, true);
+      toast.success("Drives list refreshed.");
+    } catch {
+      toast.error("Failed to refresh drives.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Wizard State
   const [step, setStep] = useState(1);
@@ -155,10 +171,11 @@ function DrivesPage() {
   const [candidateErrors, setCandidateErrors] = useState<string[]>([]);
   const [globalModuleSettings, setGlobalModuleSettings] = useState<any[]>([]);
 
-  // Fetch all questions and drives when modal opens/mounts
+  // Initial fetch and real-time auto-polling for newly created drives (e.g. Partner API)
   useEffect(() => {
+    let isMounted = true;
+
     fetchQuestions();
-    fetchDrives();
     fetchRoleTemplates();
     getAuthHeaders().then((headers) => {
       fetch(`${API_BASE}/admin/settings/modules`, { headers })
@@ -166,7 +183,58 @@ function DrivesPage() {
         .then((data) => setGlobalModuleSettings(Array.isArray(data) ? data : []))
         .catch((e) => console.error("Failed to load module settings: ", e));
     });
-  }, []);
+
+    const initialFetch = async () => {
+      try {
+        const items = await fetchDrives(undefined, false);
+        if (isMounted && Array.isArray(items)) {
+          knownDriveIdsRef.current = new Set(items.map((d: any) => d.id));
+        }
+      } catch (e) {
+        console.error("Initial fetch error:", e);
+      }
+    };
+    initialFetch();
+
+    // Auto-poll every 3.5 seconds
+    const interval = setInterval(async () => {
+      if (!isExactDrives) return;
+      try {
+        const items = await fetchDrives(undefined, true);
+        if (!isMounted || !Array.isArray(items)) return;
+
+        if (knownDriveIdsRef.current.size > 0) {
+          const freshDrives = items.filter((d: any) => !knownDriveIdsRef.current.has(d.id));
+          if (freshDrives.length > 0) {
+            freshDrives.forEach((d: any) => knownDriveIdsRef.current.add(d.id));
+            setNewDriveIds((prev) => new Set([...prev, ...freshDrives.map((d: any) => d.id)]));
+
+            const latest = freshDrives[0];
+            const isPartner = (latest as any).originChannel === "PARTNER_API";
+            toast.success(
+              `🎉 New Drive Created: "${formatDriveName(latest.name)}" (${isPartner ? "Partner API" : "Direct"})`,
+              {
+                action: {
+                  label: "View Drive",
+                  onClick: () => navigate({ to: "/drives/$id", params: { id: latest.id } }),
+                },
+                duration: 8000,
+              }
+            );
+          }
+        } else {
+          knownDriveIdsRef.current = new Set(items.map((d: any) => d.id));
+        }
+      } catch (e) {
+        console.debug("Silent drives poll error:", e);
+      }
+    }, 3500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isExactDrives]);
 
   // Fetch active RoleTemplate preview when department and level are selected
   useEffect(() => {
@@ -468,16 +536,27 @@ function DrivesPage() {
         </div>
       }
       actions={
-        <button
-          onClick={() => {
-            resetWizard();
-            setShowWizard(true);
-          }}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
-        >
-          <Plus size={14} />
-          Create Drive
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] hover:text-[#0B0B0D] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            title="Refresh Drives list from server"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-[#2F5CFF]" : "text-[#8B8B93]"} />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+          </button>
+          <button
+            onClick={() => {
+              resetWizard();
+              setShowWizard(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus size={14} />
+            Create Drive
+          </button>
+        </div>
       }
     >
       {/* Filter chips */}
@@ -514,6 +593,11 @@ function DrivesPage() {
             </button>
           ))}
         </div>
+
+        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-[11px] font-medium text-emerald-800">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Live Auto-Sync</span>
+        </div>
       </div>
 
       {/* Grid of Drives */}
@@ -523,62 +607,75 @@ function DrivesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
-          {filtered.map((d) => (
-            <div
-              key={d.id}
-              className="bg-white border border-[#E6E6EA] rounded-[16px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
-            >
-              <div className="flex items-baseline justify-between gap-3 mb-8">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <h3 className="text-[18px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
-                    {formatDriveName(d.name)}
-                  </h3>
-                  <p className="text-[13px] text-[#8B8B93] font-normal truncate">
-                    {d.roleTemplateName || "Software Developer"}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <span
-                      className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
-                        (d as any).originChannel === "PARTNER_API"
-                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                          : "bg-gray-100 text-gray-600 border border-gray-200"
-                      }`}
-                    >
-                      {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
-                    </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
-                    >
-                      {STATUS_LABEL[d.status]}
-                    </span>
+          {filtered.map((d) => {
+            const isNewlyDetected = newDriveIds.has(d.id);
+            return (
+              <div
+                key={d.id}
+                className={`bg-white border rounded-[16px] p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative ${
+                  isNewlyDetected
+                    ? "border-[#2F5CFF] ring-2 ring-[#2F5CFF]/30 bg-blue-50/10"
+                    : "border-[#E6E6EA]"
+                }`}
+              >
+                {isNewlyDetected && (
+                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-[#2F5CFF] to-[#1A44D6] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                    <Sparkles size={11} className="text-amber-300" />
+                    <span>NEW</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
-                    <Calendar size={13} className="text-[#8B8B93] shrink-0" />
-                    <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
+                )}
+                <div className="flex items-baseline justify-between gap-3 mb-8">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <h3 className="text-[18px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
+                      {formatDriveName(d.name)}
+                    </h3>
+                    <p className="text-[13px] text-[#8B8B93] font-normal truncate">
+                      {d.roleTemplateName || "Software Developer"}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
+                          (d as any).originChannel === "PARTNER_API"
+                            ? "bg-purple-100 text-purple-800 border border-purple-200"
+                            : "bg-gray-100 text-gray-600 border border-gray-200"
+                        }`}
+                      >
+                        {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
+                      >
+                        {STATUS_LABEL[d.status]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
+                      <Calendar size={13} className="text-[#8B8B93] shrink-0" />
+                      <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3.5">
-                <Link
-                  to="/drives/$id"
-                  params={{ id: d.id }}
-                  className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
-                >
-                  View Drive
-                </Link>
-                <button
-                  onClick={() => setConfirmDeleteDrive(d)}
-                  className="p-2 text-[#8B8B93] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] hover:border-[#FFAEA4] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
-                  title="Delete Drive"
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div className="flex items-center gap-3.5">
+                  <Link
+                    to="/drives/$id"
+                    params={{ id: d.id }}
+                    className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
+                  >
+                    View Drive
+                  </Link>
+                  <button
+                    onClick={() => setConfirmDeleteDrive(d)}
+                    className="p-2 text-[#8B8B93] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] hover:border-[#FFAEA4] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    title="Delete Drive"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

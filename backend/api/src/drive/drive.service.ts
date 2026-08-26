@@ -329,23 +329,41 @@ export class DriveService {
     if (!moduleConfig) {
       const preset = (template.weightingPreset as Record<string, number>) || {};
       moduleConfig = {};
-      const duration = driveMeta.durationMinutes ?? template.durationMinutes ?? 60;
+      const totalDuration = driveMeta.durationMinutes ?? template.durationMinutes ?? 90;
 
-      for (const [mod, weight] of Object.entries(preset)) {
-        moduleConfig[mod] = {
-          enabled: true,
-          durationMinutes: duration,
-          weight: typeof weight === "number" ? weight : 0.2,
-        };
-      }
+      const entries = Object.entries(preset);
+      if (entries.length > 0) {
+        let totalWeight = entries.reduce((sum, [_, w]) => sum + (typeof w === "number" ? w : 0), 0);
+        if (totalWeight <= 1 && totalWeight > 0) {
+          totalWeight = Math.round(totalWeight * 100);
+        }
 
-      if (Object.keys(moduleConfig).length === 0) {
+        let allocatedMinutesSum = 0;
+        entries.forEach(([mod, w], idx) => {
+          let weightNum = typeof w === "number" ? w : 0.2;
+          if (weightNum <= 1 && weightNum > 0) weightNum = Math.round(weightNum * 100);
+
+          let modDuration = Math.max(5, Math.round((weightNum / (totalWeight || 100)) * totalDuration));
+          if (idx === entries.length - 1) {
+            modDuration = Math.max(5, totalDuration - allocatedMinutesSum);
+          } else {
+            allocatedMinutesSum += modDuration;
+          }
+
+          moduleConfig[mod] = {
+            enabled: true,
+            durationMinutes: modDuration,
+            weight: weightNum,
+            questionWeighting: { mode: "equal" },
+          };
+        });
+      } else {
         moduleConfig = {
-          MCQ: { enabled: true, durationMinutes: 15, weight: 0.2 },
-          SQL: { enabled: true, durationMinutes: 20, weight: 0.2 },
-          CODING: { enabled: true, durationMinutes: 30, weight: 0.3 },
-          AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.15 },
-          SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+          MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
+          SQL: { enabled: true, durationMinutes: 20, weight: 20 },
+          CODING: { enabled: true, durationMinutes: 30, weight: 30 },
+          DEBUGGING: { enabled: true, durationMinutes: 15, weight: 15 },
+          AI_PROMPTING: { enabled: true, durationMinutes: 10, weight: 15 },
         };
       }
     }
@@ -723,11 +741,13 @@ export class DriveService {
 
       const sStart = scheduleStart ? new Date(scheduleStart) : (drive.scheduleStart || new Date());
       const sEnd = scheduleEnd ? new Date(scheduleEnd) : drive.scheduleEnd;
-      let windowMinutes = 90;
+      let windowMinutes = template.durationMinutes || 90;
       if (sStart && sEnd) {
         const diffMs = new Date(sEnd).getTime() - new Date(sStart).getTime();
         const diffMins = Math.round(diffMs / (60 * 1000));
-        windowMinutes = diffMins > 0 ? diffMins : 90;
+        if (diffMins > 0 && diffMins <= 240 && drive.originChannel !== OriginChannel.PARTNER_API) {
+          windowMinutes = diffMins;
+        }
       }
 
       const lowerName = (template.roleName || "").toLowerCase();

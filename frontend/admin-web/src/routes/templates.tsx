@@ -330,15 +330,29 @@ export function RoleTemplatesPage() {
       };
     });
 
+    // Ensure weighting preset strictly sums to 100%
+    let cleanPreset = { ...weightingPreset };
+    const presetEntries = Object.entries(cleanPreset);
+    if (presetEntries.length > 0) {
+      const sum = presetEntries.reduce((s, [_, v]) => s + (Number(v) || 0), 0);
+      if (sum !== 100 && sum > 0) {
+        const base = Math.floor(100 / presetEntries.length);
+        const rem = 100 - base * presetEntries.length;
+        presetEntries.forEach(([k], idx) => {
+          cleanPreset[k] = base + (idx === 0 ? rem : 0);
+        });
+      }
+    }
+
     const payload = {
       roleName: roleName.trim(),
       department,
       category,
       experienceTier: category === "FRESHER" ? "0-1" : experienceTier,
       level: category === "FRESHER" ? "FRESHER" : "EXPERIENCED",
-      durationMinutes: Number(durationMinutes),
+      durationMinutes: Number(durationMinutes) || 90,
       isActive,
-      weightingPreset,
+      weightingPreset: cleanPreset,
       questions: questionPayload,
     };
 

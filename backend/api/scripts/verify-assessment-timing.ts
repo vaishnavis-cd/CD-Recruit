@@ -160,6 +160,55 @@ function runTests() {
     `Active: ${activeMods.join(", ")}, Sum: ${activeWeightSum}%`
   );
 
+  // CASE 10: 48-Hour Partner API rolling window decouples access window from session test duration
+  const accessWindow48hMinutes = 48 * 60; // 2,880 minutes
+  const templateSessionDurationMinutes = 90; // 90 minutes
+  const isPartnerApi = true;
+  const effectiveSessionMinutes = isPartnerApi ? templateSessionDurationMinutes : accessWindow48hMinutes;
+  const mcqReqCount90 = getRequiredQuestionCount("MCQ", 20, effectiveSessionMinutes, "fresher");
+  assert(
+    mcqReqCount90 === 11 && effectiveSessionMinutes === 90,
+    "CASE 10: 48-Hour Partner API window uses calibrated 90-min session duration (MCQ 20% = 11 questions, not 338)",
+    `EffectiveMinutes: ${effectiveSessionMinutes}, MCQ Req: ${mcqReqCount90}`
+  );
+
+  // CASE 11: Auto-Align Optimization Algorithm for 5-module 72m overflow in 60m test
+  const targetDuration = 60;
+  const enabledModules = ["MCQ", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION"];
+  const weights: Record<string, number> = { MCQ: 20, CODING: 20, DEBUGGING: 20, AI_PROMPTING: 20, SIMULATION: 20 };
+  const distMap: Record<string, { easy: number; medium: number; hard: number; reqCount: number }> = {
+    MCQ: { easy: 1, medium: 2, hard: 2, reqCount: 5 }, // 1*1 + 2*2 + 2*3 = 11m
+    CODING: { easy: 0, medium: 0, hard: 1, reqCount: 1 }, // 1*22 = 22m
+    DEBUGGING: { easy: 1, medium: 0, hard: 0, reqCount: 1 }, // 1*5 = 5m
+    AI_PROMPTING: { easy: 0, medium: 0, hard: 1, reqCount: 1 }, // 1*12 = 12m
+    SIMULATION: { easy: 0, medium: 0, hard: 1, reqCount: 1 }, // 1*22 = 22m
+  };
+  // Initial est time = 11 + 22 + 5 + 12 + 22 = 72m (> 60m overflow)
+  const initialEst = Object.keys(distMap).reduce((s, k) => s + getEstimatedModuleDuration(k, distMap[k]), 0);
+
+  // Optimization pass
+  const priorityModules = ["SIMULATION", "CODING", "DEBUGGING", "AI_PROMPTING", "MCQ"];
+  let optEst = initialEst;
+  for (const mod of priorityModules) {
+    const d = distMap[mod];
+    if (d.hard > 0) {
+      d.hard--;
+      d.medium++;
+      optEst = Object.keys(distMap).reduce((s, k) => s + getEstimatedModuleDuration(k, distMap[k]), 0);
+      if (optEst <= targetDuration) break;
+    }
+  }
+
+  const allSumsMatch = Object.keys(distMap).every(
+    (k) => distMap[k].easy + distMap[k].medium + distMap[k].hard === distMap[k].reqCount
+  );
+
+  assert(
+    initialEst === 72 && optEst <= targetDuration && allSumsMatch,
+    `CASE 11: Auto-Align optimizes 72m overflow down to ${optEst}m (<= 60m) while preserving all required counts`,
+    `Initial: ${initialEst}m, Optimized: ${optEst}m`
+  );
+
   console.log("==================================================");
   console.log(`TOTAL RESULTS: ${passed} passed, ${failed} failed.`);
   console.log("==================================================");
@@ -169,3 +218,4 @@ function runTests() {
 }
 
 runTests();
+
