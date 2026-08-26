@@ -150,6 +150,9 @@ export interface CandidateSessionDetail {
     idProofRef?: string | null;
     baselineSelfieUrl?: string | null;
     idProofUrl?: string | null;
+    idProofExtractedName?: string | null;
+    ocrConfidence?: number | null;
+    idProofOcrResult?: any;
   } | null;
   candidateName: string;
   candidateEmail: string;
