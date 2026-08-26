@@ -17,6 +17,7 @@ datasource db {
 enum ModuleType {
   MCQ
   SQL
+  NOSQL
   CODING
   DEBUGGING
   AI_PROMPTING

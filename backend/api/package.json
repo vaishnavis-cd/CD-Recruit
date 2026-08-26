@@ -44,6 +44,7 @@
     "minio": "^8.0.1",
     "monaco-editor": "^0.53.0",
     "onnxruntime-node": "^1.29.0",
+    "onnxruntime-web": "^1.29.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.22.0",
