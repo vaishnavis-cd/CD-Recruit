@@ -7,16 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator clientApi {
-  provider = "prisma-client-js"
-  output   = "../api/node_modules/.prisma/client"
-}
-
-generator clientRoot {
-  provider = "prisma-client-js"
-  output   = "../../node_modules/.prisma/client"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -24,42 +14,13 @@ datasource db {
 
 // ---------- Enums ----------
 
-enum Department {
-  SOFTWARE_ENGINEERING
-  DATA_ENGINEERING
-  PMO
-  QA
-  SYSOPS
-  ITOPS
-  SECOPS
-  SRE
-}
-
-enum ExperienceLevel {
-  FRESHER
-  EXPERIENCED
-}
-
-enum CandidateCategory {
-  FRESHER
-  EXPERIENCED
-}
-
-enum ExperiencedLevel {
-  L1
-  L2
-  L3
-}
-
 enum ModuleType {
   MCQ
   SQL
-  NOSQL
   CODING
   DEBUGGING
   AI_PROMPTING
   SIMULATION
-  TEST_SCENARIOS
 }
 
 enum SessionStatus {
@@ -144,50 +105,66 @@ enum ConsentType {
   AUDIO
 }
 
+enum Department {
+  SOFTWARE_ENGINEERING
+  DATA_ENGINEERING
+  PMO
+  QA
+  SYSOPS
+  ITOPS
+  SECOPS
+  SRE
+}
+
+enum ExperienceLevel {
+  FRESHER
+  EXPERIENCED
+}
+
+
+
 model RoleTemplate {
-  id              String             @id @default(uuid())
-  roleName        String             @map("role_name")
-  weightingPreset Json               @map("weighting_preset")
-  durationMinutes Int                @map("duration_minutes") // drives session.deadlineAt
-  department      Department?        @map("department")
-  level           ExperienceLevel?   @map("level")
-  category        CandidateCategory? @default(FRESHER) @map("category")
-  experienceTier  String?            @map("experience_tier")
-  version         Int                @default(1) @map("version")
-  isActive        Boolean            @default(true) @map("is_active")
+  id              String           @id @default(uuid())
+  roleName        String           @map("role_name")
+  weightingPreset Json             @map("weighting_preset")
+  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
+  department      Department?      @map("department")
+  level           ExperienceLevel? @map("level")
+  version         Int              @default(1) @map("version")
+  isActive        Boolean          @default(true) @map("is_active")
 
   sessions  Session[]
   invites   Invite[]
   drives    Drive[]
   questions RoleTemplateQuestion[]
 
-  @@unique([department, category, experienceTier, version])
+  @@unique([department, level, version])
   @@map("role_template")
 }
 
 model Drive {
-  id                String        @id @default(uuid())
-  organizationId    String?       @map("organization_id")
-  name              String
-  roleTemplateId    String        @map("role_template_id")
-  moduleConfig      Json          @map("module_config")
-  status            DriveStatus   @default(DRAFT)
-  scheduleStart     DateTime?     @map("schedule_start")
-  scheduleEnd       DateTime?     @map("schedule_end")
-  createdById       String        @map("created_by_id")
-  createdAt         DateTime      @default(now()) @map("created_at")
-  bufferMinutes     Int           @default(15) @map("buffer_minutes")
-  graceMinutes      Int           @default(5) @map("grace_minutes")
-  slotDistribution  Json?         @map("slot_distribution")
-  originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
-  isEditingUnlocked Boolean       @default(false) @map("is_editing_unlocked")
+  id             String      @id @default(uuid())
+  organizationId String?     @map("organization_id")
+  name           String
+  roleTemplateId String      @map("role_template_id")
+  moduleConfig   Json        @map("module_config")
+  status         DriveStatus @default(DRAFT)
+  scheduleStart  DateTime?   @map("schedule_start")
+  scheduleEnd    DateTime?   @map("schedule_end")
+  createdById    String      @map("created_by_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  bufferMinutes  Int         @default(15) @map("buffer_minutes")
+  graceMinutes   Int         @default(5) @map("grace_minutes")
+  slotDistribution Json?     @map("slot_distribution")
+  originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
+  isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
 
-  organization Organization?   @relation(fields: [organizationId], references: [id])
-  roleTemplate RoleTemplate   @relation(fields: [roleTemplateId], references: [id])
-  createdBy    Staff          @relation(fields: [createdById], references: [id])
-  sessions     Session[]
-  invites      Invite[]
-  questions    DriveQuestion[]
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
+  createdBy      Staff         @relation(fields: [createdById], references: [id])
+  sessions       Session[]
+  invites        Invite[]
+  questions      DriveQuestion[]
 
   @@map("drive")
 }
@@ -230,7 +207,6 @@ model Question {
   content        Json
   scoringConfig  Json?      @map("scoring_config")
   difficulty     String?
-  targetLevel    String?    @map("target_level")
   tags           String[]
   folderId       String?    @map("folder_id")
   version        Int        @default(1)
@@ -356,9 +332,6 @@ model ModuleResponse {
   timeSpentSeconds  Int?     @map("time_spent_seconds")
   isDraft           Boolean  @default(true) @map("is_draft") // true until real submit overwrites it
   lastAutosavedAt   DateTime? @map("last_autosaved_at")
-  sandboxDbName     String?   @map("sandbox_db_name")
-  lastOperation     Json?     @map("last_operation")
-  executionCount    Int       @default(0) @map("execution_count")
 
   session  Session  @relation(fields: [sessionId], references: [id])
   question Question @relation(fields: [questionId], references: [id])
@@ -386,7 +359,7 @@ model EventLog {
 model IntegrityFlag {
   id         String   @id @default(uuid())
   sessionId  String   @map("session_id")
-  category   String   // Valid categories include standard proctoring categories plus "IDENTITY_MISMATCH" and "NO_ID_PROOF_ON_FILE"
+  category   String
   confidence Float
   severity   String
   flaggedAt  DateTime @default(now()) @map("flagged_at")
@@ -415,13 +388,13 @@ model EvidenceClip {
 model Score {
   id                     String  @id @default(uuid())
   sessionId              String  @unique @map("session_id")
-  compositeScore         Float?  @map("composite_score")
-  coreScore              Float?  @map("core_score")
-  bonusScore             Float?  @map("bonus_score")
-  totalScore             Float?  @map("total_score")
+  compositeScore         Float   @map("composite_score")
+  coreScore              Float   @default(0) @map("core_score")
+  bonusScore             Float   @default(0) @map("bonus_score")
+  totalScore             Float   @default(0) @map("total_score")
   moduleScores           Json    @map("module_scores")
-  sayDoConsistencyScore  Float?  @map("say_do_consistency_score")
-  aiConfidence           Float?  @map("ai_confidence")
+  sayDoConsistencyScore  Float   @map("say_do_consistency_score")
+  aiConfidence           Float   @map("ai_confidence")
   humanReviewed          Boolean @default(false) @map("human_reviewed")
   sayDoRationale         String? @map("say_do_rationale")
   sayDoMismatches        Json?   @map("say_do_mismatches")
@@ -466,29 +439,24 @@ model ReviewerDecision {
 }
 
 model Invite {
-  id                String             @id @default(uuid())
-  candidateEmail    String             @map("candidate_email")
-  candidateName     String             @map("candidate_name")
-  roleTemplateId    String             @map("role_template_id")
-  driveId           String?            @map("drive_id")
-  category          CandidateCategory? @map("category")
-  experienceTier    String?            @map("experience_tier")
-  status            InviteStatus       @default(PENDING)
-  token             String             @unique
-  createdById       String             @map("created_by_id")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  expiresAt         DateTime           @map("expires_at")
-  redeemedAt        DateTime?          @map("redeemed_at")
-  revokedAt         DateTime?          @map("revoked_at")
-  sessionId         String?            @unique @map("session_id")
-  isGenerated       Boolean            @default(false) @map("is_generated")
-  scheduledTime     DateTime?          @map("scheduled_time")
-  bufferMinutes     Int                @default(15) @map("buffer_minutes")
-  graceMinutes      Int                @default(5) @map("grace_minutes")
-  originChannel     OriginChannel      @default(DIRECT) @map("origin_channel")
-  idProofRef        String?            @map("id_proof_ref")
-  idProofEmbedding  Json?              @map("id_proof_embedding")
-  idProofUploadedAt DateTime?          @map("id_proof_uploaded_at")
+  id              String       @id @default(uuid())
+  candidateEmail  String       @map("candidate_email")
+  candidateName   String       @map("candidate_name")
+  roleTemplateId  String       @map("role_template_id")
+  driveId         String?      @map("drive_id")
+  status          InviteStatus @default(PENDING)
+  token           String       @unique
+  createdById     String       @map("created_by_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  expiresAt       DateTime     @map("expires_at")
+  redeemedAt      DateTime?    @map("redeemed_at")
+  revokedAt       DateTime?    @map("revoked_at")
+  sessionId       String?      @unique @map("session_id")
+  isGenerated     Boolean      @default(false) @map("is_generated")
+  scheduledTime   DateTime?    @map("scheduled_time")
+  bufferMinutes   Int          @default(15) @map("buffer_minutes")
+  graceMinutes    Int          @default(5) @map("grace_minutes")
+  originChannel   OriginChannel @default(DIRECT) @map("origin_channel")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])
@@ -600,6 +568,37 @@ model ProctoringEvent {
 
 model Partner {
   id           String   @id @default(uuid())
+  name         String
+  hashedApiKey String   @map("hashed_api_key")
+  callbackUrl  String?  @map("callback_url")
+  rateLimit    Int      @default(100) @map("rate_limit")
+  isRevoked    Boolean  @default(false) @map("is_revoked")
+  apiHitCount  Int      @default(0) @map("api_hit_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("partner")
+}
+
+model IdentityCapture {
+  id          String    @id @default(uuid())
+  sessionId   String    @map("session_id")
+  windowIndex Int       @map("window_index")
+  scheduledAt DateTime  @map("scheduled_at")
+  capturedAt  DateTime? @map("captured_at")
+  status      String    @default("PENDING")
+  imageRef    String?   @map("image_ref")
+  matched     Boolean?
+  distance    Float?
+  threshold   Float?
+  verifiedAt  DateTime? @map("verified_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, windowIndex])
+  @@index([sessionId])
+  @@index([status])
+  @@map("identity_capture")
+}
   name         String
   hashedApiKey String   @map("hashed_api_key")
   callbackUrl  String?  @map("callback_url")

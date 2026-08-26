@@ -1116,12 +1116,12 @@ export class AdminService {
 
         const registeredName = session?.invite?.candidateName || candidate.name;
 
-        // Check for insufficient data
-        if (!idProofEmb || !selfieEmb || !extractedName || (ocrConfidence !== null && ocrConfidence < 0.40)) {
+        // Check for insufficient data (only if embeddings are missing)
+        if (!idProofEmb || !selfieEmb) {
           const missing: string[] = [];
           if (!idProofEmb) missing.push("id_proof_face");
           if (!selfieEmb) missing.push("baseline_selfie");
-          if (!extractedName || (ocrConfidence !== null && ocrConfidence < 0.40)) missing.push("name_ocr");
+          if (!extractedName) missing.push("name_ocr");
 
           insufficientData++;
           results.push({
@@ -1138,10 +1138,12 @@ export class AdminService {
         // Run Face Verification (0.60 threshold preserved)
         const faceRes = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmb, idProofEmb);
 
-        // Run Name Verification (0.75 threshold placeholder)
-        const nameRes = this.nameMatchService.compareNames(registeredName, extractedName);
+        // Run Name Verification (if extracted name exists)
+        const nameRes = extractedName
+          ? this.nameMatchService.compareNames(registeredName, extractedName)
+          : { matched: false, similarity: 0, threshold: 0.75, extractedName: "", registeredName };
 
-        const overallMatched = faceRes.matched && nameRes.matched;
+        const overallMatched = faceRes.matched && (nameRes ? nameRes.matched : true);
 
         // In-Test Periodic Identity Captures Verification (3 windows)
         let inTestCapturesResult: any = {

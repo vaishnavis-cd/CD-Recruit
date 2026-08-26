@@ -72,21 +72,16 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
     reader.readAsDataURL(file)
   }
 
-  React.useEffect(() => {
-    if (isCameraActive && videoRef.current && mediaStreamRef.current) {
-      const video = videoRef.current
-      video.srcObject = mediaStreamRef.current
-      video.onloadedmetadata = () => {
-        video.play().catch((err) => console.warn('[ConsentIdProofStep] video.play() warning:', err))
+  const setVideoElement = React.useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node
+    if (node && mediaStreamRef.current) {
+      node.srcObject = mediaStreamRef.current
+      node.onloadedmetadata = () => {
+        node.play().catch((err) => console.warn('[ConsentIdProofStep] video.play() error:', err))
       }
+      node.play().catch((err) => console.warn('[ConsentIdProofStep] direct play() error:', err))
     }
-    return () => {
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop())
-        mediaStreamRef.current = null
-      }
-    }
-  }, [isCameraActive])
+  }, [])
 
   async function startCamera() {
     try {
@@ -94,13 +89,17 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop())
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { width: 640, height: 480 },
       })
       mediaStreamRef.current = stream
       setIsCameraActive(true)
       setErrorMsg(null)
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play().catch(() => {})
+      }
     } catch (err: any) {
-      setErrorMsg('Could not access camera for ID capture. Please select a file instead.')
+      setErrorMsg('Could not access camera for ID capture: ' + (err.message || 'Permission denied. Please select a file.'))
     }
   }
 
@@ -114,12 +113,13 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
 
   function captureCameraSnapshot() {
     if (!videoRef.current) return
+    const video = videoRef.current
     const canvas = document.createElement('canvas')
-    canvas.width = videoRef.current.videoWidth || 640
-    canvas.height = videoRef.current.videoHeight || 480
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
     const ctx = canvas.getContext('2d')
     if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
       setPreviewUrl(dataUrl)
       stopCamera()
@@ -175,8 +175,8 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
 
         {/* Camera Live View */}
         {isCameraActive ? (
-          <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-[var(--border)]">
-            <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+          <div className="relative rounded-xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center border border-[var(--border)]">
+            <video ref={setVideoElement} className="w-full h-full object-cover" autoPlay playsInline muted />
             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10">
               <button
                 type="button"
