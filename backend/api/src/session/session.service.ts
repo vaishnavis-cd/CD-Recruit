@@ -61,15 +61,15 @@ export function resolveSeniorityTag(roleTemplate: any): string {
   return "fresher";
 }
 
-const TIME_MATRIX: Record<string, Record<string, number>> = {
-  MCQ: { EASY: 1, MEDIUM: 1.5, HARD: 2 },
-  SQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
-  CODING: { EASY: 10, MEDIUM: 15, HARD: 25 },
-  DEBUGGING: { EASY: 3, MEDIUM: 5, HARD: 8 },
-  TEST_SCENARIOS: { EASY: 3, MEDIUM: 5, HARD: 8 },
-  AI_PROMPTING: { EASY: 3, MEDIUM: 5, HARD: 7 },
-  SIMULATION: { EASY: 6, MEDIUM: 10, HARD: 15 },
-  NOSQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+export const TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
+  SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  DEBUGGING: { EASY: 5, MEDIUM: 10, HARD: 18 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  AI_PROMPTING: { EASY: 4, MEDIUM: 7, HARD: 12 },
+  SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
 };
 
 const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
@@ -93,10 +93,19 @@ export function getRequiredQuestionCount(
     ratios.hard * times.HARD;
   const timeBudget = totalDuration * (weight / 100);
 
-  if (moduleType === "MCQ") {
-    return Math.max(1, Math.round(timeBudget / 1.8));
-  }
-  return Math.max(1, Math.round(timeBudget / avgTime));
+  return Math.max(1, Math.round(timeBudget / (avgTime || 1)));
+}
+
+export function getEstimatedModuleDuration(
+  moduleType: string,
+  dist: { easy: number; medium: number; hard: number },
+): number {
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  return (
+    (dist.easy || 0) * times.EASY +
+    (dist.medium || 0) * times.MEDIUM +
+    (dist.hard || 0) * times.HARD
+  );
 }
 
 export function getDefaultDifficultyDistribution(
@@ -196,7 +205,71 @@ export async function buildQuestionList(
       }
     }
 
-    // 1. Check candidate's calibrated RoleTemplate questions (tier-specific fairness)
+    // 1. Check Drive Questions first (exact questions curated/configured for this Drive)
+    if (driveId) {
+      const driveQuestions = await prisma.driveQuestion.findMany({
+        where: { driveId },
+        include: { question: true },
+        orderBy: [
+          { moduleType: "asc" },
+          { question: { id: "asc" } },
+        ],
+      });
+
+      if (driveQuestions && driveQuestions.length > 0) {
+        const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
+        const mc = (driveObj?.moduleConfig as Record<string, { enabled?: boolean }>) || {};
+
+        // Only include questions for enabled modules
+        const activeDriveQuestions = driveQuestions.filter((dq) => {
+          const isDebug =
+            dq.moduleType === "DEBUGGING" ||
+            dq.question?.moduleType === "DEBUGGING" ||
+            (Array.isArray(dq.question?.tags) && dq.question.tags.includes("debugging"));
+          const modType = isDebug ? "DEBUGGING" : dq.moduleType;
+          return mc[modType] ? mc[modType].enabled : true;
+        });
+
+        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+          activeDriveQuestions as any,
+          session.candidateId,
+          driveId
+        );
+        const resultList = shuffled.map((q: any) => {
+          const matchingDq = activeDriveQuestions.find((dq) => dq.questionId === q.questionId);
+          const rawQ = matchingDq?.question || q;
+          const tags = rawQ.tags || [];
+          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+          return {
+            ...q,
+            moduleType: effectiveModuleType,
+            content: rawQ.content || q.content || {},
+            difficulty: rawQ.difficulty || q.difficulty || "medium",
+          };
+        });
+
+        if (mc.AI_PROMPTING?.enabled) {
+          const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+          if (!hasAiPromptingQuestion) {
+            resultList.push({
+              questionId: "ai-prompting-dynamic",
+              moduleType: "AI_PROMPTING",
+              moduleIndex: 0,
+              content: {
+                title: "AI Prompting Challenge",
+                prompt: "Engage in conversational problem solving with the AI assistant.",
+              },
+              difficulty: "medium",
+            });
+          }
+        }
+        return resultList;
+      }
+    }
+
+    // 2. Check candidate's calibrated RoleTemplate questions (tier-specific fairness fallback)
     if (session.roleTemplateId) {
       const templateQuestions = await prisma.roleTemplateQuestion.findMany({
         where: { roleTemplateId: session.roleTemplateId },
@@ -228,61 +301,6 @@ export async function buildQuestionList(
             difficulty: rawQ.difficulty || q.difficulty || "medium",
           };
         });
-      }
-    }
-
-    // 2. Check Drive Questions
-    if (driveId) {
-      const driveQuestions = await prisma.driveQuestion.findMany({
-        where: { driveId },
-        include: { question: true },
-        orderBy: [
-          { moduleType: "asc" },
-          { question: { id: "asc" } },
-        ],
-      });
-
-      if (driveQuestions && driveQuestions.length > 0) {
-        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-          driveQuestions as any,
-          session.candidateId,
-          driveId
-        );
-        const resultList = shuffled.map((q: any) => {
-          const matchingDq = driveQuestions.find((dq) => dq.questionId === q.questionId);
-          const rawQ = matchingDq?.question || q;
-          const tags = rawQ.tags || [];
-          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
-          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
-          return {
-            ...q,
-            moduleType: effectiveModuleType,
-            content: rawQ.content || q.content || {},
-            difficulty: rawQ.difficulty || q.difficulty || "medium",
-          };
-        });
-
-        const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
-        if (driveObj && driveObj.moduleConfig) {
-          const mc = driveObj.moduleConfig as Record<string, { enabled?: boolean }>;
-          if (mc.AI_PROMPTING?.enabled) {
-            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
-            if (!hasAiPromptingQuestion) {
-              resultList.push({
-                questionId: "ai-prompting-dynamic",
-                moduleType: "AI_PROMPTING",
-                moduleIndex: 0,
-                content: {
-                  title: "AI Prompting Challenge",
-                  prompt: "Engage in conversational problem solving with the AI assistant.",
-                },
-                difficulty: "medium",
-              });
-            }
-          }
-        }
-        return resultList;
       }
     }
 

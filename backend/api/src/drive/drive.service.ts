@@ -20,6 +20,11 @@ import { InviteStatus, SessionStatus, ModuleType, OriginChannel, Department } fr
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
+import {
+  getRequiredQuestionCount,
+  getDefaultDifficultyDistribution,
+  getEstimatedModuleDuration,
+} from "../session/session.service";
 
 @Injectable()
 export class DriveService {
@@ -716,7 +721,59 @@ export class DriveService {
         throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
       }
 
-      data.moduleConfig = moduleConfig;
+      const sStart = scheduleStart ? new Date(scheduleStart) : (drive.scheduleStart || new Date());
+      const sEnd = scheduleEnd ? new Date(scheduleEnd) : drive.scheduleEnd;
+      let windowMinutes = 90;
+      if (sStart && sEnd) {
+        const diffMs = new Date(sEnd).getTime() - new Date(sStart).getTime();
+        const diffMins = Math.round(diffMs / (60 * 1000));
+        windowMinutes = diffMins > 0 ? diffMins : 90;
+      }
+
+      const lowerName = (template.roleName || "").toLowerCase();
+      const resolvedTag = lowerName.includes("fresher")
+        ? "fresher"
+        : lowerName.includes("l1")
+        ? "l1"
+        : lowerName.includes("l2")
+        ? "l2"
+        : "l3";
+
+      let totalEstimatedDuration = 0;
+      const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig };
+
+      for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
+        const conf = modConf as any;
+        if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
+
+        const reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
+        const dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+        const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+        if (distSum !== reqCount) {
+          throw new BadRequestException(
+            `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
+          );
+        }
+
+        const estDuration = getEstimatedModuleDuration(moduleType, dist);
+        totalEstimatedDuration += estDuration;
+
+        sanitizedModuleConfig[moduleType] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: dist,
+        };
+      }
+
+      if (totalEstimatedDuration > windowMinutes) {
+        const overflow = (totalEstimatedDuration - windowMinutes).toFixed(1);
+        throw new BadRequestException(
+          `Estimated assessment time (${totalEstimatedDuration} min) exceeds the configured assessment duration (${windowMinutes} min) by ${overflow} minutes. Please adjust module weights or difficulty distributions.`
+        );
+      }
+
+      data.moduleConfig = sanitizedModuleConfig;
     }
     if (scheduleStart) data.scheduleStart = new Date(scheduleStart);
     if (scheduleEnd) data.scheduleEnd = new Date(scheduleEnd);
@@ -1020,6 +1077,28 @@ export class DriveService {
       where: { id: { in: qIds } },
     });
 
+    if (drive.moduleConfig && typeof drive.moduleConfig === "object") {
+      const modConfig = drive.moduleConfig as Record<string, any>;
+      for (const [modType, conf] of Object.entries(modConfig)) {
+        if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
+        const reqCount = conf.requiredCount;
+        if (typeof reqCount === "number" && reqCount > 0) {
+          const modQuestions = questions.filter((q) => {
+            const tags = q.tags || [];
+            const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+            const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+            const effectiveMod = isDebug ? "DEBUGGING" : q.moduleType;
+            return effectiveMod === modType;
+          });
+          if (modQuestions.length > reqCount) {
+            throw new BadRequestException(
+              `Module ${modType} has ${modQuestions.length} questions selected, which exceeds the required limit of ${reqCount}. No additional questions can be added.`
+            );
+          }
+        }
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.driveQuestion.deleteMany({
         where: { driveId },
@@ -1132,9 +1211,38 @@ export class DriveService {
     }
 
     const targetDept = drive.roleTemplate?.department || drive.roleTemplate?.roleName || "UNSPECIFIED";
-    const driveQuestionCount = await this.prisma.driveQuestion.count({
+    const driveQuestions = await this.prisma.driveQuestion.findMany({
       where: { driveId },
+      include: { question: true },
     });
+    const driveQuestionCount = driveQuestions.length;
+
+    if (drive.moduleConfig && typeof drive.moduleConfig === "object") {
+      const modConfig = drive.moduleConfig as Record<string, any>;
+      for (const [modType, conf] of Object.entries(modConfig)) {
+        if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
+        const reqCount = conf.requiredCount;
+        if (typeof reqCount === "number" && reqCount > 0) {
+          const modQuestions = driveQuestions.filter((dq) => dq.moduleType === modType);
+          if (modQuestions.length !== reqCount) {
+            throw new BadRequestException(
+              `Cannot generate links: Module ${modType} requires exactly ${reqCount} questions selected (currently ${modQuestions.length} selected).`
+            );
+          }
+          if (conf.difficultyDistribution) {
+            const dist = conf.difficultyDistribution;
+            const easyCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "EASY").length;
+            const mediumCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+            const hardCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "HARD").length;
+            if (easyCount !== dist.easy || mediumCount !== dist.medium || hardCount !== dist.hard) {
+              throw new BadRequestException(
+                `Cannot generate links: Module ${modType} selected difficulty mix (${easyCount}E / ${mediumCount}M / ${hardCount}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`
+              );
+            }
+          }
+        }
+      }
+    }
 
     if (driveQuestionCount === 0) {
       const deptQuestionCount = await this.prisma.question.count({

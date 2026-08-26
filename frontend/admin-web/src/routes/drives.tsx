@@ -726,9 +726,7 @@ function DrivesPage() {
                     placeholder="e.g. Senior Software Engineer"
                     className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
                   />
-                  <p className="text-[11px] text-[#8B8B93] mt-1">
-                    Custom drives can be configured with specific modules, questions, and timings in the Drive Editor.
-                  </p>
+                  
                 </div>
               )}
             </div>

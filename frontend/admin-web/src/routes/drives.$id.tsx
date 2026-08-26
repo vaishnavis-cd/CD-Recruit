@@ -84,15 +84,15 @@ const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: num
   l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
 };
 
-const TIME_MATRIX: Record<string, Record<string, number>> = {
-  MCQ: { EASY: 1, MEDIUM: 1.5, HARD: 2 },
-  SQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
-  CODING: { EASY: 10, MEDIUM: 15, HARD: 25 },
-  DEBUGGING: { EASY: 3, MEDIUM: 5, HARD: 8 },
-  TEST_SCENARIOS: { EASY: 3, MEDIUM: 5, HARD: 8 },
-  AI_PROMPTING: { EASY: 3, MEDIUM: 5, HARD: 7 },
-  SIMULATION: { EASY: 6, MEDIUM: 10, HARD: 15 },
-  NOSQL: { EASY: 3, MEDIUM: 5, HARD: 8 },
+export const TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
+  SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  DEBUGGING: { EASY: 5, MEDIUM: 10, HARD: 18 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  AI_PROMPTING: { EASY: 4, MEDIUM: 7, HARD: 12 },
+  SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
 };
 
 export function getRequiredQuestionCount(
@@ -109,10 +109,7 @@ export function getRequiredQuestionCount(
     ratios.hard * times.HARD;
   const timeBudget = totalDuration * (weight / 100);
 
-  if (moduleType === "MCQ") {
-    return Math.max(1, Math.round(timeBudget / 1.8));
-  }
-  return Math.max(1, Math.round(timeBudget / avgTime));
+  return Math.max(1, Math.round(timeBudget / (avgTime || 1)));
 }
 
 export function getDefaultDifficultyDistribution(
@@ -132,7 +129,23 @@ export function getDefaultDifficultyDistribution(
     easy += medium;
     medium = 0;
   }
-  return { easy, medium, hard };
+  const currentSum = easy + medium + hard;
+  if (currentSum !== requiredCount) {
+    easy += (requiredCount - currentSum);
+  }
+  return { easy: Math.max(0, easy), medium: Math.max(0, medium), hard: Math.max(0, hard) };
+}
+
+export function getEstimatedModuleDuration(
+  moduleType: string,
+  dist: { easy: number; medium: number; hard: number },
+): number {
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  return (
+    (dist.easy || 0) * times.EASY +
+    (dist.medium || 0) * times.MEDIUM +
+    (dist.hard || 0) * times.HARD
+  );
 }
 
 // Helper to filter out module subtags and restrict drive tags to last 3
@@ -908,19 +921,119 @@ function DriveDetailPage() {
     return (drive?.roster?.length || 0) > 0;
   }, [drive]);
 
+  const driveEvaluationSummary = useMemo(() => {
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    const summaryData = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"]
+      .map((modId) => {
+        const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
+        if (!conf.enabled || Number(conf.weight) <= 0) {
+          return { modId, enabled: false, weight: 0, marks: 0, count: 0, dist: { easy: 0, medium: 0, hard: 0 }, estTime: 0 };
+        }
+
+        const weight = Number(conf.weight) || 0;
+        const reqCount = getRequiredQuestionCount(modId, weight, totalDuration, resolvedTag);
+        const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        const estTime = getEstimatedModuleDuration(modId, dist);
+
+        return {
+          modId,
+          enabled: true,
+          weight,
+          marks: weight,
+          count: reqCount,
+          dist,
+          estTime,
+        };
+      })
+      .filter((m) => m.enabled);
+
+    const totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
+    const totalMarks = summaryData.reduce((sum, m) => sum + m.marks, 0);
+    const totalQuestions = summaryData.reduce((sum, m) => sum + m.count, 0);
+    const totalEstTime = summaryData.reduce((sum, m) => sum + m.estTime, 0);
+    const isOverTime = totalEstTime > totalDuration;
+    const overflowMinutes = isOverTime ? Number((totalEstTime - totalDuration).toFixed(1)) : 0;
+
+    return {
+      summaryData,
+      totalDuration,
+      totalWeight,
+      totalMarks,
+      totalQuestions,
+      totalEstTime,
+      isOverTime,
+      overflowMinutes,
+      resolvedTag,
+    };
+  }, [moduleConfig, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow, drive]);
+
+  const areQuestionsFullyAssigned = useMemo(() => {
+    const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
+    if (hasRoleTemplate && assignedQuestions.length > 0) return true;
+
+    const { summaryData } = driveEvaluationSummary;
+    if (summaryData.length === 0) return false;
+
+    for (const m of summaryData) {
+      const poolQuestions = (questionsBank || []).filter(q => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return assignedQuestions.includes(q.id) && displayMod === m.modId;
+      });
+      if (poolQuestions.length !== m.count) return false;
+      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+      if (easyAvail !== m.dist.easy || mediumAvail !== m.dist.medium || hardAvail !== m.dist.hard) return false;
+    }
+    return true;
+  }, [driveEvaluationSummary, assignedQuestions, questionsBank, drive]);
+
   const isScheduleUnlocked = useMemo(() => {
-    return isScheduleDateValid && hasQuestionsSelected && hasCandidatesSelected;
-  }, [isScheduleDateValid, hasQuestionsSelected, hasCandidatesSelected]);
+    return (
+      isScheduleDateValid &&
+      hasCandidatesSelected &&
+      weightValidation.valid &&
+      !driveEvaluationSummary.isOverTime &&
+      areQuestionsFullyAssigned
+    );
+  }, [isScheduleDateValid, hasCandidatesSelected, weightValidation, driveEvaluationSummary, areQuestionsFullyAssigned]);
 
-  const validateCumulativeDuration = (): boolean => {
-    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
-    const cumulativeMins = Object.values(moduleConfig)
-      .filter((m) => m.enabled)
-      .reduce((sum, m) => sum + (Number(m.durationMinutes) || 0), 0);
+  const validateCumulativeDuration = (config = moduleConfig): boolean => {
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
 
-    if (cumulativeMins > windowMins) {
+    let totalEstMins = 0;
+    for (const [modId, conf] of Object.entries(config)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, windowMins, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+      const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+      if (distSum !== reqCount) {
+        toast.error(
+          `Module ${modId} difficulty targets (${dist.easy}E + ${dist.medium}M + ${dist.hard}H = ${distSum}) must equal the required question count (${reqCount}).`
+        );
+        return false;
+      }
+      totalEstMins += getEstimatedModuleDuration(modId, dist);
+    }
+
+    if (totalEstMins > windowMins) {
+      const overflow = (totalEstMins - windowMins).toFixed(1);
       toast.error(
-        `Total module durations (${cumulativeMins} mins) exceed the scheduled test window (${windowMins} mins). Please adjust module durations or extend the schedule window.`
+        `⚠ Estimated assessment time exceeds the configured ${windowMins}-minute limit by ${overflow} minutes.`
       );
       return false;
     }
@@ -953,6 +1066,12 @@ function DriveDetailPage() {
           requiredCount: reqCount,
           difficultyDistribution: getDefaultDifficultyDistribution(reqCount, resolvedTag),
         } as any;
+      } else {
+        updatedModuleConfig[modId] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: dist,
+        } as any;
       }
     }
 
@@ -968,7 +1087,7 @@ function DriveDetailPage() {
       return;
     }
 
-    if (!validateCumulativeDuration()) {
+    if (!validateCumulativeDuration(updatedModuleConfig)) {
       return;
     }
 
@@ -976,15 +1095,6 @@ function DriveDetailPage() {
       const headers = await getAuthHeaders();
       const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
       const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
-
-      const payload: any = {
-        scheduleStart: startIso,
-        scheduleEnd: endIso,
-        moduleConfig: {
-          ...updatedModuleConfig,
-          proctoringConfig,
-        },
-      };
 
       const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
         method: "PATCH",
@@ -994,7 +1104,7 @@ function DriveDetailPage() {
           scheduleStart: startIso,
           scheduleEnd: endIso,
           status: editStatus,
-          moduleConfig: { ...moduleConfig, proctoringConfig },
+          moduleConfig: { ...updatedModuleConfig, proctoringConfig },
         }),
       });
 
@@ -1060,13 +1170,23 @@ function DriveDetailPage() {
       const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
       const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-      const poolQuestions = (questionsBank || []).filter(q => assignedQuestions.includes(q.id) && q.moduleType === modId);
+      const poolQuestions = (questionsBank || []).filter(q => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return assignedQuestions.includes(q.id) && displayMod === modId;
+      });
+
+      if (poolQuestions.length !== reqCount) {
+        toast.error(`Incomplete question selection for ${modId}. Please select exactly ${reqCount} required questions (${poolQuestions.length} currently selected).`);
+        return;
+      }
+
       const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
       const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
       const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
 
-      if (easyAvail < dist.easy || mediumAvail < dist.medium || hardAvail < dist.hard) {
-        toast.error(`Insufficient question pool for ${modId}. Please ensure the assigned questions pool has at least: Easy = ${dist.easy}, Medium = ${dist.medium}, Hard = ${dist.hard}.`);
+      if (easyAvail !== dist.easy || mediumAvail !== dist.medium || hardAvail !== dist.hard) {
+        toast.error(`Selected difficulty composition for ${modId} (${easyAvail}E / ${mediumAvail}M / ${hardAvail}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`);
         return;
       }
     }
@@ -1101,13 +1221,23 @@ function DriveDetailPage() {
       const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
       const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-      const poolQuestions = (questionsBank || []).filter(q => assignedQuestions.includes(q.id) && q.moduleType === modId);
+      const poolQuestions = (questionsBank || []).filter(q => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return assignedQuestions.includes(q.id) && displayMod === modId;
+      });
+
+      if (poolQuestions.length !== reqCount) {
+        toast.error(`Incomplete question selection for ${modId}. Please select exactly ${reqCount} required questions (${poolQuestions.length} currently selected).`);
+        return;
+      }
+
       const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
       const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
       const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
 
-      if (easyAvail < dist.easy || mediumAvail < dist.medium || hardAvail < dist.hard) {
-        toast.error(`Insufficient question pool for ${modId}. Please ensure the assigned questions pool has at least: Easy = ${dist.easy}, Medium = ${dist.medium}, Hard = ${dist.hard}.`);
+      if (easyAvail !== dist.easy || mediumAvail !== dist.medium || hardAvail !== dist.hard) {
+        toast.error(`Selected difficulty composition for ${modId} (${easyAvail}E / ${mediumAvail}M / ${hardAvail}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`);
         return;
       }
     }
@@ -1759,15 +1889,24 @@ function DriveDetailPage() {
                           const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
                           const reqCount = getRequiredQuestionCount(mod.id, conf.weight, totalDuration, resolvedTag);
                           const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+                          const estDuration = getEstimatedModuleDuration(mod.id, dist);
+                          const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
 
                           return (
                             <div className="col-span-2 pt-2 border-t border-[#EFF0F3] space-y-1.5">
                               <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-semibold text-[#0B0B0D]">Difficulty Target (Required: {reqCount})</span>
-                                {dist.easy + dist.medium + dist.hard !== reqCount && (
-                                  <span className="text-[10px] text-rose-600 font-bold">⚠ Must total {reqCount}</span>
-                                )}
+                                <span className="font-semibold text-[#0B0B0D]">
+                                  Difficulty Target (Required: {reqCount})
+                                </span>
+                                <span className="text-[10px] text-[#5B5B64] font-medium font-mono">
+                                  Est: {estDuration} min
+                                </span>
                               </div>
+                              {distSum !== reqCount && (
+                                <div className="text-[10px] text-rose-600 font-bold">
+                                  ⚠ Difficulty counts must total {reqCount} (Current: {distSum})
+                                </div>
+                              )}
                               <div className="grid grid-cols-3 gap-1.5">
                                 <div>
                                   <label className="block text-[9px] text-emerald-800 font-medium mb-0.5 uppercase tracking-wide">Easy</label>
@@ -1843,38 +1982,16 @@ function DriveDetailPage() {
 
           {/* Assessment Composition Summary */}
           {(() => {
-            const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-            const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-              lowerName.includes("l1") ? "l1" : (
-                lowerName.includes("l2") ? "l2" : "l3"
-              )
-            );
-
-            const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-            const summaryData = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"]
-              .map((modId) => {
-                const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
-                if (!conf.enabled || Number(conf.weight) <= 0) {
-                  return { modId, enabled: false, weight: 0, marks: 0, count: 0, estTime: 0 };
-                }
-
-                const weight = Number(conf.weight) || 0;
-                const reqCount = getRequiredQuestionCount(modId, weight, totalDuration, resolvedTag);
-                const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-
-                const times = TIME_MATRIX[modId] || { EASY: 5, MEDIUM: 5, HARD: 5 };
-                const estTime = (dist.easy * times.EASY) + (dist.medium * times.MEDIUM) + (dist.hard * times.HARD);
-
-                return {
-                  modId,
-                  enabled: true,
-                  weight,
-                  marks: weight,
-                  count: reqCount,
-                  estTime,
-                };
-              })
-              .filter((m) => m.enabled);
+            const {
+              summaryData,
+              totalDuration,
+              totalWeight,
+              totalMarks,
+              totalQuestions,
+              totalEstTime,
+              isOverTime,
+              overflowMinutes,
+            } = driveEvaluationSummary;
 
             return (
               <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
@@ -1882,7 +1999,7 @@ function DriveDetailPage() {
                   <Settings size={18} className="text-[#2F5CFF]" />
                   <div>
                     <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Assessment Composition Summary (Time-Aware)</h3>
-                    <p className="text-[12px] text-[#8B8B93]">Estimated question counts and expected candidate duration based on module weightages.</p>
+                    <p className="text-[12px] text-[#8B8B93]">Estimated question counts, difficulty mix, and expected candidate duration based on module benchmarks.</p>
                   </div>
                 </div>
 
@@ -1893,7 +2010,8 @@ function DriveDetailPage() {
                         <th className="px-4 py-2.5">Module</th>
                         <th className="px-4 py-2.5 text-center">Weight</th>
                         <th className="px-4 py-2.5 text-center">Marks</th>
-                        <th className="px-4 py-2.5 text-center">Questions</th>
+                        <th className="px-4 py-2.5 text-center">Required Questions</th>
+                        <th className="px-4 py-2.5 text-center">Difficulty Mix</th>
                         <th className="px-4 py-2.5 text-right">Estimated Duration</th>
                       </tr>
                     </thead>
@@ -1903,20 +2021,49 @@ function DriveDetailPage() {
                           <td className="px-4 py-3 font-semibold text-[#0B0B0D]">{m.modId}</td>
                           <td className="px-4 py-3 text-center text-[#2F5CFF] font-semibold">{m.weight}%</td>
                           <td className="px-4 py-3 text-center text-[#0B0B0D]">{m.marks} marks</td>
-                          <td className="px-4 py-3 text-center text-[#0B0B0D]">{m.count} questions</td>
-                          <td className="px-4 py-3 text-right text-[#5B5B64] font-medium">{m.estTime} min</td>
+                          <td className="px-4 py-3 text-center text-[#0B0B0D] font-bold">{m.count} questions</td>
+                          <td className="px-4 py-3 text-center text-[#5B5B64]">
+                            <span className="text-emerald-700 font-semibold">{m.dist.easy}E</span> / <span className="text-amber-700 font-semibold">{m.dist.medium}M</span> / <span className="text-rose-700 font-semibold">{m.dist.hard}H</span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-[#5B5B64] font-semibold">{m.estTime} min</td>
                         </tr>
                       ))}
                       <tr className="bg-[#F7F7F9]/50 font-bold border-t border-[#E6E6EA]">
                         <td className="px-4 py-3 text-[#0B0B0D]">Total Summary</td>
-                        <td className="px-4 py-3 text-center text-[#2F5CFF]">{summaryData.reduce((sum, m) => sum + m.weight, 0)}%</td>
-                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{summaryData.reduce((sum, m) => sum + m.marks, 0)} marks</td>
-                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{summaryData.reduce((sum, m) => sum + m.count, 0)} questions</td>
-                        <td className="px-4 py-3 text-right text-[#0B0B0D]">{summaryData.reduce((sum, m) => sum + m.estTime, 0)} min (out of {totalDuration} min)</td>
+                        <td className="px-4 py-3 text-center text-[#2F5CFF]">{totalWeight}%</td>
+                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{totalMarks} marks</td>
+                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{totalQuestions} questions</td>
+                        <td className="px-4 py-3 text-center text-[#8B8B93]">—</td>
+                        <td className="px-4 py-3 text-right text-[#0B0B0D]">
+                          <span className={isOverTime ? "text-rose-600 font-bold" : "text-[#0B0B0D]"}>
+                            {totalEstTime} min
+                          </span>{" "}
+                          <span className="text-[10px] text-[#8B8B93] font-normal">(out of {totalDuration} min)</span>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
+
+                {/* Status Banners */}
+                {isOverTime ? (
+                  <div className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-[12px] text-rose-900">
+                    <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">
+                        ⚠ Estimated assessment time exceeds the configured {totalDuration}-minute limit by {overflowMinutes} minutes.
+                      </p>
+                      <p className="text-[11px] text-rose-700 mt-0.5">
+                        The configuration cannot be saved or scheduled until the estimated duration fits within the {totalDuration}-minute window. Please adjust module weights, change difficulty distributions, or extend the scheduled window.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-[12px] text-emerald-800 font-medium">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span>✓ Assessment configuration fits within the configured {totalDuration}-minute limit ({totalEstTime} min estimated).</span>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -2108,7 +2255,11 @@ function DriveDetailPage() {
                 const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
                 const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-                const poolQuestions = (questionsBank || []).filter(q => assignedQuestions.includes(q.id) && q.moduleType === modId);
+                const poolQuestions = (questionsBank || []).filter(q => {
+                  const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+                  const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+                  return assignedQuestions.includes(q.id) && displayMod === modId;
+                });
                 const poolSize = poolQuestions.length;
 
                 const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
@@ -2118,38 +2269,41 @@ function DriveDetailPage() {
                 const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
                 const errors: string[] = [];
                 if (!hasRoleTemplate) {
-                  if (easyAvail < dist.easy) errors.push(`Insufficient Easy questions. Required: ${dist.easy}, Available: ${easyAvail}.`);
-                  if (mediumAvail < dist.medium) errors.push(`Insufficient Medium questions. Required: ${dist.medium}, Available: ${mediumAvail}.`);
-                  if (hardAvail < dist.hard) errors.push(`Insufficient Hard questions. Required: ${dist.hard}, Available: ${hardAvail}.`);
+                  if (easyAvail < dist.easy) errors.push(`Need ${dist.easy - easyAvail} more Easy question(s) (Target: ${dist.easy}, Selected: ${easyAvail})`);
+                  if (mediumAvail < dist.medium) errors.push(`Need ${dist.medium - mediumAvail} more Medium question(s) (Target: ${dist.medium}, Selected: ${mediumAvail})`);
+                  if (hardAvail < dist.hard) errors.push(`Need ${dist.hard - hardAvail} more Hard question(s) (Target: ${dist.hard}, Selected: ${hardAvail})`);
                 }
 
-                const isSufficient = errors.length === 0;
+                const isCountMatched = poolSize === reqCount;
+                const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
 
                 return (
                   <div key={modId} className="bg-white border border-[#E6E6EA] rounded-lg p-3 space-y-2 text-[12px] shadow-sm">
                     <div className="flex items-center justify-between font-semibold border-b border-[#EFF0F3] pb-1.5">
                       <span className="text-[#0B0B0D] font-bold text-[13px]">{modId} Module Target Composition</span>
                       <span className="text-[#2F5CFF] font-semibold">
-                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required: ${reqCount}`}
+                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required Questions: ${reqCount}`}
                       </span>
                     </div>
 
                     <div className="space-y-1 font-mono text-[11px] text-[#5B5B64]">
                       <div className="flex justify-between">
                         <span>Target composition:</span>
-                        <span className="font-bold">
+                        <span className="font-bold text-[#0B0B0D]">
                           Easy: {dist.easy} • Medium: {dist.medium} • Hard: {dist.hard}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Pool composition:</span>
+                        <span>Selected composition:</span>
                         <span>
                           Easy: {easyAvail} • Medium: {mediumAvail} • Hard: {hardAvail}
                         </span>
                       </div>
                       <div className="flex justify-between font-sans text-[12px] pt-1">
-                        <span>Selected Pool:</span>
-                        <span className="font-semibold text-[#0B0B0D]">{poolSize} questions</span>
+                        <span>Selected Questions:</span>
+                        <span className={`font-semibold ${poolSize === reqCount ? "text-emerald-700 font-bold" : "text-[#0B0B0D]"}`}>
+                          {poolSize} / {reqCount} questions
+                        </span>
                       </div>
                     </div>
 
@@ -2166,31 +2320,29 @@ function DriveDetailPage() {
                         )
                       ) : (
                         <>
-                          {poolSize < reqCount ? (
+                          {poolSize < reqCount && (
                             <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
                               ⚠ {poolSize} / {reqCount} required questions selected.
                             </div>
-                          ) : poolSize === reqCount ? (
-                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded">
-                              ✓ Required question count reached.
-                            </div>
-                          ) : (
-                            <div className="text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded">
-                              ℹ Pool contains {poolSize - reqCount} additional questions for randomization.
+                          )}
+
+                          {isCountMatched && isDifficultyMatched && (
+                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
+                              ✓ Required question count reached. No additional questions can be added.
                             </div>
                           )}
 
-                          {isSufficient ? (
-                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
-                              ✓ Sufficient question pool.
+                          {isCountMatched && !isDifficultyMatched && (
+                            <div className="text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded">
+                              ⚠ Selected difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) does not match target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
                             </div>
-                          ) : (
-                            errors.map((err, idx) => (
-                              <div key={idx} className="text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded">
-                                ⚠ {err}
-                              </div>
-                            ))
                           )}
+
+                          {!isCountMatched && errors.map((err, idx) => (
+                            <div key={idx} className="text-amber-700 bg-amber-50/50 border border-amber-200 px-2.5 py-0.5 rounded text-[10px]">
+                              ⚠ {err}
+                            </div>
+                          ))}
                         </>
                       )}
                     </div>
@@ -2355,25 +2507,45 @@ function DriveDetailPage() {
                         <span className="text-[11px] text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity font-medium flex items-center gap-1">
                           <Eye size={12} /> Preview
                         </span>
-                        {isQuestionsEditable ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isSelected) {
-                                setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
-                              } else {
-                                setAssignedQuestions([...assignedQuestions, q.id]);
-                              }
-                            }}
-                            className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
-                              isSelected
-                                ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                                : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
-                            }`}
-                          >
-                            {isSelected ? "Remove" : "Assign"}
-                          </button>
-                        ) : (
+                        {isQuestionsEditable ? (() => {
+                          const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
+                          const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                          const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
+                          const modAssigned = (questionsBank || []).filter((item) => {
+                            const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
+                            const dMod = isDeb ? "DEBUGGING" : item.moduleType;
+                            return assignedQuestions.includes(item.id) && dMod === displayModule;
+                          });
+                          const isLimitReached = !isSelected && modAssigned.length >= reqCount;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isSelected) {
+                                  setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
+                                } else {
+                                  if (modAssigned.length >= reqCount) {
+                                    toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
+                                    return;
+                                  }
+                                  setAssignedQuestions([...assignedQuestions, q.id]);
+                                }
+                              }}
+                              className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors ${
+                                isSelected
+                                  ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
+                                  : isLimitReached
+                                  ? "bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed"
+                                  : "bg-[#2F5CFF] text-white hover:bg-[#0037FF] cursor-pointer"
+                              }`}
+                              title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
+                            >
+                              {isSelected ? "Remove" : "Assign"}
+                            </button>
+                          );
+                        })() : (
                           <button
                             disabled
                             className="px-3 py-1 rounded text-[11px] font-medium bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed flex items-center gap-1"
@@ -2666,24 +2838,48 @@ function DriveDetailPage() {
             </div>
 
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] flex items-center justify-end">
-              <button
-                onClick={() => {
-                  const isAssigned = assignedQuestions.includes(previewQuestion.id);
-                  if (isAssigned) {
-                    setAssignedQuestions(assignedQuestions.filter((id) => id !== previewQuestion.id));
-                  } else {
-                    setAssignedQuestions([...assignedQuestions, previewQuestion.id]);
-                  }
-                  setPreviewQuestion(null);
-                }}
-                className={`px-4 py-2 text-[12px] font-semibold rounded-md shadow-sm transition-colors cursor-pointer ${
-                  assignedQuestions.includes(previewQuestion.id)
-                    ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                    : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
-                }`}
-              >
-                {assignedQuestions.includes(previewQuestion.id) ? "Remove Question from Drive" : "Assign Question to Drive"}
-              </button>
+              {(() => {
+                const isAssigned = assignedQuestions.includes(previewQuestion.id);
+                const isDebugging = previewQuestion.moduleType === "DEBUGGING" || (Array.isArray(previewQuestion.tags) && previewQuestion.tags.includes("debugging"));
+                const displayModule = isDebugging ? "DEBUGGING" : previewQuestion.moduleType;
+                const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
+                const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
+                const modAssigned = (questionsBank || []).filter((item) => {
+                  const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
+                  const dMod = isDeb ? "DEBUGGING" : item.moduleType;
+                  return assignedQuestions.includes(item.id) && dMod === displayModule;
+                });
+                const isLimitReached = !isAssigned && modAssigned.length >= reqCount;
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isAssigned) {
+                        setAssignedQuestions(assignedQuestions.filter((id) => id !== previewQuestion.id));
+                        setPreviewQuestion(null);
+                      } else {
+                        if (modAssigned.length >= reqCount) {
+                          toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
+                          return;
+                        }
+                        setAssignedQuestions([...assignedQuestions, previewQuestion.id]);
+                        setPreviewQuestion(null);
+                      }
+                    }}
+                    className={`px-4 py-2 text-[12px] font-semibold rounded-md shadow-sm transition-colors ${
+                      isAssigned
+                        ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
+                        : isLimitReached
+                        ? "bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed"
+                        : "bg-[#2F5CFF] text-white hover:bg-[#0037FF] cursor-pointer"
+                    }`}
+                  >
+                    {isAssigned ? "Remove Question from Drive" : "Assign Question to Drive"}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
