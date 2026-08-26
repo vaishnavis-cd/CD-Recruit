@@ -425,7 +425,7 @@ function InvitesPage() {
       )}
 
       <div className="bg-white border border-[#E6E6EA] rounded-[10px] overflow-hidden">
-        <div className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
+        <div className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
           <div>
             <input
               type="checkbox"
@@ -437,7 +437,6 @@ function InvitesPage() {
           <div>Candidate</div>
           <div>Role</div>
           <div>Status</div>
-          <div>ID Proof</div>
           <div>Created</div>
           <div>Expires</div>
           <div className="text-right">Actions</div>
@@ -445,7 +444,7 @@ function InvitesPage() {
         {invites.map((inv) => (
           <div
             key={inv.id}
-            className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
+            className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
           >
             <div>
               <input
@@ -464,24 +463,6 @@ function InvitesPage() {
               <div className="text-[#5B5B64]">{inv.roleTemplate.track}</div>
             </div>
             <StatusStepper status={inv.status} />
-            <div>
-              {inv.idProofRef ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-300">
-                  <ShieldCheck size={12} /> Enrolled
-                </span>
-              ) : (
-                <button
-                  onClick={() => {
-                    setDirectUploadInvite(inv);
-                    setDirectFile(null);
-                    setDirectError(null);
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D9E4FF] px-2.5 py-1 rounded-full border border-[#B3C5FF] cursor-pointer transition-colors"
-                >
-                  <Upload size={11} /> Upload ID
-                </button>
-              )}
-            </div>
             <div className="font-mono text-[11px] text-[#5B5B64]">{inv.createdAt}</div>
             <div className="font-mono text-[11px] text-[#5B5B64]">
               {inv.status === "PENDING" ? fmtExpires(inv.expiresAt) : inv.expiresAt.slice(0, 10)}

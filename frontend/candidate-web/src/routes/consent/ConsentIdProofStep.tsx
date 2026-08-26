@@ -72,16 +72,31 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
     reader.readAsDataURL(file)
   }
 
+  React.useEffect(() => {
+    if (isCameraActive && videoRef.current && mediaStreamRef.current) {
+      const video = videoRef.current
+      video.srcObject = mediaStreamRef.current
+      video.onloadedmetadata = () => {
+        video.play().catch((err) => console.warn('[ConsentIdProofStep] video.play() warning:', err))
+      }
+    }
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop())
+        mediaStreamRef.current = null
+      }
+    }
+  }, [isCameraActive])
+
   async function startCamera() {
     try {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop())
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       })
       mediaStreamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-      }
       setIsCameraActive(true)
       setErrorMsg(null)
     } catch (err: any) {
@@ -91,7 +106,7 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
 
   function stopCamera() {
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop())
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop())
       mediaStreamRef.current = null
     }
     setIsCameraActive(false)
