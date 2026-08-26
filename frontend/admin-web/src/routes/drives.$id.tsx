@@ -2277,33 +2277,59 @@ function DriveDetailPage() {
                 const isCountMatched = poolSize === reqCount;
                 const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
 
+                const renderDiffMetric = (label: string, val: number) => {
+                  const isZero = val === 0;
+                  return (
+                    <span className={`inline-flex items-center gap-1 ${isZero ? "text-[#B8B8C2]" : "text-[#0B0B0D]"}`}>
+                      <span className={isZero ? "text-[#C5C5CE]" : "text-[#5B5B64]"}>{label}:</span>
+                      <span className={isZero ? "text-[#C5C5CE] font-normal" : "font-bold text-[#0B0B0D]"}>{val}</span>
+                    </span>
+                  );
+                };
+
                 return (
-                  <div key={modId} className="bg-white border border-[#E6E6EA] rounded-lg p-3 space-y-2 text-[12px] shadow-sm">
-                    <div className="flex items-center justify-between font-semibold border-b border-[#EFF0F3] pb-1.5">
-                      <span className="text-[#0B0B0D] font-bold text-[13px]">{modId} Module Target Composition</span>
-                      <span className="text-[#2F5CFF] font-semibold">
-                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required Questions: ${reqCount}`}
+                  <div key={modId} className="bg-white border border-[#E6E6EA] rounded-lg p-3.5 space-y-2.5 text-[12px] shadow-sm">
+                    <div className="flex items-center justify-between font-semibold border-b border-[#EFF0F3] pb-2">
+                      <span className="text-[#0B0B0D] font-bold text-[13px]">
+                        {MODULE_LABEL_MAP[modId] || modId} Module
+                      </span>
+                      <span className="text-[#2F5CFF] text-[11px] font-semibold">
+                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required: ${reqCount}`}
                       </span>
                     </div>
 
-                    <div className="space-y-1 font-mono text-[11px] text-[#5B5B64]">
-                      <div className="flex justify-between">
-                        <span>Target composition:</span>
-                        <span className="font-bold text-[#0B0B0D]">
-                          Easy: {dist.easy} • Medium: {dist.medium} • Hard: {dist.hard}
-                        </span>
+                    <div className="space-y-1.5 font-mono text-[11px]">
+                      {/* Strictly aligned vertical grid */}
+                      <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
+                        <span className="text-[#9C9CA5] font-sans font-medium text-[11px]">Target:</span>
+                        <div>{renderDiffMetric("Easy", dist.easy)}</div>
+                        <div>{renderDiffMetric("Medium", dist.medium)}</div>
+                        <div>{renderDiffMetric("Hard", dist.hard)}</div>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Selected composition:</span>
-                        <span>
-                          Easy: {easyAvail} • Medium: {mediumAvail} • Hard: {hardAvail}
-                        </span>
+
+                      <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
+                        <span className="text-[#9C9CA5] font-sans font-medium text-[11px]">Selected:</span>
+                        <div>{renderDiffMetric("Easy", easyAvail)}</div>
+                        <div>{renderDiffMetric("Medium", mediumAvail)}</div>
+                        <div>{renderDiffMetric("Hard", hardAvail)}</div>
                       </div>
-                      <div className="flex justify-between font-sans text-[12px] pt-1">
-                        <span>Selected Questions:</span>
-                        <span className={`font-semibold ${poolSize === reqCount ? "text-emerald-700 font-bold" : "text-[#0B0B0D]"}`}>
-                          {poolSize} / {reqCount} questions
-                        </span>
+
+                      {/* Emphasized Progress Ratio & Bar */}
+                      <div className="flex items-center justify-between font-sans pt-1.5 border-t border-[#EFF0F3]/80">
+                        <span className="text-[#9C9CA5] text-[11px] font-medium">Selected:</span>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-16 h-1.5 bg-[#EFF0F3] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                poolSize === reqCount ? "bg-emerald-500" : "bg-[#2F5CFF]"
+                              }`}
+                              style={{ width: `${Math.min(100, reqCount > 0 ? (poolSize / reqCount) * 100 : 0)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[13px] font-bold font-mono ${poolSize === reqCount ? "text-emerald-700" : "text-[#0B0B0D]"}`}>
+                            {poolSize} / {reqCount}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -2393,34 +2419,38 @@ function DriveDetailPage() {
                   })}
               </div>
 
-              {/* Complexity / Difficulty Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
-                <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
-                  {[
-                    { id: "ALL", label: "All" },
-                    { id: "EASY", label: "Easy" },
-                    { id: "MEDIUM", label: "Medium" },
-                    { id: "HARD", label: "Hard" },
-                  ].map((diff) => (
-                    <button
-                      key={diff.id}
-                      onClick={() => setQuestionDifficultyFilter(diff.id)}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
-                        questionDifficultyFilter === diff.id
-                          ? diff.id === "EASY"
-                            ? "bg-emerald-100 text-emerald-800 font-bold"
-                            : diff.id === "HARD"
-                            ? "bg-rose-100 text-rose-800 font-bold"
-                            : diff.id === "MEDIUM"
-                            ? "bg-amber-100 text-amber-800 font-bold"
-                            : "bg-[#2F5CFF] text-white font-bold"
-                          : "text-[#5B5B64] hover:text-[#0B0B0D]"
-                      }`}
-                    >
-                      {diff.label}
-                    </button>
-                  ))}
+              {/* Vertical divider and Complexity Filter */}
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:block h-5 w-px bg-[#E6E6EA]" />
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
+                  <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
+                    {[
+                      { id: "ALL", label: "All" },
+                      { id: "EASY", label: "Easy" },
+                      { id: "MEDIUM", label: "Medium" },
+                      { id: "HARD", label: "Hard" },
+                    ].map((diff) => (
+                      <button
+                        key={diff.id}
+                        onClick={() => setQuestionDifficultyFilter(diff.id)}
+                        className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
+                          questionDifficultyFilter === diff.id
+                            ? diff.id === "EASY"
+                              ? "bg-emerald-100 text-emerald-800 font-bold"
+                              : diff.id === "HARD"
+                              ? "bg-rose-100 text-rose-800 font-bold"
+                              : diff.id === "MEDIUM"
+                              ? "bg-amber-100 text-amber-800 font-bold"
+                              : "bg-[#2F5CFF] text-white font-bold"
+                            : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                        }`}
+                      >
+                        {diff.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
