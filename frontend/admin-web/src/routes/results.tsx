@@ -734,7 +734,7 @@ function VerificationSidePanel({
                       const isComp = w.status === "COMPLETED";
                       const isWinMatch = w.matched === true;
                       const capTime = w.capturedAt
-                        ? new Date(w.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        ? new Date(w.capturedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
                         : `Win ${w.windowIndex}`;
 
                       return (
