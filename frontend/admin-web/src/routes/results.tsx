@@ -566,8 +566,12 @@ function VerificationSidePanel({
   const ocrName =
     idVerifyResult?.name?.extractedName ||
     candidateData?.idProofExtractedName ||
-    "Nitesh R";
-  const ocrMatched = idVerifyResult?.name?.matched ?? (regName.toLowerCase().trim() === ocrName.toLowerCase().trim());
+    null;
+  const ocrMatched = idVerifyResult?.name?.matched !== undefined
+    ? idVerifyResult.name.matched
+    : ocrName
+    ? (regName.toLowerCase().trim() === ocrName.toLowerCase().trim())
+    : null;
 
   const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
@@ -783,12 +787,14 @@ function VerificationSidePanel({
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
-                        ocrMatched
+                        ocrMatched === true
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                          : ocrMatched === false
+                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
                       }`}
                     >
-                      {ocrMatched ? "Match" : "Mismatch"}
+                      {ocrMatched === true ? "Match" : ocrMatched === false ? "Mismatch" : "Pending"}
                     </span>
                   </div>
                   {accordions.ocr ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -803,14 +809,14 @@ function VerificationSidePanel({
                       </div>
                       <div>
                         <span className="text-[#8B8B93] block text-[11px]">Extracted Name (OCR)</span>
-                        <span className="font-semibold text-[#0B0B0D]">{ocrName}</span>
+                        <span className="font-semibold text-[#0B0B0D]">{ocrName || "—"}</span>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-[#F0F0F4] flex items-center justify-between">
                       <span className="text-[#8B8B93] text-[11px]">Result</span>
-                      <span className={`font-bold ${ocrMatched ? "text-emerald-600" : "text-rose-600"}`}>
-                        {ocrMatched ? "Match" : "Mismatch"}
+                      <span className={`font-bold ${ocrMatched === true ? "text-emerald-600" : ocrMatched === false ? "text-rose-600" : "text-amber-600"}`}>
+                        {ocrMatched === true ? "Match" : ocrMatched === false ? "Mismatch" : "Pending"}
                       </span>
                     </div>
                   </div>

@@ -1092,17 +1092,17 @@ export class AdminService {
           }
         }
 
-        // Lazy OCR trigger if candidate.idProofExtractedName is missing but idProofRef exists
+        // Run OCR with latest multi-document engine if idProofRef exists
         let extractedName = candidate.idProofExtractedName;
         let ocrConfidence = candidate.ocrConfidence ?? null;
         let ocrRaw = candidate.idProofOcrRaw;
 
-        if (!extractedName && idProofRef) {
+        if (idProofRef) {
           try {
             const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
             if (buf) {
               const ocrRes = await this.aadhaarOcrService.parseAadhaar(buf);
-              if (ocrRes) {
+              if (ocrRes && ocrRes.name) {
                 extractedName = ocrRes.name;
                 ocrConfidence = ocrRes.confidence;
                 ocrRaw = ocrRes.rawText;

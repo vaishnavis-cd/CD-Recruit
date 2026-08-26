@@ -15,7 +15,7 @@ export interface NameMatchResult {
 export class NameMatchService {
   private readonly logger = new Logger(NameMatchService.name);
 
-  // Default similarity threshold placeholder (0.75 = 75% token sort similarity)
+  // Default similarity threshold (0.75 = 75% similarity)
   private defaultThreshold = 0.75;
 
   /**
@@ -46,7 +46,11 @@ export class NameMatchService {
   }
 
   /**
-   * Compares an extracted OCR name against a registered candidate name using token-sort ratio.
+   * Compares an extracted OCR name against a registered candidate name.
+   * Uses composite matching (token_sort_ratio, token_set_ratio, partial_ratio) to support:
+   * 1. Exact & reordered names ("Vaishnavi S" vs "S Vaishnavi")
+   * 2. Single given name vs full legal name on ID proof ("Kirubanithi" vs "Sivalingam Palanivel Kirubanithi")
+   * 3. Initial expansions & token subsets ("Arun Kumar" vs "Arun Kumar Verma")
    */
   compareNames(
     registeredName: string,
@@ -70,9 +74,14 @@ export class NameMatchService {
       };
     }
 
-    // Fuzzball token_sort_ratio handles word reordering ("Vaishnavi S" vs "S Vaishnavi")
-    const score0to100 = fuzzball.token_sort_ratio(normReg, normExt);
-    const similarity = parseFloat((score0to100 / 100).toFixed(4));
+    // Composite multi-strategy fuzzball scoring
+    const tokenSort = fuzzball.token_sort_ratio(normReg, normExt);
+    const tokenSet = fuzzball.token_set_ratio(normReg, normExt);
+    const partialRatio = fuzzball.partial_ratio(normReg, normExt);
+
+    // Pick highest matching score among standard biometric name matching strategies
+    const bestScore = Math.max(tokenSort, tokenSet, partialRatio);
+    const similarity = parseFloat((bestScore / 100).toFixed(4));
     const matched = similarity >= threshold;
 
     return {
