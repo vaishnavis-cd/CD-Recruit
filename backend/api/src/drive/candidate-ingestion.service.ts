@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
-import { InviteStatus, OriginChannel, CandidateCategory } from "@prisma/client";
+import { InviteStatus, OriginChannel } from "@prisma/client";
+import { CandidateCategory } from "../common/utils/experience-tier.util";
 import * as crypto from "crypto";
 
 export interface CandidateEntry {
