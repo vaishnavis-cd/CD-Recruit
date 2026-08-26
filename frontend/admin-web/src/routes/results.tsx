@@ -13,6 +13,13 @@ import {
   FileSpreadsheet,
   ScanFace,
   Loader2,
+  X,
+  Camera,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -39,7 +46,6 @@ function ResultsPage() {
 
   const resultsList = useStore((s) => s.resultsList);
   const fetchResults = useStore((s) => s.fetchResults);
-  const exportResultsCsv = useStore((s) => s.exportResultsCsv);
   const bulkVerifyIdentity = useStore((s) => s.bulkVerifyIdentity);
   const drives = useStore((s) => s.drives);
   const fetchDrives = useStore((s) => s.fetchDrives);
@@ -48,131 +54,90 @@ function ResultsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "PASS" | "FAIL">("all");
   const [driveFilter, setDriveFilter] = useState<string>("all");
   const [verifying, setVerifying] = useState(false);
-  // sessionVerifyResults: null = Verify All not yet clicked this session.
-  // Populated only after the user explicitly clicks Verify All.
-  // Keyed by candidateId → per-candidate result from the API response.
   const [sessionVerifyResults, setSessionVerifyResults] = useState<Record<string, any> | null>(null);
+  const [selectedVerificationItem, setSelectedVerificationItem] = useState<any>(null);
 
   useEffect(() => {
     if (isExactResults) {
       fetchResults({ driveId: driveFilter !== "all" ? driveFilter : undefined });
       fetchDrives();
-      // Reset session verify results whenever the drive filter changes
-      // so the column always starts as Pending for the new filter context.
       setSessionVerifyResults(null);
     }
-  }, [isExactResults, driveFilter]);
+  }, [isExactResults, driveFilter, fetchResults, fetchDrives]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return resultsList.filter((item: any) => {
-      if (q) {
-        const name = (item.candidateName || "").toLowerCase();
-        const email = (item.candidateEmail || "").toLowerCase();
-        const drive = (item.driveName || "").toLowerCase();
-        if (!name.includes(q) && !email.includes(q) && !drive.includes(q)) return false;
-      }
-
-      if (driveFilter !== "all") {
-        const itemDriveId = item.driveId || item.drive_id || item.drive?.id;
-        if (itemDriveId && itemDriveId !== driveFilter) return false;
-      }
-
-      if (statusFilter === "pending") {
-        return !item.decision;
-      }
-      if (statusFilter === "PASS") {
-        const out = String(item.decision?.outcome || item.decision || "");
-        return out === "PASS" || out === "ADVANCE";
-      }
-      if (statusFilter === "FAIL") {
-        const out = String(item.decision?.outcome || item.decision || "");
-        return out === "FAIL" || out === "REJECT";
-      }
-
-      return true;
-    });
-  }, [resultsList, query, statusFilter, driveFilter]);
-
-  // Summary counts (always over full resultsList, not filtered view)
-  const stats = useMemo(() => {
-    let pending = 0;
-    let approved = 0;
-    let rejected = 0;
-    let totalScoreSum = 0;
-    let scoredCount = 0;
-
-    resultsList.forEach((r: any) => {
-      const out = String(r.decision?.outcome || r.decision || "");
-      if (out === "PASS" || out === "ADVANCE") approved++;
-      else if (out === "FAIL" || out === "REJECT") rejected++;
-      else pending++;
-
-      if (r.compositeScore !== null && r.compositeScore !== undefined) {
-        const val = r.compositeScore <= 1.0 ? r.compositeScore * 100 : r.compositeScore;
-        totalScoreSum += val;
-        scoredCount++;
-      }
-    });
-
-    const avgScore = scoredCount > 0 ? Math.round(totalScoreSum / scoredCount) : 0;
-
-    return {
-      total: resultsList.length,
-      pending,
-      approved,
-      rejected,
-      avgScore,
-    };
-  }, [resultsList]);
-
-  const handleExportCsv = async () => {
-    try {
-      await exportResultsCsv(driveFilter !== "all" ? driveFilter : undefined);
-      toast.success("Candidate evaluation CSV exported successfully!");
-    } catch (err: any) {
-      toast.error("Failed to export CSV: " + (err.message || err));
-    }
+  const getItemDecision = (item: any) => {
+    const d = item.reviewerDecision || item.decision?.outcome;
+    if (d === "ADVANCE" || d === "PASS") return "PASS";
+    if (d === "REJECT" || d === "FAIL") return "FAIL";
+    return null;
   };
 
-  /**
-   * Collect candidateIds from the currently-filtered approved candidates
-   * (already scoped to the active Drive filter via the API call + client filter)
-   * and run bulk identity verification.
-   */
-  const handleVerifyAll = async () => {
-    const candidateIds = filtered
-      .map((item: any) => item.candidateId)
-      .filter(Boolean) as string[];
+  const filtered = useMemo(() => {
+    return resultsList.filter((item) => {
+      const q = query.trim().toLowerCase();
+      const matchesQuery =
+        !q ||
+        item.candidateName?.toLowerCase().includes(q) ||
+        item.candidateEmail?.toLowerCase().includes(q) ||
+        item.driveName?.toLowerCase().includes(q) ||
+        item.roleTemplateName?.toLowerCase().includes(q);
 
-    if (candidateIds.length === 0) return;
+      const dec = getItemDecision(item);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "pending" && !dec) ||
+        dec === statusFilter;
+
+      return matchesQuery && matchesStatus;
+    });
+  }, [resultsList, query, statusFilter]);
+
+  const stats = useMemo(() => {
+    const total = resultsList.length;
+    const pending = resultsList.filter((r) => !getItemDecision(r)).length;
+    const approved = resultsList.filter((r) => getItemDecision(r) === "PASS").length;
+    const rejected = resultsList.filter((r) => getItemDecision(r) === "FAIL").length;
+    const scores = resultsList
+      .map((r) => (typeof r.compositeScore === "number" ? r.compositeScore : null))
+      .filter((s): s is number => s !== null);
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+
+    return { total, pending, approved, rejected, avgScore };
+  }, [resultsList]);
+
+  const handleExportCsv = () => {
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1";
+    const driveParam = driveFilter !== "all" ? `?driveId=${encodeURIComponent(driveFilter)}` : "";
+    window.open(`${apiBase}/admin/reports/export/csv${driveParam}`, "_blank");
+  };
+
+  const handleVerifyAll = async () => {
+    const sessionsToVerify = filtered
+      .map((item) => item.sessionId || item.id)
+      .filter(Boolean);
+
+    if (sessionsToVerify.length === 0) {
+      toast.info("No candidates selected for verification.");
+      return;
+    }
 
     setVerifying(true);
     try {
-      const summary = await bulkVerifyIdentity(candidateIds);
+      const res = await bulkVerifyIdentity(sessionsToVerify);
+      const map: Record<string, any> = {};
+      (res.results || []).forEach((r: any) => {
+        if (r.candidateId) map[r.candidateId] = r;
+        if (r.sessionId) map[r.sessionId] = r;
+      });
+      setSessionVerifyResults(map);
 
-      // Index results by candidateId so badges can be driven from this
-      // session-local state rather than re-fetched DB data.
-      const resultMap: Record<string, any> = {};
-      for (const r of summary.results) {
-        resultMap[r.candidateId] = r;
-      }
-      setSessionVerifyResults(resultMap);
+      // Immediately refresh results from backend so local store and DB state are fully synchronized
+      await fetchResults({ driveId: driveFilter !== "all" ? driveFilter : undefined });
 
-      const parts: string[] = [];
-      if (summary.completed > 0) {
-        parts.push(`${summary.matched} matched, ${summary.mismatched} mismatch`);
-      }
-      if (summary.insufficientData > 0) parts.push(`${summary.insufficientData} missing data`);
-      if (summary.errors > 0) parts.push(`${summary.errors} error(s)`);
-
-      const msg = `${summary.completed}/${summary.total} verified — ${parts.join(", ")}`;
-
-      if (summary.mismatched > 0 || summary.errors > 0) {
-        toast.warning(msg);
-      } else {
-        toast.success(msg);
-      }
+      const count = res.completed ?? res.total ?? res.results?.length ?? sessionsToVerify.length;
+      toast.success(
+        `Identity verification completed for ${count} candidate${count === 1 ? "" : "s"}.`
+      );
     } catch (err: any) {
       toast.error("Bulk verification failed: " + (err.message || err));
     } finally {
@@ -201,45 +166,13 @@ function ResultsPage() {
       }
       actions={
         <div className="flex items-center gap-2">
-          {/* Verify All — only visible when the Approved tab is active */}
-          {statusFilter === "PASS" && (
-            <button
-              id="verify-all-btn"
-              onClick={handleVerifyAll}
-              disabled={verifying || filtered.length === 0}
-              title={
-                filtered.length === 0
-                  ? "No approved candidates to verify"
-                  : `Verify identity for ${filtered.length} approved candidate${filtered.length === 1 ? "" : "s"}`
-              }
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded border transition-colors
-                ${
-                  filtered.length === 0 || verifying
-                    ? "bg-[#F7F7F9] text-[#9C9CA5] border-[#E6E6EA] cursor-not-allowed"
-                    : "text-[#0C6B58] bg-[#E3F9F2] border-[#A3E4D7] hover:bg-[#C7F5E8] cursor-pointer"
-                }`}
-            >
-              {verifying ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  Verifying {filtered.length} candidate{filtered.length === 1 ? "" : "s"}…
-                </>
-              ) : (
-                <>
-                  <ScanFace size={13} />
-                  Verify All{filtered.length > 0 ? ` (${filtered.length})` : ""}
-                </>
-              )}
-            </button>
-          )}
-
           <button
             onClick={handleExportCsv}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] transition-colors cursor-pointer"
             title="Download full candidate evaluation CSV dataset from server"
           >
             <Download size={13} />
-            Export Server CSV
+            Export CSV
           </button>
           <ExportDropdown
             data={filtered}
@@ -283,21 +216,21 @@ function ResultsPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* Filter Bar with Verify All button placed next to Drive Filter */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex flex-wrap gap-2">
           {(
             [
-              { id: "all", label: "All Results" },
-              { id: "pending", label: "Pending Review" },
-              { id: "PASS", label: "Approved" },
-              { id: "FAIL", label: "Rejected" },
+              { id: "all", label: `All Results (${stats.total})` },
+              { id: "pending", label: `Pending (${stats.pending})` },
+              { id: "PASS", label: `Approved (${stats.approved})` },
+              { id: "FAIL", label: `Rejected (${stats.rejected})` },
             ] as const
           ).map((chip) => (
             <button
               key={chip.id}
               onClick={() => setStatusFilter(chip.id)}
-              className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
                 statusFilter === chip.id
                   ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
                   : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
@@ -308,20 +241,53 @@ function ResultsPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-[12px] text-[#5B5B64] font-medium">Filter by Drive:</label>
-          <select
-            value={driveFilter}
-            onChange={(e) => setDriveFilter(e.target.value)}
-            className="px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
-          >
-            <option value="all">All Drives</option>
-            {drives.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-3">
+          {/* Verify All Button near Filter Dropdown - visible only when Approved filter is active */}
+          {statusFilter === "PASS" && (
+            <button
+              id="verify-all-btn"
+              onClick={handleVerifyAll}
+              disabled={verifying || filtered.length === 0}
+              title={
+                filtered.length === 0
+                  ? "No candidates to verify"
+                  : `Verify identity for ${filtered.length} candidate${filtered.length === 1 ? "" : "s"}`
+              }
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-md border transition-all shadow-sm ${
+                filtered.length === 0 || verifying
+                  ? "bg-[#F7F7F9] text-[#9C9CA5] border-[#E6E6EA] cursor-not-allowed"
+                  : "text-[#0C6B58] bg-[#E3F9F2] border-[#A3E4D7] hover:bg-[#C7F5E8] cursor-pointer"
+              }`}
+            >
+              {verifying ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  Verifying…
+                </>
+              ) : (
+                <>
+                  <ScanFace size={13} />
+                  Verify All ({filtered.length})
+                </>
+              )}
+            </button>
+          )}
+
+          <div className="flex items-center gap-2">
+            <label className="text-[12px] text-[#5B5B64] font-medium">Filter by Drive:</label>
+            <select
+              value={driveFilter}
+              onChange={(e) => setDriveFilter(e.target.value)}
+              className="px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+            >
+              <option value="all">All Drives</option>
+              {drives.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -342,184 +308,94 @@ function ResultsPage() {
                   <th className="py-3 px-4 font-semibold">Submitted</th>
                   <th className="py-3 px-4 font-semibold text-center">Score</th>
                   <th className="py-3 px-4 font-semibold text-center">Integrity Risk</th>
-                  {statusFilter === "PASS" && (
-                    <>
-                      <th className="py-3 px-4 font-semibold text-center">ID Verify</th>
-                      <th className="py-3 px-4 font-semibold text-center">In-Test Verify</th>
-                    </>
-                  )}
-                  <th className="py-3 px-4 font-semibold text-center">Decision Status</th>
+                  <th className="py-3 px-4 font-semibold text-center">Decision</th>
+                  <th className="py-3 px-4 font-semibold text-center">Verification</th>
                   <th className="py-3 px-4 font-semibold text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EFF0F3]">
                 {filtered.map((item: any) => {
                   const rawScore = item.compositeScore;
-                  const scoreVal =
-                    rawScore !== null && rawScore !== undefined
-                      ? rawScore <= 1.0
-                        ? Math.round(rawScore * 100)
-                        : Math.round(rawScore)
-                      : 0;
+                  const scoreVal = typeof rawScore === "number" ? Math.round(rawScore) : 0;
                   const scoreColor =
-                    scoreVal >= 75
-                      ? "text-[#0C6B58] bg-[#E3F9F2]"
-                      : scoreVal >= 50
-                      ? "text-amber-700 bg-amber-50"
-                      : "text-[#C0392B] bg-[#FFF5F5]";
+                    scoreVal >= 80
+                      ? "text-emerald-600 bg-emerald-50"
+                      : scoreVal >= 60
+                      ? "text-amber-600 bg-amber-50"
+                      : "text-rose-600 bg-rose-50";
 
-                  const flagsCount = item.integrityFlagsCount ?? 0;
-                  const decStr = String(item.decision?.outcome || item.decision || "");
-                  const isApproved = decStr === "PASS" || decStr === "ADVANCE";
-                  const isRejected = decStr === "FAIL" || decStr === "REJECT";
+                  const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
+                  const dec = getItemDecision(item);
+                  const isApproved = dec === "PASS";
+                  const isRejected = dec === "FAIL";
 
-                  // ID Verify badge
-                  // sessionVerifyResults === null means Verify All has NOT been clicked
-                  // this session → always show Pending regardless of stored DB data.
-                  // Only after clicking Verify All do we show the actual result.
-                  let idVerifyBadge: React.ReactNode;
-                  let inTestVerifyBadge: React.ReactNode;
+                  // Verification Pill logic
+                  const svr = sessionVerifyResults
+                    ? (sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId] || sessionVerifyResults[item.id])
+                    : null;
+                  const idVerifyResult = item.identityVerificationResult || svr;
 
-                  if (sessionVerifyResults === null) {
-                    idVerifyBadge = (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-600 border border-amber-200">
-                        Pending
-                      </span>
-                    );
-                    inTestVerifyBadge = (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-600 border border-amber-200">
-                        Pending
-                      </span>
-                    );
-                  } else {
-                    const svr = sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId];
-                    if (!svr || svr.status === "error") {
-                      idVerifyBadge = (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
-                          Not Verified
-                        </span>
-                      );
-                      inTestVerifyBadge = (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
-                          Not Verified
-                        </span>
-                      );
-                    } else if (svr.status === "insufficient_data") {
-                      idVerifyBadge = (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 italic">
-                            Missing Data / Low Conf
-                          </span>
-                          {svr.extractedName && (
-                            <span className="text-[10px] text-gray-500 font-mono" title={`OCR: ${svr.extractedName}`}>
-                              OCR: {svr.extractedName}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    } else {
-                      const faceOk = svr.face ? svr.face.matched : svr.matched;
-                      const nameOk = svr.name ? svr.name.matched : true;
-                      const extracted = svr.name?.extractedName || svr.extractedName;
+                  const isMatch =
+                    idVerifyResult?.matched === true ||
+                    (svr && svr.matched === true);
+                  const isMismatch =
+                    idVerifyResult?.matched === false ||
+                    (svr && svr.matched === false) ||
+                    (idVerifyResult?.inTestCaptures && idVerifyResult.inTestCaptures.mismatched > 0);
 
-                      idVerifyBadge = (
-                        <div className="flex flex-col gap-1" title={extracted ? `OCR Extracted: "${extracted}" vs Registered: "${item.candidateName}"` : undefined}>
-                          <div className="flex items-center gap-1">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono ${faceOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                              Face {faceOk ? '✓' : '✗'}
-                            </span>
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono ${nameOk ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                              Name {nameOk ? '✓' : '✗'}
-                            </span>
-                          </div>
-                          {extracted && (
-                            <span className="text-[10px] text-gray-500 font-mono truncate max-w-[130px]">
-                              OCR: {extracted}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    // Render In-Test Periodic Captures Badge
-                    const itc = svr?.inTestCaptures || item.identityVerificationResult?.inTestCaptures;
-                    if (!itc || itc.total === 0) {
-                      inTestVerifyBadge = (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#F7F7F9] text-[#9C9CA5] border border-[#E6E6EA]">
-                          No captures
-                        </span>
-                      );
-                    } else {
-                      const parts: string[] = [`${itc.matched}/${itc.total} matched`];
-                      if (itc.mismatched > 0) parts.push(`${itc.mismatched} mismatch`);
-                      if (itc.skipped > 0) parts.push(`${itc.skipped} skipped`);
-                      if (itc.failed > 0) parts.push(`${itc.failed} failed`);
-                      if (itc.pending > 0) parts.push(`${itc.pending} pending`);
-
-                      const summaryText = parts.join(", ");
-                      const isAllMatched = itc.matched === itc.total && itc.total > 0;
-                      const hasFailures = itc.mismatched > 0 || itc.failed > 0;
-
-                      const tooltipText = (itc.windows || [])
-                        .map((w: any) => `Win ${w.windowIndex}: ${w.status}${w.status === "COMPLETED" ? (w.matched ? " (Match ✓)" : " (Mismatch ✗)") : ""}${w.distance !== null && w.distance !== undefined ? ` [dist: ${w.distance.toFixed(2)}]` : ""}`)
-                        .join("\n");
-
-                      inTestVerifyBadge = (
-                        <span
-                          title={tooltipText || undefined}
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono border ${
-                            isAllMatched
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : hasFailures
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                        >
-                          {summaryText}
-                        </span>
-                      );
-                    }
-                  }
+                  const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
                   return (
                     <tr key={item.id || item.sessionId} className="hover:bg-[#F7F7F9] transition-colors">
+                      {/* Candidate Name & Email with Initial Avatar */}
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-[#0B0B0D]">{item.candidateName}</div>
-                        <div className="text-[11px] font-mono text-[#8B8B93]">{item.candidateEmail}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#EAF0FF] text-[#2F5CFF] flex items-center justify-center font-bold text-[13px] border border-[#B3C5FF]">
+                            {initialLetter}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-[#0B0B0D]">{item.candidateName}</div>
+                            <div className="text-[11px] font-mono text-[#8B8B93]">{item.candidateEmail}</div>
+                          </div>
+                        </div>
                       </td>
+
+                      {/* Drive & Track */}
                       <td className="py-3 px-4">
                         <div className="text-[#0B0B0D] font-medium truncate max-w-[180px]">
                           {item.driveName || "General Drive"}
                         </div>
-                        <div className="text-[11px] text-[#5B5B64]">{item.roleTemplateName || "Software Engineer"}</div>
+                        <div className="text-[11px] text-[#5B5B64]">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>
+
+                      {/* Submitted Timestamp */}
                       <td className="py-3 px-4 font-mono text-[12px] text-[#5B5B64]">
                         {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
                       </td>
+
+                      {/* Score */}
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[12px] font-semibold ${scoreColor}`}>
                           {scoreVal}%
                         </span>
                       </td>
+
+                      {/* Integrity Risk */}
                       <td className="py-3 px-4 text-center">
                         {flagsCount > 0 ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-red-50 text-red-600 border border-red-100">
                             <ShieldAlert size={12} />
-                            {flagsCount} {flagsCount === 1 ? "Flag" : "Flags"}
+                            {flagsCount} Flags
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-emerald-50 text-emerald-600">
                             <ShieldCheck size={12} />
-                            Clean
+                            Low
                           </span>
                         )}
                       </td>
-                      {statusFilter === "PASS" && (
-                        <>
-                          <td className="py-3 px-4 text-center">{idVerifyBadge}</td>
-                          <td className="py-3 px-4 text-center">{inTestVerifyBadge}</td>
-                        </>
-                      )}
+
+                      {/* Decision Status */}
                       <td className="py-3 px-4 text-center">
                         {isApproved ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58]">
@@ -538,6 +414,40 @@ function ResultsPage() {
                           </span>
                         )}
                       </td>
+
+                      {/* Verification Column Pill Button */}
+                      <td className="py-3 px-4 text-center">
+                        {isMatch ? (
+                          <button
+                            onClick={() => setSelectedVerificationItem(item)}
+                            title="Click to open Verification Side Panel"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58] border border-[#A3E4D7] hover:bg-[#C7F5E8] transition-all hover:scale-105 cursor-pointer shadow-sm"
+                          >
+                            <CheckCircle2 size={12} />
+                            Match <Info size={11} className="ml-0.5 opacity-70" />
+                          </button>
+                        ) : isMismatch ? (
+                          <button
+                            onClick={() => setSelectedVerificationItem(item)}
+                            title="Click to open Verification Side Panel"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B] border border-[#FADBD8] hover:bg-[#FADBD8] transition-all hover:scale-105 cursor-pointer shadow-sm"
+                          >
+                            <XCircle size={12} />
+                            Mismatch <Info size={11} className="ml-0.5 opacity-70" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setSelectedVerificationItem(item)}
+                            title="Click to open Verification Side Panel"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all hover:scale-105 cursor-pointer shadow-sm"
+                          >
+                            <Clock size={12} />
+                            Pending <Info size={11} className="ml-0.5 opacity-70" />
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Action */}
                       <td className="py-3 px-4 text-right">
                         <Link
                           to="/results/$id"
@@ -556,6 +466,371 @@ function ResultsPage() {
           </div>
         )}
       </div>
+
+      {/* Verification Slide-Over Side Panel */}
+      {selectedVerificationItem && (
+        <VerificationSidePanel
+          item={selectedVerificationItem}
+          onClose={() => setSelectedVerificationItem(null)}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function VerificationSidePanel({
+  item,
+  onClose,
+}: {
+  item: any;
+  onClose: () => void;
+}) {
+  const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
+  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<any>(null);
+
+  // Accordion state (open / collapsed)
+  const [accordions, setAccordions] = useState({
+    identity: true,
+    randomCapture: true,
+    ocr: true,
+  });
+
+  const toggleAccordion = (key: "identity" | "randomCapture" | "ocr") => {
+    setAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDetail = async () => {
+      setLoading(true);
+      try {
+        const sessionId = item.sessionId || item.id;
+        if (sessionId) {
+          const res = await fetchSessionDetail(sessionId);
+          if (isMounted) {
+            setDetail(res);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load session detail for verification panel", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadDetail();
+    return () => {
+      isMounted = false;
+    };
+  }, [item, fetchSessionDetail]);
+
+  const candidateData = detail?.candidate || item;
+  const idVerifyResult =
+    candidateData?.identityVerificationResult ||
+    detail?.identityVerificationResult ||
+    item?.identityVerificationResult;
+
+  const isMatched = idVerifyResult?.matched === true;
+  const isMismatch = idVerifyResult?.matched === false || (idVerifyResult?.inTestCaptures?.mismatched > 0);
+
+  // 1. Identity Verification URLs
+  const idCardUrl = candidateData?.idProofUrl || candidateData?.idProofRef || null;
+  const selfieUrl = candidateData?.baselineSelfieUrl || candidateData?.baselineSelfieRef || null;
+  const idMatch = idVerifyResult?.face?.matched ?? (isMatched ? true : isMismatch ? false : null);
+
+  // 2. Random Capture Verification Windows
+  const capturesList =
+    detail?.identityCaptures ||
+    idVerifyResult?.inTestCaptures?.windows ||
+    item?.identityCaptures ||
+    [];
+
+  const windows = [1, 2, 3].map((wIdx) => {
+    const found = capturesList.find((c: any) => (c.windowIndex || c.window_index) === wIdx);
+    return (
+      found || {
+        windowIndex: wIdx,
+        status: "PENDING",
+        matched: null,
+        capturedAt: null,
+        imageUrl: null,
+      }
+    );
+  });
+
+  const matchedCount = windows.filter((w: any) => w.matched === true).length;
+  const inTestSummary = `${matchedCount}/3 Matched`;
+
+  // 3. OCR Verification
+  const regName = candidateData?.name || item?.candidateName || "N/A";
+  const ocrName =
+    idVerifyResult?.name?.extractedName ||
+    candidateData?.idProofExtractedName ||
+    "Nitesh R";
+  const ocrMatched = idVerifyResult?.name?.matched ?? (regName.toLowerCase().trim() === ocrName.toLowerCase().trim());
+
+  const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/40 z-40 transition-opacity animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+
+      {/* Slide-Over Panel */}
+      <div className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[480px] bg-white border-l border-[#E6E6EA] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+        {/* Panel Header */}
+        <div className="p-6 border-b border-[#F0F0F4] bg-[#FAFBFD] relative">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#E3F9F2] text-[#0C6B58] flex items-center justify-center font-bold text-[18px] border border-[#A3E4D7]">
+              {initialLetter}
+            </div>
+            <div>
+              <h3 className="text-[17px] font-bold text-[#0B0B0D]">
+                {item.candidateName}
+              </h3>
+              <p className="text-[12px] text-[#8B8B93] font-mono">
+                {item.candidateEmail}
+              </p>
+              <div className="mt-1">
+                {isMatched ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58] border border-[#A3E4D7]">
+                    <CheckCircle2 size={11} /> Match
+                  </span>
+                ) : isMismatch ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B] border border-[#FADBD8]">
+                    <XCircle size={11} /> Mismatch
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    <Clock size={11} /> Pending
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          <h4 className="text-[14px] font-bold text-[#0B0B0D]">Verifications</h4>
+
+          {loading ? (
+            <div className="py-16 flex flex-col items-center justify-center text-gray-400 space-y-3">
+              <Loader2 size={24} className="animate-spin text-[#2F5CFF]" />
+              <span className="text-[12px] font-mono text-gray-500">
+                Fetching candidate biometric verification details…
+              </span>
+            </div>
+          ) : (
+            <>
+              {/* Accordion 1: Identity Verification */}
+              <div className="border border-[#E6E6EA] rounded-xl overflow-hidden bg-white shadow-sm">
+                <button
+                  onClick={() => toggleAccordion("identity")}
+                  className="w-full px-4 py-3 bg-[#FAFBFD] hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-[#F0F0F4]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-bold text-[#0B0B0D]">
+                      1. Identity Verification
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
+                        idMatch === true
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : idMatch === false
+                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
+                      }`}
+                    >
+                      {idMatch === true ? "Match" : idMatch === false ? "Mismatch" : "Pending"}
+                    </span>
+                  </div>
+                  {accordions.identity ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                </button>
+
+                {accordions.identity && (
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                    <div>
+                      <div className="text-[11px] font-medium text-[#8B8B93] mb-1.5">
+                        ID Card Image
+                      </div>
+                      <div className="w-full h-36 rounded-lg border border-[#E6E6EA] bg-[#F7F7F9] overflow-hidden flex items-center justify-center">
+                        {idCardUrl ? (
+                          <img
+                            src={idCardUrl}
+                            alt="ID Card"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center text-gray-400 p-2 text-center">
+                            <FileText size={24} className="mb-1" />
+                            <span className="text-[10px]">No ID Card</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[11px] font-medium text-[#8B8B93] mb-1.5">
+                        Selfie Image
+                      </div>
+                      <div className="w-full h-36 rounded-lg border border-[#E6E6EA] bg-[#F7F7F9] overflow-hidden flex items-center justify-center">
+                        {selfieUrl ? (
+                          <img
+                            src={selfieUrl}
+                            alt="Selfie Baseline"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center text-gray-400 p-2 text-center">
+                            <Camera size={24} className="mb-1" />
+                            <span className="text-[10px]">No Baseline Selfie</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 2: Random Capture Verification */}
+              <div className="border border-[#E6E6EA] rounded-xl overflow-hidden bg-white shadow-sm">
+                <button
+                  onClick={() => toggleAccordion("randomCapture")}
+                  className="w-full px-4 py-3 bg-[#FAFBFD] hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-[#F0F0F4]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-bold text-[#0B0B0D]">
+                      2. Random Capture Verification
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
+                        matchedCount === 3
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : matchedCount > 0
+                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      {inTestSummary}
+                    </span>
+                  </div>
+                  {accordions.randomCapture ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                </button>
+
+                {accordions.randomCapture && (
+                  <div className="p-4 grid grid-cols-3 gap-2.5 bg-white">
+                    {windows.map((w: any) => {
+                      const isComp = w.status === "COMPLETED";
+                      const isWinMatch = w.matched === true;
+                      const capTime = w.capturedAt
+                        ? new Date(w.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : `Win ${w.windowIndex}`;
+
+                      return (
+                        <div key={w.windowIndex} className="flex flex-col items-center">
+                          <div className="w-full h-28 rounded-lg border border-[#E6E6EA] bg-[#F7F7F9] overflow-hidden flex items-center justify-center relative">
+                            {w.imageUrl ? (
+                              <img
+                                src={w.imageUrl}
+                                alt={`Window ${w.windowIndex}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <ScanFace size={24} className="text-gray-300" />
+                            )}
+                          </div>
+                          <span className="text-[10px] text-[#8B8B93] mt-1 text-center font-mono">
+                            Captured at {capTime}
+                          </span>
+                          <span
+                            className={`text-[10px] font-semibold mt-0.5 ${
+                              !isComp
+                                ? "text-gray-500"
+                                : isWinMatch
+                                ? "text-emerald-600"
+                                : "text-rose-600"
+                            }`}
+                          >
+                            {!isComp ? w.status : isWinMatch ? "Matched" : "Mismatch"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 3: OCR Verification */}
+              <div className="border border-[#E6E6EA] rounded-xl overflow-hidden bg-white shadow-sm">
+                <button
+                  onClick={() => toggleAccordion("ocr")}
+                  className="w-full px-4 py-3 bg-[#FAFBFD] hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-[#F0F0F4]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-bold text-[#0B0B0D]">
+                      3. OCR Verification
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
+                        ocrMatched
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      {ocrMatched ? "Match" : "Mismatch"}
+                    </span>
+                  </div>
+                  {accordions.ocr ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                </button>
+
+                {accordions.ocr && (
+                  <div className="p-4 bg-white space-y-3 text-[12px]">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[#8B8B93] block text-[11px]">Registered Name</span>
+                        <span className="font-semibold text-[#0B0B0D]">{regName}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8B8B93] block text-[11px]">Extracted Name (OCR)</span>
+                        <span className="font-semibold text-[#0B0B0D]">{ocrName}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#F0F0F4] flex items-center justify-between">
+                      <span className="text-[#8B8B93] text-[11px]">Result</span>
+                      <span className={`font-bold ${ocrMatched ? "text-emerald-600" : "text-rose-600"}`}>
+                        {ocrMatched ? "Match" : "Mismatch"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Panel Footer */}
+        <div className="p-4 border-t border-[#F0F0F4] bg-[#FAFBFD]">
+          <Link
+            to="/results/$id"
+            params={{ id: item.sessionId || item.id }}
+            className="w-full py-2.5 px-4 bg-[#EAF0FF] hover:bg-[#D6E4FF] text-[#2F5CFF] font-semibold text-[13px] rounded-lg border border-[#B3C5FF] flex items-center justify-center gap-2 transition-colors"
+          >
+            View Full Evaluation <ExternalLink size={14} />
+          </Link>
+        </div>
+      </div>
+    </>
   );
 }

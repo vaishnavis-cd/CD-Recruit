@@ -191,7 +191,14 @@ export class AdminService {
         moduleScores,
         humanReviewRequired,
         integrityFlagsCount: flagCount,
-        identityVerificationResult: (session.candidate as any).identityVerificationResult ?? null,
+        identityVerificationResult: (session as any).identityVerificationResult ?? null,
+        reviewerDecision: session.reviewerDecision
+          ? (session.reviewerDecision.decision === "ADVANCE"
+              ? "PASS"
+              : session.reviewerDecision.decision === "REJECT"
+              ? "FAIL"
+              : session.reviewerDecision.decision)
+          : null,
         decision: session.reviewerDecision
           ? ({
               outcome: session.reviewerDecision.decision as any,
@@ -707,13 +714,14 @@ export class AdminService {
     }
 
     return {
+      id: session.id,
       sessionId: session.id,
       candidate: session.candidate
         ? {
             id: session.candidate.id,
             name: session.candidate.name,
             email: session.candidate.email,
-            identityVerificationResult: (session.candidate as any).identityVerificationResult || null,
+            identityVerificationResult: (session as any).identityVerificationResult || null,
             baselineSelfieRef,
             idProofRef,
             baselineSelfieUrl: baselineSelfieUrl || baselineSelfieRef,
@@ -1292,7 +1300,8 @@ export class AdminService {
         completed++;
         if (overallMatched) matched++; else mismatched++;
         results.push({
-          candidateId: targetId,
+          candidateId: candidate?.id || targetId,
+          sessionId: session?.id || targetId,
           status: "completed",
           matched: overallMatched,
           face: faceRes,
@@ -1305,7 +1314,7 @@ export class AdminService {
           `Bulk verify: unexpected error for candidate ${targetId}: ${err.message}`,
         );
         errors++;
-        results.push({ candidateId: targetId, status: "error", message: err.message });
+        results.push({ candidateId: targetId, sessionId: targetId, status: "error", message: err.message });
       }
     }
 

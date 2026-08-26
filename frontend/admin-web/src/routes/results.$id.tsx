@@ -228,13 +228,14 @@ function IndividualResultPage() {
     if (!showDecisionModal || !detail) return;
     setSubmittingDecision(true);
     try {
-      await recordCandidateDecision(detail.id, showDecisionModal, decisionNote);
+      const targetSessionId = detail.sessionId || (detail as any).id || id;
+      await recordCandidateDecision(targetSessionId, showDecisionModal, decisionNote);
       toast.success(
         `Candidate decision recorded: ${showDecisionModal === "PASS" ? "Approved (Pass)" : "Rejected (Fail)"}`
       );
       setShowDecisionModal(null);
       setDecisionNote("");
-      loadData();
+      await loadData();
     } catch (err: any) {
       toast.error("Failed to record decision: " + (err.message || err));
     } finally {
@@ -272,6 +273,9 @@ function IndividualResultPage() {
   const score = detail.score;
   const flags = detail.integrityFlags || [];
 
+  const isApproved = decision?.outcome === "PASS" || (decision?.outcome as string) === "ADVANCE";
+  const isRejected = decision?.outcome === "FAIL" || (decision?.outcome as string) === "REJECT";
+
   return (
     <AppShell
       title={`Evaluation: ${detail.candidateName}`}
@@ -290,11 +294,11 @@ function IndividualResultPage() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-[20px] font-semibold text-[#0B0B0D]">{detail.candidateName}</h2>
-              {decision?.outcome === "PASS" ? (
+              {isApproved ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <CheckCircle2 size={14} /> Approved
                 </span>
-              ) : decision?.outcome === "FAIL" ? (
+              ) : isRejected ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                   <XCircle size={14} /> Rejected
                 </span>
@@ -1287,157 +1291,6 @@ function IndividualResultPage() {
 
           return (
             <div className="space-y-6">
-              {/* Baseline Identity Verification Section */}
-              <div className="bg-white border border-[#E6E6EA] rounded-xl p-5 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-[#F0F0F4] pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-[#EAF0FF] rounded-lg text-[#2F5CFF]">
-                      <UserCheck size={18} />
-                    </div>
-                    <div>
-                      <h3 className="text-[14px] font-bold text-[#0B0B0D]">Baseline Identity Verification</h3>
-                      <p className="text-[11px] text-[#8B8B93]">Dual-factor verification: ArcFace ONNX Face Matching + Aadhaar OCR Name Verification</p>
-                    </div>
-                  </div>
-                  {idVerifyResult?.verifiedAt && (
-                    <span className="text-[11px] font-mono text-[#8B8B93]">
-                      Verified: {new Date(idVerifyResult.verifiedAt).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Face Verification Card */}
-                  <div className="p-4 rounded-lg border border-[#E6E6EA] bg-[#FAFBFD] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-[#0B0B0D] flex items-center gap-1.5">
-                        <Camera size={14} className="text-[#2F5CFF]" />
-                        Face Matching (ArcFace ONNX)
-                      </span>
-                      {faceVerify ? (
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${faceVerify.matched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                          {faceVerify.matched ? "✓ Face Matched" : "✗ Face Mismatch"}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-gray-100 text-gray-500">Not Verified</span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-white p-2.5 rounded border border-[#E6E6EA]">
-                      <div>
-                        <span className="text-[#8B8B93] block">Cosine Distance</span>
-                        <span className="font-semibold text-[#0B0B0D]">{faceVerify?.distance !== undefined ? faceVerify.distance.toFixed(4) : "N/A"}</span>
-                      </div>
-                      <div>
-                        <span className="text-[#8B8B93] block">Threshold</span>
-                        <span className="font-semibold text-[#0B0B0D]">{faceVerify?.threshold ?? 0.60}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Aadhaar Name Verification Card */}
-                  <div className="p-4 rounded-lg border border-[#E6E6EA] bg-[#FAFBFD] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-[#0B0B0D] flex items-center gap-1.5">
-                        <FileText size={14} className="text-[#2F5CFF]" />
-                        Aadhaar Name Verification (OCR)
-                      </span>
-                      {nameVerify ? (
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${nameVerify.matched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                          {nameVerify.matched ? "✓ Name Matched" : "✗ Name Mismatch"}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 italic">Pending / Low Conf</span>
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5 text-[11px] font-mono bg-white p-2.5 rounded border border-[#E6E6EA]">
-                      <div className="flex justify-between">
-                        <span className="text-[#8B8B93]">Registered Name:</span>
-                        <span className="font-semibold text-[#0B0B0D]">{nameVerify?.registeredName || detail.candidate?.name || "N/A"}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#8B8B93]">OCR Extracted Name:</span>
-                        <span className="font-semibold text-[#2F5CFF]">{nameVerify?.extractedName || detail.candidate?.idProofExtractedName || "Not Extracted"}</span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-[#F0F0F4]">
-                        <span className="text-[#8B8B93]">Fuzzy Similarity:</span>
-                        <span className="font-semibold text-[#0B0B0D]">
-                          {nameVerify?.similarity !== undefined ? `${Math.round(nameVerify.similarity * 100)}% (Threshold: ${Math.round((nameVerify.threshold || 0.75) * 100)}%)` : "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#8B8B93]">OCR Confidence:</span>
-                        <span className="font-semibold text-[#0B0B0D]">
-                          {detail.candidate?.ocrConfidence !== undefined && detail.candidate?.ocrConfidence !== null ? `${Math.round(detail.candidate.ocrConfidence * 100)}%` : "N/A"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* In-Test Periodic Identity Captures Verification Card */}
-                  <div className="p-4 rounded-lg border border-[#E6E6EA] bg-[#FAFBFD] space-y-3 col-span-1 md:col-span-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-[#0B0B0D] flex items-center gap-1.5">
-                        <Camera size={14} className="text-[#2F5CFF]" />
-                        In-Test Periodic Identity Captures (3 Windows)
-                      </span>
-                      {(() => {
-                        const itc = (detail.candidate as any)?.identityVerificationResult?.inTestCaptures;
-                        if (!itc || itc.total === 0) {
-                          return <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-gray-100 text-gray-500">No Captures</span>;
-                        }
-                        const isAll = itc.matched === itc.total && itc.total > 0;
-                        const isFail = itc.mismatched > 0 || itc.failed > 0;
-                        return (
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${isAll ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : isFail ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                            {itc.matched}/{itc.total} Matched {itc.mismatched > 0 ? `(${itc.mismatched} Mismatch)` : ''}
-                          </span>
-                        );
-                      })()}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      {(((detail.candidate as any)?.identityVerificationResult?.inTestCaptures?.windows && (detail.candidate as any)?.identityVerificationResult?.inTestCaptures?.windows.length > 0)
-                        ? (detail.candidate as any).identityVerificationResult.inTestCaptures.windows
-                        : (detail as any).identityCaptures || []
-                      ).map((w: any, idx: number) => {
-                        const wIndex = w.windowIndex || (idx + 1);
-                        const isCompleted = w.status === "COMPLETED";
-                        const isMatched = w.matched === true;
-
-                        return (
-                          <div key={wIndex} className="p-2.5 rounded border border-[#E6E6EA] bg-white space-y-1 text-[11px] font-mono">
-                            <div className="flex items-center justify-between font-semibold text-[#0B0B0D]">
-                              <span>Window {wIndex}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                                !isCompleted
-                                  ? 'bg-gray-100 text-gray-600'
-                                  : isMatched
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}>
-                                {!isCompleted ? w.status : isMatched ? '✓ Match' : '✗ Mismatch'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-[#8B8B93] text-[10px]">
-                              <span>Status:</span>
-                              <span className="font-semibold text-[#0B0B0D]">{w.status}</span>
-                            </div>
-                            {isCompleted && (
-                              <div className="flex justify-between text-[#8B8B93] text-[10px]">
-                                <span>Distance:</span>
-                                <span className="font-semibold text-[#2F5CFF]">
-                                  {w.distance !== undefined && w.distance !== null ? w.distance.toFixed(4) : "N/A"}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* Custom Styled Dropdown Component with Rounded Corners & Theme Blue (50%) */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-[#E6E6EA] rounded-xl p-4 shadow-sm">
