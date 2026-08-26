@@ -412,13 +412,24 @@ export class AadhaarOcrService {
       }
     }
 
-    // Check for Passport number format (1 letter followed by 7 digits e.g. Z1234567)
-    const passNoRegex = /\b([A-Z][0-9]{7})\b/;
+    // Check for Passport number format (e.g. Z1234567, AT803722)
+    const passNoRegex = /\b([A-Z]{1,2}[0-9]{6,8})\b/i;
     for (const l of lines) {
       const m = l.match(passNoRegex);
-      if (m) {
-        passportNumber = m[1];
+      if (m && !m[1].startsWith("P<")) {
+        passportNumber = m[1].toUpperCase();
         break;
+      }
+    }
+
+    // Also check MRZ Line 2 if passportNumber is not found
+    if (!passportNumber) {
+      const mrzLine2 = lines.find((l) => /^[A-Z0-9<]{8,9}<[0-9]{7}/i.test(l.replace(/\s+/g, "")));
+      if (mrzLine2) {
+        const pMatch = mrzLine2.replace(/\s+/g, "").match(/^([A-Z0-9]{7,9})</i);
+        if (pMatch) {
+          passportNumber = pMatch[1].toUpperCase();
+        }
       }
     }
 
