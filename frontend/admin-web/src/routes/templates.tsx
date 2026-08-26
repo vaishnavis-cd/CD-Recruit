@@ -130,6 +130,29 @@ export function RoleTemplatesPage() {
   >({});
 
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+
+  const handleActivateTemplate = async (templateId: string, name?: string, version?: number) => {
+    setActivatingId(templateId);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/role-templates/${templateId}/activate`, {
+        method: "POST",
+        headers,
+      });
+      if (res.ok) {
+        toast.success(`🎉 Version ${version || 1} is now the active template for "${name || 'Role'}"!`);
+        fetchTemplates();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || "Failed to activate template version");
+      }
+    } catch {
+      toast.error("Error activating template version");
+    } finally {
+      setActivatingId(null);
+    }
+  };
 
   const getEligibleQuestions = (
     dept: string,
@@ -346,7 +369,7 @@ export function RoleTemplatesPage() {
 
     const payload = {
       roleName: roleName.trim(),
-      department,
+      department: department === "CUSTOM" ? null : department,
       category,
       experienceTier: category === "FRESHER" ? "0-1" : experienceTier,
       level: category === "FRESHER" ? "FRESHER" : "EXPERIENCED",
@@ -485,14 +508,11 @@ export function RoleTemplatesPage() {
   const filteredTemplates = useMemo(() => {
     let list = [...templates];
 
-    // Filter out legacy unmapped templates without department
-    list = list.filter((t) => Boolean(t.department));
-
     // 1. Version filtering
     if (versionFilter === "latest") {
       const groupMap = new Map<string, any>();
       for (const t of list) {
-        const key = `${t.department}__${t.category || (t.level === "FRESHER" ? "FRESHER" : "EXPERIENCED")}__${t.experienceTier || (t.level === "FRESHER" ? "0-1" : "2-5")}`;
+        const key = `${t.department || "CUSTOM"}__${t.category || (t.level === "FRESHER" ? "FRESHER" : "EXPERIENCED")}__${t.experienceTier || (t.level === "FRESHER" ? "0-1" : "2-5")}__${t.roleName}`;
         const existing = groupMap.get(key);
         if (!existing || (t.version || 1) > (existing.version || 1)) {
           groupMap.set(key, t);
@@ -510,7 +530,7 @@ export function RoleTemplatesPage() {
 
     // 2. Department filter
     if (deptFilter !== "all") {
-      list = list.filter((t) => t.department === deptFilter);
+      list = list.filter((t) => (t.department || "CUSTOM") === deptFilter);
     }
 
     // 3. Category filter
@@ -545,8 +565,8 @@ export function RoleTemplatesPage() {
 
     // 7. Stable canonical sort
     return list.sort((a, b) => {
-      const deptA = a.department || "";
-      const deptB = b.department || "";
+      const deptA = a.department || "CUSTOM";
+      const deptB = b.department || "CUSTOM";
       if (deptA !== deptB) return deptA.localeCompare(deptB);
       const tierA = a.experienceTier || (a.level === "FRESHER" ? "0-1" : "2-5");
       const tierB = b.experienceTier || (b.level === "FRESHER" ? "0-1" : "2-5");
@@ -651,8 +671,8 @@ export function RoleTemplatesPage() {
 
               {/* Department Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider">
-                  Dept:
+                <span className="text-[11px] font-semibold text-[#5B5B64] tracking-wider">
+                  Department:
                 </span>
                 <select
                   value={deptFilter}
@@ -665,12 +685,13 @@ export function RoleTemplatesPage() {
                       {DEPARTMENT_LABELS[d] || d}
                     </option>
                   ))}
+                  <option value="CUSTOM">Custom / Other Roles</option>
                 </select>
               </div>
 
               {/* Category Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-[#5B5B64] tracking-wider">
                   Category:
                 </span>
                 <select
@@ -689,7 +710,7 @@ export function RoleTemplatesPage() {
 
               {/* Tier Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-[#5B5B64] tracking-wider">
                   Tier:
                 </span>
                 <select
@@ -799,20 +820,29 @@ export function RoleTemplatesPage() {
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full ${
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!tpl.isActive) {
+                              handleActivateTemplate(tpl.id, tpl.roleName, tpl.version);
+                            }
+                          }}
+                          disabled={tpl.isActive || activatingId === tpl.id}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${
                             tpl.isActive
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-slate-100 text-slate-600 border border-slate-200"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
+                              : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-[#2F5CFF] hover:text-white hover:border-[#2F5CFF] cursor-pointer"
                           }`}
+                          title={tpl.isActive ? "This is the active version" : "Click to make this version active"}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
                               tpl.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
                             }`}
                           />
-                          {tpl.isActive ? "Active" : "Inactive"}
-                        </span>
+                          <span>{activatingId === tpl.id ? "Activating..." : tpl.isActive ? "Active" : "Set Active"}</span>
+                        </button>
 
                         {/* 3-Dot Contextual Dropdown */}
                         <div className="relative">
@@ -833,6 +863,22 @@ export function RoleTemplatesPage() {
                               onClick={(e) => e.stopPropagation()}
                               className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E6E6EA] rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
                             >
+                              {!tpl.isActive && (
+                                <button
+                                  type="button"
+                                  disabled={activatingId === tpl.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuTemplateId(null);
+                                    handleActivateTemplate(tpl.id, tpl.roleName, tpl.version);
+                                  }}
+                                  className="w-full text-left px-3.5 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer font-medium"
+                                >
+                                  <CheckCircle2 size={13} className="text-emerald-600" />
+                                  <span>Make active version</span>
+                                </button>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -981,7 +1027,11 @@ export function RoleTemplatesPage() {
                     </label>
                     <select
                       value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setDepartment(val);
+                        autoSelectQuestionsFor(val === "CUSTOM" ? "SOFTWARE_ENGINEERING" : val, category, experienceTier);
+                      }}
                       className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] shadow-2xs"
                     >
                       {DEPARTMENTS.map((d) => (
@@ -989,6 +1039,7 @@ export function RoleTemplatesPage() {
                           {DEPARTMENT_LABELS[d] || d}
                         </option>
                       ))}
+                      <option value="CUSTOM">Custom / Other Roles</option>
                     </select>
                   </div>
 

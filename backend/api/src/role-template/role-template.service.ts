@@ -409,4 +409,53 @@ export class RoleTemplateService {
       });
     });
   }
+
+  /**
+   * Sets a specific RoleTemplate version as the single active version for its role/department/tier,
+   * automatically deactivating all sibling versions in a single transaction.
+   */
+  async activateTemplate(templateId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const target = await tx.roleTemplate.findUnique({
+        where: { id: templateId },
+      });
+
+      if (!target) {
+        throw new NotFoundException(`RoleTemplate not found with ID ${templateId}`);
+      }
+
+      // Deactivate all sibling versions in the same group
+      if (target.department) {
+        await tx.roleTemplate.updateMany({
+          where: {
+            department: target.department,
+            category: target.category,
+            experienceTier: target.experienceTier,
+            id: { not: templateId },
+          },
+          data: { isActive: false },
+        });
+      } else {
+        await tx.roleTemplate.updateMany({
+          where: {
+            roleName: target.roleName,
+            id: { not: templateId },
+          },
+          data: { isActive: false },
+        });
+      }
+
+      // Activate the target version
+      return tx.roleTemplate.update({
+        where: { id: templateId },
+        data: { isActive: true },
+        include: {
+          questions: {
+            include: { question: true },
+            orderBy: { orderIndex: "asc" },
+          },
+        },
+      });
+    });
+  }
 }

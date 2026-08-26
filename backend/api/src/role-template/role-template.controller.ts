@@ -88,6 +88,11 @@ export class RoleTemplateController {
     return this.roleTemplateService.publishNewVersion(id);
   }
 
+  @Post(":id/activate")
+  async activate(@Param("id", ParseUUIDPipe) id: string) {
+    return this.roleTemplateService.activateTemplate(id);
+  }
+
   @Delete(":id")
   async remove(@Param("id", ParseUUIDPipe) id: string) {
     return this.roleTemplateService.remove(id);

@@ -124,8 +124,9 @@ function DrivesPage() {
 
   const filteredTemplates = useMemo(() => {
     return (roleTemplates || []).filter((rt) => {
-      if (templateDeptFilter !== "all" && rt.department !== templateDeptFilter) return false;
-      if (templateCategoryFilter !== "all" && ((rt as any).category || "FRESHER") !== templateCategoryFilter) return false;
+      if (templateDeptFilter !== "all" && (rt.department || "CUSTOM") !== templateDeptFilter) return false;
+      const cat = (rt as any).category || (rt.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
+      if (templateCategoryFilter !== "all" && cat !== templateCategoryFilter) return false;
       return true;
     });
   }, [roleTemplates, templateDeptFilter, templateCategoryFilter]);
@@ -736,10 +737,12 @@ function DrivesPage() {
                         <option value="all">All Departments</option>
                         <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
                         <option value="DATA_ENGINEERING">Data Engineering</option>
-                        <option value="QA_TESTING">QA &amp; Testing</option>
-                        <option value="DEVOPS_SRE">DevOps &amp; SRE</option>
-                        <option value="CYBERSECURITY">Cybersecurity</option>
-                        <option value="PRODUCT_DESIGN">Product &amp; Design</option>
+                        <option value="QA">Quality Assurance</option>
+                        <option value="SRE">Site Reliability Engineering</option>
+                        <option value="SYSOPS">System Operations</option>
+                        <option value="ITOPS">IT Operations</option>
+                        <option value="PMO">Project Management</option>
+                        <option value="SECOPS">Security Operations</option>
                       </select>
                     </div>
                     <div>
