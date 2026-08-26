@@ -151,21 +151,23 @@ export function ContextSimulationWorkspace({
   const [remediationSummary, setRemediationSummary] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Telemetry Debounce Reference
+  // Telemetry Debounce Reference & Language Loaded Ref
   const telemetryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadedLanguageRef = useRef<string | null>(null);
 
   // --- Initial Hydration from Session / Scenario ---
   useEffect(() => {
-    if (scenario.starterCode?.[selectedLanguage]) {
-      const newStarter = scenario.starterCode[selectedLanguage];
+    if (loadedLanguageRef.current !== selectedLanguage) {
+      loadedLanguageRef.current = selectedLanguage;
+      const newStarter = scenario.starterCode?.[selectedLanguage] || scenario.starterCode?.python || '';
       setCode(newStarter);
       setFileContents(prev => ({
+        ...readonlyFiles,
         ...prev,
         [defaultFile]: newStarter,
-        ...readonlyFiles,
       }));
     }
-  }, [selectedLanguage, scenario]);
+  }, [selectedLanguage]);
 
   // Check remote simulation snapshot on mount
   useEffect(() => {
@@ -220,8 +222,10 @@ export function ContextSimulationWorkspace({
   // --- Code Change Handler & Auto-Telemetry ---
   const handleCodeChange = (newCode: string | undefined) => {
     const updated = newCode || '';
-    setCode(updated);
-    setIsModified(true);
+    if (activeFile === defaultFile) {
+      setCode(updated);
+      setIsModified(true);
+    }
     setFileContents(prev => ({
       ...prev,
       [activeFile]: updated,
@@ -370,7 +374,10 @@ export function ContextSimulationWorkspace({
   };
 
   const isCurrentFileEditable = activeFile === defaultFile;
-  const currentFileContent = fileContents[activeFile] ?? (activeFile === defaultFile ? code : '');
+  const currentFileContent =
+    fileContents[activeFile] !== undefined
+      ? fileContents[activeFile]
+      : (readonlyFiles[activeFile] ?? (activeFile === defaultFile ? code : ''));
   const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs';
 
   const isPrevModuleAvailable = moduleIndex > 0;
@@ -597,6 +604,7 @@ export function ContextSimulationWorkspace({
 
             <Editor
               height="100%"
+              path={activeFile}
               theme={monacoTheme}
               language={getEditorLanguage(activeFile)}
               value={currentFileContent}

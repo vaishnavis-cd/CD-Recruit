@@ -620,9 +620,15 @@ function DriveDetailPage() {
         setProctoringConfig((data.moduleConfig as any).proctoringConfig);
       }
       
+      const isPartnerApi = (data as any).originChannel === "PARTNER_API";
+      if (isPartnerApi) {
+        setActiveTab("roster");
+      }
+      
+      const effectiveDuration = isPartnerApi || rollingWindow ? 90 : winMins;
       const confSum = Object.values(initialConfig).filter((m: any) => m.enabled).reduce((sum: number, m: any) => sum + (Number(m.durationMinutes) || 0), 0);
-      if (confSum !== winMins) {
-        initialConfig = autoAllocateModuleDurations(initialConfig, winMins);
+      if (confSum !== effectiveDuration) {
+        initialConfig = autoAllocateModuleDurations(initialConfig, effectiveDuration);
       }
       setModuleConfig(initialConfig);
 
@@ -1249,11 +1255,6 @@ function DriveDetailPage() {
   }, [assignedQuestions, savedAssignedQuestions]);
 
   const handleTabSwitch = (targetTab: "configuration" | "questions" | "roster") => {
-    if (activeTab === "configuration" && targetTab !== "configuration") {
-      if (!validateCumulativeDuration()) {
-        return;
-      }
-    }
     if (activeTab === "questions" && targetTab !== "questions" && isQuestionsDirty) {
       setPendingTabSwitch(targetTab);
       return;

@@ -96,7 +96,6 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
   async function proceedToAssessment() {
     const nowMs = services.time.getServerNow();
-    const isSelfPaced = !scheduledMs && (!session || !(session as any)?.invite?.scheduledTime);
 
     let preheatTargetMs: number;
     if (scheduledMs && scheduledMs > nowMs) {
@@ -105,9 +104,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
       preheatTargetMs = nowMs + 60 * 1000;
     }
 
-    if (!isSelfPaced) {
-      localStorage.setItem('cd-recruit-scheduled-ms', preheatTargetMs.toString());
-    }
+    localStorage.setItem('cd-recruit-scheduled-ms', preheatTargetMs.toString());
 
     try {
       const selfieDataUrl = localStorage.getItem('cd-recruit-selfie-data');
@@ -122,11 +119,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
       const sessionDuration = (newSession.durationMinutes || allocatedMinutes) * 60;
       initAssessment(newSession.id, sessionDuration, newSession.questions);
 
-      if (isSelfPaced || !(newSession as any)?.invite?.scheduledTime) {
-        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: newSession.id });
-      } else {
-        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
-      }
+      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
     } catch (err: any) {
       const code = err?.response?.data?.code ?? err?.response?.data?.error;
       console.error('[TutorialScreen] Failed to create session:', code, err);
@@ -135,19 +128,11 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
       if (currentSession?.id) {
         const sessionDuration = (currentSession.durationMinutes || allocatedMinutes) * 60;
         initAssessment(currentSession.id, sessionDuration, currentSession.questions);
-        if (isSelfPaced) {
-          transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: currentSession.id });
-        } else {
-          transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
-        }
+        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
         return;
       }
 
-      if (isSelfPaced) {
-        transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: 'sess_candidate' });
-      } else {
-        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
-      }
+      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
     }
   }
 
