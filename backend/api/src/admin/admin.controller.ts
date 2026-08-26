@@ -129,10 +129,6 @@ export class AdminController {
     return this.adminService.getIntegrityFlags(sessionId);
   }
 
-  @Get("role-templates")
-  async listRoleTemplates() {
-    return this.adminService.listRoleTemplates();
-  }
 
   @Post("invites")
   @HttpCode(HttpStatus.CREATED)

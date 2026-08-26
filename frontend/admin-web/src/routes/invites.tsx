@@ -17,6 +17,10 @@ import {
   ShieldCheck,
   AlertCircle,
   FileText,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -111,9 +115,13 @@ function InvitesPage() {
   const [directError, setDirectError] = useState<string | null>(null);
   const [directUploading, setDirectUploading] = useState(false);
 
-  // Filters State
   const [driveFilter, setDriveFilter] = useState<string>("all");
   const [searchFilter, setSearchFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const invitesTotal = useStore((s) => s.invitesTotal);
+  const invitesTotalPages = useStore((s) => s.invitesTotalPages);
 
   // Bulk action state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -126,12 +134,19 @@ function InvitesPage() {
     fetchDrives();
   }, []);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [driveFilter, searchFilter]);
+
   useEffect(() => {
     fetchInvites({
       driveId: driveFilter !== "all" ? driveFilter : undefined,
       search: searchFilter || undefined,
+      page,
+      pageSize,
     });
-  }, [driveFilter, searchFilter]);
+  }, [driveFilter, searchFilter, page, pageSize]);
 
   const copy = async (link: string, id: string) => {
     try {
@@ -540,6 +555,80 @@ function InvitesPage() {
         {invites.length === 0 && (
           <div className="p-8 text-center text-[13px] text-[#8B8B93]">No invitations found.</div>
         )}
+
+        {/* Pagination Bar */}
+        <div className="px-4 py-3 bg-[#F7F7F9] border-t border-[#E6E6EA] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5B5B64]">
+          <div className="flex items-center gap-3">
+            <span>
+              Showing{" "}
+              <strong className="text-[#0B0B0D]">
+                {invitesTotal === 0 ? 0 : (page - 1) * pageSize + 1}
+              </strong>{" "}
+              to{" "}
+              <strong className="text-[#0B0B0D]">
+                {Math.min(page * pageSize, invitesTotal)}
+              </strong>{" "}
+              of <strong className="text-[#0B0B0D]">{invitesTotal}</strong> candidates
+            </span>
+
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="text-[11px] text-[#8B8B93]">Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="px-2 py-1 text-xs font-medium border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="First Page"
+            >
+              <ChevronsLeft size={14} />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Previous Page"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            <span className="px-2 text-xs font-semibold text-[#0B0B0D]">
+              Page {page} of {Math.max(1, invitesTotalPages)}
+            </span>
+
+            <button
+              onClick={() => setPage((p) => Math.min(invitesTotalPages, p + 1))}
+              disabled={page >= invitesTotalPages}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Next Page"
+            >
+              <ChevronRight size={14} />
+            </button>
+            <button
+              onClick={() => setPage(invitesTotalPages)}
+              disabled={page >= invitesTotalPages}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Last Page"
+            >
+              <ChevronsRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Direct ID Proof Upload Modal */}

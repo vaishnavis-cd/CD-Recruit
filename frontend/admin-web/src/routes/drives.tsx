@@ -715,112 +715,21 @@ function DrivesPage() {
               </div>
 
               {creationMode === "CUSTOM" && (
-                <>
-                  <div>
-                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
-                      Target Department <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                    >
-                      <option value="">Select Department...</option>
-                      <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
-                      <option value="DATA_ENGINEERING">Data Engineering</option>
-                      <option value="PMO">PMO</option>
-                      <option value="QA">QA</option>
-                      <option value="SYSOPS">SysOps</option>
-                      <option value="ITOPS">ITOps</option>
-                      <option value="SECOPS">SecOps</option>
-                      <option value="SRE">SRE</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                      Experience Type
-                    </label>
-                    <select
-                      value={level}
-                      onChange={(e) => setLevel(e.target.value)}
-                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                    >
-                      <option value="">Select Type...</option>
-                      <option value="FRESHER">Fresher (0-1 years)</option>
-                      <option value="EXPERIENCED">Experienced (2-15 years)</option>
-                    </select>
-                  </div>
-
-                  {level === "EXPERIENCED" && (
-                    <div>
-                      <label className="block text-[13px] font-medium text-[#5B5B64] mb-1">
-                        Experienced Level
-                      </label>
-                      <select
-                        value={experiencedLevel}
-                        onChange={(e) => setExperiencedLevel(e.target.value)}
-                        className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                      >
-                        <option value="L1">L1 (2–5 years)</option>
-                        <option value="L2">L2 (6–10 years)</option>
-                        <option value="L3">L3 (11–15 years)</option>
-                      </select>
-                    </div>
-                  )}
-                  
-                  {isLoadingTemplatePreview && (
-                    <div className="p-3.5 bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[12px] text-[#5B5B64] flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 border-2 border-[#2F5CFF] border-t-transparent rounded-full animate-spin"></div>
-                      <span>Fetching active role template preview...</span>
-                    </div>
-                  )}
-
-                  {!isLoadingTemplatePreview && activeTemplatePreview && (
-                    <div className="p-3.5 bg-[#F0F4FF] border border-[#C6D4FF] rounded-lg text-[13px] space-y-2">
-                      <div className="flex items-center justify-between font-semibold text-[#1E3A8A]">
-                        <span>⚡ Active Role Template Preview: {activeTemplatePreview.roleName} (v{activeTemplatePreview.version})</span>
-                        <span className="px-2 py-0.5 text-[11px] bg-[#2F5CFF] text-white rounded font-medium">Active</span>
-                      </div>
-                      <div className="text-[12px] text-[#3B82F6]">
-                        Duration: {activeTemplatePreview.durationMinutes} mins | Dept: {activeTemplatePreview.department} | Level: {activeTemplatePreview.level}
-                      </div>
-                      {activeTemplatePreview.questions && activeTemplatePreview.questions.length > 0 ? (
-                        <div className="space-y-1 pt-1">
-                          <div className="text-[11px] font-medium text-[#4B5563] uppercase tracking-wider">
-                            Attached Questions:
-                          </div>
-                          <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
-                            {activeTemplatePreview.questions
-                              .filter((q: any) => {
-                                const setting = globalModuleSettings.find(
-                                  (s) => s.department === department && s.moduleType === q.moduleType
-                                );
-                                return setting ? setting.isEnabled : true;
-                              })
-                              .map((q: any, idx: number) => (
-                                <div key={q.id || idx} className="flex items-center justify-between px-2.5 py-1 bg-white border border-[#E0E7FF] rounded text-[12px]">
-                                  <span className="font-mono text-[#2F5CFF] font-medium">[{q.moduleType}]</span>
-                                  <span className="truncate max-w-[220px] text-[#374151]">
-                                    {q.question?.content?.prompt || q.question?.content?.title || `Question #${idx + 1}`}
-                                  </span>
-                                  <span className="text-[11px] text-[#6B7280]">v{q.questionVersionSnapshot || q.question?.version || 1}</span>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-[12px] text-[#6B7280] italic">No questions attached to this template.</div>
-                      )}
-                    </div>
-                  )}
-
-                  {!isLoadingTemplatePreview && templatePreviewError && (
-                    <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg text-[12px] text-[#991B1B]">
-                      ⚠️ {templatePreviewError}
-                    </div>
-                  )}
-                </>
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                    Role Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    placeholder="e.g. Senior Software Engineer"
+                    className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  />
+                  <p className="text-[11px] text-[#8B8B93] mt-1">
+                    Custom drives can be configured with specific modules, questions, and timings in the Drive Editor.
+                  </p>
+                </div>
               )}
             </div>
 

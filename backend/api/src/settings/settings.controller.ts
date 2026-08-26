@@ -146,4 +146,16 @@ export class SettingsController {
       actor,
     );
   }
+
+  @Patch("modules/bulk-department")
+  async bulkUpdateDepartmentModules(
+    @Body() dto: { department: Department; isEnabled: boolean },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.bulkUpdateDepartmentModules(
+      dto.department,
+      dto.isEnabled,
+      actor,
+    );
+  }
 }

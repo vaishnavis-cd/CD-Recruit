@@ -349,6 +349,115 @@ export const Route = createFileRoute("/questions")({
   }),
 });
 
+export const TOPIC_DOMAINS = [
+  { id: "all", label: "All Topics" },
+  { id: "languages", label: "Languages & Frameworks" },
+  { id: "databases", label: "Data & Databases" },
+  { id: "sre_devops", label: "SRE & DevOps" },
+  { id: "security", label: "Cybersecurity & IAM" },
+  { id: "qa_testing", label: "QA & Testing" },
+  { id: "pmo_agile", label: "PMO & Agile" },
+  { id: "core_cs", label: "Core CS & Systems" },
+] as const;
+
+export function getTopicDomainId(titleOrTag: string): string {
+  const lower = titleOrTag.toLowerCase();
+  if (
+    lower.includes("javascript") ||
+    lower.includes("typescript") ||
+    lower.includes("python") ||
+    lower.includes("react") ||
+    lower.includes("java") ||
+    lower.includes("node") ||
+    lower.includes("c++") ||
+    lower.includes("golang") ||
+    lower.includes("framework")
+  ) {
+    return "languages";
+  }
+  if (
+    lower.includes("sql") ||
+    lower.includes("nosql") ||
+    lower.includes("data") ||
+    lower.includes("database") ||
+    lower.includes("mongo") ||
+    lower.includes("postgres") ||
+    lower.includes("schema") ||
+    lower.includes("index") ||
+    lower.includes("transaction") ||
+    lower.includes("normalization") ||
+    lower.includes("aggregation")
+  ) {
+    return "databases";
+  }
+  if (
+    lower.includes("sre") ||
+    lower.includes("reliability") ||
+    lower.includes("observability") ||
+    lower.includes("telemetry") ||
+    lower.includes("monitoring") ||
+    lower.includes("alert") ||
+    lower.includes("slo") ||
+    lower.includes("sla") ||
+    lower.includes("incident") ||
+    lower.includes("post-mortem") ||
+    lower.includes("rca") ||
+    lower.includes("disaster") ||
+    lower.includes("recovery") ||
+    lower.includes("capacity") ||
+    lower.includes("caching") ||
+    lower.includes("circuit") ||
+    lower.includes("devops")
+  ) {
+    return "sre_devops";
+  }
+  if (
+    lower.includes("security") ||
+    lower.includes("cyber") ||
+    lower.includes("iam") ||
+    lower.includes("auth") ||
+    lower.includes("threat") ||
+    lower.includes("vulnerability") ||
+    lower.includes("malware") ||
+    lower.includes("ransomware") ||
+    lower.includes("phishing") ||
+    lower.includes("siem") ||
+    lower.includes("soc") ||
+    lower.includes("privilege")
+  ) {
+    return "security";
+  }
+  if (
+    lower.includes("qa") ||
+    lower.includes("test") ||
+    lower.includes("automation") ||
+    lower.includes("playwright") ||
+    lower.includes("selenium") ||
+    lower.includes("gherkin") ||
+    lower.includes("bdd") ||
+    lower.includes("regression") ||
+    lower.includes("boundary") ||
+    lower.includes("flaky") ||
+    lower.includes("acceptance")
+  ) {
+    return "qa_testing";
+  }
+  if (
+    lower.includes("pmo") ||
+    lower.includes("agile") ||
+    lower.includes("scrum") ||
+    lower.includes("sprint") ||
+    lower.includes("stakeholder") ||
+    lower.includes("change") ||
+    lower.includes("management") ||
+    lower.includes("velocity") ||
+    lower.includes("risk")
+  ) {
+    return "pmo_agile";
+  }
+  return "core_cs";
+}
+
 function QuestionBankPage() {
   const navigate = useNavigate();
   const questions = useStore((s) => s.questions);
@@ -365,6 +474,7 @@ function QuestionBankPage() {
   const [diffFilter, setDiffFilter] = useState<string>("all");
   const [targetLevelFilter, setTargetLevelFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [selectedTopicDomain, setSelectedTopicDomain] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
@@ -1520,37 +1630,99 @@ function QuestionBankPage() {
 
           {/* Section 3: Topics */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <h4 className="text-[13px] font-semibold text-[#0B0B0D]">3. Topics</h4>
                 <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
                   {categorizedTagGroups.topic.length} topics
                 </span>
               </div>
+
+              {/* Domain Category Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 bg-[#F7F7F9] p-1 rounded-lg border border-[#E6E6EA]">
+                {TOPIC_DOMAINS.map((domain) => {
+                  const isActive = selectedTopicDomain === domain.id;
+                  const count =
+                    domain.id === "all"
+                      ? categorizedTagGroups.topic.length
+                      : categorizedTagGroups.topic.filter(
+                          (t) => getTopicDomainId(t.title) === domain.id
+                        ).length;
+
+                  if (domain.id !== "all" && count === 0) return null;
+
+                  return (
+                    <button
+                      key={domain.id}
+                      onClick={() => setSelectedTopicDomain(domain.id)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isActive
+                          ? "bg-white text-[#2F5CFF] shadow-2xs font-semibold"
+                          : "text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-white/60"
+                      }`}
+                    >
+                      <span>{domain.label}</span>
+                      <span
+                        className={`px-1.5 py-0.2 text-[9px] font-mono rounded-full ${
+                          isActive
+                            ? "bg-[#EAF0FF] text-[#2F5CFF]"
+                            : "bg-slate-200/60 text-[#5B5B64]"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
             {categorizedTagGroups.topic.length === 0 ? (
               <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
                 No topic tags found.
               </p>
-            ) : (
-              <div className="p-4 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs">
-                <div className="flex flex-wrap gap-2">
-                  {categorizedTagGroups.topic.map((item) => (
-                    <button
+            ) : (() => {
+              const filteredTopics = categorizedTagGroups.topic.filter((item) => {
+                if (selectedTopicDomain === "all") return true;
+                return getTopicDomainId(item.title) === selectedTopicDomain;
+              });
+
+              if (filteredTopics.length === 0) {
+                return (
+                  <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+                    No topics found in this category.
+                  </p>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {filteredTopics.map((item) => (
+                    <div
                       key={item.tag}
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F7F7F9] hover:bg-white border border-[#E6E6EA] hover:border-[#2F5CFF] text-[12px] font-medium text-[#0B0B0D] transition-all shadow-2xs hover:shadow-xs cursor-pointer"
-                      title={`${item.title} (${item.questions.length} questions)`}
+                      className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                     >
-                      <span className="group-hover:text-[#2F5CFF] transition-colors">{item.title}</span>
-                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-[#0B0B0D]/10 text-[#5B5B64] group-hover:bg-[#EAF0FF] group-hover:text-[#2F5CFF] transition-colors">
-                        {item.questions.length}
-                      </span>
-                    </button>
+                      <div className="min-w-0 pr-2">
+                        <h5
+                          className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate"
+                          title={item.title}
+                        >
+                          {item.title}
+                        </h5>
+                        <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                          {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
+                        </p>
+                      </div>
+                      <ChevronRight
+                        size={14}
+                        className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0"
+                      />
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Section 4: Drives */}

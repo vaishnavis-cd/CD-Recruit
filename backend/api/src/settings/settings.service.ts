@@ -380,12 +380,65 @@ export class SettingsService {
   }
 
   async getModuleSettings() {
-    const settings = await this.prisma.moduleSetting.findMany({
+    let settings = await this.prisma.moduleSetting.findMany({
       orderBy: [
         { department: "asc" },
         { moduleType: "asc" },
       ],
     });
+
+    if (settings.length === 0) {
+      const departments = [
+        Department.SOFTWARE_ENGINEERING,
+        Department.DATA_ENGINEERING,
+        Department.QA,
+        Department.SRE,
+        Department.SYSOPS,
+        Department.ITOPS,
+        Department.SECOPS,
+        Department.PMO,
+      ];
+      const moduleTypes = Object.values(ModuleType);
+
+      const standardAllowed: Record<string, ModuleType[]> = {
+        SOFTWARE_ENGINEERING: [ModuleType.MCQ, ModuleType.SQL, ModuleType.CODING, ModuleType.DEBUGGING, ModuleType.AI_PROMPTING, ModuleType.SIMULATION, ModuleType.TEST_SCENARIOS],
+        DATA_ENGINEERING: [ModuleType.MCQ, ModuleType.SQL, ModuleType.NOSQL, ModuleType.CODING, ModuleType.DEBUGGING, ModuleType.AI_PROMPTING],
+        QA: [ModuleType.MCQ, ModuleType.SQL, ModuleType.CODING, ModuleType.DEBUGGING, ModuleType.TEST_SCENARIOS, ModuleType.AI_PROMPTING],
+        SRE: [ModuleType.MCQ, ModuleType.CODING, ModuleType.DEBUGGING, ModuleType.SIMULATION, ModuleType.TEST_SCENARIOS, ModuleType.AI_PROMPTING],
+        SYSOPS: [ModuleType.MCQ, ModuleType.SIMULATION, ModuleType.TEST_SCENARIOS, ModuleType.AI_PROMPTING],
+        ITOPS: [ModuleType.MCQ, ModuleType.SIMULATION, ModuleType.TEST_SCENARIOS, ModuleType.AI_PROMPTING],
+        SECOPS: [ModuleType.MCQ, ModuleType.CODING, ModuleType.DEBUGGING, ModuleType.SIMULATION, ModuleType.TEST_SCENARIOS, ModuleType.AI_PROMPTING],
+        PMO: [ModuleType.MCQ, ModuleType.SIMULATION, ModuleType.TEST_SCENARIOS, ModuleType.AI_PROMPTING],
+      };
+
+      for (const dept of departments) {
+        for (const mod of moduleTypes) {
+          const isEnabled = (standardAllowed[dept] || []).includes(mod);
+          await this.prisma.moduleSetting.upsert({
+            where: {
+              department_moduleType: {
+                department: dept,
+                moduleType: mod,
+              },
+            },
+            update: { isEnabled },
+            create: {
+              department: dept,
+              moduleType: mod,
+              isEnabled,
+            },
+          });
+        }
+      }
+
+      settings = await this.prisma.moduleSetting.findMany({
+        orderBy: [
+          { department: "asc" },
+          { moduleType: "asc" },
+        ],
+      });
+    }
+
     return settings;
   }
 
@@ -424,5 +477,43 @@ export class SettingsService {
     });
 
     return updated;
+  }
+
+  async bulkUpdateDepartmentModules(
+    department: Department,
+    isEnabled: boolean,
+    actor: any,
+  ) {
+    const actorId = await this.resolveStaffId(actor);
+    const moduleTypes = Object.values(ModuleType);
+
+    for (const mod of moduleTypes) {
+      await this.prisma.moduleSetting.upsert({
+        where: {
+          department_moduleType: {
+            department,
+            moduleType: mod,
+          },
+        },
+        update: { isEnabled },
+        create: {
+          department,
+          moduleType: mod,
+          isEnabled,
+        },
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "MODULE_SETTING_BULK_UPDATED",
+        entityType: "ModuleSetting",
+        entityId: department,
+        metadata: { department, isEnabled },
+      },
+    });
+
+    return this.getModuleSettings();
   }
 }

@@ -573,12 +573,26 @@ function DriveDetailPage() {
           ...initialConfig,
           ...(data.moduleConfig || {}),
         };
+        // Normalize any inflated weights from legacy data (e.g. 1500 -> 15)
+        Object.keys(initialConfig).forEach((mod) => {
+          if (initialConfig[mod] && typeof initialConfig[mod].weight === "number") {
+            let w = initialConfig[mod].weight;
+            if (w > 100) w = Math.round(w / 100);
+            else if (w <= 1 && w > 0) w = Math.round(w * 100);
+            initialConfig[mod].weight = w;
+          }
+        });
       } else {
         const preset = ((data as any).roleTemplate?.weightingPreset as Record<string, number>) || {};
         Object.keys(initialConfig).forEach((mod) => {
           const isGloballyEnabled = enabledForDept.includes(mod);
-          const presetWeightFraction = preset[mod] !== undefined ? Number(preset[mod]) : 0;
-          const weight = isGloballyEnabled ? presetWeightFraction * 100 : 0;
+          const rawPreset = preset[mod] !== undefined ? Number(preset[mod]) : 0;
+          let weight = 0;
+          if (rawPreset > 100) weight = Math.round(rawPreset / 100);
+          else if (rawPreset <= 1 && rawPreset > 0) weight = Math.round(rawPreset * 100);
+          else weight = Math.round(rawPreset);
+
+          weight = isGloballyEnabled ? weight : 0;
           const enabled = isGloballyEnabled && weight > 0;
           
           initialConfig[mod] = {
@@ -928,23 +942,27 @@ function DriveDetailPage() {
     );
     const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
 
-    for (const [modId, conf] of Object.entries(moduleConfig)) {
+    const updatedModuleConfig = { ...moduleConfig };
+    for (const [modId, conf] of Object.entries(updatedModuleConfig)) {
       if (!conf.enabled || Number(conf.weight) <= 0) continue;
       const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
       const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
       if (dist.easy + dist.medium + dist.hard !== reqCount) {
-        toast.error(`Difficulty distribution for ${modId} must total exactly ${reqCount} questions. Currently it is ${dist.easy + dist.medium + dist.hard}.`);
-        return;
+        updatedModuleConfig[modId] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: getDefaultDifficultyDistribution(reqCount, resolvedTag),
+        } as any;
       }
     }
 
-    const enabledMods = Object.values(moduleConfig).filter((m) => m.enabled);
+    const enabledMods = Object.values(updatedModuleConfig).filter((m) => m.enabled);
     if (enabledMods.length === 0) {
       toast.error("At least one assessment module must be enabled.");
       return;
     }
 
-    const weightVal = validateDriveModuleWeights(moduleConfig);
+    const weightVal = validateDriveModuleWeights(updatedModuleConfig);
     if (!weightVal.valid) {
       toast.error(weightVal.error || "Invalid module score weights configuration.");
       return;
@@ -955,12 +973,19 @@ function DriveDetailPage() {
     }
 
     try {
-      const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
-      const endIso = rollingWindow
-        ? computeRollingEndDate(startDate, startHour, startMinute, startAmPm)
-        : amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
-
       const headers = await getAuthHeaders();
+      const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
+      const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
+
+      const payload: any = {
+        scheduleStart: startIso,
+        scheduleEnd: endIso,
+        moduleConfig: {
+          ...updatedModuleConfig,
+          proctoringConfig,
+        },
+      };
+
       const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
         method: "PATCH",
         headers,
@@ -1578,17 +1603,18 @@ function DriveDetailPage() {
                   { id: "SIMULATION", name: "Contextual Simulation", icon: Play, desc: "On-call incident & ticket simulation evaluated via LLM" },
                   { id: "TEST_SCENARIOS", name: "Test Scenarios", icon: FileText, desc: "Role-specific scenario questions evaluated via structured criteria" },
                 ] as const
-              ).filter((mod) => {
+              ).map((mod) => {
                 const isGloballyEnabled = globalEnabledModules.includes(mod.id);
-                const isAlreadyEnabled = moduleConfig[mod.id]?.enabled === true;
-                return isGloballyEnabled || isAlreadyEnabled;
-              }).map((mod) => {
                 const Icon = mod.icon;
                 const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isBonus: false, isFixed: false };
                 return (
                   <div
                     key={mod.id}
                     onClick={() => {
+                      if (!isGloballyEnabled) {
+                        toast.error(`${mod.name} is disabled in Admin Settings for this department.`);
+                        return;
+                      }
                       const isNowEnabled = !conf.enabled;
                       const nextConfig = {
                         ...moduleConfig,
@@ -1598,21 +1624,33 @@ function DriveDetailPage() {
                       const reallocated = autoAllocateModuleDurations(nextConfig, winMins);
                       setModuleConfig(reallocated);
                     }}
-                    className={`border rounded-md p-4 space-y-3 transition-colors cursor-pointer select-none ${
-                      conf.enabled ? "bg-white border-[#2F5CFF] shadow-sm" : "bg-[#F7F7F9] border-[#E6E6EA] opacity-60"
+                    className={`border rounded-md p-4 space-y-3 transition-colors select-none ${
+                      !isGloballyEnabled
+                        ? "bg-[#F7F7F9]/80 border-[#E6E6EA] opacity-40 cursor-not-allowed"
+                        : conf.enabled
+                        ? "bg-white border-[#2F5CFF] shadow-sm cursor-pointer"
+                        : "bg-[#F7F7F9] border-[#E6E6EA] opacity-70 cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-semibold text-[13px] text-[#0B0B0D]">
-                        <Icon size={16} className={conf.enabled ? "text-[#2F5CFF]" : "text-[#8B8B93]"} />
-                        {mod.name}
+                        <Icon size={16} className={conf.enabled && isGloballyEnabled ? "text-[#2F5CFF]" : "text-[#8B8B93]"} />
+                        <span>{mod.name}</span>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={conf.enabled}
-                        onChange={() => {}}
-                        className="w-4 h-4 text-[#2F5CFF] rounded cursor-pointer pointer-events-none"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        {!isGloballyEnabled && (
+                          <span className="text-[10px] font-mono text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                            Disabled in Settings
+                          </span>
+                        )}
+                        <input
+                          type="checkbox"
+                          checked={conf.enabled && isGloballyEnabled}
+                          disabled={!isGloballyEnabled}
+                          onChange={() => {}}
+                          className="w-4 h-4 text-[#2F5CFF] rounded cursor-pointer pointer-events-none disabled:opacity-40"
+                        />
+                      </div>
                     </div>
                     <p className="text-[11px] text-[#8B8B93]">{mod.desc}</p>
 
@@ -2077,10 +2115,13 @@ function DriveDetailPage() {
                 const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
                 const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
 
+                const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
                 const errors: string[] = [];
-                if (easyAvail < dist.easy) errors.push(`Insufficient Easy questions. Required: ${dist.easy}, Available: ${easyAvail}.`);
-                if (mediumAvail < dist.medium) errors.push(`Insufficient Medium questions. Required: ${dist.medium}, Available: ${mediumAvail}.`);
-                if (hardAvail < dist.hard) errors.push(`Insufficient Hard questions. Required: ${dist.hard}, Available: ${hardAvail}.`);
+                if (!hasRoleTemplate) {
+                  if (easyAvail < dist.easy) errors.push(`Insufficient Easy questions. Required: ${dist.easy}, Available: ${easyAvail}.`);
+                  if (mediumAvail < dist.medium) errors.push(`Insufficient Medium questions. Required: ${dist.medium}, Available: ${mediumAvail}.`);
+                  if (hardAvail < dist.hard) errors.push(`Insufficient Hard questions. Required: ${dist.hard}, Available: ${hardAvail}.`);
+                }
 
                 const isSufficient = errors.length === 0;
 
@@ -2088,7 +2129,9 @@ function DriveDetailPage() {
                   <div key={modId} className="bg-white border border-[#E6E6EA] rounded-lg p-3 space-y-2 text-[12px] shadow-sm">
                     <div className="flex items-center justify-between font-semibold border-b border-[#EFF0F3] pb-1.5">
                       <span className="text-[#0B0B0D] font-bold text-[13px]">{modId} Module Target Composition</span>
-                      <span className="text-[#2F5CFF] font-semibold">Required: {reqCount}</span>
+                      <span className="text-[#2F5CFF] font-semibold">
+                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required: ${reqCount}`}
+                      </span>
                     </div>
 
                     <div className="space-y-1 font-mono text-[11px] text-[#5B5B64]">
@@ -2111,30 +2154,44 @@ function DriveDetailPage() {
                     </div>
 
                     <div className="pt-1.5 border-t border-[#EFF0F3] text-[11px] space-y-1">
-                      {poolSize < reqCount ? (
-                        <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
-                          ⚠ {poolSize} / {reqCount} required questions selected.
-                        </div>
-                      ) : poolSize === reqCount ? (
-                        <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded">
-                          ✓ Required question count reached. You can continue adding questions to the pool for candidate randomization.
-                        </div>
-                      ) : (
-                        <div className="text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded">
-                          ℹ Pool contains {poolSize - reqCount} additional questions for randomization.
-                        </div>
-                      )}
-
-                      {isSufficient ? (
-                        <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
-                          ✓ Sufficient question pool.
-                        </div>
-                      ) : (
-                        errors.map((err, idx) => (
-                          <div key={idx} className="text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded">
-                            ⚠ {err}
+                      {hasRoleTemplate ? (
+                        poolSize > 0 ? (
+                          <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
+                            ✓ {poolSize} questions curated from Role Template.
                           </div>
-                        ))
+                        ) : (
+                          <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
+                            ⚠ No questions attached from Role Template for this module.
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          {poolSize < reqCount ? (
+                            <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
+                              ⚠ {poolSize} / {reqCount} required questions selected.
+                            </div>
+                          ) : poolSize === reqCount ? (
+                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded">
+                              ✓ Required question count reached.
+                            </div>
+                          ) : (
+                            <div className="text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded">
+                              ℹ Pool contains {poolSize - reqCount} additional questions for randomization.
+                            </div>
+                          )}
+
+                          {isSufficient ? (
+                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
+                              ✓ Sufficient question pool.
+                            </div>
+                          ) : (
+                            errors.map((err, idx) => (
+                              <div key={idx} className="text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded">
+                                ⚠ {err}
+                              </div>
+                            ))
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

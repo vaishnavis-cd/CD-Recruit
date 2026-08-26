@@ -17,6 +17,8 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Send,
+  MoreVertical,
+  CheckCircle2,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { API_BASE, getAuthHeaders } from "../lib/store";
@@ -116,6 +118,11 @@ export function RoleTemplatesPage() {
   // Modal Question Search & Filters
   const [modalQuestionSearch, setModalQuestionSearch] = useState("");
   const [modalModuleFilter, setModalModuleFilter] = useState<string>("all");
+  const [modalDifficultyFilter, setModalDifficultyFilter] = useState<string>("all");
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+
+  // Card 3-dot dropdown menu active ID
+  const [openMenuTemplateId, setOpenMenuTemplateId] = useState<string | null>(null);
 
   // Selected questions for template authoring: map of questionId -> { moduleType, pointShare }
   const [selectedQuestionsMap, setSelectedQuestionsMap] = useState<
@@ -537,8 +544,15 @@ export function RoleTemplatesPage() {
   const modalEligibleQuestions = useMemo(() => {
     const allowedMods = getDepartmentAllowedModules(department);
     return questionsBank.filter((q) => {
+      if (showSelectedOnly && !selectedQuestionsMap[q.id]) return false;
       if (modalModuleFilter !== "all" && q.moduleType !== modalModuleFilter) return false;
       if (modalModuleFilter === "all" && !allowedMods.includes(q.moduleType)) return false;
+      if (
+        modalDifficultyFilter !== "all" &&
+        (q.difficulty || "").toLowerCase() !== modalDifficultyFilter.toLowerCase()
+      ) {
+        return false;
+      }
       if (modalQuestionSearch.trim()) {
         const term = modalQuestionSearch.toLowerCase();
         const prompt = (q.content?.prompt || q.content?.title || "").toLowerCase();
@@ -547,7 +561,15 @@ export function RoleTemplatesPage() {
       }
       return true;
     });
-  }, [questionsBank, department, modalModuleFilter, modalQuestionSearch]);
+  }, [
+    questionsBank,
+    department,
+    modalModuleFilter,
+    modalDifficultyFilter,
+    showSelectedOnly,
+    selectedQuestionsMap,
+    modalQuestionSearch,
+  ]);
 
   return (
     <AppShell
@@ -725,60 +747,125 @@ export function RoleTemplatesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredTemplates.map((tpl) => {
-              const tCategory = tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
-              const tTier = tpl.experienceTier || (tCategory === "FRESHER" ? "0-1" : "2-5");
-              const matchedTier = TIERS.find((t) => t.value === tTier);
+              const isMenuOpen = openMenuTemplateId === tpl.id;
+              const distinctMods = Array.from(
+                new Set(
+                  (tpl.questions || []).map(
+                    (q: any) => MODULE_LABEL_MAP[q.moduleType] || q.moduleType
+                  )
+                )
+              );
+              const displayedMods = distinctMods.slice(0, 3).join(", ");
+              const extraCount = distinctMods.length - 3;
+              const moduleSummary =
+                extraCount > 0 ? `${displayedMods} +${extraCount} more` : displayedMods;
 
               return (
                 <div
                   key={tpl.id}
-                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-md ${
+                  onClick={() => handleOpenEdit(tpl)}
+                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:border-[#2F5CFF] hover:shadow-md ${
                     tpl.isActive
                       ? "border-[#C5D7FF] shadow-xs ring-1 ring-[#2F5CFF]/10"
                       : "border-[#E6E6EA] opacity-90"
                   }`}
                 >
-                  <div className="space-y-3">
-                    {/* Title & Status Badges */}
+                  <div className="space-y-3.5">
+                    {/* Header: Title, Version, Active Badge, 3-dot Menu */}
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-[15px] text-[#0B0B0D]">
+                          <h3 className="font-semibold text-[15px] text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={tpl.roleName}>
                             {tpl.roleName}
                           </h3>
-                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded">
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded shrink-0">
                             v{tpl.version}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {tpl.department && (
-                            <span className="px-2 py-0.5 text-[11px] font-mono bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA] rounded">
-                              {tpl.department}
-                            </span>
-                          )}
-                          <span className="px-2 py-0.5 text-[11px] font-medium bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF] rounded">
-                            {tCategory}
-                          </span>
-                          <span className="px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-300 rounded">
-                            {matchedTier?.label || `${tTier} yrs`}
                           </span>
                         </div>
                       </div>
 
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full shrink-0 ${
-                          tpl.isActive
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}
-                      >
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            tpl.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full ${
+                            tpl.isActive
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-slate-100 text-slate-600 border border-slate-200"
                           }`}
-                        />
-                        {tpl.isActive ? "Active" : "Inactive"}
-                      </span>
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              tpl.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                            }`}
+                          />
+                          {tpl.isActive ? "Active" : "Inactive"}
+                        </span>
+
+                        {/* 3-Dot Contextual Dropdown */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuTemplateId(isMenuOpen ? null : tpl.id);
+                            }}
+                            className="p-1 text-[#8B8B93] hover:text-[#0B0B0D] rounded-md hover:bg-[#F7F7F9] transition-colors cursor-pointer"
+                            title="Template options"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+
+                          {isMenuOpen && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E6E6EA] rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuTemplateId(null);
+                                  handleOpenEdit(tpl);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs text-[#0B0B0D] hover:bg-[#F7F7F9] flex items-center gap-2 cursor-pointer font-medium"
+                              >
+                                <Edit3 size={13} className="text-[#2F5CFF]" />
+                                <span>Edit details & questions</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={publishingId === tpl.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuTemplateId(null);
+                                  handlePublishNewVersion(tpl.id);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs text-[#0B0B0D] hover:bg-[#F7F7F9] flex items-center gap-2 cursor-pointer font-medium disabled:opacity-50"
+                              >
+                                <GitFork size={13} className="text-[#2F5CFF]" />
+                                <span>
+                                  {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
+                                </span>
+                              </button>
+
+                              <div className="my-1 border-t border-[#E6E6EA]" />
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuTemplateId(null);
+                                  handleDeleteTemplate(tpl.id, tpl.roleName);
+                                }}
+                                className="w-full text-left px-3.5 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-medium"
+                              >
+                                <Trash2 size={13} />
+                                <span>Delete template</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Metadata Strip */}
@@ -798,59 +885,15 @@ export function RoleTemplatesPage() {
                       </div>
                     </div>
 
-                    {/* Question Module Badges */}
-                    {tpl.questions && tpl.questions.length > 0 && (
-                      <div className="space-y-1 pt-1">
-                        <div className="text-[11px] font-medium text-[#8B8B93]">
-                          Question Modules:
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {Array.from(
-                            new Set(tpl.questions.map((q: any) => q.moduleType))
-                          ).map((mod: any) => (
-                            <span
-                              key={mod}
-                              className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 text-[#2F5CFF] border border-slate-200 rounded font-semibold"
-                            >
-                              {MODULE_LABEL_MAP[mod] || mod}
-                            </span>
-                          ))}
-                        </div>
+                    {/* Simplified Question Module Summary Text */}
+                    {distinctMods.length > 0 && (
+                      <div className="text-xs text-[#5B5B64] flex items-center gap-1.5 pt-0.5">
+                        <span className="font-medium text-[#8B8B93]">Modules:</span>
+                        <span className="font-semibold text-[#0B0B0D] truncate">
+                          {moduleSummary}
+                        </span>
                       </div>
                     )}
-                  </div>
-
-                  {/* Footer Actions */}
-                  <div className="pt-4 mt-4 border-t border-[#E6E6EA] flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => handleOpenEdit(tpl)}
-                      className="p-2 text-[#5B5B64] hover:text-[#2F5CFF] rounded-lg hover:bg-[#F7F7F9] transition-colors cursor-pointer"
-                      title="Edit template & questions"
-                    >
-                      <Edit3 size={15} />
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePublishNewVersion(tpl.id)}
-                        disabled={publishingId === tpl.id}
-                        title="Publish new active version (clones into next version number)"
-                        className="px-3 py-1.5 bg-[#EAF0FF] hover:bg-[#D6E4FF] text-[#2F5CFF] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        <GitFork size={13} />
-                        <span>
-                          {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteTemplate(tpl.id, tpl.roleName)}
-                        className="p-2 text-[#5B5B64] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                        title="Delete template"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
                   </div>
                 </div>
               );
@@ -885,93 +928,98 @@ export function RoleTemplatesPage() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
-              {/* Form Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
-                    Role Template Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Software Engineering - Experienced (2-5 yrs)"
-                    value={roleName}
-                    onChange={(e) => setRoleName(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] bg-white"
-                  />
+              {/* Form Grid in Distinct Gray Container */}
+              <div className="bg-[#F7F7F9] p-5 rounded-xl border border-[#E6E6EA] shadow-2xs space-y-4">
+                <div className="text-xs font-bold text-[#0B0B0D] uppercase tracking-wider font-mono">
+                  1. Template Configuration
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                      Role Template Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Software Engineering - Experienced (2-5 yrs)"
+                      value={roleName}
+                      onChange={(e) => setRoleName(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] bg-white shadow-2xs"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
-                    Assessment Duration (Minutes) <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={15}
-                    max={240}
-                    value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                    className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] bg-white"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                      Assessment Duration (Minutes) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={15}
+                      max={240}
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] bg-white shadow-2xs"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
-                    Target Department
-                  </label>
-                  <select
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF]"
-                  >
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d} value={d}>
-                        {DEPARTMENT_LABELS[d] || d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                      Target Department
+                    </label>
+                    <select
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] shadow-2xs"
+                    >
+                      {DEPARTMENTS.map((d) => (
+                        <option key={d} value={d}>
+                          {DEPARTMENT_LABELS[d] || d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
-                    Candidate Category
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => {
-                      const newCat = e.target.value;
-                      setCategory(newCat);
-                      if (newCat === "FRESHER") {
-                        setExperienceTier("0-1");
-                      } else if (experienceTier === "0-1") {
-                        setExperienceTier("2-5");
-                      }
-                    }}
-                    className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                      Candidate Category
+                    </label>
+                    <select
+                      value={category}
+                      onChange={(e) => {
+                        const newCat = e.target.value;
+                        setCategory(newCat);
+                        if (newCat === "FRESHER") {
+                          setExperienceTier("0-1");
+                        } else if (experienceTier === "0-1") {
+                          setExperienceTier("2-5");
+                        }
+                      }}
+                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white shadow-2xs"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
-                    Experience Tier
-                  </label>
-                  <select
-                    value={experienceTier}
-                    onChange={(e) => setExperienceTier(e.target.value)}
-                    disabled={category === "FRESHER"}
-                    className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white disabled:bg-slate-50 disabled:text-slate-400"
-                  >
-                    {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
-                      <option key={tier.value} value={tier.value}>
-                        {tier.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                      Experience Tier
+                    </label>
+                    <select
+                      value={experienceTier}
+                      onChange={(e) => setExperienceTier(e.target.value)}
+                      disabled={category === "FRESHER"}
+                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400 shadow-2xs"
+                    >
+                      {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
+                        <option key={tier.value} value={tier.value}>
+                          {tier.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -980,7 +1028,7 @@ export function RoleTemplatesPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E6E6EA] pb-3">
                   <div>
                     <h4 className="text-sm font-bold text-[#0B0B0D] flex items-center gap-2">
-                      <span>Attach Questions from Question Bank</span>
+                      <span>2. Attach Questions from Question Bank</span>
                       <span className="px-2 py-0.5 bg-[#EAF0FF] text-[#2F5CFF] text-[11px] font-mono font-bold rounded-md border border-[#B3C5FF]">
                         {DEPARTMENT_LABELS[department] || department}
                       </span>
@@ -992,8 +1040,24 @@ export function RoleTemplatesPage() {
                       </span>
                     </p>
                   </div>
-                  <div className="px-3 py-1 bg-[#2F5CFF] text-white rounded-lg text-xs font-bold shadow-xs">
-                    {Object.keys(selectedQuestionsMap).length} question(s) selected
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        showSelectedOnly
+                          ? "bg-[#2F5CFF] text-white border-[#2F5CFF] shadow-xs"
+                          : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#2F5CFF] hover:text-[#2F5CFF]"
+                      }`}
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>Show Selected Only</span>
+                    </button>
+
+                    <div className="px-3 py-1.5 bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF] rounded-lg text-xs font-bold shadow-2xs">
+                      {Object.keys(selectedQuestionsMap).length} question(s) selected
+                    </div>
                   </div>
                 </div>
 
@@ -1025,6 +1089,20 @@ export function RoleTemplatesPage() {
                       ))}
                     </select>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-[#5B5B64]">Difficulty:</span>
+                    <select
+                      value={modalDifficultyFilter}
+                      onChange={(e) => setModalDifficultyFilter(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs border border-[#E6E6EA] rounded-lg bg-white text-[#0B0B0D]"
+                    >
+                      <option value="all">All Difficulties</option>
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Questions List */}
@@ -1033,13 +1111,15 @@ export function RoleTemplatesPage() {
                     <AlertCircle size={20} className="mx-auto text-[#8B8B93]" />
                     <p className="font-semibold text-[#0B0B0D]">No questions found matching your filter</p>
                     <p className="text-[11px] text-[#8B8B93]">
-                      Try adjusting the search query or module filter above. Total bank contains {questionsBank.length} questions.
+                      {showSelectedOnly
+                        ? "No questions are currently selected. Turn off 'Show Selected Only' to view and attach questions."
+                        : `Try adjusting the search query or module filter above. Total bank contains ${questionsBank.length} questions.`}
                     </p>
                   </div>
                 ) : (
                   <div className="max-h-72 overflow-y-auto space-y-2 border border-[#E6E6EA] rounded-xl p-3 bg-[#F7F7F9]/30">
                     {modalEligibleQuestions.map((q) => {
-                      const isSelected = !selectedQuestionsMap[q.id];
+                      const isSelected = Boolean(selectedQuestionsMap[q.id]);
                       const modStyle =
                         MODULE_COLORS[q.moduleType] || {
                           bg: "bg-slate-100",
@@ -1058,8 +1138,8 @@ export function RoleTemplatesPage() {
                           onClick={() => toggleQuestionSelection(q)}
                           className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${
                             isSelected
-                              ? "bg-[#F0F4FF]/80 border-[#2F5CFF] shadow-xs"
-                              : "bg-white border-[#E6E6EA] hover:border-slate-300 hover:bg-[#F7F7F9]/60"
+                              ? "bg-[#F0F4FF] border-[#2F5CFF] shadow-xs"
+                              : "bg-white border-[#E6E6EA] hover:border-slate-300 hover:bg-[#F7F7F9]/80"
                           }`}
                         >
                           <div className="flex items-start gap-3 min-w-0">
@@ -1068,7 +1148,7 @@ export function RoleTemplatesPage() {
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => {}}
-                                className="rounded text-[#2F5CFF] cursor-pointer h-4 w-4"
+                                className="rounded border-[#C5D7FF] text-[#2F5CFF] cursor-pointer h-4 w-4"
                               />
                             </div>
                             <div className="min-w-0">
@@ -1095,7 +1175,7 @@ export function RoleTemplatesPage() {
 
                           <div className="shrink-0">
                             {isSelected ? (
-                              <span className="px-2 py-1 bg-[#2F5CFF] text-white text-[11px] font-bold rounded-md flex items-center gap-1 shadow-xs">
+                              <span className="px-2.5 py-1 bg-[#2F5CFF] text-white text-[11px] font-bold rounded-md flex items-center gap-1 shadow-xs">
                                 <Check size={12} />
                                 Attached
                               </span>

@@ -371,6 +371,9 @@ function SettingsPage() {
     }
   };
 
+  // Hover highlight state for matrix grid
+  const [hoveredCell, setHoveredCell] = useState<{ dept: string; mod: string } | null>(null);
+
   const handleToggleModule = async (department: string, moduleType: string, currentVal: boolean) => {
     const key = `${department}-${moduleType}`;
     setSavingModule(key);
@@ -393,10 +396,43 @@ function SettingsPage() {
         throw new Error("Failed to update module configuration");
       }
 
-      toast.success(`Module ${moduleType} for ${department} updated successfully`);
+      toast.success(`Module ${moduleType} for ${department.replace("_", " ")} updated`);
       loadModuleSettings();
     } catch (err: any) {
       toast.error(err.message || "Failed to toggle module setting");
+    } finally {
+      setSavingModule(null);
+    }
+  };
+
+  const handleBulkDepartmentModules = async (department: string, isEnabled: boolean) => {
+    setSavingModule(`bulk-${department}`);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/modules/bulk-department`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          department,
+          isEnabled,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to bulk update department modules");
+      }
+
+      toast.success(
+        isEnabled
+          ? `All modules enabled for ${department.replace("_", " ")}`
+          : `All modules cleared for ${department.replace("_", " ")}`
+      );
+      loadModuleSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update department modules");
     } finally {
       setSavingModule(null);
     }
@@ -1204,55 +1240,144 @@ function SettingsPage() {
                   Loading assessment module configurations…
                 </p>
               ) : (
-                <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
-                  <div className="grid grid-cols-[1.5fr_2.5fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
-                    <div>Department</div>
-                    <div>Module Availability Settings</div>
-                  </div>
-                  <div className="divide-y divide-[#E6E6EA] font-mono text-[11px]">
-                    {[
-                      "SOFTWARE_ENGINEERING",
-                      "DATA_ENGINEERING",
-                      "QA",
-                      "SRE",
-                      "SYSOPS",
-                      "ITOPS",
-                      "SECOPS",
-                      "PMO"
-                    ].map((dept) => {
-                      const modulesList = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"];
-                      return (
-                        <div key={dept} className="grid grid-cols-[1.5fr_2.5fr] gap-3 px-4 py-3 items-center hover:bg-[#F7F7F9]/50 transition-colors">
-                          <div className="font-bold text-[#0B0B0D]">{dept.replace("_", " ")}</div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-2">
+                <div className="border border-[#E6E6EA] rounded-xl overflow-x-auto shadow-xs bg-white text-[12px]">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wider font-semibold text-[#5B5B64]">
+                        <th className="px-4 py-3 text-left min-w-[200px]">Department</th>
+                        {[
+                          { key: "MCQ", label: "MCQ" },
+                          { key: "SQL", label: "SQL" },
+                          { key: "NOSQL", label: "NoSQL" },
+                          { key: "CODING", label: "Coding" },
+                          { key: "DEBUGGING", label: "Debugging" },
+                          { key: "AI_PROMPTING", label: "AI Prompt" },
+                          { key: "SIMULATION", label: "Simulation" },
+                          { key: "TEST_SCENARIOS", label: "Test Scenarios" },
+                        ].map((m) => (
+                          <th
+                            key={m.key}
+                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
+                              hoveredCell?.mod === m.key ? "bg-[#EAF0FF] text-[#2F5CFF]" : ""
+                            }`}
+                          >
+                            {m.label}
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Bulk Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E6EA] text-xs">
+                      {[
+                        { key: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
+                        { key: "DATA_ENGINEERING", label: "Data Engineering" },
+                        { key: "QA", label: "QA & Testing" },
+                        { key: "SRE", label: "Site Reliability (SRE)" },
+                        { key: "SYSOPS", label: "System Operations" },
+                        { key: "ITOPS", label: "IT Operations" },
+                        { key: "SECOPS", label: "Security Operations" },
+                        { key: "PMO", label: "PMO / Management" },
+                      ].map((d) => {
+                        const modulesList = [
+                          "MCQ",
+                          "SQL",
+                          "NOSQL",
+                          "CODING",
+                          "DEBUGGING",
+                          "AI_PROMPTING",
+                          "SIMULATION",
+                          "TEST_SCENARIOS",
+                        ];
+                        const isRowHovered = hoveredCell?.dept === d.key;
+                        const enabledCount = modulesList.filter((mod) => {
+                          const s = moduleSettings.find(
+                            (item) => item.department === d.key && item.moduleType === mod
+                          );
+                          return s ? s.isEnabled : false;
+                        }).length;
+                        const isBulkSaving = savingModule === `bulk-${d.key}`;
+
+                        return (
+                          <tr
+                            key={d.key}
+                            className={`transition-colors ${
+                              isRowHovered ? "bg-[#F0F4FF]/60" : "hover:bg-[#F7F7F9]/70"
+                            }`}
+                          >
+                            <td className="px-4 py-3 font-semibold text-[#0B0B0D]">
+                              <div className="flex items-center gap-2">
+                                <span>{d.label}</span>
+                                <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA]">
+                                  {enabledCount}/{modulesList.length}
+                                </span>
+                              </div>
+                            </td>
+
                             {modulesList.map((mod) => {
                               const setting = moduleSettings.find(
-                                (s) => s.department === dept && s.moduleType === mod
+                                (s) => s.department === d.key && s.moduleType === mod
                               );
                               const isEnabled = setting ? setting.isEnabled : false;
-                              const key = `${dept}-${mod}`;
-                              const isSaving = savingModule === key;
+                              const cellKey = `${d.key}-${mod}`;
+                              const isSaving = savingModule === cellKey || isBulkSaving;
+                              const isCellHovered =
+                                hoveredCell?.dept === d.key && hoveredCell?.mod === mod;
+                              const isColHovered = hoveredCell?.mod === mod;
 
                               return (
-                                <label key={mod} className="flex items-center gap-1.5 cursor-pointer select-none">
-                                  <input
-                                    type="checkbox"
-                                    checked={isEnabled}
-                                    disabled={isSaving || !isAdmin}
-                                    onChange={() => handleToggleModule(dept, mod, isEnabled)}
-                                    className="rounded border-[#E6E6EA] text-[#2F5CFF] focus:ring-[#2F5CFF]/30 w-3.5 h-3.5 cursor-pointer disabled:opacity-50"
-                                  />
-                                  <span className={`text-[11px] ${isEnabled ? "text-[#2F5CFF] font-semibold" : "text-[#8B8B93]"}`}>
-                                    {mod}
-                                  </span>
-                                </label>
+                                <td
+                                  key={mod}
+                                  onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
+                                  onMouseLeave={() => setHoveredCell(null)}
+                                  className={`px-3 py-3 text-center transition-colors ${
+                                    isCellHovered
+                                      ? "bg-[#D6E4FF]"
+                                      : isColHovered
+                                        ? "bg-[#EAF0FF]/50"
+                                        : isRowHovered
+                                          ? "bg-[#F0F4FF]/60"
+                                          : ""
+                                  }`}
+                                >
+                                  <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isEnabled}
+                                      disabled={isSaving || !isAdmin}
+                                      onChange={() => handleToggleModule(d.key, mod, isEnabled)}
+                                      className="rounded border-[#C5D7FF] text-[#2F5CFF] focus:ring-[#2F5CFF]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
+                                    />
+                                  </label>
+                                </td>
                               );
                             })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+
+                            <td className="px-4 py-3 text-right font-medium">
+                              <div className="flex items-center justify-end gap-2 text-[11px]">
+                                <button
+                                  onClick={() => handleBulkDepartmentModules(d.key, true)}
+                                  disabled={isBulkSaving || !isAdmin || enabledCount === modulesList.length}
+                                  className="text-[#2F5CFF] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                                  title="Enable all modules for this department"
+                                >
+                                  Select All
+                                </button>
+                                <span className="text-[#D6D7DC]">|</span>
+                                <button
+                                  onClick={() => handleBulkDepartmentModules(d.key, false)}
+                                  disabled={isBulkSaving || !isAdmin || enabledCount === 0}
+                                  className="text-rose-500 hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                                  title="Clear all modules for this department"
+                                >
+                                  Clear All
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
