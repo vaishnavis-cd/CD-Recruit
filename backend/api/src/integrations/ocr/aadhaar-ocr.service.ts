@@ -259,34 +259,92 @@ export class AadhaarOcrService {
     }
 
     const panNoise = [
-      "INCOME TAX DEPARTMENT",
+      "INCOME TAX",
+      "INCOMETAX",
+      "DEPARTMENT",
       "GOVT OF INDIA",
+      "GOVLOFINDIA",
       "GOVT. OF INDIA",
       "GOVERNMENT OF INDIA",
-      "PERMANENT ACCOUNT NUMBER",
-      "CARD",
+      "PERMANENT ACCOUNT",
+      "ACCOUNT NUMBER",
+      "NUMBER CARD",
       "SIGNATURE",
       "FATHER'S NAME",
       "FATHERS NAME",
+      "FATHER",
       "DATE OF BIRTH",
+      "BHARAT",
+      "SARKAR",
+      "AAYKAR",
+      "VIBHAG",
+      "FEAST",
+      "AREA",
+      "WBE",
+      "RELMA",
+      "POA",
+      "BIAN",
+      "SEER",
+      "PEE",
+      "EET",
+      "LOE",
     ];
 
-    // On standard PAN cards, Candidate Name is the first valid non-header alphabetic line
-    let extractedName: string | null = null;
-
+    // 1. Find the last header line index (e.g. "Permanent Account Number Card" or "INCOME TAX")
+    let headerEndIdx = -1;
     for (let i = 0; i < lines.length; i++) {
+      const upper = lines[i].toUpperCase();
+      if (
+        upper.includes("INCOME") ||
+        upper.includes("DEPARTMENT") ||
+        upper.includes("PERMANENT") ||
+        upper.includes("ACCOUNT") ||
+        panRegex.test(lines[i])
+      ) {
+        headerEndIdx = i;
+      }
+    }
+
+    // 2. Scan lines after the header/PAN number to find the candidate's name
+    const candidateNameTokens: string[] = [];
+    const startIdx = headerEndIdx >= 0 ? headerEndIdx + 1 : 0;
+
+    for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i];
-      const cleaned = line.replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
+
+      // Strip OCR noise symbols (smart quotes, bars, dashes, pluses)
+      const cleaned = line
+        .replace(/[“’”"~<>=|\$\+\\\/\-\[\]\(\)]/g, " ")
+        .replace(/[^A-Za-z\s\.]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
       if (cleaned.length >= 3) {
         const upper = cleaned.toUpperCase();
         const isNoise = panNoise.some((nw) => upper.includes(nw));
+        const isPanNo = panRegex.test(line);
+        const isDob = dobRegex.test(line);
 
-        if (!isNoise && !panRegex.test(line) && !dobRegex.test(line)) {
-          extractedName = cleaned;
-          break; // First candidate line after header is the candidate's name
+        if (!isNoise && !isPanNo && !isDob) {
+          // Extract valid name words (words with 3+ letters or single uppercase initials)
+          const words = cleaned
+            .split(/\s+/)
+            .filter((w) => /^[A-Z]{2,}$/.test(w) || (/^[A-Z]$/.test(w) && w.length === 1))
+            .filter((w) => !panNoise.includes(w.toUpperCase()));
+
+          // If line has prominent uppercase name words (e.g. "HARSH G", "SHANMY")
+          const validWordCount = words.filter((w) => w.length >= 3).length;
+          if (validWordCount >= 1) {
+            candidateNameTokens.push(words.join(" "));
+            if (candidateNameTokens.length >= 2) break;
+          }
         }
       }
+    }
+
+    let extractedName: string | null = null;
+    if (candidateNameTokens.length > 0) {
+      extractedName = candidateNameTokens.join(" ").trim();
     }
 
     let confidence = 0.3;
