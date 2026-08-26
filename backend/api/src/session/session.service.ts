@@ -1325,7 +1325,7 @@ export class SessionService implements SessionStatusPort {
   /**
    * Upload baseline selfie to MinIO, extract ONNX embedding, and update Session/Candidate records
    */
-  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean; verified?: boolean }> {
+  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean; verified?: boolean; enrolled?: boolean }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: { candidate: true },
