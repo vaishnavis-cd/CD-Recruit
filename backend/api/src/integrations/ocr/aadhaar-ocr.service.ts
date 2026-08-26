@@ -2,9 +2,13 @@ import { Injectable, Logger } from "@nestjs/common";
 import { createWorker } from "tesseract.js";
 import sharp from "sharp";
 
+export type SupportedIdDocType = "AADHAAR" | "PAN" | "PASSPORT" | "DRIVING_LICENCE" | "GENERIC_ID";
+
 export interface AadhaarOcrResult {
+  docType?: SupportedIdDocType;
   name: string | null;
-  aadhaarNumber: string | null;
+  aadhaarNumber?: string | null;
+  idNumber?: string | null;
   dob: string | null;
   confidence: number;
   rawText: string;
@@ -21,7 +25,7 @@ export class AadhaarOcrService {
     try {
       return await sharp(imageBuffer)
         .rotate() // Auto-orient using EXIF
-        .resize({ width: 1600, withoutEnlargement: true })
+        .resize({ width: 1800, withoutEnlargement: true })
         .grayscale()
         .normalize()
         .sharpen()
@@ -33,9 +37,17 @@ export class AadhaarOcrService {
   }
 
   /**
-   * Runs Tesseract OCR and parses Aadhaar-specific anchors (Aadhaar number, DOB, Name).
+   * Runs Tesseract OCR on the image and automatically detects & extracts details
+   * from Aadhaar, PAN Card, Passport, or Driving Licence.
    */
   async parseAadhaar(imageBuffer: Buffer): Promise<AadhaarOcrResult> {
+    return this.parseIdDocument(imageBuffer);
+  }
+
+  /**
+   * Unified Government ID Parser.
+   */
+  async parseIdDocument(imageBuffer: Buffer): Promise<AadhaarOcrResult> {
     let rawText = "";
 
     try {
@@ -49,23 +61,33 @@ export class AadhaarOcrService {
     } catch (err: any) {
       this.logger.error(`Tesseract OCR processing failed: ${err.message}`);
       return {
+        docType: "GENERIC_ID",
         name: null,
         aadhaarNumber: null,
+        idNumber: null,
         dob: null,
         confidence: 0.0,
         rawText: `OCR_ERROR: ${err.message}`,
       };
     }
 
-    return this.extractAadhaarDetails(rawText);
+    return this.extractIdDetails(rawText);
   }
 
   /**
-   * Heuristic parser for Aadhaar OCR text.
+   * Heuristic multi-document classifier & field extractor.
    */
-  extractAadhaarDetails(rawText: string): AadhaarOcrResult {
+  extractIdDetails(rawText: string): AadhaarOcrResult {
     if (!rawText || !rawText.trim()) {
-      return { name: null, aadhaarNumber: null, dob: null, confidence: 0.0, rawText: "" };
+      return {
+        docType: "GENERIC_ID",
+        name: null,
+        aadhaarNumber: null,
+        idNumber: null,
+        dob: null,
+        confidence: 0.0,
+        rawText: "",
+      };
     }
 
     const lines = rawText
@@ -73,7 +95,44 @@ export class AadhaarOcrService {
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
 
-    // 1. Anchor 1: 12-digit Aadhaar Number (\d{4}\s?\d{4}\s?\d{4})
+    const upperText = rawText.toUpperCase();
+
+    // 1. Detect Document Type
+    if (
+      upperText.includes("PASSPORT") ||
+      upperText.includes("REPUBLIC OF INDIA") ||
+      upperText.includes("P<IND") ||
+      /P<[A-Z]{3}/.test(upperText)
+    ) {
+      return this.parsePassport(lines, rawText);
+    }
+
+    if (
+      upperText.includes("INCOME TAX") ||
+      upperText.includes("PERMANENT ACCOUNT") ||
+      /\b[A-Z]{5}[0-9]{4}[A-Z]\b/.test(upperText)
+    ) {
+      return this.parsePanCard(lines, rawText);
+    }
+
+    if (
+      upperText.includes("DRIVING") ||
+      upperText.includes("LICENCE") ||
+      upperText.includes("LICENSE") ||
+      upperText.includes("UNION OF INDIA") ||
+      /\bDL[\s-]?[0-9A-Z]{10,16}\b/i.test(upperText)
+    ) {
+      return this.parseDrivingLicence(lines, rawText);
+    }
+
+    // Default to Aadhaar Card parsing (or generic fallback)
+    return this.parseAadhaarDocument(lines, rawText);
+  }
+
+  /**
+   * 1. Aadhaar Card Parser
+   */
+  private parseAadhaarDocument(lines: string[], rawText: string): AadhaarOcrResult {
     const aadhaarRegex = /\b(\d{4}\s?\d{4}\s?\d{4})\b/;
     let aadhaarNumber: string | null = null;
     let aadhaarLineIdx = -1;
@@ -87,7 +146,6 @@ export class AadhaarOcrService {
       }
     }
 
-    // 2. Anchor 2: DOB or Year of Birth line
     const dobRegex = /\b(?:DOB|Date of Birth|Year of Birth|YOB)\s*[:\s]?\s*(\d{2}[\/\.-]\d{2}[\/\.-]\d{4}|\d{4})\b/i;
     let dob: string | null = null;
     let dobLineIdx = -1;
@@ -101,8 +159,6 @@ export class AadhaarOcrService {
       }
     }
 
-    // 3. Name Line Extraction
-    // Take the Latin-script line immediately preceding the DOB or Aadhaar anchor line
     let candidateNameLineIndex = -1;
     if (dobLineIdx > 0) {
       candidateNameLineIndex = dobLineIdx - 1;
@@ -111,7 +167,6 @@ export class AadhaarOcrService {
     }
 
     let extractedName: string | null = null;
-
     const noiseWords = [
       "GOVERNMENT OF INDIA",
       "GOVT OF INDIA",
@@ -130,17 +185,11 @@ export class AadhaarOcrService {
     ];
 
     if (candidateNameLineIndex >= 0) {
-      // Search backwards up to 3 lines from the anchor
       for (let i = candidateNameLineIndex; i >= Math.max(0, candidateNameLineIndex - 3); i--) {
-        const line = lines[i];
-
-        // Clean line of OCR noise symbols (pipes |, equal signs =, brackets [], digits)
-        const cleanedLine = line.replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
-
+        const cleanedLine = lines[i].replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
         if (cleanedLine.length >= 3) {
           const upperLine = cleanedLine.toUpperCase();
-          const isNoise = noiseWords.some((nw) => upperLine.includes(nw));
-          if (!isNoise) {
+          if (!noiseWords.some((nw) => upperLine.includes(nw))) {
             extractedName = cleanedLine;
             break;
           }
@@ -148,7 +197,6 @@ export class AadhaarOcrService {
       }
     }
 
-    // If no candidate line found before anchors, search top 5 lines for a clean Latin name
     if (!extractedName) {
       for (let i = 0; i < Math.min(lines.length, 5); i++) {
         const line = lines[i];
@@ -162,23 +210,258 @@ export class AadhaarOcrService {
       }
     }
 
-    // Calculate Confidence Score
-    let confidence = 0.2; // Base confidence
-    if (aadhaarNumber && dob) {
-      confidence = 0.9;
-    } else if (aadhaarNumber || dob) {
-      confidence = 0.6;
-    }
-    if (extractedName && extractedName.length >= 3) {
-      confidence += 0.1;
-    }
+    let confidence = 0.2;
+    if (aadhaarNumber && dob) confidence = 0.9;
+    else if (aadhaarNumber || dob) confidence = 0.6;
+    if (extractedName && extractedName.length >= 3) confidence += 0.1;
 
     return {
+      docType: "AADHAAR",
       name: extractedName,
       aadhaarNumber,
+      idNumber: aadhaarNumber,
+      dob,
+      confidence: Math.min(1.0, parseFloat(confidence.toFixed(2))),
+      rawText,
+    };
+  }
+
+  /**
+   * 2. PAN Card Parser (Permanent Account Number)
+   * Layout:
+   * Header ("INCOME TAX DEPARTMENT") -> Name -> Father's Name -> Date of Birth -> PAN (ABCDE1234F)
+   */
+  private parsePanCard(lines: string[], rawText: string): AadhaarOcrResult {
+    const panRegex = /\b([A-Z]{5}[0-9]{4}[A-Z])\b/;
+    let panNumber: string | null = null;
+    let panLineIdx = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(panRegex);
+      if (match) {
+        panNumber = match[1];
+        panLineIdx = i;
+        break;
+      }
+    }
+
+    const dobRegex = /\b(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})\b/;
+    let dob: string | null = null;
+    let dobLineIdx = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(dobRegex);
+      if (match) {
+        dob = match[1];
+        dobLineIdx = i;
+        break;
+      }
+    }
+
+    const panNoise = [
+      "INCOME TAX DEPARTMENT",
+      "GOVT OF INDIA",
+      "GOVT. OF INDIA",
+      "GOVERNMENT OF INDIA",
+      "PERMANENT ACCOUNT NUMBER",
+      "CARD",
+      "SIGNATURE",
+      "FATHER'S NAME",
+      "FATHERS NAME",
+      "DATE OF BIRTH",
+    ];
+
+    // On standard PAN cards, Candidate Name is the first valid non-header alphabetic line
+    let extractedName: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cleaned = line.replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
+
+      if (cleaned.length >= 3) {
+        const upper = cleaned.toUpperCase();
+        const isNoise = panNoise.some((nw) => upper.includes(nw));
+
+        if (!isNoise && !panRegex.test(line) && !dobRegex.test(line)) {
+          extractedName = cleaned;
+          break; // First candidate line after header is the candidate's name
+        }
+      }
+    }
+
+    let confidence = 0.3;
+    if (panNumber) confidence += 0.4;
+    if (dob) confidence += 0.2;
+    if (extractedName && extractedName.length >= 3) confidence += 0.1;
+
+    return {
+      docType: "PAN",
+      name: extractedName,
+      idNumber: panNumber,
+      aadhaarNumber: panNumber,
+      dob,
+      confidence: Math.min(1.0, parseFloat(confidence.toFixed(2))),
+      rawText,
+    };
+  }
+
+  /**
+   * 3. Passport Parser (Includes MRZ string parsing & visual text zone)
+   */
+  private parsePassport(lines: string[], rawText: string): AadhaarOcrResult {
+    let extractedName: string | null = null;
+    let passportNumber: string | null = null;
+    let dob: string | null = null;
+
+    // Check for Machine Readable Zone (MRZ) - 2 lines of 44 characters starting with P<
+    // Example: P<INDSHARMA<<HARSHIKA<<<<<<<<<<<<<<<<<<<<<<<
+    const mrzLine1 = lines.find((l) => /^P<[A-Z0-9<]{30,}/i.test(l.replace(/\s+/g, "")));
+    if (mrzLine1) {
+      const cleanMrz = mrzLine1.replace(/\s+/g, "").toUpperCase();
+      const parts = cleanMrz.slice(5).split("<<");
+      if (parts.length >= 2) {
+        const surname = parts[0].replace(/</g, " ").trim();
+        const givenNames = parts[1].replace(/</g, " ").trim();
+        extractedName = `${givenNames} ${surname}`.trim();
+      } else if (parts.length === 1) {
+        extractedName = parts[0].replace(/</g, " ").trim();
+      }
+    }
+
+    // Check for Passport number format (1 letter followed by 7 digits e.g. Z1234567)
+    const passNoRegex = /\b([A-Z][0-9]{7})\b/;
+    for (const l of lines) {
+      const m = l.match(passNoRegex);
+      if (m) {
+        passportNumber = m[1];
+        break;
+      }
+    }
+
+    // If MRZ wasn't detected, check visual inspection fields ("Given Name:", "Surname:")
+    if (!extractedName) {
+      let givenName = "";
+      let surname = "";
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (/Given\s*Name/i.test(l)) {
+          givenName = (lines[i + 1] || "").replace(/[^A-Za-z\s]/g, "").trim();
+        }
+        if (/Surname/i.test(l)) {
+          surname = (lines[i + 1] || "").replace(/[^A-Za-z\s]/g, "").trim();
+        }
+      }
+      if (givenName || surname) {
+        extractedName = `${givenName} ${surname}`.trim();
+      }
+    }
+
+    const dobRegex = /\b(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})\b/;
+    for (const l of lines) {
+      const m = l.match(dobRegex);
+      if (m) {
+        dob = m[1];
+        break;
+      }
+    }
+
+    let confidence = 0.4;
+    if (passportNumber) confidence += 0.3;
+    if (extractedName && extractedName.length >= 3) confidence += 0.2;
+    if (dob) confidence += 0.1;
+
+    return {
+      docType: "PASSPORT",
+      name: extractedName,
+      idNumber: passportNumber,
+      aadhaarNumber: passportNumber,
+      dob,
+      confidence: Math.min(1.0, parseFloat(confidence.toFixed(2))),
+      rawText,
+    };
+  }
+
+  /**
+   * 4. Driving Licence Parser (DL)
+   */
+  private parseDrivingLicence(lines: string[], rawText: string): AadhaarOcrResult {
+    let dlNumber: string | null = null;
+    let extractedName: string | null = null;
+    let dob: string | null = null;
+
+    // Standard Indian DL formats: DL-1420110012345, MH0220190001234, TN-01-2020-0001234
+    const dlRegex = /\b([A-Z]{2}[-\s]?[0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{7}|[A-Z]{2}[0-9]{13,15})\b/i;
+    for (const l of lines) {
+      const m = l.match(dlRegex);
+      if (m) {
+        dlNumber = m[1].replace(/[-\s]/g, "");
+        break;
+      }
+    }
+
+    const dlNoise = [
+      "UNION OF INDIA",
+      "DRIVING LICENCE",
+      "DRIVING LICENSE",
+      "FORM 7",
+      "TRANSPORT DEPARTMENT",
+      "MOTOR VEHICLES DEPARTMENT",
+      "AUTHORITY",
+      "VALIDITY",
+      "NON TRANSPORT",
+      "TRANSPORT",
+      "SIGNATURE",
+      "BLOOD GROUP",
+      "DOB",
+      "DATE OF BIRTH",
+    ];
+
+    // Look for explicit "Name:" label or first valid alphabetic line
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      const nameLabelMatch = l.match(/(?:Name|Holder['’]s\s*Name)\s*[:\-]?\s*([A-Za-z\s\.\-']+)/i);
+      if (nameLabelMatch && nameLabelMatch[1].trim().length >= 3) {
+        extractedName = nameLabelMatch[1].trim();
+        break;
+      }
+    }
+
+    if (!extractedName) {
+      for (let i = 0; i < Math.min(lines.length, 6); i++) {
+        const cleaned = lines[i].replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
+        if (cleaned.length >= 3) {
+          const upper = cleaned.toUpperCase();
+          if (!dlNoise.some((nw) => upper.includes(nw))) {
+            extractedName = cleaned;
+            break;
+          }
+        }
+      }
+    }
+
+    const dobRegex = /\b(?:DOB|Date of Birth)\s*[:\s]?\s*(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})\b/i;
+    for (const l of lines) {
+      const m = l.match(dobRegex);
+      if (m) {
+        dob = m[1];
+        break;
+      }
+    }
+
+    let confidence = 0.3;
+    if (dlNumber) confidence += 0.4;
+    if (extractedName && extractedName.length >= 3) confidence += 0.2;
+    if (dob) confidence += 0.1;
+
+    return {
+      docType: "DRIVING_LICENCE",
+      name: extractedName,
+      idNumber: dlNumber,
+      aadhaarNumber: dlNumber,
       dob,
       confidence: Math.min(1.0, parseFloat(confidence.toFixed(2))),
       rawText,
     };
   }
 }
+
