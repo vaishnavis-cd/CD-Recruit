@@ -273,6 +273,8 @@ export class AadhaarOcrService {
       "FATHER'S NAME",
       "FATHERS NAME",
       "FATHER",
+      "THR NAME",
+      "NAME",
       "DATE OF BIRTH",
       "BHARAT",
       "SARKAR",
@@ -288,6 +290,11 @@ export class AadhaarOcrService {
       "PEE",
       "EET",
       "LOE",
+      "BRAE",
+      "FEET",
+      "HRA",
+      "AYP",
+      "DIPS",
     ];
 
     // 1. Find the last header line index (e.g. "Permanent Account Number Card" or "INCOME TAX")
@@ -305,16 +312,17 @@ export class AadhaarOcrService {
       }
     }
 
-    // 2. Scan lines after the header/PAN number to find the candidate's name
+    // 2. Scan lines between PAN header/number and DOB for candidate name & father's name
     const candidateNameTokens: string[] = [];
     const startIdx = headerEndIdx >= 0 ? headerEndIdx + 1 : 0;
+    let fallbackFatherName: string | null = null;
 
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i];
 
-      // Strip OCR noise symbols (smart quotes, bars, dashes, pluses)
+      // Strip OCR noise symbols (smart quotes, bars, dashes, pluses, digits)
       const cleaned = line
-        .replace(/[“’”"~<>=|\$\+\\\/\-\[\]\(\)]/g, " ")
+        .replace(/[“’”"~<>=|\$\+\\\/\-\[\]\(\)\d]/g, " ")
         .replace(/[^A-Za-z\s\.]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
@@ -326,17 +334,29 @@ export class AadhaarOcrService {
         const isDob = dobRegex.test(line);
 
         if (!isNoise && !isPanNo && !isDob) {
-          // Extract valid name words (words with 3+ letters or single uppercase initials)
+          // Extract valid uppercase name words (length >= 3)
           const words = cleaned
             .split(/\s+/)
-            .filter((w) => /^[A-Z]{2,}$/.test(w) || (/^[A-Z]$/.test(w) && w.length === 1))
+            .filter((w) => /^[A-Z]{3,}$/i.test(w) && w.length >= 3)
             .filter((w) => !panNoise.includes(w.toUpperCase()));
 
-          // If line has prominent uppercase name words (e.g. "HARSH G", "SHANMY")
-          const validWordCount = words.filter((w) => w.length >= 3).length;
-          if (validWordCount >= 1) {
+          if (words.length >= 1) {
             candidateNameTokens.push(words.join(" "));
-            if (candidateNameTokens.length >= 2) break;
+          }
+        } else if (upper.includes("FATHER") || upper.includes("THR") || upper.includes("FM")) {
+          // Check line immediately after Father's Name label
+          if (lines[i + 1]) {
+            const fClean = lines[i + 1]
+              .replace(/[“’”"~<>=|\$\+\\\/\-\[\]\(\)\d]/g, " ")
+              .replace(/[^A-Za-z\s\.]/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            const fWords = fClean
+              .split(/\s+/)
+              .filter((w) => w.length >= 3 && !panNoise.includes(w.toUpperCase()));
+            if (fWords.length >= 1) {
+              fallbackFatherName = fWords.join(" ");
+            }
           }
         }
       }
@@ -345,6 +365,12 @@ export class AadhaarOcrService {
     let extractedName: string | null = null;
     if (candidateNameTokens.length > 0) {
       extractedName = candidateNameTokens.join(" ").trim();
+    }
+    if (!extractedName && fallbackFatherName) {
+      extractedName = fallbackFatherName;
+    } else if (extractedName && fallbackFatherName && extractedName.length < 5) {
+      // If primary line had only 2-4 garbled characters (like "HAs"), use the father/family name
+      extractedName = fallbackFatherName;
     }
 
     let confidence = 0.3;

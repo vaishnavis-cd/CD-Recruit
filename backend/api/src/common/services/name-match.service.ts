@@ -71,7 +71,10 @@ export class NameMatchService {
     }
 
     // Fuzzball token_sort_ratio handles word reordering ("Vaishnavi S" vs "S Vaishnavi")
-    const score0to100 = fuzzball.token_sort_ratio(normReg, normExt);
+    // token_set_ratio handles subset/surname matches ("Vaishnavi Subramanian" vs "Subramanian")
+    const sortScore = fuzzball.token_sort_ratio(normReg, normExt);
+    const setScore = fuzzball.token_set_ratio(normReg, normExt);
+    const score0to100 = Math.max(sortScore, setScore);
     const similarity = parseFloat((score0to100 / 100).toFixed(4));
     const matched = similarity >= threshold;
 
