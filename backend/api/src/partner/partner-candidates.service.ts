@@ -310,9 +310,10 @@ export class PartnerCandidatesService {
       if (isScored && score) {
         compositeScore = score.compositeScore;
         const normScore = compositeScore <= 1.0 ? compositeScore * 100 : compositeScore;
-        if (normScore >= 80) scoreBand = "HIGH";
-        else if (normScore >= 60) scoreBand = "MEDIUM";
-        else scoreBand = "LOW";
+        if (normScore >= 85) scoreBand = "STRONG_PASS";
+        else if (normScore >= 70) scoreBand = "PASS";
+        else if (normScore >= 50) scoreBand = "BORDERLINE";
+        else scoreBand = "FAIL";
       }
 
       return {
@@ -320,14 +321,18 @@ export class PartnerCandidatesService {
         candidate_name: inv.candidateName,
         category: inv.category || "FRESHER",
         level: inv.experienceTier || "0-1",
+        experience_tier: inv.experienceTier || "0-1",
         invite_status: inv.status,
         session_status: session?.status || "NOT_STARTED",
+        score_status: isScored ? "SCORED" : "PENDING",
         assessment_link: `${candidateWebUrl}/invite/${inv.token}`,
         is_scored: isScored,
         composite_score: compositeScore,
-        score_band: scoreBand,
+        score_band: scoreBand === "STRONG_PASS" ? "HIGH" : scoreBand === "PASS" ? "MEDIUM" : scoreBand ? "LOW" : null,
+        composite_score_band: scoreBand,
         started_at: session?.startedAt?.toISOString() || null,
         submitted_at: session?.submittedAt?.toISOString() || null,
+        expires_at: inv.expiresAt.toISOString(),
       };
     });
 
@@ -335,6 +340,7 @@ export class PartnerCandidatesService {
       success: true,
       drive_id: drive.id,
       requisition_ref: ref,
+      total_candidates: drive.invites.length,
       candidates: candidateStatuses,
     };
   }

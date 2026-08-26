@@ -1,4 +1,4 @@
-import { PrismaClient, Department, ExperienceLevel, ModuleType } from "@prisma/client";
+import { PrismaClient, Department, ExperienceLevel, CandidateCategory, ModuleType } from "@prisma/client";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
@@ -26,18 +26,42 @@ const DEPARTMENTS: Department[] = [
   "SRE",
 ];
 
-const LEVELS: ExperienceLevel[] = ["FRESHER", "EXPERIENCED"];
-
-const DEPARTMENT_NAMES: Record<Department, string> = {
-  SOFTWARE_ENGINEERING: "Software Engineering",
-  DATA_ENGINEERING: "Data Engineering",
-  PMO: "Project Management Office",
-  QA: "Quality Assurance",
-  SYSOPS: "System Operations",
-  ITOPS: "IT Operations",
-  SECOPS: "Security Operations",
-  SRE: "Site Reliability Engineering",
+const ROLE_TITLES: Record<string, string> = {
+  SOFTWARE_ENGINEERING: "Software Engineer (SDE)",
+  DATA_ENGINEERING: "Data Engineer",
+  PMO: "Project Management Officer (PMO)",
+  QA: "QA Engineer",
+  SYSOPS: "SysOps Engineer",
+  ITOPS: "ITOps Specialist",
+  SECOPS: "SecOps Specialist",
+  SRE: "Site Reliability Engineer (SRE)",
 };
+
+const DEPT_WEIGHTS: Record<string, Record<string, number>> = {
+  SOFTWARE_ENGINEERING: {
+    MCQ: 0.15,
+    SQL: 0.15,
+    CODING: 0.30,
+    DEBUGGING: 0.10,
+    TEST_SCENARIOS: 0.15,
+    AI_PROMPTING: 0.05,
+    SIMULATION: 0.10,
+  },
+  DATA_ENGINEERING: { MCQ: 0.20, SQL: 0.30, CODING: 0.20, TEST_SCENARIOS: 0.20, AI_PROMPTING: 0.10 },
+  QA: { MCQ: 0.20, CODING: 0.15, DEBUGGING: 0.20, TEST_SCENARIOS: 0.35, AI_PROMPTING: 0.10 },
+  SRE: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
+  SYSOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+  ITOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
+  PMO: { MCQ: 0.25, TEST_SCENARIOS: 0.50, AI_PROMPTING: 0.25 },
+  SECOPS: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
+};
+
+const TIERS = [
+  { category: "FRESHER" as CandidateCategory, level: "FRESHER" as ExperienceLevel, experienceTier: "0-1", suffix: "Fresher (0-1 yrs)" },
+  { category: "EXPERIENCED" as CandidateCategory, level: "EXPERIENCED" as ExperienceLevel, experienceTier: "2-5", suffix: "Level 1 (2-5 yrs)" },
+  { category: "EXPERIENCED" as CandidateCategory, level: "EXPERIENCED" as ExperienceLevel, experienceTier: "6-10", suffix: "Level 2 (6-10 yrs)" },
+  { category: "EXPERIENCED" as CandidateCategory, level: "EXPERIENCED" as ExperienceLevel, experienceTier: "11-15", suffix: "Level 3 (11-15 yrs)" },
+];
 
 async function main() {
   console.log("🌱 Seeding 32 Role Templates (8 Departments x 4 Experience Levels)...");
@@ -48,84 +72,41 @@ async function main() {
     take: 6,
   });
 
-  const ROLE_TITLES: Record<string, string> = {
-    SOFTWARE_ENGINEERING: "Software Engineer (SDE)",
-    DATA_ENGINEERING: "Data Engineer",
-    PMO: "Project Management Officer (PMO)",
-    QA: "QA Engineer",
-    SYSOPS: "SysOps Engineer",
-    ITOPS: "ITOps Specialist",
-    SECOPS: "SecOps Specialist",
-    SRE: "Site Reliability Engineer (SRE)",
-  };
-
-  const DEPT_WEIGHTS: Record<string, Record<string, number>> = {
-    SOFTWARE_ENGINEERING: {
-      MCQ: 0.15,
-      SQL: 0.15,
-      CODING: 0.30,
-      DEBUGGING: 0.10,
-      TEST_SCENARIOS: 0.15,
-      AI_PROMPTING: 0.05,
-      SIMULATION: 0.10,
-    },
-    DATA_ENGINEERING: { MCQ: 0.20, SQL: 0.30, CODING: 0.20, TEST_SCENARIOS: 0.20, AI_PROMPTING: 0.10 },
-    QA: { MCQ: 0.20, CODING: 0.15, DEBUGGING: 0.20, TEST_SCENARIOS: 0.35, AI_PROMPTING: 0.10 },
-    SRE: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
-    SYSOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
-    ITOPS: { MCQ: 0.30, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.25 },
-    PMO: { MCQ: 0.25, TEST_SCENARIOS: 0.50, AI_PROMPTING: 0.25 },
-    SECOPS: { MCQ: 0.25, TEST_SCENARIOS: 0.45, AI_PROMPTING: 0.30 },
-  };
-
   for (const dept of DEPARTMENTS) {
-    const levelsToSeed = [
-      { lvl: "FRESHER", expLvl: null, suffix: "Fresher" },
-      { lvl: "EXPERIENCED", expLvl: "L1", suffix: "Experienced L1" },
-      { lvl: "EXPERIENCED", expLvl: "L2", suffix: "Experienced L2" },
-      { lvl: "EXPERIENCED", expLvl: "L3", suffix: "Experienced L3" },
-    ];
-
-    for (const { lvl, expLvl, suffix } of levelsToSeed) {
-      const roleName = `${ROLE_TITLES[dept]} - ${suffix}`;
+    for (const t of TIERS) {
+      const roleName = `${ROLE_TITLES[dept]} - ${t.suffix}`;
       const durationMinutes = 90;
-      const isExperienced = lvl === "EXPERIENCED";
+      const isExperienced = t.category === "EXPERIENCED";
       const isSoftwareEng = dept === "SOFTWARE_ENGINEERING";
 
-      // Find or create RoleTemplate by department, level, experiencedLevel
-      let template = await prisma.roleTemplate.findFirst({
+      const template = await prisma.roleTemplate.upsert({
         where: {
+          department_category_experienceTier_version: {
+            department: dept,
+            category: t.category,
+            experienceTier: t.experienceTier,
+            version: 1,
+          },
+        },
+        update: {
+          roleName,
+          level: t.level,
+          isActive: true,
+          durationMinutes,
+          weightingPreset: DEPT_WEIGHTS[dept] as any,
+        },
+        create: {
           department: dept,
-          level: lvl as any,
-          experiencedLevel: expLvl as any,
+          category: t.category,
+          level: t.level,
+          experienceTier: t.experienceTier,
+          roleName,
           version: 1,
+          isActive: true,
+          durationMinutes,
+          weightingPreset: DEPT_WEIGHTS[dept] as any,
         },
       });
-
-      if (template) {
-        template = await prisma.roleTemplate.update({
-          where: { id: template.id },
-          data: {
-            roleName,
-            isActive: true,
-            durationMinutes,
-            weightingPreset: DEPT_WEIGHTS[dept] as any,
-          },
-        });
-      } else {
-        template = await prisma.roleTemplate.create({
-          data: {
-            department: dept,
-            level: lvl as any,
-            experiencedLevel: expLvl as any,
-            roleName,
-            version: 1,
-            isActive: true,
-            durationMinutes,
-            weightingPreset: DEPT_WEIGHTS[dept] as any,
-          },
-        });
-      }
 
       // Seed global ModuleSetting records for this department and module types
       for (const moduleType of Object.values(ModuleType)) {
@@ -148,11 +129,10 @@ async function main() {
         });
       }
 
-      console.log(`  ✓ Template: [${dept} / ${lvl}${expLvl ? ` / ${expLvl}` : ""}] → ${roleName} (ID: ${template.id})`);
+      console.log(`  ✓ Template: [${dept} / ${t.experienceTier}] → ${roleName} (ID: ${template.id})`);
 
       // For SOFTWARE_ENGINEERING / EXPERIENCED, attach questions if sample questions exist
       if (isSoftwareEng && isExperienced && sampleQuestions.length > 0) {
-        // Clear existing attached questions
         await prisma.roleTemplateQuestion.deleteMany({
           where: { roleTemplateId: template.id },
         });
@@ -170,7 +150,7 @@ async function main() {
           data: templateQuestionsData,
         });
 
-        console.log(`    ↳ Attached ${sampleQuestions.length} active questions to [SOFTWARE_ENGINEERING / EXPERIENCED / ${expLvl}] template.`);
+        console.log(`    ↳ Attached ${sampleQuestions.length} active questions to [SOFTWARE_ENGINEERING / ${t.experienceTier}] template.`);
       }
     }
   }

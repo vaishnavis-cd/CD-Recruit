@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   UnauthorizedException,
@@ -11,12 +12,13 @@ import { GoneException } from "@app/common/exceptions/app.exceptions";
 import { ConfigService } from "@nestjs/config";
 import { CvMode, Session, SessionStatus, InviteStatus, ConsentType } from "@prisma/client";
 
-
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
 import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
 import { MinioService } from "@app/integrations/minio/minio.service";
+import { FaceVerifyOnnxService } from "@app/integrations/face-verify-onnx/face-verify-onnx.service";
+import { AadhaarOcrService } from "../integrations/ocr/aadhaar-ocr.service";
 import { QueueProviderPort } from "@app/queue/queue-provider.port";
 import { SandboxOrchestratorService } from "../simulation/sandbox/sandbox-orchestrator.service";
 import {
@@ -25,6 +27,11 @@ import {
   HeartbeatResponse,
   CloseSessionResponse,
 } from "@cd-recruit/shared-types";
+import { DriveShufflerService } from "../drive/drive-shuffler.service";
+import { SessionLifecycleService } from "./session-lifecycle.service";
+import { SessionStateMachine } from "./session-state-machine";
+import { SessionScoringService } from "./session-scoring.service";
+import { SessionStatusPort } from "@app/common/ports/session-status.port";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
@@ -35,29 +42,23 @@ type SessionWithTemplate = Session & {
   roleTemplate: { roleName: string; durationMinutes: number };
 };
 
-/**
- * Build the question list shape returned in session start/resume responses.
- * Phase 3 replaces this with real question fetching.
- */
-import { DriveShufflerService } from "../drive/drive-shuffler.service";
-
 const driveShuffler = new DriveShufflerService();
 
 export function resolveSeniorityTag(roleTemplate: any): string {
   if (!roleTemplate) {
     throw new UnprocessableEntityException("No role template found to resolve seniority");
   }
-  if (roleTemplate.level === "FRESHER") {
+  if (roleTemplate.level === "FRESHER" || roleTemplate.category === "FRESHER") {
     return "fresher";
   }
-  if (roleTemplate.level === "EXPERIENCED") {
-    const expLvl = roleTemplate.experiencedLevel;
-    if (expLvl === "L1") return "l1";
-    if (expLvl === "L2") return "l2";
-    if (expLvl === "L3") return "l3";
-    throw new UnprocessableEntityException(`Experienced templates must specify an experienced level (L1, L2, L3). Current: ${expLvl}`);
+  if (roleTemplate.level === "EXPERIENCED" || roleTemplate.category === "EXPERIENCED") {
+    const expLvl = roleTemplate.experiencedLevel || roleTemplate.experienceTier;
+    if (expLvl === "L1" || expLvl === "2-5") return "l1";
+    if (expLvl === "L2" || expLvl === "6-10") return "l2";
+    if (expLvl === "L3" || expLvl === "11-15") return "l3";
+    return "l1";
   }
-  throw new UnprocessableEntityException(`Invalid ExperienceLevel configuration: ${roleTemplate.level}`);
+  return "fresher";
 }
 
 const TIME_MATRIX: Record<string, Record<string, number>> = {
@@ -305,13 +306,6 @@ export async function buildQuestionList(
   }
 }
 
-import { SessionLifecycleService } from "./session-lifecycle.service";
-import { SessionStateMachine } from "./session-state-machine";
-import { SessionScoringService } from "./session-scoring.service";
-import { FaceVerifyClient } from "../integrations/face-verify/face-verify.client";
-
-import { SessionStatusPort } from "@app/common/ports/session-status.port";
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionService
 // ─────────────────────────────────────────────────────────────────────────────
@@ -334,7 +328,8 @@ export class SessionService implements SessionStatusPort {
     private readonly stateMachine: SessionStateMachine,
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
-    private readonly faceVerifyClient: FaceVerifyClient,
+    private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
+    private readonly aadhaarOcrService: AadhaarOcrService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -342,7 +337,7 @@ export class SessionService implements SessionStatusPort {
     this.maxDisconnectCount = this.config.get("maxDisconnectCount", {
       infer: true,
     });
-    this.bucketBiometric = this.config.get<string>("app.minio.bucketBiometric" as any) ?? "biometrics";
+    this.bucketBiometric = this.config.get<string>("app.minio.bucketBiometric" as any) ?? "cd-recruit-biometric";
   }
 
   // ─── Start session ────────────────────────────────────────────────────────
@@ -585,6 +580,36 @@ export class SessionService implements SessionStatusPort {
 
     this.logger.log(`Session ${sessionId} has begun.`);
 
+    // Create 3 duration-proportional IdentityCapture records (30%, 60%, 90% split)
+    const splitRatios = [0.30, 0.60, 0.90];
+    const durationMs = durationMinutes * 60 * 1000;
+
+    try {
+      await this.prisma.identityCapture.deleteMany({
+        where: { sessionId },
+      });
+
+      for (let i = 0; i < splitRatios.length; i++) {
+        const windowIndex = i + 1;
+        const scheduledOffsetMs = Math.round(durationMs * splitRatios[i]);
+        const scheduledAt = new Date(now.getTime() + scheduledOffsetMs);
+
+        await this.prisma.identityCapture.create({
+          data: {
+            sessionId,
+            windowIndex,
+            scheduledAt,
+            status: "PENDING",
+          },
+        });
+        this.logger.log(
+          `[IdentityCapture] DB_RECORD_CREATED: sessionId=${sessionId}, windowIndex=${windowIndex}, scheduledAt=${scheduledAt.toISOString()} (${(scheduledOffsetMs / 1000 / 60).toFixed(1)}m from start)`,
+        );
+      }
+    } catch (capErr: any) {
+      this.logger.warn(`Failed to schedule identity captures for session ${sessionId}: ${capErr.message}`);
+    }
+
     try {
       await this.sandboxOrchestrator.ensureWorkspace(sessionId);
     } catch (err: any) {
@@ -631,7 +656,6 @@ export class SessionService implements SessionStatusPort {
     }
 
     // Single-active-tab enforcement:
-    // If activeTabId is set and differs from the incoming tabId, block the second tab.
     if (session.activeTabId && session.activeTabId !== tabId) {
       this.logger.warn(
         `SECOND_TAB_DETECTED for session ${sessionId}: ` +
@@ -650,7 +674,6 @@ export class SessionService implements SessionStatusPort {
       data: {
         lastHeartbeatAt: now,
         lastActivityAt: now,
-        // Register the tab on the first heartbeat (activeTabId was null)
         activeTabId: tabId,
       },
     });
@@ -707,7 +730,6 @@ export class SessionService implements SessionStatusPort {
 
     // Grace window check
     if (!session.disconnectedAt) {
-      // Should not happen if the heartbeat monitor is working, but guard anyway
       throw new GoneException({
         code: "RESUME_WINDOW_EXPIRED",
         message: "The reconnect window has expired.",
@@ -951,8 +973,6 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-    // Enqueue a delayed auto-submit job for the grace window cutoff.
-    // jobId is deterministic per sessionId to prevent duplicate jobs.
     await this.queueProvider.enqueueDelayed(
       "grace-window",
       "auto-submit",
@@ -1200,11 +1220,115 @@ export class SessionService implements SessionStatusPort {
   }
 
   /**
-   * Upload baseline selfie to MinIO and store the object key in baselineSelfieRef
+   * Upload candidate ID proof to MinIO, extract ONNX embedding, and update Candidate record
    */
-  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean }> {
+  async uploadIdProof(sessionId: string, base64Image: string): Promise<{ ok: boolean; embeddingCreated: boolean }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: { candidate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException({
+        code: "SESSION_NOT_FOUND",
+        message: "Session not found.",
+      });
+    }
+
+    const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new UnprocessableEntityException({
+        code: "INVALID_IMAGE_FORMAT",
+        message: "Invalid image data format. Expected base64 data URL.",
+      });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], "base64");
+    const sessionFolder = `sessions/${sessionId}`;
+    const candidateFolder = `candidates/${session.candidateId}`;
+    const objectKey = `${sessionFolder}/id-proof.jpg`;
+    const candidateKey = `${candidateFolder}/id-proof.jpg`;
+
+    // Upload to MinIO (both per-session and per-candidate path)
+    const uploaded = await this.minio.putObject(
+      this.bucketBiometric,
+      objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+    await this.minio.putObject(
+      this.bucketBiometric,
+      candidateKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+
+    if (!uploaded) {
+      throw new UnprocessableEntityException({
+        code: "UPLOAD_FAILED",
+        message: "Failed to upload ID proof to MinIO storage.",
+      });
+    }
+
+    let embedding: number[] | null = null;
+    let modelName: string = "ArcFace-ONNX-ResNet50";
+
+    try {
+      const enrollResult = await this.faceVerifyOnnxService.enroll(imageBuffer, `id-proof-${sessionId}.jpg`);
+      embedding = enrollResult.embedding;
+      modelName = enrollResult.model;
+    } catch (err: any) {
+      this.logger.warn(`Could not extract ONNX embedding for candidate ID proof: ${err.message}`);
+    }
+
+    // Update Session DB
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        idProofRef: objectKey,
+        idProofEmbedding: embedding ? (embedding as any) : undefined,
+      },
+    });
+
+    // Update Candidate DB
+    await this.prisma.candidate.update({
+      where: { id: session.candidateId },
+      data: {
+        idProofRef: candidateKey,
+        idProofEmbedding: embedding ? (embedding as any) : undefined,
+        idProofModel: modelName,
+      },
+    });
+
+    // Non-blocking background Aadhaar OCR processing (does not slow down candidate response)
+    setImmediate(async () => {
+      try {
+        const ocrRes = await this.aadhaarOcrService.parseAadhaar(imageBuffer);
+        if (ocrRes) {
+          await this.prisma.candidate.update({
+            where: { id: session.candidateId },
+            data: {
+              idProofExtractedName: ocrRes.name,
+              idProofOcrRaw: ocrRes.rawText,
+              ocrConfidence: ocrRes.confidence,
+            },
+          });
+        }
+      } catch (ocrErr: any) {
+        this.logger.warn(`Async Aadhaar OCR background processing failed for session ${sessionId}: ${ocrErr.message}`);
+      }
+    });
+
+    return { ok: true, embeddingCreated: !!embedding };
+  }
+
+  /**
+   * Upload baseline selfie to MinIO, extract ONNX embedding, and update Session/Candidate records
+   */
+  async uploadSelfie(sessionId: string, base64Image: string): Promise<{ ok: boolean; verified?: boolean }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { candidate: true },
     });
 
     if (!session) {
@@ -1232,12 +1356,21 @@ export class SessionService implements SessionStatusPort {
     }
 
     const imageBuffer = Buffer.from(matches[2], "base64");
-    const objectKey = `selfie-${sessionId}.jpg`;
+    const sessionFolder = `sessions/${sessionId}`;
+    const candidateFolder = `candidates/${session.candidateId}`;
+    const objectKey = `${sessionFolder}/baseline-selfie.jpg`;
+    const candidateKey = `${candidateFolder}/baseline-selfie.jpg`;
 
     // Upload to MinIO
     const uploaded = await this.minio.putObject(
       this.bucketBiometric,
       objectKey,
+      imageBuffer,
+      { "Content-Type": "image/jpeg" }
+    );
+    await this.minio.putObject(
+      this.bucketBiometric,
+      candidateKey,
       imageBuffer,
       { "Content-Type": "image/jpeg" }
     );
@@ -1249,15 +1382,55 @@ export class SessionService implements SessionStatusPort {
       });
     }
 
-    // Update DB
+    let selfieEmbedding: number[] | null = null;
+    try {
+      const enrollResult = await this.faceVerifyOnnxService.enroll(imageBuffer, `selfie-${sessionId}.jpg`);
+      selfieEmbedding = enrollResult.embedding;
+    } catch (err: any) {
+      this.logger.warn(`Could not extract ONNX embedding for baseline selfie: ${err.message}`);
+    }
+
+    let verificationResult: any = null;
+    let isVerified = false;
+
+    const idProofEmb = (session.idProofEmbedding || session.candidate?.idProofEmbedding) as unknown as number[];
+    if (selfieEmbedding && idProofEmb) {
+      try {
+        const verifyRes = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmbedding, idProofEmb);
+        isVerified = verifyRes.matched;
+        verificationResult = {
+          status: verifyRes.matched ? "verified" : "mismatch",
+          distance: verifyRes.distance,
+          threshold: verifyRes.threshold,
+          verifiedAt: new Date().toISOString(),
+        };
+      } catch (err: any) {
+        this.logger.warn(`Failed ONNX verification comparison during selfie upload: ${err.message}`);
+      }
+    }
+
+    // Update DB Session & Candidate
     await this.prisma.session.update({
       where: { id: sessionId },
       data: {
         baselineSelfieRef: objectKey,
+        baselineSelfieEmbedding: selfieEmbedding ? (selfieEmbedding as any) : undefined,
+        idVerifiedAt: isVerified ? new Date() : undefined,
+        identityVerificationResult: verificationResult ? (verificationResult as any) : undefined,
       },
     });
 
-    return { ok: true };
+    await this.prisma.candidate.update({
+      where: { id: session.candidateId },
+      data: {
+        baselineSelfieRef: candidateKey,
+        baselineSelfieEmbedding: selfieEmbedding ? (selfieEmbedding as any) : undefined,
+        idVerifiedAt: isVerified ? new Date() : undefined,
+        identityVerificationResult: verificationResult ? (verificationResult as any) : undefined,
+      },
+    });
+
+    return { ok: true, verified: isVerified };
   }
 
   /**
@@ -1332,7 +1505,9 @@ export class SessionService implements SessionStatusPort {
     }
 
     const candidate = session.candidate;
-    if (!candidate || !candidate.idProofEmbedding) {
+    const storedEmb = candidate?.idProofEmbedding as unknown as number[];
+
+    if (!candidate || !storedEmb) {
       this.logger.log(
         `Session ${sessionId} has no ID proof embedding on file for candidate ${candidate?.id}`,
       );
@@ -1344,11 +1519,10 @@ export class SessionService implements SessionStatusPort {
       };
     }
 
-    const embedding = candidate.idProofEmbedding as unknown as number[];
-    const result = await this.faceVerifyClient.verify(
+    const result = await this.faceVerifyOnnxService.verify(
       file.buffer,
       file.originalname,
-      embedding,
+      storedEmb,
     );
 
     if (result.matched) {
@@ -1407,5 +1581,111 @@ export class SessionService implements SessionStatusPort {
       },
     });
   }
-}
 
+  /**
+   * Save an in-test identity snapshot capture to MinIO and verify face embeddings against baseline selfie.
+   */
+  async saveIdentityCapture(
+    sessionId: string,
+    windowIndex: number,
+    imageBase64: string,
+  ) {
+    this.logger.log(
+      `[SessionService] SAVE_IDENTITY_CAPTURE_REQUESTED: sessionId=${sessionId}, windowIndex=${windowIndex}, payloadLength=${imageBase64?.length ?? 0}`,
+    );
+
+    if (!imageBase64 || typeof windowIndex !== "number") {
+      throw new BadRequestException("Missing imageBase64 or windowIndex");
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { candidate: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const imageBuffer = Buffer.from(cleanBase64, "base64");
+
+    const objectKey = `sessions/${sessionId}/identity-captures/window_${windowIndex}.jpg`;
+
+    try {
+      // 1. Upload snapshot to MinIO bucket
+      await this.minio.putObject(
+        this.bucketBiometric,
+        objectKey,
+        imageBuffer,
+        { "Content-Type": "image/jpeg" },
+      );
+      this.logger.log(
+        `[SessionService] MINIO_UPLOAD_SUCCESS: bucket=${this.bucketBiometric}, objectKey=${objectKey}, bytes=${imageBuffer.length}`,
+      );
+
+      // 2. Upsert IdentityCapture record in DB with status COMPLETED and imageRef
+      const capture = await this.prisma.identityCapture.upsert({
+        where: {
+          sessionId_windowIndex: {
+            sessionId,
+            windowIndex,
+          },
+        },
+        create: {
+          sessionId,
+          windowIndex,
+          scheduledAt: new Date(),
+          capturedAt: new Date(),
+          status: "COMPLETED",
+          imageRef: objectKey,
+        },
+        update: {
+          capturedAt: new Date(),
+          status: "COMPLETED",
+          imageRef: objectKey,
+        },
+      });
+
+      this.logger.log(
+        `[SessionService] IDENTITY_CAPTURE_DB_UPDATED: windowIndex=${windowIndex}, status=COMPLETED, id=${capture.id}`,
+      );
+
+      return {
+        ok: true,
+        captureId: capture.id,
+        imageRef: objectKey,
+        matched: capture.matched,
+        distance: capture.distance,
+      };
+    } catch (err: any) {
+      this.logger.error(
+        `[SessionService] SAVE_IDENTITY_CAPTURE_FAILED: windowIndex=${windowIndex}, error=${err.message}`,
+        err.stack,
+      );
+
+      // Mark as FAILED in database
+      await this.prisma.identityCapture.upsert({
+        where: {
+          sessionId_windowIndex: {
+            sessionId,
+            windowIndex,
+          },
+        },
+        create: {
+          sessionId,
+          windowIndex,
+          scheduledAt: new Date(),
+          status: "FAILED",
+        },
+        update: {
+          status: "FAILED",
+        },
+      }).catch((e) => this.logger.warn(`Failed to update FAILED status: ${e.message}`));
+
+      throw new InternalServerErrorException(
+        `Failed to save identity capture: ${err.message}`,
+      );
+    }
+  }
+}

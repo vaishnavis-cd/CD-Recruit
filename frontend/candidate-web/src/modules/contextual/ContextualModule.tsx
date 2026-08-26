@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { useSessionStore } from '../../store/sessionMachine'
-import { ContextSimulationWorkspace } from './components/ContextSimulationWorkspace'
-import { InitialSayStep } from './components/InitialSayStep'
-import { useModuleNavigation } from '../../hooks/useModuleNavigation'
-import { getEffectiveModuleType } from '../../utils/moduleType'
-import apiClient from '../../api/client'
-import { Loader2 } from 'lucide-react'
+import React, { useEffect, useState } from 'react';
+import { useSessionStore } from '../../store/sessionMachine';
+import { InitialSayStep } from './components/InitialSayStep';
+import { ContextSimulationWorkspace } from './components/ContextSimulationWorkspace';
+import { useModuleNavigation } from '../../hooks/useModuleNavigation';
+import { getEffectiveModuleType } from '../../utils/moduleType';
+import apiClient from '../../api/client';
+import { Loader2 } from 'lucide-react';
 
 interface ContextualModuleProps {
-  moduleIndex: number
+  moduleIndex: number;
 }
 
 const DEFAULT_SCENARIO = {
@@ -28,64 +28,64 @@ const DEFAULT_SCENARIO = {
     { input: '" user_123 "', expectedOutput: 'false', label: 'Hidden Both Spaces Test', isHidden: true },
     { input: '"ab"', expectedOutput: 'false', label: 'Hidden Length Short Test', isHidden: true },
   ],
-}
+};
 
 export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const assessment = useSessionStore(s => s.assessment)
-  const transitionTo = useSessionStore(s => s.transitionTo)
-  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
-  const setResponse = useSessionStore(s => s.setResponse)
-  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const assessment = useSessionStore(s => s.assessment);
+  const transitionTo = useSessionStore(s => s.transitionTo);
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
+  const setResponse = useSessionStore(s => s.setResponse);
+  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion);
 
-  const sessionId = assessment?.sessionId || ''
+  const sessionId = assessment?.sessionId || '';
 
   // Active module tabs
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-      return ['SIMULATION']
+      return ['SIMULATION'];
     }
-    const types: string[] = []
+    const types: string[] = [];
     for (const q of assessment.questions) {
-      const type = getEffectiveModuleType(q)
+      const type = getEffectiveModuleType(q);
       if (type && !types.includes(type)) {
-        types.push(type)
+        types.push(type);
       }
     }
-    return types.length > 0 ? types : ['SIMULATION']
-  }, [assessment?.questions])
+    return types.length > 0 ? types : ['SIMULATION'];
+  }, [assessment?.questions]);
 
   const assignedSimQuestions = React.useMemo(() => {
-    if (!assessment?.questions || assessment.questions.length === 0) return [{ questionId: 'qa-bug-login-validation' }]
+    if (!assessment?.questions || assessment.questions.length === 0) return [{ questionId: 'qa-bug-login-validation' }];
     const list = assessment.questions.filter((q) => {
-      const t = getEffectiveModuleType(q)
-      return t === 'SIMULATION' || t === 'CONTEXTUAL'
-    })
-    return list.length > 0 ? list : [{ questionId: 'qa-bug-login-validation' }]
-  }, [assessment?.questions])
+      const t = getEffectiveModuleType(q);
+      return t === 'SIMULATION' || t === 'CONTEXTUAL';
+    });
+    return list.length > 0 ? list : [{ questionId: 'qa-bug-login-validation' }];
+  }, [assessment?.questions]);
 
-  const { handleNext } = useModuleNavigation(moduleIndex, currentIndex, assignedSimQuestions.length)
+  const { handleNext } = useModuleNavigation(moduleIndex, currentIndex, assignedSimQuestions.length);
 
-  const [step, setStep] = useState<'LOADING' | 'BRIEFING' | 'WORKSPACE'>('LOADING')
-  const [scenario, setScenario] = useState<any>(DEFAULT_SCENARIO)
+  const [step, setStep] = useState<'LOADING' | 'BRIEFING' | 'WORKSPACE'>('LOADING');
+  const [scenario, setScenario] = useState<any>(DEFAULT_SCENARIO);
 
   useEffect(() => {
-    setCurrentQuestion(moduleIndex, currentIndex)
-  }, [currentIndex, moduleIndex, setCurrentQuestion])
+    setCurrentQuestion(moduleIndex, currentIndex);
+  }, [currentIndex, moduleIndex, setCurrentQuestion]);
 
   // Fetch Scenario Config from backend & restore step
   useEffect(() => {
-    const savedResponse = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : undefined) as { initialSayText?: string; completed?: boolean } | undefined
+    const savedResponse = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : undefined) as { initialSayText?: string; completed?: boolean } | undefined;
 
     if (savedResponse?.initialSayText) {
-      setStep('WORKSPACE')
+      setStep('WORKSPACE');
     }
 
     if (!sessionId) {
       if (!savedResponse?.initialSayText) {
-        setStep('BRIEFING')
+        setStep('BRIEFING');
       }
-      return
+      return;
     }
 
     apiClient.get(`/sessions/${sessionId}/simulation/scenario`)
@@ -94,27 +94,27 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
           setScenario({
             ...DEFAULT_SCENARIO,
             ...res.data,
-          })
-          const hasSay = res.data.hasInitialSay || !!res.data.initialSayText || !!savedResponse?.initialSayText
+          });
+          const hasSay = res.data.hasInitialSay || !!res.data.initialSayText || !!savedResponse?.initialSayText;
           if (hasSay) {
-            setStep('WORKSPACE')
+            setStep('WORKSPACE');
           } else {
-            setStep('BRIEFING')
+            setStep('BRIEFING');
           }
         }
       })
       .catch(err => {
-        console.warn('[ContextualModule] Using default scenario:', err)
+        console.warn('[ContextualModule] Using default scenario:', err);
         if (!savedResponse?.initialSayText) {
-          setStep('BRIEFING')
+          setStep('BRIEFING');
         }
       })
       .finally(() => {
         if (step === 'LOADING') {
-          setStep(savedResponse?.initialSayText ? 'WORKSPACE' : 'BRIEFING')
+          setStep(savedResponse?.initialSayText ? 'WORKSPACE' : 'BRIEFING');
         }
-      })
-  }, [sessionId, currentIndex])
+      });
+  }, [sessionId, currentIndex]);
 
   // Handle Initial SAY submit from Briefing
   const handleInitialSaySubmit = async (initialSayText: string) => {
@@ -122,20 +122,20 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
       try {
         await apiClient.post(`/sessions/${sessionId}/simulation/initial-say`, {
           text: initialSayText,
-        })
+        });
       } catch (err) {
-        console.warn('Error saving initial say:', err)
+        console.warn('Error saving initial say:', err);
       }
     }
 
-    const questionId = scenario?.id || 'simulation-question'
-    const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {}
-    setQuestionStatus(questionId, 'answered')
-    setResponse(questionId, { ...currentResp, initialSayText, completed: false })
+    const questionId = scenario?.id || 'simulation-question';
+    const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {};
+    setQuestionStatus(questionId, 'answered');
+    setResponse(questionId, { ...currentResp, initialSayText, completed: false });
 
-    // Transition directly into live workstation!
-    setStep('WORKSPACE')
-  }
+    // Transition directly into live workstation
+    setStep('WORKSPACE');
+  };
 
   // Handle final simulation submit & immediately advance to next question / module
   const handleSimulationSubmit = async (signoffData?: any) => {
@@ -144,34 +144,34 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
           completed: true,
           ...signoffData,
-        })
+        });
       } catch (err) {
-        console.warn('Simulation submit error:', err)
+        console.warn('Simulation submit error:', err);
       }
     }
 
-    const questionId = scenario?.id || 'simulation-question'
-    const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {}
-    setQuestionStatus(questionId, 'answered')
-    setResponse(questionId, { ...currentResp, completed: true, ...signoffData })
+    const questionId = scenario?.id || 'simulation-question';
+    const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {};
+    setQuestionStatus(questionId, 'answered');
+    setResponse(questionId, { ...currentResp, completed: true, ...signoffData });
 
-    // Seamless instant advancement
-    handleNext(() => setCurrentIndex(i => i + 1))
-  }
+    // Seamless advancement
+    handleNext(() => setCurrentIndex(i => i + 1));
+  };
 
   const handleNavigateModule = (idx: number) => {
     if (sessionId) {
-      transitionTo({ type: 'assessment', moduleIndex: idx, sessionId })
+      transitionTo({ type: 'assessment', moduleIndex: idx, sessionId });
     }
-  }
+  };
 
   if (step === 'LOADING') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-background text-foreground gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        <span className="text-sm font-medium text-muted-foreground">Connecting to Developer Incident Workstation...</span>
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[var(--background)] text-[var(--foreground)] gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+        <span className="text-sm font-medium text-[var(--muted-foreground)]">Connecting to Developer Incident Workstation...</span>
       </div>
-    )
+    );
   }
 
   if (step === 'BRIEFING') {
@@ -183,11 +183,11 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         onNavigateModule={handleNavigateModule}
         onSubmit={handleInitialSaySubmit}
       />
-    )
+    );
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background">
+    <div className="h-screen w-screen overflow-hidden bg-[var(--background)]">
       <ContextSimulationWorkspace
         sessionId={sessionId}
         scenario={scenario}
@@ -200,5 +200,5 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         onSubmitSimulation={handleSimulationSubmit}
       />
     </div>
-  )
+  );
 }

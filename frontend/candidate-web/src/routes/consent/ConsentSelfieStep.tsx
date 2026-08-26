@@ -1,13 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { FaceDetectionService } from '../../proctoring/face-detection.service'
-import { StatusChip } from '../../components/common/StatusChip'
-import { RetryButton } from '../../components/common/RetryButton'
-import { useSessionStore } from '../../store/sessionMachine'
-import apiClient from '../../api/client'
-import { Loader2, ShieldCheck, XCircle, AlertTriangle, Info, ShieldAlert } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react';
+import { FaceDetectionService } from '../../proctoring/face-detection.service';
+import { StatusChip } from '../../components/common/StatusChip';
+import { RetryButton } from '../../components/common/RetryButton';
+import { useSessionStore } from '../../store/sessionMachine';
+import apiClient from '../../api/client';
+import { Loader2, ShieldCheck, XCircle, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
 
 interface ConsentSelfieStepProps {
-  onComplete: () => void
+  onComplete: () => void;
 }
 
 type VerificationState =
@@ -16,196 +16,196 @@ type VerificationState =
   | { type: 'verified' }
   | { type: 'not_verified'; distance?: number }
   | { type: 'no_id_proof_on_file' }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string };
 
 export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [hasStream, setHasStream] = useState(false)
-  const streamRef = useRef<MediaStream | null>(null)
-  const [selfieCaptured, setSelfieCaptured] = useState(false)
-  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null)
-  const [isAligned, setIsAligned] = useState(false)
-  const [flash, setFlash] = useState(false)
-  const [guideFeedback, setGuideFeedback] = useState<string>("Position your face inside the circle guide")
-  const [faceDetected, setFaceDetected] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasStream, setHasStream] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [selfieCaptured, setSelfieCaptured] = useState(false);
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const [isAligned, setIsAligned] = useState(false);
+  const [flash, setFlash] = useState(false);
+  const [guideFeedback, setGuideFeedback] = useState<string>("Position your face inside the circle guide");
+  const [faceDetected, setFaceDetected] = useState(false);
 
   // Verification & Flag states
-  const [verificationState, setVerificationState] = useState<VerificationState>({ type: 'idle' })
-  const [showFlagConfirmModal, setShowFlagConfirmModal] = useState(false)
-  const [flaggingInFlight, setFlaggingInFlight] = useState(false)
+  const [verificationState, setVerificationState] = useState<VerificationState>({ type: 'idle' });
+  const [showFlagConfirmModal, setShowFlagConfirmModal] = useState(false);
+  const [flaggingInFlight, setFlaggingInFlight] = useState(false);
 
-  const sessionId = useSessionStore(s => s.session?.id || s.assessment?.sessionId)
+  const sessionId = useSessionStore(s => s.session?.id || s.assessment?.sessionId);
 
   const startWebcam = () => {
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
-        streamRef.current = stream
-        setHasStream(true)
+        streamRef.current = stream;
+        setHasStream(true);
         if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
         }
       })
       .catch((err) => {
-        console.error('[ConsentSelfieStep] Failed to start camera feed:', err)
-      })
-  }
+        console.error('[ConsentSelfieStep] Failed to start camera feed:', err);
+      });
+  };
 
   useEffect(() => {
-    startWebcam()
+    startWebcam();
 
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop())
-        streamRef.current = null
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
       }
-    }
-  }, [])
+    };
+  }, []);
 
   // Poll face detection for circle alignment check
   useEffect(() => {
-    if (selfieCaptured) return
+    if (selfieCaptured) return;
 
     const interval = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.readyState < 2) return
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
       try {
-        const result = await FaceDetectionService.getInstance().detect(videoRef.current)
+        const result = await FaceDetectionService.getInstance().detect(videoRef.current);
         if (result && result.alignment) {
-          setFaceDetected(result.faceDetected)
-          setIsAligned(result.alignment.isAligned)
-          setGuideFeedback(result.alignment.guideFeedback)
+          setFaceDetected(result.faceDetected);
+          setIsAligned(result.alignment.isAligned);
+          setGuideFeedback(result.alignment.guideFeedback);
         } else if (result && result.faceDetected && result.faceCount === 1) {
-          setFaceDetected(true)
-          setIsAligned(true)
-          setGuideFeedback("Face aligned! Hold steady and capture baseline selfie.")
+          setFaceDetected(true);
+          setIsAligned(true);
+          setGuideFeedback("Face aligned! Hold steady and capture baseline selfie.");
         } else if (result && result.faceCount > 1) {
-          setFaceDetected(true)
-          setIsAligned(false)
-          setGuideFeedback("Multiple faces detected — please ensure you are alone.")
+          setFaceDetected(true);
+          setIsAligned(false);
+          setGuideFeedback("Multiple faces detected — please ensure you are alone.");
         } else {
-          setFaceDetected(false)
-          setIsAligned(false)
-          setGuideFeedback("No face detected — center your face inside the guide.")
+          setFaceDetected(false);
+          setIsAligned(false);
+          setGuideFeedback("No face detected — center your face inside the guide.");
         }
       } catch {
-        setIsAligned(false)
-        setGuideFeedback("Align your face inside the guide.")
+        setIsAligned(false);
+        setGuideFeedback("Align your face inside the guide.");
       }
-    }, 100)
+    }, 100);
 
-    return () => clearInterval(interval)
-  }, [selfieCaptured])
+    return () => clearInterval(interval);
+  }, [selfieCaptured]);
 
   async function runIdentityVerification(dataUrl: string) {
-    if (!sessionId) return
-    setVerificationState({ type: 'verifying' })
+    if (!sessionId) return;
+    setVerificationState({ type: 'verifying' });
 
     try {
-      const res = await fetch(dataUrl)
-      const blob = await res.blob()
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
 
-      const formData = new FormData()
-      formData.append('file', blob, 'selfie.jpg')
+      const formData = new FormData();
+      formData.append('file', blob, 'selfie.jpg');
 
       const response = await apiClient.post(`/sessions/${sessionId}/verify-identity`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      });
 
-      const data = response.data
-      console.log('[ConsentSelfieStep] Identity verification response:', data)
+      const data = response.data;
+      console.log('[ConsentSelfieStep] Identity verification response:', data);
 
       if (data.status === 'verified') {
-        setVerificationState({ type: 'verified' })
+        setVerificationState({ type: 'verified' });
         setTimeout(() => {
-          onComplete()
-        }, 800)
+          onComplete();
+        }, 800);
       } else if (data.status === 'not_verified') {
         setVerificationState({
           type: 'not_verified',
           distance: data.distance,
-        })
+        });
       } else if (data.status === 'no_id_proof_on_file') {
-        setVerificationState({ type: 'no_id_proof_on_file' })
+        setVerificationState({ type: 'no_id_proof_on_file' });
       } else {
         setVerificationState({
           type: 'error',
           message: 'Unexpected verification result received from server.',
-        })
+        });
       }
     } catch (err: any) {
-      console.error('[ConsentSelfieStep] Identity verification network error:', err)
-      const errDetail = err?.response?.data?.message || err?.message || 'Something went wrong, please try again'
+      console.error('[ConsentSelfieStep] Identity verification network error:', err);
+      const errDetail = err?.response?.data?.message || err?.message || 'Something went wrong, please try again';
       setVerificationState({
         type: 'error',
         message: typeof errDetail === 'string' ? errDetail : 'Something went wrong, please try again',
-      })
+      });
     }
   }
 
   async function handleCapture() {
-    if (!videoRef.current || !isAligned) return
+    if (!videoRef.current || !isAligned) return;
 
     // Trigger shutter flash
-    setFlash(true)
-    setTimeout(() => setFlash(false), 450)
+    setFlash(true);
+    setTimeout(() => setFlash(false), 450);
 
-    const canvas = document.createElement('canvas')
-    canvas.width = videoRef.current.videoWidth || 640
-    canvas.height = videoRef.current.videoHeight || 480
-    const ctx = canvas.getContext('2d')
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.translate(canvas.width, 0)
-      ctx.scale(-1, 1)
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
-      localStorage.setItem('cd-recruit-selfie-data', dataUrl)
-      setCapturedDataUrl(dataUrl)
-      setSelfieCaptured(true)
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      localStorage.setItem('cd-recruit-selfie-data', dataUrl);
+      setCapturedDataUrl(dataUrl);
+      setSelfieCaptured(true);
 
       // Upload baseline selfie directly to MinIO if sessionId available
       if (sessionId) {
         try {
-          await apiClient.post(`/sessions/${sessionId}/selfie`, { image: dataUrl })
-          console.log('[ConsentSelfieStep] Baseline selfie uploaded to MinIO storage.')
+          await apiClient.post(`/sessions/${sessionId}/selfie`, { image: dataUrl });
+          console.log('[ConsentSelfieStep] Baseline selfie uploaded to MinIO storage.');
         } catch (err) {
-          console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err)
+          console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err);
         }
 
         // Trigger ArcFace identity verification endpoint
-        await runIdentityVerification(dataUrl)
+        await runIdentityVerification(dataUrl);
       } else {
         // If no session ID, allow progression
-        onComplete()
+        onComplete();
       }
     }
   }
 
   function handleRetake() {
-    setSelfieCaptured(false)
-    setCapturedDataUrl(null)
-    setVerificationState({ type: 'idle' })
-    localStorage.removeItem('cd-recruit-selfie-data')
+    setSelfieCaptured(false);
+    setCapturedDataUrl(null);
+    setVerificationState({ type: 'idle' });
+    localStorage.removeItem('cd-recruit-selfie-data');
 
     // Re-attach video stream so element never turns black
     if (streamRef.current && videoRef.current) {
-      videoRef.current.srcObject = streamRef.current
-      videoRef.current.play().catch(() => {})
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
     } else {
-      startWebcam()
+      startWebcam();
     }
   }
 
   async function executeFlagAndContinue() {
-    if (!sessionId) return
-    setFlaggingInFlight(true)
+    if (!sessionId) return;
+    setFlaggingInFlight(true);
     try {
-      await apiClient.post(`/sessions/${sessionId}/flag-and-continue`)
-      setShowFlagConfirmModal(false)
-      onComplete()
+      await apiClient.post(`/sessions/${sessionId}/flag-and-continue`);
+      setShowFlagConfirmModal(false);
+      onComplete();
     } catch (err: any) {
-      console.error('[ConsentSelfieStep] Flag and continue failed:', err)
-      setFlaggingInFlight(false)
-      setShowFlagConfirmModal(false)
+      console.error('[ConsentSelfieStep] Flag and continue failed:', err);
+      setFlaggingInFlight(false);
+      setShowFlagConfirmModal(false);
     }
   }
 
@@ -443,5 +443,5 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

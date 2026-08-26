@@ -1,4 +1,4 @@
-﻿import "reflect-metadata";
+import "reflect-metadata";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
@@ -12,28 +12,29 @@ import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { MinioService } from "./integrations/minio/minio.service";
+
 import { json, urlencoded } from "express";
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
 
   const app = await NestFactory.create(AppModule, {
-    // Structured JSON logs - easier to parse in prod; readable in dev
+    // Structured JSON logs — easier to parse in prod; readable in dev
     logger: ["error", "warn", "log", "debug"],
   });
 
-  // Body parser limits for high-throughput batch candidate ingestion (up to 1,000+ candidates)
+  // Enable large payload body parsing for base64 biometrics / ID proof uploads & high-throughput candidate batches
   app.use(json({ limit: "50mb" }));
-  app.use(urlencoded({ extended: true, limit: "50mb" }));
+  app.use(urlencoded({ limit: "50mb", extended: true }));
 
-  // Global prefix
-  // Every route is served under /api/v1 - matches API_CONTRACT.md base URL.
+  // ── Global prefix ──────────────────────────────────────────────────────
+  // Every route is served under /api/v1 — matches API_CONTRACT.md base URL.
   // Exclude api-docs so Swagger UI assets load cleanly at /api-docs and /api/v1/api-docs.
   app.setGlobalPrefix("api/v1", {
     exclude: ["api-docs", "api-docs/(.*)", "api/v1/api-docs", "api/v1/api-docs/(.*)"],
   });
 
-  // CORS
+  // ── CORS ──────────────────────────────────────────────────────────────
   // Reads CORS_ALLOWED_ORIGINS from environment or defaults to dev endpoints.
   const corsAllowedEnv = process.env.CORS_ALLOWED_ORIGINS;
   const allowedOrigins = corsAllowedEnv
@@ -46,7 +47,7 @@ async function bootstrap(): Promise<void> {
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
   });
 
-  // Global validation pipe
+  // ── Global validation pipe ────────────────────────────────────────────
   // whitelist:             strips properties not declared in DTOs
   // forbidNonWhitelisted:  throws 400 if unknown properties are sent
   // transform:             auto-transforms payloads to DTO class instances
@@ -61,7 +62,7 @@ async function bootstrap(): Promise<void> {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Swagger Configuration (Must be registered BEFORE app.init())
+  // ── Swagger Configuration (Must be registered BEFORE app.init()) ─────────────
   const swaggerConfig = new DocumentBuilder()
     .setTitle("CD-Recruit Platform API")
     .setDescription("Interactive OpenAPI documentation for testing candidate, admin, simulation, and proctoring endpoints")
@@ -82,7 +83,7 @@ async function bootstrap(): Promise<void> {
         type: "apiKey",
         name: "X-API-Key",
         in: "header",
-        description: "Partner API key (pk_live_... - issued from Settings -> Integrations)",
+        description: "Partner API key (pk_live_... — issued from Settings → Integrations)",
       },
       "X-API-Key",
     )
@@ -138,7 +139,7 @@ async function bootstrap(): Promise<void> {
           logger.error(errMsg);
           throw new Error(errMsg);
         }
-        logger.log("MinIO object storage startup health check passed.");
+        logger.log("✅ MinIO object storage startup health check passed.");
       }
     } catch (err: any) {
       if (err.message?.includes("FATAL:")) throw err;
@@ -146,7 +147,7 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  await app.listen(port);
+  await app.listen(port, "0.0.0.0");
   logger.log(`CD-Recruit API listening on http://localhost:${port}/api/v1`);
   logger.log(`Health check: http://localhost:${port}/api/v1/health`);
   logger.log(`Swagger UI: http://localhost:${port}/api-docs`);

@@ -31,11 +31,11 @@ import {
 /**
  * SessionController — thin HTTP layer for the session lifecycle.
  *
- * All business logic lives in SessionService.  The controller only:
- *   1. Applies guards and validation decorators
- *   2. Extracts route/body params
- *   3. Delegates to the service
- *   4. Returns the result (NestJS serialises it as JSON automatically)
+ * All business logic lives in SessionService. The controller only:
+ * 1. Applies guards and validation decorators
+ * 2. Extracts route/body params
+ * 3. Delegates to the service
+ * 4. Returns the result (NestJS serialises it as JSON automatically)
  */
 @Controller("sessions")
 export class SessionController {
@@ -84,6 +84,21 @@ export class SessionController {
   }
 
   /**
+   * POST /api/v1/sessions/:sessionId/id-proof
+   *
+   * Upload candidate ID proof image during consent.
+   */
+  @Post(":sessionId/id-proof")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async idProof(
+    @Param("sessionId") sessionId: string,
+    @Body("image") image: string,
+  ): Promise<{ ok: boolean; embeddingCreated: boolean }> {
+    return this.sessionService.uploadIdProof(sessionId, image);
+  }
+
+  /**
    * POST /api/v1/sessions/:sessionId/consent
    *
    * Persist candidate consent record in PostgreSQL.
@@ -100,11 +115,10 @@ export class SessionController {
     return this.sessionService.recordConsent(sessionId, version, ipAddress, consentType);
   }
 
-
   /**
    * POST /api/v1/sessions/:sessionId/heartbeat
    *
-   * Tab-alive signal.  Must be sent every 15 s.
+   * Tab-alive signal. Must be sent every 15 s.
    * Returns 409 SECOND_TAB_DETECTED when a different tab is already active.
    */
   @Post(":sessionId/heartbeat")
@@ -208,5 +222,24 @@ export class SessionController {
     @Param("sessionId", ParseUUIDPipe) sessionId: string,
   ) {
     return this.sessionService.flagAndContinueIdentity(sessionId);
+  }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/identity-capture
+   *
+   * Save periodic in-test identity snapshot capture to MinIO & verify face embedding.
+   */
+  @Post(":sessionId/identity-capture")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async saveIdentityCapture(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() dto: { windowIndex: number; imageBase64: string },
+  ) {
+    return this.sessionService.saveIdentityCapture(
+      sessionId,
+      dto.windowIndex,
+      dto.imageBase64,
+    );
   }
 }

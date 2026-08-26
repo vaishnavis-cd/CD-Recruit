@@ -170,9 +170,11 @@ async function runPartnerCandidatesServiceTests() {
           token: item.token,
           expiresAt: item.expiresAt,
           roleTemplateId: item.roleTemplateId,
+          category: item.category,
+          experienceTier: item.experienceTier,
         };
       });
-      return { count: candidates.length, createdInvites: summaries };
+      return { count: candidates.length, createdCount: candidates.length, createdInvites: summaries, skippedCount: 0 };
     },
   };
 

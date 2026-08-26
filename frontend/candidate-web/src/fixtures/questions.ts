@@ -1,61 +1,61 @@
-export type QuestionType = 'mcq' | 'sql' | 'coding' | 'prompting' | 'contextual'
+export type QuestionType = 'mcq' | 'sql' | 'coding' | 'prompting' | 'contextual' | 'debugging' | 'nosql' | 'scenarios';
 
 export interface MCQOption {
-  id: string
-  text: string
+  id: string;
+  text: string;
 }
 
 export interface MCQQuestion {
-  id: string
-  moduleIndex: number
-  type: 'mcq'
-  text: string
-  options: MCQOption[]
-  allowMultiple: boolean
-  correctIds: string[] // used by mock only, never shown to candidate
+  id: string;
+  moduleIndex: number;
+  type: 'mcq';
+  text: string;
+  options: MCQOption[];
+  allowMultiple: boolean;
+  correctIds: string[]; // used by mock only, never shown to candidate
 }
 
 export interface SQLQuestion {
-  id: string
-  moduleIndex: number
-  type: 'sql'
-  text: string
-  schema: string // DDL
-  seed: string   // INSERT statements
-  hint?: string
+  id: string;
+  moduleIndex: number;
+  type: 'sql';
+  text: string;
+  schema: string; // DDL
+  seed: string;   // INSERT statements
+  hint?: string;
 }
 
 export interface CodingQuestion {
-  id: string
-  moduleIndex: number
-  type: 'coding'
-  title: string
-  prompt?: string
-  description: string
-  starterCode: string | Record<string, string>
-  language: string
-  visibleTestCases: Array<{ input: string; expectedOutput: string; label: string }>
-  hiddenTestCases?: Array<{ input: string; expectedOutput: string; label: string }>
+  id: string;
+  moduleIndex: number;
+  type: 'coding';
+  title: string;
+  prompt?: string;
+  description: string;
+  starterCode: string | Record<string, string>;
+  language: string;
+  visibleTestCases: Array<{ input: string; expectedOutput: string; label: string }>;
+  hiddenTestCases?: Array<{ input: string; expectedOutput: string; label: string }>;
 }
 
 export interface PromptingQuestion {
-  id: string
-  moduleIndex: number
-  type: 'prompting'
-  text: string
-  systemContext: string
-  suggestedResponse?: string
+  id: string;
+  moduleIndex: number;
+  type: 'prompting';
+  text: string;
+  systemContext: string;
+  suggestedResponse?: string;
 }
 
 export interface ContextualQuestion {
-  id: string
-  moduleIndex: number
-  type: 'contextual'
-  scenarioId: string
-  instructions: string
+  id: string;
+  moduleIndex: number;
+  type: 'contextual';
+  scenarioId: string;
+  instructions: string;
 }
 
-export type Question = MCQQuestion | SQLQuestion | CodingQuestion | PromptingQuestion | ContextualQuestion
+export type Question = MCQQuestion | SQLQuestion | CodingQuestion | PromptingQuestion | ContextualQuestion;
 
 // ─── Module 1: MCQ ───────────────────────────────────────────────────────────
 export const MCQ_QUESTIONS: MCQQuestion[] = [
@@ -102,7 +102,7 @@ export const MCQ_QUESTIONS: MCQQuestion[] = [
     ],
     correctIds: ['b'],
   },
-]
+];
 
 // ─── Module 2: SQL ───────────────────────────────────────────────────────────
 export const SQL_QUESTIONS: SQLQuestion[] = [
@@ -209,7 +209,7 @@ INSERT INTO order_items VALUES (4, 3, 'Gadget X', 1, 500.00);
 INSERT INTO order_items VALUES (5, 4, 'Widget A', 4, 50.00);
     `.trim(),
   },
-]
+];
 
 // ─── Module 3: Coding/DSA ─────────────────────────────────────────────────────
 export const CODING_QUESTIONS: CodingQuestion[] = [
@@ -258,7 +258,7 @@ An input string is valid if:
       { input: 's="(]"', expectedOutput: 'False', label: 'Mismatched' },
     ],
   },
-]
+];
 
 // ─── Module 4: AI Prompting ───────────────────────────────────────────────────
 export const PROMPTING_QUESTIONS: PromptingQuestion[] = [
@@ -282,7 +282,7 @@ Write a prompt to an AI assistant that would help you break this vague requireme
     systemContext: 'You are a senior engineer helping translate product requirements into technical tasks.',
     suggestedResponse: `**Actionable engineering tasks for dashboard performance:**\n\n**1. Baseline measurement (Day 1)**\n- Instrument with Core Web Vitals (LCP, FID, CLS)\n- Run Lighthouse audit, record current scores\n- Identify the 3 slowest network requests in DevTools\n\n**2. Quick wins (Sprint 1)**\n- Lazy-load below-the-fold chart components\n- Add HTTP cache headers to static assets (target: 1yr for hashed bundles)\n- Compress images to WebP, add \`width\`/\`height\` attrs to eliminate layout shift\n\n**3. Data fetching (Sprint 2)**\n- Identify N+1 queries in dashboard API calls\n- Add pagination or virtualization to any table with >100 rows\n- Cache expensive aggregation queries with a 5-minute TTL\n\n**4. Bundle size (Sprint 2)**\n- Run \`npm run build -- --analyze\` to find large dependencies\n- Replace moment.js with date-fns (saves ~200KB)\n\n**Measurable targets:** LCP < 2.5s, TTI < 3.5s on a mid-tier device on 4G.`,
   },
-]
+];
 
 // ─── Module 5: Contextual Simulation ─────────────────────────────────────────
 export const CONTEXTUAL_QUESTIONS: ContextualQuestion[] = [
@@ -302,7 +302,7 @@ There is no single "correct" answer — assessors are evaluating your communicat
     scenarioId: 'feature-handoff',
     instructions: `You're taking over a feature from a colleague who is going on leave. A series of messages will arrive from different stakeholders. Respond appropriately to each, asking for clarification where needed and making decisions where you have enough context.`,
   },
-]
+];
 
 export const ALL_QUESTIONS: Question[] = [
   ...MCQ_QUESTIONS,
@@ -310,7 +310,7 @@ export const ALL_QUESTIONS: Question[] = [
   ...CODING_QUESTIONS,
   ...PROMPTING_QUESTIONS,
   ...CONTEXTUAL_QUESTIONS,
-]
+];
 
 export const MODULES = [
   { index: 0, name: 'Multiple Choice', type: 'mcq' as const, suggestedMinutes: 15, questionIds: MCQ_QUESTIONS.map(q => q.id) },
@@ -320,6 +320,6 @@ export const MODULES = [
   { index: 4, name: 'Debugging', type: 'debugging' as const, suggestedMinutes: 15, questionIds: [] },
   { index: 5, name: 'AI Prompting', type: 'prompting' as const, suggestedMinutes: 15, questionIds: PROMPTING_QUESTIONS.map(q => q.id) },
   { index: 6, name: 'Contextual Simulation', type: 'contextual' as const, suggestedMinutes: 20, questionIds: CONTEXTUAL_QUESTIONS.map(q => q.id) },
-]
+];
 
-export const TOTAL_ASSESSMENT_MINUTES = MODULES.reduce((sum, m) => sum + m.suggestedMinutes, 0)
+export const TOTAL_ASSESSMENT_MINUTES = MODULES.reduce((sum, m) => sum + m.suggestedMinutes, 0);

@@ -1,4 +1,4 @@
-﻿# Candidate UI Inventory
+# Candidate UI Inventory
 
 **Audit date:** 2026-07-23  
 **Auditor:** Read-only discovery pass — no code modified.  

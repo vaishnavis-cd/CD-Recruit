@@ -1,183 +1,183 @@
-import React, { useEffect, useState, useRef } from 'react'
-import { useSessionStore } from '../../store/sessionMachine'
-import { ModuleShell } from '../../components/ModuleShell'
-import { CodeEditor } from '../../components/common/CodeEditor'
-import apiClient from '../../api/client'
-import { runCoding, TestResultDetail, CodingExecutionResponse } from '../../api/coding'
-import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown, ChevronLeft } from 'lucide-react'
-import { useModuleNavigation } from '../../hooks/useModuleNavigation'
-import { getEffectiveModuleType } from '../../utils/moduleType'
+import React, { useEffect, useState, useRef } from 'react';
+import { useSessionStore } from '../../store/sessionMachine';
+import { ModuleShell } from '../../components/ModuleShell';
+import { CodeEditor } from '../../components/common/CodeEditor';
+import apiClient from '../../api/client';
+import { runCoding, TestResultDetail, CodingExecutionResponse } from '../../api/coding';
+import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown, ChevronLeft } from 'lucide-react';
+import { useModuleNavigation } from '../../hooks/useModuleNavigation';
+import { getEffectiveModuleType } from '../../utils/moduleType';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface DebuggingModuleProps {
-  moduleIndex: number
+  moduleIndex: number;
 }
 
 export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const assessment = useSessionStore(s => s.assessment)
-  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
-  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const assessment = useSessionStore(s => s.assessment);
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
+  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion);
 
-  const debuggingQuestions = assessment?.questions?.filter(q => getEffectiveModuleType(q) === 'DEBUGGING') ?? []
-  const questionId = debuggingQuestions[currentIndex]?.questionId ?? ''
-  const isValidUUID = UUID_RE.test(questionId)
+  const debuggingQuestions = assessment?.questions?.filter(q => getEffectiveModuleType(q) === 'DEBUGGING') ?? [];
+  const questionId = debuggingQuestions[currentIndex]?.questionId ?? '';
+  const isValidUUID = UUID_RE.test(questionId);
 
-  const { handleNext: triggerNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, debuggingQuestions.length || 1)
+  const { handleNext: triggerNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, debuggingQuestions.length || 1);
 
-  const [questionData, setQuestionData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [questionData, setQuestionData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [code, setCode] = useState('')
-  const [codeByLanguage, setCodeByLanguage] = useState<Record<string, string>>({})
-  const [activeLang, setActiveLang] = useState<string>('python')
+  const [code, setCode] = useState('');
+  const [codeByLanguage, setCodeByLanguage] = useState<Record<string, string>>({});
+  const [activeLang, setActiveLang] = useState<string>('python');
 
   const handleCodeChange = (newVal: string) => {
-    setCode(newVal)
+    setCode(newVal);
     setCodeByLanguage(prev => ({
       ...prev,
       [activeLang]: newVal
-    }))
-  }
+    }));
+  };
 
   const handleLanguageSwitch = (newLang: string) => {
-    setActiveLang(newLang)
+    setActiveLang(newLang);
     if (codeByLanguage[newLang] !== undefined) {
-      setCode(codeByLanguage[newLang])
+      setCode(codeByLanguage[newLang]);
     } else {
-      const content = questionData?.content || {}
-      const starter = content.starterCode || content.buggyCode || {}
-      const defaultTemplate = typeof starter === 'string' ? starter : (starter[newLang] || '')
-      setCode(defaultTemplate)
-      setCodeByLanguage(prev => ({ ...prev, [newLang]: defaultTemplate }))
+      const content = questionData?.content || {};
+      const starter = content.starterCode || content.buggyCode || {};
+      const defaultTemplate = typeof starter === 'string' ? starter : (starter[newLang] || '');
+      setCode(defaultTemplate);
+      setCodeByLanguage(prev => ({ ...prev, [newLang]: defaultTemplate }));
     }
-  }
-  const [isRunning, setIsRunning] = useState(false)
-  const [executionResult, setExecutionResult] = useState<CodingExecutionResponse | null>(null)
-  const [execError, setExecError] = useState<string | null>(null)
+  };
+  const [isRunning, setIsRunning] = useState(false);
+  const [executionResult, setExecutionResult] = useState<CodingExecutionResponse | null>(null);
+  const [execError, setExecError] = useState<string | null>(null);
 
   // Resizer state: Horizontal (Left Pane Width %) & Vertical (Terminal Height px)
-  const [leftWidthPct, setLeftWidthPct] = useState(42)
-  const [terminalHeight, setTerminalHeight] = useState(220)
-  const isDraggingHorizontalRef = useRef(false)
-  const isDraggingVerticalRef = useRef(false)
-  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [leftWidthPct, setLeftWidthPct] = useState(42);
+  const [terminalHeight, setTerminalHeight] = useState(220);
+  const isDraggingHorizontalRef = useRef(false);
+  const isDraggingVerticalRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const handleHorizontalMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    isDraggingHorizontalRef.current = true
-    const startX = e.clientX
-    const startWidthPct = leftWidthPct
+    e.preventDefault();
+    isDraggingHorizontalRef.current = true;
+    const startX = e.clientX;
+    const startWidthPct = leftWidthPct;
     const containerWidth = containerRef.current
       ? containerRef.current.getBoundingClientRect().width
-      : window.innerWidth
+      : window.innerWidth;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      if (!isDraggingHorizontalRef.current) return
-      const deltaX = moveEvent.clientX - startX
-      const deltaPct = (deltaX / containerWidth) * 100
-      const newPct = Math.max(25, Math.min(65, startWidthPct + deltaPct))
-      setLeftWidthPct(newPct)
-    }
+      if (!isDraggingHorizontalRef.current) return;
+      const deltaX = moveEvent.clientX - startX;
+      const deltaPct = (deltaX / containerWidth) * 100;
+      const newPct = Math.max(25, Math.min(65, startWidthPct + deltaPct));
+      setLeftWidthPct(newPct);
+    };
 
     const onMouseUp = () => {
-      isDraggingHorizontalRef.current = false
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
+      isDraggingHorizontalRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
 
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
 
   const handleVerticalMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    isDraggingVerticalRef.current = true
-    const startY = e.clientY
-    const startHeight = terminalHeight
+    e.preventDefault();
+    isDraggingVerticalRef.current = true;
+    const startY = e.clientY;
+    const startHeight = terminalHeight;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      if (!isDraggingVerticalRef.current) return
-      const deltaY = startY - moveEvent.clientY
-      const newHeight = Math.max(80, Math.min(500, startHeight + deltaY))
-      setTerminalHeight(newHeight)
-    }
+      if (!isDraggingVerticalRef.current) return;
+      const deltaY = startY - moveEvent.clientY;
+      const newHeight = Math.max(80, Math.min(500, startHeight + deltaY));
+      setTerminalHeight(newHeight);
+    };
 
     const onMouseUp = () => {
-      isDraggingVerticalRef.current = false
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
+      isDraggingVerticalRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
 
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
 
   useEffect(() => {
     if (assessment?.currentModuleIndex === moduleIndex) {
-      setCurrentIndex(assessment.currentQuestionIndex)
+      setCurrentIndex(assessment.currentQuestionIndex);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    setCurrentQuestion(moduleIndex, currentIndex)
-  }, [currentIndex, moduleIndex, setCurrentQuestion])
+    setCurrentQuestion(moduleIndex, currentIndex);
+  }, [currentIndex, moduleIndex, setCurrentQuestion]);
 
   useEffect(() => {
-    if (!assessment?.sessionId) return
+    if (!assessment?.sessionId) return;
 
     if (!isValidUUID) {
-      setLoading(false)
+      setLoading(false);
       setError(
         debuggingQuestions.length === 0
           ? 'No debugging tasks assigned to this drive.'
           : `Invalid question ID (${questionId || 'empty'}).`
-      )
-      return
+      );
+      return;
     }
 
-    let isMounted = true
-    setLoading(true)
-    setError(null)
-    setExecutionResult(null)
-    setExecError(null)
+    let isMounted = true;
+    setLoading(true);
+    setError(null);
+    setExecutionResult(null);
+    setExecError(null);
 
     apiClient.get(`/sessions/${assessment.sessionId}/questions/${questionId}`)
       .then(res => {
         if (isMounted) {
-          setQuestionData(res.data)
-          const content = res.data.content || {}
-          const starter = content.starterCode || content.buggyCode || {}
-          const lang = content.allowedLanguages?.[0] || 'python'
-          setActiveLang(lang)
+          setQuestionData(res.data);
+          const content = res.data.content || {};
+          const starter = content.starterCode || content.buggyCode || {};
+          const lang = content.allowedLanguages?.[0] || 'python';
+          setActiveLang(lang);
           
           const codeVal = typeof starter === 'string' 
             ? starter 
-            : (starter[lang] || starter['python'] || starter['javascript'] || content.code || '')
+            : (starter[lang] || starter['python'] || starter['javascript'] || content.code || '');
           
-          setCode(codeVal)
-          setLoading(false)
+          setCode(codeVal);
+          setLoading(false);
         }
       })
       .catch(err => {
         if (isMounted) {
-          console.error(`[DebuggingModule] Failed fetching question ${questionId}:`, err)
-          setError(err.response?.data?.message || 'Failed to load debugging task.')
-          setLoading(false)
+          console.error(`[DebuggingModule] Failed fetching question ${questionId}:`, err);
+          setError(err.response?.data?.message || 'Failed to load debugging task.');
+          setLoading(false);
         }
-      })
+      });
 
-    return () => { isMounted = false }
-  }, [assessment?.sessionId, questionId, isValidUUID])
+    return () => { isMounted = false; };
+  }, [assessment?.sessionId, questionId, isValidUUID]);
 
   // Real Judge0 Remote Code Execution Handler
   const handleRunDiagnostics = async () => {
-    if (isRunning || !assessment?.sessionId) return
-    setIsRunning(true)
-    setExecError(null)
-    setExecutionResult(null)
+    if (isRunning || !assessment?.sessionId) return;
+    setIsRunning(true);
+    setExecError(null);
+    setExecutionResult(null);
 
     try {
       if (isValidUUID) {
@@ -186,11 +186,11 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           questionId,
           language: activeLang,
           sourceCode: code,
-        })
-        setExecutionResult(res)
+        });
+        setExecutionResult(res);
       } else {
         // Fallback for static fixture debugging challenges
-        await new Promise((resolve) => setTimeout(resolve, 300))
+        await new Promise((resolve) => setTimeout(resolve, 300));
         setExecutionResult({
           executionId: `exec_${Date.now()}`,
           status: 'COMPLETED',
@@ -206,16 +206,16 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
             { passed: true, status: 'COMPLETED', executionTime: 13, memoryUsage: 7800, stdout: 'PASSED', stderr: '', compileOutput: '', input: '2 2', expectedOutput: '1', label: 'Edge Case Check 2', isHidden: false },
             { passed: true, status: 'COMPLETED', executionTime: 13, memoryUsage: 7800, stdout: 'PASSED', stderr: '', compileOutput: '', input: '10 0', expectedOutput: '0', label: 'Boundary Zero Check', isHidden: false },
           ]
-        })
+        });
       }
-      setQuestionStatus(questionId, 'answered')
+      setQuestionStatus(questionId, 'answered');
     } catch (err: any) {
-      console.error('[DebuggingModule] Judge0 execution failed:', err)
-      setExecError(err.message || 'Remote Judge0 code execution failed. Verify runner service.')
+      console.error('[DebuggingModule] Judge0 execution failed:', err);
+      setExecError(err.message || 'Remote Judge0 code execution failed. Verify runner service.');
     } finally {
-      setIsRunning(false)
+      setIsRunning(false);
     }
-  }
+  };
 
   const handleSaveAndNext = async () => {
     if (assessment?.sessionId) {
@@ -228,19 +228,19 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
             language: activeLang,
             status: 'COMPLETED'
           }
-        })
-        setQuestionStatus(questionId, 'answered')
+        });
+        setQuestionStatus(questionId, 'answered');
       } catch (err) {
-        console.error('Failed saving debugging response:', err)
+        console.error('Failed saving debugging response:', err);
       }
     }
-    triggerNext(() => setCurrentIndex((i) => i + 1))
-  }
+    triggerNext(() => setCurrentIndex((i) => i + 1));
+  };
 
   const shellQuestions = debuggingQuestions.map((q, idx) => ({
     id: q.questionId,
     label: `Debug Q${idx + 1}`
-  }))
+  }));
 
   if (loading) {
     return (
@@ -254,7 +254,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           <Loader2 className="w-6 h-6 animate-spin text-[var(--accent)]" />
         </div>
       </ModuleShell>
-    )
+    );
   }
 
   if (error || !questionData) {
@@ -268,8 +268,8 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
         <div className="flex-1 flex items-center justify-center bg-[var(--background)] p-6">
           <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] max-w-md text-center space-y-3 shadow-xl">
             <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-            <h3 className="font-bold text-sm text-[var(--text-primary)]">Debugging Task Warning</h3>
-            <p className="text-xs text-[var(--text-secondary)]">{error || 'Task data unavailable.'}</p>
+            <h3 className="font-bold text-sm text-[var(--foreground)]">Debugging Task Warning</h3>
+            <p className="text-xs text-[var(--muted-foreground)]">{error || 'Task data unavailable.'}</p>
             <button
               onClick={handleSaveAndNext}
               className="px-4 py-2 bg-[var(--accent)] text-white text-xs font-bold rounded-xl cursor-pointer"
@@ -279,11 +279,11 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           </div>
         </div>
       </ModuleShell>
-    )
+    );
   }
 
-  const content = questionData.content || {}
-  const bugTrace = content.stackTrace || content.bugDescription || 'AssertionError: Exception raised during test suite execution.'
+  const content = questionData.content || {};
+  const bugTrace = content.stackTrace || content.bugDescription || 'AssertionError: Exception raised during test suite execution.';
 
   return (
     <ModuleShell
@@ -304,17 +304,17 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           </div>
 
           <div>
-            <h2 className="text-base font-bold text-[var(--text-primary)] mb-2">
-              {content.title || 'Fix Logic Defect &amp; Edge Case Failure'}
+            <h2 className="text-base font-bold text-[var(--foreground)] mb-2">
+              {content.title || 'Fix Logic Defect & Edge Case Failure'}
             </h2>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+            <p className="text-xs text-[var(--muted-foreground)] leading-relaxed whitespace-pre-wrap">
               {content.prompt || content.description || 'Analyze the failing stack trace and patch the defective function implementation.'}
             </p>
           </div>
 
           {/* Failing Stack Trace Box */}
           <div className="space-y-1.5">
-            <div className="text-[11px] font-bold uppercase tracking-wider font-mono text-[var(--text-secondary)]">
+            <div className="text-[11px] font-bold uppercase tracking-wider font-mono text-[var(--muted-foreground)]">
               Failing Stack Trace / Exception
             </div>
             <div className="p-3.5 rounded-xl bg-black/90 border border-rose-500/30 text-rose-400 font-mono text-[11px] leading-relaxed overflow-x-auto shadow-inner">
@@ -329,7 +329,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           className="hidden md:flex w-1.5 hover:w-2 bg-[var(--border)] hover:bg-[var(--accent)] cursor-col-resize items-center justify-center transition-all z-20 shrink-0"
           title="Drag to resize panels"
         >
-          <GripVertical className="w-3 h-3 text-[var(--text-secondary)] opacity-60" />
+          <GripVertical className="w-3 h-3 text-[var(--muted-foreground)] opacity-60" />
         </div>
 
         {/* Right Pane: Buggy Code Editor & Diagnostic Test Runner */}
@@ -337,7 +337,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           {/* Top Bar */}
           <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 font-mono text-xs font-bold text-[var(--text-primary)]">
+              <div className="flex items-center gap-2 font-mono text-xs font-bold text-[var(--foreground)]">
                 <TerminalIcon className="w-4 h-4 text-[var(--accent)]" />
                 <span>Interactive Fix Editor</span>
               </div>
@@ -347,6 +347,15 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                 {activeLang.toUpperCase()}
               </div>
             </div>
+
+            <button
+              onClick={handleRunDiagnostics}
+              disabled={isRunning}
+              className="px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+              <span>Run Diagnostics (Judge0)</span>
+            </button>
           </div>
 
           {/* Code Editor Container */}
@@ -364,7 +373,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
             className="h-1.5 hover:h-2 bg-[var(--border)] hover:bg-[var(--accent)] cursor-row-resize flex items-center justify-center transition-all z-20 shrink-0"
             title="Drag to resize terminal console"
           >
-            <GripHorizontal className="w-3 h-3 text-[var(--text-secondary)] opacity-60" />
+            <GripHorizontal className="w-3 h-3 text-[var(--muted-foreground)] opacity-60" />
           </div>
 
           {/* Judge0 Test Runner Console Panel */}
@@ -372,13 +381,13 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
             style={{ height: `${terminalHeight}px` }}
             className="border-t border-[var(--border)] bg-[var(--surface)] flex flex-col min-h-0 shrink-0 font-mono text-xs overflow-hidden"
           >
-            <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold text-[var(--text-secondary)] flex items-center justify-between uppercase tracking-wider">
+            <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold text-[var(--muted-foreground)] flex items-center justify-between uppercase tracking-wider">
               <span className="flex items-center gap-2">
                 <TerminalIcon className="w-3.5 h-3.5 text-[var(--accent)]" />
                 <span>Judge0 Execution Console</span>
               </span>
               {executionResult && (
-                <span className="text-[10px] text-[var(--text-secondary)]">
+                <span className="text-[10px] text-[var(--muted-foreground)]">
                   {executionResult.executionTime ? `${executionResult.executionTime}ms` : '0ms'}
                 </span>
               )}
@@ -386,7 +395,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
 
             <div className="p-4 overflow-y-auto space-y-2 flex-1 text-[11px]">
               {isRunning && (
-                <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+                <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
                   <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
                   <span>Submitting code payload to Judge0 remote execution sandbox...</span>
                 </div>
@@ -449,7 +458,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               )}
 
               {!isRunning && !execError && !executionResult && (
-                <div className="text-[var(--text-secondary)] italic">
+                <div className="text-[var(--muted-foreground)] italic">
                   Click "Run Diagnostics (Judge0)" to execute your code against remote test cases.
                 </div>
               )}
@@ -457,17 +466,17 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           </div>
 
           {/* Standardized Pinned Bottom Navigation Bar */}
-          <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+          <footer className="h-14 border-t border-[var(--border)] bg-[var(--surface)] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <button
               onClick={handleRunDiagnostics}
               disabled={isRunning}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
             >
               {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               <span>Run Diagnostics (Judge0)</span>
             </button>
 
-            <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+            <span className="text-xs font-mono font-medium text-[var(--muted-foreground)] hidden sm:inline">
               Debugging Task {currentIndex + 1} of {debuggingQuestions.length || 1}
             </span>
 
@@ -475,7 +484,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               <button
                 onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 aria-label="Previous question"
               >
                 <ChevronLeft size={14} />
@@ -483,7 +492,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               </button>
               <button
                 onClick={handleSaveAndNext}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
               >
                 <span>{nextButtonLabel}</span>
               </button>
@@ -492,5 +501,5 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
         </div>
       </div>
     </ModuleShell>
-  )
+  );
 }

@@ -112,7 +112,7 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
     }
   },
 
-  addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string }>) => {
+  addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>) => {
     const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/bulk`, {
       method: "POST",

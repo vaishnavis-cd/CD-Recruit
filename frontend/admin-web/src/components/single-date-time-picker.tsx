@@ -117,7 +117,7 @@ function TimeInputGroup({
   };
 
   return (
-    <div className="flex items-center gap-1 font-mono text-[16px] text-ink">
+    <div className="flex items-center gap-1 font-mono text-[16px] text-[#0B0B0D]">
       <input
         ref={hourRef}
         type="text"
@@ -127,10 +127,10 @@ function TimeInputGroup({
         onBlur={handleHourBlur}
         onKeyDown={handleHourKeyDown}
         onFocus={(e) => e.target.select()}
-        className="w-8 text-center focus:outline-none bg-bg-soft focus:bg-brand/10 focus:text-brand rounded py-0.5 transition-colors font-semibold"
+        className="w-8 text-center focus:outline-none bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF] rounded py-0.5 transition-colors font-semibold"
         placeholder="HH"
       />
-      <span className="text-stext-2 font-semibold">:</span>
+      <span className="text-[#8B8B93] font-semibold">:</span>
       <input
         ref={minuteRef}
         type="text"
@@ -140,7 +140,7 @@ function TimeInputGroup({
         onBlur={handleMinuteBlur}
         onKeyDown={handleMinuteKeyDown}
         onFocus={(e) => e.target.select()}
-        className="w-8 text-center focus:outline-none bg-bg-soft focus:bg-brand/10 focus:text-brand rounded py-0.5 transition-colors font-semibold"
+        className="w-8 text-center focus:outline-none bg-[#F7F7F9] focus:bg-[#EAF0FF] focus:text-[#2F5CFF] rounded py-0.5 transition-colors font-semibold"
         placeholder="MM"
       />
     </div>
@@ -275,15 +275,14 @@ export function SingleDateTimePicker({
 
   return (
     <div className="space-y-4">
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Calendar Card */}
-        <div className="lg:col-span-7 bg-white border border-line rounded-[20px] p-6 shadow-sm">
+        <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-[20px] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="w-9 h-9 flex items-center justify-center border border-line rounded-[10px] text-ink-2 hover:bg-bg-soft transition-colors cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center border border-[#E6E6EA] rounded-[10px] text-[#5B5B64] hover:bg-[#F7F7F9] transition-colors cursor-pointer"
             >
               <ChevronLeft size={18} />
             </button>
@@ -292,21 +291,21 @@ export function SingleDateTimePicker({
               <button
                 type="button"
                 onClick={() => setShowMonthPicker((v) => !v)}
-                className="flex items-center gap-1.5 text-[16px] font-semibold text-ink cursor-pointer hover:opacity-80 px-2.5 py-1 rounded-lg hover:bg-bg-soft transition-colors"
+                className="flex items-center gap-1.5 text-[16px] font-semibold text-[#0B0B0D] cursor-pointer hover:opacity-80 px-2.5 py-1 rounded-lg hover:bg-[#F7F7F9] transition-colors"
               >
                 <span>{MONTH_NAMES[currentMonth]} {currentYear}</span>
-                <ChevronDown size={16} className={`text-stext-2 transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} />
+                <ChevronDown size={16} className={`text-[#8B8B93] transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} />
               </button>
 
               {showMonthPicker && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-line rounded-xl p-3 shadow-xl flex items-center gap-2 min-w-[250px]">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-[#E6E6EA] rounded-xl p-3 shadow-xl flex items-center gap-2 min-w-[250px]">
                   <select
                     value={currentMonth}
                     onChange={(e) => {
                       setCurrentMonth(parseInt(e.target.value, 10));
                       setShowMonthPicker(false);
                     }}
-                    className="flex-1 px-2.5 py-1.5 text-[13px] font-medium bg-bg-soft border border-line rounded-lg text-ink outline-none cursor-pointer hover:bg-white transition-colors"
+                    className="flex-1 px-2.5 py-1.5 text-[13px] font-medium bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[#0B0B0D] outline-none cursor-pointer hover:bg-white transition-colors"
                   >
                     {MONTH_NAMES.map((name, idx) => (
                       <option key={name} value={idx}>
@@ -320,7 +319,7 @@ export function SingleDateTimePicker({
                       setCurrentYear(parseInt(e.target.value, 10));
                       setShowMonthPicker(false);
                     }}
-                    className="px-2.5 py-1.5 text-[13px] font-medium bg-bg-soft border border-line rounded-lg text-ink outline-none cursor-pointer hover:bg-white transition-colors"
+                    className="px-2.5 py-1.5 text-[13px] font-medium bg-[#F7F7F9] border border-[#E6E6EA] rounded-lg text-[#0B0B0D] outline-none cursor-pointer hover:bg-white transition-colors"
                   >
                     {Array.from({ length: 12 }, (_, i) => 2024 + i).map((y) => (
                       <option key={y} value={y}>
@@ -335,7 +334,7 @@ export function SingleDateTimePicker({
             <button
               type="button"
               onClick={handleNextMonth}
-              className="w-9 h-9 flex items-center justify-center border border-line rounded-[10px] text-ink-2 hover:bg-bg-soft transition-colors cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center border border-[#E6E6EA] rounded-[10px] text-[#5B5B64] hover:bg-[#F7F7F9] transition-colors cursor-pointer"
             >
               <ChevronRight size={18} />
             </button>
@@ -343,7 +342,7 @@ export function SingleDateTimePicker({
 
           <div className="grid grid-cols-7 gap-1 text-center mb-3">
             {WEEKDAYS.map((wd) => (
-              <div key={wd} className="text-[13px] font-medium text-stext-2 py-1">
+              <div key={wd} className="text-[13px] font-medium text-[#8B8B93] py-1">
                 {wd}
               </div>
             ))}
@@ -370,18 +369,18 @@ export function SingleDateTimePicker({
                     onClick={() => handleSelectDate(cell.dateStr)}
                     className={`w-9 h-9 rounded-full flex items-center justify-center text-[14px] font-medium transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-brand text-white font-semibold shadow-md"
+                        ? "bg-[#2F5CFF] text-white font-semibold shadow-md"
                         : isToday
-                        ? "text-brand font-semibold hover:bg-brand/10"
+                        ? "text-[#2F5CFF] font-semibold hover:bg-[#EAF0FF]"
                         : cell.currentMonth
-                        ? "text-ink hover:bg-bg-soft"
-                        : "text-line-strong hover:text-stext-2"
+                        ? "text-[#1C1C1E] hover:bg-[#F2F2F7]"
+                        : "text-[#D1D1D6] hover:text-[#8B8B93]"
                     }`}
                   >
                     {cell.day}
                   </button>
                   {isToday && !isSelected && (
-                    <span className="w-1.5 h-1.5 bg-brand rounded-full absolute bottom-0"></span>
+                    <span className="w-1.5 h-1.5 bg-[#2F5CFF] rounded-full absolute bottom-0"></span>
                   )}
                 </div>
               );
@@ -390,20 +389,20 @@ export function SingleDateTimePicker({
         </div>
 
         {/* RIGHT COLUMN: Time Controls */}
-        <div className="lg:col-span-5 bg-white border border-line rounded-[20px] p-6 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 border-b border-bg-inset pb-3">
-            <Clock size={18} className={rollingWindow ? "text-purple-600" : "text-brand"} />
-            <h3 className="text-[15px] font-semibold text-ink">
+        <div className="lg:col-span-5 bg-white border border-[#E6E6EA] rounded-[20px] p-6 shadow-sm space-y-6">
+          <div className="flex items-center gap-2 border-b border-[#EFF0F3] pb-3">
+            <Clock size={18} className={rollingWindow ? "text-[#7C3AED]" : "text-[#2F5CFF]"} />
+            <h3 className="text-[15px] font-semibold text-[#0B0B0D]">
               {rollingWindow ? "Window Opens At" : "Assessment Time Window"}
             </h3>
           </div>
 
           {/* START TIME */}
           <div className="space-y-2">
-            <label className="block text-[14px] font-medium text-ink">
+            <label className="block text-[14px] font-medium text-[#1C1C1E]">
               {rollingWindow ? "Start time (24-hr)" : "Start time"}
             </label>
-            <div className="bg-white border border-line rounded-[12px] px-4 py-3 flex items-center justify-between focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10 transition-all">
+            <div className="bg-white border border-[#E6E6EA] rounded-[12px] px-4 py-3 flex items-center justify-between focus-within:border-[#2F5CFF] focus-within:ring-2 focus-within:ring-[#2F5CFF]/10 transition-all">
               <TimeInputGroup
                 hourValue={startHour}
                 minuteValue={startMinute}
@@ -453,17 +452,17 @@ export function SingleDateTimePicker({
                         endAmPm,
                       })
                     }
-                    className="appearance-none bg-bg-soft border border-line rounded-md px-3 py-1 text-[13px] font-semibold text-ink focus:outline-none cursor-pointer pr-7"
+                    className="appearance-none bg-[#F7F7F9] border border-[#E6E6EA] rounded-md px-3 py-1 text-[13px] font-semibold text-[#0B0B0D] focus:outline-none cursor-pointer pr-7"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
                   </select>
-                  <ChevronDown size={14} className="text-stext-2 absolute right-2.5 pointer-events-none" />
+                  <ChevronDown size={14} className="text-[#8B8B93] absolute right-2.5 pointer-events-none" />
                 </div>
               )}
 
               {rollingWindow && (
-                <span className="text-[12px] font-mono bg-purple-50 text-purple-600 px-2 py-1 rounded-md font-semibold">
+                <span className="text-[12px] font-mono bg-[#F3F0FF] text-[#7C3AED] px-2 py-1 rounded-md font-semibold">
                   24h
                 </span>
               )}
@@ -473,10 +472,10 @@ export function SingleDateTimePicker({
           {/* END TIME — shown only in fixed mode */}
           {!rollingWindow && (
             <div className="space-y-2">
-              <label className="block text-[14px] font-medium text-ink">
+              <label className="block text-[14px] font-medium text-[#1C1C1E]">
                 End time
               </label>
-              <div className="bg-white border border-line rounded-[12px] px-4 py-3 flex items-center justify-between focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10 transition-all">
+              <div className="bg-white border border-[#E6E6EA] rounded-[12px] px-4 py-3 flex items-center justify-between focus-within:border-[#2F5CFF] focus-within:ring-2 focus-within:ring-[#2F5CFF]/10 transition-all">
                 <TimeInputGroup
                   hourValue={endHour}
                   minuteValue={endMinute}
@@ -524,12 +523,12 @@ export function SingleDateTimePicker({
                         endAmPm: e.target.value,
                       })
                     }
-                    className="appearance-none bg-bg-soft border border-line rounded-md px-3 py-1 text-[13px] font-semibold text-ink focus:outline-none cursor-pointer pr-7"
+                    className="appearance-none bg-[#F7F7F9] border border-[#E6E6EA] rounded-md px-3 py-1 text-[13px] font-semibold text-[#0B0B0D] focus:outline-none cursor-pointer pr-7"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
                   </select>
-                  <ChevronDown size={14} className="text-stext-2 absolute right-2.5 pointer-events-none" />
+                  <ChevronDown size={14} className="text-[#8B8B93] absolute right-2.5 pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -537,17 +536,17 @@ export function SingleDateTimePicker({
 
           {/* Rolling window: show computed end label */}
           {rollingWindow && rollingEndLabel && (
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-[10px] space-y-1">
-              <p className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider">Window Closes</p>
-              <p className="text-[13px] font-semibold text-purple-800">{rollingEndLabel}</p>
-              <p className="text-[11px] text-purple-500">Exactly 24 hours after opening</p>
+            <div className="p-3 bg-[#F3F0FF] border border-[#DDD6FE] rounded-[10px] space-y-1">
+              <p className="text-[11px] font-semibold text-[#7C3AED] uppercase tracking-wider">Window Closes</p>
+              <p className="text-[13px] font-semibold text-[#5B21B6]">{rollingEndLabel}</p>
+              <p className="text-[11px] text-[#8B5CF6]">Exactly 24 hours after opening</p>
             </div>
           )}
 
           {/* Quick Presets — only in fixed mode */}
           {!rollingWindow && (
             <div className="pt-2">
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-stext-2 mb-2 font-semibold">
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#8B8B93] mb-2 font-semibold">
                 Quick Duration Presets
               </label>
               <div className="flex flex-wrap gap-2">
@@ -572,7 +571,7 @@ export function SingleDateTimePicker({
                         endAmPm: preset.eAp,
                       })
                     }
-                    className="px-3 py-1.5 rounded-full text-[12px] font-medium border border-line bg-bg-soft hover:bg-brand/10 hover:border-brand text-ink-2 hover:text-brand transition-all cursor-pointer"
+                    className="px-3 py-1.5 rounded-full text-[12px] font-medium border border-[#E6E6EA] bg-[#F7F7F9] hover:bg-[#EAF0FF] hover:border-[#2F5CFF] text-[#5B5B64] hover:text-[#2F5CFF] transition-all cursor-pointer"
                   >
                     {preset.label}
                   </button>

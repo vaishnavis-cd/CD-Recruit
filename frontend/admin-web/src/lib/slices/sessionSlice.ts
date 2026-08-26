@@ -21,6 +21,15 @@ export interface SessionSlice {
   fetchResults: (query?: { driveId?: string; status?: string; search?: string }) => Promise<void>;
   recordCandidateDecision: (sessionId: string, decision: "PASS" | "FAIL", note?: string) => Promise<void>;
   exportResultsCsv: (driveId?: string) => Promise<string>;
+  bulkVerifyIdentity: (candidateIds: string[]) => Promise<{
+    total: number;
+    completed: number;
+    matched: number;
+    mismatched: number;
+    insufficientData: number;
+    errors: number;
+    results: any[];
+  }>;
 }
 
 function mapBackendStatus(
@@ -79,13 +88,13 @@ function mapBackendSession(session: any): Session {
     : "CN";
 
   const roleName = session.roleTemplateName || session.roleName || "Software Developer";
-
   const confidenceVal = session.score?.aiConfidence ?? session.aiConfidence ?? null;
+
   const status = mapBackendStatus(
     session.status || "SUBMITTED",
     session.compositeScore !== null && session.compositeScore !== undefined,
     !session.humanReviewRequired,
-    confidenceVal ?? 0,
+    confidenceVal ?? 0.85,
     false,
   );
 
@@ -154,6 +163,18 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
     const mapped = {
       ...detail,
       id: detail.sessionId || detail.id || sessionId,
+      candidate: detail.candidate
+        ? {
+            id: detail.candidate.id || "",
+            name: detail.candidate.name || detail.candidateName || "Candidate",
+            email: detail.candidate.email || detail.candidateEmail || "",
+            identityVerificationResult: detail.candidate.identityVerificationResult || null,
+            baselineSelfieRef: detail.candidate.baselineSelfieRef || null,
+            idProofRef: detail.candidate.idProofRef || null,
+            baselineSelfieUrl: detail.candidate.baselineSelfieUrl || null,
+            idProofUrl: detail.candidate.idProofUrl || null,
+          }
+        : null,
       candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
       candidateEmail: detail.candidate?.email || detail.candidateEmail || "",
       driveName: detail.driveName || detail.roleTemplateName || "Assessment Drive",
@@ -268,5 +289,19 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       console.error("Export results CSV error:", err);
       throw err;
     }
+  },
+
+  bulkVerifyIdentity: async (candidateIds) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/admin/candidates/verify-identity/bulk`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ candidateIds }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || `Bulk verify failed (${res.status})`);
+    }
+    return res.json();
   },
 });

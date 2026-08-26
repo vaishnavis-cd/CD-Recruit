@@ -40,16 +40,16 @@ function SvgBarChart({ data }: { data: Array<{ band: string; count: number }> })
           const heightPct = Math.max(12, Math.round((item.count / maxCount) * 100));
           return (
             <div key={item.band || idx} className="flex-1 flex flex-col items-center gap-1.5 group h-full justify-end">
-              <span className="text-[11px] font-mono font-bold text-ink-2 group-hover:text-brand transition-colors">
+              <span className="text-[11px] font-mono font-bold text-[#5B5B64] group-hover:text-[#2F5CFF] transition-colors">
                 {item.count}
               </span>
-              <div className="w-full bg-bg-soft rounded-t-lg overflow-hidden h-[140px] flex items-end">
+              <div className="w-full bg-[#F4F4F6] rounded-t-lg overflow-hidden h-[140px] flex items-end">
                 <div
-                  className="w-full bg-brand hover:bg-brand/90 rounded-t transition-all duration-500 shadow-xs"
+                  className="w-full bg-[#2F5CFF] hover:bg-[#1A44D6] rounded-t transition-all duration-500 shadow-xs"
                   style={{ height: `${heightPct}%` }}
                 />
               </div>
-              <span className="text-[11px] font-medium text-ink-2 truncate max-w-full mt-1">
+              <span className="text-[11px] font-medium text-[#5B5B64] truncate max-w-full mt-1">
                 {item.band}
               </span>
             </div>
@@ -70,11 +70,7 @@ export const Route = createFileRoute("/reports")({
   }),
 });
 
-const RANGES = [
-  { id: "7d", label: "Last 7 days" },
-  { id: "30d", label: "Last 30 days" },
-  { id: "90d", label: "Last 90 days" },
-];function ReportsPage() {
+function ReportsPage() {
   const sessions = useStore((s) => s.sessions) || [];
   const resultsList = useStore((s) => s.resultsList) || [];
   const fetchSessions = useStore((s) => s.fetchSessions);
@@ -83,7 +79,6 @@ const RANGES = [
   const fetchResults = useStore((s) => s.fetchResults);
 
   const [activeTab, setActiveTab] = useState<"PERFORMANCE" | "INTEGRITY" | "EXPORTS">("PERFORMANCE");
-
   const [variant, setVariant] = useState<"internal" | "candidate">("internal");
 
   useEffect(() => {
@@ -140,7 +135,7 @@ const RANGES = [
       const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore;
       return raw !== null && raw !== undefined;
     });
-    if (!validSessions.length) return null;
+    if (!validSessions.length) return 0;
     const total = validSessions.reduce((acc, s: any) => {
       const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore;
       const val = raw <= 1.0 ? raw * 100 : raw;
@@ -268,38 +263,38 @@ const RANGES = [
       <div className="max-w-[1200px] mx-auto pb-12 space-y-6">
         
         {/* Navigation Tabs */}
-        <div className="flex border-b border-line space-x-6">
+        <div className="flex border-b border-[#E6E6EA] space-x-6">
           <button
             onClick={() => setActiveTab("PERFORMANCE")}
             className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
-              activeTab === "PERFORMANCE" ? "text-brand" : "text-ink-2 hover:text-ink"
+              activeTab === "PERFORMANCE" ? "text-[#2F5CFF]" : "text-[#5B5B64] hover:text-[#0B0B0D]"
             }`}
           >
             <BarChart3 size={15} />
             <span>Performance &amp; Domain Metrics</span>
-            {activeTab === "PERFORMANCE" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-t-md" />}
+            {activeTab === "PERFORMANCE" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
           </button>
 
           <button
             onClick={() => setActiveTab("INTEGRITY")}
             className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
-              activeTab === "INTEGRITY" ? "text-brand" : "text-ink-2 hover:text-ink"
+              activeTab === "INTEGRITY" ? "text-[#2F5CFF]" : "text-[#5B5B64] hover:text-[#0B0B0D]"
             }`}
           >
             <ShieldAlert size={15} />
             <span>Integrity &amp; Risk Analytics</span>
-            {activeTab === "INTEGRITY" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-t-md" />}
+            {activeTab === "INTEGRITY" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
           </button>
 
           <button
             onClick={() => setActiveTab("EXPORTS")}
             className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
-              activeTab === "EXPORTS" ? "text-brand" : "text-ink-2 hover:text-ink"
+              activeTab === "EXPORTS" ? "text-[#2F5CFF]" : "text-[#5B5B64] hover:text-[#0B0B0D]"
             }`}
           >
             <Settings2 size={15} />
             <span>Custom Export Configuration</span>
-            {activeTab === "EXPORTS" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-t-md" />}
+            {activeTab === "EXPORTS" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
           </button>
         </div>
 
@@ -308,52 +303,52 @@ const RANGES = [
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* Top 4 KPI Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-ink-2">
+              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-[#5B5B64]">
                   <span className="text-[11px] font-mono uppercase font-semibold">Total Assessed</span>
-                  <Users size={16} className="text-brand" />
+                  <Users size={16} className="text-[#2F5CFF]" />
                 </div>
-                <div className="text-3xl font-bold text-ink font-mono">{totalAssessed}</div>
-                <div className="text-[11px] text-ink-2 font-medium flex items-center gap-1">
-                  <TrendingUp size={12} className="text-brand" /> Real database candidate sessions
+                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{totalAssessed}</div>
+                <div className="text-[11px] text-[#5B5B64] font-medium flex items-center gap-1">
+                  <TrendingUp size={12} className="text-[#2F5CFF]" /> Real database candidate sessions
                 </div>
               </div>
 
-              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-ink-2">
+              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-[#5B5B64]">
                   <span className="text-[11px] font-mono uppercase font-semibold">Avg Composite Score</span>
-                  <Award size={16} className="text-brand" />
+                  <Award size={16} className="text-[#2F5CFF]" />
                 </div>
-                <div className="text-3xl font-bold text-ink font-mono">{avgScore}%</div>
-                <div className="text-[11px] text-ink-2">Across all technical modules</div>
+                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{avgScore}%</div>
+                <div className="text-[11px] text-[#5B5B64]">Across all technical modules</div>
               </div>
 
-              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-ink-2">
+              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-[#5B5B64]">
                   <span className="text-[11px] font-mono uppercase font-semibold">Say-Do Consistency</span>
-                  <Activity size={16} className="text-brand" />
+                  <Activity size={16} className="text-[#2F5CFF]" />
                 </div>
-                <div className="text-3xl font-bold text-ink font-mono">{avgConsistency}%</div>
-                <div className="text-[11px] text-ink-2 font-medium">Behavioral sync fidelity</div>
+                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{avgConsistency}%</div>
+                <div className="text-[11px] text-[#5B5B64] font-medium">Behavioral sync fidelity</div>
               </div>
 
-              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-ink-2">
+              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-[#5B5B64]">
                   <span className="text-[11px] font-mono uppercase font-semibold">Overall Pass Rate</span>
-                  <CheckCircle2 size={16} className="text-brand" />
+                  <CheckCircle2 size={16} className="text-[#2F5CFF]" />
                 </div>
-                <div className="text-3xl font-bold text-ink font-mono">{passRate}%</div>
-                <div className="text-[11px] text-ink-2">Approved for technical interview</div>
+                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{passRate}%</div>
+                <div className="text-[11px] text-[#5B5B64]">Approved for technical interview</div>
               </div>
             </div>
 
             {/* Per-Module Score Breakdown & Score Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Module Performance Bars */}
-              <div className="lg:col-span-7 bg-white border border-line rounded-xl p-6 shadow-sm space-y-5">
+              <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-5">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-ink">Module Performance Averages</h3>
-                  <p className="text-[12px] text-stext-2">Mean scores across candidate module completions.</p>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Module Performance Averages</h3>
+                  <p className="text-[12px] text-[#8B8B93]">Mean scores across candidate module completions.</p>
                 </div>
 
                 <div className="space-y-4 text-[13px]">
@@ -362,7 +357,7 @@ const RANGES = [
                     return (
                       <div key={mod.name} className="space-y-1.5">
                         <div className="flex items-center justify-between font-medium">
-                          <div className="flex items-center gap-2 text-ink">
+                          <div className="flex items-center gap-2 text-[#0B0B0D]">
                             <Icon size={15} style={{ color: mod.color }} />
                             <span>{mod.name}</span>
                           </div>
@@ -370,7 +365,7 @@ const RANGES = [
                             {mod.score !== null ? `${mod.score}%` : "—"}
                           </span>
                         </div>
-                        <div className="w-full h-2.5 bg-bg-soft rounded-full overflow-hidden">
+                        <div className="w-full h-2.5 bg-[#F4F4F6] rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{ width: `${mod.score ?? 0}%`, backgroundColor: mod.color }}
@@ -383,10 +378,10 @@ const RANGES = [
               </div>
 
               {/* Score Band Distribution */}
-              <div className="lg:col-span-5 bg-white border border-line rounded-xl p-6 shadow-sm space-y-5 flex flex-col justify-between">
+              <div className="lg:col-span-5 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-5 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-ink">Score Distribution Bands</h3>
-                  <p className="text-[12px] text-stext-2">Candidate distribution across composite score bands.</p>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Score Distribution Bands</h3>
+                  <p className="text-[12px] text-[#8B8B93]">Candidate distribution across composite score bands.</p>
                 </div>
 
                 <div className="w-full h-[220px]">
@@ -422,22 +417,22 @@ const RANGES = [
             </div>
 
             {/* Violation Breakdown Table */}
-            <div className="bg-white border border-line rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-semibold text-ink">Proctoring Flag &amp; Evidence Analytics</h3>
-              <div className="divide-y divide-bg-inset border border-line rounded-lg overflow-hidden">
+            <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Proctoring Flag &amp; Evidence Analytics</h3>
+              <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-lg overflow-hidden">
                 {integrityAnalytics.violations.map((item) => (
-                  <div key={item.name} className="p-4 bg-white flex items-center justify-between hover:bg-bg-soft transition-colors">
+                  <div key={item.name} className="p-4 bg-white flex items-center justify-between hover:bg-[#F7F7F9] transition-colors">
                     <div className="flex items-center gap-3">
-                      <ShieldAlert size={16} className={item.risk === "HIGH" ? "text-rose-600" : item.risk === "MEDIUM" ? "text-amber-600" : "text-brand"} />
+                      <ShieldAlert size={16} className={item.risk === "HIGH" ? "text-rose-600" : item.risk === "MEDIUM" ? "text-amber-600" : "text-[#2F5CFF]"} />
                       <div>
-                        <div className="text-[13px] font-semibold text-ink">{item.name}</div>
-                        <div className="text-[11px] text-stext-2 font-mono">Category Code: {item.category}</div>
+                        <div className="text-[13px] font-semibold text-[#0B0B0D]">{item.name}</div>
+                        <div className="text-[11px] text-[#8B8B93] font-mono">Category Code: {item.category}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <div className="text-[13px] font-bold text-ink font-mono">{item.count} occurrences</div>
-                        <div className="text-[11px] text-stext-2">{item.rate} of total sessions</div>
+                        <div className="text-[13px] font-bold text-[#0B0B0D] font-mono">{item.count} occurrences</div>
+                        <div className="text-[11px] text-[#8B8B93]">{item.rate} of total sessions</div>
                       </div>
                       <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
                         item.risk === "HIGH" ? "bg-rose-100 text-rose-700" : item.risk === "MEDIUM" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
@@ -452,25 +447,23 @@ const RANGES = [
           </div>
         )}
 
-
-
-        {/* TAB 4: CUSTOM EXPORT CONFIGURATION */}
+        {/* TAB 3: CUSTOM EXPORT CONFIGURATION */}
         {activeTab === "EXPORTS" && (
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* Export Configuration Card */}
-            <div className="bg-white border border-line rounded-xl p-6 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-bg-inset pb-5">
+            <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EFF0F3] pb-5">
                 <div>
-                  <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-2 mb-1">
+                  <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#5B5B64] mb-1">
                     <Settings2 size={14} /> Export Configuration &amp; Field Customizer
                   </div>
-                  <div className="text-[14px] text-ink">
+                  <div className="text-[14px] text-[#0B0B0D]">
                     Configure data fields included in generated PDF, CSV, and JSON report payloads
                   </div>
                 </div>
                 
                 {/* Segmented Control */}
-                <div className="flex p-1 bg-bg-soft rounded-lg border border-line">
+                <div className="flex p-1 bg-[#F7F7F9] rounded-lg border border-[#E6E6EA]">
                   {(["internal", "candidate"] as const).map((v) => (
                     <button
                       key={v}
@@ -478,8 +471,8 @@ const RANGES = [
                       onClick={() => setVariant(v)}
                       className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-all cursor-pointer ${
                         variant === v 
-                          ? "bg-white shadow-sm text-ink border border-line/50 font-semibold" 
-                          : "text-ink-2 hover:text-ink"
+                          ? "bg-white shadow-sm text-[#0B0B0D] border border-[#E6E6EA]/50 font-semibold" 
+                          : "text-[#5B5B64] hover:text-[#0B0B0D]"
                       }`}
                     >
                       {v === "internal" ? "Internal / Recruiter" : "Candidate-Facing"}
@@ -492,27 +485,27 @@ const RANGES = [
                 {FIELDS[variant].map((f: any) => (
                   <label
                     key={f.label}
-                    className="group flex items-start gap-3 border border-line rounded-xl p-4 hover:border-brand hover:bg-brand/10/30 transition-colors cursor-pointer"
+                    className="group flex items-start gap-3 border border-[#E6E6EA] rounded-xl p-4 hover:border-[#2F5CFF] hover:bg-[#F0F4FF]/30 transition-colors cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       defaultChecked
-                      className="mt-1 w-4 h-4 text-brand rounded border-line focus:ring-brand"
+                      className="mt-1 w-4 h-4 text-[#2F5CFF] rounded border-[#E6E6EA] focus:ring-[#2F5CFF]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <div className="text-[13px] font-semibold text-ink">{f.label}</div>
+                        <div className="text-[13px] font-semibold text-[#0B0B0D]">{f.label}</div>
                         {f.sensitive ? (
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-danger bg-rose-50 px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#E5484D] bg-[#FFF0F0] px-2 py-0.5 rounded">
                             <Lock size={10} /> Sensitive
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand bg-brand/10 px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#2F5CFF] bg-[#F0F4FF] px-2 py-0.5 rounded">
                             <Eye size={10} /> Standard
                           </div>
                         )}
                       </div>
-                      <div className="text-[12px] text-ink-2">{f.note}</div>
+                      <div className="text-[12px] text-[#5B5B64]">{f.note}</div>
                     </div>
                   </label>
                 ))}
@@ -525,8 +518,6 @@ const RANGES = [
     </AppShell>
   );
 }
-
-
 
 const FIELDS = {
   internal: [

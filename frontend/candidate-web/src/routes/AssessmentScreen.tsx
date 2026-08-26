@@ -1,74 +1,90 @@
-import React, { useEffect } from 'react'
-import { useSessionStore } from '../store/sessionMachine'
-import { services } from '../services'
-import { useAssessmentTimer } from '../components/Timer'
-import { MCQModule } from '../modules/mcq/MCQModule'
-import { SQLModule } from '../modules/sql/SQLModule'
-import { CodingModule } from '../modules/coding/CodingModule'
-import { DebuggingModule } from '../modules/debugging/DebuggingModule'
-import { PromptingModule } from '../modules/prompting/PromptingModule'
-import { ContextualModule } from '../modules/contextual/ContextualModule'
-import { TestScenariosModule } from '../modules/test-scenarios/TestScenariosModule'
-import { NOSQLModule } from '../modules/nosql/NOSQLModule'
-import { getEffectiveModuleType } from '../utils/moduleType'
+import React, { useEffect } from 'react';
+import { useSessionStore } from '../store/sessionMachine';
+import { services } from '../services';
+import { useAssessmentTimer } from '../components/Timer';
+import { MCQModule } from '../modules/mcq/MCQModule';
+import { SQLModule } from '../modules/sql/SQLModule';
+import { CodingModule } from '../modules/coding/CodingModule';
+import { DebuggingModule } from '../modules/debugging/DebuggingModule';
+import { PromptingModule } from '../modules/prompting/PromptingModule';
+import { ContextualModule } from '../modules/contextual/ContextualModule';
+import { TestScenariosModule } from '../modules/test-scenarios/TestScenariosModule';
+import { NOSQLModule } from '../modules/nosql/NOSQLModule';
+import { getEffectiveModuleType } from '../utils/moduleType';
+import { IdentityCaptureScheduler } from '../proctoring/identity-capture.scheduler';
 
 interface AssessmentScreenProps {
-  moduleIndex: number
-  sessionId: string
+  moduleIndex: number;
+  sessionId: string;
 }
 
 export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenProps) {
-  const { setTimerStart, assessment } = useSessionStore()
+  const { setTimerStart, assessment, session } = useSessionStore();
 
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-      return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL']
+      return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL'];
     }
-    const types: string[] = []
+    const types: string[] = [];
     for (const q of assessment.questions) {
-      const type = getEffectiveModuleType(q)
+      const type = getEffectiveModuleType(q);
       if (type && !types.includes(type)) {
-        types.push(type)
+        types.push(type);
       }
     }
-    return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL']
-  }, [assessment?.questions])
+    return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL'];
+  }, [assessment?.questions]);
 
   // Start timer when Module 1 opens (never before)
   useEffect(() => {
     if (moduleIndex === 0) {
-      const nowMs = services.time.getServerNow()
-      setTimerStart(nowMs)
+      const nowMs = services.time.getServerNow();
+      setTimerStart(nowMs);
     }
-  }, [moduleIndex, sessionId])
+
+    if (assessment?.sessionId || sessionId) {
+      const activeSessionId = assessment?.sessionId || sessionId;
+      const durationMinutes = assessment?.totalSeconds
+        ? Math.max(1, Math.round(assessment.totalSeconds / 60))
+        : session?.durationMinutes || 15;
+      const startedAt = session?.startedAt || null;
+
+      console.log(`[AssessmentScreen] Initializing IdentityCaptureScheduler for session ${activeSessionId} (${durationMinutes} mins)...`);
+      IdentityCaptureScheduler.getInstance().start(
+        activeSessionId,
+        durationMinutes,
+        startedAt,
+      );
+    }
+  }, [moduleIndex, sessionId, assessment?.sessionId, assessment?.totalSeconds, session?.durationMinutes, session?.startedAt]);
 
   // The timer hook handles auto-submit on expiry
-  useAssessmentTimer()
+  useAssessmentTimer();
 
-  if (!assessment) return null
+  if (!assessment) return null;
 
-  const currentModuleType = activeModules[moduleIndex] || activeModules[0]
+  const currentModuleType = activeModules[moduleIndex] || activeModules[0];
 
   switch (currentModuleType) {
     case 'MCQ':
-      return <MCQModule moduleIndex={moduleIndex} />
+      return <MCQModule moduleIndex={moduleIndex} />;
     case 'SQL':
-      return <SQLModule moduleIndex={moduleIndex} />
+      return <SQLModule moduleIndex={moduleIndex} />;
     case 'CODING':
-      return <CodingModule moduleIndex={moduleIndex} />
+      return <CodingModule moduleIndex={moduleIndex} />;
     case 'DEBUGGING':
-      return <DebuggingModule moduleIndex={moduleIndex} />
+      return <DebuggingModule moduleIndex={moduleIndex} />;
     case 'AI_PROMPTING':
-      return <PromptingModule moduleIndex={moduleIndex} />
+      return <PromptingModule moduleIndex={moduleIndex} />;
     case 'NOSQL':
-      return <NOSQLModule moduleIndex={moduleIndex} />
+      return <NOSQLModule moduleIndex={moduleIndex} />;
     case 'SIMULATION':
     case 'CONTEXTUAL':
-      return <ContextualModule moduleIndex={moduleIndex} />
+      return <ContextualModule moduleIndex={moduleIndex} />;
     case 'TEST_SCENARIOS':
-      return <TestScenariosModule moduleIndex={moduleIndex} />
+      return <TestScenariosModule moduleIndex={moduleIndex} />;
     default:
-      return <MCQModule moduleIndex={moduleIndex} />
+      return <MCQModule moduleIndex={moduleIndex} />;
   }
 }

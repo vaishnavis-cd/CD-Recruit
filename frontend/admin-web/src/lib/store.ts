@@ -15,7 +15,7 @@ if (typeof window !== "undefined") {
     const res = await originalFetch(url, options);
     if (res.status === 401) {
       const urlStr = typeof url === "string" ? url : (url as URL).toString();
-      if (urlStr.startsWith(API_BASE)) {
+      if (urlStr.startsWith(API_BASE) || urlStr.includes("/api/v1")) {
         clearStoredToken();
         if (window.location.pathname !== "/login") {
           window.location.replace("/login");

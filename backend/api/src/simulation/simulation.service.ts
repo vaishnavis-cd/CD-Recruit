@@ -812,7 +812,6 @@ export class SimulationService implements AssessmentModuleEngine {
       evaluation,
     );
 
-
     const payloadWithModule = {
       ...(typeof evaluation === "object" ? evaluation : {}),
       initialSayText: state.initialSayText,

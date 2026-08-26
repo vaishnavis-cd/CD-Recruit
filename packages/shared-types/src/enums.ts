@@ -382,4 +382,3 @@ function resolveTierFromNumericYears(years: number) {
 }
 
 export const SUPPORTED_CODING_LANGUAGES = ["python", "javascript", "java", "cpp"] as const;
-

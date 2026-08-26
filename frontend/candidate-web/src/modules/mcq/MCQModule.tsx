@@ -1,81 +1,81 @@
-import React, { useEffect, useState } from 'react'
-import type { MCQQuestion } from '../../fixtures/questions'
-import { useSessionStore } from '../../store/sessionMachine'
-import { ModuleShell } from '../../components/ModuleShell'
-import { useModuleNavigation } from '../../hooks/useModuleNavigation'
-import apiClient from '../../api/client'
-import { Check, ChevronLeft } from 'lucide-react'
+import React, { useEffect, useState } from 'react';
+import type { MCQQuestion } from '../../fixtures/questions';
+import { useSessionStore } from '../../store/sessionMachine';
+import { ModuleShell } from '../../components/ModuleShell';
+import { useModuleNavigation } from '../../hooks/useModuleNavigation';
+import apiClient from '../../api/client';
+import { Check, ChevronLeft } from 'lucide-react';
 
 interface MCQModuleProps {
-  moduleIndex: number
+  moduleIndex: number;
 }
 
 export function MCQModule({ moduleIndex }: MCQModuleProps) {
-  const [currentIndex, setCurrentIndex] = React.useState(0)
-  const assessment = useSessionStore(s => s.assessment)
-  const setResponse = useSessionStore(s => s.setResponse)
-  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
-  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion)
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const assessment = useSessionStore(s => s.assessment);
+  const setResponse = useSessionStore(s => s.setResponse);
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
+  const setCurrentQuestion = useSessionStore(s => s.setCurrentQuestion);
 
   const assignedMcqQuestions = React.useMemo(() => {
-    if (!assessment?.questions || assessment.questions.length === 0) return []
-    return assessment.questions.filter((q) => q.moduleType === 'MCQ')
-  }, [assessment?.questions])
+    if (!assessment?.questions || assessment.questions.length === 0) return [];
+    return assessment.questions.filter((q) => q.moduleType === 'MCQ');
+  }, [assessment?.questions]);
 
-  const questions = assignedMcqQuestions
-  const questionMetadata = questions[currentIndex]
-  const questionId = questionMetadata?.questionId ?? ''
+  const questions = assignedMcqQuestions;
+  const questionMetadata = questions[currentIndex];
+  const questionId = questionMetadata?.questionId ?? '';
 
-  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length)
+  const { handleNext, nextButtonLabel } = useModuleNavigation(moduleIndex, currentIndex, questions.length);
 
-  const [questionData, setQuestionData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [questionData, setQuestionData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Restore current question from persisted state
   useEffect(() => {
     if (assessment?.currentModuleIndex === moduleIndex) {
-      setCurrentIndex(assessment.currentQuestionIndex)
+      setCurrentIndex(assessment.currentQuestionIndex);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    setCurrentQuestion(moduleIndex, currentIndex)
-  }, [currentIndex, moduleIndex, setCurrentQuestion])
+    setCurrentQuestion(moduleIndex, currentIndex);
+  }, [currentIndex, moduleIndex, setCurrentQuestion]);
 
   // Fetch question details and responses from backend
   useEffect(() => {
     if (!assessment?.sessionId || !questionId) {
-      setLoading(false)
-      return
+      setLoading(false);
+      return;
     }
-    let isMounted = true
-    setLoading(true)
-    setError(null)
+    let isMounted = true;
+    setLoading(true);
+    setError(null);
     apiClient.get(`/sessions/${assessment.sessionId}/questions/${questionId}`)
       .then(res => {
         if (isMounted) {
-          setQuestionData(res.data)
-          setLoading(false)
+          setQuestionData(res.data);
+          setLoading(false);
         }
       })
       .catch(err => {
         if (isMounted) {
-          setError(err.message || 'Failed to load question details')
-          setLoading(false)
+          setError(err.message || 'Failed to load question details');
+          setLoading(false);
         }
-      })
-    return () => { isMounted = false }
-  }, [assessment?.sessionId, questionId])
+      });
+    return () => { isMounted = false; };
+  }, [assessment?.sessionId, questionId]);
 
   // Map to MCQQuestion structure
   const question = React.useMemo(() => {
-    const content = questionData?.content || questionMetadata?.content || {}
-    const rawOptions = content.options || []
+    const content = questionData?.content || questionMetadata?.content || {};
+    const rawOptions = content.options || [];
     const options = rawOptions.map((opt: any, optIdx: number) => {
-      if (typeof opt === 'string') return { id: `opt_${optIdx}`, text: opt }
-      return { id: opt.id || `opt_${optIdx}`, text: opt.text || opt.label || `Option ${optIdx + 1}` }
-    })
+      if (typeof opt === 'string') return { id: `opt_${optIdx}`, text: opt };
+      return { id: opt.id || `opt_${optIdx}`, text: opt.text || opt.label || `Option ${optIdx + 1}` };
+    });
     return {
       id: questionId || 'mcq_q1',
       moduleIndex,
@@ -89,48 +89,48 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
       ],
       allowMultiple: Boolean(content.allowMultiple),
       correctIds: [],
-    } as MCQQuestion
-  }, [questionData, questionMetadata, questionId, moduleIndex])
+    } as MCQQuestion;
+  }, [questionData, questionMetadata, questionId, moduleIndex]);
 
   // Sync DB response to store
   useEffect(() => {
     if (questionData && questionId) {
-      const dbResponse = questionData.response?.responsePayload as { selectedOptions?: string[] } | undefined
+      const dbResponse = questionData.response?.responsePayload as { selectedOptions?: string[] } | undefined;
       if (dbResponse?.selectedOptions && !assessment?.responses[questionId]) {
-        setResponse(questionId, dbResponse.selectedOptions)
-        setQuestionStatus(questionId, 'answered')
+        setResponse(questionId, dbResponse.selectedOptions);
+        setQuestionStatus(questionId, 'answered');
       }
     }
-  }, [questionData, questionId])
+  }, [questionData, questionId]);
 
-  const currentSelection = (assessment?.responses[questionId] as string[] | undefined) || []
+  const currentSelection = (assessment?.responses[questionId] as string[] | undefined) || [];
 
   function handleOptionSelect(optionId: string) {
-    if (!question) return
-    let nextSelection: string[]
+    if (!question) return;
+    let nextSelection: string[];
     if (question.allowMultiple) {
       nextSelection = currentSelection.includes(optionId)
         ? currentSelection.filter(id => id !== optionId)
-        : [...currentSelection, optionId]
+        : [...currentSelection, optionId];
     } else {
-      nextSelection = [optionId]
+      nextSelection = [optionId];
     }
-    setResponse(questionId, nextSelection)
-    setQuestionStatus(questionId, 'answered')
+    setResponse(questionId, nextSelection);
+    setQuestionStatus(questionId, 'answered');
   }
 
   function handleSkip() {
-    if (!questionId) return
+    if (!questionId) return;
     if (!assessment?.questionStatus[questionId] || assessment?.questionStatus[questionId] === 'unvisited') {
-      setQuestionStatus(questionId, 'skipped')
+      setQuestionStatus(questionId, 'skipped');
     }
-    handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))
+    handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)));
   }
 
   const paletteItems = questions.map((q, i) => ({
     id: q.questionId,
     label: `Q${i + 1}`,
-  }))
+  }));
 
   if (loading) {
     return (
@@ -139,7 +139,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
           <span className="text-[var(--text-secondary)] text-sm animate-pulse">Loading question…</span>
         </div>
       </ModuleShell>
-    )
+    );
   }
 
   if (error || !question) {
@@ -149,7 +149,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
           <span className="text-[var(--warning)] text-sm">{error || 'No questions available for this module.'}</span>
         </div>
       </ModuleShell>
-    )
+    );
   }
 
   return (
@@ -159,24 +159,24 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-background">
+      <div className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-[var(--background)]">
         {/* Scrollable Question Content Area */}
         <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6">
           <div className="max-w-3xl mx-auto space-y-6 animate-cd-fade-in">
             {/* Question Header */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold tracking-wider uppercase text-accent font-mono">
+              <span className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] font-mono">
                 Question {currentIndex + 1} of {questions.length}
               </span>
               {question?.allowMultiple && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border text-accent font-medium">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--accent)] font-medium">
                   Multiple select
                 </span>
               )}
             </div>
 
             {/* Question Text */}
-            <h2 className="text-lg sm:text-xl font-semibold text-foreground leading-relaxed">
+            <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)] leading-relaxed">
               {question?.text}
             </h2>
 
@@ -185,8 +185,8 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
               <legend className="sr-only">Options</legend>
               <div className="space-y-3">
                 {question?.options.map(option => {
-                  const isSelected = currentSelection.includes(option.id)
-                  const inputType = question.allowMultiple ? 'checkbox' : 'radio'
+                  const isSelected = currentSelection.includes(option.id);
+                  const inputType = question.allowMultiple ? 'checkbox' : 'radio';
 
                   return (
                     <label
@@ -194,8 +194,8 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                       className={`
                         flex items-center gap-4 p-4 rounded-xl border text-sm transition-all cursor-pointer select-none
                         ${isSelected
-                          ? 'border-accent bg-accent/10 text-foreground font-medium shadow-xs ring-1 ring-accent/30'
-                          : 'border-border bg-surface text-muted-foreground hover:border-foreground hover:text-foreground'
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)] font-medium shadow-xs ring-1 ring-[var(--accent)]/30'
+                          : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted-foreground)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]'
                         }
                       `}
                     >
@@ -215,8 +215,8 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                           w-5 h-5 flex items-center justify-center border text-xs font-bold transition-colors shrink-0
                           ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
                           ${isSelected
-                            ? 'border-accent bg-accent text-white'
-                            : 'border-border bg-background text-muted-foreground'
+                            ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                            : 'border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]'
                           }
                         `}
                       >
@@ -225,7 +225,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
 
                       <span className="flex-1">{option.text}</span>
                     </label>
-                  )
+                  );
                 })}
               </div>
             </fieldset>
@@ -233,32 +233,32 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
         </div>
 
         {/* Standardized Pinned Bottom Navigation Bar */}
-        <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+        <footer className="h-14 border-t border-[var(--border)] bg-[var(--surface)] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
           <button
             onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             aria-label="Previous question"
           >
             <ChevronLeft size={14} />
             <span>Previous</span>
           </button>
 
-          <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+          <span className="text-xs font-mono font-medium text-[var(--muted-foreground)] hidden sm:inline">
             Question {currentIndex + 1} of {questions.length}
           </span>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handleSkip}
-              className="px-3.5 py-2 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
+              className="px-3.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
               aria-label="Skip this question"
             >
               Skip
             </button>
             <button
               onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
               aria-label={nextButtonLabel}
             >
               <span>{nextButtonLabel}</span>
@@ -267,5 +267,5 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
         </footer>
       </div>
     </ModuleShell>
-  )
+  );
 }

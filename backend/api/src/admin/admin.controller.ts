@@ -32,6 +32,7 @@ import {
   ListInvitesQueryDto,
   ExtendExpiryDto,
   BulkInviteActionDto,
+  BulkVerifyIdentityDto,
 } from "../common/dto/admin.dto";
 
 @Controller("admin")
@@ -128,6 +129,10 @@ export class AdminController {
     return this.adminService.getIntegrityFlags(sessionId);
   }
 
+  @Get("role-templates")
+  async listRoleTemplates() {
+    return this.adminService.listRoleTemplates();
+  }
 
   @Post("invites")
   @HttpCode(HttpStatus.CREATED)
@@ -203,6 +208,24 @@ export class AdminController {
       throw new BadRequestException("No image file uploaded in form field 'file'");
     }
     return this.inviteService.uploadIdProof(inviteId, file);
+  }
+
+  @Post("candidates/verify-identity/bulk")
+  @HttpCode(HttpStatus.OK)
+  async bulkVerifyCandidateIdentity(
+    @Body() dto: BulkVerifyIdentityDto,
+    @CurrentUser() staff: any,
+  ) {
+    return this.adminService.bulkVerifyCandidateIdentity(dto.candidateIds, staff.id);
+  }
+
+  @Post("candidates/:candidateId/verify-identity")
+  @HttpCode(HttpStatus.OK)
+  async verifyCandidateIdentity(
+    @Param("candidateId", ParseUUIDPipe) candidateId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.adminService.verifyCandidateIdentity(candidateId, staff.id);
   }
 
   @Post("sessions/compare")

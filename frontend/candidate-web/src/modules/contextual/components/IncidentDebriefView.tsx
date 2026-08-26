@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -12,13 +13,13 @@ import {
   Activity,
   UserCheck,
   ChevronRight,
-} from 'lucide-react'
-import { ResolutionData } from './IncidentResolutionModal'
+} from 'lucide-react';
+import { ResolutionData } from './IncidentResolutionModal';
 
 interface IncidentDebriefViewProps {
-  resolutionData?: ResolutionData | null
-  actionHistory: Array<{ timestamp: string; label: string; type: string }>
-  onCompleteModule?: () => void
+  resolutionData?: ResolutionData | null;
+  actionHistory: Array<{ timestamp: string; label: string; type: string }>;
+  onCompleteModule?: () => void;
 }
 
 export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteModule }: IncidentDebriefViewProps) {
@@ -29,7 +30,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
     riskAssessment: 90,
     timeManagement: 85,
     decisionMaking: 90,
-  }
+  };
 
   const expertMetrics = [
     { metric: 'Time Spent', expert: '12m 30s', candidate: '11m 45s', status: 'BETTER' },
@@ -37,7 +38,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
     { metric: 'Diagnostic Runs', expert: '3 runs', candidate: '2 runs', status: 'MATCH' },
     { metric: 'Communication Score', expert: '90%', candidate: '95%', status: 'BETTER' },
     { metric: 'Risk Assessment Score', expert: '95%', candidate: '90%', status: 'MATCH' },
-  ]
+  ];
 
   const timelineEvents = [
     { time: '09:14', event: 'QA reported login validation bug during regression', icon: AlertTriangle, color: 'text-amber-500' },
@@ -47,7 +48,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
     { time: '10:18', event: 'Implemented leading & trailing space validation fix', icon: FileCode, color: 'text-indigo-500' },
     { time: '10:22', event: 'Communicated deployment status to PM & Engineering Manager', icon: MessageSquare, color: 'text-blue-500' },
     { time: '10:25', event: 'Signed off Incident Resolution & authorized deployment', icon: CheckCircle2, color: 'text-emerald-500' },
-  ]
+  ];
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-6 space-y-6 pb-20 text-[var(--text-primary)]">
@@ -134,14 +135,14 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Replay Timeline */}
         <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-accent flex items-center gap-2">
-            <Clock className="w-4 h-4 text-accent" />
+          <h3 className="text-xs font-bold uppercase tracking-wider font-mono text-[var(--accent)] flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[var(--accent)]" />
             <span>Incident Replay Timeline</span>
           </h3>
 
           <div className="relative pl-6 space-y-4 border-l border-[var(--border)]">
             {timelineEvents.map((evt, idx) => {
-              const Icon = evt.icon
+              const Icon = evt.icon;
               return (
                 <div key={idx} className="relative space-y-0.5">
                   <div className="absolute -left-[31px] top-0 p-1 rounded-full bg-[var(--surface)] border border-[var(--border)]">
@@ -152,7 +153,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
                     <span className="text-xs font-semibold text-[var(--text-primary)]">{evt.event}</span>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -239,5 +240,5 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
         </div>
       </div>
     </div>
-  )
+  );
 }

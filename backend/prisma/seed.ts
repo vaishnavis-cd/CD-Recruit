@@ -2,9 +2,6 @@
  * backend/prisma/seed.ts
  *
  * Prisma seed script for the CD-Recruit assessment platform.
- * Reads seed question datasets from declarative JSON files in backend/prisma/data/
- * and seniority_l2_l3_question_batch.json.
- *
  * Populates:
  * - Exactly 32 Role Templates (8 Departments x 4 Experience Tiers) with 90 min duration.
  * - ~600-700 Questions with Department & Seniority tagging (Fresher, L1, L2, L3).
@@ -29,7 +26,6 @@ dotenv.config({ path: path.join(__dirname, "../api/.env") });
 import { nosqlQuestions } from "./data/nosql";
 
 const prisma = new PrismaClient();
-
 // ---------------------------------------------------------------------------
 // Constants & Configuration
 // ---------------------------------------------------------------------------

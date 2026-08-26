@@ -39,7 +39,7 @@ export interface UpdateRoleTemplateDto {
 
 @Injectable()
 export class RoleTemplateService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Lookup current active RoleTemplate for a specific Department and ExperienceLevel / Category / Tier.
@@ -181,14 +181,14 @@ export class RoleTemplateService {
         questions:
           questions && questions.length > 0
             ? {
-              create: questions.map((q, idx) => ({
-                questionId: q.questionId,
-                moduleType: q.moduleType,
-                orderIndex: q.orderIndex ?? idx,
-                questionVersionSnapshot: q.questionVersionSnapshot,
-                pointShare: q.pointShare,
-              })),
-            }
+                create: questions.map((q, idx) => ({
+                  questionId: q.questionId,
+                  moduleType: q.moduleType,
+                  orderIndex: q.orderIndex ?? idx,
+                  questionVersionSnapshot: q.questionVersionSnapshot,
+                  pointShare: q.pointShare,
+                })),
+              }
             : undefined,
       },
       include: {
@@ -253,7 +253,7 @@ export class RoleTemplateService {
    * Standard CRUD: Update an existing RoleTemplate.
    */
   async update(id: string, dto: UpdateRoleTemplateDto) {
-    const current = await this.findOne(id);
+    await this.findOne(id);
 
     return this.prisma.$transaction(async (tx) => {
       const {

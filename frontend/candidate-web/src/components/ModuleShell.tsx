@@ -1,26 +1,26 @@
-import React, { useEffect, useCallback } from 'react'
-import { Timer, TimerWarningBanner } from './Timer'
-import { QuestionPalette } from './QuestionPalette'
-import { ProctoringIndicator } from './ProctoringIndicator'
-import { useSessionStore } from '../store/sessionMachine'
-import { services } from '../services'
-import { MODULES } from '../fixtures/questions'
-import { getEffectiveModuleType } from '../utils/moduleType'
-import { useTheme } from '../theme/ThemeProvider'
-import { ProctoringModule } from '../proctoring/proctoring.module'
-import { Moon, Sun } from 'lucide-react'
+import React, { useEffect, useCallback } from 'react';
+import { Timer, TimerWarningBanner } from './Timer';
+import { QuestionPalette } from './QuestionPalette';
+import { ProctoringIndicator } from './ProctoringIndicator';
+import { useSessionStore } from '../store/sessionMachine';
+import { services } from '../services';
+import { MODULES } from '../fixtures/questions';
+import { getEffectiveModuleType } from '../utils/moduleType';
+import { useTheme } from '../theme/ThemeProvider';
+import { ProctoringModule } from '../proctoring/proctoring.module';
+import { Moon, Sun } from 'lucide-react';
 
-import { WatermarkOverlay } from './common/WatermarkOverlay'
-import { IntegrityAlertBanner } from './common/IntegrityAlertBanner'
-import { ProctoringEventModal } from './common/ProctoringEventModal'
-import { useIntegrityEvents } from '../hooks/useIntegrityEvents'
+import { WatermarkOverlay } from './common/WatermarkOverlay';
+import { IntegrityAlertBanner } from './common/IntegrityAlertBanner';
+import { ProctoringEventModal } from './common/ProctoringEventModal';
+import { useIntegrityEvents } from '../hooks/useIntegrityEvents';
 
 interface ModuleShellProps {
-  moduleIndex: number
-  questions: Array<{ id: string; label: string }>
-  currentQuestionIndex: number
-  onNavigate: (index: number) => void
-  children: React.ReactNode
+  moduleIndex: number;
+  questions: Array<{ id: string; label: string }>;
+  currentQuestionIndex: number;
+  onNavigate: (index: number) => void;
+  children: React.ReactNode;
 }
 
 // Two distinct named functions for silent vs visible integrity signaling (spec rule)
@@ -29,46 +29,46 @@ function reportSilentSignal(kind: 'tab-switch' | 'window-blur' | 'paste-anomaly'
     kind,
     category: 'silent',
     timestamp: new Date(services.time.getServerNow()).toISOString(),
-  }).catch(() => {}) // fire-and-forget, never show to candidate
+  }).catch(() => {}); // fire-and-forget, never show to candidate
 }
 
 // Moved to its own file to satisfy React Fast Refresh (no mixed hook+component exports)
 function useFunctionalNudge() {
-  const [fullscreenExited, setFullscreenExited] = React.useState(false)
+  const [fullscreenExited, setFullscreenExited] = React.useState(false);
 
   useEffect(() => {
     function onFullscreenChange() {
       if (!document.fullscreenElement) {
-        setFullscreenExited(true)
+        setFullscreenExited(true);
         services.sessionApi.reportIntegritySignal({
           kind: 'fullscreen-exit',
           category: 'functional',
           timestamp: new Date(services.time.getServerNow()).toISOString(),
-        }).catch(() => {})
+        }).catch(() => {});
       } else {
-        setFullscreenExited(false)
+        setFullscreenExited(false);
       }
     }
-    document.addEventListener('fullscreenchange', onFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
-  }, [])
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
-  return { fullscreenExited, setFullscreenExited }
+  return { fullscreenExited, setFullscreenExited };
 }
 
 export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNavigate, children }: ModuleShellProps) {
-  const { alerts, dismissAlert } = useIntegrityEvents()
-  const cvMode = useSessionStore(s => s.cvMode)
-  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
-  const assessment = useSessionStore(s => s.assessment)
-  const transitionTo = useSessionStore(s => s.transitionTo)
-  const { theme, toggle } = useTheme()
-  const { fullscreenExited, setFullscreenExited } = useFunctionalNudge()
-  const [networkDisconnected, setNetworkDisconnected] = React.useState(false)
+  const { alerts, dismissAlert } = useIntegrityEvents();
+  const cvMode = useSessionStore(s => s.cvMode);
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
+  const assessment = useSessionStore(s => s.assessment);
+  const transitionTo = useSessionStore(s => s.transitionTo);
+  const { theme, toggle } = useTheme();
+  const { fullscreenExited, setFullscreenExited } = useFunctionalNudge();
+  const [networkDisconnected, setNetworkDisconnected] = React.useState(false);
 
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-      return MODULES
+      return MODULES;
     }
     const MODULE_NAME_MAP: Record<string, { id: string; name: string }> = {
       MCQ: { id: 'mcq', name: 'MCQ' },
@@ -79,80 +79,81 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
       AI_PROMPTING: { id: 'prompting', name: 'AI Prompting' },
       SIMULATION: { id: 'simulation', name: 'Contextual Simulation' },
       CONTEXTUAL: { id: 'simulation', name: 'Contextual Simulation' },
-    }
-    const types: string[] = []
+      TEST_SCENARIOS: { id: 'test_scenarios', name: 'Test Scenarios' },
+    };
+    const types: string[] = [];
     for (const q of assessment.questions) {
-      const type = getEffectiveModuleType(q)
+      const type = getEffectiveModuleType(q);
       if (type && !types.includes(type)) {
-        types.push(type)
+        types.push(type);
       }
     }
-    if (types.length === 0) return MODULES
-    return types.map((t) => MODULE_NAME_MAP[t] || { id: t.toLowerCase(), name: t })
-  }, [assessment?.questions])
+    if (types.length === 0) return MODULES;
+    return types.map((t) => MODULE_NAME_MAP[t] || { id: t.toLowerCase(), name: t });
+  }, [assessment?.questions]);
 
-  const currentModule = activeModules[moduleIndex] || activeModules[0]
-  const currentQuestion = questions[currentQuestionIndex]
+  const currentModule = activeModules[moduleIndex] || activeModules[0];
+  const currentQuestion = questions[currentQuestionIndex];
 
   // STEP 1: Start ProctoringModule when assessment session is active
   useEffect(() => {
-    const sessionId = assessment?.sessionId
+    const sessionId = assessment?.sessionId;
     if (!sessionId) {
-      console.warn('[ModuleShell] STEP 1: sessionId is undefined, skipping ProctoringModule.start()')
-      return
+      console.warn('[ModuleShell] STEP 1: sessionId is undefined, skipping ProctoringModule.start()');
+      return;
     }
 
-    console.log(`[ModuleShell] STEP 1: Active assessment session detected: ${sessionId}. Starting ProctoringModule...`)
+    console.log(`[ModuleShell] STEP 1: Active assessment session detected: ${sessionId}. Starting ProctoringModule...`);
     ProctoringModule.getInstance()
       .start(sessionId)
       .then((started) => {
-        console.log(`[ModuleShell] STEP 1: ProctoringModule.start() returned: ${started}`)
+        console.log(`[ModuleShell] STEP 1: ProctoringModule.start() returned: ${started}`);
       })
       .catch((err) => {
-        console.error('[ModuleShell] STEP 1: Exception thrown in ProctoringModule.start():', err)
-      })
+        console.error('[ModuleShell] STEP 1: Exception thrown in ProctoringModule.start():', err);
+      });
 
     // ProctoringModule is a global singleton for the assessment session.
     // Switching question tabs within the same session must NOT tear down the camera/proctoring pipeline.
-  }, [assessment?.sessionId])
+  }, [assessment?.sessionId]);
 
   // Silent integrity signals — no UI reaction per spec
   useEffect(() => {
     function onVisibilityChange() {
-      if (document.hidden) reportSilentSignal('tab-switch')
+      if (document.hidden) reportSilentSignal('tab-switch');
     }
     function onBlur() {
-      reportSilentSignal('window-blur')
+      reportSilentSignal('window-blur');
     }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    window.addEventListener('blur', onBlur)
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onBlur);
     return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-      window.removeEventListener('blur', onBlur)
-    }
-  }, [])
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
 
   // Keyboard: F to flag/unflag
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'f' || e.key === 'F') {
-        if (!currentQuestion) return
-        const activeEl = document.activeElement
+        if (!currentQuestion) return;
+        const activeEl = document.activeElement;
         // Don't fire when typing in a textarea/input/monaco
-        if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT' || (activeEl as HTMLElement).contentEditable === 'true')) return
+        if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT' || (activeEl as HTMLElement).contentEditable === 'true')) return;
 
-        const current = assessment?.questionStatus[currentQuestion.id] ?? 'unvisited'
-        setQuestionStatus(currentQuestion.id, current === 'flagged' ? 'answered' : 'flagged')
+        const current = assessment?.questionStatus[currentQuestion.id] ?? 'unvisited';
+        setQuestionStatus(currentQuestion.id, current === 'flagged' ? 'answered' : 'flagged');
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [currentQuestion, assessment, setQuestionStatus])
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [currentQuestion, assessment, setQuestionStatus]);
 
   const handleSubmitAssessment = useCallback(() => {
-    if (!assessment) return
-    transitionTo({ type: 'pre-submit-review', sessionId: assessment.sessionId })
-  }, [assessment, transitionTo])
+    if (!assessment) return;
+    transitionTo({ type: 'pre-submit-review', sessionId: assessment.sessionId });
+  }, [assessment, transitionTo]);
 
   return (
     <div className="flex flex-col h-screen bg-[var(--bg)] overflow-hidden relative">
@@ -183,7 +184,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
           <span>Please return to fullscreen to continue</span>
           <button
             onClick={() => {
-              document.documentElement.requestFullscreen?.().then(() => setFullscreenExited(false)).catch(() => {})
+              document.documentElement.requestFullscreen?.().then(() => setFullscreenExited(false)).catch(() => {});
             }}
             className="underline font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
           >
@@ -269,5 +270,5 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </main>
       </div>
     </div>
-  )
+  );
 }

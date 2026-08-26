@@ -243,10 +243,6 @@ Implemented in `backend/api/src/settings/settings.controller.ts`. **Restricted t
 | `PATCH` | `/api/v1/admin/settings/retention` | Admin Guard | `admin-web` | **Update Data Retention Policy:** Configures automatic data purging schedules. |
 | `GET` | `/api/v1/admin/settings/appeal-window` | Admin Guard | `admin-web` Compliance | **Get Candidate Appeal Window:** Returns timeframe allowed for candidate grade appeals. |
 | `PATCH` | `/api/v1/admin/settings/appeal-window` | Admin Guard | `admin-web` | **Update Appeal Window:** Updates allowed appeal days. |
-| `GET` | `/api/v1/admin/settings/audit-log` (and `/audit-logs`) | Admin Guard | `admin-web` Audit Viewer | **List Audit Logs:** Returns immutable security audit trail of staff actions (scoring changes, candidate deletions, data exports). |
-
----
-
 ### 15. Partner ATS Integration (`/partner`)
 Implemented in `backend/api/src/partner/partner-candidates.controller.ts`, `partner-requisitions.controller.ts`, and `partner-admin.controller.ts`.
 

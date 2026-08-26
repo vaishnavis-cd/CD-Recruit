@@ -81,7 +81,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: process.env.NODE_ENV !== "production",
+      ignoreExpiration: false,
       secretOrKeyProvider: async (request, rawJwtToken, done) => {
         const secret = configService.get<string>("app.jwtSecret") || process.env.JWT_SECRET || "changeme-use-a-long-random-string";
 

@@ -76,9 +76,9 @@ export class ScenarioOrchestratorService {
       }
     }
 
-    // Resolve scenario config config structure
-    const scId = content?.id || content?.title || "";
-    const scenarioConfig = getScenarioById(scId);
+    if (!content && session.simulationSnapshot) {
+      content = session.simulationSnapshot;
+    }
 
     if (!content || !Array.isArray(content.triggers)) {
       return [];

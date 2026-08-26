@@ -61,7 +61,6 @@ Creates or updates a requisition and issues assessment invites for the submitted
 ### Request Body
 
 ```json
-{
   "requisition_ref": "REQ-2026-ENG-006",
   "department_code": "SOFTWARE_ENGINEERING",
   "category": "EXPERIENCED",

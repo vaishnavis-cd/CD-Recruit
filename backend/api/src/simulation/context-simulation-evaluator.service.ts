@@ -75,7 +75,7 @@ ${initialSayText}
 Rate 0-100 on logical thinking, debugging strategy, planning, and clarity.`;
       
       const res = await this.aiEvaluationService.evaluateSimulationResponse(scenario.description, prompt);
-      const score = res.score;
+      const score = res.score ?? 75;
       const strengths = score >= 70 ? ["Clear debugging plan outlined", "Identified potential root cause"] : ["Provided response"];
       const weaknesses = score < 70 ? ["Plan lacks specific verification steps or edge case handling"] : [];
 
@@ -123,7 +123,7 @@ ${emailReplyText}
 Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, and clarity.`;
 
       const res = await this.aiEvaluationService.evaluateSimulationResponse(scenario.managerEmail.body, prompt);
-      const score = res.score;
+      const score = res.score ?? 75;
       const strengths = score >= 75 ? ["Professional tone", "Clear ETA and risk status update"] : ["Replied to manager email"];
       const weaknesses = score < 75 ? ["Response lacked clear ETA or risk assessment"] : [];
 

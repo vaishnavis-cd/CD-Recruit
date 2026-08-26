@@ -1,106 +1,103 @@
-import React, { useEffect, useState, useMemo } from 'react'
-import { useSessionStore } from '../store/sessionMachine'
-import { services } from '../services'
-import { MODULES } from '../fixtures/questions'
-import { getEffectiveModuleType } from '../utils/moduleType'
-import { StatusChip } from '../components/common/StatusChip'
-import { LifeBuoy, ArrowRight, ShieldCheck } from 'lucide-react'
-import waitingRoomCalmImg from '../assets/waiting-room-calm.png'
+import React, { useEffect, useState, useMemo } from 'react';
+import { useSessionStore } from '../store/sessionMachine';
+import { services } from '../services';
+import { MODULES } from '../fixtures/questions';
+import { getEffectiveModuleType } from '../utils/moduleType';
+import { StatusChip } from '../components/common/StatusChip';
+import { LifeBuoy, ArrowRight, ShieldCheck } from 'lucide-react';
+import waitingRoomCalmImg from '../assets/waiting-room-calm.png';
 
-const SUPPORT_EMAIL = 'mailto:support@proctora.com'
+const SUPPORT_EMAIL = 'mailto:support@proctora.com';
 
 interface WaitingRoomScreenProps {
-  scheduledTimeMs: number
-  inviteToken: string
+  scheduledTimeMs: number;
+  inviteToken: string;
 }
 
 export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomScreenProps) {
-  const { transitionTo, session, assessment, initAssessment } = useSessionStore()
-  const [nowMs, setNowMs] = useState(() => services.time.getServerNow())
+  const { transitionTo, session, assessment, initAssessment } = useSessionStore();
+  const [nowMs, setNowMs] = useState(() => services.time.getServerNow());
 
   // Lock target preheat countdown time once on mount
   const [targetTimeMs] = useState(() => {
-    const currentNow = services.time.getServerNow()
-    let scheduled = scheduledTimeMs
+    const currentNow = services.time.getServerNow();
+    let scheduled = scheduledTimeMs;
 
     if (!scheduled) {
       try {
-        const stored = localStorage.getItem('cd-recruit-scheduled-ms')
+        const stored = localStorage.getItem('cd-recruit-scheduled-ms');
         if (stored) {
-          const parsed = parseInt(stored, 10)
-          if (!isNaN(parsed)) scheduled = parsed
+          const parsed = parseInt(stored, 10);
+          if (!isNaN(parsed)) scheduled = parsed;
         }
       } catch { /* ignore */ }
     }
 
     // Sanity-check: scheduled time must be in the future AND at most 10 minutes away.
-    // If it's more than 10 minutes away (e.g. a future-dated drive or stale localStorage),
-    // treat it as a late-arrival and apply the mandatory 60s briefing.
-    const MAX_WAIT_MS = 10 * 60 * 1000 // 10 minutes maximum countdown
+    const MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutes maximum countdown
     if (scheduled && scheduled > currentNow && (scheduled - currentNow) <= MAX_WAIT_MS) {
-      return scheduled
+      return scheduled;
     }
 
     // Candidate arrived at or after start time OR scheduled time is too far out — mandatory 60s briefing
-    const preheatTarget = currentNow + 60 * 1000
-    // Only store in localStorage if it was a fallback (don't override valid far-future scheduleMs)
-    localStorage.setItem('cd-recruit-scheduled-ms', String(preheatTarget))
-    return preheatTarget
-  })
+    const preheatTarget = currentNow + 60 * 1000;
+    localStorage.setItem('cd-recruit-scheduled-ms', String(preheatTarget));
+    return preheatTarget;
+  });
 
   useEffect(() => {
-    return services.time.subscribe(setNowMs)
-  }, [])
+    return services.time.subscribe(setNowMs);
+  }, []);
 
   // Dynamic allocated minutes
   const allocatedMinutes = session?.durationMinutes
     ? session.durationMinutes
     : assessment?.totalSeconds
     ? Math.round(assessment.totalSeconds / 60)
-    : 60
+    : 60;
 
   // Filter modules to assigned modules
   const activeModules = useMemo(() => {
-    const questions = session?.questions || assessment?.questions
+    const questions = session?.questions || assessment?.questions;
     if (questions && questions.length > 0) {
-      const activeTypes = new Set(questions.map((q: any) => getEffectiveModuleType(q)))
+      const activeTypes = new Set(questions.map((q: any) => getEffectiveModuleType(q)));
       return MODULES.filter(m => {
-        const mType = m.type.toUpperCase()
+        const mType = m.type.toUpperCase();
         if (mType === 'CONTEXTUAL' || mType === 'SIMULATION') {
-          return activeTypes.has('CONTEXTUAL') || activeTypes.has('SIMULATION')
+          return activeTypes.has('CONTEXTUAL') || activeTypes.has('SIMULATION');
         }
-        return activeTypes.has(mType as any)
-      })
+        return activeTypes.has(mType as any);
+      });
     }
-    return MODULES
-  }, [session, assessment])
+    return MODULES;
+  }, [session, assessment]);
 
   const handleStartNow = () => {
-    const storeState = useSessionStore.getState()
-    const currentSession = session || storeState.session
+    const storeState = useSessionStore.getState();
+    const currentSession = session || storeState.session;
     const validSessionId =
       currentSession?.id ||
       storeState.assessment?.sessionId ||
       localStorage.getItem('cd-recruit-session-id') ||
-      'sess_candidate'
+      'sess_candidate';
 
-    const questions = currentSession?.questions || assessment?.questions || storeState.assessment?.questions
-    const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60
+    const questions = currentSession?.questions || assessment?.questions || storeState.assessment?.questions;
+    const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60;
 
-    initAssessment(validSessionId, durationSeconds, questions)
-    transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: validSessionId })
-  }
+    initAssessment(validSessionId, durationSeconds, questions);
+    transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: validSessionId });
+  };
 
   // When 1-minute countdown reaches 0, automatically start the assessment
   useEffect(() => {
     if (nowMs >= targetTimeMs) {
-      handleStartNow()
+      handleStartNow();
     }
-  }, [nowMs, targetTimeMs])
+  }, [nowMs, targetTimeMs]);
 
-  const msRemaining = Math.max(0, targetTimeMs - nowMs)
-  const minutes = Math.floor(msRemaining / 60000)
-  const seconds = Math.floor((msRemaining % 60000) / 1000)
+  const msRemaining = Math.max(0, targetTimeMs - nowMs);
+  const minutes = Math.floor(msRemaining / 60000);
+  const seconds = Math.floor((msRemaining % 60000) / 1000);
 
   return (
     <div
@@ -136,7 +133,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
             </div>
 
             {/* Reverse Timer & Start Now CTA */}
-            <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4 shadow-[var(--shadow-sm)]">
+            <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
                   Starting Automatically In
@@ -148,7 +145,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div
-                  className="font-mono-data text-4xl font-bold tabular-nums text-[var(--accent)] tracking-tight"
+                  className="font-mono text-4xl font-bold tabular-nums text-[var(--accent)] tracking-tight"
                   role="timer"
                   aria-live="off"
                 >
@@ -198,5 +195,5 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
         </div>
       </div>
     </div>
-  )
+  );
 }

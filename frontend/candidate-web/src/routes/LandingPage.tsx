@@ -1,22 +1,22 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function extractInviteId(raw: string): string | null {
-  const v = (raw || '').trim()
-  if (!v) return null
-  const m = v.match(/\/(?:invite|start)\/([a-zA-Z0-9_-]+)/i)
-  if (m) return m[1]
-  if (/^inv_[a-zA-Z0-9]+$/i.test(v)) return v
-  return null
+  const v = (raw || '').trim();
+  if (!v) return null;
+  const m = v.match(/\/(?:invite|start)\/([a-zA-Z0-9_-]+)/i);
+  if (m) return m[1];
+  if (/^inv_[a-zA-Z0-9]+$/i.test(v)) return v;
+  return null;
 }
 
 // ─── Reveal ───────────────────────────────────────────────────────────────────
 function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-60px 0px' })
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: '-60px 0px' });
   return (
     <motion.div
       ref={ref}
@@ -27,35 +27,35 @@ function Reveal({ children, delay = 0, className = '' }: { children: React.React
     >
       {children}
     </motion.div>
-  )
+  );
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 function Header() {
-  const [scrolled, setScrolled] = useState(false)
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 8)
-    window.addEventListener('scroll', fn, { passive: true })
-    return () => window.removeEventListener('scroll', fn)
-  }, [])
+    const fn = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
+  }, []);
 
   return (
     <header className="fixed top-0 w-full z-50 backdrop-blur-xl border-b transition-all duration-300"
       style={{ background: 'rgba(255,255,255,0.88)', borderColor: 'rgba(0,0,0,0.06)', boxShadow: scrolled ? '0 1px 20px rgba(0,0,0,0.06)' : 'none' }}>
       <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-between h-[72px]">
         <a href="#" className="flex items-center gap-2.5 no-underline" aria-label="Proctora home">
-          <span className="font-bold text-[18px] text-foreground tracking-[-0.02em]">Proctora</span>
+          <span className="font-bold text-[18px] text-[var(--foreground)] tracking-[-0.02em]">Proctora</span>
         </a>
 
         <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
           {([['Platform', '#how-it-works'], ['The Say-Do Score', '#say-do'], ['Security', '#trust']] as [string, string][]).map(([label, href]) => (
-            <a key={href} href={href} className="text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors no-underline">{label}</a>
+            <a key={href} href={href} className="text-[14px] font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors no-underline">{label}</a>
           ))}
         </nav>
 
         <div className="flex items-center gap-3">
           <a href="#start"
-            className="hidden sm:inline-flex items-center px-4 py-2 text-[13px] font-semibold text-foreground border border-border rounded-lg bg-white hover:bg-surface hover:border-border transition-all no-underline">
+            className="hidden sm:inline-flex items-center px-4 py-2 text-[13px] font-semibold text-[var(--foreground)] border border-[var(--border)] rounded-lg bg-white hover:bg-[var(--surface)] hover:border-[var(--border)] transition-all no-underline">
             Have an invite?
           </a>
           <a href="mailto:hello@proctora.com?subject=Demo%20request"
@@ -66,46 +66,46 @@ function Header() {
         </div>
       </div>
     </header>
-  )
+  );
 }
 
 // ─── Invite Widget ────────────────────────────────────────────────────────────
 function InviteWidget() {
-  const navigate = useNavigate()
-  const [value, setValue] = useState('')
-  const [state, setState] = useState<'idle' | 'error' | 'success'>('idle')
-  const [msg, setMsg] = useState('')
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate();
+  const [value, setValue] = useState('');
+  const [state, setState] = useState<'idle' | 'error' | 'success'>('idle');
+  const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
   function reset() { setState('idle'); }
 
   function handleStart() {
-    const id = extractInviteId(value)
+    const id = extractInviteId(value);
     if (!id) {
-      setState('error')
-      setMsg('Please enter a valid invite link or ID.')
-      return
+      setState('error');
+      setMsg('Please enter a valid invite link or ID.');
+      return;
     }
-    setState('success')
-    setMsg('Found it — taking you to your assessment…')
-    setLoading(true)
-    setTimeout(() => navigate(`/invite/${id}`), 650)
+    setState('success');
+    setMsg('Found it — taking you to your assessment…');
+    setLoading(true);
+    setTimeout(() => navigate(`/invite/${id}`), 650);
   }
 
   return (
     <div id="start" className="max-w-[480px] mx-auto">
-      <div className="flex gap-2 p-2 rounded-xl border border-border bg-white"
+      <div className="flex gap-2 p-2 rounded-xl border border-[var(--border)] bg-white"
         style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
         <input
           type="text"
           value={value}
-          onChange={e => { setValue(e.target.value); if (state === 'error') reset() }}
+          onChange={e => { setValue(e.target.value); if (state === 'error') reset(); }}
           onKeyDown={e => e.key === 'Enter' && handleStart()}
           placeholder="Paste your assessment invite link or ID..."
           spellCheck={false}
           autoComplete="off"
           aria-label="Paste your assessment invite link or ID"
-          className="flex-1 min-w-0 bg-transparent border-none font-mono text-[14px] text-foreground placeholder:text-muted-foreground outline-none px-4 py-3"
+          className="flex-1 min-w-0 bg-transparent border-none font-mono text-[14px] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] outline-none px-4 py-3"
         />
         <button
           onClick={handleStart}
@@ -128,19 +128,19 @@ function InviteWidget() {
           transition={{ duration: 0.2 }}
           role="status"
           aria-live="polite"
-          className={`mt-3 text-[13px] font-mono text-center ${state === 'error' ? 'text-critical' : state === 'success' ? 'text-success' : 'text-muted-foreground'}`}
+          className={`mt-3 text-[13px] font-mono text-center ${state === 'error' ? 'text-rose-500' : state === 'success' ? 'text-emerald-500' : 'text-[var(--muted-foreground)]'}`}
         >
           {msg}
         </motion.p>
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
 // ─── Browser Mockup ───────────────────────────────────────────────────────────
 function BrowserMockup() {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true })
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true });
 
   return (
     <Reveal delay={0.5} className="mt-20">
@@ -150,17 +150,17 @@ function BrowserMockup() {
           animate={inView ? { rotateX: 0, scale: 1 } : {}}
           whileHover={{ rotateX: 0, scale: 1 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="rounded-xl border border-border overflow-hidden bg-white text-left"
+          className="rounded-xl border border-[var(--border)] overflow-hidden bg-white text-left"
           style={{ boxShadow: '0 30px 100px -10px rgba(37,99,235,0.15)', transformOrigin: 'top center' }}
         >
           {/* Chrome bar */}
-          <div className="flex items-center gap-4 px-5 py-3 border-b border-border" style={{ background: '#F9FAFB' }}>
+          <div className="flex items-center gap-4 px-5 py-3 border-b border-[var(--border)]" style={{ background: '#F9FAFB' }}>
             <div className="flex gap-2">
               {['#D1D5DB', '#D1D5DB', '#D1D5DB'].map((c, i) => (
                 <span key={i} className="w-3 h-3 rounded-full" style={{ background: c }} />
               ))}
             </div>
-            <div className="flex-1 text-center text-[12px] font-mono text-muted-foreground bg-white border border-border rounded-md py-1.5 px-4 max-w-[400px] mx-auto">
+            <div className="flex-1 text-center text-[12px] font-mono text-[var(--muted-foreground)] bg-white border border-[var(--border)] rounded-md py-1.5 px-4 max-w-[400px] mx-auto">
               assess.proctora.com/workspace/●●●●●●
             </div>
           </div>
@@ -168,13 +168,13 @@ function BrowserMockup() {
           {/* Panes */}
           <div className="grid grid-cols-[1fr_1.5fr] min-h-[400px]">
             {/* Inbox */}
-            <div className="bg-white p-6 border-r border-border">
-              <div className="border border-accent rounded-lg p-4" style={{ background: 'rgba(37,99,235,0.07)' }}>
+            <div className="bg-white p-6 border-r border-[var(--border)]">
+              <div className="border border-[var(--accent)] rounded-lg p-4" style={{ background: 'rgba(37,99,235,0.07)' }}>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }} />
-                  <span className="text-[14px] font-semibold text-foreground">Priya Shah · Eng Manager</span>
+                  <span className="text-[14px] font-semibold text-[var(--foreground)]">Priya Shah · Eng Manager</span>
                 </div>
-                <p className="text-[13px] text-foreground leading-relaxed m-0">
+                <p className="text-[13px] text-[var(--foreground)] leading-relaxed m-0">
                   "Good catch — I'll make sure to add payload validation before this ships to prod."
                 </p>
               </div>
@@ -182,8 +182,8 @@ function BrowserMockup() {
 
             {/* Code pane */}
             <div className="p-6 font-mono text-[14px] leading-[1.8]" style={{ background: '#F8FAFC', color: '#334155' }}>
-              <div className="text-muted-foreground">{'// Candidate promised: payload validation'}</div>
-              <div className="text-muted-foreground">{'// Status: Say-Do gap detected. No validation found.'}</div>
+              <div className="text-[var(--muted-foreground)]">{'// Candidate promised: payload validation'}</div>
+              <div className="text-[var(--muted-foreground)]">{'// Status: Say-Do gap detected. No validation found.'}</div>
               <div className="mt-4">
                 <span style={{ color: '#D946EF' }}>export async function </span>
                 <span style={{ color: '#2563EB' }}>saveUser</span>
@@ -198,7 +198,7 @@ function BrowserMockup() {
         </motion.div>
       </div>
     </Reveal>
-  )
+  );
 }
 
 // ─── Checkmark Icon ───────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ function CheckIcon() {
     <svg className="flex-shrink-0" width="18" height="18" fill="none" stroke="#10B981" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
     </svg>
-  )
+  );
 }
 
 // ─── LandingPage ─────────────────────────────────────────────────────────────
@@ -290,7 +290,7 @@ export function LandingPage() {
                   transition: 'all 0.3s ease',
                 }}
               >
-                <div className="text-[20px] font-bold text-foreground mb-4 tracking-[-0.01em]">What Proctora sees</div>
+                <div className="text-[20px] font-bold text-[var(--foreground)] mb-4 tracking-[-0.01em]">What Proctora sees</div>
                 <h3 className="font-extrabold tracking-[-0.02em] mb-3" style={{ fontSize: 32, color: '#2563EB' }}>The Full Picture.</h3>
                 <p className="mb-6 leading-[1.6]" style={{ fontSize: 18, color: '#4B5563', maxWidth: 500 }}>
                   We check the tests, the syntax, and the speed. But more importantly, we check if the code actually matches what they told a teammate they'd do.
@@ -405,12 +405,10 @@ export function LandingPage() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="relative overflow-hidden" style={{ padding: '80px 0 40px' }}>
-        {/* Noisy gradient background */}
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'linear-gradient(160deg, #EEF2FF 0%, #F5F7FF 35%, #F9FAFB 65%, #EFF6FF 100%)',
           zIndex: 0,
         }} />
-        {/* SVG noise overlay */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1, opacity: 0.045 }} aria-hidden="true">
           <filter id="footer-noise">
             <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
@@ -422,8 +420,7 @@ export function LandingPage() {
           <div className="grid gap-12 mb-16" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
             <div>
               <a href="#" className="flex items-center gap-2.5 no-underline mb-4">
-              
-                <span className="font-bold text-[18px] text-foreground tracking-[-0.02em]">Proctora</span>
+                <span className="font-bold text-[18px] text-[var(--foreground)] tracking-[-0.02em]">Proctora</span>
               </a>
               <p className="text-[14px] leading-[1.65] m-0" style={{ color: '#4B5563', maxWidth: 250 }}>
                 Technical hiring that checks whether candidates meant what they said, not just whether the code runs.
@@ -461,8 +458,6 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
-
-
     </div>
-  )
+  );
 }

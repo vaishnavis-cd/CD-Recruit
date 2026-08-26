@@ -208,6 +208,24 @@ export class FaceVerifyOnnxService implements OnModuleInit {
     return this.verify(bufferB, filenameB, enrollA.embedding);
   }
 
+  /**
+   * Verifies two 512-dim embedding arrays directly.
+   */
+  verifyEmbeddings(
+    embA: number[],
+    embB: number[],
+  ): { matched: boolean; distance: number; threshold: number } {
+    const vecA = new Float32Array(embA);
+    const vecB = new Float32Array(embB);
+    const distance = this.cosineDistance(vecA, vecB);
+    const matched = distance <= ONNX_ARCFACE_THRESHOLD;
+    return {
+      matched,
+      distance: Number(distance.toFixed(4)),
+      threshold: ONNX_ARCFACE_THRESHOLD,
+    };
+  }
+
   // ============================================================================
   // INTERNAL PIPELINE HELPER METHODS
   // ============================================================================

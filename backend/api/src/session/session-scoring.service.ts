@@ -478,7 +478,7 @@ export class SessionScoringService {
     sqlExecutionsMap: Map<string, SQLExecution[]>,
     moduleScores: Record<string, number>,
     compositeScore: number,
-  ): { sayDoConsistencyScore: number; sayDoRationale: string } {
+  ): { sayDoConsistencyScore: number | null; sayDoRationale: string | null } {
     const sayDoDivergences: number[] = [];
 
     for (const resp of responses) {
@@ -542,7 +542,7 @@ export class SessionScoringService {
       sayDoRationale = null;
     }
 
-    return { sayDoConsistencyScore: sayDoConsistencyScore as any, sayDoRationale: sayDoRationale as any };
+    return { sayDoConsistencyScore, sayDoRationale };
   }
 
   /**

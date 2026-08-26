@@ -77,6 +77,7 @@ async function runSessionScoringTests() {
       },
     },
     score: {
+      findUnique: async () => null,
       upsert: async ({ where, create, update }: any) => {
         persistedScoreData = { where, create, update };
         return create;

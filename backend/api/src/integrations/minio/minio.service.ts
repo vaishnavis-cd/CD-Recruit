@@ -171,6 +171,20 @@ export class MinioService implements OnModuleInit {
   }
 
   /**
+   * Retrieves an object as a Buffer from MinIO storage.
+   */
+  async getObject(bucketName: string, objectKey: string): Promise<Buffer | null> {
+    const stream = await this.getObjectStream(bucketName, objectKey);
+    if (!stream) return null;
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      stream.on("end", () => resolve(Buffer.concat(chunks)));
+      stream.on("error", (err) => reject(err));
+    });
+  }
+
+  /**
    * Uploads an object buffer to the specified bucket.
    */
   async putObject(

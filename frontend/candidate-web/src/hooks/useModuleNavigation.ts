@@ -1,55 +1,55 @@
-import React from 'react'
-import { useSessionStore } from '../store/sessionMachine'
-import { getEffectiveModuleType } from '../utils/moduleType'
+import React from 'react';
+import { useSessionStore } from '../store/sessionMachine';
+import { getEffectiveModuleType } from '../utils/moduleType';
 
 export function useModuleNavigation(moduleIndex: number, currentQuestionIndex: number, totalQuestionsInModule: number) {
-  const assessment = useSessionStore((s) => s.assessment)
-  const transitionTo = useSessionStore((s) => s.transitionTo)
+  const assessment = useSessionStore((s) => s.assessment);
+  const transitionTo = useSessionStore((s) => s.transitionTo);
 
   // Derive active modules dynamically from assigned questions
   const activeModulesCount = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-      return 5
+      return 5;
     }
-    const types: string[] = []
+    const types: string[] = [];
     for (const q of assessment.questions) {
-      const type = getEffectiveModuleType(q)
+      const type = getEffectiveModuleType(q);
       if (type && !types.includes(type)) {
-        types.push(type)
+        types.push(type);
       }
     }
-    return types.length > 0 ? types.length : 5
-  }, [assessment?.questions])
+    return types.length > 0 ? types.length : 5;
+  }, [assessment?.questions]);
 
-  const isLastQuestionInModule = currentQuestionIndex >= totalQuestionsInModule - 1
-  const isLastModule = moduleIndex >= activeModulesCount - 1
+  const isLastQuestionInModule = currentQuestionIndex >= totalQuestionsInModule - 1;
+  const isLastModule = moduleIndex >= activeModulesCount - 1;
 
   const handleNext = (onAdvanceQuestion: () => void) => {
     if (!isLastQuestionInModule) {
-      onAdvanceQuestion()
+      onAdvanceQuestion();
     } else {
       if (!isLastModule) {
         transitionTo({
           type: 'assessment',
           moduleIndex: moduleIndex + 1,
           sessionId: assessment?.sessionId ?? '',
-        })
+        });
       } else {
-        transitionTo({ type: 'pre-submit-review', sessionId: assessment?.sessionId ?? '' })
+        transitionTo({ type: 'pre-submit-review', sessionId: assessment?.sessionId ?? '' });
       }
     }
-  }
+  };
 
   const nextButtonLabel = isLastQuestionInModule
     ? isLastModule
-      ? 'Final Review & Submit'
+      ? 'Review & Submit'
       : 'Next Module'
-    : 'Next'
+    : 'Next';
 
   return {
     isLastQuestionInModule,
     isLastModule,
     handleNext,
     nextButtonLabel,
-  }
+  };
 }

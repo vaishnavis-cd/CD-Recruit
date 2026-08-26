@@ -1,15 +1,15 @@
-import type { ScenarioEnginePort, ScenarioMessage } from './port'
-import { useSessionStore } from '../../store/sessionMachine'
-import axios from 'axios'
+import type { ScenarioEnginePort, ScenarioMessage } from './port';
+import { useSessionStore } from '../../store/sessionMachine';
+import axios from 'axios';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
-})
+});
 
 export const realScenarioEngineAdapter: ScenarioEnginePort = {
   subscribe(
@@ -17,10 +17,10 @@ export const realScenarioEngineAdapter: ScenarioEnginePort = {
     _scenarioId: string,
     onMessage: (message: ScenarioMessage) => void
   ): () => void {
-    let active = true
+    let active = true;
 
     async function pollCurrent() {
-      if (!active) return
+      if (!active) return;
       try {
         const [currRes, trigRes] = await Promise.allSettled([
           apiClient.get(`/sessions/${sessionId}/simulation/current`),
@@ -67,47 +67,49 @@ export const realScenarioEngineAdapter: ScenarioEnginePort = {
 
     // Start simulation session on backend if not yet started
     apiClient.post(`/sessions/${sessionId}/simulation/start`).catch((err) => {
-      console.warn('[realScenarioEngineAdapter] Start simulation skipped/already started:', err)
+      console.warn('[realScenarioEngineAdapter] Start simulation skipped/already started:', err);
     }).finally(() => {
-      pollCurrent()
-    })
+      pollCurrent();
+    });
 
-    const intervalId = setInterval(pollCurrent, 5000)
+    const intervalId = setInterval(pollCurrent, 5000);
 
     return () => {
-      active = false
-      clearInterval(intervalId)
-    }
+      active = false;
+      clearInterval(intervalId);
+    };
   },
 
   async sendReply(messageId: number, text: string): Promise<void> {
     // Get sessionId from assessment store (guaranteed to exist during simulation)
-    const assessment = useSessionStore.getState().assessment
-    const sessionId = assessment?.sessionId
+    const assessment = useSessionStore.getState().assessment;
+    const sessionId = assessment?.sessionId;
     
     if (!sessionId) {
-      console.error('[realScenarioEngineAdapter] No active session ID available for reply')
-      throw new Error('No active assessment session')
+      console.error('[realScenarioEngineAdapter] No active session ID available for reply');
+      throw new Error('No active assessment session');
     }
 
-    await apiClient.post(`/sessions/${sessionId}/simulation/email-reply`, {
+    await apiClient.post(`/sessions/${sessionId}/simulation/submit`, {
+      eventId: String(messageId),
       messageId,
+      action: 'REPLY',
       replyText: text,
       text,
-    })
+    });
   },
 
   async executeTerminalCommand(command: string): Promise<{ stdout: string; stderr: string; exitCode: number; infraError?: boolean }> {
-    const assessment = useSessionStore.getState().assessment
-    const sessionId = assessment?.sessionId
+    const assessment = useSessionStore.getState().assessment;
+    const sessionId = assessment?.sessionId;
 
     if (!sessionId) {
-      throw new Error('No active assessment session available for terminal execution')
+      throw new Error('No active assessment session available for terminal execution');
     }
 
-    const res = await apiClient.post(`/sessions/${sessionId}/simulation/execute`, { command })
-    return res.data
+    const res = await apiClient.post(`/sessions/${sessionId}/simulation/execute`, { command });
+    return res.data;
   },
 
   reset(_scenarioId: string): void {},
-}
+};

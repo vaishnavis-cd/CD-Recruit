@@ -54,12 +54,12 @@ enum ExperiencedLevel {
 enum ModuleType {
   MCQ
   SQL
+  NOSQL
   CODING
   DEBUGGING
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
-  NOSQL
 }
 
 enum SessionStatus {
@@ -260,15 +260,21 @@ model Organization {
 }
 
 model Candidate {
-  id             String        @id @default(uuid())
-  organizationId String?       @map("organization_id")
-  email          String        @unique
-  name           String
-  idProofRef       String?   @map("id_proof_ref")
-  idProofEmbedding Json?     @map("id_proof_embedding")
-  idProofModel     String?   @map("id_proof_model")
-  idVerifiedAt     DateTime? @map("id_verified_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
+  id                         String        @id @default(uuid())
+  organizationId             String?       @map("organization_id")
+  email                      String        @unique
+  name                       String
+  idProofRef                 String?       @map("id_proof_ref")
+  idProofEmbedding           Json?         @map("id_proof_embedding")
+  idProofModel               String?       @map("id_proof_model")
+  idProofExtractedName       String?       @map("id_proof_extracted_name")
+  idProofOcrRaw              String?       @map("id_proof_ocr_raw")
+  ocrConfidence              Float?        @map("ocr_confidence")
+  idVerifiedAt               DateTime?     @map("id_verified_at")
+  baselineSelfieEmbedding    Json?         @map("baseline_selfie_embedding")
+  baselineSelfieRef          String?       @map("baseline_selfie_ref")
+  identityVerificationResult Json?         @map("identity_verification_result")
+  createdAt                  DateTime      @default(now()) @map("created_at")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
   sessions       Session[]
@@ -291,14 +297,19 @@ model ConsentRecord {
 }
 
 model Session {
-  id                 String        @id @default(uuid())
-  organizationId     String?       @map("organization_id")
-  candidateId        String        @map("candidate_id")
-  roleTemplateId     String        @map("role_template_id")
-  driveId            String?       @map("drive_id")
-  cvMode             CvMode        @map("cv_mode")
-  status             SessionStatus @default(NOT_STARTED)
-  baselineSelfieRef  String?       @map("baseline_selfie_ref")
+  id                         String        @id @default(uuid())
+  organizationId             String?       @map("organization_id")
+  candidateId                String        @map("candidate_id")
+  roleTemplateId             String        @map("role_template_id")
+  driveId                    String?       @map("drive_id")
+  cvMode                     CvMode        @map("cv_mode")
+  status                     SessionStatus @default(NOT_STARTED)
+  baselineSelfieRef          String?       @map("baseline_selfie_ref")
+  baselineSelfieEmbedding    Json?         @map("baseline_selfie_embedding")
+  idProofRef                 String?       @map("id_proof_ref")
+  idProofEmbedding           Json?         @map("id_proof_embedding")
+  idVerifiedAt               DateTime?     @map("id_verified_at")
+  identityVerificationResult Json?         @map("identity_verification_result")
   tutorialMode       String        @default("full") @map("tutorial_mode")
   actualStartAt      DateTime?     @map("actual_start_at")
 
@@ -336,26 +347,6 @@ model Session {
   @@index([lastHeartbeatAt])
   @@map("session")
 }
-
-model IdentityCapture {
-  id          String    @id @default(uuid())
-  sessionId   String    @map("session_id")
-  windowIndex Int       @map("window_index")      // 0, 1, 2 — which of the 3 windows this belongs to
-  scheduledAt DateTime  @map("scheduled_at")
-  capturedAt  DateTime? @map("captured_at")
-  status      String    @default("PENDING")        // PENDING, CAPTURED, MISSED, SESSION_CLOSED
-  imageRef    String?   @map("image_ref")           // MinIO object key
-  matched     Boolean?
-  distance    Float?
-  threshold   Float?
-
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@index([status])
-  @@map("identity_capture")
-}
-
 
 model ModuleResponse {
   id                String   @id @default(uuid())
@@ -475,29 +466,29 @@ model ReviewerDecision {
 }
 
 model Invite {
-  id              String       @id @default(uuid())
-  candidateEmail  String       @map("candidate_email")
-  candidateName   String       @map("candidate_name")
-  roleTemplateId  String             @map("role_template_id")
-  driveId         String?            @map("drive_id")
-  category        CandidateCategory? @map("category")
-  experienceTier  String?            @map("experience_tier")
-  status          InviteStatus       @default(PENDING)
-  token           String       @unique
-  createdById     String       @map("created_by_id")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  expiresAt       DateTime     @map("expires_at")
-  redeemedAt      DateTime?    @map("redeemed_at")
-  revokedAt       DateTime?    @map("revoked_at")
-  sessionId       String?      @unique @map("session_id")
-  isGenerated     Boolean      @default(false) @map("is_generated")
-  scheduledTime   DateTime?    @map("scheduled_time")
-  bufferMinutes   Int          @default(15) @map("buffer_minutes")
-  graceMinutes    Int          @default(5) @map("grace_minutes")
-  originChannel   OriginChannel @default(DIRECT) @map("origin_channel")
-  idProofRef        String?   @map("id_proof_ref")
-  idProofEmbedding  Json?     @map("id_proof_embedding")
-  idProofUploadedAt DateTime? @map("id_proof_uploaded_at")
+  id                String             @id @default(uuid())
+  candidateEmail    String             @map("candidate_email")
+  candidateName     String             @map("candidate_name")
+  roleTemplateId    String             @map("role_template_id")
+  driveId           String?            @map("drive_id")
+  category          CandidateCategory? @map("category")
+  experienceTier    String?            @map("experience_tier")
+  status            InviteStatus       @default(PENDING)
+  token             String             @unique
+  createdById       String             @map("created_by_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  expiresAt         DateTime           @map("expires_at")
+  redeemedAt        DateTime?          @map("redeemed_at")
+  revokedAt         DateTime?          @map("revoked_at")
+  sessionId         String?            @unique @map("session_id")
+  isGenerated       Boolean            @default(false) @map("is_generated")
+  scheduledTime     DateTime?          @map("scheduled_time")
+  bufferMinutes     Int                @default(15) @map("buffer_minutes")
+  graceMinutes      Int                @default(5) @map("grace_minutes")
+  originChannel     OriginChannel      @default(DIRECT) @map("origin_channel")
+  idProofRef        String?            @map("id_proof_ref")
+  idProofEmbedding  Json?              @map("id_proof_embedding")
+  idProofUploadedAt DateTime?          @map("id_proof_uploaded_at")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])
@@ -630,3 +621,23 @@ model ModuleSetting {
   @@map("module_setting")
 }
 
+model IdentityCapture {
+  id          String    @id @default(uuid())
+  sessionId   String    @map("session_id")
+  windowIndex Int       @map("window_index")
+  scheduledAt DateTime  @map("scheduled_at")
+  capturedAt  DateTime? @map("captured_at")
+  status      String    @default("PENDING")
+  imageRef    String?   @map("image_ref")
+  matched     Boolean?
+  distance    Float?
+  threshold   Float?
+  verifiedAt  DateTime? @map("verified_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, windowIndex])
+  @@index([sessionId])
+  @@index([status])
+  @@map("identity_capture")
+}

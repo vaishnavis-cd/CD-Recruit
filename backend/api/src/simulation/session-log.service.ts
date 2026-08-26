@@ -124,10 +124,11 @@ export class SessionLogService
       return response.responsePayload as unknown as SimulationSession;
     }
 
-    // Determine track automatically from roleName metadata and template level
+    // Determine track automatically from roleName metadata and template level/category
     const roleName = session.roleTemplate.roleName.toLowerCase();
     const track =
-      session.roleTemplate.level === "EXPERIENCED" ||
+      session.roleTemplate.category === "EXPERIENCED" ||
+      (session.roleTemplate as any).level === "EXPERIENCED" ||
       roleName.includes("senior") ||
       roleName.includes("lead") ||
       roleName.includes("experienced") ||
@@ -218,6 +219,7 @@ export class SessionLogService
     if (!sessionState.eventStates) {
       sessionState.eventStates = {};
     }
+
     if (!sessionState.eventStates[eventId]) {
       // Initialize event log if not present
       sessionState.eventStates[eventId] = {
