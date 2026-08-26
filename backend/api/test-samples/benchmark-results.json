@@ -15,7 +15,7 @@
     "isDegraded": false,
     "degradedReason": "Clean image",
     "overallStatus": "PASS",
-    "elapsedMs": 1825,
+    "elapsedMs": 1408,
     "rawOcrText": "INCOME TAX DEPARTMENT\nGOVT. OF INDIA\nName / FH\nRAJESH KUMAR SHARMA\nPHOTO Father's Name / firdT &1 18\nRAMESH CHANDRA SHARMA\nDate of Birth / 571 fafy\n15/08/1992\nPermanent Account Number\nABCDEI1234F\n"
   },
   {
@@ -34,7 +34,7 @@
     "isDegraded": false,
     "degradedReason": "Clean image",
     "overallStatus": "PASS",
-    "elapsedMs": 1674,
+    "elapsedMs": 1132,
     "rawOcrText": "INCOME TAX DEPARTMENT\nGOVT OF INDIA\nName\nPRIYA ANAND\nFather's Name\nANAND VENKATESH\nDOB\n22/11/1997\nBKZPA9876K\nPermanent Account Number Card\n"
   },
   {
@@ -53,7 +53,7 @@
     "isDegraded": true,
     "degradedReason": "Heavy Gaussian blur + simulated glare",
     "overallStatus": "PASS",
-    "elapsedMs": 891,
+    "elapsedMs": 799,
     "rawOcrText": ""
   },
   {
@@ -72,7 +72,7 @@
     "isDegraded": false,
     "degradedReason": "Clean image",
     "overallStatus": "PASS",
-    "elapsedMs": 2075,
+    "elapsedMs": 1528,
     "rawOcrText": "PASSPORT / UTHUIE\nREPUBLIC OF INDIA / HIRd TT0RTSH\n\nType | UFR Country Code Passport No. / UTE\n\nP IND 28172635\n\nSumame 1m\n\nPHOTO SUNDARAM\n\nGiven Name(s) / far mar =m\n\nVAISHNAVI\n\nNationaity / ght Date of Birth 571 RFI\n\nINDIAN 14/06/1998\nP<INDSUNDARAM<K<KVAISHNAVI<K<K<KK<LLLLLLLLLLLLLLLL\nZ8172635<4IND9806148F2810156<<<<<<<<<<LLLL<L<O\n"
   },
   {
@@ -91,7 +91,7 @@
     "isDegraded": false,
     "degradedReason": "Clean image",
     "overallStatus": "PASS",
-    "elapsedMs": 1966,
+    "elapsedMs": 1312,
     "rawOcrText": "PASSPORT\nREPUBLIC OF INDIA\n\nSurname\n\nVERMA\n\nGiven Names\n\nARUN KUMAR\nP<INDVERMA<<ARUN<KKUMAR<K<K<KLLLLLLLLLLLLLKLLLLLL\nN4928174<2IND9402283M3101158<<<<<<<<K<KL<<<<<4\n"
   },
   {
@@ -110,7 +110,7 @@
     "isDegraded": true,
     "degradedReason": "Cutoff/cropped MRZ missing lines + heavy blur",
     "overallStatus": "PASS",
-    "elapsedMs": 935,
+    "elapsedMs": 1013,
     "rawOcrText": "PRLASCIRT SEL OF NO\n"
   },
   {
@@ -129,7 +129,7 @@
     "isDegraded": false,
     "degradedReason": "Clean image",
     "overallStatus": "PASS",
-    "elapsedMs": 1417,
+    "elapsedMs": 1496,
     "rawOcrText": "UNIQUE IDENTIFICATION AUTHORITY OF INDIA\nGOVERNMENT OF INDIA\nKAVITHA SUBRAMANIAN\nDOB: 12/03/1995\nFemale / Algal\n7788 2290 6503\nRT MYR, A TE\n"
   },
   {
@@ -148,7 +148,7 @@
     "isDegraded": false,
     "degradedReason": "Random utility invoice receipt — should classify as UNKNOWN",
     "overallStatus": "PASS",
-    "elapsedMs": 1068,
+    "elapsedMs": 895,
     "rawOcrText": "SUPERMARKET MART\nINVOICE #982347\n1 Milk IL ........ $2.50\n2. Organic Bread ..... $3.20\n3. Apples 1kg ....... $4.00\nTOTAL: $9.70\nTHANK YOU FOR SHOPPING\n"
   }
 ]

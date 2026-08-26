@@ -55,7 +55,7 @@ export class PanParser {
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
 
-    const noiseKeywords = [
+    const headerKeywords = [
       "INCOME TAX",
       "INCOMETAX",
       "TAX DEPARTMENT",
@@ -85,6 +85,7 @@ export class PanParser {
     // 1. Locate 10-character PAN Number
     let panNumber: string | null = null;
     let panLineIdx = -1;
+    let panInitialLetter: string | null = null;
 
     for (let i = 0; i < lines.length; i++) {
       const lineClean = lines[i].replace(/[^A-Za-z0-9]/g, "").toUpperCase();
@@ -92,6 +93,7 @@ export class PanParser {
       if (directMatch) {
         panNumber = directMatch[0];
         panLineIdx = i;
+        panInitialLetter = panNumber[4]; // 5th char of PAN = surname/name initial
         break;
       }
       if (lineClean.length === 10) {
@@ -99,6 +101,7 @@ export class PanParser {
         if (normalized) {
           panNumber = normalized;
           panLineIdx = i;
+          panInitialLetter = panNumber[4];
           break;
         }
       }
@@ -129,7 +132,7 @@ export class PanParser {
         if (i + 1 < lines.length) {
           const nextLine = lines[i + 1].replace(/[^A-Za-z\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
           const nextUpper = nextLine.toUpperCase();
-          if (nextLine.length >= 3 && !noiseKeywords.some((nw) => nextUpper === nw || nextUpper.startsWith(nw))) {
+          if (nextLine.length >= 3 && !headerKeywords.some((nw) => nextUpper === nw || nextUpper.startsWith(nw))) {
             fatherName = nextLine;
           }
         }
@@ -146,7 +149,7 @@ export class PanParser {
       if (!cleaned || cleaned.length < 3) return true;
 
       // Filter header keywords
-      if (noiseKeywords.some((nw) => upper.includes(nw))) {
+      if (headerKeywords.some((nw) => upper.includes(nw))) {
         return true;
       }
 
@@ -166,62 +169,66 @@ export class PanParser {
     const cleanCandidateLine = (line: string): string => {
       return line
         .replace(/.*(?:NAME|नाम)\s*[:\/\-]?\s*/i, "")
-        .replace(/\b(?:nye|nani|sie|shas)\b/gi, "")
+        .replace(/\b(?:free|sores|taian|asso|nye|nani|sie|shas|fubra|atr|fia|tus)\b/gi, "")
         .replace(/[^A-Za-z\s\.\-']/g, " ")
         .replace(/\s+/g, " ")
         .trim();
     };
 
-    // Candidate anchor boundary: search backwards from Father's Name or DOB line
-    const anchorIdx = fatherNameLineIdx > 0 ? fatherNameLineIdx : dobLineIdx > 0 ? dobLineIdx : lines.length;
+    // Candidate search zone: between PAN Number / header and Father's Name / DOB
+    const startIdx = panLineIdx >= 0 && panLineIdx <= 4 ? panLineIdx + 1 : 0;
+    const endLimit = fatherNameLineIdx > startIdx ? fatherNameLineIdx : dobLineIdx > startIdx ? dobLineIdx : lines.length;
 
-    // Search backwards from the anchor to pick the candidate name line directly preceding Father's Name
-    for (let i = anchorIdx - 1; i >= 0; i--) {
+    const candidateLines: string[] = [];
+
+    for (let i = startIdx; i < endLimit; i++) {
       if (i === panLineIdx) continue;
       const line = lines[i];
       if (!isHeaderOrNoise(line)) {
         const cleaned = cleanCandidateLine(line);
         if (cleaned.length >= 3) {
           const upper = cleaned.toUpperCase();
-          if (!noiseKeywords.some((nw) => upper === nw) && (!fatherName || upper !== fatherName.toUpperCase())) {
-            extractedName = cleaned;
-            break;
+          if (!headerKeywords.some((nw) => upper === nw) && (!fatherName || upper !== fatherName.toUpperCase())) {
+            candidateLines.push(cleaned);
           }
         }
       }
     }
 
-    // Fallback: Check if name was merged into Father's Name label line
-    if (!extractedName && fatherNameLineIdx >= 0) {
+    // Fallback: Check if name was merged into Father's Name label line (only if no candidate lines found)
+    if (candidateLines.length === 0 && fatherNameLineIdx >= 0) {
       const line = lines[fatherNameLineIdx];
       const upper = line.toUpperCase();
       if (upper.includes("FATHER")) {
         const parts = line.split(/FATHER['S\s]*NAM[OE\s]*/i);
         for (const p of parts) {
           const cleanP = cleanCandidateLine(p);
-          if (cleanP.length >= 3 && !noiseKeywords.some((nw) => cleanP.toUpperCase().includes(nw))) {
+          if (cleanP.length >= 3 && !headerKeywords.some((nw) => cleanP.toUpperCase().includes(nw))) {
             if (!fatherName || cleanP.toUpperCase() !== fatherName.toUpperCase()) {
-              extractedName = cleanP;
-              break;
+              candidateLines.push(cleanP);
             }
           }
         }
       }
     }
 
-    // Fallback: Forward scan top non-noise lines
-    if (!extractedName) {
-      for (let i = 0; i < lines.length; i++) {
-        if (i === panLineIdx || i === dobLineIdx || i === fatherNameLineIdx) continue;
-        const line = lines[i];
-        if (!isHeaderOrNoise(line)) {
-          const cleaned = cleanCandidateLine(line);
-          if (cleaned.length >= 3 && (!fatherName || cleaned.toUpperCase() !== fatherName.toUpperCase())) {
-            extractedName = cleaned;
-            break;
-          }
-        }
-      }
+    // Rank candidates:
+    // 1. Candidate matching the 5th character of PAN number (e.g. 'V' in 'CLIPV2959Q' matches 'VAISHNAVI')
+    // 2. Candidate with pure uppercase English letters and longest valid name
+    if (candidateLines.length > 0) {
+      const ranked = [...candidateLines].sort((a, b) => {
+        const aMatchesInitial = panInitialLetter && a.toUpperCase().startsWith(panInitialLetter) ? 1 : 0;
+        const bMatchesInitial = panInitialLetter && b.toUpperCase().startsWith(panInitialLetter) ? 1 : 0;
+        if (aMatchesInitial !== bMatchesInitial) return bMatchesInitial - aMatchesInitial;
+
+        const aUpper = a === a.toUpperCase() ? 1 : 0;
+        const bUpper = b === b.toUpperCase() ? 1 : 0;
+        if (aUpper !== bUpper) return bUpper - aUpper;
+
+        return b.length - a.length;
+      });
+
+      extractedName = ranked[0];
     }
 
     // 5. Calculate Confidence Score
