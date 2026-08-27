@@ -68,7 +68,7 @@ const TIERS = [
   { value: "0-1", label: "0-1 yrs (Fresher)", category: "FRESHER" },
   { value: "2-5", label: "2-5 yrs (Level 1)", category: "EXPERIENCED" },
   { value: "6-10", label: "6-10 yrs (Level 2)", category: "EXPERIENCED" },
-  { value: "11-15", label: "11-15 yrs (Level 3)", category: "EXPERIENCED" },
+  { value: "11-15", label: "11+ yrs (Level 3)", category: "EXPERIENCED" },
 ] as const;
 
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -805,18 +805,32 @@ export function RoleTemplatesPage() {
                       : "border-[#E6E6EA] opacity-90"
                   }`}
                 >
-                  <div className="space-y-3.5">
-                    {/* Header: Title, Version, Active Badge, 3-dot Menu */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-[15px] text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={tpl.roleName}>
-                            {tpl.roleName}
-                          </h3>
-                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded shrink-0">
-                            v{tpl.version}
-                          </span>
-                        </div>
+                  <div className="space-y-3">
+                    {/* Top Row: Tier Pill & Version Badge + Active Toggle & Menu */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${
+                            tpl.experienceTier === "0-1" || tpl.level === "FRESHER"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : tpl.experienceTier === "2-5"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : tpl.experienceTier === "6-10"
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          {tpl.experienceTier === "0-1" || tpl.level === "FRESHER"
+                            ? "Fresher (0–1 yrs)"
+                            : tpl.experienceTier === "2-5"
+                            ? "Level 1 (2–5 yrs)"
+                            : tpl.experienceTier === "6-10"
+                            ? "Level 2 (6–10 yrs)"
+                            : "Level 3 (11+ yrs)"}
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-[#F1F3F9] text-[#5B5B64] rounded-full border border-[#E6E6EA]">
+                          v{tpl.version || 1}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -926,6 +940,19 @@ export function RoleTemplatesPage() {
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Middle Row: Full Width Role Title & Department */}
+                    <div className="space-y-1 py-1">
+                      <h3
+                        className="font-bold text-[16px] text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors leading-snug line-clamp-2"
+                        title={tpl.roleName}
+                      >
+                        {tpl.roleName}
+                      </h3>
+                      <p className="text-[12px] text-[#8B8B93] font-medium">
+                        {DEPARTMENT_LABELS[tpl.department] || tpl.department || "General"}
+                      </p>
                     </div>
 
                     {/* Metadata Strip */}

@@ -3435,7 +3435,7 @@ function DriveDetailPage() {
                   >
                     <option value="all">All Categories</option>
                     <option value="FRESHER">Fresher (0-1 yrs)</option>
-                    <option value="EXPERIENCED">Experienced (2-15 yrs)</option>
+                    <option value="EXPERIENCED">Experienced (2+ yrs)</option>
                   </select>
                 </div>
               </div>
@@ -3452,15 +3452,21 @@ function DriveDetailPage() {
                   <option value="">-- Choose Role Template --</option>
                   {(roleTemplates || [])
                     .filter((rt) => {
-                      if (templateDeptFilter !== "all" && rt.department !== templateDeptFilter) return false;
-                      if (templateCategoryFilter !== "all" && ((rt as any).category || "FRESHER") !== templateCategoryFilter) return false;
+                      if (templateDeptFilter !== "all" && (rt.department || "CUSTOM") !== templateDeptFilter) return false;
+                      const cat = (rt as any).category || (rt.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
+                      if (templateCategoryFilter !== "all" && cat !== templateCategoryFilter) return false;
                       return true;
                     })
-                    .map((tpl) => (
-                      <option key={tpl.id} value={tpl.id}>
-                        {tpl.roleName} [{((tpl as any).category || "FRESHER") === "FRESHER" ? "Fresher (0-1 yrs)" : `${(tpl as any).experienceTier || "2-5"} yrs`}] ({tpl.department || "General"})
-                      </option>
-                    ))}
+                    .map((tpl) => {
+                      const tier = (tpl as any).experienceTier || (((tpl as any).category || "FRESHER") === "FRESHER" ? "0-1" : "2-5");
+                      const tierDisplay = tier === "0-1" ? "Fresher (0–1 yrs)" : tier === "11-15" ? "Level 3 (11+ yrs)" : tier === "6-10" ? "Level 2 (6–10 yrs)" : "Level 1 (2–5 yrs)";
+                      const cleanRole = (tpl.roleName || "").replace(/\s*[-–]\s*(Fresher|Level\s*\d).*$/i, "").trim() || tpl.roleName;
+                      return (
+                        <option key={tpl.id} value={tpl.id}>
+                          {cleanRole} • {tierDisplay} (v{tpl.version || 1})
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 

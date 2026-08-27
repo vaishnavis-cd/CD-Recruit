@@ -196,10 +196,10 @@ export const EXPERIENCE_TIER_CONFIG = {
   "11-15": {
     code: ExperienceLevelCode.LEVEL_3,
     tier: "11-15",
-    label: "11-15 yrs (Level 3)",
-    shortLabel: "11-15 yrs",
+    label: "11+ yrs (Level 3)",
+    shortLabel: "11+ yrs",
     category: CandidateCategory.EXPERIENCED,
-    years: "11-15",
+    years: "11+",
   },
 } as const;
 
@@ -317,7 +317,7 @@ export function normalizeExperienceTier(
       tier: "11-15",
       code: ExperienceLevelCode.LEVEL_3,
       category: CandidateCategory.EXPERIENCED,
-      label: "11-15 yrs (Level 3)",
+      label: "11+ yrs (Level 3)",
     };
   }
 
@@ -377,7 +377,7 @@ function resolveTierFromNumericYears(years: number) {
     tier: "11-15",
     code: ExperienceLevelCode.LEVEL_3,
     category: CandidateCategory.EXPERIENCED,
-    label: "11-15 yrs (Level 3)",
+    label: "11+ yrs (Level 3)",
   };
 }
 

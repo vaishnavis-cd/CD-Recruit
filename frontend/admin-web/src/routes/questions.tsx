@@ -49,7 +49,7 @@ export const CANONICAL_LEVELS: Array<{ key: string; label: string; tier: string;
   { key: "0-1", label: "Fresher (0-1 yrs)", tier: "0-1", aliases: ["fresher", "freshers", "intern", "0-1", "0-1 yrs", "entry", "01"] },
   { key: "2-5", label: "Level 1 (2-5 yrs)", tier: "2-5", aliases: ["l1", "level1", "level 1", "2-5", "2-5 yrs", "junior", "25"] },
   { key: "6-10", label: "Level 2 (6-10 yrs)", tier: "6-10", aliases: ["l2", "level2", "level 2", "6-10", "6-10 yrs", "mid", "senior", "610"] },
-  { key: "11-15", label: "Level 3 (11-15 yrs)", tier: "11-15", aliases: ["l3", "level3", "level 3", "11-15", "11-15 yrs", "lead", "staff", "principal", "1115"] },
+  { key: "11-15", label: "Level 3 (11+ yrs)", tier: "11-15", aliases: ["l3", "level3", "level 3", "11-15", "11-15 yrs", "11+", "11+ yrs", "lead", "staff", "principal", "1115"] },
 ];
 
 export const TOPIC_TAXONOMY_MAP: Record<string, string> = {
@@ -1154,7 +1154,7 @@ function QuestionBankPage() {
             <option value="0-1">0-1 yrs (Fresher)</option>
             <option value="2-5">2-5 yrs (Level 1)</option>
             <option value="6-10">6-10 yrs (Level 2)</option>
-            <option value="11-15">11-15 yrs (Level 3)</option>
+            <option value="11-15">11+ yrs (Level 3)</option>
           </select>
 
           {/* Department / Role Filter */}
@@ -1696,29 +1696,20 @@ function QuestionBankPage() {
               }
 
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="flex flex-wrap gap-2.5 p-5 bg-white border border-[#E6E6EA] rounded-2xl shadow-2xs">
                   {filteredTopics.map((item) => (
-                    <div
+                    <button
                       key={item.tag}
+                      type="button"
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#F7F7F9] hover:bg-[#EAF0FF] hover:text-[#2F5CFF] hover:border-[#B3C5FF] border border-[#E6E6EA] rounded-full text-[12px] font-medium text-[#0B0B0D] transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
+                      title={`${item.title} (${item.questions.length} questions)`}
                     >
-                      <div className="min-w-0 pr-2">
-                        <h5
-                          className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate"
-                          title={item.title}
-                        >
-                          {item.title}
-                        </h5>
-                        <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
-                          {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
-                        </p>
-                      </div>
-                      <ChevronRight
-                        size={14}
-                        className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0"
-                      />
-                    </div>
+                      <span className="group-hover:text-[#2F5CFF] transition-colors">{item.title}</span>
+                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#E6E6EA] group-hover:bg-[#2F5CFF] group-hover:text-white text-[#5B5B64] transition-colors">
+                        {item.questions.length}
+                      </span>
+                    </button>
                   ))}
                 </div>
               );
@@ -1826,7 +1817,7 @@ function QuestionBankPage() {
                     <option value="0-1">0-1 yrs (Fresher)</option>
                     <option value="2-5">2-5 yrs (Level 1)</option>
                     <option value="6-10">6-10 yrs (Level 2)</option>
-                    <option value="11-15">11-15 yrs (Level 3)</option>
+                    <option value="11-15">11+ yrs (Level 3)</option>
                   </select>
                 </div>
                 <div>
@@ -2311,7 +2302,7 @@ function QuestionBankPage() {
                     <option value="0-1">0-1 yrs (Fresher)</option>
                     <option value="2-5">2-5 yrs (Level 1)</option>
                     <option value="6-10">6-10 yrs (Level 2)</option>
-                    <option value="11-15">11-15 yrs (Level 3)</option>
+                    <option value="11-15">11+ yrs (Level 3)</option>
                   </select>
                 </div>
                 <div>

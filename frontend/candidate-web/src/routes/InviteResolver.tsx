@@ -112,6 +112,27 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           localStorage.removeItem('cd-recruit-scheduled-ms');
         }
 
+        // Check if there is a valid persisted onboarding stage (Consent, Face Verify, Tutorial, Waiting Room)
+        const rawOnboarding = localStorage.getItem('cd-recruit-onboarding-step');
+        if (rawOnboarding) {
+          try {
+            const savedStep = JSON.parse(rawOnboarding);
+            // Instant background hardware audit
+            let isExtendedDisplay = false;
+            try {
+              isExtendedDisplay = (window.screen as any)?.isExtended === true;
+            } catch {}
+
+            if (!isExtendedDisplay && savedStep?.type && savedStep.type !== 'system-check') {
+              console.log('[InviteResolver] Restoring candidate onboarding stage:', savedStep.type);
+              transitionTo({ ...savedStep, inviteToken: token });
+              return;
+            }
+          } catch (e) {
+            console.warn('[InviteResolver] Failed to parse saved onboarding stage:', e);
+          }
+        }
+
         // New Session — start directly at System Check (always full tutorial, never condensed)
         transitionTo({ type: 'system-check', mode: 'full', inviteToken: token });
         return;

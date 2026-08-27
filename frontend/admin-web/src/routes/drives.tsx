@@ -625,19 +625,12 @@ function DrivesPage() {
                     <span>NEW</span>
                   </div>
                 )}
-                <div className="flex items-baseline justify-between gap-3 mb-8">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <h3 className="text-[18px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
-                      {formatDriveName(d.name)}
-                    </h3>
-                    <p className="text-[13px] text-[#8B8B93] font-normal truncate">
-                      {d.roleTemplateName || "Software Developer"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <div className="flex items-center gap-1">
+                <div className="space-y-3.5 mb-6">
+                  {/* Top Badges Bar: Origin, Status & Date */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span
-                        className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
+                        className={`px-2.5 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
                           (d as any).originChannel === "PARTNER_API"
                             ? "bg-purple-100 text-purple-800 border border-purple-200"
                             : "bg-gray-100 text-gray-600 border border-gray-200"
@@ -651,10 +644,24 @@ function DrivesPage() {
                         {STATUS_LABEL[d.status]}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
+
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93] shrink-0">
                       <Calendar size={13} className="text-[#8B8B93] shrink-0" />
                       <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
                     </div>
+                  </div>
+
+                  {/* Middle Row: Full Width Primary Drive Name & Subtitle */}
+                  <div className="space-y-1">
+                    <h3
+                      className="text-[16px] font-bold text-[#0B0B0D] tracking-tight leading-snug line-clamp-2"
+                      title={d.name}
+                    >
+                      {formatDriveName(d.name)}
+                    </h3>
+                    <p className="text-[12px] text-[#8B8B93] font-medium truncate" title={d.roleTemplateName || "Software Developer"}>
+                      {d.roleTemplateName || "Software Developer"}
+                    </p>
                   </div>
                 </div>
 
@@ -754,7 +761,7 @@ function DrivesPage() {
                       >
                         <option value="all">All Categories</option>
                         <option value="FRESHER">Fresher (0-1 yrs)</option>
-                        <option value="EXPERIENCED">Experienced (2-15 yrs)</option>
+                        <option value="EXPERIENCED">Experienced (2+ yrs)</option>
                       </select>
                     </div>
                   </div>
@@ -773,11 +780,16 @@ function DrivesPage() {
                       className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
                     >
                       <option value="">-- Choose a Role Template --</option>
-                      {filteredTemplates.map((tpl) => (
-                        <option key={tpl.id} value={tpl.id}>
-                          {tpl.roleName} [{((tpl as any).category || "FRESHER") === "FRESHER" ? "Fresher (0-1 yrs)" : `${(tpl as any).experienceTier || "2-5"} yrs`}] ({tpl.department || "General"})
-                        </option>
-                      ))}
+                      {filteredTemplates.map((tpl) => {
+                        const tier = (tpl as any).experienceTier || (((tpl as any).category || "FRESHER") === "FRESHER" ? "0-1" : "2-5");
+                        const tierDisplay = tier === "0-1" ? "Fresher (0–1 yrs)" : tier === "11-15" ? "Level 3 (11+ yrs)" : tier === "6-10" ? "Level 2 (6–10 yrs)" : "Level 1 (2–5 yrs)";
+                        const cleanRole = (tpl.roleName || "").replace(/\s*[-–]\s*(Fresher|Level\s*\d).*$/i, "").trim() || tpl.roleName;
+                        return (
+                          <option key={tpl.id} value={tpl.id}>
+                            {cleanRole} • {tierDisplay} (v{tpl.version || 1})
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
