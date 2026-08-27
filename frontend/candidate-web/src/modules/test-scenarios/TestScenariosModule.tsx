@@ -225,7 +225,7 @@ export function TestScenariosModule({ moduleIndex }: TestScenariosModuleProps) {
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{category}</span>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`px-2 py-0.5 text-[11px] font-semibold rounded font-mono ${
+                        className={`px-2 py-0.5 text-xs-plus font-semibold rounded font-mono ${
                           difficulty === 'HARD'
                             ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
                             : difficulty === 'EASY'

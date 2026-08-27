@@ -46,10 +46,10 @@ const STATUS_LABEL: Record<DriveStatus, string> = {
 };
 
 const STATUS_COLOR: Record<DriveStatus, string> = {
-  DRAFT: "bg-[#EFF0F3] text-[#5B5B64]",
-  SCHEDULED: "bg-[#EAF0FF] text-[#15308F]",
-  ACTIVE: "bg-[#E6F7F4] text-[#0B6B58]",
-  CLOSED: "bg-[#FDF2E9] text-[#AD5B0B]",
+  DRAFT: "bg-surface-inset text-ink-secondary",
+  SCHEDULED: "bg-brand-subtle text-brand-ink",
+  ACTIVE: "bg-emerald-50 text-emerald-700",
+  CLOSED: "bg-amber-50 text-amber-700",
 };
 
 function formatShortDate(dateStr: string | null | undefined): string {
@@ -527,12 +527,12 @@ function DrivesPage() {
       count={filtered.length}
       search={
         <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search drives by name…"
-            className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+            className="w-full pl-9 pr-3 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
           />
         </div>
       }
@@ -541,10 +541,10 @@ function DrivesPage() {
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] hover:text-[#0B0B0D] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm-minus font-medium text-ink-secondary bg-white border border-line rounded-md hover:bg-canvas hover:text-ink transition-colors cursor-pointer shadow-xs disabled:opacity-50"
             title="Refresh Drives list from server"
           >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-[#2F5CFF]" : "text-[#8B8B93]"} />
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-brand" : "text-ink-tertiary"} />
             <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
           <button
@@ -552,7 +552,7 @@ function DrivesPage() {
               resetWizard();
               setShowWizard(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm-minus font-medium text-white bg-brand rounded-md hover:bg-brand-hover shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={14} />
             Create Drive
@@ -567,10 +567,10 @@ function DrivesPage() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                 statusFilter === s
-                  ? "text-black border-[#2F5CFF] border-2"
-                  : "bg-white text-[#5B5B64] border-[#E6E6EA] border-2 hover:border-[#D6D7DC]"
+                  ? "text-black border-brand border-2"
+                  : "bg-white text-ink-secondary border-line border-2 hover:border-line-strong"
               }`}
             >
               {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
@@ -578,16 +578,16 @@ function DrivesPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5 border-l border-[#E6E6EA] pl-3">
-          <span className="text-[11px] font-semibold text-[#8B8B93] uppercase tracking-wider">Source:</span>
+        <div className="flex items-center gap-1.5 border-l border-line pl-3">
+          <span className="text-xs-plus font-semibold text-ink-tertiary uppercase tracking-wider">Source:</span>
           {(["all", "DIRECT", "PARTNER_API"] as const).map((src) => (
             <button
               key={src}
               onClick={() => setSourceFilter(src)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-full text-xs-plus font-medium border transition-colors cursor-pointer ${
                 sourceFilter === src
-                  ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                  : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
+                  ? "bg-brand text-white border-brand"
+                  : "bg-white text-ink-secondary border-line hover:border-line-strong"
               }`}
             >
               {src === "all" ? "All Sources" : src === "DIRECT" ? "Direct" : "Partner API"}
@@ -595,7 +595,7 @@ function DrivesPage() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-[11px] font-medium text-emerald-800">
+        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-xs-plus font-medium text-emerald-800">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Live Auto-Sync</span>
         </div>
@@ -604,7 +604,7 @@ function DrivesPage() {
       {/* Grid of Drives */}
       {filtered.length === 0 ? (
         <div className="flex justify-center w-full py-8">
-          <p className="text-[12px] italic text-[#8B8B93]">To get Started click on Create Drive</p>
+          <p className="text-xs italic text-ink-tertiary">To get Started click on Create Drive</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
@@ -613,14 +613,14 @@ function DrivesPage() {
             return (
               <div
                 key={d.id}
-                className={`bg-white border rounded-[16px] p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative ${
+                className={`bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative ${
                   isNewlyDetected
-                    ? "border-[#2F5CFF] ring-2 ring-[#2F5CFF]/30 bg-blue-50/10"
-                    : "border-[#E6E6EA]"
+                    ? "border-brand ring-2 ring-brand/30 bg-blue-50/10"
+                    : "border-line"
                 }`}
               >
                 {isNewlyDetected && (
-                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-brand to-brand-ink text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-brand to-brand-ink text-white text-2xs font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
                     <Sparkles size={11} className="text-amber-300" />
                     <span>NEW</span>
                   </div>
@@ -630,7 +630,7 @@ function DrivesPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span
-                        className={`px-2.5 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
+                        className={`px-2.5 py-0.5 rounded-full text-2xs font-mono uppercase tracking-wider font-semibold ${
                           (d as any).originChannel === "PARTNER_API"
                             ? "bg-purple-100 text-purple-800 border border-purple-200"
                             : "bg-gray-100 text-gray-600 border border-gray-200"
@@ -639,13 +639,13 @@ function DrivesPage() {
                         {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
                       </span>
                       <span
-                        className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
+                        className={`px-2.5 py-0.5 rounded-full text-xs-plus font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
                       >
                         {STATUS_LABEL[d.status]}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-tertiary shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs-plus font-medium text-ink-tertiary shrink-0">
                       <Calendar size={13} className="text-ink-tertiary shrink-0" />
                       <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
                     </div>
@@ -654,12 +654,12 @@ function DrivesPage() {
                   {/* Middle Row: Full Width Primary Drive Name & Subtitle */}
                   <div className="space-y-1">
                     <h3
-                      className="text-[16px] font-bold text-ink tracking-tight leading-snug line-clamp-2"
+                      className="text-base font-bold text-ink tracking-tight leading-snug line-clamp-2"
                       title={d.name}
                     >
                       {formatDriveName(d.name)}
                     </h3>
-                    <p className="text-[12px] text-ink-tertiary font-medium truncate" title={d.roleTemplateName || "Software Developer"}>
+                    <p className="text-xs text-ink-tertiary font-medium truncate" title={d.roleTemplateName || "Software Developer"}>
                       {d.roleTemplateName || "Software Developer"}
                     </p>
                   </div>
@@ -669,13 +669,13 @@ function DrivesPage() {
                   <Link
                     to="/drives/$id"
                     params={{ id: d.id }}
-                    className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-brand border border-brand bg-transparent hover:bg-brand hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
+                    className="flex-1 py-1.5 px-4 text-sm-minus font-semibold text-brand border border-brand bg-transparent hover:bg-brand hover:text-white rounded-xl transition-all text-center cursor-pointer flex items-center justify-center"
                   >
                     View Drive
                   </Link>
                   <button
                     onClick={() => setConfirmDeleteDrive(d)}
-                    className="p-2 text-ink-tertiary hover:text-danger hover:bg-danger-subtle border border-line hover:border-danger-border rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    className="p-2 text-ink-tertiary hover:text-danger hover:bg-danger-subtle border border-line hover:border-danger-border rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
                     title="Delete Drive"
                   >
                     <Trash2 size={15} />
@@ -690,27 +690,27 @@ function DrivesPage() {
       {/* Streamlined Drive Creation Modal */}
       {showWizard && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
+          <div className="bg-white rounded-xl w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <div>
-                <h2 className="text-[16px] font-semibold text-[#0B0B0D]">Create New Drive</h2>
-                <p className="text-[12px] text-[#5B5B64] mt-0.5">Select a Role Template or define custom role settings for direct drive creation.</p>
+                <h2 className="text-base font-semibold text-ink">Create New Drive</h2>
+                <p className="text-xs text-ink-secondary mt-0.5">Select a Role Template or define custom role settings for direct drive creation.</p>
               </div>
-              <button onClick={() => setShowWizard(false)} className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer">
+              <button onClick={() => setShowWizard(false)} className="text-ink-tertiary hover:text-ink cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto">
               {/* Creation Mode Toggle */}
-              <div className="flex bg-[#F7F7F9] p-1 rounded-lg border border-[#E6E6EA]">
+              <div className="flex bg-canvas p-1 rounded-lg border border-line">
                 <button
                   type="button"
                   onClick={() => setCreationMode("TEMPLATE")}
-                  className={`flex-1 py-1.5 px-3 text-[12px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     creationMode === "TEMPLATE"
-                      ? "bg-white text-[#2F5CFF] shadow-sm"
-                      : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                      ? "bg-white text-brand shadow-sm"
+                      : "text-ink-secondary hover:text-ink"
                   }`}
                 >
                   <Sparkles size={14} /> Use Role Template (Recommended)
@@ -721,10 +721,10 @@ function DrivesPage() {
                     setCreationMode("CUSTOM");
                     setSelectedTemplateId("");
                   }}
-                  className={`flex-1 py-1.5 px-3 text-[12px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     creationMode === "CUSTOM"
-                      ? "bg-white text-[#2F5CFF] shadow-sm"
-                      : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                      ? "bg-white text-brand shadow-sm"
+                      : "text-ink-secondary hover:text-ink"
                   }`}
                 >
                   <PenLine size={14} /> Custom Role (No Template)
@@ -735,11 +735,11 @@ function DrivesPage() {
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Department</label>
+                      <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Department</label>
                       <select
                         value={templateDeptFilter}
                         onChange={(e) => setTemplateDeptFilter(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink"
                       >
                         <option value="all">All Departments</option>
                         <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
@@ -753,11 +753,11 @@ function DrivesPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Category</label>
+                      <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Category</label>
                       <select
                         value={templateCategoryFilter}
                         onChange={(e) => setTemplateCategoryFilter(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink"
                       >
                         <option value="all">All Categories</option>
                         <option value="FRESHER">Fresher (0-1 yrs)</option>
@@ -767,7 +767,7 @@ function DrivesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                    <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
                       Select Role Template <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -777,7 +777,7 @@ function DrivesPage() {
                         if (tpl) handleSelectTemplate(tpl);
                         else setSelectedTemplateId("");
                       }}
-                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+                      className="w-full px-3 py-2 text-sm-minus border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
                     >
                       <option value="">-- Choose a Role Template --</option>
                       {filteredTemplates.map((tpl) => {
@@ -794,19 +794,19 @@ function DrivesPage() {
                   </div>
 
                   {selectedTemplateObj && (
-                    <div className="p-3 bg-[#EAF0FF] border border-[#B3C5FF] rounded-lg space-y-1.5 text-[12px]">
-                      <div className="flex items-center justify-between font-semibold text-[#15308F]">
+                    <div className="p-3 bg-brand-subtle border border-brand-border rounded-lg space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between font-semibold text-brand-ink">
                         <span>{selectedTemplateObj.roleName}</span>
-                        <span className="px-2 py-0.5 bg-[#2F5CFF] text-white rounded text-[10px] uppercase font-mono">
+                        <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs uppercase font-mono">
                           {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-[#5B5B64] text-[11px]">
-                        <span>Department: <strong className="text-[#0B0B0D]">{selectedTemplateObj.department || "General"}</strong></span>
+                      <div className="flex items-center gap-3 text-ink-secondary text-xs-plus">
+                        <span>Department: <strong className="text-ink">{selectedTemplateObj.department || "General"}</strong></span>
                         <span>•</span>
-                        <span>Category: <strong className="text-[#0B0B0D]">{(selectedTemplateObj as any).category || "FRESHER"}</strong></span>
+                        <span>Category: <strong className="text-ink">{(selectedTemplateObj as any).category || "FRESHER"}</strong></span>
                         <span>•</span>
-                        <span>Questions: <strong className="text-[#0B0B0D]">{((selectedTemplateObj as any).questions || []).length}</strong></span>
+                        <span>Questions: <strong className="text-ink">{((selectedTemplateObj as any).questions || []).length}</strong></span>
                       </div>
                     </div>
                   )}
@@ -814,7 +814,7 @@ function DrivesPage() {
               )}
 
               <div>
-                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
                   Drive Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -822,13 +822,13 @@ function DrivesPage() {
                   value={driveName}
                   onChange={(e) => setDriveName(e.target.value)}
                   placeholder="e.g. Senior Software Engineer Drive - August 2026"
-                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3.5 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
                 />
               </div>
 
               {creationMode === "CUSTOM" && (
                 <div>
-                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                  <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
                     Role Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -836,17 +836,17 @@ function DrivesPage() {
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     placeholder="e.g. Senior Software Engineer"
-                    className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                    className="w-full px-3.5 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
                   />
                   
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
+            <div className="px-6 py-4 border-t border-line bg-canvas rounded-b-[12px] flex items-center justify-end gap-2">
               <button
                 onClick={() => setShowWizard(false)}
-                className="px-3.5 py-2 text-[12px] font-medium text-[#5B5B64] hover:bg-[#E6E6EA] rounded-md transition-colors"
+                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-md transition-colors"
               >
                 Cancel
               </button>
@@ -886,7 +886,7 @@ function DrivesPage() {
                     toast.error("Failed to create drive: " + (err.message || err));
                   }
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
               >
                 Create &amp; Configure Drive
                 <ArrowRight size={14} />
@@ -899,22 +899,22 @@ function DrivesPage() {
       {/* Close Drive Confirmation Modal */}
       {confirmCloseDrive && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-orange-50 text-orange-500 rounded-full">
                 <X size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Close Drive Early?</h3>
+              <h3 className="text-base font-semibold text-ink">Close Drive Early?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to close the assessment drive <span className="font-semibold text-[#0B0B0D]">"{confirmCloseDrive.name}"</span> early? This will prevent any new candidates from starting the assessment and mark the drive as closed.
+            <p className="text-sm-minus text-ink-secondary leading-relaxed">
+              Are you sure you want to close the assessment drive <span className="font-semibold text-ink">"{confirmCloseDrive.name}"</span> early? This will prevent any new candidates from starting the assessment and mark the drive as closed.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+            <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmCloseDrive(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -935,23 +935,23 @@ function DrivesPage() {
       {/* Delete Confirmation Modal */}
       {confirmDeleteDrive && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <AlertTriangle size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Drive?</h3>
+              <h3 className="text-base font-semibold text-ink">Delete Drive?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to delete the assessment drive <span className="font-semibold text-[#0B0B0D]">"{confirmDeleteDrive.name}"</span>?
+            <p className="text-sm-minus text-ink-secondary leading-relaxed">
+              Are you sure you want to delete the assessment drive <span className="font-semibold text-ink">"{confirmDeleteDrive.name}"</span>?
               This will permanently revoke all invites and delete all candidate sessions, proctoring/event logs, and scores. This action cannot be undone.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+            <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteDrive(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>

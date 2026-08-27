@@ -125,7 +125,7 @@ export function IncidentResolutionModal({ isOpen, onClose, onSubmit }: IncidentR
 
           {/* Risk Assessment Grid */}
           <div className="p-4 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-4">
-            <h3 className="font-bold text-[var(--text-primary)] uppercase tracking-wider font-mono text-[11px] flex items-center gap-2">
+            <h3 className="font-bold text-[var(--text-primary)] uppercase tracking-wider font-mono text-xs-plus flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-amber-500" />
               <span>Engineering Risk Assessment &amp; Validation</span>
             </h3>
@@ -140,7 +140,7 @@ export function IncidentResolutionModal({ isOpen, onClose, onSubmit }: IncidentR
                       key={risk}
                       type="button"
                       onClick={() => setRegressionRisk(risk)}
-                      className={`py-1.5 px-2 rounded-lg font-mono font-bold text-[10px] border transition-all cursor-pointer ${
+                      className={`py-1.5 px-2 rounded-lg font-mono font-bold text-2xs border transition-all cursor-pointer ${
                         regressionRisk === risk
                           ? risk === 'LOW'
                             ? 'bg-emerald-500/20 border-emerald-500 text-emerald-500'
@@ -160,7 +160,7 @@ export function IncidentResolutionModal({ isOpen, onClose, onSubmit }: IncidentR
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="font-semibold text-[var(--text-secondary)]">Deployment Confidence</label>
-                  <span className="font-mono font-bold text-[var(--accent)] text-[11px]">{confidenceScore}%</span>
+                  <span className="font-mono font-bold text-[var(--accent)] text-xs-plus">{confidenceScore}%</span>
                 </div>
                 <input
                   type="range"
@@ -218,7 +218,7 @@ export function IncidentResolutionModal({ isOpen, onClose, onSubmit }: IncidentR
                       key={comp}
                       type="button"
                       onClick={() => toggleComponent(comp)}
-                      className={`px-2.5 py-1 rounded-md font-mono text-[10px] border transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md font-mono text-2xs border transition-colors cursor-pointer ${
                         isSelected
                           ? 'bg-[var(--accent)]/15 border-[var(--accent)] text-[var(--accent)] font-bold'
                           : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]'
@@ -285,7 +285,7 @@ export function IncidentResolutionModal({ isOpen, onClose, onSubmit }: IncidentR
                       <Icon className="w-4 h-4 shrink-0" />
                       <span>{strategy.label}</span>
                     </div>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-normal">{strategy.desc}</p>
+                    <p className="text-2xs text-[var(--text-secondary)] mt-1 leading-normal">{strategy.desc}</p>
                   </button>
                 )
               })}

@@ -155,7 +155,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
         </div>
 
         {/* Title & Subtitle */}
-        <h1 id="consent-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">
+        <h1 id="consent-heading" className="text-3xl-plus font-semibold tracking-tight text-[var(--foreground)]">
           {currentStepMeta.title}
         </h1>
         {currentStepMeta.subtitle && (

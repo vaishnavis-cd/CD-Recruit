@@ -1,0 +1,28 @@
+{
+  "name": "@cd-recruit/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./css": "./src/tokens.css",
+    "./monaco": {
+      "types": "./dist/monacoTheme.d.ts",
+      "import": "./dist/monacoTheme.js",
+      "require": "./dist/monacoTheme.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "monaco-editor": "^0.52.2",
+    "typescript": "^5.4.0"
+  }
+}

@@ -40,16 +40,16 @@ function SvgBarChart({ data }: { data: Array<{ band: string; count: number }> })
           const heightPct = Math.max(12, Math.round((item.count / maxCount) * 100));
           return (
             <div key={item.band || idx} className="flex-1 flex flex-col items-center gap-1.5 group h-full justify-end">
-              <span className="text-[11px] font-mono font-bold text-[#5B5B64] group-hover:text-[#2F5CFF] transition-colors">
+              <span className="text-xs-plus font-mono font-bold text-ink-secondary group-hover:text-brand transition-colors">
                 {item.count}
               </span>
-              <div className="w-full bg-[#F4F4F6] rounded-t-lg overflow-hidden h-[140px] flex items-end">
+              <div className="w-full bg-canvas rounded-t-lg overflow-hidden h-[140px] flex items-end">
                 <div
-                  className="w-full bg-[#2F5CFF] hover:bg-[#1A44D6] rounded-t transition-all duration-500 shadow-xs"
+                  className="w-full bg-brand hover:bg-brand-hover rounded-t transition-all duration-500 shadow-xs"
                   style={{ height: `${heightPct}%` }}
                 />
               </div>
-              <span className="text-[11px] font-medium text-[#5B5B64] truncate max-w-full mt-1">
+              <span className="text-xs-plus font-medium text-ink-secondary truncate max-w-full mt-1">
                 {item.band}
               </span>
             </div>
@@ -263,38 +263,38 @@ function ReportsPage() {
       <div className="max-w-[1200px] mx-auto pb-12 space-y-6">
         
         {/* Navigation Tabs */}
-        <div className="flex border-b border-[#E6E6EA] space-x-6">
+        <div className="flex border-b border-line space-x-6">
           <button
             onClick={() => setActiveTab("PERFORMANCE")}
-            className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
-              activeTab === "PERFORMANCE" ? "text-[#2F5CFF]" : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            className={`pb-3 text-sm-minus font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
+              activeTab === "PERFORMANCE" ? "text-brand" : "text-ink-secondary hover:text-ink"
             }`}
           >
             <BarChart3 size={15} />
             <span>Performance &amp; Domain Metrics</span>
-            {activeTab === "PERFORMANCE" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
+            {activeTab === "PERFORMANCE" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-t-md" />}
           </button>
 
           <button
             onClick={() => setActiveTab("INTEGRITY")}
-            className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
-              activeTab === "INTEGRITY" ? "text-[#2F5CFF]" : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            className={`pb-3 text-sm-minus font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
+              activeTab === "INTEGRITY" ? "text-brand" : "text-ink-secondary hover:text-ink"
             }`}
           >
             <ShieldAlert size={15} />
             <span>Integrity &amp; Risk Analytics</span>
-            {activeTab === "INTEGRITY" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
+            {activeTab === "INTEGRITY" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-t-md" />}
           </button>
 
           <button
             onClick={() => setActiveTab("EXPORTS")}
-            className={`pb-3 text-[13px] font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
-              activeTab === "EXPORTS" ? "text-[#2F5CFF]" : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            className={`pb-3 text-sm-minus font-semibold transition-colors relative flex items-center gap-2 cursor-pointer ${
+              activeTab === "EXPORTS" ? "text-brand" : "text-ink-secondary hover:text-ink"
             }`}
           >
             <Settings2 size={15} />
             <span>Custom Export Configuration</span>
-            {activeTab === "EXPORTS" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2F5CFF] rounded-t-md" />}
+            {activeTab === "EXPORTS" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-t-md" />}
           </button>
         </div>
 
@@ -303,61 +303,61 @@ function ReportsPage() {
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* Top 4 KPI Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-[#5B5B64]">
-                  <span className="text-[11px] font-mono uppercase font-semibold">Total Assessed</span>
-                  <Users size={16} className="text-[#2F5CFF]" />
+              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-ink-secondary">
+                  <span className="text-xs-plus font-mono uppercase font-semibold">Total Assessed</span>
+                  <Users size={16} className="text-brand" />
                 </div>
-                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{totalAssessed}</div>
-                <div className="text-[11px] text-[#5B5B64] font-medium flex items-center gap-1">
-                  <TrendingUp size={12} className="text-[#2F5CFF]" /> Real database candidate sessions
+                <div className="text-3xl font-bold text-ink font-mono">{totalAssessed}</div>
+                <div className="text-xs-plus text-ink-secondary font-medium flex items-center gap-1">
+                  <TrendingUp size={12} className="text-brand" /> Real database candidate sessions
                 </div>
               </div>
 
-              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-[#5B5B64]">
-                  <span className="text-[11px] font-mono uppercase font-semibold">Avg Composite Score</span>
-                  <Award size={16} className="text-[#2F5CFF]" />
+              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-ink-secondary">
+                  <span className="text-xs-plus font-mono uppercase font-semibold">Avg Composite Score</span>
+                  <Award size={16} className="text-brand" />
                 </div>
-                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{avgScore}%</div>
-                <div className="text-[11px] text-[#5B5B64]">Across all technical modules</div>
+                <div className="text-3xl font-bold text-ink font-mono">{avgScore}%</div>
+                <div className="text-xs-plus text-ink-secondary">Across all technical modules</div>
               </div>
 
-              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-[#5B5B64]">
-                  <span className="text-[11px] font-mono uppercase font-semibold">Say-Do Consistency</span>
-                  <Activity size={16} className="text-[#2F5CFF]" />
+              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-ink-secondary">
+                  <span className="text-xs-plus font-mono uppercase font-semibold">Say-Do Consistency</span>
+                  <Activity size={16} className="text-brand" />
                 </div>
-                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{avgConsistency}%</div>
-                <div className="text-[11px] text-[#5B5B64] font-medium">Behavioral sync fidelity</div>
+                <div className="text-3xl font-bold text-ink font-mono">{avgConsistency}%</div>
+                <div className="text-xs-plus text-ink-secondary font-medium">Behavioral sync fidelity</div>
               </div>
 
-              <div className="p-5 bg-white border border-[#E6E6EA] rounded-xl shadow-sm space-y-2">
-                <div className="flex items-center justify-between text-[#5B5B64]">
-                  <span className="text-[11px] font-mono uppercase font-semibold">Overall Pass Rate</span>
-                  <CheckCircle2 size={16} className="text-[#2F5CFF]" />
+              <div className="p-5 bg-white border border-line rounded-xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-ink-secondary">
+                  <span className="text-xs-plus font-mono uppercase font-semibold">Overall Pass Rate</span>
+                  <CheckCircle2 size={16} className="text-brand" />
                 </div>
-                <div className="text-3xl font-bold text-[#0B0B0D] font-mono">{passRate}%</div>
-                <div className="text-[11px] text-[#5B5B64]">Approved for technical interview</div>
+                <div className="text-3xl font-bold text-ink font-mono">{passRate}%</div>
+                <div className="text-xs-plus text-ink-secondary">Approved for technical interview</div>
               </div>
             </div>
 
             {/* Per-Module Score Breakdown & Score Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Module Performance Bars */}
-              <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-5">
+              <div className="lg:col-span-7 bg-white border border-line rounded-xl p-6 shadow-sm space-y-5">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Module Performance Averages</h3>
-                  <p className="text-[12px] text-[#8B8B93]">Mean scores across candidate module completions.</p>
+                  <h3 className="text-md font-semibold text-ink">Module Performance Averages</h3>
+                  <p className="text-xs text-ink-tertiary">Mean scores across candidate module completions.</p>
                 </div>
 
-                <div className="space-y-4 text-[13px]">
+                <div className="space-y-4 text-sm-minus">
                   {moduleAverages.map((mod) => {
                     const Icon = mod.icon;
                     return (
                       <div key={mod.name} className="space-y-1.5">
                         <div className="flex items-center justify-between font-medium">
-                          <div className="flex items-center gap-2 text-[#0B0B0D]">
+                          <div className="flex items-center gap-2 text-ink">
                             <Icon size={15} style={{ color: mod.color }} />
                             <span>{mod.name}</span>
                           </div>
@@ -365,7 +365,7 @@ function ReportsPage() {
                             {mod.score !== null ? `${mod.score}%` : "—"}
                           </span>
                         </div>
-                        <div className="w-full h-2.5 bg-[#F4F4F6] rounded-full overflow-hidden">
+                        <div className="w-full h-2.5 bg-canvas rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{ width: `${mod.score ?? 0}%`, backgroundColor: mod.color }}
@@ -378,10 +378,10 @@ function ReportsPage() {
               </div>
 
               {/* Score Band Distribution */}
-              <div className="lg:col-span-5 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-5 flex flex-col justify-between">
+              <div className="lg:col-span-5 bg-white border border-line rounded-xl p-6 shadow-sm space-y-5 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Score Distribution Bands</h3>
-                  <p className="text-[12px] text-[#8B8B93]">Candidate distribution across composite score bands.</p>
+                  <h3 className="text-md font-semibold text-ink">Score Distribution Bands</h3>
+                  <p className="text-xs text-ink-tertiary">Candidate distribution across composite score bands.</p>
                 </div>
 
                 <div className="w-full h-[220px]">
@@ -398,43 +398,43 @@ function ReportsPage() {
             {/* Risk Category Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-5 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
-                <div className="text-[11px] font-mono font-semibold uppercase text-emerald-800">Low Risk Sessions</div>
+                <div className="text-xs-plus font-mono font-semibold uppercase text-emerald-800">Low Risk Sessions</div>
                 <div className="text-3xl font-bold text-emerald-900 font-mono">{integrityAnalytics.lowPct}%</div>
-                <div className="text-[12px] text-emerald-700">0–1 minor integrity telemetry logs</div>
+                <div className="text-xs text-emerald-700">0–1 minor integrity telemetry logs</div>
               </div>
 
               <div className="p-5 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1">
-                <div className="text-[11px] font-mono font-semibold uppercase text-amber-800">Medium Risk Sessions</div>
+                <div className="text-xs-plus font-mono font-semibold uppercase text-amber-800">Medium Risk Sessions</div>
                 <div className="text-3xl font-bold text-amber-900 font-mono">{integrityAnalytics.medPct}%</div>
-                <div className="text-[12px] text-amber-700">2–3 tab switches or gaze shifts</div>
+                <div className="text-xs text-amber-700">2–3 tab switches or gaze shifts</div>
               </div>
 
               <div className="p-5 bg-rose-50/60 border border-rose-200 rounded-xl space-y-1">
-                <div className="text-[11px] font-mono font-semibold uppercase text-rose-800">High Risk Sessions</div>
+                <div className="text-xs-plus font-mono font-semibold uppercase text-rose-800">High Risk Sessions</div>
                 <div className="text-3xl font-bold text-rose-900 font-mono">{integrityAnalytics.highPct}%</div>
-                <div className="text-[12px] text-rose-700">Multiple face/object/speech flags</div>
+                <div className="text-xs text-rose-700">Multiple face/object/speech flags</div>
               </div>
             </div>
 
             {/* Violation Breakdown Table */}
-            <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Proctoring Flag &amp; Evidence Analytics</h3>
-              <div className="divide-y divide-[#EFF0F3] border border-[#E6E6EA] rounded-lg overflow-hidden">
+            <div className="bg-white border border-line rounded-xl p-6 shadow-sm space-y-4">
+              <h3 className="text-md font-semibold text-ink">Proctoring Flag &amp; Evidence Analytics</h3>
+              <div className="divide-y divide-surface-inset border border-line rounded-lg overflow-hidden">
                 {integrityAnalytics.violations.map((item) => (
-                  <div key={item.name} className="p-4 bg-white flex items-center justify-between hover:bg-[#F7F7F9] transition-colors">
+                  <div key={item.name} className="p-4 bg-white flex items-center justify-between hover:bg-canvas transition-colors">
                     <div className="flex items-center gap-3">
-                      <ShieldAlert size={16} className={item.risk === "HIGH" ? "text-rose-600" : item.risk === "MEDIUM" ? "text-amber-600" : "text-[#2F5CFF]"} />
+                      <ShieldAlert size={16} className={item.risk === "HIGH" ? "text-rose-600" : item.risk === "MEDIUM" ? "text-amber-600" : "text-brand"} />
                       <div>
-                        <div className="text-[13px] font-semibold text-[#0B0B0D]">{item.name}</div>
-                        <div className="text-[11px] text-[#8B8B93] font-mono">Category Code: {item.category}</div>
+                        <div className="text-sm-minus font-semibold text-ink">{item.name}</div>
+                        <div className="text-xs-plus text-ink-tertiary font-mono">Category Code: {item.category}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <div className="text-[13px] font-bold text-[#0B0B0D] font-mono">{item.count} occurrences</div>
-                        <div className="text-[11px] text-[#8B8B93]">{item.rate} of total sessions</div>
+                        <div className="text-sm-minus font-bold text-ink font-mono">{item.count} occurrences</div>
+                        <div className="text-xs-plus text-ink-tertiary">{item.rate} of total sessions</div>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
+                      <span className={`px-2.5 py-0.5 rounded text-2xs font-mono uppercase font-bold ${
                         item.risk === "HIGH" ? "bg-rose-100 text-rose-700" : item.risk === "MEDIUM" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
                       }`}>
                         {item.risk} RISK
@@ -451,28 +451,28 @@ function ReportsPage() {
         {activeTab === "EXPORTS" && (
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* Export Configuration Card */}
-            <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EFF0F3] pb-5">
+            <div className="bg-white border border-line rounded-xl p-6 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-inset pb-5">
                 <div>
-                  <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#5B5B64] mb-1">
+                  <div className="flex items-center gap-2 text-xs-plus font-bold uppercase tracking-wider text-ink-secondary mb-1">
                     <Settings2 size={14} /> Export Configuration &amp; Field Customizer
                   </div>
-                  <div className="text-[14px] text-[#0B0B0D]">
+                  <div className="text-sm text-ink">
                     Configure data fields included in generated PDF, CSV, and JSON report payloads
                   </div>
                 </div>
                 
                 {/* Segmented Control */}
-                <div className="flex p-1 bg-[#F7F7F9] rounded-lg border border-[#E6E6EA]">
+                <div className="flex p-1 bg-canvas rounded-lg border border-line">
                   {(["internal", "candidate"] as const).map((v) => (
                     <button
                       key={v}
                       type="button"
                       onClick={() => setVariant(v)}
-                      className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-all cursor-pointer ${
+                      className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                         variant === v 
-                          ? "bg-white shadow-sm text-[#0B0B0D] border border-[#E6E6EA]/50 font-semibold" 
-                          : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                          ? "bg-white shadow-sm text-ink border border-line/50 font-semibold" 
+                          : "text-ink-secondary hover:text-ink"
                       }`}
                     >
                       {v === "internal" ? "Internal / Recruiter" : "Candidate-Facing"}
@@ -485,27 +485,27 @@ function ReportsPage() {
                 {FIELDS[variant].map((f: any) => (
                   <label
                     key={f.label}
-                    className="group flex items-start gap-3 border border-[#E6E6EA] rounded-xl p-4 hover:border-[#2F5CFF] hover:bg-[#F0F4FF]/30 transition-colors cursor-pointer"
+                    className="group flex items-start gap-3 border border-line rounded-xl p-4 hover:border-brand hover:bg-brand-subtle/30 transition-colors cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       defaultChecked
-                      className="mt-1 w-4 h-4 text-[#2F5CFF] rounded border-[#E6E6EA] focus:ring-[#2F5CFF]"
+                      className="mt-1 w-4 h-4 text-brand rounded border-line focus:ring-brand"
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <div className="text-[13px] font-semibold text-[#0B0B0D]">{f.label}</div>
+                        <div className="text-sm-minus font-semibold text-ink">{f.label}</div>
                         {f.sensitive ? (
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#E5484D] bg-[#FFF0F0] px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-1 text-2xs font-bold uppercase tracking-wider text-danger bg-rose-50 px-2 py-0.5 rounded">
                             <Lock size={10} /> Sensitive
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#2F5CFF] bg-[#F0F4FF] px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-1 text-2xs font-bold uppercase tracking-wider text-brand bg-brand-subtle px-2 py-0.5 rounded">
                             <Eye size={10} /> Standard
                           </div>
                         )}
                       </div>
-                      <div className="text-[12px] text-[#5B5B64]">{f.note}</div>
+                      <div className="text-xs text-ink-secondary">{f.note}</div>
                     </div>
                   </label>
                 ))}

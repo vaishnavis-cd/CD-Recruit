@@ -253,7 +253,7 @@ function DashboardPage() {
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 text-[13px] font-medium text-[#0B0B0D] focus:outline-none cursor-pointer border border-[#E6E6EA] rounded-lg bg-white hover:border-[#D1D1D8] shadow-xs"
+            className="px-3 py-2 text-sm-minus font-medium text-ink focus:outline-none cursor-pointer border border-line rounded-lg bg-white hover:border-line shadow-xs"
           >
             <option value="7">Last 7 Days</option>
             <option value="30">Last 30 Days</option>
@@ -360,17 +360,17 @@ function DashboardPage() {
 
         {/* SECTION 2: Pipeline Funnel and Live Event Stream */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm">
+          <div className="lg:col-span-7 bg-white border border-line rounded-xl p-6 shadow-sm">
             <FunnelView data={stats.funnel} />
           </div>
 
-          <div className="lg:col-span-5 bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm flex flex-col">
+          <div className="lg:col-span-5 bg-white border border-line rounded-xl p-6 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-[14px] font-bold uppercase tracking-wider text-[#5B5B64] flex items-center gap-2">
-                  <Activity size={15} className="text-[#2F5CFF]" /> Live Session Stream
+                <h3 className="text-sm font-bold uppercase tracking-wider text-ink-secondary flex items-center gap-2">
+                  <Activity size={15} className="text-brand" /> Live Session Stream
                 </h3>
-                <p className="text-[12px] text-[#8B8B93] mt-0.5">Real-time candidate assessment activities</p>
+                <p className="text-xs text-ink-tertiary mt-0.5">Real-time candidate assessment activities</p>
               </div>
             </div>
 
@@ -378,17 +378,17 @@ function DashboardPage() {
               {filteredSessions.slice(0, 5).map((s: any) => {
                 const isFlagged = (s.integrityFlags || []).some((f: any) => f.severity === 'critical');
                 return (
-                  <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[#EFF0F3] bg-[#F7F7F9]">
+                  <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg border border-surface-inset bg-canvas">
                     <div className="flex items-center gap-3">
-                      <span className={`w-2.5 h-2.5 rounded-full ${isFlagged ? 'bg-[#E5484D]' : s.status === 'submitted' ? 'bg-[#2F5CFF]' : 'bg-[#10B981]'}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${isFlagged ? 'bg-danger' : s.status === 'submitted' ? 'bg-brand' : 'bg-success'}`} />
                       <div>
-                        <div className="text-[13px] font-semibold text-[#0B0B0D]">{s.candidate?.name || s.candidateName || 'Candidate'}</div>
-                        <div className="text-[11px] text-[#8B8B93]">{s.roleTemplate?.roleName || 'Software Engineer'}</div>
+                        <div className="text-sm-minus font-semibold text-ink">{s.candidate?.name || s.candidateName || 'Candidate'}</div>
+                        <div className="text-xs-plus text-ink-tertiary">{s.roleTemplate?.roleName || 'Software Engineer'}</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono text-[12px] font-bold text-[#0B0B0D]">{s.compositeScore !== null ? `${s.compositeScore}%` : 'In progress'}</span>
-                      <div className="text-[10px] text-[#8B8B93]">{s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active now'}</div>
+                      <span className="font-mono text-xs font-bold text-ink">{s.compositeScore !== null ? `${s.compositeScore}%` : 'In progress'}</span>
+                      <div className="text-2xs text-ink-tertiary">{s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active now'}</div>
                     </div>
                   </div>
                 );
@@ -535,7 +535,7 @@ function DashboardPage() {
 
 function MetricCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
+    <div className={`bg-white border border-line rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
       {children}
     </div>
   );
@@ -544,7 +544,7 @@ function MetricCard({ children, className = "" }: { children: React.ReactNode; c
 function SectionTitle({ children, noMargin, action }: { children: React.ReactNode; noMargin?: boolean; action?: React.ReactNode }) {
   return (
     <div className={`flex items-center justify-between ${noMargin ? "" : "mb-5"}`}>
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#5B5B64]">
+      <h3 className="text-xs-plus font-bold uppercase tracking-[0.15em] text-ink-secondary">
         {children}
       </h3>
       {action && <div>{action}</div>}
@@ -555,15 +555,15 @@ function SectionTitle({ children, noMargin, action }: { children: React.ReactNod
 function ReadoutTile({ label, value, suffix, tone }: { label: string; value: number; suffix?: string; tone: "ink" | "brand" | "amber" }) {
   const color = tone === "brand" ? "#2F5CFF" : tone === "amber" ? "#E5484D" : "#0B0B0D";
   return (
-    <div className="border border-[#E6E6EA] bg-white rounded-xl p-5 flex flex-col justify-center shadow-sm">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-[#5B5B64] mb-2">
+    <div className="border border-line bg-white rounded-xl p-5 flex flex-col justify-center shadow-sm">
+      <div className="text-xs-plus font-bold uppercase tracking-wider text-ink-secondary mb-2">
         {label}
       </div>
       <div className="flex items-baseline gap-2">
         <span className="font-mono text-4xl leading-none font-semibold tracking-tight" style={{ color }}>
           {value}
         </span>
-        {suffix && <span className="text-[12px] font-medium text-[#8B8B93]">{suffix}</span>}
+        {suffix && <span className="text-xs font-medium text-ink-tertiary">{suffix}</span>}
       </div>
     </div>
   );
@@ -573,17 +573,17 @@ function ReadoutTile({ label, value, suffix, tone }: { label: string; value: num
 
 function ActionCard({ icon, title, tone, description, children }: { icon: React.ReactNode, title: string, tone: 'danger' | 'warning' | 'info', description: string, children: React.ReactNode }) {
   const tones = {
-    danger: "text-[#E5484D] bg-[#FFF0F0]",
-    warning: "text-[#F5A623] bg-[#FFF9F0]",
-    info: "text-[#2F5CFF] bg-[#F0F4FF]"
+    danger: "text-danger bg-rose-50",
+    warning: "text-amber-700 bg-amber-50",
+    info: "text-brand bg-brand-subtle"
   };
   
   return (
-    <div className="bg-white border border-[#E6E6EA] rounded-xl p-5 flex flex-col shadow-sm">
-      <div className={`inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider mb-2 w-fit px-2 py-1 rounded-md ${tones[tone]}`}>
+    <div className="bg-white border border-line rounded-xl p-5 flex flex-col shadow-sm">
+      <div className={`inline-flex items-center gap-2 text-xs-plus font-bold uppercase tracking-wider mb-2 w-fit px-2 py-1 rounded-md ${tones[tone]}`}>
         {icon} {title}
       </div>
-      <p className="text-[12px] text-[#5B5B64] mb-4">{description}</p>
+      <p className="text-xs text-ink-secondary mb-4">{description}</p>
       <div className="space-y-1 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
         {children}
       </div>
@@ -593,12 +593,12 @@ function ActionCard({ icon, title, tone, description, children }: { icon: React.
 
 function QueueItem({ title, subtitle, link, linkText, params }: any) {
   return (
-    <div className="group flex items-center justify-between p-2 hover:bg-[#F7F7F9] rounded-lg transition-colors border border-transparent hover:border-[#E6E6EA]">
+    <div className="group flex items-center justify-between p-2 hover:bg-canvas rounded-lg transition-colors border border-transparent hover:border-line">
       <div>
-        <div className="text-[13px] font-semibold text-[#0B0B0D]">{title}</div>
-        <div className="text-[11px] text-[#8B8B93]">{subtitle}</div>
+        <div className="text-sm-minus font-semibold text-ink">{title}</div>
+        <div className="text-xs-plus text-ink-tertiary">{subtitle}</div>
       </div>
-      <Link to={link} params={params} className="text-[#2F5CFF] text-[12px] font-medium opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+      <Link to={link} params={params} className="text-brand text-xs font-medium opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
         {linkText} <ArrowRight size={12} />
       </Link>
     </div>
@@ -606,7 +606,7 @@ function QueueItem({ title, subtitle, link, linkText, params }: any) {
 }
 
 function EmptyState({ text }: { text: string }) {
-  return <div className="text-[12px] text-[#8B8B93] italic py-3 text-center bg-[#F7F7F9] rounded-lg">{text}</div>;
+  return <div className="text-xs text-ink-tertiary italic py-3 text-center bg-canvas rounded-lg">{text}</div>;
 }
 
 /* --- The 7 Metrics Views --- */
@@ -624,25 +624,25 @@ function FunnelView({ data }: { data: { stage: string; count: number }[] }) {
               : 0;
           return (
             <div key={d.stage} className="flex items-center gap-4">
-              <div className="w-28 text-[13px] font-medium text-[#5B5B64] truncate" title={d.stage}>{d.stage}</div>
-              <div className="flex-1 h-8 bg-[#F7F7F9] rounded-md overflow-hidden relative border border-[#EFF0F3]">
+              <div className="w-28 text-sm-minus font-medium text-ink-secondary truncate" title={d.stage}>{d.stage}</div>
+              <div className="flex-1 h-8 bg-canvas rounded-md overflow-hidden relative border border-surface-inset">
                 <div
-                  className="h-full bg-[#DCE6FF] rounded-r-md transition-all duration-500"
+                  className="h-full bg-brand-subtle rounded-r-md transition-all duration-500"
                   style={{ width: `${pct}%` }}
                 >
-                  <div className="h-full w-full border-r-[3px] border-[#2F5CFF]" />
+                  <div className="h-full w-full border-r-[3px] border-brand" />
                 </div>
-                <span className="absolute inset-y-0 left-3 flex items-center text-[12px] font-mono font-semibold text-[#0B0B0D]">
+                <span className="absolute inset-y-0 left-3 flex items-center text-xs font-mono font-semibold text-ink">
                   {d.count}
                 </span>
               </div>
               <div className="w-16 flex justify-end">
                 {i > 0 ? (
-                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#FFF0F0] text-[#E5484D]">
+                  <span className="text-2xs font-mono font-medium px-1.5 py-0.5 rounded bg-rose-50 text-danger">
                     −{drop}%
                   </span>
                 ) : (
-                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 text-[#8B8B93]">
+                  <span className="text-2xs font-mono font-medium px-1.5 py-0.5 text-ink-tertiary">
                     —
                   </span>
                 )}
@@ -677,7 +677,7 @@ function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="text-[11px] font-medium border border-[#E6E6EA] rounded-md px-2 py-1 bg-[#F7F7F9] text-[#5B5B64]"
+            className="text-xs-plus font-medium border border-line rounded-md px-2 py-1 bg-canvas text-ink-secondary"
           >
             <option value="all">All Roles</option>
             {roleTemplates.map((rt) => (
@@ -688,19 +688,19 @@ function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
       >
         Score Distribution
       </SectionTitle>
-      <div className="flex-1 flex items-end gap-2 mt-6 border-b border-[#EFF0F3] pb-2">
+      <div className="flex-1 flex items-end gap-2 mt-6 border-b border-surface-inset pb-2">
         {dist.map((d) => (
           <div key={d.bucket} className="flex-1 flex flex-col items-center gap-2 group">
-            <div className="font-mono text-[11px] text-[#8B8B93] opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="font-mono text-xs-plus text-ink-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
               {d.count}
             </div>
             <div className="w-full flex justify-center h-32 relative">
               <div
-                className="w-[80%] bg-[#2F5CFF] rounded-t-md absolute bottom-0 transition-all duration-300 group-hover:bg-[#15308F]"
+                className="w-[80%] bg-brand rounded-t-md absolute bottom-0 transition-all duration-300 group-hover:bg-brand-ink"
                 style={{ height: `${(d.count / max) * 100}%`, minHeight: d.count ? 4 : 0 }}
               />
             </div>
-            <div className="text-[11px] font-mono text-[#5B5B64] mt-1">{d.bucket}</div>
+            <div className="text-xs-plus font-mono text-ink-secondary mt-1">{d.bucket}</div>
           </div>
         ))}
       </div>
@@ -724,17 +724,17 @@ function SayDoView({ sessions }: { sessions: any[] }) {
   return (
     <div className="h-full flex flex-col">
       <SectionTitle>Say-Do Breakdown</SectionTitle>
-      <p className="text-[12px] text-[#5B5B64] mb-4 leading-relaxed bg-[#F7F7F9] p-3 rounded-lg border border-[#EFF0F3]">
-        <Sparkles size={14} className="inline mr-1.5 text-[#F5A623] mb-0.5" />
+      <p className="text-xs text-ink-secondary mb-4 leading-relaxed bg-canvas p-3 rounded-lg border border-surface-inset">
+        <Sparkles size={14} className="inline mr-1.5 text-amber-700 mb-0.5" />
         Say-Do and composite score correlate at r≈0.4. This is a distinct behavioral signal.
       </p>
       <div className="mt-auto grid grid-cols-5 gap-3">
         {dist.map((d) => (
           <div key={d.bucket} className="flex flex-col items-center text-center">
-            <div className="text-[10px] font-mono uppercase text-[#8B8B93] mb-1">{d.bucket}</div>
-            <div className="font-mono text-[20px] font-semibold text-[#0B0B0D] mb-2">{d.count}</div>
-            <div className="w-full h-1.5 bg-[#EFF0F3] rounded-full overflow-hidden">
-              <div className="h-full bg-[#2F5CFF] rounded-full" style={{ width: `${(d.count / max) * 100}%` }} />
+            <div className="text-2xs font-mono uppercase text-ink-tertiary mb-1">{d.bucket}</div>
+            <div className="font-mono text-xl font-semibold text-ink mb-2">{d.count}</div>
+            <div className="w-full h-1.5 bg-surface-inset rounded-full overflow-hidden">
+              <div className="h-full bg-brand rounded-full" style={{ width: `${(d.count / max) * 100}%` }} />
             </div>
           </div>
         ))}
@@ -753,30 +753,30 @@ function TimeView({ data }: { data: any[] }) {
       <div className="space-y-5 mt-2">
         {data.map((d) => (
           <div key={d.module}>
-            <div className="flex justify-between items-end text-[12px] mb-1.5">
-              <span className="font-medium text-[#0B0B0D]">{d.module}</span>
-              <span className="font-mono text-[#5B5B64] text-[11px]">
-                {fmt(d.avgSeconds)} <span className="text-[#8B8B93] ml-1">(avg {fmt(d.cohortAvgSeconds)})</span>
+            <div className="flex justify-between items-end text-xs mb-1.5">
+              <span className="font-medium text-ink">{d.module}</span>
+              <span className="font-mono text-ink-secondary text-xs-plus">
+                {fmt(d.avgSeconds)} <span className="text-ink-tertiary ml-1">(avg {fmt(d.cohortAvgSeconds)})</span>
               </span>
             </div>
-            <div className="relative h-3 bg-[#F7F7F9] rounded-full overflow-hidden border border-[#EFF0F3]">
+            <div className="relative h-3 bg-canvas rounded-full overflow-hidden border border-surface-inset">
               {/* Baseline Track */}
               <div
-                className="absolute inset-y-0 left-0 bg-[#DCE6FF] border-r border-[#2F5CFF]/20"
+                className="absolute inset-y-0 left-0 bg-brand-subtle border-r border-brand/20"
                 style={{ width: `${(d.cohortAvgSeconds / max) * 100}%` }}
               />
               {/* Cohort Fill */}
               <div
-                className="absolute inset-y-0 left-0 bg-[#2F5CFF] rounded-r-full"
+                className="absolute inset-y-0 left-0 bg-brand rounded-r-full"
                 style={{ width: `${(d.avgSeconds / max) * 100}%` }}
               />
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-5 flex gap-4 text-[11px] font-mono text-[#5B5B64] bg-[#F7F7F9] w-fit px-3 py-1.5 rounded-md">
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#2F5CFF]" /> Current</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#DCE6FF]" /> Baseline</span>
+      <div className="mt-5 flex gap-4 text-xs-plus font-mono text-ink-secondary bg-canvas w-fit px-3 py-1.5 rounded-md">
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-brand" /> Current</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-brand-subtle" /> Baseline</span>
       </div>
     </div>
   );
@@ -794,13 +794,13 @@ function IntegrityView({ data }: { data: any[] }) {
         <div className="inline-grid gap-1.5 min-w-[500px]" style={{ gridTemplateColumns: `180px repeat(${severities.length}, 1fr)` }}>
           <div /> {/* Top-left empty cell */}
           {severities.map((s) => (
-            <div key={s} className="text-[10px] font-bold uppercase tracking-wider text-[#8B8B93] text-center pb-2">
+            <div key={s} className="text-2xs font-bold uppercase tracking-wider text-ink-tertiary text-center pb-2">
               {s}
             </div>
           ))}
           {categories.map((c) => (
             <Fragment key={c}>
-              <div className="text-[12px] font-medium text-[#0B0B0D] flex items-center">{c}</div>
+              <div className="text-xs font-medium text-ink flex items-center">{c}</div>
               {severities.map((s) => {
                 const cell = data.find((d) => d.category === c && d.severity === s);
                 const count = cell?.count ?? 0;
@@ -813,7 +813,7 @@ function IntegrityView({ data }: { data: any[] }) {
                 return (
                   <div
                     key={c + s}
-                    className={`h-12 rounded-lg flex items-center justify-center font-mono text-[13px] font-medium border ${isCritical ? 'border-[#E5484D]/20' : 'border-[#2F5CFF]/10'} transition-transform hover:scale-[1.02] cursor-default`}
+                    className={`h-12 rounded-lg flex items-center justify-center font-mono text-sm-minus font-medium border ${isCritical ? 'border-danger/20' : 'border-brand/10'} transition-transform hover:scale-[1.02] cursor-default`}
                     style={{ background: bg, color: isCritical ? (intensity > 0.5 ? "#FFFFFF" : "#9A2A2E") : (intensity > 0.6 ? "#FFFFFF" : "#15308F") }}
                   >
                     {count === 0 ? <span className="opacity-30">-</span> : count}
@@ -857,19 +857,19 @@ function ReviewerView({ data }: { data: any }) {
         </div>
         
         <div className="flex-1 w-full flex flex-col justify-center">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[#5B5B64] mb-4">
+          <div className="text-2xs font-bold uppercase tracking-wider text-ink-secondary mb-4">
             Human Overrides ({total})
           </div>
           <div className="space-y-4">
             {data.overrides.map((o: any) => (
               <div key={o.direction}>
-                <div className="flex justify-between text-[12px] mb-1.5">
-                  <span className="text-[#0B0B0D] capitalize">AI was too {o.direction}</span>
-                  <span className="font-mono text-[#5B5B64] font-medium">{o.count}</span>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-ink capitalize">AI was too {o.direction}</span>
+                  <span className="font-mono text-ink-secondary font-medium">{o.count}</span>
                 </div>
-                <div className="h-2.5 bg-[#F7F7F9] rounded-full overflow-hidden border border-[#EFF0F3]">
+                <div className="h-2.5 bg-canvas rounded-full overflow-hidden border border-surface-inset">
                   <div
-                    className="h-full bg-[#15308F] rounded-full"
+                    className="h-full bg-brand-ink rounded-full"
                     style={{ width: `${(o.count / total) * 100}%` }}
                   />
                 </div>
@@ -890,9 +890,9 @@ function PredictiveStub() {
       <div className="flex-1 flex flex-col justify-center relative mt-2">
         <ScopePanel data={flat} height={140} markDivergences={false} showLabels={false} />
         <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[1px]">
-          <div className="bg-white/90 px-4 py-2 rounded-lg border border-[#E6E6EA] text-[12px] font-mono text-[#5B5B64] shadow-sm text-center">
+          <div className="bg-white/90 px-4 py-2 rounded-lg border border-line text-xs font-mono text-ink-secondary shadow-sm text-center">
             Awaiting 90-day post-hire data <br />
-            <span className="text-[10px] opacity-70">Model unlit</span>
+            <span className="text-2xs opacity-70">Model unlit</span>
           </div>
         </div>
       </div>

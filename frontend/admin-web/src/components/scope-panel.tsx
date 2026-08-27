@@ -107,7 +107,7 @@ export function ScopePanel({
 
   return (
     <div
-      className={`relative rounded-[10px] border border-[#232327] bg-[#0B0B0D] overflow-hidden ${className}`}
+      className={`relative rounded-lg border border-ink bg-ink overflow-hidden ${className}`}
       style={{ height }}
     >
       {/* subtle grid overlay */}
@@ -190,9 +190,9 @@ export function ScopePanel({
 
       {showLabels && (
         <div className="absolute top-2 left-3 right-3 flex justify-between items-center pointer-events-none">
-          <div className="flex gap-4 text-[10px] uppercase tracking-[0.14em] font-mono text-[#8B8B93]">
+          <div className="flex gap-4 text-2xs uppercase tracking-[0.14em] font-mono text-ink-tertiary">
             <div className="flex items-center gap-1.5">
-              <span className="inline-block w-4 h-px border-t border-dashed border-[#8B8B93]" />
+              <span className="inline-block w-4 h-px border-t border-dashed border-ink-tertiary" />
               said
             </div>
             <div className="flex items-center gap-1.5">
@@ -200,7 +200,7 @@ export function ScopePanel({
               did
             </div>
           </div>
-          <div className="text-[10px] font-mono text-[#8B8B93] uppercase tracking-[0.14em]">
+          <div className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.14em]">
             avg gap {avgGap.toFixed(1)}
           </div>
         </div>
@@ -247,7 +247,7 @@ export function ScopeSpark({
     didP += (i === 0 ? "M" : "L") + xFor(i) + " " + yFor(p.did) + " ";
   });
   return (
-    <svg width={width} height={height} className="rounded-sm bg-[#0B0B0D]">
+    <svg width={width} height={height} className="rounded-sm bg-ink">
       <path d={saidP} stroke="#8B8B93" strokeWidth={1} strokeDasharray="2 2" fill="none" />
       <path d={didP} stroke={didColor} strokeWidth={1.5} fill="none" />
     </svg>

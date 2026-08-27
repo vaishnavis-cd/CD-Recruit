@@ -72,7 +72,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
             className="w-14 h-10 rounded-md bg-black object-cover transform -scale-x-100 border border-[var(--border)] shadow-xs transition-transform group-hover:scale-105"
           />
           {!hasStream && (
-            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center rounded-md text-[9px] text-slate-400">
+            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center rounded-md text-2xs text-slate-400">
               <Camera size={12} className="mb-0.5 text-slate-500" />
               Off
             </div>
@@ -82,7 +82,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
           </div>
         </div>
 
-        <div className="flex flex-col text-[11px] leading-tight select-none">
+        <div className="flex flex-col text-xs-plus leading-tight select-none">
           <div className="flex items-center gap-1.5 font-medium text-[var(--foreground)]">
             <span
               className={`w-2 h-2 rounded-full ${hasStream ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--neutral-chip)]'}`}
@@ -90,7 +90,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
             />
             <span>{hasStream ? 'Camera Live' : 'Camera Off'}</span>
           </div>
-          <span className="text-[10px] text-[var(--muted-foreground)] mt-0.5 flex items-center gap-1 font-mono-data">
+          <span className="text-2xs text-[var(--muted-foreground)] mt-0.5 flex items-center gap-1 font-mono-data">
             <span>{cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}</span>
             {lastEventType && (
               <span className="text-[var(--warning)] font-semibold truncate max-w-[90px]">
@@ -132,7 +132,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
               </div>
             )}
             {hasStream && (
-              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-white font-mono flex items-center gap-1">
+              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs px-2 py-0.5 rounded text-2xs text-white font-mono flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--critical)] animate-pulse" />
                 REC • LIVE
               </div>

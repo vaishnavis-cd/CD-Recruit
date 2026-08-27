@@ -109,7 +109,7 @@ export function PreSubmitReview() {
       <div className="w-full max-w-2xl animate-cd-fade-in">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 id="review-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)]">
+            <h1 id="review-heading" className="text-4xl font-semibold tracking-tight text-[var(--foreground)]">
               Review assessment
             </h1>
             <p className="text-sm mt-1 text-[var(--muted-foreground)]">

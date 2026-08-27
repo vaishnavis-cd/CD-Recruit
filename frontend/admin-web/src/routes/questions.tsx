@@ -1119,7 +1119,7 @@ function QuestionBankPage() {
           <select
             value={modFilter}
             onChange={(e) => setModFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Modules</option>
             <option value="MCQ">MCQ</option>
@@ -1136,7 +1136,7 @@ function QuestionBankPage() {
           <select
             value={diffFilter}
             onChange={(e) => setDiffFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Difficulties</option>
             <option value="easy">Easy</option>
@@ -1148,7 +1148,7 @@ function QuestionBankPage() {
           <select
             value={targetLevelFilter}
             onChange={(e) => setTargetLevelFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Levels</option>
             <option value="0-1">0-1 yrs (Fresher)</option>
@@ -1161,7 +1161,7 @@ function QuestionBankPage() {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Roles / Depts</option>
             <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
@@ -1177,21 +1177,21 @@ function QuestionBankPage() {
 
           <div className="relative group">
             <button
-              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#0037FF] cursor-pointer shadow-sm transition-colors rounded-md"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm-minus font-medium text-white bg-brand hover:bg-brand-hover cursor-pointer shadow-sm transition-colors rounded-md"
             >
               <Plus size={14} /> Add Question
             </button>
             <div className="absolute right-0 top-full w-44 pt-1.5 z-50 hidden group-hover:block hover:block">
-              <div className="bg-white border border-[#E6E6EA] rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="bg-white border border-line rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs text-ink hover:bg-canvas hover:text-brand font-medium transition-colors cursor-pointer"
                 >
                   Create Manually
                 </button>
                 <button
                   onClick={() => setShowImportModal(true)}
-                  className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs text-ink hover:bg-canvas hover:text-brand font-medium transition-colors cursor-pointer"
                 >
                   Bulk Import CSV
                 </button>
@@ -1208,16 +1208,16 @@ function QuestionBankPage() {
         const driveId = params.get("driveId") || params.get("fromDrive");
         if (!driveId) return null;
         return (
-          <div className="mb-4 p-3 bg-[#EAF0FF] border border-[#2F5CFF]/30 rounded-xl flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2.5 text-[#15308F] text-[13px] font-medium">
-              <Sparkles size={16} className="text-[#2F5CFF]" />
+          <div className="mb-4 p-3 bg-brand-subtle border border-brand/30 rounded-xl flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2.5 text-brand-ink text-sm-minus font-medium">
+              <Sparkles size={16} className="text-brand" />
               <span>You are currently managing questions for an active Drive.</span>
             </div>
             <Link
               to="/drives/$id"
               params={{ id: driveId }}
               search={{ tab: "questions" } as any}
-              className="px-3.5 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={14} />
               <span>Return to Drive Questions</span>
@@ -1230,23 +1230,23 @@ function QuestionBankPage() {
       {query.trim() !== "" ? (
         /* Search results list */
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
-            <h3 className="text-[13px] font-semibold text-[#0B0B0D]">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <h3 className="text-sm-minus font-semibold text-ink">
               Search Results for "{query}" ({questions.length})
             </h3>
             <div className="flex items-center gap-3">
               <div className="relative w-[280px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search questions or tags…"
-                  className="w-full pl-9 pr-8 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
+                  className="w-full pl-9 pr-8 py-1.5 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
                 />
                 {query && (
                   <button
                     onClick={() => setQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
                     title="Clear search"
                   >
                     <X size={13} />
@@ -1255,7 +1255,7 @@ function QuestionBankPage() {
               </div>
               <button
                 onClick={() => setQuery("")}
-                className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer whitespace-nowrap"
+                className="text-xs-plus text-brand hover:underline cursor-pointer whitespace-nowrap"
               >
                 Clear search
               </button>
@@ -1263,13 +1263,13 @@ function QuestionBankPage() {
           </div>
           <div className="space-y-3">
             {questions.length === 0 ? (
-              <div className="text-center py-12 bg-white border border-[#E6E6EA] rounded-xl p-8 space-y-3">
-                <p className="text-[13px] text-[#8B8B93] font-mono">
-                  No questions found matching "<strong className="text-[#0B0B0D]">{query}</strong>".
+              <div className="text-center py-12 bg-white border border-line rounded-xl p-8 space-y-3">
+                <p className="text-sm-minus text-ink-tertiary font-mono">
+                  No questions found matching "<strong className="text-ink">{query}</strong>".
                 </p>
                 <button
                   onClick={() => setQuery("")}
-                  className="px-3.5 py-1.5 bg-[#F7F7F9] hover:bg-[#EFF0F3] text-[#0B0B0D] text-[12px] font-medium rounded-lg border border-[#E6E6EA] cursor-pointer transition-colors"
+                  className="px-3.5 py-1.5 bg-canvas hover:bg-surface-inset text-ink text-xs font-medium rounded-lg border border-line cursor-pointer transition-colors"
                 >
                   Clear Search Filter
                 </button>
@@ -1278,16 +1278,16 @@ function QuestionBankPage() {
               questions.map((q) => (
                 <div
                   key={q.id}
-                  className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+                  className="bg-white border border-line rounded-lg p-4 shadow-sm hover:border-line-strong transition-colors flex items-start justify-between"
                 >
                   <div className="space-y-1.5 flex-1 min-w-0 pr-4">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
+                      <span className="px-2 py-0.5 rounded bg-surface-inset text-ink-secondary font-mono text-2xs uppercase font-semibold">
                         {q.moduleType}
                       </span>
-                      <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
+                      <span className="text-2xs text-ink-tertiary font-mono">v{q.version}</span>
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
+                        className={`px-2 py-0.5 rounded text-2xs font-mono capitalize ${
                           q.difficulty === "easy"
                             ? "bg-emerald-50 text-emerald-700"
                             : q.difficulty === "medium"
@@ -1297,11 +1297,11 @@ function QuestionBankPage() {
                       >
                         {q.difficulty}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
+                      <span className="px-2 py-0.5 rounded bg-brand-subtle text-brand-ink text-2xs font-medium">
                         Role: {q.role || "General"}
                       </span>
                     </div>
-                    <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
+                    <h4 className="text-sm-minus font-medium text-ink line-clamp-2">
                       {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                     </h4>
                     {q.tags && q.tags.length > 0 && (() => {
@@ -1311,14 +1311,14 @@ function QuestionBankPage() {
                           {displayTags.map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-2xs text-ink-secondary font-mono"
                             >
                               <Tag size={8} />
                               {tag}
                             </span>
                           ))}
                           {hiddenDriveCount > 0 && (
-                            <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                            <span className="text-2xs text-brand bg-brand-subtle px-2 py-0.5 rounded-full font-semibold">
                               +{hiddenDriveCount} more drives
                             </span>
                           )}
@@ -1328,26 +1328,26 @@ function QuestionBankPage() {
                   </div>
                   <div className="flex items-center gap-6 shrink-0">
                     <div className="text-center font-mono">
-                      <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
-                      <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
+                      <div className="text-sm-minus font-semibold text-ink">{q.usageCount}</div>
+                      <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Drives</div>
                     </div>
                     <div className="text-center font-mono">
-                      <div className="text-[13px] font-semibold text-[#0B0B0D]">
+                      <div className="text-sm-minus font-semibold text-ink">
                         {q.avgScore !== null ? `${q.avgScore}%` : "—"}
                       </div>
-                      <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
+                      <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Avg Score</div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEdit(q)}
-                        className="p-2 text-[#2F5CFF] hover:bg-[#EFF4FF] rounded transition-colors cursor-pointer"
+                        className="p-2 text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
                         title="Preview & Edit"
                       >
                         <Edit3 size={14} />
                       </button>
                       <button
                         onClick={() => setConfirmArchiveQuestion(q)}
-                        className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                        className="p-2 text-danger hover:bg-danger-subtle rounded transition-colors cursor-pointer"
                         title="Archive"
                       >
                         <Trash2 size={14} />
@@ -1379,35 +1379,35 @@ function QuestionBankPage() {
 
           return (
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+              <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => {
                       setSelectedFolder(null);
                       setFolderQuery("");
                     }}
-                    className="flex items-center gap-1 text-[12px] font-medium text-[#2F5CFF] hover:underline cursor-pointer"
+                    className="flex items-center gap-1 text-xs font-medium text-brand hover:underline cursor-pointer"
                   >
                     <ArrowLeft size={13} /> Back to Repositories
                   </button>
-                  <span className="text-[#8B8B93]">/</span>
-                  <span className="text-[13px] font-semibold text-[#0B0B0D] capitalize flex items-center gap-1.5">
-                    <Folder size={14} className="text-[#2F5CFF]" />
+                  <span className="text-ink-tertiary">/</span>
+                  <span className="text-sm-minus font-semibold text-ink capitalize flex items-center gap-1.5">
+                    <Folder size={14} className="text-brand" />
                     {displayTitle} ({allFolderQuestions.length})
                   </span>
                 </div>
                 <div className="relative w-[280px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                   <input
                     value={folderQuery}
                     onChange={(e) => setFolderQuery(e.target.value)}
                     placeholder="Filter in this folder…"
-                    className="w-full pl-9 pr-8 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
+                    className="w-full pl-9 pr-8 py-1.5 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
                   />
                   {folderQuery && (
                     <button
                       onClick={() => setFolderQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
                       title="Clear filter"
                     >
                       <X size={13} />
@@ -1417,13 +1417,13 @@ function QuestionBankPage() {
               </div>
               <div className="space-y-3">
                 {currentList.length === 0 ? (
-                  <div className="text-center py-10 bg-white border border-[#E6E6EA] rounded-xl p-6 space-y-2">
-                    <p className="text-[12px] text-[#8B8B93] font-mono">
+                  <div className="text-center py-10 bg-white border border-line rounded-xl p-6 space-y-2">
+                    <p className="text-xs text-ink-tertiary font-mono">
                       No questions in this folder match "{folderQuery}".
                     </p>
                     <button
                       onClick={() => setFolderQuery("")}
-                      className="text-[12px] text-[#2F5CFF] hover:underline cursor-pointer font-medium"
+                      className="text-xs text-brand hover:underline cursor-pointer font-medium"
                     >
                       Clear Filter
                     </button>
@@ -1432,16 +1432,16 @@ function QuestionBankPage() {
                   currentList.map((q) => (
                     <div
                       key={q.id}
-                      className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+                      className="bg-white border border-line rounded-lg p-4 shadow-sm hover:border-line-strong transition-colors flex items-start justify-between"
                     >
                       <div className="space-y-1.5 flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
+                          <span className="px-2 py-0.5 rounded bg-surface-inset text-ink-secondary font-mono text-2xs uppercase font-semibold">
                             {q.moduleType}
                           </span>
-                          <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
+                          <span className="text-2xs text-ink-tertiary font-mono">v{q.version}</span>
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
+                            className={`px-2 py-0.5 rounded text-2xs font-mono capitalize ${
                               q.difficulty === "easy"
                                 ? "bg-emerald-50 text-emerald-700"
                                 : q.difficulty === "medium"
@@ -1451,14 +1451,14 @@ function QuestionBankPage() {
                           >
                             {q.difficulty}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-medium">
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 text-2xs font-medium">
                             Level: {q.targetLevel || "All"}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
+                          <span className="px-2 py-0.5 rounded bg-brand-subtle text-brand-ink text-2xs font-medium">
                             Role: {q.role || "General"}
                           </span>
                         </div>
-                        <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
+                        <h4 className="text-sm-minus font-medium text-ink line-clamp-2">
                           {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                         </h4>
                         {q.tags && q.tags.length > 0 && (() => {
@@ -1468,14 +1468,14 @@ function QuestionBankPage() {
                               {displayTags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-2xs text-ink-secondary font-mono"
                                 >
                                   <Tag size={8} />
                                   {tag}
                                 </span>
                               ))}
                               {hiddenDriveCount > 0 && (
-                                <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-2xs text-brand bg-brand-subtle px-2 py-0.5 rounded-full font-semibold">
                                   +{hiddenDriveCount} more drives
                                 </span>
                               )}
@@ -1485,26 +1485,26 @@ function QuestionBankPage() {
                       </div>
                       <div className="flex items-center gap-6 shrink-0">
                         <div className="text-center font-mono">
-                          <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
-                          <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
+                          <div className="text-sm-minus font-semibold text-ink">{q.usageCount}</div>
+                          <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Drives</div>
                         </div>
                         <div className="text-center font-mono">
-                          <div className="text-[13px] font-semibold text-[#0B0B0D]">
+                          <div className="text-sm-minus font-semibold text-ink">
                             {q.avgScore !== null ? `${q.avgScore}%` : "—"}
                           </div>
-                          <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
+                          <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Avg Score</div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleOpenEdit(q)}
-                            className="p-2 text-[#2F5CFF] hover:bg-[#EFF4FF] rounded transition-colors cursor-pointer"
+                            className="p-2 text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
                             title="Preview & Edit"
                           >
                             <Edit3 size={14} />
                           </button>
                           <button
                             onClick={() => setConfirmArchiveQuestion(q)}
-                            className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                            className="p-2 text-danger hover:bg-danger-subtle rounded transition-colors cursor-pointer"
                             title="Archive"
                           >
                             <Trash2 size={14} />
@@ -1522,29 +1522,29 @@ function QuestionBankPage() {
         /* Categorized Folder Grid directory list */
         <div className="space-y-6">
           {/* Header Bar */}
-          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+          <div className="flex items-center justify-between border-b border-line pb-3">
             <div>
-              <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Question Repositories</h3>
-              <p className="text-[12px] text-[#5B5B64] mt-0.5">
+              <h3 className="text-sm font-semibold text-ink">Question Repositories</h3>
+              <p className="text-xs text-ink-secondary mt-0.5">
                 Browse questions organized by module format, seniority level, topic domains, and drive batches.
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-[#8B8B93] font-mono whitespace-nowrap bg-[#F7F7F9] px-2.5 py-1 rounded-md border border-[#E6E6EA]">
+              <span className="text-xs-plus text-ink-tertiary font-mono whitespace-nowrap bg-canvas px-2.5 py-1 rounded-md border border-line">
                 {Object.keys(groupedQuestions).length} total tags
               </span>
               <div className="relative w-[260px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search questions or tags…"
-                  className="w-full pl-9 pr-8 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
+                  className="w-full pl-9 pr-8 py-1.5 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
                 />
                 {query && (
                   <button
                     onClick={() => setQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
                     title="Clear search"
                   >
                     <X size={12} />
@@ -1558,14 +1558,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">1. Module Types</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">1. Module Types</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.module.length} formats
                 </span>
               </div>
             </div>
             {categorizedTagGroups.module.length === 0 ? (
-              <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                 No module categories found.
               </p>
             ) : (
@@ -1574,17 +1574,17 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="min-w-0 pr-2">
-                      <h5 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={item.title}>
+                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
                         {item.title}
                       </h5>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0" />
+                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1595,14 +1595,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">2. Experience Levels</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">2. Experience Levels</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.level.length} levels
                 </span>
               </div>
             </div>
             {categorizedTagGroups.level.length === 0 ? (
-              <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                 No level categories found.
               </p>
             ) : (
@@ -1611,17 +1611,17 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="min-w-0 pr-2">
-                      <h5 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={item.title}>
+                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
                         {item.title}
                       </h5>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0" />
+                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1632,14 +1632,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">3. Topics</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">3. Topics</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.topic.length} topics
                 </span>
               </div>
 
               {/* Domain Category Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1.5 bg-[#F7F7F9] p-1 rounded-lg border border-[#E6E6EA]">
+              <div className="flex flex-wrap items-center gap-1.5 bg-canvas p-1 rounded-lg border border-line">
                 {TOPIC_DOMAINS.map((domain) => {
                   const isActive = selectedTopicDomain === domain.id;
                   const count =
@@ -1655,18 +1655,18 @@ function QuestionBankPage() {
                     <button
                       key={domain.id}
                       onClick={() => setSelectedTopicDomain(domain.id)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded-md text-xs-plus font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                         isActive
-                          ? "bg-white text-[#2F5CFF] shadow-2xs font-semibold"
-                          : "text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-white/60"
+                          ? "bg-white text-brand shadow-2xs font-semibold"
+                          : "text-ink-secondary hover:text-ink hover:bg-white/60"
                       }`}
                     >
                       <span>{domain.label}</span>
                       <span
-                        className={`px-1.5 py-0.2 text-[9px] font-mono rounded-full ${
+                        className={`px-1.5 py-0.2 text-2xs font-mono rounded-full ${
                           isActive
-                            ? "bg-[#EAF0FF] text-[#2F5CFF]"
-                            : "bg-slate-200/60 text-[#5B5B64]"
+                            ? "bg-brand-subtle text-brand"
+                            : "bg-slate-200/60 text-ink-secondary"
                         }`}
                       >
                         {count}
@@ -1678,7 +1678,7 @@ function QuestionBankPage() {
             </div>
 
             {categorizedTagGroups.topic.length === 0 ? (
-              <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                 No topic tags found.
               </p>
             ) : (() => {
@@ -1689,7 +1689,7 @@ function QuestionBankPage() {
 
               if (filteredTopics.length === 0) {
                 return (
-                  <p className="text-center py-4 text-[12px] text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
+                  <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                     No topics found in this category.
                   </p>
                 );
@@ -1702,11 +1702,11 @@ function QuestionBankPage() {
                       key={item.tag}
                       type="button"
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-canvas hover:bg-brand-subtle hover:text-brand hover:border-brand-border border border-line rounded-full text-[12px] font-medium text-ink transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-canvas hover:bg-brand-subtle hover:text-brand hover:border-brand-border border border-line rounded-full text-xs font-medium text-ink transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
                       title={`${item.title} (${item.questions.length} questions)`}
                     >
                       <span className="group-hover:text-brand transition-colors">{item.title}</span>
-                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-surface-inset group-hover:bg-brand group-hover:text-white text-ink-secondary transition-colors">
+                      <span className="px-2 py-0.5 text-2xs font-mono font-bold rounded-full bg-surface-inset group-hover:bg-brand group-hover:text-white text-ink-secondary transition-colors">
                         {item.questions.length}
                       </span>
                     </button>
@@ -1720,14 +1720,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-ink">4. Drives</h4>
-                <span className="text-[11px] text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
+                <h4 className="text-sm-minus font-semibold text-ink">4. Drives</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.drive.length} drive batches
                 </span>
               </div>
             </div>
             {categorizedTagGroups.drive.length === 0 ? (
-              <div className="text-center py-5 text-[12px] text-ink-tertiary font-mono border border-dashed border-line rounded-xl bg-white">
+              <div className="text-center py-5 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-xl bg-white">
                 No drive-specific imported questions found. Questions imported during a Drive setup will appear here.
               </div>
             ) : (
@@ -1736,17 +1736,17 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="min-w-0 pr-2">
-                      <h5 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={item.title}>
+                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
                         {item.title}
                       </h5>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0" />
+                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1758,14 +1758,14 @@ function QuestionBankPage() {
       {/* Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+          <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-md font-semibold text-ink">
                 Create Assessment Question
               </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="text-ink-tertiary hover:text-ink"
               >
                 <X size={16} />
               </button>
@@ -1774,13 +1774,13 @@ function QuestionBankPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Module Type
                   </label>
                   <select
                     value={moduleType}
                     onChange={(e) => setModuleType(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="MCQ">MCQ</option>
                     <option value="SQL">SQL</option>
@@ -1792,13 +1792,13 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Difficulty
                   </label>
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
@@ -1806,13 +1806,13 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Level
                   </label>
                   <select
                     value={targetLevel}
                     onChange={(e) => setTargetLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="0-1">0-1 yrs (Fresher)</option>
                     <option value="2-5">2-5 yrs (Level 1)</option>
@@ -1821,13 +1821,13 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Role
                   </label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="General">General</option>
                     <option value="Backend Engineer">Backend Engineer</option>
@@ -1839,19 +1839,19 @@ function QuestionBankPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   Tags (comma separated)
                 </label>
                 <input
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                   placeholder="e.g. recursion, arrays, medium"
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   {moduleType === "SIMULATION" ? "Scenario Description" : "Question Prompt"}
                 </label>
                 <textarea
@@ -1863,14 +1863,14 @@ function QuestionBankPage() {
                       ? "Describe the simulation roleplay scenario context..."
                       : "Enter the question prompt here..."
                   }
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus focus:outline-none focus:border-brand"
                 />
               </div>
 
               {/* MCQ Fields */}
               {moduleType === "MCQ" && (
                 <div className="space-y-2">
-                  <label className="block text-[12px] font-medium text-[#5B5B64]">
+                  <label className="block text-xs font-medium text-ink-secondary">
                     MCQ Options
                   </label>
                   {mcqOptions.map((opt, i) => (
@@ -1879,7 +1879,7 @@ function QuestionBankPage() {
                         type="radio"
                         checked={correctIndex === i}
                         onChange={() => setCorrectIndex(i)}
-                        className="w-4 h-4 text-[#2F5CFF]"
+                        className="w-4 h-4 text-brand"
                       />
                       <input
                         value={opt}
@@ -1889,7 +1889,7 @@ function QuestionBankPage() {
                           setMcqOptions(list);
                         }}
                         placeholder={`Option ${i + 1}`}
-                        className="flex-1 px-3 py-1.5 border border-[#E6E6EA] rounded text-[13px]"
+                        className="flex-1 px-3 py-1.5 border border-line rounded text-sm-minus"
                       />
                     </div>
                   ))}
@@ -1900,7 +1900,7 @@ function QuestionBankPage() {
               {moduleType === "SQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Schema Definition SQL
                     </label>
                     <textarea
@@ -1908,11 +1908,11 @@ function QuestionBankPage() {
                       onChange={(e) => setSqlSchema(e.target.value)}
                       rows={3}
                       placeholder="CREATE TABLE users (id SERIAL, name VARCHAR(100));"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Seed Data SQL
                     </label>
                     <textarea
@@ -1920,11 +1920,11 @@ function QuestionBankPage() {
                       onChange={(e) => setSqlSeed(e.target.value)}
                       rows={3}
                       placeholder="INSERT INTO users (name) VALUES ('Alice');"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Query SQL (Used for validation)
                     </label>
                     <textarea
@@ -1932,7 +1932,7 @@ function QuestionBankPage() {
                       onChange={(e) => setSqlExpectedQuery(e.target.value)}
                       rows={3}
                       placeholder="SELECT * FROM users ORDER BY name;"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -1942,7 +1942,7 @@ function QuestionBankPage() {
               {moduleType === "NOSQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Collections (comma-separated, e.g. employees, departments)
                     </label>
                     <input
@@ -1950,16 +1950,16 @@ function QuestionBankPage() {
                       value={nosqlCollections}
                       onChange={(e) => setNosqlCollections(e.target.value)}
                       placeholder="employees, departments"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Allowed Operations
                     </label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-[#E6E6EA] rounded-md bg-white">
+                    <div className="flex flex-wrap gap-2 p-2 border border-line rounded-md bg-white">
                       {["find", "aggregate", "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany", "countDocuments"].map((op) => (
-                        <label key={op} className="flex items-center gap-1 text-[11px] font-mono cursor-pointer select-none">
+                        <label key={op} className="flex items-center gap-1 text-xs-plus font-mono cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={nosqlAllowedOps.includes(op)}
@@ -1977,20 +1977,20 @@ function QuestionBankPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Validator Type
                     </label>
                     <select
                       value={nosqlValidatorType}
                       onChange={(e) => setNosqlValidatorType(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     >
                       <option value="OUTPUT_COMPARISON">OUTPUT_COMPARISON</option>
                       <option value="STATE_COMPARISON">STATE_COMPARISON</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Dataset Reference Path (MinIO object key)
                     </label>
                     <input
@@ -1998,11 +1998,11 @@ function QuestionBankPage() {
                       value={nosqlDatasetRef}
                       onChange={(e) => setNosqlDatasetRef(e.target.value)}
                       placeholder="datasets/employees-seed.json"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Operation (JSON format)
                     </label>
                     <textarea
@@ -2010,7 +2010,7 @@ function QuestionBankPage() {
                       onChange={(e) => setNosqlExpectedOp(e.target.value)}
                       rows={4}
                       placeholder={JSON.stringify({ collection: "employees", operator: "find", payload: { filter: { salary: { $gt: 50000 } } } }, null, 2)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2020,20 +2020,20 @@ function QuestionBankPage() {
               {(moduleType === "CODING" || moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Starter Code
                     </label>
-                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
+                    <div className="h-40 border border-line rounded-md overflow-hidden">
                       <CodeEditor
                         value={starterCode}
                         onChange={(val) => setStarterCode(val)}
                         language="javascript"
-                        theme="light"
+                        theme="cd-recruit-light"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Test Cases JSON (Array of input/expected)
                     </label>
                     <textarea
@@ -2041,7 +2041,7 @@ function QuestionBankPage() {
                       onChange={(e) => setTestCasesInput(e.target.value)}
                       rows={3}
                       placeholder='[{"input": "[1, 2]", "expected": "3"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2051,13 +2051,13 @@ function QuestionBankPage() {
               {moduleType === "AI_PROMPTING" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Primary Technology / Stack Selection
                     </label>
                     <select
                       value={aiTechStack}
                       onChange={(e) => setAiTechStack(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     >
                       <option value="React/TypeScript">React / TypeScript</option>
                       <option value="Node.js/Express">Node.js / Express</option>
@@ -2068,7 +2068,7 @@ function QuestionBankPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       AI System Context / Role Guidelines
                     </label>
                     <textarea
@@ -2076,11 +2076,11 @@ function QuestionBankPage() {
                       onChange={(e) => setAiSystemContext(e.target.value)}
                       rows={3}
                       placeholder="Specify system instructions for the LLM assistant (e.g. You are an expert code reviewer evaluating Express middleware request signatures...)"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Response Criteria / Ideal Summary
                     </label>
                     <textarea
@@ -2088,7 +2088,7 @@ function QuestionBankPage() {
                       onChange={(e) => setAiIdealResponse(e.target.value)}
                       rows={3}
                       placeholder="Outline key elements that the student's prompt should instruct the LLM to cover (e.g., must include error handling, TypeScript types, edge cases)..."
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs"
                     />
                   </div>
                 </div>
@@ -2098,7 +2098,7 @@ function QuestionBankPage() {
               {moduleType === "SIMULATION" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Triggers JSON Array
                     </label>
                     <textarea
@@ -2106,11 +2106,11 @@ function QuestionBankPage() {
                       onChange={(e) => setSimTriggers(e.target.value)}
                       rows={3}
                       placeholder='[{"timeSeconds": 10, "message": "Can you refactor this?"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Rubric Criteria JSON Array
                     </label>
                     <textarea
@@ -2118,23 +2118,23 @@ function QuestionBankPage() {
                       onChange={(e) => setSimRubric(e.target.value)}
                       rows={3}
                       placeholder='[{"criterion": "Code Quality", "maxPoints": 5}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded hover:bg-white transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded hover:bg-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-sm-minus text-white bg-brand rounded hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
               >
                 Create Question
               </button>
@@ -2146,9 +2146,9 @@ function QuestionBankPage() {
       {/* Bulk Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+          <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-md font-semibold text-ink">
                 Bulk Upload Questions
               </h2>
               <button
@@ -2156,25 +2156,25 @@ function QuestionBankPage() {
                   setCsvFile(null);
                   setShowImportModal(false);
                 }}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="text-ink-tertiary hover:text-ink"
               >
                 <X size={16} />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <p className="text-[12px] text-[#5B5B64]">
+              <p className="text-xs text-ink-secondary">
                 Select a module category and download the matched template layout to begin importing questions.
               </p>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
+                <label className="block text-xs font-medium text-ink-secondary mb-1.5">
                   Module Category
                 </label>
                 <select
                   value={importModuleType}
                   onChange={(e) => setImportModuleType(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus focus:outline-none"
                 >
                   <option value="MCQ">Multiple Choice (MCQ)</option>
                   <option value="SQL">SQL Database Evaluation</option>
@@ -2187,16 +2187,16 @@ function QuestionBankPage() {
               </div>
 
               {/* Template Downloader section */}
-              <div className="p-4 bg-[#F7F7F9] rounded-lg border border-[#E6E6EA] flex items-center justify-between">
+              <div className="p-4 bg-canvas rounded-lg border border-line flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <div className="text-[12px] font-semibold text-[#0B0B0D]">CSV Template Ready</div>
-                  <div className="text-[11px] text-[#8B8B93]">
+                  <div className="text-xs font-semibold text-ink">CSV Template Ready</div>
+                  <div className="text-xs-plus text-ink-tertiary">
                     Matches layout header schema precisely for {importModuleType}
                   </div>
                 </div>
                 <button
                   onClick={() => handleDownloadSample(importModuleType)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2F5CFF] text-[#2F5CFF] bg-white rounded hover:bg-[#2F5CFF] hover:text-white transition-all text-[12px] font-medium cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-brand text-brand bg-white rounded hover:bg-brand hover:text-white transition-all text-xs font-medium cursor-pointer shadow-sm"
                 >
                   <Download size={13} />
                   Download template
@@ -2205,8 +2205,8 @@ function QuestionBankPage() {
 
               {/* Upload Area */}
               <div className="space-y-2">
-                <label className="block text-[12px] font-medium text-[#5B5B64]">Select CSV File</label>
-                <div className="border-2 border-dashed border-[#E6E6EA] rounded-lg p-6 flex flex-col items-center justify-center bg-[#FDFDFD] hover:bg-[#F9FBFD] transition-colors relative cursor-pointer">
+                <label className="block text-xs font-medium text-ink-secondary">Select CSV File</label>
+                <div className="border-2 border-dashed border-line rounded-lg p-6 flex flex-col items-center justify-center bg-canvas/50 hover:bg-canvas transition-colors relative cursor-pointer">
                   <input
                     type="file"
                     accept=".csv"
@@ -2216,29 +2216,29 @@ function QuestionBankPage() {
                     }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                  <UploadCloud size={32} className="text-[#8B8B93] mb-2" />
-                  <span className="text-[12px] text-[#5B5B64] font-medium text-center px-4">
+                  <UploadCloud size={32} className="text-ink-tertiary mb-2" />
+                  <span className="text-xs text-ink-secondary font-medium text-center px-4">
                     {csvFile ? csvFile.name : "Drag & drop your CSV file here, or click to browse"}
                   </span>
-                  <span className="text-[10px] text-[#8B8B93] mt-1">Accepts .csv format</span>
+                  <span className="text-2xs text-ink-tertiary mt-1">Accepts .csv format</span>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => {
                   setCsvFile(null);
                   setShowImportModal(false);
                 }}
-                className="px-3.5 py-2 text-[12px] border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs border border-line rounded hover:bg-canvas transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleImport}
                 disabled={!csvFile}
-                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand rounded hover:bg-brand-hover disabled:bg-surface-inset disabled:text-ink-tertiary disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
               >
                 <Check size={14} />
                 Import Questions
@@ -2251,14 +2251,14 @@ function QuestionBankPage() {
       {/* Preview & Edit Modal */}
       {editingQuestion && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+          <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-md font-semibold text-ink">
                 Preview &amp; Edit Question (v{editingQuestion.version})
               </h2>
               <button
                 onClick={() => setEditingQuestion(null)}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="text-ink-tertiary hover:text-ink"
               >
                 <X size={16} />
               </button>
@@ -2267,23 +2267,23 @@ function QuestionBankPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Module Type (Read-Only)
                   </label>
                   <input
                     value={editingQuestion.moduleType}
                     disabled
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-[#EFF0F3] text-[13px] text-[#5B5B64] cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-surface-inset text-sm-minus text-ink-secondary cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Difficulty
                   </label>
                   <select
                     value={editDifficulty}
                     onChange={(e) => setEditDifficulty(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
@@ -2291,13 +2291,13 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Level
                   </label>
                   <select
                     value={editTargetLevel}
                     onChange={(e) => setEditTargetLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="0-1">0-1 yrs (Fresher)</option>
                     <option value="2-5">2-5 yrs (Level 1)</option>
@@ -2306,13 +2306,13 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Role
                   </label>
                   <select
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="General">General</option>
                     <option value="Backend Engineer">Backend Engineer</option>
@@ -2324,19 +2324,19 @@ function QuestionBankPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   Tags (comma separated)
                 </label>
                 <input
                   value={editTagsInput}
                   onChange={(e) => setEditTagsInput(e.target.value)}
                   placeholder="e.g. recursion, arrays, medium"
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   {editingQuestion.moduleType === "SIMULATION" ? "Scenario Description" : "Question Prompt"}
                 </label>
                 <textarea
@@ -2348,14 +2348,14 @@ function QuestionBankPage() {
                       ? "Describe the simulation roleplay scenario context..."
                       : "Enter the question prompt here..."
                   }
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus focus:outline-none focus:border-brand"
                 />
               </div>
 
               {/* MCQ Fields */}
               {editingQuestion.moduleType === "MCQ" && (
                 <div className="space-y-2">
-                  <label className="block text-[12px] font-medium text-[#5B5B64]">
+                  <label className="block text-xs font-medium text-ink-secondary">
                     MCQ Options
                   </label>
                   {editMcqOptions.map((opt, i) => (
@@ -2364,7 +2364,7 @@ function QuestionBankPage() {
                         type="radio"
                         checked={editCorrectIndex === i}
                         onChange={() => setEditCorrectIndex(i)}
-                        className="w-4 h-4 text-[#2F5CFF]"
+                        className="w-4 h-4 text-brand"
                       />
                       <input
                         value={opt}
@@ -2374,7 +2374,7 @@ function QuestionBankPage() {
                           setEditMcqOptions(list);
                         }}
                         placeholder={`Option ${i + 1}`}
-                        className="flex-1 px-3 py-1.5 border border-[#E6E6EA] rounded text-[13px]"
+                        className="flex-1 px-3 py-1.5 border border-line rounded text-sm-minus"
                       />
                     </div>
                   ))}
@@ -2385,7 +2385,7 @@ function QuestionBankPage() {
               {editingQuestion.moduleType === "SQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Schema Definition SQL
                     </label>
                     <textarea
@@ -2393,11 +2393,11 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSqlSchema(e.target.value)}
                       rows={3}
                       placeholder="CREATE TABLE users (id SERIAL, name VARCHAR(100));"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Seed Data SQL
                     </label>
                     <textarea
@@ -2405,11 +2405,11 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSqlSeed(e.target.value)}
                       rows={3}
                       placeholder="INSERT INTO users (name) VALUES ('Alice');"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Query SQL (Used for validation)
                     </label>
                     <textarea
@@ -2417,7 +2417,7 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSqlExpectedQuery(e.target.value)}
                       rows={3}
                       placeholder="SELECT * FROM users ORDER BY name;"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2427,7 +2427,7 @@ function QuestionBankPage() {
               {editingQuestion.moduleType === "NOSQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Collections (comma-separated, e.g. employees, departments)
                     </label>
                     <input
@@ -2435,16 +2435,16 @@ function QuestionBankPage() {
                       value={editNosqlCollections}
                       onChange={(e) => setEditNosqlCollections(e.target.value)}
                       placeholder="employees, departments"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Allowed Operations
                     </label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-[#E6E6EA] rounded-md bg-white">
+                    <div className="flex flex-wrap gap-2 p-2 border border-line rounded-md bg-white">
                       {["find", "aggregate", "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany", "countDocuments"].map((op) => (
-                        <label key={op} className="flex items-center gap-1 text-[11px] font-mono cursor-pointer select-none">
+                        <label key={op} className="flex items-center gap-1 text-xs-plus font-mono cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={editNosqlAllowedOps.includes(op)}
@@ -2462,20 +2462,20 @@ function QuestionBankPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Validator Type
                     </label>
                     <select
                       value={editNosqlValidatorType}
                       onChange={(e) => setEditNosqlValidatorType(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     >
                       <option value="OUTPUT_COMPARISON">OUTPUT_COMPARISON</option>
                       <option value="STATE_COMPARISON">STATE_COMPARISON</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Dataset Reference Path (MinIO object key)
                     </label>
                     <input
@@ -2483,11 +2483,11 @@ function QuestionBankPage() {
                       value={editNosqlDatasetRef}
                       onChange={(e) => setEditNosqlDatasetRef(e.target.value)}
                       placeholder="datasets/employees-seed.json"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Operation (JSON format)
                     </label>
                     <textarea
@@ -2495,7 +2495,7 @@ function QuestionBankPage() {
                       onChange={(e) => setEditNosqlExpectedOp(e.target.value)}
                       rows={4}
                       placeholder={JSON.stringify({ collection: "employees", operator: "find", payload: { filter: { salary: { $gt: 50000 } } } }, null, 2)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2505,20 +2505,20 @@ function QuestionBankPage() {
               {(editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Starter Code
                     </label>
-                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
+                    <div className="h-40 border border-line rounded-md overflow-hidden">
                       <CodeEditor
                         value={editStarterCode}
                         onChange={(val) => setEditStarterCode(val)}
                         language="javascript"
-                        theme="light"
+                        theme="cd-recruit-light"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Test Cases JSON (Array of input/expected)
                     </label>
                     <textarea
@@ -2526,7 +2526,7 @@ function QuestionBankPage() {
                       onChange={(e) => setEditTestCasesInput(e.target.value)}
                       rows={3}
                       placeholder='[{"input": "[1, 2]", "expected": "3"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2536,7 +2536,7 @@ function QuestionBankPage() {
               {editingQuestion.moduleType === "SIMULATION" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Triggers JSON Array
                     </label>
                     <textarea
@@ -2544,11 +2544,11 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSimTriggers(e.target.value)}
                       rows={3}
                       placeholder='[{"timeSeconds": 10, "message": "Can you refactor this?"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Rubric Criteria JSON Array
                     </label>
                     <textarea
@@ -2556,23 +2556,23 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSimRubric(e.target.value)}
                       rows={3}
                       placeholder='[{"criterion": "Code Quality", "maxPoints": 5}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => setEditingQuestion(null)}
-                className="px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded hover:bg-white transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded hover:bg-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-sm-minus text-white bg-brand rounded hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
               >
                 Save Changes
               </button>
@@ -2584,22 +2584,22 @@ function QuestionBankPage() {
       {/* Archive Question Confirmation Modal */}
       {confirmArchiveQuestion && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <Trash2 size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Archive Question?</h3>
+              <h3 className="text-base font-semibold text-ink">Archive Question?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+            <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to archive this question? The question will be removed from active use and won't appear in new drive assignments.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+            <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmArchiveQuestion(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -2620,23 +2620,23 @@ function QuestionBankPage() {
       {/* Delete Folder Confirmation Modal */}
       {confirmDeleteFolder && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <Trash2 size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Question Folder?</h3>
+              <h3 className="text-base font-semibold text-ink">Delete Question Folder?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to delete the folder <strong className="text-[#0B0B0D]">"{confirmDeleteFolder}"</strong> containing{" "}
-              <strong className="text-[#0B0B0D]">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.
+            <p className="text-sm-minus text-ink-secondary leading-relaxed">
+              Are you sure you want to delete the folder <strong className="text-ink">"{confirmDeleteFolder}"</strong> containing{" "}
+              <strong className="text-ink">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+            <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteFolder(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>

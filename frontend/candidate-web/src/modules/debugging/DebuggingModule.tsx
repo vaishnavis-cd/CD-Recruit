@@ -314,10 +314,10 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
 
           {/* Failing Stack Trace Box */}
           <div className="space-y-1.5">
-            <div className="text-[11px] font-bold uppercase tracking-wider font-mono text-[var(--muted-foreground)]">
+            <div className="text-xs-plus font-bold uppercase tracking-wider font-mono text-[var(--muted-foreground)]">
               Failing Stack Trace / Exception
             </div>
-            <div className="p-3.5 rounded-xl bg-black/90 border border-rose-500/30 text-rose-400 font-mono text-[11px] leading-relaxed overflow-x-auto shadow-inner">
+            <div className="p-3.5 rounded-xl bg-black/90 border border-rose-500/30 text-rose-400 font-mono text-xs-plus leading-relaxed overflow-x-auto shadow-inner">
               <pre>{bugTrace}</pre>
             </div>
           </div>
@@ -343,7 +343,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               </div>
 
               {/* Target Language Badge */}
-              <div className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
+              <div className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
                 {activeLang.toUpperCase()}
               </div>
             </div>
@@ -381,19 +381,19 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
             style={{ height: `${terminalHeight}px` }}
             className="border-t border-[var(--border)] bg-[var(--surface)] flex flex-col min-h-0 shrink-0 font-mono text-xs overflow-hidden"
           >
-            <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--background)] text-[11px] font-bold text-[var(--muted-foreground)] flex items-center justify-between uppercase tracking-wider">
+            <div className="px-4 py-1.5 border-b border-[var(--border)] bg-[var(--background)] text-xs-plus font-bold text-[var(--muted-foreground)] flex items-center justify-between uppercase tracking-wider">
               <span className="flex items-center gap-2">
                 <TerminalIcon className="w-3.5 h-3.5 text-[var(--accent)]" />
                 <span>Judge0 Execution Console</span>
               </span>
               {executionResult && (
-                <span className="text-[10px] text-[var(--muted-foreground)]">
+                <span className="text-2xs text-[var(--muted-foreground)]">
                   {executionResult.executionTime ? `${executionResult.executionTime}ms` : '0ms'}
                 </span>
               )}
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-2 flex-1 text-[11px]">
+            <div className="p-4 overflow-y-auto space-y-2 flex-1 text-xs-plus">
               {isRunning && (
                 <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
                   <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
@@ -428,8 +428,8 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                   </div>
 
                   {executionResult.stdout && (
-                    <div className="p-3 rounded-lg bg-black/90 text-emerald-400 font-mono text-[11px]">
-                      <div className="text-[10px] text-gray-400 uppercase mb-1">Standard Output</div>
+                    <div className="p-3 rounded-lg bg-black/90 text-emerald-400 font-mono text-xs-plus">
+                      <div className="text-2xs text-gray-400 uppercase mb-1">Standard Output</div>
                       <pre>{executionResult.stdout}</pre>
                     </div>
                   )}
@@ -439,7 +439,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                       {executionResult.results.map((r, i) => (
                         <div
                           key={i}
-                          className={`p-2 rounded-lg border flex items-center justify-between text-[11px] ${
+                          className={`p-2 rounded-lg border flex items-center justify-between text-xs-plus ${
                             r.passed
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                               : 'bg-rose-500/10 border-rose-500/20 text-rose-400'

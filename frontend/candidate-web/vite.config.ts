@@ -25,6 +25,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      "@cd-recruit/design-tokens": resolve(__dirname, "../../packages/design-tokens/src/index.ts"),
     },
   },
   optimizeDeps: {

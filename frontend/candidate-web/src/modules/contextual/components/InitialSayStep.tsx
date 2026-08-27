@@ -146,7 +146,7 @@ export function InitialSayStep({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase">
+                    <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase">
                       P1 INCIDENT BRIEFING
                     </span>
                     <span className="text-xs font-mono text-[var(--muted-foreground)]">
@@ -182,30 +182,30 @@ export function InitialSayStep({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-[var(--accent)]">
-                  <span className="w-5 h-5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center text-[11px] font-mono">1</span>
+                  <span className="w-5 h-5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center text-xs-plus font-mono">1</span>
                   <span>1. Formulate Strategy</span>
                 </div>
-                <p className="text-[var(--muted-foreground)] text-[11px] leading-relaxed">
+                <p className="text-[var(--muted-foreground)] text-xs-plus leading-relaxed">
                   Read the scenario and answer the investigation question below (evaluated for your SAY score).
                 </p>
               </div>
 
               <div className="p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-[var(--accent)]">
-                  <span className="w-5 h-5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center text-[11px] font-mono">2</span>
+                  <span className="w-5 h-5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center text-xs-plus font-mono">2</span>
                   <span>2. Live Workstation</span>
                 </div>
-                <p className="text-[var(--muted-foreground)] text-[11px] leading-relaxed">
+                <p className="text-[var(--muted-foreground)] text-xs-plus leading-relaxed">
                   Enter an interactive IDE. Inspect repository files, check Slack/Jira/Email, and edit code.
                 </p>
               </div>
 
               <div className="p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[11px] font-mono">3</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs-plus font-mono">3</span>
                   <span>3. Test &amp; Sign Off</span>
                 </div>
-                <p className="text-[var(--muted-foreground)] text-[11px] leading-relaxed">
+                <p className="text-[var(--muted-foreground)] text-xs-plus leading-relaxed">
                   Run automated diagnostics against your patch, select deployment strategy, and submit hotfix.
                 </p>
               </div>
@@ -224,7 +224,7 @@ export function InitialSayStep({
                 <p className="text-xs font-semibold text-[var(--accent)] leading-relaxed">
                   "{sayPrompt}"
                 </p>
-                <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
+                <p className="text-xs-plus text-[var(--muted-foreground)] mt-1">
                   Describe your initial thought process, likely root cause, and how you intend to verify the fix in the workstation.
                 </p>
               </div>

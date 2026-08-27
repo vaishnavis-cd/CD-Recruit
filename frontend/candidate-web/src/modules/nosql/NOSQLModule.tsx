@@ -439,11 +439,11 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
                 <div key={colName} className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--background)] shadow-sm">
                   <div className="px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] font-mono text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
                     <span>Collection: {colName}</span>
-                    <span className="text-[10px] text-[var(--text-secondary)] font-normal">{dbState[colName].length} documents</span>
+                    <span className="text-2xs text-[var(--text-secondary)] font-normal">{dbState[colName].length} documents</span>
                   </div>
                   <div className="p-3 overflow-x-auto max-h-60 overflow-y-auto font-mono text-xs text-[var(--text-primary)]">
                     {dbState[colName].length > 0 ? (
-                      <pre className="whitespace-pre overflow-x-auto text-[11px] leading-relaxed">
+                      <pre className="whitespace-pre overflow-x-auto text-xs-plus leading-relaxed">
                         {JSON.stringify(dbState[colName], null, 2)}
                       </pre>
                     ) : (
@@ -487,10 +487,10 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
 
           {/* JSON Output / Error Log Console */}
           <div className="h-56 bg-background text-foreground font-mono text-xs flex flex-col overflow-hidden border-t border-border shrink-0">
-            <div className="px-4 py-2 bg-surface border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider font-bold flex items-center justify-between">
+            <div className="px-4 py-2 bg-surface border-b border-border text-2xs text-muted-foreground uppercase tracking-wider font-bold flex items-center justify-between">
               <span>Console Output</span>
               {executionTime !== null && (
-                <span className="text-[10px] lowercase font-normal text-emerald-500">
+                <span className="text-2xs lowercase font-normal text-emerald-500">
                   executed in {executionTime}ms
                 </span>
               )}
@@ -539,7 +539,7 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
               </button>
 
               {evalResult && (
-                <div className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-medium flex items-center gap-1.5 ${
+                <div className={`px-2.5 py-1 rounded-full text-xs-plus font-mono font-medium flex items-center gap-1.5 ${
                   evalResult.passed 
                     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
                     : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'

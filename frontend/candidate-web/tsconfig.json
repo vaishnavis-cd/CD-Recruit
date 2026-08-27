@@ -19,6 +19,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@cd-recruit/design-tokens": ["../../packages/design-tokens/src/index.ts"],
+      "@cd-recruit/design-tokens/*": ["../../packages/design-tokens/src/*"],
       "monaco-editor": ["node_modules/monaco-editor", "../../node_modules/monaco-editor"],
       "monaco-editor/*": ["node_modules/monaco-editor/*", "../../node_modules/monaco-editor/*"]
     }

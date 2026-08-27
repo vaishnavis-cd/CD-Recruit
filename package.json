@@ -6,10 +6,11 @@
     "frontend/candidate-web",
     "frontend/admin-web",
     "backend/api",
-    "packages/shared-types"
+    "packages/shared-types",
+    "packages/design-tokens"
   ],
   "scripts": {
-    "build:shared": "npm --workspace=packages/shared-types run build",
+    "build:shared": "npm --workspace=packages/shared-types run build && npm --workspace=packages/design-tokens run build",
     "prepare": "npm run build:shared",
     "postinstall": "npm run build:shared",
     "infra:up": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml up -d",

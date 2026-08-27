@@ -156,12 +156,12 @@ function ResultsPage() {
       count={filtered.length}
       search={
         <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search candidate name or email…"
-            className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-[#F7F7F9] focus:outline-none focus:border-[#2F5CFF]"
+            className="w-full pl-9 pr-3 py-2 text-sm-minus border border-line rounded-md bg-canvas focus:outline-none focus:border-brand"
           />
         </div>
       }
@@ -169,7 +169,7 @@ function ResultsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] border border-[#B3C5FF] rounded hover:bg-[#D6E4FF] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle border border-brand-border rounded hover:bg-brand-subtle transition-colors cursor-pointer"
             title="Download full candidate evaluation CSV dataset from server"
           >
             <Download size={13} />
@@ -185,35 +185,35 @@ function ResultsPage() {
     >
       {/* Metric Cards Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#8B8B93] mb-1">
+        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
+          <div className="text-xs-plus font-mono uppercase tracking-wider text-ink-tertiary mb-1">
             Total Evaluated
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#0B0B0D]">{stats.total}</div>
+          <div className="text-2xl font-mono font-semibold text-ink">{stats.total}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-amber-600 mb-1">
+        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
+          <div className="text-xs-plus font-mono uppercase tracking-wider text-amber-600 mb-1">
             Pending Review
           </div>
-          <div className="text-[22px] font-mono font-semibold text-amber-700">{stats.pending}</div>
+          <div className="text-2xl font-mono font-semibold text-amber-700">{stats.pending}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#0C6B58] mb-1">
+        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
+          <div className="text-xs-plus font-mono uppercase tracking-wider text-emerald-700 mb-1">
             Approved (Pass)
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#0C6B58]">{stats.approved}</div>
+          <div className="text-2xl font-mono font-semibold text-emerald-700">{stats.approved}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#C0392B] mb-1">
+        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
+          <div className="text-xs-plus font-mono uppercase tracking-wider text-rose-700 mb-1">
             Rejected (Fail)
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#C0392B]">{stats.rejected}</div>
+          <div className="text-2xl font-mono font-semibold text-rose-700">{stats.rejected}</div>
         </div>
-        <div className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-[#2F5CFF] mb-1">
+        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
+          <div className="text-xs-plus font-mono uppercase tracking-wider text-brand mb-1">
             Avg Composite Score
           </div>
-          <div className="text-[22px] font-mono font-semibold text-[#2F5CFF]">{stats.avgScore}%</div>
+          <div className="text-2xl font-mono font-semibold text-brand">{stats.avgScore}%</div>
         </div>
       </div>
 
@@ -231,10 +231,10 @@ function ResultsPage() {
             <button
               key={chip.id}
               onClick={() => setStatusFilter(chip.id)}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                 statusFilter === chip.id
-                  ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                  : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D6D7DC]"
+                  ? "bg-brand text-white border-brand"
+                  : "bg-white text-ink-secondary border-line hover:border-line-strong"
               }`}
             >
               {chip.label}
@@ -254,10 +254,10 @@ function ResultsPage() {
                   ? "No candidates to verify"
                   : `Verify identity for ${filtered.length} candidate${filtered.length === 1 ? "" : "s"}`
               }
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-md border transition-all shadow-sm ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all shadow-sm ${
                 filtered.length === 0 || verifying
-                  ? "bg-[#F7F7F9] text-[#9C9CA5] border-[#E6E6EA] cursor-not-allowed"
-                  : "text-[#0C6B58] bg-[#E3F9F2] border-[#A3E4D7] hover:bg-[#C7F5E8] cursor-pointer"
+                  ? "bg-canvas text-ink-muted border-line cursor-not-allowed"
+                  : "text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
               }`}
             >
               {verifying ? (
@@ -275,11 +275,11 @@ function ResultsPage() {
           )}
 
           <div className="flex items-center gap-2">
-            <label className="text-[12px] text-[#5B5B64] font-medium">Filter by Drive:</label>
+            <label className="text-xs text-ink-secondary font-medium">Filter by Drive:</label>
             <select
               value={driveFilter}
               onChange={(e) => setDriveFilter(e.target.value)}
-              className="px-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+              className="px-3 py-1.5 text-xs border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
             >
               <option value="all">All Drives</option>
               {drives.map((d) => (
@@ -293,11 +293,11 @@ function ResultsPage() {
       </div>
 
       {/* Results Data Table */}
-      <div className="bg-white border border-[#E6E6EA] rounded-[10px] shadow-sm overflow-hidden">
+      <div className="bg-white border border-line rounded-lg shadow-sm overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-12 text-center">
-            <FileSpreadsheet size={32} className="mx-auto text-[#D6D7DC] mb-2" />
-            <p className="text-[13px] text-[#8B8B93] italic">No candidate evaluation results found.</p>
+            <FileSpreadsheet size={32} className="mx-auto text-ink-tertiary mb-2" />
+            <p className="text-sm-minus text-ink-tertiary italic">No candidate evaluation results found.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -323,7 +323,7 @@ function ResultsPage() {
                       ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                       : scoreVal >= 60
                       ? "text-amber-700 bg-amber-50 border-amber-200"
-                      : "text-rose-700 bg-rose-50 border-rose-200";
+                      : "text-ink-secondary bg-canvas border-line";
 
                   const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
                   const dec = getItemDecision(item);
@@ -571,9 +571,9 @@ function VerificationSidePanel({
       />
 
       {/* Slide-Over Panel */}
-      <div className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[480px] bg-white border-l border-[#E6E6EA] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[480px] bg-white border-l border-line shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         {/* Panel Header */}
-        <div className="p-6 border-b border-[#F0F0F4] bg-[#FAFBFD] relative">
+        <div className="p-6 border-b border-line bg-canvas relative">
           <button
             onClick={onClose}
             className="absolute top-5 right-5 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
@@ -582,27 +582,27 @@ function VerificationSidePanel({
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[#E3F9F2] text-[#0C6B58] flex items-center justify-center font-bold text-[18px] border border-[#A3E4D7]">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-lg border border-emerald-300">
               {initialLetter}
             </div>
             <div>
-              <h3 className="text-[17px] font-bold text-[#0B0B0D]">
+              <h3 className="text-lg font-bold text-ink">
                 {item.candidateName}
               </h3>
-              <p className="text-[12px] text-[#8B8B93] font-mono">
+              <p className="text-xs text-ink-tertiary font-mono">
                 {item.candidateEmail}
               </p>
               <div className="mt-1">
                 {isMatched ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58] border border-[#A3E4D7]">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs-plus font-semibold bg-emerald-50 text-emerald-700 border border-emerald-300">
                     <CheckCircle2 size={11} /> Match
                   </span>
                 ) : isMismatch ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B] border border-[#FADBD8]">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs-plus font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                     <XCircle size={11} /> Mismatch
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs-plus font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                     <Clock size={11} /> Pending
                   </span>
                 )}
@@ -613,29 +613,29 @@ function VerificationSidePanel({
 
         {/* Panel Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          <h4 className="text-[14px] font-bold text-[#0B0B0D]">Verifications</h4>
+          <h4 className="text-sm font-bold text-ink">Verifications</h4>
 
           {loading ? (
             <div className="py-16 flex flex-col items-center justify-center text-gray-400 space-y-3">
-              <Loader2 size={24} className="animate-spin text-[#2F5CFF]" />
-              <span className="text-[12px] font-mono text-gray-500">
+              <Loader2 size={24} className="animate-spin text-brand" />
+              <span className="text-xs font-mono text-gray-500">
                 Fetching candidate biometric verification details…
               </span>
             </div>
           ) : (
             <>
               {/* Accordion 1: Identity Verification */}
-              <div className="border border-[#E6E6EA] rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="border border-line rounded-xl overflow-hidden bg-white shadow-sm">
                 <button
                   onClick={() => toggleAccordion("identity")}
-                  className="w-full px-4 py-3 bg-[#FAFBFD] hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-[#F0F0F4]"
+                  className="w-full px-4 py-3 bg-canvas hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-line"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-bold text-[#0B0B0D]">
+                    <span className="text-sm-minus font-bold text-ink">
                       1. Identity Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
                         idMatch === true
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : idMatch === false
@@ -652,10 +652,10 @@ function VerificationSidePanel({
                 {accordions.identity && (
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
                     <div>
-                      <div className="text-[11px] font-medium text-[#8B8B93] mb-1.5">
+                      <div className="text-xs-plus font-medium text-ink-tertiary mb-1.5">
                         ID Card Image
                       </div>
-                      <div className="w-full h-36 rounded-lg border border-[#E6E6EA] bg-[#F7F7F9] overflow-hidden flex items-center justify-center">
+                      <div className="w-full h-36 rounded-lg border border-line bg-canvas overflow-hidden flex items-center justify-center">
                         {idCardUrl ? (
                           <img
                             src={idCardUrl}
@@ -665,17 +665,17 @@ function VerificationSidePanel({
                         ) : (
                           <div className="flex flex-col items-center text-gray-400 p-2 text-center">
                             <FileText size={24} className="mb-1" />
-                            <span className="text-[10px]">No ID Card</span>
+                            <span className="text-2xs">No ID Card</span>
                           </div>
                         )}
                       </div>
                     </div>
 
                     <div>
-                      <div className="text-[11px] font-medium text-[#8B8B93] mb-1.5">
+                      <div className="text-xs-plus font-medium text-ink-tertiary mb-1.5">
                         Selfie Image
                       </div>
-                      <div className="w-full h-36 rounded-lg border border-[#E6E6EA] bg-[#F7F7F9] overflow-hidden flex items-center justify-center">
+                      <div className="w-full h-36 rounded-lg border border-line bg-canvas overflow-hidden flex items-center justify-center">
                         {selfieUrl ? (
                           <img
                             src={selfieUrl}
@@ -685,7 +685,7 @@ function VerificationSidePanel({
                         ) : (
                           <div className="flex flex-col items-center text-gray-400 p-2 text-center">
                             <Camera size={24} className="mb-1" />
-                            <span className="text-[10px]">No Baseline Selfie</span>
+                            <span className="text-2xs">No Baseline Selfie</span>
                           </div>
                         )}
                       </div>
@@ -695,17 +695,17 @@ function VerificationSidePanel({
               </div>
 
               {/* Accordion 2: Random Capture Verification */}
-              <div className="border border-[#E6E6EA] rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="border border-line rounded-xl overflow-hidden bg-white shadow-sm">
                 <button
                   onClick={() => toggleAccordion("randomCapture")}
-                  className="w-full px-4 py-3 bg-[#FAFBFD] hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-[#F0F0F4]"
+                  className="w-full px-4 py-3 bg-canvas hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-line"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-bold text-[#0B0B0D]">
+                    <span className="text-sm-minus font-bold text-ink">
                       2. Random Capture Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
                         matchedCount === 3
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : matchedCount > 0
@@ -730,7 +730,7 @@ function VerificationSidePanel({
 
                       return (
                         <div key={w.windowIndex} className="flex flex-col items-center">
-                          <div className="w-full h-28 rounded-lg border border-[#E6E6EA] bg-[#F7F7F9] overflow-hidden flex items-center justify-center relative">
+                          <div className="w-full h-28 rounded-lg border border-line bg-canvas overflow-hidden flex items-center justify-center relative">
                             {w.imageUrl ? (
                               <img
                                 src={w.imageUrl}
@@ -741,11 +741,11 @@ function VerificationSidePanel({
                               <ScanFace size={24} className="text-gray-300" />
                             )}
                           </div>
-                          <span className="text-[10px] text-[#8B8B93] mt-1 text-center font-mono">
+                          <span className="text-2xs text-ink-tertiary mt-1 text-center font-mono">
                             Captured at {capTime}
                           </span>
                           <span
-                            className={`text-[10px] font-semibold mt-0.5 ${
+                            className={`text-2xs font-semibold mt-0.5 ${
                               !isComp
                                 ? "text-gray-500"
                                 : isWinMatch
@@ -763,17 +763,17 @@ function VerificationSidePanel({
               </div>
 
               {/* Accordion 3: OCR Verification */}
-              <div className="border border-[#E6E6EA] rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="border border-line rounded-xl overflow-hidden bg-white shadow-sm">
                 <button
                   onClick={() => toggleAccordion("ocr")}
-                  className="w-full px-4 py-3 bg-[#FAFBFD] hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-[#F0F0F4]"
+                  className="w-full px-4 py-3 bg-canvas hover:bg-gray-50 flex items-center justify-between transition-colors border-b border-line"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-bold text-[#0B0B0D]">
+                    <span className="text-sm-minus font-bold text-ink">
                       3. OCR Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-medium ${
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
                         ocrMatched
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : "bg-rose-50 text-rose-700 border border-rose-200"
@@ -786,20 +786,20 @@ function VerificationSidePanel({
                 </button>
 
                 {accordions.ocr && (
-                  <div className="p-4 bg-white space-y-3 text-[12px]">
+                  <div className="p-4 bg-white space-y-3 text-xs">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <span className="text-[#8B8B93] block text-[11px]">Registered Name</span>
-                        <span className="font-semibold text-[#0B0B0D]">{regName}</span>
+                        <span className="text-ink-tertiary block text-xs-plus">Registered Name</span>
+                        <span className="font-semibold text-ink">{regName}</span>
                       </div>
                       <div>
-                        <span className="text-[#8B8B93] block text-[11px]">Extracted Name (OCR)</span>
-                        <span className="font-semibold text-[#0B0B0D]">{ocrName}</span>
+                        <span className="text-ink-tertiary block text-xs-plus">Extracted Name (OCR)</span>
+                        <span className="font-semibold text-ink">{ocrName}</span>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-[#F0F0F4] flex items-center justify-between">
-                      <span className="text-[#8B8B93] text-[11px]">Result</span>
+                    <div className="pt-2 border-t border-line flex items-center justify-between">
+                      <span className="text-ink-tertiary text-xs-plus">Result</span>
                       <span className={`font-bold ${ocrMatched ? "text-emerald-600" : "text-rose-600"}`}>
                         {ocrMatched ? "Match" : "Mismatch"}
                       </span>
@@ -812,11 +812,11 @@ function VerificationSidePanel({
         </div>
 
         {/* Panel Footer */}
-        <div className="p-4 border-t border-[#F0F0F4] bg-[#FAFBFD]">
+        <div className="p-4 border-t border-line bg-canvas">
           <Link
             to="/results/$id"
             params={{ id: item.sessionId || item.id }}
-            className="w-full py-2.5 px-4 bg-[#EAF0FF] hover:bg-[#D6E4FF] text-[#2F5CFF] font-semibold text-[13px] rounded-lg border border-[#B3C5FF] flex items-center justify-center gap-2 transition-colors"
+            className="w-full py-2.5 px-4 bg-brand-subtle hover:bg-brand-subtle text-brand font-semibold text-sm-minus rounded-lg border border-brand-border flex items-center justify-center gap-2 transition-colors"
           >
             View Full Evaluation <ExternalLink size={14} />
           </Link>

@@ -501,7 +501,7 @@ export function CodingWorkspace({
             <div className="flex border-b border-[var(--border)] bg-[var(--surface)]/40 shrink-0">
               <button
                 onClick={(e) => { e.stopPropagation(); setActiveTab("testCases"); }}
-                className={`px-4 py-2 border-r border-[var(--border)] text-[11px] font-bold uppercase transition-all ${
+                className={`px-4 py-2 border-r border-[var(--border)] text-xs-plus font-bold uppercase transition-all ${
                   activeTab === "testCases" ? "bg-[var(--bg)] text-[var(--accent)] border-b-2 border-b-[var(--accent)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                 }`}
               >
@@ -509,7 +509,7 @@ export function CodingWorkspace({
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setActiveTab("console"); }}
-                className={`px-4 py-2 border-r border-[var(--border)] text-[11px] font-bold uppercase transition-all ${
+                className={`px-4 py-2 border-r border-[var(--border)] text-xs-plus font-bold uppercase transition-all ${
                   activeTab === "console" ? "bg-[var(--bg)] text-[var(--accent)] border-b-2 border-b-[var(--accent)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                 }`}
               >
@@ -546,20 +546,20 @@ export function CodingWorkspace({
                     }
                     return (
                       <>
-                        <p className="text-[11px] text-[var(--muted-foreground)] font-semibold">
+                        <p className="text-xs-plus text-[var(--muted-foreground)] font-semibold">
                           Sample test cases — click <span className="text-[var(--accent)]">"Run Code"</span> to evaluate your solution against these.
                         </p>
                         {samples.map((tc, idx) => (
                           <div key={idx} className="p-3 bg-[var(--surface)]/50 border border-[var(--border)] rounded-lg space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
+                              <span className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
                                 {tc.label || `Example ${idx + 1}`}
                               </span>
-                              <span className="text-[10px] bg-[var(--surface)] text-[var(--muted-foreground)] px-2 py-0.5 rounded border border-[var(--border)]">
+                              <span className="text-2xs bg-[var(--surface)] text-[var(--muted-foreground)] px-2 py-0.5 rounded border border-[var(--border)]">
                                 Sample
                               </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 text-[11px] font-mono">
+                            <div className="grid grid-cols-2 gap-3 text-xs-plus font-mono">
                               <div>
                                 <div className="text-[var(--muted-foreground)] mb-0.5">Input:</div>
                                 <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{tc.input}</pre>
@@ -612,13 +612,13 @@ export function CodingWorkspace({
                                     ? `${passedCnt} / ${totalCnt} Tests Passed`
                                     : `Execution status: ${executionResult.status}`}
                                 </div>
-                                <div className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
+                                <div className="text-xs-plus text-[var(--muted-foreground)] mt-0.5">
                                   {runType === "SUBMIT" ? "Evaluated against all visible and hidden cases." : "Evaluated against sample test cases."}
                                 </div>
                               </div>
                             </div>
 
-                            <div className="text-right text-[11px] text-[var(--muted-foreground)] font-mono">
+                            <div className="text-right text-xs-plus text-[var(--muted-foreground)] font-mono">
                               {execTime !== null && <div>Time: {execTime} ms</div>}
                               {memUsage !== null && <div>Memory: {memUsage} KB</div>}
                             </div>
@@ -627,7 +627,7 @@ export function CodingWorkspace({
                           {/* Execution Details per test case */}
                           {detailsList.length > 0 && (
                             <div className="space-y-2">
-                              <h4 className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider">Granular Results</h4>
+                              <h4 className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider">Granular Results</h4>
                               {detailsList.map((r: any, idx: number) => (
                                 <div key={idx} className="p-3 bg-[var(--surface)]/50 border border-[var(--border)] rounded-lg space-y-2">
                                   <div className="flex items-center justify-between">
@@ -635,14 +635,14 @@ export function CodingWorkspace({
                                       {r.isHidden ? `Hidden Test Case ${idx + 1}` : r.label || `Test Case ${idx + 1}`}
                                     </span>
                                     {r.passed ? (
-                                      <span className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-bold uppercase">Passed</span>
+                                      <span className="text-2xs bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-bold uppercase">Passed</span>
                                     ) : (
-                                      <span className="text-[10px] bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded font-bold uppercase">Failed ({r.status})</span>
+                                      <span className="text-2xs bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded font-bold uppercase">Failed ({r.status})</span>
                                     )}
                                   </div>
                                   
                                   {!r.isHidden && (
-                                    <div className="grid grid-cols-2 gap-4 text-[11px] font-mono">
+                                    <div className="grid grid-cols-2 gap-4 text-xs-plus font-mono">
                                       <div>
                                         <div className="text-[var(--muted-foreground)] mb-0.5">Input:</div>
                                         <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{r.input}</pre>
@@ -667,7 +667,7 @@ export function CodingWorkspace({
                                   )}
 
                                   {r.isHidden && (
-                                    <div className="text-[11px] text-[var(--muted-foreground)] italic">
+                                    <div className="text-xs-plus text-[var(--muted-foreground)] italic">
                                       Test case inputs, outputs and console logs are hidden for security.
                                     </div>
                                   )}

@@ -138,7 +138,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                 <span className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
                   Starting Automatically In
                 </span>
-                <span className="text-[11px] text-[var(--muted-foreground)] flex items-center gap-1 font-medium">
+                <span className="text-xs-plus text-[var(--muted-foreground)] flex items-center gap-1 font-medium">
                   <ShieldCheck size={13} className="text-[var(--success)]" /> Environment Ready
                 </span>
               </div>
