@@ -13,6 +13,9 @@ import { NOSQLModule } from '../modules/nosql/NOSQLModule';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { IdentityCaptureScheduler } from '../proctoring/identity-capture.scheduler';
 
+import { FullScreenShield } from '../components/FullScreenShield';
+import { NetworkStatusBar } from '../components/NetworkStatusBar';
+
 interface AssessmentScreenProps {
   moduleIndex: number;
   sessionId: string;
@@ -20,6 +23,20 @@ interface AssessmentScreenProps {
 
 export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenProps) {
   const { setTimerStart, assessment, session } = useSessionStore();
+
+  // Guard against accidental page reload / close
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Your assessment session is currently active and timed. Are you sure you want to leave?';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
@@ -66,25 +83,35 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
 
   const currentModuleType = activeModules[moduleIndex] || activeModules[0];
 
-  switch (currentModuleType) {
-    case 'MCQ':
-      return <MCQModule moduleIndex={moduleIndex} />;
-    case 'SQL':
-      return <SQLModule moduleIndex={moduleIndex} />;
-    case 'CODING':
-      return <CodingModule moduleIndex={moduleIndex} />;
-    case 'DEBUGGING':
-      return <DebuggingModule moduleIndex={moduleIndex} />;
-    case 'AI_PROMPTING':
-      return <PromptingModule moduleIndex={moduleIndex} />;
-    case 'NOSQL':
-      return <NOSQLModule moduleIndex={moduleIndex} />;
-    case 'SIMULATION':
-    case 'CONTEXTUAL':
-      return <ContextualModule moduleIndex={moduleIndex} />;
-    case 'TEST_SCENARIOS':
-      return <TestScenariosModule moduleIndex={moduleIndex} />;
-    default:
-      return <MCQModule moduleIndex={moduleIndex} />;
-  }
+  const renderModule = () => {
+    switch (currentModuleType) {
+      case 'MCQ':
+        return <MCQModule moduleIndex={moduleIndex} />;
+      case 'SQL':
+        return <SQLModule moduleIndex={moduleIndex} />;
+      case 'CODING':
+        return <CodingModule moduleIndex={moduleIndex} />;
+      case 'DEBUGGING':
+        return <DebuggingModule moduleIndex={moduleIndex} />;
+      case 'AI_PROMPTING':
+        return <PromptingModule moduleIndex={moduleIndex} />;
+      case 'NOSQL':
+        return <NOSQLModule moduleIndex={moduleIndex} />;
+      case 'SIMULATION':
+      case 'CONTEXTUAL':
+        return <ContextualModule moduleIndex={moduleIndex} />;
+      case 'TEST_SCENARIOS':
+        return <TestScenariosModule moduleIndex={moduleIndex} />;
+      default:
+        return <MCQModule moduleIndex={moduleIndex} />;
+    }
+  };
+
+  return (
+    <>
+      <NetworkStatusBar />
+      <FullScreenShield isActive={true} />
+      {renderModule()}
+    </>
+  );
 }

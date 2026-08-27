@@ -620,7 +620,7 @@ function DrivesPage() {
                 }`}
               >
                 {isNewlyDetected && (
-                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-[#2F5CFF] to-[#1A44D6] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-brand to-brand-ink text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
                     <Sparkles size={11} className="text-amber-300" />
                     <span>NEW</span>
                   </div>
@@ -645,8 +645,8 @@ function DrivesPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93] shrink-0">
-                      <Calendar size={13} className="text-[#8B8B93] shrink-0" />
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-tertiary shrink-0">
+                      <Calendar size={13} className="text-ink-tertiary shrink-0" />
                       <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
                     </div>
                   </div>
@@ -654,12 +654,12 @@ function DrivesPage() {
                   {/* Middle Row: Full Width Primary Drive Name & Subtitle */}
                   <div className="space-y-1">
                     <h3
-                      className="text-[16px] font-bold text-[#0B0B0D] tracking-tight leading-snug line-clamp-2"
+                      className="text-[16px] font-bold text-ink tracking-tight leading-snug line-clamp-2"
                       title={d.name}
                     >
                       {formatDriveName(d.name)}
                     </h3>
-                    <p className="text-[12px] text-[#8B8B93] font-medium truncate" title={d.roleTemplateName || "Software Developer"}>
+                    <p className="text-[12px] text-ink-tertiary font-medium truncate" title={d.roleTemplateName || "Software Developer"}>
                       {d.roleTemplateName || "Software Developer"}
                     </p>
                   </div>
@@ -669,13 +669,13 @@ function DrivesPage() {
                   <Link
                     to="/drives/$id"
                     params={{ id: d.id }}
-                    className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
+                    className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-brand border border-brand bg-transparent hover:bg-brand hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
                   >
                     View Drive
                   </Link>
                   <button
                     onClick={() => setConfirmDeleteDrive(d)}
-                    className="p-2 text-[#8B8B93] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] hover:border-[#FFAEA4] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    className="p-2 text-ink-tertiary hover:text-danger hover:bg-danger-subtle border border-line hover:border-danger-border rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
                     title="Delete Drive"
                   >
                     <Trash2 size={15} />

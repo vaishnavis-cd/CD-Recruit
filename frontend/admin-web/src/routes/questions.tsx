@@ -1689,24 +1689,24 @@ function QuestionBankPage() {
 
               if (filteredTopics.length === 0) {
                 return (
-                  <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+                  <p className="text-center py-4 text-[12px] text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                     No topics found in this category.
                   </p>
                 );
               }
 
               return (
-                <div className="flex flex-wrap gap-2.5 p-5 bg-white border border-[#E6E6EA] rounded-2xl shadow-2xs">
+                <div className="flex flex-wrap gap-2.5 p-5 bg-white border border-line rounded-2xl shadow-2xs">
                   {filteredTopics.map((item) => (
                     <button
                       key={item.tag}
                       type="button"
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#F7F7F9] hover:bg-[#EAF0FF] hover:text-[#2F5CFF] hover:border-[#B3C5FF] border border-[#E6E6EA] rounded-full text-[12px] font-medium text-[#0B0B0D] transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-canvas hover:bg-brand-subtle hover:text-brand hover:border-brand-border border border-line rounded-full text-[12px] font-medium text-ink transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
                       title={`${item.title} (${item.questions.length} questions)`}
                     >
-                      <span className="group-hover:text-[#2F5CFF] transition-colors">{item.title}</span>
-                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#E6E6EA] group-hover:bg-[#2F5CFF] group-hover:text-white text-[#5B5B64] transition-colors">
+                      <span className="group-hover:text-brand transition-colors">{item.title}</span>
+                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-surface-inset group-hover:bg-brand group-hover:text-white text-ink-secondary transition-colors">
                         {item.questions.length}
                       </span>
                     </button>
@@ -1720,14 +1720,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">4. Drives</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-[13px] font-semibold text-ink">4. Drives</h4>
+                <span className="text-[11px] text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.drive.length} drive batches
                 </span>
               </div>
             </div>
             {categorizedTagGroups.drive.length === 0 ? (
-              <div className="text-center py-5 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-xl bg-white">
+              <div className="text-center py-5 text-[12px] text-ink-tertiary font-mono border border-dashed border-line rounded-xl bg-white">
                 No drive-specific imported questions found. Questions imported during a Drive setup will appear here.
               </div>
             ) : (

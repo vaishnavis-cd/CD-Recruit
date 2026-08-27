@@ -799,10 +799,10 @@ export function RoleTemplatesPage() {
                 <div
                   key={tpl.id}
                   onClick={() => handleOpenEdit(tpl)}
-                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:border-[#2F5CFF] hover:shadow-md ${
+                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:border-brand hover:shadow-md ${
                     tpl.isActive
-                      ? "border-[#C5D7FF] shadow-xs ring-1 ring-[#2F5CFF]/10"
-                      : "border-[#E6E6EA] opacity-90"
+                      ? "border-brand-border shadow-xs ring-1 ring-brand/10"
+                      : "border-line opacity-90"
                   }`}
                 >
                   <div className="space-y-3">
@@ -828,7 +828,7 @@ export function RoleTemplatesPage() {
                             ? "Level 2 (6–10 yrs)"
                             : "Level 3 (11+ yrs)"}
                         </span>
-                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-[#F1F3F9] text-[#5B5B64] rounded-full border border-[#E6E6EA]">
+                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-canvas text-ink-secondary rounded-full border border-line">
                           v{tpl.version || 1}
                         </span>
                       </div>
@@ -846,7 +846,7 @@ export function RoleTemplatesPage() {
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${
                             tpl.isActive
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                              : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-[#2F5CFF] hover:text-white hover:border-[#2F5CFF] cursor-pointer"
+                              : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-brand hover:text-white hover:border-brand cursor-pointer"
                           }`}
                           title={tpl.isActive ? "This is the active version" : "Click to make this version active"}
                         >
@@ -866,7 +866,7 @@ export function RoleTemplatesPage() {
                               e.stopPropagation();
                               setOpenMenuTemplateId(isMenuOpen ? null : tpl.id);
                             }}
-                            className="p-1 text-[#8B8B93] hover:text-[#0B0B0D] rounded-md hover:bg-[#F7F7F9] transition-colors cursor-pointer"
+                            className="p-1 text-ink-tertiary hover:text-ink rounded-md hover:bg-canvas transition-colors cursor-pointer"
                             title="Template options"
                           >
                             <MoreVertical size={16} />
@@ -875,7 +875,7 @@ export function RoleTemplatesPage() {
                           {isMenuOpen && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E6E6EA] rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
+                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-line rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
                             >
                               {!tpl.isActive && (
                                 <button
@@ -900,9 +900,9 @@ export function RoleTemplatesPage() {
                                   setOpenMenuTemplateId(null);
                                   handleOpenEdit(tpl);
                                 }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-[#0B0B0D] hover:bg-[#F7F7F9] flex items-center gap-2 cursor-pointer font-medium"
+                                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-canvas flex items-center gap-2 cursor-pointer font-medium"
                               >
-                                <Edit3 size={13} className="text-[#2F5CFF]" />
+                                <Edit3 size={13} className="text-brand" />
                                 <span>Edit details & questions</span>
                               </button>
 
@@ -914,9 +914,9 @@ export function RoleTemplatesPage() {
                                   setOpenMenuTemplateId(null);
                                   handlePublishNewVersion(tpl.id);
                                 }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-[#0B0B0D] hover:bg-[#F7F7F9] flex items-center gap-2 cursor-pointer font-medium disabled:opacity-50"
+                                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-canvas flex items-center gap-2 cursor-pointer font-medium disabled:opacity-50"
                               >
-                                <GitFork size={13} className="text-[#2F5CFF]" />
+                                <GitFork size={13} className="text-brand" />
                                 <span>
                                   {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
                                 </span>

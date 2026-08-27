@@ -1683,4 +1683,63 @@ export class SessionService implements SessionStatusPort {
       );
     }
   }
+
+  /**
+   * Saves / mirrors candidate draft answers and cursor to cloud for cross-device recovery.
+   */
+  async saveDraftResponses(
+    sessionId: string,
+    payload: { draftResponses?: Record<string, any>; cursor?: { moduleIndex: number; questionIndex: number }; sentinel?: any },
+  ) {
+    const existing = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { simulationSnapshot: true },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Session ${sessionId} not found.`);
+    }
+
+    const currentSnapshot = (existing.simulationSnapshot as Record<string, any>) || {};
+    const updatedSnapshot = {
+      ...currentSnapshot,
+      draftResponses: payload.draftResponses || currentSnapshot.draftResponses || {},
+      cursor: payload.cursor || currentSnapshot.cursor || { moduleIndex: 0, questionIndex: 0 },
+      sentinel: payload.sentinel || currentSnapshot.sentinel,
+      lastSyncedAt: new Date().toISOString(),
+    };
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        simulationSnapshot: updatedSnapshot,
+        lastActivityAt: new Date(),
+      },
+    });
+
+    return { ok: true, syncedAt: updatedSnapshot.lastSyncedAt };
+  }
+
+  /**
+   * Retrieves candidate draft responses and cursor for cross-device hydration.
+   */
+  async getDraftResponses(sessionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { simulationSnapshot: true, startedAt: true, status: true },
+    });
+    if (!session) {
+      throw new NotFoundException(`Session ${sessionId} not found.`);
+    }
+
+    const snapshot = (session.simulationSnapshot as Record<string, any>) || {};
+    return {
+      ok: true,
+      draftResponses: snapshot.draftResponses || {},
+      cursor: snapshot.cursor || { moduleIndex: 0, questionIndex: 0 },
+      lastSyncedAt: snapshot.lastSyncedAt || null,
+      startedAt: session.startedAt,
+      status: session.status,
+    };
+  }
 }
+

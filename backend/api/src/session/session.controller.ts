@@ -242,4 +242,33 @@ export class SessionController {
       dto.imageBase64,
     );
   }
+
+  /**
+   * POST /api/v1/sessions/:sessionId/drafts
+   *
+   * Save candidate draft responses & cursor for cross-device recovery.
+   */
+  @Post(":sessionId/drafts")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async saveDrafts(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() dto: { draftResponses?: Record<string, any>; cursor?: { moduleIndex: number; questionIndex: number }; sentinel?: any },
+  ) {
+    return this.sessionService.saveDraftResponses(sessionId, dto);
+  }
+
+  /**
+   * GET /api/v1/sessions/:sessionId/drafts
+   *
+   * Fetch candidate draft responses & cursor on device reconnect.
+   */
+  @Get(":sessionId/drafts")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
+  async getDrafts(
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+  ) {
+    return this.sessionService.getDraftResponses(sessionId);
+  }
 }

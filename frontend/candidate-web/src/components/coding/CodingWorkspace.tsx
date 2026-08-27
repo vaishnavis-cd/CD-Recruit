@@ -223,6 +223,12 @@ export function CodingWorkspace({
       ...prev,
       [selectedLanguage]: value,
     }));
+    try {
+      useSessionStore.getState().setResponse(question.id, {
+        code: value,
+        language: selectedLanguage,
+      });
+    } catch {}
   };
 
   const handleEditorMount = (editor: any, monaco: any) => {

@@ -6,20 +6,46 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
+  /* Brand Palette */
   --color-brand: #2f5cff;
+  --color-brand-hover: #0037ff;
   --color-brand-ink: #15308f;
-  --color-signal-green: #17c964;
-  --color-amber: #f5a623;
-  --color-danger: #e5484d;
+  --color-brand-subtle: #eaf0ff;
+  --color-brand-border: #b3c5ff;
 
+  /* Ink / Typography */
   --color-ink: #0b0b0d;
   --color-ink-2: #5b5b64;
-  --color-ink-3: #9c9ca5;
+  --color-ink-3: #8b8b93;
+  --color-ink-muted: #9c9ca5;
+  --color-ink-secondary: #5b5b64;
+  --color-ink-tertiary: #8b8b93;
+
+  /* Borders & Dividers */
   --color-line: #e6e6ea;
   --color-line-strong: #d6d7dc;
+
+  /* Surfaces & Backgrounds */
+  --color-canvas: #f7f7f9;
   --color-bg-soft: #f7f7f9;
   --color-bg-inset: #eff0f3;
+  --color-surface-inset: #eff0f3;
 
+  /* Status Colors */
+  --color-danger: #ef4444;
+  --color-danger-subtle: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  --color-success: #10b981;
+  --color-success-subtle: #ecfdf5;
+
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fffbeb;
+
+  --color-signal-green: #17c964;
+  --color-amber: #f5a623;
+
+  /* Sidebar Dark Surface */
   --color-sbg: #0b0b0d;
   --color-sbg-hover: #18181c;
   --color-sline: #232327;

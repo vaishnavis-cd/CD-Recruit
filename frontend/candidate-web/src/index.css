@@ -27,6 +27,20 @@
   --color-success: var(--success);
   --color-neutral-chip: var(--neutral-chip);
 
+  /* Semantic Brand & Ink Tokens */
+  --color-brand: var(--color-brand-token);
+  --color-brand-hover: var(--color-brand-hover-token);
+  --color-brand-ink: var(--color-brand-ink-token);
+  --color-brand-subtle: var(--color-brand-subtle-token);
+  --color-brand-border: var(--color-brand-border-token);
+  --color-ink: var(--foreground);
+  --color-ink-secondary: var(--muted-foreground);
+  --color-ink-tertiary: var(--neutral-chip);
+  --color-ink-muted: var(--neutral-chip);
+  --color-line: var(--border);
+  --color-canvas: var(--surface);
+  --color-surface-inset: var(--surface);
+
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -47,6 +61,12 @@
   --critical: #e5484d;
   --success: #12b76a;
   --neutral-chip: #9ca3af;
+
+  --color-brand-token: #2f5cff;
+  --color-brand-hover-token: #0037ff;
+  --color-brand-ink-token: #15308f;
+  --color-brand-subtle-token: #eaf0ff;
+  --color-brand-border-token: #b3c5ff;
 
   --shadow-raised: 0 4px 16px rgba(17, 19, 24, 0.08);
   --shadow-overlay: 0 8px 32px rgba(17, 19, 24, 0.16);
@@ -84,6 +104,12 @@
   --critical: #f0555b;
   --success: #3ecf8e;
   --neutral-chip: #6b7280;
+
+  --color-brand-token: #5b7fff;
+  --color-brand-hover-token: #7090ff;
+  --color-brand-ink-token: #dbe4ff;
+  --color-brand-subtle-token: rgba(91, 127, 255, 0.15);
+  --color-brand-border-token: rgba(91, 127, 255, 0.3);
 
   --shadow-raised: 0 4px 20px rgba(0, 0, 0, 0.4);
   --shadow-overlay: 0 8px 40px rgba(0, 0, 0, 0.6);
