@@ -5,5 +5,49 @@
   "appealWindowDays": 14,
   "heartbeatStaleThresholdSeconds": 45,
   "graceWindowSeconds": 300,
-  "maxDisconnectCount": 3
+  "maxDisconnectCount": 3,
+  "rolePermissions": {
+    "ADMIN": [
+      "DRIVE_CREATE",
+      "CANDIDATE_INGEST_CSV",
+      "DRIVE_MANAGE",
+      "CANDIDATE_VIEW",
+      "DECISION_SUBMIT",
+      "MANUAL_SCORING_REVIEW",
+      "IDENTITY_VERIFICATION_APPROVE",
+      "PROCTORING_TRIAGE",
+      "ROLE_TEMPLATE_EDIT",
+      "QUESTION_BANK_MANAGE",
+      "PARTNER_API_MANAGE",
+      "SETTINGS_MANAGE",
+      "AUDIT_LOG_VIEW"
+    ],
+    "HR_LEAD": [
+      "CANDIDATE_VIEW",
+      "DECISION_SUBMIT",
+      "MANUAL_SCORING_REVIEW",
+      "IDENTITY_VERIFICATION_APPROVE",
+      "PROCTORING_TRIAGE",
+      "ROLE_TEMPLATE_EDIT",
+      "AUDIT_LOG_VIEW"
+    ],
+    "HR_ASSOCIATE": [
+      "DRIVE_CREATE",
+      "CANDIDATE_INGEST_CSV",
+      "DRIVE_MANAGE",
+      "CANDIDATE_VIEW",
+      "PROCTORING_TRIAGE"
+    ],
+    "REVIEWER": [
+      "CANDIDATE_VIEW",
+      "MANUAL_SCORING_REVIEW"
+    ],
+    "RECRUITER": [
+      "DRIVE_CREATE",
+      "CANDIDATE_INGEST_CSV",
+      "DRIVE_MANAGE",
+      "CANDIDATE_VIEW",
+      "PROCTORING_TRIAGE"
+    ]
+  }
 }

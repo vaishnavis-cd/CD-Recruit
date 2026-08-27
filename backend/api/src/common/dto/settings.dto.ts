@@ -6,9 +6,10 @@ import {
   IsInt,
   Min,
   Max,
+  IsBoolean,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { StaffRole } from "@cd-recruit/shared-types";
+import { StaffRole, Permission } from "@cd-recruit/shared-types";
 
 export class UpdateStaffRoleDto {
   @IsEnum(StaffRole)
@@ -74,4 +75,15 @@ export class UpdateAppealWindowConfigDto {
   @IsInt()
   @Min(1)
   appealWindowDays: number;
+}
+
+export class UpdateRolePermissionDto {
+  @IsEnum(StaffRole)
+  role: StaffRole;
+
+  @IsEnum(Permission)
+  permission: Permission;
+
+  @IsBoolean()
+  isEnabled: boolean;
 }

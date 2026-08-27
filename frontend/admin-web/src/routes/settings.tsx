@@ -1,7 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Trash2, UserPlus, X, Key, RefreshCw, Copy, Edit3, Lock, Unlock, Globe } from "lucide-react";
+import {
+  Users,
+  Sliders,
+  Shield,
+  ShieldCheck,
+  FileText,
+  Check,
+  AlertCircle,
+  Search,
+  Plus,
+  Trash2,
+  UserPlus,
+  X,
+  Key,
+  RefreshCw,
+  Copy,
+  Edit3,
+  Lock,
+  Unlock,
+  Globe,
+  RotateCcw,
+} from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
@@ -26,7 +47,16 @@ function SettingsPage() {
   const isAdmin = profile?.role === "ADMIN";
 
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "permissions" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+
+  // Dynamic Role Permissions state
+  const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, string[]>>({});
+  const [permissionDescriptors, setPermissionDescriptors] = useState<any[]>([]);
+  const [matrixRoles, setMatrixRoles] = useState<string[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(false);
+  const [savingPermissionKey, setSavingPermissionKey] = useState<string | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resettingPermissions, setResettingPermissions] = useState(false);
 
   // Assessment Modules Settings state
   const [moduleSettings, setModuleSettings] = useState<any[]>([]);
@@ -438,8 +468,106 @@ function SettingsPage() {
     }
   };
 
+  const loadPermissions = async () => {
+    setLoadingPermissions(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions`, { headers });
+      if (!res.ok) throw new Error("Failed to load permissions matrix");
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+        setPermissionDescriptors(data.descriptors || []);
+        setMatrixRoles(data.roles || []);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load permissions");
+    } finally {
+      setLoadingPermissions(false);
+    }
+  };
+
+  const handleTogglePermission = async (role: string, permissionKey: string, currentVal: boolean) => {
+    if (role === "ADMIN") {
+      toast.error("Superadmin permissions cannot be modified");
+      return;
+    }
+
+    const cellKey = `${role}-${permissionKey}`;
+    setSavingPermissionKey(cellKey);
+
+    // Optimistic UI update
+    setPermissionsMatrix((prev) => {
+      const perms = new Set(prev[role] || []);
+      if (!currentVal) {
+        perms.add(permissionKey);
+      } else {
+        perms.delete(permissionKey);
+      }
+      return {
+        ...prev,
+        [role]: Array.from(perms),
+      };
+    });
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role,
+          permission: permissionKey,
+          isEnabled: !currentVal,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update role permission");
+      }
+
+      toast.success(
+        !currentVal
+          ? `Granted ${permissionKey} to ${role.replace("_", " ")}`
+          : `Revoked ${permissionKey} from ${role.replace("_", " ")}`
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update permission");
+      loadPermissions(); // rollback
+    } finally {
+      setSavingPermissionKey(null);
+    }
+  };
+
+  const handleResetPermissions = async () => {
+    setResettingPermissions(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions/reset`, {
+        method: "POST",
+        headers,
+      });
+
+      if (!res.ok) throw new Error("Failed to reset permissions");
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+      }
+      toast.success("Role permissions restored to system defaults");
+      setShowResetModal(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset permissions");
+    } finally {
+      setResettingPermissions(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
+    if (activeTab === "permissions") loadPermissions();
     if (activeTab === "scoring") loadScoringConfig();
     if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
@@ -566,6 +694,17 @@ function SettingsPage() {
           >
             <Users size={14} />
             Staff & Roles
+          </button>
+          <button
+            onClick={() => setActiveTab("permissions")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
+              activeTab === "permissions"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+            }`}
+          >
+            <ShieldCheck size={14} />
+            Roles &amp; Permissions
           </button>
           <button
             onClick={() => setActiveTab("scoring")}
@@ -749,11 +888,13 @@ function SettingsPage() {
                             <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${
                               s.role === "ADMIN"
                                 ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : s.role === "PROCTOR"
-                                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                                  : s.role === "EVALUATOR"
-                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                                : s.role === "HR_LEAD"
+                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                  : s.role === "HR_ASSOCIATE"
+                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                    : s.role === "REVIEWER"
+                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                      : "bg-slate-50 text-slate-700 border-slate-200"
                             }`}>
                               {s.role}
                             </span>
@@ -768,10 +909,11 @@ function SettingsPage() {
                           onChange={(e) => handleUpdateRole(s.id, e.target.value)}
                           className="px-2.5 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink outline-none shadow-sm cursor-pointer"
                         >
-                          <option value="RECRUITER">Recruiter</option>
-                          <option value="ADMIN">Admin</option>
-                          <option value="PROCTOR">Proctor</option>
-                          <option value="EVALUATOR">Evaluator</option>
+                          <option value="ADMIN">Admin (Superadmin)</option>
+                          <option value="HR_LEAD">HR Lead / Manager</option>
+                          <option value="HR_ASSOCIATE">HR Associate / Recruiter</option>
+                          <option value="REVIEWER">Technical Evaluator</option>
+                          <option value="RECRUITER">Recruiter (Legacy)</option>
                         </select>
 
                         <button
@@ -841,10 +983,11 @@ function SettingsPage() {
                           onChange={(e) => setNewStaffRole(e.target.value)}
                           className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
                         >
-                          <option value="RECRUITER">Recruiter (Drives, Invites &amp; Hiring Decisions)</option>
-                          <option value="ADMIN">Admin (Full System Governance &amp; Configuration)</option>
-                          <option value="PROCTOR">Proctor (Live Monitoring &amp; Integrity Review)</option>
-                          <option value="EVALUATOR">Evaluator (Technical Code &amp; Submission Grading)</option>
+                          <option value="HR_LEAD">HR Lead / Manager (Decisions, Evaluations &amp; Governance)</option>
+                          <option value="HR_ASSOCIATE">HR Associate (Drives &amp; Candidate Ingestion)</option>
+                          <option value="ADMIN">Admin (Superadmin — Full Platform Access)</option>
+                          <option value="REVIEWER">Technical Evaluator (Submission Scoring)</option>
+                          <option value="RECRUITER">Recruiter (Legacy Full Access)</option>
                         </select>
                       </div>
 
@@ -865,6 +1008,177 @@ function SettingsPage() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab: Dynamic Roles & Permissions Matrix */}
+          {activeTab === "permissions" && (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between border-b border-line pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={18} className="text-brand" />
+                    <h3 className="text-md font-semibold text-ink">
+                      Dynamic Role-Based Access Control (RBAC)
+                    </h3>
+                  </div>
+                  <p className="text-xs-plus text-ink-tertiary mt-1 max-w-2xl">
+                    Configure platform action permissions for each role dynamically.
+                    Toggle capabilities ON or OFF to grant or restrict access instantly without code changes.
+                  </p>
+                </div>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowResetModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas transition-colors cursor-pointer shadow-sm"
+                  >
+                    <RotateCcw size={13} />
+                    Reset to Defaults
+                  </button>
+                )}
+              </div>
+
+              {loadingPermissions ? (
+                <div className="py-12 text-center text-ink-tertiary text-xs">
+                  Loading role permissions matrix…
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Iterate by Category */}
+                  {Array.from(new Set(permissionDescriptors.map((d) => d.category))).map((category) => {
+                    const descriptorsInCategory = permissionDescriptors.filter((d) => d.category === category);
+                    return (
+                      <div key={category} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
+                            {category}
+                          </h4>
+                          <div className="h-px flex-1 bg-surface-inset" />
+                        </div>
+
+                        <div className="border border-line rounded-lg overflow-hidden bg-white shadow-xs">
+                          <table className="w-full text-left text-xs-plus border-collapse">
+                            <thead>
+                              <tr className="bg-canvas border-b border-line text-xs font-semibold text-ink-secondary">
+                                <th className="py-3 px-4 w-2/5">Capability / Action</th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    <Lock size={10} /> ADMIN
+                                  </div>
+                                </th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    HR LEAD
+                                  </div>
+                                </th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    HR ASSOCIATE
+                                  </div>
+                                </th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    REVIEWER
+                                  </div>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-line">
+                              {descriptorsInCategory.map((desc) => {
+                                return (
+                                  <tr key={desc.key} className="hover:bg-canvas/50 transition-colors">
+                                    <td className="py-3 px-4">
+                                      <div className="font-medium text-ink">{desc.name}</div>
+                                      <div className="text-2xs text-ink-tertiary mt-0.5">{desc.description}</div>
+                                      <div className="text-3xs font-mono text-ink-quaternary mt-0.5">{desc.key}</div>
+                                    </td>
+
+                                    {/* ADMIN Column (Always ON, locked) */}
+                                    <td className="py-3 px-3 text-center">
+                                      <div className="inline-flex items-center justify-center">
+                                        <div className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full bg-brand/80 border-2 border-transparent transition-colors duration-200 ease-in-out opacity-75">
+                                          <span className="translate-x-4 pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out" />
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Configurable Roles Columns */}
+                                    {["HR_LEAD", "HR_ASSOCIATE", "REVIEWER"].map((roleKey) => {
+                                      const isEnabled = (permissionsMatrix[roleKey] || []).includes(desc.key);
+                                      const isSaving = savingPermissionKey === `${roleKey}-${desc.key}`;
+
+                                      return (
+                                        <td key={roleKey} className="py-3 px-3 text-center">
+                                          <div className="inline-flex items-center justify-center">
+                                            <button
+                                              type="button"
+                                              disabled={!isAdmin || isSaving}
+                                              onClick={() => handleTogglePermission(roleKey, desc.key, isEnabled)}
+                                              title={
+                                                !isAdmin
+                                                  ? "Only Admins can change role permissions"
+                                                  : `Toggle ${desc.name} for ${roleKey}`
+                                              }
+                                              className={`relative inline-flex h-5 w-9 shrink-0 ${
+                                                !isAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                                              } rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                                                isEnabled ? "bg-brand" : "bg-line hover:bg-line-strong"
+                                              }`}
+                                            >
+                                              <span
+                                                className={`${
+                                                  isEnabled ? "translate-x-4" : "translate-x-0"
+                                                } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out`}
+                                              />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Reset to Defaults Confirmation Modal */}
+              {showResetModal && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white border border-line rounded-xl max-w-[400px] w-full p-6 shadow-xl space-y-4">
+                    <div className="flex items-center gap-2 text-amber-600">
+                      <AlertCircle size={20} />
+                      <h3 className="text-md font-semibold text-ink">Reset Role Permissions?</h3>
+                    </div>
+                    <p className="text-xs text-ink-secondary">
+                      This will restore all capabilities for <strong>HR Lead</strong>, <strong>HR Associate</strong>, and <strong>Reviewer</strong> back to their factory default settings.
+                    </p>
+                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
+                      <button
+                        type="button"
+                        onClick={() => setShowResetModal(false)}
+                        className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={resettingPermissions}
+                        onClick={handleResetPermissions}
+                        className="px-4 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
+                      >
+                        {resettingPermissions ? "Resetting…" : "Confirm Reset"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

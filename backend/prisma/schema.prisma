@@ -41,8 +41,11 @@ enum CvMode {
 }
 
 enum StaffRole {
-  RECRUITER
   ADMIN
+  HR_LEAD
+  HR_ASSOCIATE
+  REVIEWER
+  RECRUITER
 }
 
 enum DecisionType {
