@@ -14,7 +14,8 @@
     "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "paths": {
       "@app/*": ["src/*"],
-      "opossum": ["../../node_modules/opossum/index.d.ts", "../../node_modules/opossum"]
+      "rxjs": ["../../node_modules/rxjs"],
+      "rxjs/*": ["../../node_modules/rxjs/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

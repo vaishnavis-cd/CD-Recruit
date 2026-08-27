@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AppConfig } from "../../config/configuration";
 import { Judge0ExecutionResponse, Judge0SubmissionResponse } from "./judge0.types";
-import CircuitBreaker = require("opossum");
+import CircuitBreaker from "opossum";
 
 export interface BatchSubmissionItem {
   sourceCodeBase64: string;
