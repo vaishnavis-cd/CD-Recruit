@@ -245,19 +245,24 @@ async function runPartnerCandidatesServiceTests() {
   assert.strictEqual(res2.drive_id, res1.drive_id);
   console.log("  ✔ Subsequent call for same requisition reuses existing Drive");
 
-  // Test 4: getRequisitionStatus returns status with is_scored: false when Score row is missing
+  // Test 4: getRequisitionStatus returns status with is_scored: false and identity_status: PENDING when records are missing/new
   const statusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
   assert.strictEqual(statusRes.requisition_ref, "REQ-100");
   assert.strictEqual(statusRes.candidates.length, 4);
   assert.strictEqual(statusRes.candidates[0].is_scored, false);
   assert.strictEqual(statusRes.candidates[0].composite_score, null);
   assert.strictEqual(statusRes.candidates[0].score_band, null);
-  console.log("  ✔ getRequisitionStatus returns is_scored: false when Score row is missing");
+  assert.strictEqual(statusRes.candidates[0].identity_status, "PENDING");
+  assert.strictEqual(statusRes.candidates[0].is_identity_verified, false);
+  assert.strictEqual(statusRes.candidates[0].identity_verified_at, null);
+  console.log("  ✔ getRequisitionStatus returns is_scored: false and identity_status: PENDING when default");
 
-  // Test 5: getRequisitionStatus populates is_scored: true and score_band when real Score row exists
+  // Test 5: getRequisitionStatus populates is_scored: true, score_band, and identity_status: VERIFIED when verified
+  const verifiedDate = new Date("2026-08-27T10:00:00.000Z");
   createdInvites[0].session = {
     id: "sess-1",
     status: "COMPLETED",
+    idVerifiedAt: verifiedDate,
     score: {
       compositeScore: 88.5,
       gradingSource: "real_evaluation_engine",
@@ -270,7 +275,25 @@ async function runPartnerCandidatesServiceTests() {
   assert.strictEqual(scoredCand.is_scored, true);
   assert.strictEqual(scoredCand.composite_score, 88.5);
   assert.strictEqual(scoredCand.score_band, "HIGH");
-  console.log("  ✔ getRequisitionStatus populates is_scored: true and score_band HIGH when real Score row exists");
+  assert.strictEqual(scoredCand.identity_status, "VERIFIED");
+  assert.strictEqual(scoredCand.is_identity_verified, true);
+  assert.strictEqual(scoredCand.identity_verified_at, verifiedDate.toISOString());
+  console.log("  ✔ getRequisitionStatus populates is_scored: true and identity_status: VERIFIED when idVerifiedAt exists");
+
+  // Test 6: getRequisitionStatus returns identity_status: FAILED when identityVerificationResult matched is false
+  createdInvites[0].session = {
+    id: "sess-1",
+    status: "COMPLETED",
+    identityVerificationResult: { matched: false },
+  };
+
+  const failedStatusRes = await service.getRequisitionStatus(mockPartner, "REQ-100");
+  const failedCand = failedStatusRes.candidates.find((c: any) => c.candidate_email === "bob@example.com");
+  if (!failedCand) throw new Error("failedCand not found in response");
+  assert.strictEqual(failedCand.identity_status, "FAILED");
+  assert.strictEqual(failedCand.is_identity_verified, false);
+  assert.strictEqual(failedCand.identity_verified_at, null);
+  console.log("  ✔ getRequisitionStatus returns identity_status: FAILED when identity verification match fails");
 
   console.log("✅ All PartnerCandidatesService characterization tests passed successfully!");
 }

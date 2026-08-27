@@ -277,6 +277,7 @@ export class PartnerCandidatesService {
             session: {
               include: {
                 score: true,
+                candidate: true,
               },
             },
           },
@@ -296,6 +297,7 @@ export class PartnerCandidatesService {
     const candidateStatuses = drive.invites.map((inv) => {
       const session = inv.session;
       const score = session?.score;
+      const candidateObj = session?.candidate;
 
       // Only populate score fields if a real, non-placeholder persisted Score row exists
       const isScored = !!(
@@ -316,6 +318,24 @@ export class PartnerCandidatesService {
         else scoreBand = "FAIL";
       }
 
+      // Compute Identity Verification Status
+      const idVerifiedAt = session?.idVerifiedAt || candidateObj?.idVerifiedAt;
+      const idResult = (session?.identityVerificationResult || candidateObj?.identityVerificationResult) as Record<string, any> | null;
+
+      let identityStatus: "VERIFIED" | "FAILED" | "PENDING" = "PENDING";
+      let isIdentityVerified = false;
+      let identityVerifiedAtIso: string | null = null;
+
+      if (idVerifiedAt || idResult?.matched === true) {
+        identityStatus = "VERIFIED";
+        isIdentityVerified = true;
+        identityVerifiedAtIso = idVerifiedAt ? idVerifiedAt.toISOString() : (idResult?.verifiedAt || null);
+      } else if (idResult?.matched === false) {
+        identityStatus = "FAILED";
+        isIdentityVerified = false;
+        identityVerifiedAtIso = null;
+      }
+
       return {
         candidate_email: inv.candidateEmail,
         candidate_name: inv.candidateName,
@@ -330,6 +350,9 @@ export class PartnerCandidatesService {
         composite_score: compositeScore,
         score_band: scoreBand === "STRONG_PASS" ? "HIGH" : scoreBand === "PASS" ? "MEDIUM" : scoreBand ? "LOW" : null,
         composite_score_band: scoreBand,
+        identity_status: identityStatus,
+        is_identity_verified: isIdentityVerified,
+        identity_verified_at: identityVerifiedAtIso,
         started_at: session?.startedAt?.toISOString() || null,
         submitted_at: session?.submittedAt?.toISOString() || null,
         expires_at: inv.expiresAt.toISOString(),
