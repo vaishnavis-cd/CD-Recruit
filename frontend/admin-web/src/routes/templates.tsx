@@ -742,7 +742,7 @@ export function RoleTemplatesPage() {
               {hasActiveFilters && (
                 <button
                   onClick={resetFilters}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-[#F7F7F9] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 text-xs font-semibold text-ink-secondary hover:text-ink hover:bg-canvas rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
                   title="Reset all filters"
                 >
                   <RotateCcw size={12} />
@@ -755,17 +755,17 @@ export function RoleTemplatesPage() {
 
         {/* Templates Grid */}
         {loading ? (
-          <div className="p-16 text-center text-[#8B8B93] text-sm flex flex-col items-center gap-3">
-            <div className="w-7 h-7 border-2 border-[#2F5CFF] border-t-transparent rounded-full animate-spin"></div>
+          <div className="p-16 text-center text-ink-tertiary text-sm flex flex-col items-center gap-3">
+            <div className="w-7 h-7 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
             <span>Loading role templates...</span>
           </div>
         ) : filteredTemplates.length === 0 ? (
-          <div className="p-16 bg-white rounded-xl border border-[#E6E6EA] text-center space-y-3 shadow-xs">
-            <div className="w-12 h-12 rounded-xl bg-[#F0F4FF] text-[#2F5CFF] flex items-center justify-center mx-auto">
+          <div className="p-16 bg-white rounded-xl border border-line text-center space-y-3 shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-brand-subtle text-brand flex items-center justify-center mx-auto">
               <Layers size={24} />
             </div>
-            <h3 className="text-base font-semibold text-[#0B0B0D]">No Role Templates Found</h3>
-            <p className="text-xs text-[#5B5B64] max-w-sm mx-auto">
+            <h3 className="text-base font-semibold text-ink">No Role Templates Found</h3>
+            <p className="text-xs text-ink-secondary max-w-sm mx-auto">
               {hasActiveFilters
                 ? "No templates match your active filter criteria. Click 'Reset' to view all calibrated templates."
                 : "Create your first role template with department, category, experience tier, duration, and question presets."}
@@ -773,7 +773,7 @@ export function RoleTemplatesPage() {
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="px-4 py-2 bg-[#F7F7F9] hover:bg-[#EFF0F3] text-[#0B0B0D] text-xs font-semibold rounded-lg cursor-pointer"
+                className="px-4 py-2 bg-canvas hover:bg-surface-inset text-ink text-xs font-semibold rounded-lg cursor-pointer transition-colors"
               >
                 Reset Filters
               </button>

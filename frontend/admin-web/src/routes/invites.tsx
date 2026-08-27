@@ -23,6 +23,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
+import { BulkActionBar } from "../components/ui/bulk-action-bar";
 import { useStore } from "../lib/store";
 import { type Invite } from "../lib/types";
 import { formatDriveName } from "../lib/utils";
@@ -393,45 +394,25 @@ function InvitesPage() {
       }
     >
       {/* Bulk actions bar */}
-      {selectedIds.length > 0 && (
-        <div className="mb-4 p-3 bg-[#EAF0FF] border border-[#B3C5FF] rounded-[10px] flex items-center justify-between animate-fade-in text-[13px]">
-          <span className="font-medium text-[#15308F]">
-            {selectedIds.length} candidate(s) selected
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleBulkResend}
-              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-white text-[#15308F] border border-[#B3C5FF] rounded hover:bg-[#F0F4FF] cursor-pointer"
-            >
-              <RefreshCw size={12} />
-              Resend selected
-            </button>
-            <button
-              onClick={handleBulkRevoke}
-              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-[#FEF2F2] text-[#EF4444] border border-[#FCA5A5] rounded hover:bg-[#FEE2E2] cursor-pointer"
-            >
-              <XCircle size={12} />
-              Revoke selected
-            </button>
-            <button
-              onClick={() => setConfirmBulkDelete(true)}
-              className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 cursor-pointer"
-            >
-              <Trash2 size={12} />
-              Delete selected
-            </button>
-          </div>
-        </div>
-      )}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        itemLabel="candidate(s)"
+        actions={[
+          { label: "Resend selected", icon: <RefreshCw size={12} />, onClick: handleBulkResend },
+          { label: "Revoke selected", icon: <XCircle size={12} />, variant: "danger", onClick: handleBulkRevoke },
+          { label: "Delete selected", icon: <Trash2 size={12} />, variant: "danger", onClick: () => setConfirmBulkDelete(true) },
+        ]}
+        onClearSelection={() => setSelectedIds([])}
+      />
 
-      <div className="bg-white border border-[#E6E6EA] rounded-[10px] overflow-hidden">
-        <div className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
+      <div className="bg-white border border-line rounded-xl overflow-hidden shadow-xs">
+        <div className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-line bg-canvas text-2xs font-mono uppercase tracking-wider text-ink-secondary items-center">
           <div>
             <input
               type="checkbox"
               checked={invites.length > 0 && selectedIds.length === invites.length}
               onChange={toggleSelectAll}
-              className="w-3.5 h-3.5 text-[#2F5CFF] border-[#E6E6EA]"
+              className="w-3.5 h-3.5 text-brand border-line rounded"
             />
           </div>
           <div>Candidate</div>
@@ -444,27 +425,27 @@ function InvitesPage() {
         {invites.map((inv) => (
           <div
             key={inv.id}
-            className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
+            className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-3 border-b border-line last:border-b-0 hover:bg-canvas/50 transition-colors items-center"
           >
             <div>
               <input
                 type="checkbox"
                 checked={selectedIds.includes(inv.id)}
                 onChange={() => toggleSelect(inv.id)}
-                className="w-3.5 h-3.5 text-[#2F5CFF] border-[#E6E6EA]"
+                className="w-3.5 h-3.5 text-brand border-line rounded"
               />
             </div>
             <div className="min-w-0">
-              <div className="text-[13px] text-[#0B0B0D] truncate">{inv.candidateName}</div>
-              <div className="text-[11px] text-[#5B5B64] truncate">{inv.candidateEmail}</div>
+              <div className="text-sm font-semibold text-ink truncate">{inv.candidateName}</div>
+              <div className="text-xs text-ink-secondary truncate">{inv.candidateEmail}</div>
             </div>
-            <div className="text-[12px]">
-              <div className="text-[#0B0B0D]">{inv.roleTemplate.roleName}</div>
-              <div className="text-[#5B5B64]">{inv.roleTemplate.track}</div>
+            <div className="text-xs">
+              <div className="text-ink font-medium">{inv.roleTemplate.roleName}</div>
+              <div className="text-ink-tertiary">{inv.roleTemplate.track}</div>
             </div>
             <StatusStepper status={inv.status} />
-            <div className="font-mono text-[11px] text-[#5B5B64]">{inv.createdAt}</div>
-            <div className="font-mono text-[11px] text-[#5B5B64]">
+            <div className="font-mono text-xs text-ink-secondary">{inv.createdAt}</div>
+            <div className="font-mono text-xs text-ink-secondary">
               {inv.status === "PENDING" ? fmtExpires(inv.expiresAt) : inv.expiresAt.slice(0, 10)}
             </div>
             <div className="flex gap-1.5 justify-end">

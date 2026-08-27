@@ -15,6 +15,7 @@ import {
 import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
 import { ExportDropdown } from "../components/export-dropdown";
+import { StatusBadge } from "../components/ui/status-badge";
 import { useStore } from "../lib/store";
 import { type RoleTemplate } from "../lib/types";
 
@@ -397,11 +398,11 @@ function DashboardPage() {
         </div>
 
         {/* SECTION 3: Candidate Evaluation Roster Table */}
-        <div className="bg-white border border-[#E6E6EA] rounded-xl p-6 shadow-sm space-y-4">
+        <div className="bg-white border border-line rounded-xl p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-[16px] font-bold text-[#0B0B0D]">Candidate Evaluation Roster</h3>
-              <p className="text-[12px] text-[#8B8B93]">Actionable list of all assessment sessions requiring evaluation</p>
+              <h3 className="text-base font-bold text-ink">Candidate Evaluation Roster</h3>
+              <p className="text-xs text-ink-secondary">Actionable list of all assessment sessions requiring evaluation</p>
             </div>
 
             {/* Filter Tabs & Search */}
@@ -412,12 +413,12 @@ function DashboardPage() {
                   value={rosterQuery}
                   onChange={(e) => setRosterQuery(e.target.value)}
                   placeholder="Search candidate..."
-                  className="pl-8 pr-3 py-1.5 text-[12px] border border-[#E6E6EA] rounded-lg bg-[#F7F7F9] focus:outline-none focus:border-[#2F5CFF] w-48"
+                  className="pl-8 pr-3 py-1.5 text-xs border border-line rounded-lg bg-canvas text-ink placeholder:text-ink-muted focus:outline-none focus:border-brand w-48 transition-colors"
                 />
-                <Search size={14} className="absolute left-2.5 top-2.5 text-[#8B8B93]" />
+                <Search size={14} className="absolute left-2.5 top-2.5 text-ink-tertiary" />
               </div>
 
-              <div className="flex border border-[#E6E6EA] rounded-lg p-0.5 bg-[#F7F7F9] text-[12px]">
+              <div className="flex border border-line rounded-lg p-0.5 bg-canvas text-xs">
                 {[
                   { id: "all", label: "All" },
                   { id: "pending", label: "Needs Audit" },
@@ -428,7 +429,7 @@ function DashboardPage() {
                     key={t.id}
                     onClick={() => setRosterStatus(t.id)}
                     className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                      rosterStatus === t.id ? "bg-white text-[#2F5CFF] shadow-xs" : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                      rosterStatus === t.id ? "bg-white text-brand shadow-xs font-semibold" : "text-ink-secondary hover:text-ink"
                     }`}
                   >
                     {t.label}
@@ -439,9 +440,9 @@ function DashboardPage() {
           </div>
 
           {/* Roster Table */}
-          <div className="overflow-x-auto border border-[#E6E6EA] rounded-lg">
-            <table className="w-full text-left text-[13px]">
-              <thead className="bg-[#F7F7F9] text-[#5B5B64] font-semibold text-[11px] uppercase tracking-wider border-b border-[#E6E6EA]">
+          <div className="overflow-x-auto border border-line rounded-lg">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-canvas text-ink-secondary font-semibold text-2xs uppercase tracking-wider border-b border-line">
                 <tr>
                   <th className="py-3 px-4">Candidate</th>
                   <th className="py-3 px-4">Role / Drive</th>
@@ -452,10 +453,10 @@ function DashboardPage() {
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E6E6EA]">
+              <tbody className="divide-y divide-line">
                 {rosterSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-[#8B8B93] text-[13px]">
+                    <td colSpan={7} className="py-8 text-center text-ink-tertiary text-sm">
                       No candidate sessions found matching current filters.
                     </td>
                   </tr>
@@ -466,41 +467,41 @@ function DashboardPage() {
                     const isMedium = flags.some((f: any) => f.severity === "medium");
 
                     return (
-                      <tr key={s.id} className="hover:bg-[#F7F7F9] transition-colors">
-                        <td className="py-3 px-4 font-medium text-[#0B0B0D]">
+                      <tr key={s.id} className="hover:bg-canvas/60 transition-colors">
+                        <td className="py-3 px-4 font-medium text-ink">
                           <div>{s.candidate?.name || s.candidateName || "Candidate"}</div>
-                          <div className="text-[11px] text-[#8B8B93]">{s.candidate?.email || s.candidateEmail || "No email"}</div>
+                          <div className="text-xs text-ink-tertiary font-normal">{s.candidate?.email || s.candidateEmail || "No email"}</div>
                         </td>
-                        <td className="py-3 px-4 text-[#5B5B64]">
-                          <div>{s.roleTemplate?.roleName || "Software Engineer"}</div>
-                          <div className="text-[11px] text-[#8B8B93]">{s.driveName || "Drive Session"}</div>
+                        <td className="py-3 px-4 text-ink-secondary">
+                          <div className="font-medium text-ink">{s.roleTemplate?.roleName || "Software Engineer"}</div>
+                          <div className="text-xs text-ink-tertiary">{s.driveName || "Drive Session"}</div>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            s.status === "decision" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                            s.status === "reviewed" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                            "bg-amber-50 text-amber-700 border border-amber-200"
-                          }`}>
+                          <StatusBadge
+                            variant={s.status === "decision" ? "success" : s.status === "reviewed" ? "scheduled" : "warning"}
+                            size="xs"
+                            dot
+                          >
                             {s.status === "decision" ? "Decided" : s.status === "reviewed" ? "Reviewed" : "Needs Audit"}
-                          </span>
+                          </StatusBadge>
                         </td>
-                        <td className="py-3 px-4 font-mono font-semibold text-[#0B0B0D]">
+                        <td className="py-3 px-4 font-mono font-semibold text-ink">
                           {s.compositeScore !== null ? `${s.compositeScore}%` : "—"}
                         </td>
-                        <td className="py-3 px-4 font-mono text-[#5B5B64]">
+                        <td className="py-3 px-4 font-mono text-ink-secondary">
                           {s.sayDoScore !== null ? `${s.sayDoScore}%` : "—"}
                         </td>
                         <td className="py-3 px-4">
                           {isCritical ? (
-                            <span className="text-xs font-semibold text-[#E5484D] flex items-center gap-1">
+                            <span className="text-xs font-semibold text-danger flex items-center gap-1">
                               <ShieldAlert size={14} /> Critical Risk
                             </span>
                           ) : isMedium ? (
-                            <span className="text-xs font-semibold text-[#F5A623] flex items-center gap-1">
+                            <span className="text-xs font-semibold text-warning flex items-center gap-1">
                               <AlertTriangle size={14} /> Medium Risk
                             </span>
                           ) : (
-                            <span className="text-xs text-emerald-600 flex items-center gap-1">
+                            <span className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
                               <CheckCircle size={14} /> Clean
                             </span>
                           )}
@@ -509,7 +510,7 @@ function DashboardPage() {
                           <Link
                             to="/results/$id"
                             params={{ id: s.id }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-2xs"
                           >
                             Evaluate <ArrowRight size={12} />
                           </Link>

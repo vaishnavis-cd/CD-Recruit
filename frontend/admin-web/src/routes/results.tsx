@@ -25,6 +25,7 @@ import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { formatTimestamp } from "../lib/utils";
 import { ExportDropdown } from "../components/export-dropdown";
+import { StatusBadge } from "../components/ui/status-badge";
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
@@ -300,9 +301,9 @@ function ResultsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px] border-collapse">
+            <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className="bg-[#F7F7F9] border-b border-[#E6E6EA] text-[11px] font-mono uppercase tracking-wider text-[#5B5B64]">
+                <tr className="bg-canvas border-b border-line text-2xs font-mono uppercase tracking-wider text-ink-secondary">
                   <th className="py-3 px-4 font-semibold">Candidate</th>
                   <th className="py-3 px-4 font-semibold">Drive &amp; Track</th>
                   <th className="py-3 px-4 font-semibold">Submitted</th>
@@ -313,16 +314,16 @@ function ResultsPage() {
                   <th className="py-3 px-4 font-semibold text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EFF0F3]">
+              <tbody className="divide-y divide-line">
                 {filtered.map((item: any) => {
                   const rawScore = item.compositeScore;
                   const scoreVal = typeof rawScore === "number" ? Math.round(rawScore) : 0;
                   const scoreColor =
                     scoreVal >= 80
-                      ? "text-emerald-600 bg-emerald-50"
+                      ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                       : scoreVal >= 60
-                      ? "text-amber-600 bg-amber-50"
-                      : "text-rose-600 bg-rose-50";
+                      ? "text-amber-700 bg-amber-50 border-amber-200"
+                      : "text-rose-700 bg-rose-50 border-rose-200";
 
                   const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
                   const dec = getItemDecision(item);
@@ -346,36 +347,36 @@ function ResultsPage() {
                   const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
                   return (
-                    <tr key={item.id || item.sessionId} className="hover:bg-[#F7F7F9] transition-colors">
+                    <tr key={item.id || item.sessionId} className="hover:bg-canvas/60 transition-colors">
                       {/* Candidate Name & Email with Initial Avatar */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#EAF0FF] text-[#2F5CFF] flex items-center justify-center font-bold text-[13px] border border-[#B3C5FF]">
+                          <div className="w-8 h-8 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-xs border border-brand-border">
                             {initialLetter}
                           </div>
                           <div>
-                            <div className="font-semibold text-[#0B0B0D]">{item.candidateName}</div>
-                            <div className="text-[11px] font-mono text-[#8B8B93]">{item.candidateEmail}</div>
+                            <div className="font-semibold text-ink">{item.candidateName}</div>
+                            <div className="text-2xs font-mono text-ink-tertiary">{item.candidateEmail}</div>
                           </div>
                         </div>
                       </td>
 
                       {/* Drive & Track */}
                       <td className="py-3 px-4">
-                        <div className="text-[#0B0B0D] font-medium truncate max-w-[180px]">
+                        <div className="text-ink font-medium truncate max-w-[180px]">
                           {item.driveName || "General Drive"}
                         </div>
-                        <div className="text-[11px] text-[#5B5B64]">{item.roleTemplateName || "Software Engineering"}</div>
+                        <div className="text-xs text-ink-secondary">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>
 
                       {/* Submitted Timestamp */}
-                      <td className="py-3 px-4 font-mono text-[12px] text-[#5B5B64]">
+                      <td className="py-3 px-4 font-mono text-xs text-ink-secondary">
                         {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
                       </td>
 
                       {/* Score */}
                       <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[12px] font-semibold ${scoreColor}`}>
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold border ${scoreColor}`}>
                           {scoreVal}%
                         </span>
                       </td>
@@ -383,12 +384,12 @@ function ResultsPage() {
                       {/* Integrity Risk */}
                       <td className="py-3 px-4 text-center">
                         {flagsCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-red-50 text-red-600 border border-red-100">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold">
                             <ShieldAlert size={12} />
                             {flagsCount} Flags
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-emerald-50 text-emerald-600">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold">
                             <ShieldCheck size={12} />
                             Low
                           </span>
@@ -397,22 +398,12 @@ function ResultsPage() {
 
                       {/* Decision Status */}
                       <td className="py-3 px-4 text-center">
-                        {isApproved ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58]">
-                            <CheckCircle2 size={12} />
-                            Approved
-                          </span>
-                        ) : isRejected ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B]">
-                            <XCircle size={12} />
-                            Rejected
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
-                            <Clock size={12} />
-                            Pending Review
-                          </span>
-                        )}
+                        <StatusBadge
+                          variant={isApproved ? "success" : isRejected ? "danger" : "warning"}
+                          size="xs"
+                        >
+                          {isApproved ? "Approved" : isRejected ? "Rejected" : "Pending Review"}
+                        </StatusBadge>
                       </td>
 
                       {/* Verification Column Pill Button */}
@@ -421,7 +412,7 @@ function ResultsPage() {
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#E3F9F2] text-[#0C6B58] border border-[#A3E4D7] hover:bg-[#C7F5E8] transition-all hover:scale-105 cursor-pointer shadow-sm"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
                           >
                             <CheckCircle2 size={12} />
                             Match <Info size={11} className="ml-0.5 opacity-70" />
@@ -430,7 +421,7 @@ function ResultsPage() {
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#FFF5F5] text-[#C0392B] border border-[#FADBD8] hover:bg-[#FADBD8] transition-all hover:scale-105 cursor-pointer shadow-sm"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
                           >
                             <XCircle size={12} />
                             Mismatch <Info size={11} className="ml-0.5 opacity-70" />
@@ -439,7 +430,7 @@ function ResultsPage() {
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all hover:scale-105 cursor-pointer shadow-sm"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
                           >
                             <Clock size={12} />
                             Pending <Info size={11} className="ml-0.5 opacity-70" />
@@ -452,7 +443,7 @@ function ResultsPage() {
                         <Link
                           to="/results/$id"
                           params={{ id: item.sessionId || item.id }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D6E4FF] rounded-md transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-lg transition-all shadow-2xs cursor-pointer"
                         >
                           <Eye size={12} />
                           Evaluate

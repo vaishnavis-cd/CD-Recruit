@@ -2536,14 +2536,14 @@ function DriveDetailPage() {
             </div>
 
             {/* Horizontal Module Filter Chips & Search Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F7F7F9] p-3 rounded-lg border border-[#E6E6EA]">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-canvas p-3 rounded-lg border border-line">
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => setQuestionModuleFilter("ALL")}
-                  className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                  className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
                     questionModuleFilter === "ALL"
-                      ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                      : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                      ? "bg-brand text-white border-brand"
+                      : "bg-white text-ink-secondary border-line hover:border-line-strong"
                   }`}
                 >
                   All Modules ({allowedModules.length})
@@ -2565,10 +2565,10 @@ function DriveDetailPage() {
                       <button
                         key={modKey}
                         onClick={() => setQuestionModuleFilter(modKey)}
-                        className={`px-3 py-1 rounded-md text-[12px] font-medium border transition-colors cursor-pointer ${
+                        className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
                           questionModuleFilter === modKey
-                            ? "bg-[#2F5CFF] text-white border-[#2F5CFF]"
-                            : "bg-white text-[#5B5B64] border-[#E6E6EA] hover:border-[#D1D1D8]"
+                            ? "bg-brand text-white border-brand"
+                            : "bg-white text-ink-secondary border-line hover:border-line-strong"
                         }`}
                       >
                         <span>{labelMap[modKey] || modKey}</span>
@@ -2579,11 +2579,11 @@ function DriveDetailPage() {
 
               {/* Vertical divider and Complexity Filter */}
               <div className="flex items-center gap-3">
-                <div className="hidden sm:block h-5 w-px bg-[#E6E6EA]" />
+                <div className="hidden sm:block h-5 w-px bg-line" />
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider hidden sm:inline">Complexity:</span>
-                  <div className="flex items-center bg-white p-0.5 rounded-md border border-[#E6E6EA]">
+                  <span className="text-2xs font-semibold text-ink-secondary uppercase tracking-wider hidden sm:inline">Complexity:</span>
+                  <div className="flex items-center bg-white p-0.5 rounded-md border border-line">
                     {[
                       { id: "ALL", label: "All" },
                       { id: "EASY", label: "Easy" },
@@ -2593,7 +2593,7 @@ function DriveDetailPage() {
                       <button
                         key={diff.id}
                         onClick={() => setQuestionDifficultyFilter(diff.id)}
-                        className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 text-2xs font-semibold rounded transition-colors cursor-pointer ${
                           questionDifficultyFilter === diff.id
                             ? diff.id === "EASY"
                               ? "bg-emerald-100 text-emerald-800 font-bold"
@@ -2601,8 +2601,8 @@ function DriveDetailPage() {
                               ? "bg-rose-100 text-rose-800 font-bold"
                               : diff.id === "MEDIUM"
                               ? "bg-amber-100 text-amber-800 font-bold"
-                              : "bg-[#2F5CFF] text-white font-bold"
-                            : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                              : "bg-brand text-white font-bold"
+                            : "text-ink-secondary hover:text-ink"
                         }`}
                       >
                         {diff.label}
@@ -2613,7 +2613,7 @@ function DriveDetailPage() {
               </div>
 
               <div className="relative w-full sm:w-[200px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5]" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 <input
                   type="text"
                   value={questionSearch}
