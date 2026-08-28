@@ -205,6 +205,18 @@ export async function buildQuestionList(
       }
     }
 
+    const driveObj = driveId
+      ? await prisma.drive.findUnique({ where: { id: driveId } })
+      : null;
+
+    const effectiveRoleTemplateId =
+      session.roleTemplateId || driveObj?.roleTemplateId;
+
+    const driveModuleConfig = (driveObj?.moduleConfig as Record<
+      string,
+      { enabled?: boolean; weight?: number; durationMinutes?: number }
+    >) || {};
+
     // 1. Check Drive Questions first (exact questions curated/configured for this Drive)
     if (driveId) {
       const driveQuestions = await prisma.driveQuestion.findMany({
@@ -217,9 +229,6 @@ export async function buildQuestionList(
       });
 
       if (driveQuestions && driveQuestions.length > 0) {
-        const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
-        const mc = (driveObj?.moduleConfig as Record<string, { enabled?: boolean }>) || {};
-
         // Only include questions for enabled modules
         const activeDriveQuestions = driveQuestions.filter((dq) => {
           const isDebug =
@@ -227,97 +236,197 @@ export async function buildQuestionList(
             dq.question?.moduleType === "DEBUGGING" ||
             (Array.isArray(dq.question?.tags) && dq.question.tags.includes("debugging"));
           const modType = isDebug ? "DEBUGGING" : dq.moduleType;
-          return mc[modType] ? mc[modType].enabled : true;
+          return driveModuleConfig[modType] !== undefined
+            ? driveModuleConfig[modType].enabled
+            : true;
         });
 
-        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-          activeDriveQuestions as any,
-          session.candidateId,
-          driveId
-        );
-        const resultList = shuffled.map((q: any) => {
-          const matchingDq = activeDriveQuestions.find((dq) => dq.questionId === q.questionId);
-          const rawQ = matchingDq?.question || q;
-          const tags = rawQ.tags || [];
-          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
-          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
-          return {
-            ...q,
-            moduleType: effectiveModuleType,
-            content: rawQ.content || q.content || {},
-            difficulty: rawQ.difficulty || q.difficulty || "medium",
-          };
-        });
+        if (activeDriveQuestions.length > 0) {
+          const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+            activeDriveQuestions as any,
+            session.candidateId,
+            driveId,
+          );
+          const resultList = shuffled.map((q: any) => {
+            const matchingDq = activeDriveQuestions.find((dq) => dq.questionId === q.questionId);
+            const rawQ = matchingDq?.question || q;
+            const tags = rawQ.tags || [];
+            const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+            const isDebug =
+              rawQ.moduleType === "DEBUGGING" ||
+              q.moduleType === "DEBUGGING" ||
+              tags.includes("debugging") ||
+              prompt.includes("debugging challenge");
+            const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+            return {
+              ...q,
+              questionId: q.questionId || rawQ.id,
+              moduleType: effectiveModuleType,
+              content: rawQ.content || q.content || {},
+              difficulty: rawQ.difficulty || q.difficulty || "medium",
+            };
+          });
 
-        if (mc.AI_PROMPTING?.enabled) {
-          const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
-          if (!hasAiPromptingQuestion) {
-            resultList.push({
-              questionId: "ai-prompting-dynamic",
-              moduleType: "AI_PROMPTING",
-              moduleIndex: 0,
-              content: {
-                title: "AI Prompting Challenge",
-                prompt: "Engage in conversational problem solving with the AI assistant.",
-              },
-              difficulty: "medium",
-            });
+          if (driveModuleConfig.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
           }
+          return resultList;
         }
-        return resultList;
       }
     }
 
     // 2. Check candidate's calibrated RoleTemplate questions (tier-specific fairness fallback)
-    if (session.roleTemplateId) {
+    if (effectiveRoleTemplateId) {
       const templateQuestions = await prisma.roleTemplateQuestion.findMany({
-        where: { roleTemplateId: session.roleTemplateId },
+        where: { roleTemplateId: effectiveRoleTemplateId },
         include: { question: true },
         orderBy: [{ orderIndex: "asc" }, { moduleType: "asc" }],
       });
 
       if (templateQuestions && templateQuestions.length > 0) {
-        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-          templateQuestions as any,
-          session.candidateId,
-          session.roleTemplateId,
-        );
-        return shuffled.map((q: any) => {
-          const matchingTq = templateQuestions.find((tq) => tq.questionId === q.questionId);
-          const rawQ = matchingTq?.question || q;
-          const tags = rawQ.tags || [];
-          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+        // Filter by driveModuleConfig if present
+        const activeTemplateQuestions = templateQuestions.filter((tq) => {
           const isDebug =
-            rawQ.moduleType === "DEBUGGING" ||
-            q.moduleType === "DEBUGGING" ||
-            tags.includes("debugging") ||
-            prompt.includes("debugging challenge");
-          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
-          return {
-            ...q,
-            moduleType: effectiveModuleType,
-            content: rawQ.content || q.content || {},
-            difficulty: rawQ.difficulty || q.difficulty || "medium",
-          };
+            tq.moduleType === "DEBUGGING" ||
+            tq.question?.moduleType === "DEBUGGING" ||
+            (Array.isArray(tq.question?.tags) && tq.question.tags.includes("debugging"));
+          const modType = isDebug ? "DEBUGGING" : tq.moduleType;
+          return driveModuleConfig[modType] !== undefined
+            ? driveModuleConfig[modType].enabled
+            : true;
         });
+
+        if (activeTemplateQuestions.length > 0) {
+          const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+            activeTemplateQuestions as any,
+            session.candidateId,
+            effectiveRoleTemplateId,
+          );
+          const resultList = shuffled.map((q: any) => {
+            const matchingTq = activeTemplateQuestions.find((tq) => tq.questionId === q.questionId);
+            const rawQ = matchingTq?.question || q;
+            const tags = rawQ.tags || [];
+            const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+            const isDebug =
+              rawQ.moduleType === "DEBUGGING" ||
+              q.moduleType === "DEBUGGING" ||
+              tags.includes("debugging") ||
+              prompt.includes("debugging challenge");
+            const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+            return {
+              ...q,
+              questionId: q.questionId || rawQ.id,
+              moduleType: effectiveModuleType,
+              content: rawQ.content || q.content || {},
+              difficulty: rawQ.difficulty || q.difficulty || "medium",
+            };
+          });
+
+          if (driveModuleConfig.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
+          }
+          return resultList;
+        }
       }
     }
 
-    // 3. Fallback: Published questions from Question Bank
-    const fallbackQuestions = await prisma.question.findMany({
-      where: { status: "PUBLISHED" },
-      take: 30,
-      orderBy: { moduleType: "asc" },
-    });
+    // 3. Dynamic Department & Seniority Allocation from Question Bank for the target RoleTemplate
+    if (effectiveRoleTemplateId) {
+      const template = await prisma.roleTemplate.findUnique({
+        where: { id: effectiveRoleTemplateId },
+      });
 
-    return fallbackQuestions.map((q, idx) => ({
-      questionId: q.id,
-      moduleType: q.moduleType,
-      moduleIndex: idx,
-      content: q.content,
-      difficulty: q.difficulty || "medium",
-    }));
+      if (template) {
+        const dept = template.department || "SOFTWARE_ENGINEERING";
+        const tier = template.experienceTier || (template.category === "FRESHER" ? "0-1" : "2-5");
+        const seniorityTag = tier === "0-1" ? "fresher" : tier === "2-5" ? "l1" : tier === "6-10" ? "l2" : "l3";
+        const durationMinutes = template.durationMinutes || 60;
+
+        const preset = (template.weightingPreset as Record<string, number>) || {
+          MCQ: 15,
+          SQL: 15,
+          CODING: 20,
+          AI_PROMPTING: 20,
+          SIMULATION: 15,
+        };
+
+        const configMap: Record<
+          string,
+          { enabled: boolean; weight: number }
+        > = {};
+        for (const [mod, wt] of Object.entries(preset)) {
+          const driveConf = driveModuleConfig[mod];
+          const enabled =
+            driveConf !== undefined ? !!driveConf.enabled : Number(wt) > 0;
+          const weight =
+            driveConf?.weight !== undefined
+              ? Number(driveConf.weight)
+              : Number(wt) || 0;
+          configMap[mod] = { enabled, weight };
+        }
+
+        const questionPool = await prisma.question.findMany({
+          where: {
+            status: "PUBLISHED",
+            OR: [
+              { role: { equals: dept, mode: "insensitive" } },
+              { tags: { has: seniorityTag } },
+              { tags: { hasSome: [dept.toLowerCase(), seniorityTag] } },
+              { role: "General" },
+            ],
+          },
+        });
+
+        if (questionPool.length > 0) {
+          const allocated = allocateQuestions(
+            questionPool,
+            configMap,
+            durationMinutes,
+            seniorityTag,
+          );
+          if (allocated.length > 0) {
+            const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+              allocated as any,
+              session.candidateId,
+              effectiveRoleTemplateId,
+            );
+            return shuffled.map((q: any) => ({
+              questionId: q.id || q.questionId,
+              moduleType: q.moduleType,
+              content: q.content || {},
+              difficulty: q.difficulty || "medium",
+            }));
+          }
+        }
+      }
+    }
+
+    // If no questions are mapped or could be allocated, return empty array instead of random unmapped fallback
+    return [];
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
     throw err;
