@@ -675,99 +675,90 @@ function SettingsPage() {
         <div className="w-[180px] shrink-0 flex flex-col gap-1 text-sm-minus">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "profile"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "profile"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Users size={14} />
             Admin Profile
           </button>
           <button
             onClick={() => setActiveTab("users")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "users"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "users"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Users size={14} />
             Staff & Roles
           </button>
           <button
             onClick={() => setActiveTab("permissions")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "permissions"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "permissions"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <ShieldCheck size={14} />
             Roles &amp; Permissions
           </button>
           <button
             onClick={() => setActiveTab("scoring")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "scoring"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "scoring"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Sliders size={14} />
             AI & Scoring
           </button>
           <button
             onClick={() => setActiveTab("system")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "system"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "system"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Sliders size={14} />
             System Timing
           </button>
           <button
             onClick={() => setActiveTab("retention")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "retention"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "retention"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Shield size={14} />
             Data Retention
           </button>
           <button
             onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "audit"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "audit"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <FileText size={14} />
             Audit Logs
           </button>
           <button
             onClick={() => setActiveTab("integrations")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "integrations"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "integrations"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Key size={14} />
             Integrations
           </button>
           <button
             onClick={() => setActiveTab("modules")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "modules"
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "modules"
                 ? "bg-white border border-line text-brand shadow-sm"
                 : "text-ink-secondary hover:text-ink"
-            }`}
+              }`}
           >
             <Sliders size={14} />
             Assessment Modules
@@ -885,8 +876,7 @@ function SettingsPage() {
                         <div>
                           <div className="text-sm-minus font-semibold text-ink flex items-center gap-2">
                             <span>{s.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${
-                              s.role === "ADMIN"
+                            <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${s.role === "ADMIN"
                                 ? "bg-rose-50 text-rose-700 border-rose-200"
                                 : s.role === "HR_LEAD"
                                   ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -895,7 +885,7 @@ function SettingsPage() {
                                     : s.role === "REVIEWER"
                                       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                                       : "bg-slate-50 text-slate-700 border-slate-200"
-                            }`}>
+                              }`}>
                               {s.role}
                             </span>
                           </div>
@@ -1123,16 +1113,13 @@ function SettingsPage() {
                                                   ? "Only Admins can change role permissions"
                                                   : `Toggle ${desc.name} for ${roleKey}`
                                               }
-                                              className={`relative inline-flex h-5 w-9 shrink-0 ${
-                                                !isAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                                              } rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                                                isEnabled ? "bg-brand" : "bg-line hover:bg-line-strong"
-                                              }`}
+                                              className={`relative inline-flex h-5 w-9 shrink-0 ${!isAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                                                } rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isEnabled ? "bg-brand" : "bg-line hover:bg-line-strong"
+                                                }`}
                                             >
                                               <span
-                                                className={`${
-                                                  isEnabled ? "translate-x-4" : "translate-x-0"
-                                                } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out`}
+                                                className={`${isEnabled ? "translate-x-4" : "translate-x-0"
+                                                  } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out`}
                                               />
                                             </button>
                                           </div>
@@ -1496,9 +1483,8 @@ function SettingsPage() {
                         </div>
                         <div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-2xs font-mono font-bold uppercase ${
-                              p.isRevoked ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                            }`}
+                            className={`px-2 py-0.5 rounded-full text-2xs font-mono font-bold uppercase ${p.isRevoked ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              }`}
                           >
                             {p.isRevoked ? "Revoked" : "Active"}
                           </span>
@@ -1571,9 +1557,8 @@ function SettingsPage() {
                         ].map((m) => (
                           <th
                             key={m.key}
-                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
-                              hoveredCell?.mod === m.key ? "bg-brand-subtle text-brand" : ""
-                            }`}
+                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${hoveredCell?.mod === m.key ? "bg-brand-subtle text-brand" : ""
+                              }`}
                           >
                             {m.label}
                           </th>
@@ -1614,9 +1599,8 @@ function SettingsPage() {
                         return (
                           <tr
                             key={d.key}
-                            className={`transition-colors ${
-                              isRowHovered ? "bg-brand-subtle/60" : "hover:bg-canvas/70"
-                            }`}
+                            className={`transition-colors ${isRowHovered ? "bg-brand-subtle/60" : "hover:bg-canvas/70"
+                              }`}
                           >
                             <td className="px-4 py-3 font-semibold text-ink">
                               <div className="flex items-center gap-2">
@@ -1643,15 +1627,14 @@ function SettingsPage() {
                                   key={mod}
                                   onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
                                   onMouseLeave={() => setHoveredCell(null)}
-                                  className={`px-3 py-3 text-center transition-colors ${
-                                    isCellHovered
+                                  className={`px-3 py-3 text-center transition-colors ${isCellHovered
                                       ? "bg-brand-subtle"
                                       : isColHovered
                                         ? "bg-brand-subtle/50"
                                         : isRowHovered
                                           ? "bg-brand-subtle/60"
                                           : ""
-                                  }`}
+                                    }`}
                                 >
                                   <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
                                     <input
