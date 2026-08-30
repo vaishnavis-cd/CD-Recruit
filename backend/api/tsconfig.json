@@ -14,6 +14,7 @@
     "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "paths": {
       "@app/*": ["src/*"],
+      "@prisma/client": ["../../node_modules/.prisma/client"],
       "rxjs": ["../../node_modules/rxjs"],
       "rxjs/*": ["../../node_modules/rxjs/*"]
     },
@@ -24,7 +25,8 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "types": ["jest", "node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]

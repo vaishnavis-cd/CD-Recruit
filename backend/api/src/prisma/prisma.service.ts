@@ -9,9 +9,9 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor(configService: ConfigService) {
+  constructor(configService?: ConfigService) {
     const rawUrl =
-      configService.get<string>("databaseUrl") ||
+      configService?.get<string>("databaseUrl") ||
       process.env.DATABASE_URL ||
       "postgresql://cdrecruit:cdrecruit123@localhost:5432/cdrecruit";
 

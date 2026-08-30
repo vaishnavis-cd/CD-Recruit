@@ -8,7 +8,10 @@ import { QueueScheduler } from "./queue.scheduler";
 import { HeartbeatService } from "./heartbeat.service";
 import { HeartbeatMonitorProcessor } from "./heartbeat-monitor.processor";
 import { GraceWindowProcessor } from "./grace-window.processor";
-import { SessionModule } from "@app/session/session.module";
+import { SessionModule } from "../session/session.module";
+
+import { PrismaModule } from "../prisma/prisma.module";
+import { MinioModule } from "../integrations/minio/minio.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 const isFull = infraMode === "full";
@@ -16,6 +19,8 @@ const isFull = infraMode === "full";
 @Global()
 @Module({
   imports: [
+    PrismaModule,
+    MinioModule,
     ...(isFull
       ? [
           BullModule.registerQueue(

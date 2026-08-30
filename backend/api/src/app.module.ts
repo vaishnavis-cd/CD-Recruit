@@ -28,6 +28,9 @@ import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
 import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 
+import { APP_GUARD } from "@nestjs/core";
+import { CandidateThrottlerGuard } from "./common/guards/candidate-throttler.guard";
+
 const infraMode = process.env.INFRA_MODE ?? "local";
 
 @Module({
@@ -50,7 +53,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (_config: ConfigService<AppConfig, true>) => ({
-        throttlers: [{ ttl: 60_000, limit: 10 }],
+        throttlers: [{ name: "default", ttl: 60_000, limit: 10 }],
       }),
     }),
 
@@ -95,6 +98,12 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     RedisModule,
     PartnerModule,
     TestScenariosModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: CandidateThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

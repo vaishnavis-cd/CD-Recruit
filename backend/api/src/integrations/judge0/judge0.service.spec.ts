@@ -74,7 +74,7 @@ describe("Judge0Service", () => {
       ])
       .mockResolvedValue([]);
 
-    const resultMap = await service.pollBatchSubmissions(
+    const { resultsMap, metrics } = await service.pollBatchSubmissions(
       tokens,
       (token, result) => {
         callbackHits.push({ token, statusId: result.status.id });
@@ -82,7 +82,9 @@ describe("Judge0Service", () => {
       0,
     );
 
-    expect(resultMap.size).toBe(3);
+    expect(resultsMap.size).toBe(3);
+    expect(metrics.avgQueueWaitMs).toBeGreaterThanOrEqual(0);
+    expect(metrics.avgProcessingWaitMs).toBeGreaterThanOrEqual(0);
     expect(callbackHits.length).toBe(3);
 
     // Verify Tick 1 fired for token-1

@@ -466,11 +466,25 @@ export class CodingService implements AssessmentModuleEngine {
       },
     });
 
-    // 3. Trigger decoupled grading in background (non-blocking)
+    // 3. Trigger decoupled grading in background (non-blocking) with high-visibility failure alerting
     setImmediate(() => {
-      this.gradeSubmissionAsync(execution.id, dto, content).catch((err) =>
-        this.logger.error(`Background grading unhandled error: ${err}`),
-      );
+      this.gradeSubmissionAsync(execution.id, dto, content).catch(async (err) => {
+        this.logger.error(
+          `[INTERIM_ASYNC_GRADING_ALERT] Critical: Unhandled failure in background grading for execution ${execution.id} (session ${dto.sessionId}): ${err?.message || err}`,
+        );
+        try {
+          await this.prisma.codingExecution.update({
+            where: { id: execution.id },
+            data: {
+              status: ExecutionStatus.FAILED as any,
+              stderr: `Async grading error: ${err?.message || err}`,
+              completedAt: new Date(),
+            },
+          });
+        } catch (dbErr) {
+          this.logger.error(`Failed to record failed status for execution ${execution.id}: ${dbErr}`);
+        }
+      });
     });
 
     // 4. Return instant submission receipt confirmation to candidate

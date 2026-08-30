@@ -42,8 +42,8 @@ export const configuration = () => ({
 
   // ── Circuit Breaker ───────────────────────────────────────────────────────
   circuitBreakerErrorThresholdPercent: parseInt(process.env.CIRCUIT_BREAKER_ERROR_THRESHOLD_PERCENT ?? "50", 10),
-  circuitBreakerResetTimeoutMs: parseInt(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT_MS ?? "10000", 10),
-  circuitBreakerVolumeThreshold: parseInt(process.env.CIRCUIT_BREAKER_VOLUME_THRESHOLD ?? "5", 10),
+  circuitBreakerResetTimeoutMs: parseInt(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT_MS ?? "5000", 10),
+  circuitBreakerVolumeThreshold: parseInt(process.env.CIRCUIT_BREAKER_VOLUME_THRESHOLD ?? "20", 10),
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   groqApiKey: process.env.GROQ_API_KEY ?? "",

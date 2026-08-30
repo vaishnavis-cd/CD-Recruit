@@ -1,11 +1,12 @@
 import { Injectable, OnModuleInit, Inject, forwardRef } from "@nestjs/common";
 import { LocalFakeQueueProvider } from "./local-fake-queue.provider";
-import { SessionService } from "@app/session/session.service";
+import { SessionService } from "../session/session.service";
 import { HeartbeatService } from "./heartbeat.service";
 
 @Injectable()
 export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
   constructor(
+    @Inject(forwardRef(() => LocalFakeQueueProvider))
     private readonly fakeQueue: LocalFakeQueueProvider,
     @Inject(forwardRef(() => SessionService))
     private readonly sessionService: SessionService,

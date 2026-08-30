@@ -1,10 +1,10 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SessionStatus } from "@prisma/client";
-import { PrismaService } from "@app/prisma/prisma.service";
-import { AppConfig } from "@app/config/configuration";
-import { SessionStatusPort } from "@app/common/ports/session-status.port";
-import { MinioService } from "@app/integrations/minio/minio.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { AppConfig } from "../config/configuration";
+import { SessionStatusPort } from "../common/ports/session-status.port";
+import { MinioService } from "../integrations/minio/minio.service";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -15,8 +15,9 @@ export class HeartbeatService {
   private readonly bucketBiometric: string;
 
   constructor(
+    @Inject(forwardRef(() => PrismaService))
     private readonly prisma: PrismaService,
-    @Inject(SessionStatusPort)
+    @Inject(forwardRef(() => SessionStatusPort))
     private readonly sessionStatusPort: SessionStatusPort,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly storage: MinioService,
