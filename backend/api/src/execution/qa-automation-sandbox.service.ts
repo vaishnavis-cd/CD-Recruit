@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { exec } from "child_process";
 import { createServer, Server } from "http";
 import { ExecutionStatus } from "@cd-recruit/shared-types";
@@ -18,7 +18,7 @@ export interface AutomationExecutionResult {
 }
 
 @Injectable()
-export class QaAutomationSandboxService {
+export class QaAutomationSandboxService implements OnModuleDestroy {
   private readonly logger = new Logger(QaAutomationSandboxService.name);
   private mockServer?: Server;
   private readonly mockPort = 9099;
@@ -64,11 +64,26 @@ export class QaAutomationSandboxService {
     }
   }
 
+  async onModuleDestroy(): Promise<void> {
+    if (this.mockServer && this.mockServer.listening) {
+      await new Promise<void>((resolve) => {
+        this.mockServer?.close((err) => {
+          if (err) {
+            this.logger.warn(`Error closing mock server on port ${this.mockPort}: ${err.message}`);
+          } else {
+            this.logger.log(`Mock server on port ${this.mockPort} closed.`);
+          }
+          resolve();
+        });
+      });
+    }
+  }
+
   async runAutomationScript(
     framework: string,
     language: string,
     sourceCode: string,
-    timeoutMs: number = 30000
+    timeoutMs: number = 30000,
   ): Promise<AutomationExecutionResult> {
     const startTime = Date.now();
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qa-sandbox-"));
@@ -106,7 +121,10 @@ export class QaAutomationSandboxService {
       const execResult = await this.executeProcess(command, tempDir, timeoutMs);
       const executionTime = (Date.now() - startTime) / 1000;
 
-      const isPassed = execResult.exitCode === 0 && !execResult.stderr.includes("AssertionError") && !execResult.stderr.includes("Error:");
+      const isPassed =
+        execResult.exitCode === 0 &&
+        !execResult.stderr.includes("AssertionError") &&
+        !execResult.stderr.includes("Error:");
       const totalTests = 1;
       const passedTests = isPassed ? 1 : 0;
 
@@ -137,7 +155,7 @@ export class QaAutomationSandboxService {
     }
   }
 
-  private wrapPythonSeleniumCode(sourceCode: string): string {
+  public wrapPythonSeleniumCode(sourceCode: string): string {
     if (sourceCode.includes("webdriver.Chrome") && !sourceCode.includes("headless")) {
       return `
 from selenium import webdriver
@@ -156,21 +174,28 @@ ${sourceCode}
     return sourceCode;
   }
 
-  private wrapJavaSeleniumCode(sourceCode: string): string {
+  public wrapJavaSeleniumCode(sourceCode: string): string {
     return sourceCode;
   }
 
-  private wrapPlaywrightCode(sourceCode: string): string {
+  public wrapPlaywrightCode(sourceCode: string): string {
+    if (sourceCode.includes("chromium.launch(") && !sourceCode.includes("headless")) {
+      return sourceCode.replace(/chromium\.launch\(\s*\{?/, "chromium.launch({ headless: true, ");
+    }
     return sourceCode;
   }
 
-  private executeProcess(command: string, cwd: string, timeoutMs: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  private executeProcess(
+    command: string,
+    cwd: string,
+    timeoutMs: number,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve) => {
       exec(command, { cwd, timeout: timeoutMs }, (error, stdout, stderr) => {
         resolve({
           stdout: stdout ? stdout.toString() : "",
-          stderr: stderr ? stderr.toString() : (error ? error.message : ""),
-          exitCode: error && typeof error.code === "number" ? error.code : (error ? 1 : 0),
+          stderr: stderr ? stderr.toString() : error ? error.message : "",
+          exitCode: error && typeof error.code === "number" ? error.code : error ? 1 : 0,
         });
       });
     });
