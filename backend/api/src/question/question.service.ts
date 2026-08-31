@@ -15,13 +15,21 @@ export class QuestionService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const allQuestions = await this.prisma.question.findMany();
+      const debuggingCandidates = await this.prisma.question.findMany({
+        where: {
+          OR: [
+            { tags: { has: "debugging" } },
+            { moduleType: "DEBUGGING" as any },
+          ],
+        },
+      });
       const debuggingIds: string[] = [];
 
-      for (const q of allQuestions) {
+      for (const q of debuggingCandidates) {
         const tags = q.tags || [];
         const promptText = (q.content as any)?.prompt || (q.content as any)?.title || (q.content as any)?.text || "";
-        const isDebug = q.moduleType === "DEBUGGING" ||
+        const isDebug =
+          q.moduleType === "DEBUGGING" ||
           tags.includes("debugging") ||
           (typeof promptText === "string" && promptText.toLowerCase().includes("debugging"));
 
@@ -80,6 +88,11 @@ export class QuestionService implements OnModuleInit {
       case ModuleType.SIMULATION:
         if (!content.title || !Array.isArray(content.triggers) || !Array.isArray(content.rubric)) {
           throw new BadRequestException("Simulation must contain title, triggers, and rubric");
+        }
+        break;
+      case ModuleType.TEST_SCENARIOS:
+        if (!content.prompt || (!content.expectedAnswer && !content.referenceAnswer && !content.criteria)) {
+          throw new BadRequestException("Test Scenario question must contain prompt and expected reference criteria");
         }
         break;
     }
