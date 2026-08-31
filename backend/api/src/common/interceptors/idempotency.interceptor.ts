@@ -30,8 +30,27 @@ export class IdempotencyInterceptor implements NestInterceptor {
     }
 
     const trimmedKey = idempotencyKey.trim();
-    const partnerId = request.partner?.id || "global";
-    const cacheKey = `idempotency:${partnerId}:${trimmedKey}`;
+    const partnerId = request.partner?.id;
+    const userId = request.user?.id;
+    const sessionId = request.params?.sessionId || request.params?.id || request.body?.sessionId;
+
+    let scopePrefix = "global";
+    if (partnerId) {
+      scopePrefix = `partner:${partnerId}`;
+    } else if (userId) {
+      scopePrefix = `user:${userId}`;
+    } else if (sessionId) {
+      scopePrefix = `session:${sessionId}`;
+    } else {
+      const clientIp =
+        (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+        request.ip ||
+        "anon";
+      const sanitizedIp = clientIp.replace(/[^a-zA-Z0-9.:]/g, "").slice(0, 45) || "anon";
+      scopePrefix = `ip:${sanitizedIp}`;
+    }
+
+    const cacheKey = `idempotency:${scopePrefix}:${trimmedKey}`;
 
     return from(this.redisService.get(cacheKey)).pipe(
       switchMap((cachedResponse: string | null) => {
