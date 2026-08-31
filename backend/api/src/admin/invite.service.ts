@@ -4,6 +4,7 @@ import {
   BadRequestException,
   UnprocessableEntityException,
 } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
 import { CreateInviteDto, ListInvitesQueryDto } from "../common/dto/admin.dto";
@@ -53,31 +54,27 @@ export class InviteService {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + ttlHours);
 
-    // Initial invite creation to get invite ID
+    // 1. Pre-generate UUID and sign token in memory for single-pass atomic insert
+    const inviteId = randomUUID();
+    const token = this.authService.generateInviteToken(
+      inviteId,
+      candidateEmail,
+      candidateName,
+      roleTemplateId,
+    );
+
+    // 2. Single-pass atomic insert
     const invite = await this.prisma.invite.create({
       data: {
+        id: inviteId,
         candidateEmail,
         candidateName,
         roleTemplateId,
         driveId,
         createdById: staffId,
         expiresAt,
-        token: `temp-${Date.now()}`, // temp placeholder before signing token
+        token,
       },
-    });
-
-    // Sign actual JWT containing the invite ID
-    const token = this.authService.generateInviteToken(
-      invite.id,
-      candidateEmail,
-      candidateName,
-      roleTemplateId,
-    );
-
-    // Update with real token
-    const updatedInvite = await this.prisma.invite.update({
-      where: { id: invite.id },
-      data: { token },
       include: {
         roleTemplate: true,
         createdBy: true,
@@ -87,7 +84,7 @@ export class InviteService {
     const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
     const inviteLink = `${candidateAppBase}/invite/${token}`;
 
-    // Create Audit Log
+    // 3. Create Audit Log
     await this.prisma.auditLog.create({
       data: {
         staffId,
@@ -99,7 +96,7 @@ export class InviteService {
     });
 
     return {
-      invite: this.mapToInviteListItem(updatedInvite),
+      invite: this.mapToInviteListItem(invite),
       inviteLink,
     };
   }
@@ -108,17 +105,6 @@ export class InviteService {
     const { page, pageSize, status, driveId, search } = query;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
-
-    // Auto-update expired invites on read
-    await this.prisma.invite.updateMany({
-      where: {
-        status: InviteStatus.PENDING,
-        expiresAt: { lt: new Date() },
-      },
-      data: {
-        status: InviteStatus.EXPIRED,
-      },
-    });
 
     const where: any = {};
     if (status) {
@@ -459,16 +445,22 @@ export class InviteService {
   }
 
   private mapToInviteListItem(invite: any): InviteListItem {
+    const isExpired =
+      invite.status === InviteStatus.PENDING &&
+      invite.expiresAt &&
+      new Date(invite.expiresAt) < new Date();
+    const effectiveStatus = isExpired ? InviteStatus.EXPIRED : (invite.status as InviteStatus);
+
     return {
       id: invite.id,
       candidateEmail: invite.candidateEmail,
       candidateName: invite.candidateName,
       roleTemplateId: invite.roleTemplateId,
-      roleTemplateName: invite.roleTemplate.roleName,
-      status: invite.status as InviteStatus,
+      roleTemplateName: invite.roleTemplate?.roleName || "Standard",
+      status: effectiveStatus,
       token: invite.token,
       createdById: invite.createdById,
-      createdByName: invite.createdBy.name,
+      createdByName: invite.createdBy?.name || "System",
       createdAt: invite.createdAt.toISOString(),
       expiresAt: invite.expiresAt.toISOString(),
       redeemedAt: invite.redeemedAt ? invite.redeemedAt.toISOString() : null,
