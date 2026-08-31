@@ -64,48 +64,58 @@ export class ProctoringService {
       }
     }
 
-    // Auto-create dev test session if session ID doesn't exist in DB
+    // Auto-create dev test session if session ID doesn't exist in DB and is demo/dev
     if (!session) {
-      try {
-        let drive = await this.prisma.drive.findFirst();
-        let roleTemplate = await this.prisma.roleTemplate.findFirst();
-        if (!roleTemplate) {
-          roleTemplate = await this.prisma.roleTemplate.create({
-            data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
+      const isDemoOrDev =
+        sessionId === "demo-session" ||
+        sessionId.startsWith("demo-") ||
+        process.env.ALLOW_SYNTHETIC_SESSIONS === "true" ||
+        process.env.NODE_ENV === "test";
+
+      if (isDemoOrDev) {
+        try {
+          let drive = await this.prisma.drive.findFirst();
+          let roleTemplate = await this.prisma.roleTemplate.findFirst();
+          if (!roleTemplate) {
+            roleTemplate = await this.prisma.roleTemplate.create({
+              data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
+            });
+          }
+          let candidate = await this.prisma.candidate.findFirst({
+            where: { email: `${sessionId}@example.com` },
           });
-        }
-        let candidate = await this.prisma.candidate.findFirst({
-          where: { email: `${sessionId}@example.com` },
-        });
-        if (!candidate) {
-          candidate = await this.prisma.candidate.create({
-            data: {
-              email: `${sessionId}@example.com`,
-              name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}`,
+          if (!candidate) {
+            candidate = await this.prisma.candidate.create({
+              data: {
+                email: `${sessionId}@example.com`,
+                name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}`,
+              },
+            });
+          }
+          session = (await this.prisma.session.upsert({
+            where: { id: sessionId },
+            update: {},
+            create: {
+              id: sessionId,
+              candidateId: candidate.id,
+              roleTemplateId: roleTemplate.id,
+              driveId: drive?.id ?? null,
+              cvMode: "FACE_ONLY" as any,
+              status: SessionStatus.IN_PROGRESS,
             },
-          });
+            include: {
+              candidate: true,
+            },
+          })) as any;
+          this.logger.log(`[ProctoringService] Ensured session exists: ${sessionId}`);
+        } catch (err: any) {
+          this.logger.error(`[ProctoringService] Fallback session lookup for ${sessionId}: ${err.message}`);
+          session = (await this.prisma.session.findFirst({
+            include: { candidate: true },
+          })) as any;
         }
-        session = await this.prisma.session.upsert({
-          where: { id: sessionId },
-          update: {},
-          create: {
-            id: sessionId,
-            candidateId: candidate.id,
-            roleTemplateId: roleTemplate.id,
-            driveId: drive?.id ?? null,
-            cvMode: "FACE_ONLY" as any,
-            status: SessionStatus.IN_PROGRESS,
-          },
-          include: {
-            candidate: true,
-          },
-        }) as any;
-        this.logger.log(`[ProctoringService] Ensured session exists: ${sessionId}`);
-      } catch (err: any) {
-        this.logger.error(`[ProctoringService] Fallback session lookup for ${sessionId}: ${err.message}`);
-        session = await this.prisma.session.findFirst({
-          include: { candidate: true },
-        }) as any;
+      } else {
+        return null;
       }
     }
 
