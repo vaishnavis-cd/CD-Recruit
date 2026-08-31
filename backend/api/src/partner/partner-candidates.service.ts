@@ -121,15 +121,30 @@ export class PartnerCandidatesService {
     }
 
     const customOrRoleName = dto.drive_name?.trim() || primaryTemplate.roleName;
-    const driveName = `${customOrRoleName} (P) (${requisition_ref})`;
+    const driveName = `[Partner:${partner.id}:${requisition_ref}] ${customOrRoleName} (P) (${requisition_ref})`;
     const auditActorLabel = `API:${partner.name}`;
 
     // Resolve system staff account for Drive.createdById FK
-    const systemStaff =
+    let systemStaff =
       (await this.prisma.staff.findFirst({
         where: { role: "ADMIN" },
         orderBy: { createdAt: "asc" },
       })) ?? (await this.prisma.staff.findFirst({ orderBy: { createdAt: "asc" } }));
+
+    if (!systemStaff) {
+      try {
+        systemStaff = await this.prisma.staff.create({
+          data: {
+            email: "system.partner@cd-recruit.internal",
+            name: "Partner API System Service",
+            keycloakUserId: "system-partner-service-account",
+            role: "ADMIN" as any,
+          },
+        });
+      } catch {
+        systemStaff = await this.prisma.staff.findFirst({ orderBy: { createdAt: "asc" } });
+      }
+    }
 
     if (!systemStaff) {
       throw new UnprocessableEntityException(
@@ -142,9 +157,9 @@ export class PartnerCandidatesService {
     let drive = await this.prisma.drive.findFirst({
       where: {
         OR: [
+          { name: { startsWith: `[Partner:${partner.id}:${requisition_ref}]` } },
           { name: driveName },
           { name: { contains: `(${requisition_ref})` } },
-          { name: { startsWith: `[Partner:${partner.id}:${requisition_ref}]` } },
           { name: { startsWith: `[REQ:${requisition_ref}]` } },
         ],
       },
@@ -264,8 +279,8 @@ export class PartnerCandidatesService {
     const drive = await this.prisma.drive.findFirst({
       where: {
         OR: [
-          { name: { contains: `(${ref})` } },
           { name: { startsWith: `[Partner:${partner.id}:${ref}]` } },
+          { name: { contains: `(${ref})` } },
           { name: { startsWith: `[REQ:${ref}]` } },
         ],
       },
