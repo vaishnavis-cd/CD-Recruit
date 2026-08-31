@@ -9,6 +9,7 @@ export class AiPromptingController {
 
   @Post("run")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async run(@Body() dto: RunAiPromptDto) {
     return this.aiPromptingService.run(dto);
   }
