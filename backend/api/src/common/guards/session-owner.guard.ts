@@ -29,6 +29,16 @@ export class SessionOwnerGuard implements CanActivate {
     }
 
     if (!session) {
+      const execution = await this.prisma.codingExecution.findUnique({
+        where: { id: sessionId },
+        include: { session: { include: { drive: true } } },
+      });
+      if (execution?.session) {
+        session = execution.session as any;
+      }
+    }
+
+    if (!session) {
       try {
         let roleTemplate = await this.prisma.roleTemplate.findFirst();
         if (!roleTemplate) {
