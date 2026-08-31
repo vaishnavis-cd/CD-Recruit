@@ -257,7 +257,14 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     }
   };
 
-  const pollExecution = async (executionId: string, maxAttempts = 30) => {
+  const getPollingIntervalMs = (attempt: number): number => {
+    if (attempt <= 4) return 250;   // 0s - 1s: Check every 250ms (ultra-fast for quick runs)
+    if (attempt <= 10) return 500;  // 1s - 4s: Check every 500ms
+    if (attempt <= 20) return 1000; // 4s - 14s: Check every 1000ms
+    return 2000;                    // 14s+: Backoff to 2000ms
+  };
+
+  const pollExecution = async (executionId: string, maxAttempts = 35) => {
     let attempt = 0;
     while (attempt < maxAttempts && activePollRef.current) {
       attempt++;
@@ -269,7 +276,8 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
       } catch (err) {
         console.error("Polling error:", err);
       }
-      await new Promise((r) => setTimeout(r, 1000));
+      const delay = getPollingIntervalMs(attempt);
+      await new Promise((r) => setTimeout(r, delay));
     }
     throw new Error("Execution timed out.");
   };

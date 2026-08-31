@@ -9,6 +9,9 @@ import { SubmissionType, ExecutionStatus, SessionStatus, ModuleType } from "@cd-
 
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 
+import { QueueProviderPort } from "../queue/queue-provider.port";
+import { RedisService } from "../common/redis/redis.service";
+
 @Injectable()
 export class CodingService implements AssessmentModuleEngine {
   readonly moduleType = ModuleType.CODING;
@@ -18,6 +21,8 @@ export class CodingService implements AssessmentModuleEngine {
     private readonly prisma: PrismaService,
     private readonly judge0Service: Judge0Service,
     private readonly qaAutomationSandboxService: QaAutomationSandboxService,
+    private readonly queueProvider: QueueProviderPort,
+    private readonly redisService: RedisService,
   ) {}
 
   async validateSubmission(submission: any): Promise<boolean> {
@@ -99,21 +104,11 @@ export class CodingService implements AssessmentModuleEngine {
   }
 
   /**
-   * Run candidate code against sample test cases only.
+   * Run candidate code against sample test cases only (Asynchronous BullMQ + Webhook pipeline).
    */
   async run(dto: RunCodingDto, req?: Request) {
     const code = dto.sourceCode || dto.code || "";
     this.validateSourceCodePayload(code);
-
-    let isCancelled = false;
-    if (req) {
-      req.on("aborted", () => {
-        if (!isCancelled) {
-          isCancelled = true;
-          this.logger.log(`[Run Cancelled] Client aborted connection for session ${dto.sessionId}, question ${dto.questionId}`);
-        }
-      });
-    }
 
     // 1. Validate session
     const session = await this.prisma.session.findUnique({
@@ -132,11 +127,6 @@ export class CodingService implements AssessmentModuleEngine {
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
-    }
-
-    if (isCancelled || (req as any)?.aborted) {
-      this.logger.log(`[Run Aborted] Halting execution setup for cancelled session ${dto.sessionId}`);
-      throw new BadRequestException("Run request cancelled by client");
     }
 
     // 2. Validate question
@@ -166,106 +156,80 @@ export class CodingService implements AssessmentModuleEngine {
       },
     });
 
-    if (isCancelled || (req as any)?.aborted) {
-      this.logger.log(`[Run Aborted] Client disconnected after execution record creation ${execution.id}`);
-      await this.prisma.codingExecution.update({
-        where: { id: execution.id },
-        data: { status: ExecutionStatus.RUNTIME_ERROR as any, stderr: "Run cancelled by client", completedAt: new Date() },
-      });
-      throw new BadRequestException("Run request cancelled by client");
-    }
+    // 4. Pre-seed Redis read-cache for sub-millisecond polling
+    await this.redisService.set(
+      `execution:${execution.id}`,
+      JSON.stringify({
+        executionId: execution.id,
+        status: ExecutionStatus.PENDING,
+        passedTests: 0,
+        totalTests: isAutomation ? 1 : visibleTests.length,
+        executionTime: null,
+        memoryUsage: null,
+        stdout: "",
+        results: [],
+      }),
+      300,
+    );
 
-    // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
-    let result: any;
+    // 5. Enqueue to Inbound Execution Queue
     if (isAutomation) {
-      const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
-        content?.framework || "SELENIUM",
-        dto.language || content?.language || "python",
-        code,
-      );
-      result = {
-        status: sandboxRes.status,
-        passedTests: sandboxRes.passedTests,
-        totalTests: sandboxRes.totalTests,
-        stdout: sandboxRes.stdout,
-        stderr: sandboxRes.stderr,
-        compileOutput: sandboxRes.compileOutput || "",
-        executionTime: sandboxRes.executionTime,
-        memoryUsage: sandboxRes.memoryUsage,
-        results: [
-          {
-            passed: sandboxRes.status === ExecutionStatus.COMPLETED,
-            status: sandboxRes.status,
-            executionTime: sandboxRes.executionTime,
-            memoryUsage: sandboxRes.memoryUsage,
+      setImmediate(async () => {
+        const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
+          content?.framework || "SELENIUM",
+          dto.language || content?.language || "python",
+          code,
+        );
+        await this.prisma.codingExecution.update({
+          where: { id: execution.id },
+          data: {
+            status: sandboxRes.status as any,
             stdout: sandboxRes.stdout,
             stderr: sandboxRes.stderr,
+            compileOutput: sandboxRes.compileOutput || "",
+            executionTime: sandboxRes.executionTime,
+            memoryUsage: sandboxRes.memoryUsage,
+            passedTests: sandboxRes.passedTests,
+            totalTests: sandboxRes.totalTests,
+            completedAt: new Date(),
           },
-        ],
-      };
-    } else {
-      result = await this.judge0Service.runTests(
-        code,
-        languageId,
-        dto.questionId,
-        visibleTests,
-      );
-    }
-
-    if (isCancelled || (req as any)?.aborted) {
-      this.logger.log(`[Run Aborted] Client disconnected before returning results for execution ${execution.id}`);
-      await this.prisma.codingExecution.update({
-        where: { id: execution.id },
-        data: { status: ExecutionStatus.RUNTIME_ERROR as any, stderr: "Run cancelled by client", completedAt: new Date() },
+        });
       });
-      throw new BadRequestException("Run request cancelled by client");
+    } else {
+      await this.queueProvider.enqueue("execution-inbound", "run", {
+        executionId: execution.id,
+        type: "run",
+      });
     }
 
-    // 5. Update database record with final results
-    const updatedExecution = await this.prisma.codingExecution.update({
-      where: { id: execution.id },
-      data: {
-        status: result.status as any,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        compileOutput: result.compileOutput,
-        passedTests: result.passedTests,
-        totalTests: result.totalTests,
-        executionTime: result.executionTime,
-        memoryUsage: result.memoryUsage,
-        completedAt: new Date(),
-      },
-    });
-
-    // 6. Return response to frontend
+    // 6. Return instant 200 OK PENDING acknowledgment (<25ms)
     return {
-      executionId: updatedExecution.id,
-      status: updatedExecution.status,
-      passedTests: updatedExecution.passedTests,
-      totalTests: updatedExecution.totalTests,
-      executionTime: updatedExecution.executionTime,
-      memoryUsage: updatedExecution.memoryUsage,
-      stdout: updatedExecution.stdout || updatedExecution.stderr || updatedExecution.compileOutput || "",
-      results: result.results.map((r: any, idx: number) => ({
-        passed: r.passed,
-        status: r.status,
-        executionTime: r.executionTime,
-        memoryUsage: r.memoryUsage,
-        stdout: r.stdout,
-        stderr: r.stderr,
-        compileOutput: r.compileOutput,
-        input: visibleTests[idx]?.input,
-        expectedOutput: visibleTests[idx]?.expectedOutput,
-        label: visibleTests[idx]?.label || `Test Case ${idx + 1}`,
-        isHidden: false,
-      })),
+      executionId: execution.id,
+      status: ExecutionStatus.PENDING,
+      passedTests: 0,
+      totalTests: isAutomation ? 1 : visibleTests.length,
+      executionTime: null,
+      memoryUsage: null,
+      stdout: "",
+      results: [],
     };
   }
 
   /**
-   * Retrieve execution details by ID.
+   * Retrieve execution details by ID with sub-millisecond Redis read-cache.
    */
   async getExecution(id: string) {
+    // 1. Check Redis read-cache first (sub-millisecond)
+    const cached = await this.redisService.get(`execution:${id}`);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        // Fallback to DB if JSON parse fails
+      }
+    }
+
+    // 2. Fallback to PostgreSQL
     const execution = await this.prisma.codingExecution.findUnique({
       where: { id },
       include: { question: true },
@@ -274,13 +238,7 @@ export class CodingService implements AssessmentModuleEngine {
       throw new NotFoundException("Execution not found");
     }
 
-    const content = execution.question.content as any;
-    const allTests = this.getQuestionTestCases(content, execution.submissionType as SubmissionType);
-    const targetTests = execution.submissionType === SubmissionType.RUN
-      ? allTests.filter((t) => !t.isHidden)
-      : allTests;
-
-    return {
+    const payload = {
       executionId: execution.id,
       status: execution.status,
       passedTests: execution.passedTests,
@@ -288,8 +246,14 @@ export class CodingService implements AssessmentModuleEngine {
       executionTime: execution.executionTime,
       memoryUsage: execution.memoryUsage,
       stdout: execution.stdout || execution.stderr || execution.compileOutput || "",
-      results: [], // Polling client relies on RUN/SUBMIT endpoint return value mostly
+      results: [],
     };
+
+    if (execution.status !== ExecutionStatus.PENDING) {
+      await this.redisService.set(`execution:${id}`, JSON.stringify(payload), 300);
+    }
+
+    return payload;
   }
 
   /**
@@ -466,26 +430,34 @@ export class CodingService implements AssessmentModuleEngine {
       },
     });
 
-    // 3. Trigger decoupled grading in background (non-blocking) with high-visibility failure alerting
-    setImmediate(() => {
-      this.gradeSubmissionAsync(execution.id, dto, content).catch(async (err) => {
-        this.logger.error(
-          `[INTERIM_ASYNC_GRADING_ALERT] Critical: Unhandled failure in background grading for execution ${execution.id} (session ${dto.sessionId}): ${err?.message || err}`,
+    // 3. Pre-seed Redis cache
+    await this.redisService.set(
+      `execution:${execution.id}`,
+      JSON.stringify({
+        executionId: execution.id,
+        status: "SUBMITTED",
+        passedTests: 0,
+        totalTests: isAutomation ? 1 : allTests.length,
+        executionTime: null,
+        memoryUsage: null,
+        stdout: "Submission saved successfully. Grading is in progress.",
+      }),
+      300,
+    );
+
+    // 4. Enqueue to Inbound Execution Queue (or background QA for automation)
+    if (isAutomation) {
+      setImmediate(() => {
+        this.gradeSubmissionAsync(execution.id, dto, content).catch((err) =>
+          this.logger.error(`Background automation grading error: ${err}`),
         );
-        try {
-          await this.prisma.codingExecution.update({
-            where: { id: execution.id },
-            data: {
-              status: ExecutionStatus.FAILED as any,
-              stderr: `Async grading error: ${err?.message || err}`,
-              completedAt: new Date(),
-            },
-          });
-        } catch (dbErr) {
-          this.logger.error(`Failed to record failed status for execution ${execution.id}: ${dbErr}`);
-        }
       });
-    });
+    } else {
+      await this.queueProvider.enqueue("execution-inbound", "submit", {
+        executionId: execution.id,
+        type: "submit",
+      });
+    }
 
     // 4. Return instant submission receipt confirmation to candidate
     return {

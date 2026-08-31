@@ -5,7 +5,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -27,6 +26,11 @@ enum Department {
 }
 
 enum ExperienceLevel {
+  FRESHER
+  EXPERIENCED
+}
+
+enum CandidateCategory {
   FRESHER
   EXPERIENCED
 }
@@ -124,14 +128,16 @@ enum ConsentType {
 }
 
 model RoleTemplate {
-  id              String           @id @default(uuid())
-  roleName        String           @map("role_name")
-  weightingPreset Json             @map("weighting_preset")
-  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
-  department      Department?      @map("department")
-  level           ExperienceLevel? @map("level")
-  version         Int              @default(1) @map("version")
-  isActive        Boolean          @default(true) @map("is_active")
+  id              String             @id @default(uuid())
+  roleName        String             @map("role_name")
+  weightingPreset Json               @map("weighting_preset")
+  durationMinutes Int                @map("duration_minutes") // drives session.deadlineAt
+  department      Department?        @map("department")
+  level           ExperienceLevel?   @map("level")
+  category        CandidateCategory? @map("category")
+  experienceTier  String?            @map("experience_tier")
+  version         Int                @default(1) @map("version")
+  isActive        Boolean            @default(true) @map("is_active")
 
   sessions  Session[]
   invites   Invite[]
@@ -472,9 +478,11 @@ model CodingExecution {
   questionId     String          @map("question_id")
   languageId     Int             @map("language_id")
   submissionType SubmissionType  @map("submission_type")
-  sourceCode     String          @map("source_code")
-  judge0Token    String?         @map("judge0_token")
-  status         ExecutionStatus
+  sourceCode        String          @map("source_code")
+  judge0Token       String?         @map("judge0_token")
+  judge0Tokens      Json?           @map("judge0_tokens")
+  webhookReceivedAt DateTime?       @map("webhook_received_at")
+  status            ExecutionStatus
   stdout         String?
   stderr         String?
   compileOutput  String?         @map("compile_output")

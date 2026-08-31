@@ -8,7 +8,11 @@ import { QueueScheduler } from "./queue.scheduler";
 import { HeartbeatService } from "./heartbeat.service";
 import { HeartbeatMonitorProcessor } from "./heartbeat-monitor.processor";
 import { GraceWindowProcessor } from "./grace-window.processor";
+import { InboundExecutionProcessor } from "./execution/execution-inbound.processor";
+import { OutboundExecutionProcessor } from "./execution/execution-outbound.processor";
+import { WatchdogExecutionProcessor } from "./execution/execution-watchdog.processor";
 import { SessionModule } from "../session/session.module";
+import { Judge0Module } from "../integrations/judge0/judge0.module";
 
 import { PrismaModule } from "../prisma/prisma.module";
 import { MinioModule } from "../integrations/minio/minio.module";
@@ -21,19 +25,30 @@ const isFull = infraMode === "full";
   imports: [
     PrismaModule,
     MinioModule,
+    Judge0Module,
     ...(isFull
       ? [
           BullModule.registerQueue(
             { name: "heartbeat-monitor" },
             { name: "grace-window" },
+            { name: "execution-inbound" },
+            { name: "execution-outbound" },
+            { name: "execution-watchdog" },
           ),
         ]
       : []),
     forwardRef(() => SessionModule),
   ],
   providers: [
+    InboundExecutionProcessor,
+    OutboundExecutionProcessor,
+    WatchdogExecutionProcessor,
     ...(isFull
-      ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor]
+      ? [
+          BullmqQueueProvider,
+          HeartbeatMonitorProcessor,
+          GraceWindowProcessor,
+        ]
       : [LocalFakeQueueProvider, LocalFakeQueueHandlersBootstrap]),
     {
       provide: QueueProviderPort,
@@ -45,3 +60,4 @@ const isFull = infraMode === "full";
   exports: [QueueProviderPort],
 })
 export class QueueModule {}
+

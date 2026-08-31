@@ -1,4 +1,11 @@
 export abstract class QueueProviderPort {
+  abstract enqueue(
+    queueName: string,
+    jobName: string,
+    payload: Record<string, unknown>,
+    opts?: { delayMs?: number; jobId?: string },
+  ): Promise<void>;
+
   abstract enqueueDelayed(
     queueName: string,
     jobName: string,

@@ -72,6 +72,50 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  async eval(script: string, numkeys: number, ...args: (string | number)[]): Promise<any> {
+    if (!this.client || !this.isConnected) return null;
+    try {
+      return await (this.client as any).eval(script, numkeys, ...args);
+    } catch (err: any) {
+      this.logger.warn(`Redis EVAL failed: ${err.message}`);
+      return null;
+    }
+  }
+
+  async hgetall(key: string): Promise<Record<string, string>> {
+    if (!this.client || !this.isConnected) return {};
+    try {
+      return await this.client.hgetall(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis HGETALL failed for key ${key}: ${err.message}`);
+      return {};
+    }
+  }
+
+  async hset(key: string, field: string, value: string): Promise<number> {
+    if (!this.client || !this.isConnected) return 0;
+    try {
+      return await this.client.hset(key, field, value);
+    } catch (err: any) {
+      this.logger.warn(`Redis HSET failed for key ${key}: ${err.message}`);
+      return 0;
+    }
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.client || !this.isConnected) return 0;
+    try {
+      return await this.client.expire(key, ttlSeconds);
+    } catch (err: any) {
+      this.logger.warn(`Redis EXPIRE failed for key ${key}: ${err.message}`);
+      return 0;
+    }
+  }
+
+  getClient(): Redis | null {
+    return this.client;
+  }
+
   onModuleDestroy() {
     if (this.client) {
       this.client.disconnect();

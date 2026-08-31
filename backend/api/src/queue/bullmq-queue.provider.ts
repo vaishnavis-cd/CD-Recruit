@@ -10,6 +10,12 @@ export class BullmqQueueProvider extends QueueProviderPort {
     private readonly heartbeatQueue: Queue,
     @InjectQueue("grace-window")
     private readonly graceWindowQueue: Queue,
+    @InjectQueue("execution-inbound")
+    private readonly executionInboundQueue: Queue,
+    @InjectQueue("execution-outbound")
+    private readonly executionOutboundQueue: Queue,
+    @InjectQueue("execution-watchdog")
+    private readonly executionWatchdogQueue: Queue,
   ) {
     super();
   }
@@ -20,9 +26,29 @@ export class BullmqQueueProvider extends QueueProviderPort {
         return this.heartbeatQueue;
       case "grace-window":
         return this.graceWindowQueue;
+      case "execution-inbound":
+        return this.executionInboundQueue;
+      case "execution-outbound":
+        return this.executionOutboundQueue;
+      case "execution-watchdog":
+        return this.executionWatchdogQueue;
       default:
         throw new Error(`BullmqQueueProvider: unknown queue "${queueName}"`);
     }
+  }
+
+  async enqueue(
+    queueName: string,
+    jobName: string,
+    payload: Record<string, unknown>,
+    opts?: { delayMs?: number; jobId?: string },
+  ): Promise<void> {
+    await this.resolveQueue(queueName).add(jobName, payload, {
+      delay: opts?.delayMs,
+      jobId: opts?.jobId,
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
   }
 
   async enqueueDelayed(

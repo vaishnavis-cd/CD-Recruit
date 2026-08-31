@@ -35,6 +35,8 @@ export const configuration = () => ({
   // ── External services ────────────────────────────────────────────────────
   judge0ApiUrl: process.env.JUDGE0_API_URL ?? "",
   judge0ApiKey: process.env.JUDGE0_API_KEY ?? "",
+  judge0CallbackUrlBase: process.env.JUDGE0_CALLBACK_URL_BASE ?? "http://host.docker.internal:3001",
+  judge0WebhookSecret: process.env.JUDGE0_WEBHOOK_SECRET ?? "cdrecruit-judge0-secret-key",
   judge0CpuTimeLimit: parseFloat(process.env.JUDGE0_CPU_TIME_LIMIT ?? "5.0"),
   judge0WallTimeLimit: parseFloat(process.env.JUDGE0_WALL_TIME_LIMIT ?? "10.0"),
   judge0MaxRetryAttempts: parseInt(process.env.JUDGE0_MAX_RETRY_ATTEMPTS ?? "3", 10),

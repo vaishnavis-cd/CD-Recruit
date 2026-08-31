@@ -9,6 +9,7 @@ export interface BatchSubmissionItem {
   languageId: number;
   stdinBase64?: string;
   expectedOutputBase64?: string;
+  callbackUrl?: string;
 }
 
 @Injectable()
@@ -191,7 +192,7 @@ export class Judge0Client {
         wall_time_limit: this.wallTimeLimit,
         enable_per_process_and_thread_time_limit: true,
         enable_per_process_and_thread_memory_limit: true,
-        // Note: callback_url: "..." for async webhook push notifications will be wired here in follow-up task
+        callback_url: item.callbackUrl || null,
       })),
     };
 
