@@ -12,7 +12,9 @@ import {
   Settings as SettingsIcon,
   AlertTriangle,
   HelpCircle,
+  LifeBuoy,
 } from "lucide-react";
+
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
 
@@ -186,47 +188,50 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
             </div>
           )}
 
-          {/* Bottom Items White Card (if any) */}
-          {bottomItems.length > 0 && (
-            <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 py-3 space-y-0.5">
-              {bottomItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
-                  >
-                    <div className="relative inline-flex items-center justify-center shrink-0">
-                      <Icon
-                        size={15}
-                        strokeWidth={1.75}
-                        className="text-[#708099]"
-                      />
-                      {item.to === "/results" && hasUnreadResults && (
-                        <span
-                          className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
-                          title="New candidate results pending review"
+          {/* Bottom Card: Remaining Nav Items + HELP & Promo (Unified single card as in Image 2) */}
+          <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3.5 space-y-2.5">
+            {/* Bottom Nav items before HELP */}
+            {bottomItems.length > 0 && (
+              <nav className="space-y-0.5 pb-1">
+                {bottomItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                    >
+                      <div className="relative inline-flex items-center justify-center shrink-0">
+                        <Icon
+                          size={15}
+                          strokeWidth={1.75}
+                          className="text-[#708099]"
                         />
-                      )}
-                    </div>
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+                        {item.to === "/results" && hasUnreadResults && (
+                          <span
+                            className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                            title="New candidate results pending review"
+                          />
+                        )}
+                      </div>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
 
-          {/* Middle Floating White Card: HELP & Promo */}
-          <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3 space-y-2">
-            <div className="px-2 text-[9.5px] font-bold text-[#94a3b8] tracking-wider uppercase">
+            {/* HELP header */}
+            <div className="px-2 text-[9.5px] font-bold text-[#94a3b8] tracking-wider uppercase pt-0.5">
               HELP
             </div>
+
+            {/* Support with LifeBuoy icon */}
             <button
               onClick={() => window.open("mailto:support@proctora.com", "_blank")}
               className="w-full flex items-center gap-2.5 px-2 py-1 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] transition-all cursor-pointer text-left"
             >
-              <HelpCircle size={15} className="text-[#2f68ff]" />
+              <LifeBuoy size={15} className="text-[#2f68ff]" />
               <span>Support</span>
             </button>
 
@@ -247,6 +252,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
         </div>
 
         {/* User Profile Footer */}
+
         <div className="p-3 flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
             {userInfo.initials}

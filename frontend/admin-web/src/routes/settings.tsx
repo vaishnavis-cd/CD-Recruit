@@ -570,15 +570,48 @@ function SettingsPage() {
     }
   };
 
+function AdminProfileIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <circle cx="8" cy="12" r="2" />
+      <path d="M14 10h4" />
+      <path d="M14 14h2" />
+    </svg>
+  );
+}
+
+function AIScoringIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <rect x="8.5" y="8.5" width="7" height="7" rx="1" />
+      <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+    </svg>
+  );
+}
+
+function IntegrationsIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M6 3v6a3 3 0 0 0 3 3h6" />
+      <path d="M18 9l3 3-3 3" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="6" r="3" />
+    </svg>
+  );
+}
+
   const TABS = [
-    { id: "profile", label: "Admin Profile", icon: Contact },
+    { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
     { id: "users", label: "Staff & Roles", icon: Users },
-    { id: "scoring", label: "AI & Scoring", icon: Cpu },
+    { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
     { id: "system", label: "System Timing", icon: AlarmClock },
     { id: "retention", label: "Data Retention", icon: ShieldCheck },
     { id: "audit", label: "Audit Logs", icon: List },
-    { id: "integrations", label: "Integrations", icon: GitFork },
+    { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
   ] as const;
+
 
 
   return (
