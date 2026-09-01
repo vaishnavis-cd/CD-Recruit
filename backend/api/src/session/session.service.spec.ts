@@ -18,6 +18,7 @@ async function runSessionCharacterizationTests() {
     },
     invite: {
       findUnique: async () => ({ id: "inv-1", driveId: "drive-1" }),
+      findFirst: async () => null,
       update: async () => ({}),
     },
     session: {
@@ -51,6 +52,22 @@ async function runSessionCharacterizationTests() {
     },
     driveQuestion: {
       findMany: async () => [],
+    },
+    roleTemplateQuestion: {
+      findMany: async () => [],
+    },
+    question: {
+      findMany: async () => [],
+    },
+    drive: {
+      findUnique: async () => null,
+    },
+    integrityFlag: {
+      create: async () => ({ id: "flag-1" }),
+    },
+    identityCapture: {
+      deleteMany: async () => ({ count: 0 }),
+      createMany: async () => ({ count: 0 }),
     },
   };
 

@@ -587,8 +587,8 @@ export class SessionScoringService {
       sayDoConsistencyScore = Math.max(0.0, this.roundToTwoDecimals(1.0 - stdDev));
       sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${this.roundToTwoDecimals(stdDev)}).`;
     } else {
-      sayDoConsistencyScore = null;
-      sayDoRationale = null;
+      sayDoConsistencyScore = 0.0;
+      sayDoRationale = "Single module assessment or insufficient Say-Do variance data.";
     }
 
     return { sayDoConsistencyScore, sayDoRationale };
@@ -598,7 +598,7 @@ export class SessionScoringService {
    * Compute dynamic AI Confidence score based on evaluation completeness and test executions.
    */
   private calculateAIConfidence(responsesCount: number, questionIdsCount: number, hasExecutions: boolean): number | null {
-    if (responsesCount === 0) return null;
+    if (responsesCount === 0) return 0.0;
 
     const completionRatio = Math.min(1.0, responsesCount / Math.max(1, questionIdsCount));
     const executionBonus = hasExecutions ? AI_CONFIDENCE_EXECUTION_BONUS : 0.0;
@@ -622,12 +622,12 @@ export class SessionScoringService {
     const isAutoPublished = (scoreData.aiConfidence ?? 0) >= threshold;
 
     const data = {
-      compositeScore: scoreData.compositeScore,
-      coreScore: scoreData.coreScore,
-      bonusScore: scoreData.bonusScore,
-      totalScore: scoreData.totalScore,
-      sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
-      aiConfidence: scoreData.aiConfidence,
+      compositeScore: scoreData.compositeScore ?? 0.0,
+      coreScore: scoreData.coreScore ?? 0.0,
+      bonusScore: scoreData.bonusScore ?? 0.0,
+      totalScore: scoreData.totalScore ?? 0.0,
+      sayDoConsistencyScore: scoreData.sayDoConsistencyScore ?? 0.0,
+      aiConfidence: scoreData.aiConfidence ?? 0.0,
       humanReviewed: isAutoPublished,
       gradingSource: scoreData.gradingSource,
       sayDoRationale: scoreData.sayDoRationale,
