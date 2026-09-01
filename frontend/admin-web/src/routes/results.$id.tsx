@@ -361,11 +361,14 @@ function IndividualResultPage() {
             </span>
             <div className="flex flex-col">
               <span className="text-2xl font-mono font-bold text-brand">
-                {score && ((score as any).totalScore !== null && (score as any).totalScore !== undefined)
-                  ? `${Math.round((score as any).totalScore * 10) / 10}`
-                  : (score && score.compositeScore !== null && score.compositeScore !== undefined)
-                    ? `${Math.round(score.compositeScore * 10) / 10}`
-                    : "N/A"}
+                {(() => {
+                  const raw = (score as any)?.totalScore ?? score?.compositeScore;
+                  if (raw === null || raw === undefined) return "N/A";
+                  const num = Number(raw);
+                  if (isNaN(num)) return "N/A";
+                  const scoreVal = num <= 1.0 && num > 0 ? Math.round(num * 100) : Math.round(num);
+                  return `${scoreVal}%`;
+                })()}
               </span>
               <span className="text-2xs text-ink-tertiary">Weighted candidate performance</span>
             </div>

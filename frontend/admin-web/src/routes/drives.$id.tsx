@@ -1434,94 +1434,41 @@ function DriveDetailPage() {
   }, [drive]);
 
   const allowedModules = useMemo(() => {
-    return getDepartmentAllowedModules(driveTargetDept);
-  }, [driveTargetDept]);
+    const enabled = Object.keys(moduleConfig || {}).filter((k) => moduleConfig[k]?.enabled);
+    const deptAllowed = getDepartmentAllowedModules(driveTargetDept);
+    return Array.from(new Set([...enabled, ...deptAllowed]));
+  }, [moduleConfig, driveTargetDept]);
 
   const filteredQuestionsList = useMemo(() => {
-    const DEPT_TAGS_MAP: Record<string, string[]> = {
-      SOFTWARE_ENGINEERING: ["sde", "software_engineering", "software engineering", "software developer", "software engineer"],
-      DATA_ENGINEERING: ["data_engineering", "data engineering", "de"],
-      QA: ["qa", "quality assurance", "testing"],
-      SRE: ["sre", "site reliability"],
-      SYSOPS: ["sysops"],
-      ITOPS: ["itops"],
-      PMO: ["pmo"],
-      SECOPS: ["secops", "cybersecurity", "security operations"],
-    };
-
-    const targetDeptNorm = (driveTargetDept as string) === "SDE" ? "SOFTWARE_ENGINEERING" : driveTargetDept;
-
     return questionsBank.filter((q) => {
       if (q.status === "ARCHIVED") return false;
 
-      const isAssigned = assignedQuestions.includes(q.id);
+      const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
 
-      if (!isAssigned) {
-        const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+      // Module Filter
+      if (questionModuleFilter !== "ALL") {
+        if (questionModuleFilter === "DEBUGGING") {
+          if (!isDebuggingQuestion) return false;
+        } else if (questionModuleFilter === "CODING") {
+          if (q.moduleType !== "CODING" || isDebuggingQuestion) return false;
+        } else {
+          if (q.moduleType !== questionModuleFilter) return false;
+        }
+      } else {
+        // In "ALL" view, show questions whose module is enabled in this drive or allowed for this role
         const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
         if (!allowedModules.includes(effectiveModule) && !allowedModules.includes(q.moduleType)) {
           return false;
         }
-
-        const qRoleUpper = (q.role || "").toUpperCase();
-        const qContentDeptUpper = (q.content?.department || "").toUpperCase();
-        const qTagsLower = (q.tags || []).map((t: string) => t.toLowerCase());
-
-        let qDept: string | null = null;
-        if (qRoleUpper === "SOFTWARE_ENGINEERING" || qRoleUpper === "SDE" || qContentDeptUpper === "SDE" || qContentDeptUpper === "SOFTWARE_ENGINEERING") {
-          qDept = "SOFTWARE_ENGINEERING";
-        } else if (qRoleUpper === "DATA_ENGINEERING" || qContentDeptUpper === "DATA_ENGINEERING") {
-          qDept = "DATA_ENGINEERING";
-        } else if (qRoleUpper === "QA" || qContentDeptUpper === "QA") {
-          qDept = "QA";
-        } else if (qRoleUpper === "SRE" || qContentDeptUpper === "SRE") {
-          qDept = "SRE";
-        } else if (qRoleUpper === "SYSOPS" || qContentDeptUpper === "SYSOPS") {
-          qDept = "SYSOPS";
-        } else if (qRoleUpper === "ITOPS" || qContentDeptUpper === "ITOPS") {
-          qDept = "ITOPS";
-        } else if (qRoleUpper === "PMO" || qContentDeptUpper === "PMO") {
-          qDept = "PMO";
-        } else if (qRoleUpper === "SECOPS" || qContentDeptUpper === "SECOPS") {
-          qDept = "SECOPS";
-        }
-
-        if (!qDept) {
-          for (const [deptKey, tagsList] of Object.entries(DEPT_TAGS_MAP)) {
-            if (qTagsLower.some((t: string) => tagsList.includes(t))) {
-              qDept = deptKey;
-              break;
-            }
-          }
-        }
-
-        if (qDept && qDept !== targetDeptNorm) {
-          return false;
-        }
       }
 
-      if (q.moduleType === "AI_PROMPTING" && isAiPromptingDynamic && questionModuleFilter === "ALL") {
-        return false;
-      }
-
-      const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-
-      if (questionModuleFilter === "ALL") {
-        const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
-        if (!allowedModules.includes(effectiveModule) && !allowedModules.includes(q.moduleType)) return false;
-      } else if (questionModuleFilter === "DEBUGGING") {
-        if (!isDebuggingQuestion) return false;
-      } else if (questionModuleFilter === "CODING") {
-        if (q.moduleType !== "CODING" || (Array.isArray(q.tags) && q.tags.includes("debugging"))) return false;
-      } else {
-        if (q.moduleType !== questionModuleFilter) return false;
-      }
-
+      // Difficulty Filter
       if (questionDifficultyFilter !== "ALL") {
         const diff = (q.difficulty || "MEDIUM").toUpperCase();
         if (diff !== questionDifficultyFilter.toUpperCase()) return false;
       }
 
+      // Search Query Filter
       if (questionSearch.trim()) {
         const s = questionSearch.toLowerCase().trim();
         const title = (
@@ -1537,9 +1484,10 @@ function DriveDetailPage() {
         const tags = (q.tags || []).join(" ").toLowerCase();
         if (!title.includes(s) && !tags.includes(s)) return false;
       }
+
       return true;
     });
-  }, [questionsBank, driveTargetDept, allowedModules, assignedQuestions, questionModuleFilter, questionDifficultyFilter, questionSearch, isAiPromptingDynamic]);
+  }, [questionsBank, allowedModules, questionModuleFilter, questionDifficultyFilter, questionSearch]);
 
   if (loading || !drive) {
     return (

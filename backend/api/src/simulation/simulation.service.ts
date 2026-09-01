@@ -892,7 +892,7 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
         where: { sessionId },
         create: {
           sessionId,
-          compositeScore: normalizedScore,
+          compositeScore: coreScoreVal,
           coreScore: coreScoreVal,
           bonusScore: 0,
           totalScore: totalScoreVal,
@@ -904,7 +904,7 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
           gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
         },
         update: {
-          compositeScore: normalizedScore,
+          compositeScore: coreScoreVal,
           coreScore: coreScoreVal,
           totalScore: totalScoreVal,
           moduleScores: moduleScoresJson,

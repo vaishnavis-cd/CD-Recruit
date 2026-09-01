@@ -460,6 +460,11 @@ export class SessionScoringService {
       }
     }
 
+    if (coreScore <= 1.0 && coreScore > 0 && Object.values(driveModuleConfig).some((c) => c.enabled && (c.weight ?? 0) <= 1.0)) {
+      coreScore = Math.round(coreScore * 100);
+      bonusScore = Math.round(bonusScore * 100);
+    }
+
     coreScore = this.roundToTwoDecimals(coreScore);
     bonusScore = this.roundToTwoDecimals(bonusScore);
     const totalScore = this.roundToTwoDecimals(coreScore + bonusScore);
