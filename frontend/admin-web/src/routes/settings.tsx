@@ -570,28 +570,47 @@ function SettingsPage() {
     }
   };
 
-function AdminProfileIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+function AdminProfileIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect width="20" height="14" x="2" y="5" rx="2" />
-      <circle cx="8" cy="12" r="2" />
-      <path d="M14 10h4" />
-      <path d="M14 14h2" />
+    <svg width={size} height={size} viewBox="282 156 16 14" fill="none" className={className}>
+      <path d="M292.667 161.667H294.001M292.667 164.334H294.001M286.113 165C286.251 164.609 286.506 164.271 286.844 164.032C287.182 163.792 287.586 163.664 288 163.664C288.414 163.664 288.818 163.792 289.156 164.032C289.494 164.271 289.749 164.609 289.887 165M289.333 162.333C289.333 163.07 288.736 163.667 288 163.667C287.264 163.667 286.667 163.07 286.667 162.333C286.667 161.597 287.264 161 288 161C288.736 161 289.333 161.597 289.333 162.333ZM284.666 158.333H295.334C296.07 158.333 296.667 158.93 296.667 159.666V166.334C296.667 167.07 296.07 167.667 295.334 167.667H284.666C283.93 167.667 283.333 167.07 283.333 166.334V159.666C283.333 158.93 283.93 158.333 284.666 158.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   );
 }
 
-function AIScoringIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+function StaffRolesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <rect x="8.5" y="8.5" width="7" height="7" rx="1" />
-      <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+    <svg width={size} height={size} viewBox="282 198 16 14" fill="none" className={className}>
+      <path d="M292.667 211V209.667C292.667 208.959 292.386 208.281 291.886 207.781C291.386 207.281 290.708 207 290 207H286C285.293 207 284.614 207.281 284.114 207.781C283.614 208.281 283.333 208.959 283.333 209.667V211M292.667 199.085C293.239 199.234 293.745 199.567 294.107 200.035C294.469 200.502 294.665 201.076 294.665 201.667C294.665 202.257 294.469 202.831 294.107 203.299C293.745 203.766 293.239 204.1 292.667 204.248M296.667 211V209.667C296.667 209.076 296.47 208.502 296.108 208.035C295.746 207.568 295.239 207.234 294.667 207.087M290.667 201.667C290.667 203.139 289.473 204.333 288 204.333C286.527 204.333 285.333 203.139 285.333 201.667C285.333 200.194 286.527 199 288 199C289.473 199 290.667 200.194 290.667 201.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   );
 }
 
-function IntegrationsIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+function AIScoringIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 239 16 16" fill="none" className={className}>
+      <path d="M290 252.334V253.667M290 240.333V241.666M293.334 252.334V253.667M293.334 240.333V241.666M283.333 247H284.666M283.333 250.334H284.666M283.333 243.667H284.666M295.334 247H296.667M295.334 250.334H296.667M295.334 243.667H296.667M286.667 252.334V253.667M286.667 240.333V241.666M286 241.666H294.001C294.737 241.666 295.334 242.263 295.334 243V251.001C295.334 251.737 294.737 252.334 294.001 252.334H286C285.263 252.334 284.666 251.737 284.666 251.001V243C284.666 242.263 285.263 241.666 286 241.666ZM288 244.333H292C292.369 244.333 292.667 244.632 292.667 245V249C292.667 249.369 292.369 249.667 292 249.667H288C287.632 249.667 287.333 249.369 287.333 249V245C287.333 244.632 287.632 244.333 288 244.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function SystemTimingIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 281 16 16" fill="none" className={className}>
+      <path d="M290 287V289.667L291.334 291M285.333 283L283.333 285M296.667 285L294.667 283M286.253 293.467L284.666 295M293.76 293.447L295.334 295M295.334 289.667C295.334 292.612 292.946 295 290 295C287.054 295 284.666 292.612 284.666 289.667C284.666 286.721 287.054 284.333 290 284.333C292.946 284.333 295.334 286.721 295.334 289.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function RetentionPolicyIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 323 16 16" fill="none" className={className}>
+      <path d="M288 331L289.333 332.333L292 329.667M295.333 331.667C295.333 335 292.999 336.667 290.226 337.634C290.081 337.683 289.923 337.681 289.78 337.627C287 336.667 284.667 335 284.667 331.667V327C284.667 326.823 284.737 326.654 284.862 326.529C284.987 326.404 285.157 326.333 285.334 326.333C286.667 326.333 288.333 325.533 289.493 324.52C289.634 324.399 289.814 324.333 290 324.333C290.186 324.333 290.365 324.399 290.506 324.52C291.673 325.54 293.333 326.333 294.666 326.333C294.843 326.333 295.012 326.404 295.137 326.529C295.262 326.654 295.333 326.823 295.333 327V331.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function IntegrationsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M6 3v6a3 3 0 0 0 3 3h6" />
@@ -604,10 +623,10 @@ function IntegrationsIcon({ size = 14, className = "" }: { size?: number; classN
 
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
-    { id: "users", label: "Staff & Roles", icon: Users },
+    { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
     { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
-    { id: "system", label: "System Timing", icon: AlarmClock },
-    { id: "retention", label: "Data Retention", icon: ShieldCheck },
+    { id: "system", label: "System Timing", icon: SystemTimingIcon },
+    { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
     { id: "audit", label: "Audit Logs", icon: List },
     { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
   ] as const;
