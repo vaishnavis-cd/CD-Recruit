@@ -4,7 +4,7 @@ import { MinioService } from "../integrations/minio/minio.service";
 import { ConfigService } from "@nestjs/config";
 import { SessionScoringService } from "../session/session-scoring.service";
 import { FaceVerifyOnnxService } from "../integrations/face-verify-onnx/face-verify-onnx.service";
-import { AadhaarOcrService } from "../integrations/ocr/aadhaar-ocr.service";
+import { IdOcrService } from "../integrations/ocr/id-ocr.service";
 import { NameMatchService } from "../common/services/name-match.service";
 import {
   SessionListItem,
@@ -32,7 +32,7 @@ export class AdminService {
     private readonly configService: ConfigService,
     private readonly scoringService: SessionScoringService,
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
-    private readonly aadhaarOcrService: AadhaarOcrService,
+    private readonly idOcrService: IdOcrService,
     private readonly nameMatchService: NameMatchService,
   ) {
     this.bucketBiometric = this.configService.get<string>(
@@ -1101,11 +1101,17 @@ export class AdminService {
           try {
             const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
             if (buf) {
-              const ocrRes = await this.aadhaarOcrService.parseAadhaar(buf);
+              const ocrRes = await this.idOcrService.extractIdName(buf);
               if (ocrRes) {
+                let numConfidence = 0.5;
+                if (ocrRes.confidence === "high") numConfidence = 0.95;
+                else if (ocrRes.confidence === "medium") numConfidence = 0.8;
+                else if (ocrRes.confidence === "low-medium") numConfidence = 0.65;
+                else if (ocrRes.confidence === "low") numConfidence = 0.4;
+
                 extractedName = ocrRes.name;
-                ocrConfidence = ocrRes.confidence;
-                ocrRaw = ocrRes.rawText;
+                ocrConfidence = numConfidence;
+                ocrRaw = JSON.stringify(ocrRes.rawLines || []);
 
                 await this.prisma.candidate.update({
                   where: { id: candidate.id },

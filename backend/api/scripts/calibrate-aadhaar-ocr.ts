@@ -1,10 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
-import { AadhaarOcrService } from "../src/integrations/ocr/aadhaar-ocr.service";
+import { IdOcrService } from "../src/integrations/ocr/id-ocr.service";
 import { NameMatchService } from "../src/common/services/name-match.service";
 
 /**
- * CLI Standalone Aadhaar OCR & Name Matching Calibration Script
+ * CLI Standalone Aadhaar / Multi-ID OCR & Name Matching Calibration Script
  *
  * Usage:
  *   npx tsx scripts/calibrate-aadhaar-ocr.ts --dir=./sample-aadhaars --csv=./ground_truth.csv
@@ -43,7 +43,7 @@ Ground Truth CSV Format:
   }
 
   console.log(`\n======================================================`);
-  console.log(`  AADHAAR OCR & NAME MATCHING CALIBRATION BENCHMARK`);
+  console.log(`  MULTI-ID OCR & NAME MATCHING CALIBRATION BENCHMARK`);
   console.log(`======================================================\n`);
   console.log(`Loading images from : ${imagesDir}`);
   console.log(`Loading ground truth: ${csvPath}\n`);
@@ -64,7 +64,8 @@ Ground Truth CSV Format:
     }
   }
 
-  const ocrService = new AadhaarOcrService();
+  const ocrService = new IdOcrService();
+  await ocrService.onModuleInit();
   const nameService = new NameMatchService();
 
   const results: any[] = [];
@@ -81,8 +82,14 @@ Ground Truth CSV Format:
     const registeredName = groundTruthMap.get(file) || "UNKNOWN_REGISTERED_NAME";
 
     const imageBuffer = fs.readFileSync(imagePath);
-    const ocrRes = await ocrService.parseAadhaar(imageBuffer);
+    const ocrRes = await ocrService.extractIdName(imageBuffer);
     const extractedName = ocrRes.name || "";
+
+    let numConfidence = 0.5;
+    if (ocrRes.confidence === "high") numConfidence = 0.95;
+    else if (ocrRes.confidence === "medium") numConfidence = 0.8;
+    else if (ocrRes.confidence === "low-medium") numConfidence = 0.65;
+    else if (ocrRes.confidence === "low") numConfidence = 0.4;
 
     const nameRes = nameService.compareNames(registeredName, extractedName);
 
@@ -91,9 +98,9 @@ Ground Truth CSV Format:
       extractedName,
       registeredName,
       similarityScore: nameRes.similarity,
-      ocrConfidence: ocrRes.confidence,
+      ocrConfidence: numConfidence,
       matched: nameRes.matched,
-      rawText: ocrRes.rawText.replace(/[\r\n]+/g, " | "),
+      rawText: JSON.stringify(ocrRes.rawLines || []),
     };
 
     results.push(record);

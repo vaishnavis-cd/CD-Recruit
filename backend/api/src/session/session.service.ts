@@ -18,7 +18,7 @@ import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
 import { MinioService } from "@app/integrations/minio/minio.service";
 import { FaceVerifyOnnxService } from "@app/integrations/face-verify-onnx/face-verify-onnx.service";
-import { AadhaarOcrService } from "../integrations/ocr/aadhaar-ocr.service";
+import { IdOcrService } from "../integrations/ocr/id-ocr.service";
 import { QueueProviderPort } from "@app/queue/queue-provider.port";
 import { SandboxOrchestratorService } from "../simulation/sandbox/sandbox-orchestrator.service";
 import {
@@ -347,7 +347,7 @@ export class SessionService implements SessionStatusPort {
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
-    private readonly aadhaarOcrService: AadhaarOcrService,
+    private readonly idOcrService: IdOcrService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -1318,22 +1318,28 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-    // Non-blocking background Aadhaar OCR processing (does not slow down candidate response)
+    // Non-blocking background ID OCR processing (does not slow down candidate response)
     setImmediate(async () => {
       try {
-        const ocrRes = await this.aadhaarOcrService.parseAadhaar(imageBuffer);
+        const ocrRes = await this.idOcrService.extractIdName(imageBuffer);
         if (ocrRes) {
+          let numConfidence = 0.5;
+          if (ocrRes.confidence === "high") numConfidence = 0.95;
+          else if (ocrRes.confidence === "medium") numConfidence = 0.8;
+          else if (ocrRes.confidence === "low-medium") numConfidence = 0.65;
+          else if (ocrRes.confidence === "low") numConfidence = 0.4;
+
           await this.prisma.candidate.update({
             where: { id: session.candidateId },
             data: {
               idProofExtractedName: ocrRes.name,
-              idProofOcrRaw: ocrRes.rawText,
-              ocrConfidence: ocrRes.confidence,
+              idProofOcrRaw: JSON.stringify(ocrRes.rawLines || []),
+              ocrConfidence: numConfidence,
             },
           });
         }
       } catch (ocrErr: any) {
-        this.logger.warn(`Async Aadhaar OCR background processing failed for session ${sessionId}: ${ocrErr.message}`);
+        this.logger.warn(`Async ID OCR background processing failed for session ${sessionId}: ${ocrErr.message}`);
       }
     });
 

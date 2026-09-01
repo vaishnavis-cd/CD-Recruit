@@ -40,6 +40,7 @@
     "bullmq": "^5.34.6",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "clipper-lib": "^6.4.2",
     "fuzzball": "^2.2.6",
     "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",
