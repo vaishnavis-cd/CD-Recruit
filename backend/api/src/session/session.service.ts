@@ -968,14 +968,9 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-    // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
+    // Calculate real module scores and composite score across all modules upon submission
     try {
-      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
-      if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
-        await this.scoringService.computeSessionScores(sessionId);
-      } else {
-        this.logger.log(`[closeSession] Skipping computeSessionScores for ${sessionId} — existing simulation score preserved (gradingSource: ${existingScore.gradingSource})`);
-      }
+      await this.scoringService.computeSessionScores(sessionId);
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores for session ${sessionId}: ${err.message}`);
     }
@@ -1154,12 +1149,7 @@ export class SessionService implements SessionStatusPort {
     });
 
     try {
-      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
-      if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
-        await this.scoringService.computeSessionScores(sessionId);
-      } else {
-        this.logger.log(`[autoSubmitSession] Skipping computeSessionScores for ${sessionId} — existing simulation score preserved (gradingSource: ${existingScore.gradingSource})`);
-      }
+      await this.scoringService.computeSessionScores(sessionId);
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores on autoSubmit for session ${sessionId}: ${err.message}`);
     }

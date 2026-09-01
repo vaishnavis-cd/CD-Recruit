@@ -444,7 +444,10 @@ function IndividualResultPage() {
                 {tab.label}
                 {mScore !== undefined && mScore !== null && (
                   <span className="ml-1.5 font-mono text-2xs font-bold text-ink-tertiary">
-                    ({Math.round(Number(mScore) * 100)}%)
+                    ({(() => {
+                      const n = Number(mScore);
+                      return isNaN(n) ? "0%" : `${n <= 1.0 && n > 0 ? Math.round(n * 100) : Math.round(n)}%`;
+                    })()})
                   </span>
                 )}
               </span>

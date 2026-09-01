@@ -607,8 +607,19 @@ export class AdminService {
       telemetryCount: Math.max(telemetryActions.length, snapshotObj.telemetryCount || 0),
     };
 
-    const existingScore = session.score;
+    let existingScore = session.score;
     let scoreObj: any = null;
+
+    // Auto-compute latest session score if missing or 0 when candidate has recorded responses
+    const hasAnsweredResponses = (session.moduleResponses || []).length > 0;
+    if (!existingScore || (hasAnsweredResponses && (existingScore.compositeScore === 0 || !existingScore.compositeScore))) {
+      try {
+        await this.scoringService.computeSessionScores(session.id);
+        existingScore = await this.prisma.score.findUnique({ where: { sessionId: session.id } });
+      } catch (err: any) {
+        this.logger.warn(`Failed to auto-compute scores in getSessionDetail: ${err.message}`);
+      }
+    }
 
     if (existingScore) {
       const sayDoConsistencyScore =
@@ -625,6 +636,9 @@ export class AdminService {
 
       scoreObj = {
         compositeScore: existingScore.compositeScore,
+        totalScore: existingScore.totalScore ?? existingScore.compositeScore,
+        coreScore: existingScore.coreScore,
+        bonusScore: existingScore.bonusScore,
         moduleScores: (existingScore.moduleScores as Record<string, number>) || {},
         sayDoConsistencyScore,
         aiConfidence: existingScore.aiConfidence ?? 0.85,

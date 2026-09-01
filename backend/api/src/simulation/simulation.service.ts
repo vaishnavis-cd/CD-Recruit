@@ -879,18 +879,33 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
       this.logger.warn(`[submitSimulation] ModuleResponse upsert failed: ${dbErr.message}`);
     }
 
-    // Update Score model in DB
+    // Update Score model in DB (merging with existing moduleScores to preserve other modules)
     try {
       const hasCompleteAiEval = evaluation.initialSay?.score !== null && evaluation.emailSay?.score !== null && evaluation.sayDoCorrelation?.score !== null;
-      const normalizedScore = hasCompleteAiEval ? evaluation.overallScore / 100 : null;
+      const normalizedScore = hasCompleteAiEval ? evaluation.overallScore / 100 : 0.0;
       const coreScoreVal = hasCompleteAiEval && evaluation.overallScore !== null ? Math.round(evaluation.overallScore) : 0;
-      const totalScoreVal = coreScoreVal;
-      const moduleScoresJson = hasCompleteAiEval && normalizedScore !== null ? { SIMULATION: normalizedScore } : {};
       const sayDoScoreVal = hasCompleteAiEval && evaluation.sayDoCorrelation?.score !== null ? evaluation.sayDoCorrelation.score / 100 : null;
+
+      // Load existing score to merge module scores
+      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
+      const prevModuleScores = (existingScore?.moduleScores as Record<string, number>) || {};
+      const mergedModuleScores: Record<string, number> = {
+        ...prevModuleScores,
+        SIMULATION: normalizedScore,
+      };
+
+      const modKeys = Object.keys(mergedModuleScores);
+      let calculatedComposite = coreScoreVal;
+      if (modKeys.length > 1) {
+        const sum = modKeys.reduce((acc, k) => acc + (mergedModuleScores[k] || 0), 0);
+        calculatedComposite = Math.round((sum / modKeys.length) * 100);
+      } else if (modKeys.length === 1 && mergedModuleScores[modKeys[0]] !== undefined) {
+        calculatedComposite = Math.round(mergedModuleScores[modKeys[0]] * 100);
+      }
 
       // Calculate dynamic AI confidence based on evidence volume
       const telemetryCount = telemetryEvents.length;
-      let dynamicAiConfidence: number | null = null;
+      let dynamicAiConfidence: number | null = existingScore?.aiConfidence ?? null;
       if (hasCompleteAiEval) {
         if (telemetryCount <= 2 && (!testResults || testResults.totalTests === 0)) {
           dynamicAiConfidence = 0.20; // minimal evidence / candidate didn't work in workspace
@@ -905,26 +920,26 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
         where: { sessionId },
         create: {
           sessionId,
-          compositeScore: coreScoreVal,
-          coreScore: coreScoreVal,
+          compositeScore: calculatedComposite,
+          coreScore: calculatedComposite,
           bonusScore: 0,
-          totalScore: totalScoreVal,
-          moduleScores: moduleScoresJson,
+          totalScore: calculatedComposite,
+          moduleScores: mergedModuleScores,
           sayDoConsistencyScore: sayDoScoreVal,
           aiConfidence: dynamicAiConfidence,
           humanReviewed: false,
           sayDoRationale: hasCompleteAiEval ? evaluation.sayDoCorrelation?.reasoning : "Evaluation Pending — AI evaluation provider unavailable.",
-          gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
+          gradingSource: "SIMULATION_OFFLINE_ORCHESTRATOR",
         },
         update: {
-          compositeScore: coreScoreVal,
-          coreScore: coreScoreVal,
-          totalScore: totalScoreVal,
-          moduleScores: moduleScoresJson,
+          compositeScore: calculatedComposite,
+          coreScore: calculatedComposite,
+          totalScore: calculatedComposite,
+          moduleScores: mergedModuleScores,
           sayDoConsistencyScore: sayDoScoreVal,
           aiConfidence: dynamicAiConfidence,
           sayDoRationale: hasCompleteAiEval ? evaluation.sayDoCorrelation?.reasoning : "Evaluation Pending — AI evaluation provider unavailable.",
-          gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
+          gradingSource: "SIMULATION_OFFLINE_ORCHESTRATOR",
         },
       });
     } catch (scoreErr: any) {
