@@ -16,7 +16,22 @@ import {
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
 
-const NAV = [
+function FigmaSettingsIcon({ size = 15, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z" />
+    </svg>
+  );
+}
+
+
+const ALL_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { to: "/drives", label: "Drives", icon: Share2 },
   { to: "/invites", label: "Invites", icon: Send },
@@ -24,9 +39,8 @@ const NAV = [
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/templates", label: "Role Templates", icon: Contact },
   { to: "/questions", label: "Question Bank", icon: FolderArchive },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
+  { to: "/settings", label: "Settings", icon: FigmaSettingsIcon },
 ] as const;
-
 
 export interface AppShellProps {
   title?: string;
@@ -87,17 +101,14 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
     window.location.replace("/login");
   };
 
-  const TOP_NAV = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-    { to: "/drives", label: "Drives", icon: Share2 },
-    { to: "/invites", label: "Invites", icon: Send },
-    { to: "/results", label: "Results", icon: BarChart2 },
-    { to: "/reports", label: "Reports", icon: FileText },
-    { to: "/templates", label: "Role Templates", icon: Contact },
-    { to: "/questions", label: "Question Bank", icon: FolderArchive },
-  ] as const;
+  // Find active nav index dynamically
+  const activeIdx = ALL_NAV.findIndex(
+    (item) => pathname === item.to || pathname.startsWith(item.to + "/")
+  );
 
-  const isSettingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
+  const topItems = activeIdx >= 0 ? ALL_NAV.slice(0, activeIdx) : ALL_NAV.slice(0, 7);
+  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : ALL_NAV[7];
+  const bottomItems = activeIdx >= 0 ? ALL_NAV.slice(activeIdx + 1) : [];
 
   return (
     <div
@@ -107,7 +118,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
       {/* Left Sidebar */}
       <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col justify-between sticky top-0 h-screen z-20 overflow-y-auto no-scrollbar py-2">
         <div className="flex flex-col gap-1.5">
-          {/* Top Floating White Card: Brand & Primary Navigation */}
+          {/* Top Floating White Card */}
           <div className="bg-white rounded-b-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 pt-5 pb-3 space-y-2">
             {/* Brand Header */}
             <div className="px-2">
@@ -117,29 +128,80 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
               </div>
             </div>
 
-            {/* Primary Nav Links */}
-            <nav className="space-y-0.5 pt-1">
-              {TOP_NAV.map((item) => {
-                const active = pathname === item.to || pathname.startsWith(item.to + "/");
+            {/* Primary Nav Links before active */}
+            {topItems.length > 0 && (
+              <nav className="space-y-0.5 pt-1">
+                {topItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                    >
+                      <div className="relative inline-flex items-center justify-center shrink-0">
+                        <Icon
+                          size={15}
+                          strokeWidth={1.75}
+                          className="text-[#708099]"
+                        />
+                        {item.to === "/results" && hasUnreadResults && (
+                          <span
+                            className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                            title="New candidate results pending review"
+                          />
+                        )}
+                      </div>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+          </div>
+
+          {/* Active Item Cutout Slot (showing gradient backdrop) */}
+          {activeItem && (
+            <div className="relative px-2 py-0.5">
+              <Link
+                to={activeItem.to}
+                className="relative flex items-center gap-2.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-[#2f68ff] transition-all"
+              >
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-5 bg-[#2f68ff] rounded-r" />
+                <div className="relative inline-flex items-center justify-center shrink-0 text-[#2f68ff]">
+                  <activeItem.icon
+                    size={15}
+                    strokeWidth={2.2}
+                    className="text-[#2f68ff]"
+                  />
+                  {activeItem.to === "/results" && hasUnreadResults && (
+                    <span
+                      className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                      title="New candidate results pending review"
+                    />
+                  )}
+                </div>
+                <span>{activeItem.label}</span>
+              </Link>
+            </div>
+          )}
+
+          {/* Bottom Items White Card (if any) */}
+          {bottomItems.length > 0 && (
+            <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 py-3 space-y-0.5">
+              {bottomItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
-                    className={`relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      active
-                        ? "text-[#2f68ff] font-semibold bg-blue-50/70"
-                        : "text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc]"
-                    }`}
+                    className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
                   >
-                    {active && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-[#2f68ff] rounded-r" />
-                    )}
                     <div className="relative inline-flex items-center justify-center shrink-0">
                       <Icon
                         size={15}
-                        strokeWidth={active ? 2.2 : 1.75}
-                        className={active ? "text-[#2f68ff]" : "text-[#708099]"}
+                        strokeWidth={1.75}
+                        className="text-[#708099]"
                       />
                       {item.to === "/results" && hasUnreadResults && (
                         <span
@@ -152,30 +214,8 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
                   </Link>
                 );
               })}
-            </nav>
-          </div>
-
-          {/* Floating Settings Item (in ambient gap) */}
-          <div className="relative px-2 py-0.5">
-            <Link
-              to="/settings"
-              className={`relative flex items-center gap-2.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                isSettingsActive
-                  ? "text-[#2f68ff] font-semibold"
-                  : "text-[#64748b] hover:text-[#0d1424]"
-              }`}
-            >
-              {isSettingsActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-5 bg-[#2f68ff] rounded-r" />
-              )}
-              <SettingsIcon
-                size={15}
-                strokeWidth={isSettingsActive ? 2.2 : 1.75}
-                className={isSettingsActive ? "text-[#2f68ff]" : "text-[#708099]"}
-              />
-              <span>Settings</span>
-            </Link>
-          </div>
+            </div>
+          )}
 
           {/* Middle Floating White Card: HELP & Promo */}
           <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3 space-y-2">
@@ -228,6 +268,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
           </button>
         </div>
       </aside>
+
 
 
 

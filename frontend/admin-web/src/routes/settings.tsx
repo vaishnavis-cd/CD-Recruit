@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
-
   Users,
   Sliders,
   Settings2,
@@ -26,7 +25,10 @@ import {
   Contact,
   AlarmClock,
   Plug,
+  Cpu,
+  GitFork,
 } from "lucide-react";
+
 
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -571,11 +573,11 @@ function SettingsPage() {
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: Contact },
     { id: "users", label: "Staff & Roles", icon: Users },
-    { id: "scoring", label: "AI & Scoring", icon: Settings2 },
+    { id: "scoring", label: "AI & Scoring", icon: Cpu },
     { id: "system", label: "System Timing", icon: AlarmClock },
     { id: "retention", label: "Data Retention", icon: ShieldCheck },
     { id: "audit", label: "Audit Logs", icon: List },
-    { id: "integrations", label: "Integrations", icon: Plug },
+    { id: "integrations", label: "Integrations", icon: GitFork },
   ] as const;
 
 
