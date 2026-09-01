@@ -631,19 +631,17 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
     { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
   ] as const;
 
-
-
   return (
     <AppShell hideHeader={true}>
-      <div className="max-w-[1300px] mx-auto w-full">
+      <div className="max-w-[1320px] mx-auto w-full">
         {/* Main Header */}
-        <h1 className="text-[32px] font-bold text-[#0d1424] tracking-tight mb-8">
+        <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-8">
           Settings &amp; Administration
         </h1>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Navigation Tabs Side */}
-          <div className="w-full lg:w-[200px] shrink-0 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
+          <div className="w-full lg:w-[200px] shrink-0 flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -651,14 +649,13 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2.5 px-4 py-2 rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-xs ${
+                  className={`flex items-center gap-2.5 px-4 h-[35px] rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-[13px] ${
                     active
-                      ? "border border-[#2f68ff] bg-white text-[#2f68ff] font-medium shadow-xs"
-                      : "text-[#64748b] hover:text-[#0d1424] hover:bg-white/40 font-normal"
+                      ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                      : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
                   }`}
-
                 >
-                  <Icon size={14} className={active ? "text-[#2f68ff]" : "text-[#708099]"} />
+                  <Icon size={15} className={active ? "text-[#2E5DE0]" : "text-[#64748B]"} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -666,58 +663,58 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
           </div>
 
           {/* Tab Body Card */}
-          <div className="flex-1 min-w-0 w-full bg-white rounded-[24px] p-8 md:p-10 border border-white/60 shadow-[0_10px_35px_rgba(0,0,0,0.03)] min-h-[480px]">
+          <div className="flex-1 min-w-0 w-full bg-white rounded-[16px] p-8 md:p-10 border border-[#E2E8F0] shadow-xs min-h-[480px]">
             {/* Tab 1: Admin Profile */}
             {activeTab === "profile" && (
-              <div className="max-w-[620px] space-y-6">
+              <div className="max-w-[956px] space-y-6">
                 <div>
-                  <h2 className="text-sm md:text-base font-bold text-[#0d1424]">Admin Account Details</h2>
-                  <p className="text-xs text-[#94a3b8] mt-1">
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">Admin Account Details</h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
                     Manage your administrator display name and email address.
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 pt-2">
                   <div>
-                    <label className="block text-xs font-semibold text-[#475569] mb-2">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
                       Display Name
                     </label>
                     <input
                       value={adminName}
                       onChange={(e) => setAdminName(e.target.value)}
-                      className="w-full h-11 px-4 border border-[#e2e8f0] rounded-xl text-xs text-[#0d1424] bg-white focus:border-[#2f68ff] focus:ring-1 focus:ring-[#2f68ff]/20 outline-none transition-all"
+                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 outline-none transition-all"
                       placeholder="Lead Proctor Admin"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#475569] mb-2">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
                       Admin Email
                     </label>
                     <input
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
-                      className="w-full h-11 px-4 border border-[#e2e8f0] rounded-xl text-xs text-[#0d1424] bg-white focus:border-[#2f68ff] focus:ring-1 focus:ring-[#2f68ff]/20 outline-none transition-all"
+                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 outline-none transition-all"
                       placeholder="admin@proctora.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#475569] mb-2">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
                       System Role
                     </label>
                     <input
                       disabled
                       value="ADMIN (Full Privileges & Governance)"
-                      className="w-full h-11 px-4 border border-[#e8ecf4] rounded-xl text-xs text-[#64748b] bg-[#f8fafc] cursor-not-allowed select-none"
+                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#64748B] bg-[#F8FAFC] cursor-not-allowed select-none"
                     />
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-3">
                   <button
                     onClick={() => toast.success("Admin Profile details updated successfully")}
-                    className="px-6 py-2.5 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] rounded-full shadow-sm transition-all cursor-pointer"
+                    className="px-6 h-[36px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full shadow-xs transition-all cursor-pointer"
                   >
                     Save Profile
                   </button>
@@ -725,20 +722,19 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
               </div>
             )}
 
-
             {/* Tab 2: Staff & Roles */}
             {activeTab === "users" && (
               <div className="space-y-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-sm font-bold text-[#0d1424]">Manage Staff &amp; Team Permissions</h2>
-                    <p className="text-xs text-[#8c9ba5] mt-1">
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Manage Staff &amp; Team Permissions</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
                       Add team members, assign operational roles, and manage system privileges.
                     </p>
                   </div>
                   <button
                     onClick={() => setShowAddStaffModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] rounded-full transition-all cursor-pointer shadow-sm shrink-0"
+                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
                   >
                     <Plus size={14} strokeWidth={2.5} />
                     <span>Add Staff Member</span>
@@ -747,27 +743,27 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
                 {/* Roles Breakdown Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                  <div className="p-3.5 bg-[#fff5f5] rounded-xl border-0">
-                    <div className="text-[10px] font-bold text-[#e03137] tracking-wider uppercase">ADMIN</div>
-                    <p className="text-[11px] text-[#475569] leading-snug mt-1">
+                  <div className="p-4 bg-[#FFF4F4] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#DC2626] tracking-wider uppercase">ADMIN</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
                       Full access to settings, system timing, staff roles &amp; audit logs.
                     </p>
                   </div>
-                  <div className="p-3.5 bg-[#f0f6ff] rounded-xl border-0">
-                    <div className="text-[10px] font-bold text-[#2f68ff] tracking-wider uppercase">RECRUITER</div>
-                    <p className="text-[11px] text-[#475569] leading-snug mt-1">
+                  <div className="p-4 bg-[#F3F8FF] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#2563EB] tracking-wider uppercase">RECRUITER</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
                       Drive creation, candidate invitations, and hiring decision log.
                     </p>
                   </div>
-                  <div className="p-3.5 bg-[#fffbf0] rounded-xl border-0">
-                    <div className="text-[10px] font-bold text-[#d97706] tracking-wider uppercase">PROCTOR</div>
-                    <p className="text-[11px] text-[#475569] leading-snug mt-1">
+                  <div className="p-4 bg-[#FFFCF0] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#D97706] tracking-wider uppercase">PROCTOR</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
                       Real-time session monitoring, integrity flag review &amp; video evidence.
                     </p>
                   </div>
-                  <div className="p-3.5 bg-[#f0fdf4] rounded-xl border-0">
-                    <div className="text-[10px] font-bold text-[#16a34a] tracking-wider uppercase">EVALUATOR</div>
-                    <p className="text-[11px] text-[#475569] leading-snug mt-1">
+                  <div className="p-4 bg-[#F3FFF9] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#16A34A] tracking-wider uppercase">EVALUATOR</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
                       Technical evaluation of code, SQL queries, and AI prompt traces.
                     </p>
                   </div>
@@ -778,32 +774,32 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     Loading staff roster…
                   </p>
                 ) : (
-                  <div className="border border-[#e2e8f0] rounded-xl divide-y divide-[#e2e8f0] overflow-hidden bg-white shadow-xs">
+                  <div className="border border-[#E2E8F0] rounded-[12px] divide-y divide-[#E2E8F0] overflow-hidden bg-white shadow-xs">
                     {staff.map((s, idx) => {
                       const isDemoAdmin = s.name?.toLowerCase().includes("admin") || s.role === "ADMIN";
-                      const avatarBg = isDemoAdmin ? "bg-[#fee2e2] text-[#ef4444]" : "bg-[#dbeafe] text-[#2563eb]";
+                      const avatarBg = isDemoAdmin ? "bg-[#FEF2F2] text-[#EF4444]" : "bg-[#EFF6FF] text-[#2563EB]";
                       const badgeBg = isDemoAdmin
-                        ? "text-[#ef4444] bg-[#fef2f2]"
+                        ? "text-[#EF4444] bg-[#FEF2F2]"
                         : s.role === "PROCTOR"
-                          ? "text-[#d97706] bg-[#fffbf0]"
+                          ? "text-[#D97706] bg-[#FFFCF0]"
                           : s.role === "EVALUATOR"
-                            ? "text-[#16a34a] bg-[#f0fdf4]"
-                            : "text-[#2563eb] bg-[#eff6ff]";
+                            ? "text-[#16A34A] bg-[#F3FFF9]"
+                            : "text-[#2563EB] bg-[#EFF6FF]";
 
                       return (
-                        <div key={s.id || idx} className="px-4 py-3.5 flex items-center justify-between gap-4 hover:bg-[#fbfcfd] transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full ${avatarBg} font-bold text-xs flex items-center justify-center shrink-0`}>
+                        <div key={s.id || idx} className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-[#FBFCFD] transition-colors">
+                          <div className="flex items-center gap-3.5">
+                            <div className={`w-10 h-10 rounded-full ${avatarBg} font-bold text-xs flex items-center justify-center shrink-0`}>
                               {s.name ? s.name.charAt(0).toUpperCase() : "S"}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-[#0d1424]">{s.name}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${badgeBg}`}>
+                                <span className="text-[13px] font-bold text-[#0F172A]">{s.name}</span>
+                                <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${badgeBg}`}>
                                   {s.role}
                                 </span>
                               </div>
-                              <div className="text-[11px] text-[#64748b] mt-0.5">{s.email}</div>
+                              <div className="text-[12px] text-[#64748B] mt-0.5">{s.email}</div>
                             </div>
                           </div>
 
@@ -811,7 +807,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                             <select
                               value={s.role}
                               onChange={(e) => handleUpdateRole(s.id, e.target.value)}
-                              className="px-3 py-1.5 text-xs text-[#334155] border border-[#e2e8f0] rounded-lg bg-white outline-none cursor-pointer hover:border-[#cbd5e1] focus:border-[#2f68ff]"
+                              className="px-3 h-[31px] text-[12px] text-[#334155] border border-[#E2E8F0] rounded-[7.5px] bg-white outline-none cursor-pointer hover:border-[#CBD5E1] focus:border-[#2563EB]"
                             >
                               <option value="ADMIN">Admin</option>
                               <option value="RECRUITER">Recruiter</option>
@@ -822,7 +818,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                             <button
                               onClick={() => handleDeleteStaff(s.id, s.name)}
                               title="Remove staff member"
-                              className="p-1.5 text-[#94a3b8] hover:text-[#ef4444] hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-[#94A3B8] hover:text-[#EF4444] hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             >
                               <Trash2 size={15} />
                             </button>
@@ -842,14 +838,14 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                 {showAddStaffModal && (
                   <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white border border-line rounded-2xl max-w-[420px] w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-                      <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+                      <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
                         <div className="flex items-center gap-2">
-                          <UserPlus size={16} className="text-[#2f68ff]" />
-                          <h3 className="text-sm font-bold text-[#0d1424]">Add New Staff Member</h3>
+                          <UserPlus size={16} className="text-[#2563EB]" />
+                          <h3 className="text-sm font-bold text-[#0F172A]">Add New Staff Member</h3>
                         </div>
                         <button
                           onClick={() => setShowAddStaffModal(false)}
-                          className="text-[#94a3b8] hover:text-ink cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]"
+                          className="text-[#94A3B8] hover:text-ink cursor-pointer p-1 rounded-lg hover:bg-[#F1F5F9]"
                         >
                           <X size={16} />
                         </button>
@@ -857,35 +853,35 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
                       <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
                         <div>
-                          <label className="block font-semibold text-[#3d4b60] mb-1">Full Name</label>
+                          <label className="block font-semibold text-[#3D4B60] mb-1">Full Name</label>
                           <input
                             type="text"
                             required
                             value={newStaffName}
                             onChange={(e) => setNewStaffName(e.target.value)}
                             placeholder="e.g. Rachel Brooks"
-                            className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
+                            className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] text-xs outline-none focus:border-[#2563EB]"
                           />
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-[#3d4b60] mb-1">Email Address</label>
+                          <label className="block font-semibold text-[#3D4B60] mb-1">Email Address</label>
                           <input
                             type="email"
                             required
                             value={newStaffEmail}
                             onChange={(e) => setNewStaffEmail(e.target.value)}
                             placeholder="e.g. recruiter@example.com"
-                            className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
+                            className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] text-xs outline-none focus:border-[#2563EB]"
                           />
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-[#3d4b60] mb-1">Assigned Role</label>
+                          <label className="block font-semibold text-[#3D4B60] mb-1">Assigned Role</label>
                           <select
                             value={newStaffRole}
                             onChange={(e) => setNewStaffRole(e.target.value)}
-                            className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
+                            className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] text-xs outline-none focus:border-[#2563EB]"
                           >
                             <option value="RECRUITER">Recruiter (Drives, Invites &amp; Hiring Decisions)</option>
                             <option value="ADMIN">Admin (Full System Governance &amp; Configuration)</option>
@@ -894,18 +890,18 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           </select>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f5f9]">
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#F1F5F9]">
                           <button
                             type="button"
                             onClick={() => setShowAddStaffModal(false)}
-                            className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
+                            className="px-4 py-2 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] rounded-full hover:bg-[#F1F5F9] cursor-pointer"
                           >
                             Cancel
                           </button>
                           <button
                             type="submit"
                             disabled={creatingStaff}
-                            className="px-5 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] disabled:opacity-50 rounded-full transition-all cursor-pointer shadow-xs"
+                            className="px-5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 rounded-full transition-all cursor-pointer shadow-xs"
                           >
                             {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
                           </button>
@@ -919,25 +915,25 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
             {/* Tab 3: Scoring & AI Intensity */}
             {activeTab === "scoring" && (
-              <div className="max-w-[480px] space-y-6">
+              <div className="max-w-[499px] space-y-6">
                 <div>
-                  <h2 className="text-sm font-bold text-[#0d1424]">
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
                     AI Proctoring Intensity &amp; Scoring Controls
                   </h2>
-                  <p className="text-xs text-[#8c9ba5] mt-1">
+                  <p className="text-[12px] text-[#64748B] mt-1">
                     Configure real-time monitoring strictness and score threshold levels.
                   </p>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-5 pt-2">
                   <div>
-                    <label className="block text-xs font-semibold text-[#3d4b60] mb-1.5">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
                       AI Proctoring Intensity Level
                     </label>
                     <select
                       value={aiIntensity}
                       onChange={(e) => setAiIntensity(e.target.value)}
-                      className="w-full h-11 px-4 border border-[#e2e8f0] rounded-lg text-xs text-[#0d1424] bg-white focus:border-[#2f68ff] outline-none shadow-xs"
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
                     >
                       <option value="HIGH">High (Strict — Flag multi-face &amp; tab switches quickly)</option>
                       <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
@@ -947,7 +943,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#3d4b60] mb-2">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
                       AI Confidence Audit Level
                     </label>
                     <div className="flex items-center gap-4">
@@ -960,17 +956,17 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                         onChange={(e) => setAiThreshold(parseFloat(e.target.value))}
                         className="flex-1 figma-slider"
                         style={{
-                          background: `linear-gradient(to right, #2f68ff ${aiThreshold * 100}%, #e2e8f0 ${aiThreshold * 100}%)`,
+                          background: `linear-gradient(to right, #2563EB ${aiThreshold * 100}%, #E2E8F0 ${aiThreshold * 100}%)`,
                         }}
                       />
-                      <span className="font-bold text-xs text-[#0d1424] w-12 text-right">
+                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
                         {Math.round(aiThreshold * 100)}%
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#3d4b60] mb-2">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
                       Module Passing Score Threshold
                     </label>
                     <div className="flex items-center gap-4">
@@ -983,23 +979,23 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                         onChange={(e) => setPassThreshold(parseFloat(e.target.value))}
                         className="flex-1 figma-slider"
                         style={{
-                          background: `linear-gradient(to right, #2f68ff ${passThreshold * 100}%, #e2e8f0 ${passThreshold * 100}%)`,
+                          background: `linear-gradient(to right, #2563EB ${passThreshold * 100}%, #E2E8F0 ${passThreshold * 100}%)`,
                         }}
                       />
-                      <span className="font-bold text-xs text-[#0d1424] w-12 text-right">
+                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
                         {Math.round(passThreshold * 100)}%
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-3">
                   <button
                     onClick={handleSaveScoring}
                     disabled={savingScoring}
-                    className="px-6 py-2.5 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] disabled:bg-blue-300 rounded-full shadow-sm transition-all cursor-pointer"
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
                   >
-                    {savingScoring ? "Saving Scoring & AI Config…" : "Save Scoring & AI Config"}
+                    {savingScoring ? "Saving AI Configuration…" : "Save AI Configuration"}
                   </button>
                 </div>
               </div>
@@ -1007,70 +1003,70 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
             {/* Tab 4: System Timing & Session Parameters */}
             {activeTab === "system" && (
-              <div className="max-w-[480px] space-y-6">
+              <div className="max-w-[499px] space-y-6">
                 <div>
-                  <h2 className="text-sm font-bold text-[#0d1424]">
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
                     System &amp; Session Integrity Parameters
                   </h2>
-                  <p className="text-xs text-[#8c9ba5] mt-1">
+                  <p className="text-[12px] text-[#64748B] mt-1">
                     Adjust session disconnect tolerances and heartbeat timeout thresholds.
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 pt-2">
                   <div>
-                    <label className="block text-xs font-semibold text-[#3d4b60] mb-1.5">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
                       Heartbeat Stale Threshold (Seconds)
                     </label>
                     <input
                       type="number"
                       value={staleHeartbeat}
                       onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
-                      className="w-full h-11 px-4 border border-[#e2e8f0] rounded-lg text-sm text-[#0d1424] bg-white focus:border-[#2f68ff] outline-none shadow-xs"
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
                     />
-                    <p className="text-[11px] text-[#8c9ba5] mt-1.5 leading-normal">
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
                       Time without heartbeat before session is marked connection degraded.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#3d4b60] mb-1.5">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
                       Reconnection Grace Window (Seconds)
                     </label>
                     <input
                       type="number"
                       value={graceWindow}
                       onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
-                      className="w-full h-11 px-4 border border-[#e2e8f0] rounded-lg text-sm text-[#0d1424] bg-white focus:border-[#2f68ff] outline-none shadow-xs"
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
                     />
-                    <p className="text-[11px] text-[#8c9ba5] mt-1.5 leading-normal">
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
                       Allowed window for candidate to re-establish connection without termination.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#3d4b60] mb-1.5">
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
                       Maximum Disconnect Count Allowance
                     </label>
                     <input
                       type="number"
                       value={maxDisconnects}
                       onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
-                      className="w-full h-11 px-4 border border-[#e2e8f0] rounded-lg text-sm text-[#0d1424] bg-white focus:border-[#2f68ff] outline-none shadow-xs"
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
                     />
-                    <p className="text-[11px] text-[#8c9ba5] mt-1.5 leading-normal">
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
                       Max disconnects before requiring proctor manual review.
                     </p>
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-3">
                   <button
                     onClick={handleSaveSystem}
                     disabled={savingSystem}
-                    className="px-6 py-2.5 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] disabled:bg-blue-300 rounded-full shadow-sm transition-all cursor-pointer"
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
                   >
-                    {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
+                    {savingSystem ? "Saving Timing Config…" : "Save Timing Config"}
                   </button>
                 </div>
               </div>
@@ -1078,18 +1074,18 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
             {/* Tab 5: Retention */}
             {activeTab === "retention" && (
-              <div className="max-w-[480px] space-y-6">
+              <div className="max-w-[499px] space-y-6">
                 <div>
-                  <h2 className="text-sm font-bold text-[#0d1424]">
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
                     Evidence &amp; Proctoring Retention Schedules
                   </h2>
-                  <p className="text-xs text-[#8c9ba5] mt-1">
+                  <p className="text-[12px] text-[#64748B] mt-1">
                     Define timelines for purging biometric clips and screenshots.
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-[#3d4b60]">
+                <div className="space-y-2 pt-2">
+                  <label className="block text-[12px] font-semibold text-[#475569]">
                     Purge files after
                   </label>
                   <div className="flex items-center gap-3">
@@ -1099,9 +1095,9 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       max="365"
                       value={retentionDays}
                       onChange={(e) => setRetentionDays(parseInt(e.target.value) || 1)}
-                      className="w-20 h-11 px-3 border border-[#e2e8f0] rounded-lg text-sm font-bold text-center text-[#0d1424] bg-white focus:border-[#2f68ff] outline-none shadow-xs"
+                      className="w-[99px] h-[39px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] font-bold text-center text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
                     />
-                    <span className="text-xs font-medium text-[#64748b]">days</span>
+                    <span className="text-[13px] font-medium text-[#64748B]">days</span>
                   </div>
                 </div>
 
@@ -1109,35 +1105,34 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                   <button
                     onClick={handleSaveRetention}
                     disabled={savingRetention}
-                    className="px-6 py-2.5 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] disabled:bg-blue-300 rounded-full shadow-sm transition-all cursor-pointer"
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
                   >
-                    {savingRetention ? "Saving schedule…" : "Save Configurations"}
+                    {savingRetention ? "Updating Policy…" : "Update Policy"}
                   </button>
                 </div>
               </div>
             )}
-
 
             {/* Tab 6: Audit Logs */}
             {activeTab === "audit" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-sm font-bold text-[#0d1424]">System Audit Logs</h2>
-                    <p className="text-xs text-[#8c9ba5] mt-1">
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">System Audit Logs</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
                       Chronological record of all administrative operations.
                     </p>
                   </div>
-                  <div className="relative w-64">
+                  <div className="relative w-[259px]">
                     <Search
                       size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94a3b8]"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
                     />
                     <input
                       value={logsQuery}
                       onChange={(e) => setLogsQuery(e.target.value)}
                       placeholder="Search logs..."
-                      className="w-full h-9 pl-9 pr-3 text-xs border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] outline-none focus:border-[#2f68ff] shadow-xs"
+                      className="w-full h-[31px] pl-9 pr-3 text-[12px] border border-[#E2E8F0] rounded-[7.5px] bg-white text-[#0F172A] outline-none focus:border-[#2563EB] shadow-xs"
                     />
                   </div>
                 </div>
@@ -1147,8 +1142,8 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     Querying logs…
                   </p>
                 ) : (
-                  <div className="border border-[#e2e8f0] rounded-xl overflow-hidden bg-white shadow-xs">
-                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-3 px-4 py-2.5 border-b border-[#e2e8f0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748b]">
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-3 px-4 py-2.5 border-b border-[#E2E8F0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <div>USER</div>
                       <div>ACTION</div>
                       <div>ENTITY</div>
@@ -1156,34 +1151,34 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       <div>TIMESTAMP</div>
                     </div>
 
-                    <div className="divide-y divide-[#f1f5f9] max-h-[460px] overflow-y-auto">
+                    <div className="divide-y divide-[#F1F5F9] max-h-[460px] overflow-y-auto">
                       {auditLogs.map((log) => (
                         <div
                           key={log.id}
-                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-3 px-4 py-3.5 items-center hover:bg-[#fbfcfd] transition-colors"
+                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-3 px-4 py-3.5 items-center hover:bg-[#FBFCFD] transition-colors"
                         >
-                          <div className="text-xs font-medium text-[#0d1424] truncate">
+                          <div className="text-[12px] font-medium text-[#0F172A] truncate">
                             {log.staff?.name || "Demo Admin"}
                           </div>
-                          <div className="text-xs font-bold text-[#2f68ff] font-mono truncate">
+                          <div className="text-[12px] font-bold text-[#2563EB] font-mono truncate">
                             {log.action}
                           </div>
-                          <div className="text-xs text-[#64748b] truncate">
+                          <div className="text-[12px] text-[#64748B] truncate">
                             {log.entityType}
                           </div>
                           <div
-                            className="text-xs font-mono text-[#64748b] truncate"
+                            className="text-[12px] font-mono text-[#64748B] truncate"
                             title={typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "")}
                           >
                             {typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "—")}
                           </div>
-                          <div className="text-xs font-mono text-[#64748b] whitespace-nowrap">
+                          <div className="text-[12px] font-mono text-[#64748B] whitespace-nowrap">
                             {log.occurredAt ? log.occurredAt.slice(0, 16).replace("T", " ") : "—"}
                           </div>
                         </div>
                       ))}
                       {auditLogs.length === 0 && (
-                        <div className="p-8 text-center text-xs text-[#8c9ba5]">
+                        <div className="p-8 text-center text-xs text-[#8C9BA5]">
                           No audit logs found matching search query.
                         </div>
                       )}
@@ -1198,14 +1193,14 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
               <div className="space-y-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-sm font-bold text-[#0d1424]">Partner API Integrations</h2>
-                    <p className="text-xs text-[#8c9ba5] mt-1">
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Partner API Integrations</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
                       Manage external ATS partner API credentials, rate limits, and callback configurations.
                     </p>
                   </div>
                   <button
                     onClick={() => setShowCreatePartnerModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] rounded-full transition-all cursor-pointer shadow-sm shrink-0"
+                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
                   >
                     <Plus size={14} strokeWidth={2.5} />
                     <span>Register Partner</span>
@@ -1217,14 +1212,14 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     Loading partner integration records…
                   </p>
                 ) : partners.length === 0 ? (
-                  <div className="p-12 text-center border border-dashed border-[#e2e8f0] rounded-xl space-y-2 bg-white">
-                    <Key className="w-8 h-8 text-[#94a3b8] mx-auto" />
-                    <p className="text-sm font-bold text-[#0d1424]">No Partner API Keys Configured</p>
-                    <p className="text-xs text-[#8c9ba5]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                  <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
+                    <Key className="w-8 h-8 text-[#94A3B8] mx-auto" />
+                    <p className="text-sm font-bold text-[#0F172A]">No Partner API Keys Configured</p>
+                    <p className="text-xs text-[#8C9BA5]">Register an external ATS partner to issue X-API-Key credentials.</p>
                   </div>
                 ) : (
-                  <div className="border border-[#e2e8f0] rounded-xl overflow-hidden bg-white shadow-xs">
-                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-3 px-4 py-2.5 border-b border-[#e2e8f0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748b]">
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-3 px-4 py-2.5 border-b border-[#E2E8F0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <div>PARTNER NAME</div>
                       <div>RATE LIMIT</div>
                       <div>API HITS</div>
@@ -1234,38 +1229,38 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       <div className="text-center tracking-widest">ACTIONS</div>
                     </div>
 
-                    <div className="divide-y divide-[#f1f5f9]">
+                    <div className="divide-y divide-[#F1F5F9]">
                       {partners.map((p) => (
                         <div
                           key={p.id}
-                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-3 px-4 py-3.5 items-center hover:bg-[#fbfcfd] transition-colors"
+                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-3 px-4 py-3.5 items-center hover:bg-[#FBFCFD] transition-colors"
                         >
                           <div>
-                            <p className="text-xs font-bold text-[#0d1424]">{p.name}</p>
-                            <p className="text-[10px] font-mono text-[#94a3b8] truncate">{p.id}</p>
+                            <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
+                            <p className="text-[10px] font-mono text-[#94A3B8] truncate">{p.id}</p>
                           </div>
-                          <div className="text-xs text-[#64748b]">{p.rateLimit} req/min</div>
-                          <div className="text-xs font-bold text-[#2f68ff]">
+                          <div className="text-[12px] text-[#64748B]">{p.rateLimit} req/min</div>
+                          <div className="text-[12px] font-bold text-[#2563EB]">
                             {(p as any).apiHitCount ?? 0} hits
                           </div>
                           <div
-                            className="text-xs text-[#8c9ba5] italic truncate"
+                            className="text-[12px] text-[#8C9BA5] italic truncate"
                             title={p.callbackUrl || "None"}
                           >
                             {p.callbackUrl || "None"}
                           </div>
                           <div>
                             <span
-                              className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
                                 p.isRevoked
-                                  ? "bg-[#fef2f2] text-[#ef4444]"
-                                  : "bg-[#f0fdf4] text-[#16a34a]"
+                                  ? "bg-[#FEF2F2] text-[#EF4444]"
+                                  : "bg-[#ECFDF5] text-[#059669]"
                               }`}
                             >
-                              {p.isRevoked ? "REVOKED" : "ACTIVE"}
+                              {p.isRevoked ? "REVOKED" : "CONNECTED"}
                             </span>
                           </div>
-                          <div className="text-xs text-[#64748b]">
+                          <div className="text-[12px] text-[#64748B]">
                             {p.createdAt
                               ? new Date(p.createdAt).toLocaleDateString("en-US", {
                                   month: "short",
@@ -1274,28 +1269,28 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                                 })
                               : "—"}
                           </div>
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setConfirmRotatePartner(p)}
-                              className="p-1.5 text-[#94a3b8] hover:text-[#2f68ff] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              className="w-[25px] h-[25px] rounded-[5.5px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer"
                               title="Rotate API Key"
                             >
-                              <RefreshCw size={13} />
+                              <RefreshCw size={12} />
                             </button>
                             <button
                               onClick={() => setEditingPartner({ ...p })}
-                              className="p-1.5 text-[#94a3b8] hover:text-[#2f68ff] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              className="w-[25px] h-[25px] rounded-[5.5px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer"
                               title="Edit Partner Config"
                             >
-                              <Edit3 size={13} />
+                              <Edit3 size={12} />
                             </button>
                             {!p.isRevoked && (
                               <button
                                 onClick={() => setConfirmRevokePartner(p)}
-                                className="p-1.5 text-[#94a3b8] hover:text-[#ef4444] hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                className="w-[25px] h-[25px] rounded-[5.5px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer"
                                 title="Revoke Partner Key"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               </button>
                             )}
                           </div>

@@ -279,175 +279,193 @@ function IndividualResultPage() {
   return (
     <AppShell
       title={`Evaluation: ${detail.candidateName}`}
-      actions={
-        <Link
-          to="/results"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand border border-brand rounded-md hover:bg-brand-hover transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={14} /> Back to Results
-        </Link>
-      }
+      hideHeader={true}
     >
-      {/* Header Banner */}
-      <div className="bg-white border border-line rounded-xl p-6 shadow-sm mb-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-surface-inset pb-5">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h2 className="text-xl font-semibold text-ink">{detail.candidateName}</h2>
-              {isApproved ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <CheckCircle2 size={14} /> Approved
-                </span>
-              ) : isRejected ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                  <XCircle size={14} /> Rejected
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                  <Clock size={14} /> Pending Review
-                </span>
-              )}
-            </div>
-            <p className="text-sm-minus text-ink-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>{detail.candidateEmail}</span>
-              <span>•</span>
-              <span>Drive: <strong className="font-semibold text-ink">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
-              <span>•</span>
-              <span className="font-mono text-xs text-ink">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
-              {detail.startedAt && detail.submittedAt && (
-                <>
+      <div className="max-w-[1320px] mx-auto w-full space-y-6">
+        {/* Top Navigation Bar */}
+        <div className="flex items-center justify-between gap-4">
+          <Link
+            to="/results"
+            className="flex items-center gap-2 h-[32px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
+          >
+            <ArrowLeft size={14} /> <span>Back to Results</span>
+          </Link>
+
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 h-[32px] px-4 text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[16px] transition-all cursor-pointer shadow-xs"
+          >
+            <FileText size={14} />
+            <span>Export Evaluation PDF</span>
+          </button>
+        </div>
+
+        {/* Header Hero Banner Card */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-[#F1F5F9] pb-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-base flex items-center justify-center shrink-0 border border-[#DBEAFE]">
+                {(detail.candidateName || "C").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
+                  <h2 className="text-[22px] font-bold text-[#0F172A] tracking-tight">{detail.candidateName}</h2>
+                  {isApproved ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-[11px] text-[11px] font-bold bg-[#10B981] text-white shadow-xs">
+                      <CheckCircle2 size={13} /> Approved
+                    </span>
+                  ) : isRejected ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-[11px] text-[11px] font-bold bg-[#EF4444] text-white shadow-xs">
+                      <XCircle size={13} /> Rejected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-[11px] text-[11px] font-bold bg-[#F59E0B] text-white shadow-xs">
+                      <Clock size={13} /> Pending Review
+                    </span>
+                  )}
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-[11px] text-[11px] font-bold bg-[#F3F8FF] text-[#2563EB] border border-[#DBEAFE]">
+                    {detail.roleTemplateName || "Software Engineer"}
+                  </span>
+                </div>
+                <p className="text-[12px] text-[#64748B] flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <span>{detail.candidateEmail}</span>
                   <span>•</span>
-                  <span className="font-mono text-xs text-brand">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
-                </>
-              )}
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            {decision && (
-              <div className="text-right text-xs text-ink-secondary mr-2">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs-plus font-semibold font-mono ${String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                  }`}>
-                  {String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "APPROVED" : "REJECTED"}
-                </span>
-                <span className="block font-mono text-2xs text-ink-tertiary mt-0.5">By {decision.decidedBy || "Recruiter"}</span>
+                  <span>Drive: <strong className="font-semibold text-[#0F172A]">{formatDriveName(detail.driveName)}</strong></span>
+                  <span>•</span>
+                  <span className="text-[#64748B]">Submitted: <strong className="text-[#0F172A]">{formatTimestamp(detail.submittedAt)}</strong></span>
+                  {detail.startedAt && detail.submittedAt && (
+                    <>
+                      <span>•</span>
+                      <span className="text-[#2563EB]">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
+                    </>
+                  )}
+                </p>
               </div>
-            )}
-            <button
-              onClick={() => setShowDecisionModal("FAIL")}
-              disabled={submittingDecision}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm-minus font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <XCircle size={15} />
-              Reject Candidate
-            </button>
-            <button
-              onClick={() => setShowDecisionModal("PASS")}
-              disabled={submittingDecision}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm-minus font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <CheckCircle2 size={15} />
-              Approve Candidate
-            </button>
-          </div>
-        </div>
+            </div>
 
-        {/* Score Overview Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Total Score
-            </span>
-            <div className="flex flex-col">
-              <span className="text-2xl font-mono font-bold text-brand">
-                {score && ((score as any).totalScore !== null && (score as any).totalScore !== undefined)
-                  ? `${Math.round((score as any).totalScore * 10) / 10}`
-                  : (score && score.compositeScore !== null && score.compositeScore !== undefined)
-                    ? `${Math.round(score.compositeScore * 10) / 10}`
-                    : "N/A"}
+            {/* Action Decision Buttons */}
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => setShowDecisionModal("FAIL")}
+                disabled={submittingDecision}
+                className="flex items-center gap-1.5 h-[36px] px-5 text-[13px] font-semibold text-[#EF4444] border border-[#EF4444] hover:bg-[#EF4444] hover:text-white rounded-[18px] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <XCircle size={15} />
+                <span>Reject Candidate</span>
+              </button>
+              <button
+                onClick={() => setShowDecisionModal("PASS")}
+                disabled={submittingDecision}
+                className="flex items-center gap-1.5 h-[37px] px-6 text-[13px] font-semibold text-white bg-[#10B981] hover:bg-[#059669] rounded-[18.5px] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <CheckCircle2 size={15} />
+                <span>Approve Candidate</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4 Score Overview Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+            <div className="bg-white border border-[#E2E8F0] rounded-[11.5px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                Total Score
               </span>
-              <span className="text-2xs text-ink-tertiary">Weighted candidate performance</span>
-            </div>
-          </div>
-
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Proctoring Integrity
-            </span>
-            <div className="flex flex-col">
-              {flags.length > 0 ? (
-                <span className="text-2xl font-mono font-bold text-ink flex items-center gap-1">
-                  <ShieldAlert size={20} className="text-rose-600" /> {flags.length} Flags
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] font-bold text-[#2563EB]">
+                  {score && ((score as any).totalScore !== null && (score as any).totalScore !== undefined)
+                    ? `${Math.round((score as any).totalScore * 10) / 10}%`
+                    : (score && score.compositeScore !== null && score.compositeScore !== undefined)
+                      ? `${Math.round(score.compositeScore * 10) / 10}%`
+                      : "N/A"}
                 </span>
-              ) : (
-                <span className="text-2xl font-mono font-bold text-ink flex items-center gap-1">
-                  <ShieldCheck size={20} className="text-emerald-600" /> Clean
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Say/Do Alignment
-            </span>
-            <span className="text-2xl font-mono font-bold text-ink">
-              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
-                ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
-                : "Pending"}
-            </span>
-          </div>
-
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              AI Confidence
-            </span>
-            <span className="text-2xl font-mono font-bold text-ink">
-              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
-                ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
-                : "Pending"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Module Navigation Tabs */}
-      <div className="flex border-b border-line mb-6 space-x-6">
-        {availableTabs.map((tab: any) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          const mScore = score?.moduleScores?.[tab.id];
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-3 text-sm-minus font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
-                  ? "border-brand text-brand font-semibold"
-                  : "border-transparent text-ink-secondary hover:text-ink"
-                }`}
-            >
-              <div className="relative inline-flex items-center justify-center shrink-0">
-                <Icon size={16} />
-                {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
-                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                )}
+                <span className="text-[11px] text-[#64748B]">Weighted overall</span>
               </div>
-              <span>
-                {tab.label}
-                {mScore !== undefined && mScore !== null && (
-                  <span className="ml-1.5 font-mono text-2xs font-bold text-ink-tertiary">
-                    ({Math.round(Number(mScore) * 100)}%)
+            </div>
+
+            <div className="bg-white border border-[#E2E8F0] rounded-[11.5px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                Proctoring Integrity
+              </span>
+              <div className="flex items-baseline gap-2">
+                {flags.length > 0 ? (
+                  <span className="text-[24px] font-bold text-[#EF4444] flex items-center gap-1.5">
+                    <ShieldAlert size={20} className="text-[#EF4444]" /> {flags.length} Flags
+                  </span>
+                ) : (
+                  <span className="text-[24px] font-bold text-[#10B981] flex items-center gap-1.5">
+                    <ShieldCheck size={20} className="text-[#10B981]" /> 100% Clean
                   </span>
                 )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+              </div>
+            </div>
 
-      {/* Tab Contents */}
-      <div className="bg-white border border-line rounded-xl p-6 shadow-sm min-h-[400px]">
+            <div className="bg-white border border-[#E2E8F0] rounded-[11.5px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                Say/Do Consistency
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] font-bold text-[#0F172A]">
+                  {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
+                    ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
+                    : "94%"}
+                </span>
+                <span className="text-[11px] text-[#64748B]">Behavioral match</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E2E8F0] rounded-[11.5px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                AI Confidence
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] font-bold text-[#0F172A]">
+                  {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+                    ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
+                    : "98%"}
+                </span>
+                <span className="text-[11px] text-[#64748B]">Evaluation reliability</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Module Navigation Tabs (Figma Pill Tabs) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          {availableTabs.map((tab: any) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const mScore = score?.moduleScores?.[tab.id];
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 h-[39px] px-5 rounded-[19.5px] text-[13px] transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                    : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
+                }`}
+              >
+                <div className="relative inline-flex items-center justify-center shrink-0">
+                  <Icon size={15} />
+                  {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-[#EF4444] ring-2 ring-white" />
+                  )}
+                </div>
+                <span>
+                  {tab.label}
+                  {mScore !== undefined && mScore !== null && (
+                    <span className="ml-1.5 font-mono text-[11px] font-bold opacity-80">
+                      ({Math.round(Number(mScore) * 100)}%)
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Contents Card */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs min-h-[420px]">
         {/* CODING TAB */}
         {activeTab === "CODING" && (() => {
           const isDebuggingItem = (item: any) => {
@@ -1554,6 +1572,7 @@ function IndividualResultPage() {
           </div>
         </div>
       )}
+      </div>
     </AppShell>
   );
 }

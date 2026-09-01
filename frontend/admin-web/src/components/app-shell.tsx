@@ -167,7 +167,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
   return (
     <div
-      className="flex min-h-screen bg-cover bg-center bg-no-repeat bg-fixed text-ink font-sans"
+      className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-cover bg-center bg-no-repeat bg-fixed text-ink font-sans"
       style={{ backgroundImage: "url('/light-gradient-14.svg')" }}
     >
       {/* Left Sidebar */}
@@ -333,7 +333,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden flex flex-col">
         {!hideHeader && title && (
           <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-[#e8ecf4] px-8 h-[64px] flex items-center gap-4">
             <div className="flex items-baseline gap-3 flex-1 min-w-0">
@@ -348,7 +348,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
             {actions}
           </header>
         )}
-        <main className={`flex-1 ${hideHeader ? "px-10 py-8" : "px-8 py-6"}`}>{children}</main>
+        <main className={`flex-1 min-w-0 max-w-full overflow-x-hidden ${hideHeader ? "px-10 py-8" : "px-8 py-6"}`}>{children}</main>
       </div>
 
       {/* Blurred Logout Confirmation Modal */}
