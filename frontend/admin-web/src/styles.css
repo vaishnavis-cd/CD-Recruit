@@ -148,9 +148,15 @@
   }
   body {
     background-color: #f7f7f9;
+    background-image: url('/light-gradient-14.svg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: #0b0b0d;
     font-family: var(--font-sans);
   }
+
   code,
   kbd,
   samp,

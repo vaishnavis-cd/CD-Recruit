@@ -112,7 +112,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
   return (
     <div
-      className="flex min-h-screen bg-cover bg-center bg-no-repeat text-ink font-sans"
+      className="flex min-h-screen bg-cover bg-center bg-no-repeat bg-fixed text-ink font-sans"
       style={{ backgroundImage: "url('/light-gradient-14.svg')" }}
     >
       {/* Left Sidebar */}
