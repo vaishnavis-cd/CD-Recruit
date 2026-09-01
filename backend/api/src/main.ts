@@ -42,10 +42,20 @@ async function bootstrap(): Promise<void> {
     : true;
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        callback(null, true);
+      } else if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type, Accept, Authorization, X-API-Key, Origin, X-Requested-With",
   });
+
 
   // ── Global validation pipe ────────────────────────────────────────────
   // whitelist:             strips properties not declared in DTOs

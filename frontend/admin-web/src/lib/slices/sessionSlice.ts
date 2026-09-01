@@ -72,12 +72,17 @@ function mapBackendSession(session: any): Session {
 
   const compositeScore =
     session.compositeScore !== null && session.compositeScore !== undefined
-      ? Math.round(session.compositeScore * 100)
+      ? session.compositeScore > 1
+        ? Math.round(session.compositeScore)
+        : Math.round(session.compositeScore * 100)
       : null;
   const sayDoScore =
     session.sayDoConsistencyScore !== null && session.sayDoConsistencyScore !== undefined
-      ? Math.round(session.sayDoConsistencyScore * 100)
+      ? session.sayDoConsistencyScore > 1
+        ? Math.round(session.sayDoConsistencyScore)
+        : Math.round(session.sayDoConsistencyScore * 100)
       : null;
+
 
   const initials = session.candidateName
     ? session.candidateName
@@ -145,14 +150,15 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         url += `&search=${encodeURIComponent(query.search)}`;
       }
       const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
-      const mapped = data.items.map((s: any) => mapBackendSession(s));
+      const items = Array.isArray(data) ? data : (data.items || data.data || []);
+      const mapped = items.map((s: any) => mapBackendSession(s));
       set({ sessions: mapped, loading: false });
     } catch (err: any) {
       console.error(err);
       set({ error: err.message, loading: false });
     }
+
   },
 
   fetchSessionDetail: async (sessionId: string): Promise<CandidateSessionDetail> => {

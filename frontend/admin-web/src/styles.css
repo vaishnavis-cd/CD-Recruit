@@ -183,4 +183,55 @@
     background-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(47, 92, 255, 0.12);
   }
+
+  /* Custom Range Slider for Figma Match */
+  input[type="range"].figma-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"].figma-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #2f68ff;
+    box-shadow: 0 1px 4px rgba(47, 92, 255, 0.25);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  input[type="range"].figma-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+
+  input[type="range"].figma-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #2f68ff;
+    box-shadow: 0 1px 4px rgba(47, 92, 255, 0.25);
+    cursor: pointer;
+  }
 }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+
