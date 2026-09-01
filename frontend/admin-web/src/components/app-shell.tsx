@@ -1,48 +1,132 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import {
-  LayoutDashboard,
-  BriefcaseBusiness,
-  Send,
-  FileBarChart,
-  LogOut,
-  ClipboardCheck,
-  Settings as SettingsIcon,
-  Award,
-  AlertTriangle,
-  Layers,
-} from "lucide-react";
+import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
 
+// Exact Lucide-compliant vector icons pixel-matched from the reference screenshot
+function DashboardIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+    </svg>
+  );
+}
+
+function DrivesIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M7 4h10l4 7-4 7H7L3 11l4-7z" />
+      <line x1="3" y1="11" x2="21" y2="11" />
+      <path d="M17 17l4-4m0 0h-3.5m3.5 0v3.5" />
+    </svg>
+  );
+}
+
+function InvitesIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9" />
+      <path d="M10 12h11m0 0l-3.5-3.5M21 12l-3.5 3.5" />
+    </svg>
+  );
+}
+
+function ResultsIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="3.5" />
+      <line x1="7.5" y1="17" x2="7.5" y2="13" />
+      <line x1="12" y1="17" x2="12" y2="7.5" />
+      <line x1="16.5" y1="17" x2="16.5" y2="10" />
+    </svg>
+  );
+}
+
+function ReportsIcon({ className, size = 18, active }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="#3B82F6" />
+      <path d="M14 2v6h6" fill="#93C5FD" opacity="0.9" />
+      <rect x="7" y="12" width="10" height="2" rx="1" fill="#FFFFFF" />
+      <rect x="7" y="16" width="6.5" height="2" rx="1" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+function RoleTemplatesIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <circle cx="8" cy="10" r="2" />
+      <path d="M5.5 15.5c0-1.2 1.1-1.9 2.5-1.9s2.5.7 2.5 1.9" />
+      <line x1="13.5" y1="9.5" x2="18.5" y2="9.5" />
+      <line x1="13.5" y1="13.5" x2="17" y2="13.5" />
+    </svg>
+  );
+}
+
+function QuestionBankIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 20h9a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-5l-1.5-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
+      <circle cx="17.5" cy="15.5" r="3.8" fill="#3B82F6" stroke="none" />
+      <text x="17.5" y="18" textAnchor="middle" fill="#FFFFFF" fontSize="7" fontWeight="900" fontFamily="system-ui, sans-serif">i</text>
+    </svg>
+  );
+}
+
+function SettingsIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function SupportIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="9.5" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <circle cx="12" cy="17" r="0.8" fill="currentColor" />
+    </svg>
+  );
+}
+
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/drives", label: "Drives", icon: BriefcaseBusiness },
-  { to: "/invites", label: "Invites", icon: Send },
-  { to: "/results", label: "Results", icon: Award },
-  { to: "/reports", label: "Reports", icon: FileBarChart },
-  { to: "/templates", label: "Role Templates", icon: Layers },
-  { to: "/questions", label: "Question Bank", icon: ClipboardCheck },
+  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon },
+  { to: "/drives", label: "Drives", icon: DrivesIcon },
+  { to: "/invites", label: "Invites", icon: InvitesIcon },
+  { to: "/results", label: "Results", icon: ResultsIcon },
+  { to: "/reports", label: "Reports", icon: ReportsIcon },
+  { to: "/templates", label: "Role Templates", icon: RoleTemplatesIcon },
+  { to: "/questions", label: "Question Bank", icon: QuestionBankIcon },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
 export interface AppShellProps {
-  title: string;
+  title?: string;
   count?: number | string;
   actions?: ReactNode;
   search?: ReactNode;
   children: ReactNode;
+  hideHeader?: boolean;
 }
 
-export function AppShell({ title, count, actions, search, children }: AppShellProps) {
+export function AppShell({ title, count, actions, search, children, hideHeader }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const [userInfo, setUserInfo] = useState<{ userName: string; userRole: string; initials: string }>({
-    userName: "Rachel Brooks",
-    userRole: "recruiter",
-    initials: "RB",
+    userName: "Demo Admin",
+    userRole: "ADMIN",
+    initials: "DA",
   });
 
   const [hasUnreadResults, setHasUnreadResults] = useState(false);
@@ -62,8 +146,8 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
   useEffect(() => {
     const user = getUserProfile();
     if (user) {
-      const name = user.name || "Rachel Brooks";
-      const role = user.role ? user.role.toLowerCase() : "recruiter";
+      const name = user.name || "Demo Admin";
+      const role = (user.role ? user.role : "ADMIN").toUpperCase();
       const inits = name
         .split(" ")
         .map((n) => n[0])
@@ -73,7 +157,7 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
       setUserInfo({
         userName: name,
         userRole: role,
-        initials: inits,
+        initials: inits || "DA",
       });
     }
   }, []);
@@ -85,21 +169,32 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
   };
 
   return (
-    <div className="flex min-h-screen bg-canvas text-ink font-sans">
-      <aside className="w-[244px] shrink-0 bg-white border-r border-line text-ink flex flex-col sticky top-0 h-screen">
-        <div className="px-4 pt-5 pb-3">
-          <div className="flex items-center gap-2">
-            <img src="/Logo.png" alt="Proctora Logo" className="w-7 h-7 object-contain" />
+    <div
+      className="flex h-screen w-screen max-h-screen max-w-full overflow-hidden text-slate-900 font-sans select-none"
+      style={{ background: "linear-gradient(90deg, #F3F7FE 0%, #F7F5FD 45%, #FDFDF6 70%, #F4F5E9 100%)" }}
+    >
+      {/* Background Ambient Mesh Lights */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-blue-100/30 blur-[130px]" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-amber-100/20 blur-[140px]" />
+      </div>
+
+      {/* Sidebar: Fits 100% Desktop Viewport */}
+      <aside className="w-[204px] min-w-[204px] max-w-[204px] shrink-0 bg-white/95 backdrop-blur-sm border-r border-slate-200/80 rounded-r-[14px] text-slate-800 flex flex-col justify-between h-screen max-h-screen overflow-hidden z-20 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
+        {/* Top Logo */}
+        <div className="w-full h-[46px] pt-[4px] pb-[2px] px-[12px] flex items-center shrink-0">
+          <Link to="/dashboard" className="flex items-center gap-[8px] w-full group">
             <div>
-              <div className="text-lg font-bold tracking-tight text-ink">Proctora</div>
-              <div className="text-2xs font-mono uppercase tracking-[0.18em] text-ink-tertiary leading-none">
-                admin
+              <div className="text-[17px] font-extrabold tracking-tight text-slate-900 leading-tight">Proctora</div>
+              <div className="text-[8.5px] font-bold tracking-[0.18em] text-blue-600 uppercase leading-none mt-0.5">
+                ADMIN
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
-        <nav className="flex-1 py-3">
+        {/* Navigation items */}
+        <nav className="flex-1 px-[8px] py-[2px] space-y-[1px] overflow-hidden flex flex-col justify-center">
           {NAV.map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
             const Icon = item.icon;
@@ -107,91 +202,133 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
               <Link
                 key={item.to}
                 to={item.to}
-                className={`relative flex items-center gap-3 px-4 py-2 text-sm-minus transition-colors ${
+                className={`relative w-full h-[38px] px-[10px] rounded-[9px] flex items-center gap-[8px] text-[11.5px] font-medium transition-all duration-150 ${
                   active
-                    ? "text-brand bg-gradient-to-r from-transparent to-[rgba(47,92,255,0.12)] font-medium"
-                    : "text-ink-secondary hover:text-ink hover:bg-surface-inset"
+                    ? "text-blue-600 bg-gradient-to-r from-blue-50/90 via-blue-100/50 to-indigo-50/30 font-semibold shadow-xs shadow-blue-500/5 border border-blue-100/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50/80"
                 }`}
               >
                 {active && (
-                  <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-brand" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[18px] bg-blue-600 rounded-r-full shadow-xs shadow-blue-500/50" />
                 )}
                 <div className="relative inline-flex items-center justify-center shrink-0">
-                  <Icon size={16} strokeWidth={active ? 2.25 : 1.75} />
+                  <Icon
+                    size={17}
+                    active={active}
+                    className={`${active ? "text-blue-600" : "text-[#4F8BFF] group-hover:text-blue-600"}`}
+                  />
                   {item.to === "/results" && hasUnreadResults && (
-                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" title="New candidate results pending review" />
+                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
                   )}
                 </div>
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
-        </nav>
 
-        <div className="px-4 py-3 border-t border-line flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs-plus font-mono font-semibold">
-            {userInfo.initials}
+          {/* HELP Section */}
+          <div className="pt-[3px] pb-[1px]">
+            <div className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 px-[10px] mb-[1px]">
+              HELP
+            </div>
+            <Link
+              to="/settings"
+              className="w-full h-[34px] px-[10px] rounded-[9px] flex items-center gap-[8px] text-[11px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50/80 transition-none"
+            >
+              <SupportIcon size={16} className="text-[#4F8BFF]" />
+              <span>Support</span>
+            </Link>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs truncate text-ink font-medium">{userInfo.userName}</div>
-            <div className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.14em]">
-              {userInfo.userRole}
+
+          {/* "New Assessment Drive" Promo Card */}
+          <div className="pt-[2px] pb-[2px]">
+            <div className="w-full bg-gradient-to-br from-blue-600 to-blue-700 rounded-[10px] p-[8px] text-white shadow-md shadow-blue-600/20 relative overflow-hidden">
+              <div className="text-[10.5px] font-bold text-white mb-0.5">New Assessment Drive</div>
+              <p className="text-[9px] text-blue-100/90 leading-tight mb-1.5">
+                Launch Q3 hiring drive and invite candidates instantly.
+              </p>
+              <Link
+                to="/drives"
+                className="w-full py-1 bg-white hover:bg-blue-50 text-blue-600 font-bold text-[9.5px] rounded-[6px] shadow-xs transition-none text-center block cursor-pointer"
+              >
+                Create Drive
+              </Link>
             </div>
           </div>
-          <button
-            onClick={() => setShowLogoutModal(true)}
-            title="Log out"
-            className="p-1.5 text-ink-tertiary hover:text-danger-hover hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
-          >
-            <LogOut size={16} />
-          </button>
+        </nav>
+
+        {/* User profile footer */}
+        <div className="px-[8px] py-[6px] border-t border-slate-200/80 shrink-0">
+          <div className="w-full flex items-center gap-[8px] p-[5px] rounded-[8px] hover:bg-slate-50 transition-none">
+            <div className="w-6.5 h-6.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs shadow-blue-500/20">
+              {userInfo.initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-bold truncate text-slate-900 leading-tight">{userInfo.userName}</div>
+              <div className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">
+                {userInfo.userRole}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              title="Log out"
+              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[5px] transition-none cursor-pointer"
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
         </div>
       </aside>
 
-      <div className="flex-1 min-w-0">
-        <header className="sticky top-0 z-10 bg-white border-b border-line px-8 h-[64px] flex items-center gap-4">
-          <div className="flex items-baseline gap-3 flex-1 min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-            {count !== undefined && (
-              <span className="text-xs-plus font-mono uppercase tracking-[0.14em] text-ink-secondary px-1.5 py-0.5 bg-surface-inset rounded">
-                {count}
-              </span>
-            )}
-          </div>
-          {search}
-          {actions}
-        </header>
-        <main className="px-8 py-6">{children}</main>
+      {/* Main Container Layout */}
+      <div className="flex-1 min-w-0 h-screen max-h-screen overflow-hidden relative z-10 flex flex-col pt-[14px] pr-[24px] pb-[14px] pl-[24px] gap-[14px]">
+        {!hideHeader && title && (
+          <header className="w-full flex items-center justify-between shrink-0">
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-[23px] font-extrabold tracking-tight text-slate-900 leading-tight">{title}</h1>
+              {count !== undefined && (
+                <span className="text-[9.5px] font-mono uppercase font-bold text-blue-700 px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-full">
+                  {count}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {search}
+              {actions}
+            </div>
+          </header>
+        )}
+        <main className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">{children}</main>
       </div>
 
       {/* Blurred Logout Confirmation Modal */}
       {showLogoutModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 transition-all">
-          <div className="bg-white rounded-xl border border-line shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-50 text-danger-hover flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-ink">Confirm Logout</h3>
-                <p className="text-xs text-ink-secondary">End active admin session</p>
+                <h3 className="text-base font-bold text-slate-900">Confirm Logout</h3>
+                <p className="text-xs text-slate-500">End active admin session</p>
               </div>
             </div>
 
-            <p className="text-sm-minus text-ink-secondary leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Are you sure you want to log out of the Proctora Admin Console?
             </p>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="px-4 py-2 text-sm-minus font-medium text-ink-secondary hover:bg-surface-inset rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm-minus font-medium text-white bg-danger-hover hover:bg-danger-hover rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-sm shadow-rose-600/20"
               >
                 <LogOut size={14} />
                 Log out
