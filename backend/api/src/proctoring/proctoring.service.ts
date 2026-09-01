@@ -159,12 +159,15 @@ export class ProctoringService {
 
     const activeStatuses: SessionStatus[] = [
       SessionStatus.IN_PROGRESS,
-      SessionStatus.NOT_STARTED,
       SessionStatus.DISCONNECTED,
       SessionStatus.SUBMITTED,
       SessionStatus.AUTO_SUBMITTED,
       SessionStatus.CLOSED,
     ];
+    if (session.status === SessionStatus.NOT_STARTED) {
+      this.logger.log(`[ProctoringService] ONBOARDING_EVENT_IGNORED: Telemetry skipped while session is in NOT_STARTED state.`);
+      return null as any;
+    }
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
         `Session is in state ${session.status}. Telemetry events are only accepted for active assessments.`,
@@ -216,12 +219,15 @@ export class ProctoringService {
 
     const activeStatuses: SessionStatus[] = [
       SessionStatus.IN_PROGRESS,
-      SessionStatus.NOT_STARTED,
       SessionStatus.DISCONNECTED,
       SessionStatus.SUBMITTED,
       SessionStatus.AUTO_SUBMITTED,
       SessionStatus.CLOSED,
     ];
+    if (session.status === SessionStatus.NOT_STARTED) {
+      this.logger.log(`[ProctoringService] ONBOARDING_UPLOAD_IGNORED: Upload skipped while session is in NOT_STARTED state.`);
+      return { id: "skipped_onboarding", sessionId, eventType: dto.eventType, severity: dto.severity, timestamp: new Date(), clipUrl: null, uploadStatus: ProctoringUploadStatus.FAILED } as any;
+    }
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
         `Upload rejected: session is in ${session.status} state. Uploads only allowed for active assessments.`,

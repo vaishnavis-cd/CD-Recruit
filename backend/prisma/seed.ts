@@ -317,26 +317,45 @@ async function main(): Promise<void> {
               scoringConfig = { points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1 };
             } else if (modType === "CODING" || modType === "DEBUGGING") {
               const lang = q.language || "Python";
+              const promptClean = q.question?.replace(/\n/g, " ") || q.prompt?.replace(/\n/g, " ") || "";
               content = {
                 prompt: q.question || q.prompt || "",
                 expectedAnswer: q.expectedAnswer || "",
                 language: lang,
                 category: q.category || modType,
+                parameters: q.parameters || "input: string",
+                returnType: q.returnType || "any",
+                functionName: q.functionName || "solution",
                 starterCode: {
-                  python: `import sys\n\ndef solution():\n    # Implement your solution for: ${q.question?.replace(/\n/g, " ") || ""}\n    pass\n\nif __name__ == '__main__':\n    solution()\n`,
-                  javascript: `const fs = require('fs');\n\nfunction solution() {\n  // Implement your solution for: ${q.question?.replace(/\n/g, " ") || ""}\n}\n\nsolution();\n`,
+                  python: `import sys\nimport json\n\ndef solution(data):\n    \"\"\"\n    Solve: ${promptClean}\n    :param data: input string or array\n    :return: expected output\n    \"\"\"\n    # TODO: Implement your solution here\n    pass\n\nif __name__ == '__main__':\n    for line in sys.stdin:\n        if line.strip():\n            print(solution(line.strip()))\n`,
+                  javascript: `const fs = require('fs');\n\n/**\n * Solve: ${promptClean}\n * @param {string} data\n * @returns {any}\n */\nfunction solution(data) {\n  // TODO: Implement your solution here\n  return null;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  console.log(solution(input));\n}\n`,
                 },
+                visibleTestCases: [
+                  {
+                    input: "Sample Input 1",
+                    expectedOutput: q.expectedAnswer || "Expected Result 1",
+                    label: "Example 1: Basic Input",
+                    explanation: "Verifies basic input processing.",
+                  },
+                ],
+                hiddenTestCases: [
+                  {
+                    input: "Boundary Input 1",
+                    expectedOutput: q.expectedAnswer || "Expected Result 1",
+                    label: "Hidden Case 1: Edge Conditions",
+                  },
+                ],
                 testCases: [
                   {
-                    input: "Sample Input",
-                    expectedOutput: q.expectedAnswer || "Expected Result",
-                    label: "Example 1",
+                    input: "Sample Input 1",
+                    expectedOutput: q.expectedAnswer || "Expected Result 1",
+                    label: "Example 1: Basic Input",
                     isHidden: false,
                   },
                   {
-                    input: "Boundary Input",
-                    expectedOutput: q.expectedAnswer || "Expected Result",
-                    label: "Hidden Case 1",
+                    input: "Boundary Input 1",
+                    expectedOutput: q.expectedAnswer || "Expected Result 1",
+                    label: "Hidden Case 1: Edge Conditions",
                     isHidden: true,
                   },
                 ],
@@ -457,6 +476,19 @@ async function main(): Promise<void> {
               if (modType === "MCQ" && content.options && content.options.length > 0) {
                 if (!content.correctAnswer && content.correctIndex !== undefined) {
                   content.correctAnswer = content.options[content.correctIndex];
+                }
+              } else if (modType === "CODING" || modType === "DEBUGGING") {
+                if (!content.visibleTestCases && content.testCases) {
+                  content.visibleTestCases = content.testCases.filter((tc: any) => !tc.isHidden);
+                }
+                if (!content.hiddenTestCases && content.testCases) {
+                  content.hiddenTestCases = content.testCases.filter((tc: any) => tc.isHidden);
+                }
+                if (!content.testCases && (content.visibleTestCases || content.hiddenTestCases)) {
+                  content.testCases = [
+                    ...(content.visibleTestCases || []).map((tc: any) => ({ ...tc, isHidden: false })),
+                    ...(content.hiddenTestCases || []).map((tc: any) => ({ ...tc, isHidden: true })),
+                  ];
                 }
               }
 

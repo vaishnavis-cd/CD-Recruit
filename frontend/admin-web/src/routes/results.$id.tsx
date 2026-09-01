@@ -78,9 +78,11 @@ function resolveOptionText(rawVal: any, optionsList: any[]): string {
   return String(rawVal);
 }
 
-function resolveClipUrl(rawUrl: string | null | undefined): string | undefined {
+function resolveClipUrl(rawUrl: string | null | undefined): { proxyUrl: string; directUrl: string } | undefined {
   if (!rawUrl) return undefined;
-  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) return rawUrl;
+  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) {
+    return { proxyUrl: rawUrl, directUrl: rawUrl };
+  }
 
   let cleanKey = rawUrl;
   if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
@@ -98,7 +100,9 @@ function resolveClipUrl(rawUrl: string | null | undefined): string | undefined {
   }
 
   cleanKey = cleanKey.split("?")[0];
-  return `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+  const proxyUrl = `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+  const directUrl = rawUrl.startsWith("http") ? rawUrl : proxyUrl;
+  return { proxyUrl, directUrl };
 }
 
 function getCategoryFilterIcon(filterKey: string) {
@@ -1533,30 +1537,62 @@ function IndividualResultPage() {
       )}
 
       {/* Video Evidence Clip Modal */}
-      {activeClipUrl && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-[600px] shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-md font-semibold text-ink flex items-center gap-2">
-                <Video size={16} className="text-red-500" />
-                Proctoring Evidence Clip
-              </h3>
-              <button onClick={() => setActiveClipUrl(null)} className="text-ink-tertiary hover:text-ink">
-                <X size={16} />
-              </button>
-            </div>
+      {activeClipUrl && (() => {
+        const resolved = resolveClipUrl(activeClipUrl);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-[640px] shadow-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-2">
+                  <Video size={16} className="text-red-500" />
+                  <h3 className="text-md font-semibold text-ink">
+                    Proctoring Video Evidence Clip
+                  </h3>
+                </div>
+                <button onClick={() => setActiveClipUrl(null)} className="text-ink-tertiary hover:text-ink cursor-pointer p-1">
+                  <X size={16} />
+                </button>
+              </div>
 
-            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
-              <video
-                src={resolveClipUrl(activeClipUrl)}
-                controls
-                autoPlay
-                className="w-full h-full object-contain"
-              />
+              <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center relative shadow-inner">
+                {resolved ? (
+                  <video
+                    key={activeClipUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const v = e.currentTarget;
+                      if (resolved.directUrl && v.src !== resolved.directUrl) {
+                        v.src = resolved.directUrl;
+                        v.play().catch(() => null);
+                      }
+                    }}
+                  >
+                    <source src={resolved.proxyUrl} type="video/webm" />
+                    {resolved.directUrl && <source src={resolved.directUrl} type="video/webm" />}
+                    Your browser does not support WebM video playback.
+                  </video>
+                ) : (
+                  <p className="text-xs text-ink-tertiary">Clip preview unavailable.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-ink-tertiary font-mono">Stream: Active biometric recording</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveClipUrl(null)}
+                  className="px-3.5 py-1.5 text-xs font-semibold bg-canvas border border-line rounded-md hover:bg-line/20 text-ink cursor-pointer"
+                >
+                  Close Viewer
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </AppShell>
   );
 }

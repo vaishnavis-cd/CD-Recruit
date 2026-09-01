@@ -360,17 +360,18 @@ export class QuestionService implements OnModuleInit {
 
     await this.prisma.$transaction(async (tx) => {
       for (const q of questions) {
-        this.validateQuestionContent(moduleType, q.content, q.scoringConfig);
+        const targetModule = (q.moduleType || moduleType) as ModuleType;
+        this.validateQuestionContent(targetModule, q.content, q.scoringConfig);
 
         const created = await tx.question.create({
           data: {
-            moduleType: moduleType as any,
+            moduleType: targetModule as any,
             role: q.role ?? "General",
             content: q.content,
             scoringConfig: q.scoringConfig ?? {},
             difficulty: q.difficulty ?? "medium",
             targetLevel: q.targetLevel ?? null,
-            tags: q.tags ?? [moduleType.toLowerCase()],
+            tags: q.tags ?? [String(targetModule).toLowerCase()],
             version: 1,
             status: "PUBLISHED",
           },

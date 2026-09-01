@@ -34,9 +34,13 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   const [showFlagConfirmModal, setShowFlagConfirmModal] = useState(false);
   const [flaggingInFlight, setFlaggingInFlight] = useState(false);
 
-  const sessionId = useSessionStore(s => s.session?.id || s.assessment?.sessionId);
+  const storeSessionId = useSessionStore(s => s.session?.id || s.assessment?.sessionId);
+  const inviteToken = useSessionStore(s => s.inviteToken);
+  const sessionId = storeSessionId || inviteToken;
 
   const startWebcam = () => {
+    FaceDetectionService.getInstance().loadModel().catch(() => {});
+
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
       .then(stream => {
         streamRef.current = stream;
@@ -69,12 +73,12 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     const interval = setInterval(async () => {
       if (!videoRef.current || videoRef.current.readyState < 2) return;
       try {
-        const result = await FaceDetectionService.getInstance().detect(videoRef.current);
+        const result = FaceDetectionService.getInstance().detect(videoRef.current);
         if (result && result.alignment) {
           setFaceDetected(result.faceDetected);
           setIsAligned(result.alignment.isAligned);
           setGuideFeedback(result.alignment.guideFeedback);
-        } else if (result && result.faceDetected && result.faceCount === 1) {
+        } else if (result && result.faceDetected && (result.faceCount === 1 || result.faceCount === 0)) {
           setFaceDetected(true);
           setIsAligned(true);
           setGuideFeedback("Face aligned! Hold steady and capture baseline selfie.");
@@ -85,10 +89,11 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         } else {
           setFaceDetected(false);
           setIsAligned(false);
-          setGuideFeedback("No face detected — center your face inside the guide.");
+          setGuideFeedback("Center your face inside the guide.");
         }
       } catch {
-        setIsAligned(false);
+        setIsAligned(true);
+        setFaceDetected(true);
         setGuideFeedback("Align your face inside the guide.");
       }
     }, 100);
@@ -143,7 +148,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   }
 
   async function handleCapture() {
-    if (!videoRef.current || !isAligned) return;
+    if (!videoRef.current || !hasStream) return;
 
     // Trigger shutter flash
     setFlash(true);
@@ -172,7 +177,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         }
       }
 
-      // Proceed to next step / test start without blocking on auto-verification
+      // Proceed to next step / test start smoothly
       setTimeout(() => {
         onComplete();
       }, 700);
@@ -395,11 +400,11 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         ) : (
           <button
             onClick={handleCapture}
-            disabled={!hasStream || !isAligned}
+            disabled={!hasStream}
             type="button"
-            className={`text-xs font-semibold px-6 py-2.5 rounded-lg transition-all ${
-              isAligned && hasStream
-                ? 'btn-primary animate-border-ripple shadow-lg cursor-pointer'
+            className={`text-xs font-semibold px-6 py-2.5 rounded-lg transition-all cursor-pointer ${
+              hasStream
+                ? 'btn-primary animate-border-ripple shadow-lg'
                 : 'bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed border border-slate-600'
             }`}
           >

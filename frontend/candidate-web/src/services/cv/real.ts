@@ -26,12 +26,17 @@ export function createRealCvDetectionAdapter(getSessionId?: () => string | null 
     _activeStream: () => activeStream,
 
     async start(): Promise<void> {
-      const activeSessionId = useSessionStore.getState().session?.id || useSessionStore.getState().assessment?.sessionId || getSessionId?.() || 'demo-session'
-      await ProctoringModule.getInstance().start(activeSessionId)
+      // For system pre-flight check and hardware testing, start only the webcam stream
+      const webcam = WebcamService.getInstance();
+      const permitted = await webcam.requestPermission();
+      if (permitted) {
+        activeStream = await webcam.start();
+      }
     },
 
     async stop(): Promise<void> {
-      await ProctoringModule.getInstance().stop()
+      WebcamService.getInstance().stop();
+      activeStream = null;
     },
 
     onDetectionEvent(callback: (event: DetectionEvent) => void): () => void {

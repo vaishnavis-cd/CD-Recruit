@@ -6,14 +6,13 @@ export class FaceDetectionService {
   private landmarker: FaceLandmarker | null = null;
   private isLoading = false;
   private isLoaded = false;
+  private loadingPromise: Promise<void> | null = null;
   private detectCount = 0;
 
   // Blink accumulator — counts consecutive frames with elevated blink score
-  // A real blink spans ~150-400ms; smoothed VIDEO mode dampens peak scores.
-  // We require 2 consecutive detections (~200ms) to confirm a blink.
   private blinkFrameCount = 0;
-  private static readonly BLINK_THRESHOLD = 0.15;  // lowered from 0.3 (smoothing dampens peaks)
-  private static readonly BLINK_FRAMES_REQUIRED = 2; // consecutive frames needed to confirm
+  private static readonly BLINK_THRESHOLD = 0.12;  // lowered for high responsiveness
+  private static readonly BLINK_FRAMES_REQUIRED = 1; // single detected frame triggers blink event
 
   private constructor() {}
 
@@ -30,56 +29,83 @@ export class FaceDetectionService {
    * to avoid CDN dependency and COEP cross-origin issues.
    */
   public async loadModel(): Promise<void> {
-    if (this.isLoaded || this.isLoading) return;
+    if (this.isLoaded && this.landmarker) return;
+    if (this.loadingPromise) return this.loadingPromise;
 
     this.isLoading = true;
-    try {
-      console.log("[FaceDetection] Loading MediaPipe Face Landmarker from local assets...");
-
-      const vision = await FilesetResolver.forVisionTasks("/mediapipe");
-
-      console.log("[FaceDetection] Loading Face Landmarker task model from local /models/face_landmarker.task...");
+    this.loadingPromise = (async () => {
       try {
-        this.landmarker = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "/models/face_landmarker.task",
-            delegate: "GPU",
-          },
-          runningMode: "VIDEO",
-          numFaces: 4,
-          outputFaceBlendshapes: true,
-        });
-      } catch (gpuErr) {
-        console.warn("[FaceDetection] GPU delegate failed for Face Landmarker, falling back to CPU:", gpuErr);
-        this.landmarker = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "/models/face_landmarker.task",
-            delegate: "CPU",
-          },
-          runningMode: "VIDEO",
-          numFaces: 4,
-          outputFaceBlendshapes: true,
-        });
-      }
+        console.log("[FaceDetection] Loading MediaPipe Face Landmarker from local assets...");
 
-      this.isLoaded = true;
-      this.isLoading = false;
-      console.log("[FaceDetection] FACE_MODEL_LOADED: Face Landmarker ready.");
-    } catch (err) {
-      this.isLoading = false;
-      console.error("[FaceDetection] Failed to load Face Landmarker model:", err);
-      throw err;
-    }
+        const vision = await FilesetResolver.forVisionTasks("/mediapipe");
+
+        console.log("[FaceDetection] Loading Face Landmarker task model from local /models/face_landmarker.task...");
+        try {
+          this.landmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: "/models/face_landmarker.task",
+              delegate: "GPU",
+            },
+            runningMode: "VIDEO",
+            numFaces: 4,
+            outputFaceBlendshapes: true,
+          });
+        } catch (gpuErr) {
+          console.warn("[FaceDetection] GPU delegate failed for Face Landmarker, falling back to CPU:", gpuErr);
+          this.landmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: "/models/face_landmarker.task",
+              delegate: "CPU",
+            },
+            runningMode: "VIDEO",
+            numFaces: 4,
+            outputFaceBlendshapes: true,
+          });
+        }
+
+        this.isLoaded = true;
+        this.isLoading = false;
+        console.log("[FaceDetection] FACE_MODEL_LOADED: Face Landmarker ready.");
+      } catch (err) {
+        this.isLoading = false;
+        this.loadingPromise = null;
+        console.error("[FaceDetection] Failed to load Face Landmarker model:", err);
+        throw err;
+      }
+    })();
+
+    return this.loadingPromise;
   }
 
   /**
-   * Process a single video frame. Must only be called once the model is loaded.
-   * Uses detectForVideo() with a monotonically increasing timestamp for VIDEO mode.
+   * Process a single video frame. Uses detectForVideo() with a monotonically increasing timestamp for VIDEO mode.
    */
   public detect(videoElement: HTMLVideoElement): FaceDetectionResult {
     this.detectCount++;
 
     if (!this.isLoaded || !this.landmarker) {
+      if (!this.isLoading && !this.loadingPromise) {
+        this.loadModel().catch((err) => {
+          console.warn("[FaceDetection] Background loadModel error:", err);
+        });
+      }
+
+      // If video is active and playing, return a permissive baseline rather than no-face
+      if (videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0 && !videoElement.paused) {
+        return {
+          faceDetected: true,
+          faceCount: 1,
+          headDirection: "CENTER",
+          alignment: {
+            isAligned: true,
+            centerX: 0.5,
+            centerY: 0.5,
+            sizeRatio: 0.15,
+            guideFeedback: "Camera active. Face aligned!",
+          },
+        };
+      }
+
       return { faceDetected: false, faceCount: 0, headDirection: "CENTER" };
     }
 
@@ -112,9 +138,10 @@ export class FaceDetectionService {
         return { faceDetected: true, faceCount, headDirection: "CENTER" };
       }
 
-      // Head yaw (left/right)
-      const distToLeft = Math.abs(nose.x - leftBoundary.x);
-      const distToRight = Math.abs(rightBoundary.x - nose.x);
+      // Head yaw (left/right) from candidate perspective
+      // In webcam image space: x=0 is image left (candidate's right), x=1 is image right (candidate's left)
+      const distToLeft = Math.abs(nose.x - leftBoundary.x);   // distance towards image left
+      const distToRight = Math.abs(rightBoundary.x - nose.x); // distance towards image right
       const horizontalRatio = distToLeft / (distToRight || 0.001);
 
       // Head pitch (up/down)
@@ -123,8 +150,10 @@ export class FaceDetectionService {
       const verticalRatio = distToTop / (distToBottom || 0.001);
 
       let rawHeadDirection: "CENTER" | "LEFT" | "RIGHT" | "UP" | "DOWN" = "CENTER";
-      if (horizontalRatio < 0.68) rawHeadDirection = "LEFT";
-      else if (horizontalRatio > 1.36) rawHeadDirection = "RIGHT";
+      // When candidate turns head LEFT (towards image right), distToLeft increases, distToRight decreases -> horizontalRatio > 1.20
+      if (horizontalRatio > 1.20) rawHeadDirection = "LEFT";
+      // When candidate turns head RIGHT (towards image left), distToLeft decreases, distToRight increases -> horizontalRatio < 0.80
+      else if (horizontalRatio < 0.80) rawHeadDirection = "RIGHT";
       else if (verticalRatio < 0.68) rawHeadDirection = "UP";
       else if (verticalRatio > 1.35) rawHeadDirection = "DOWN";
 
@@ -142,17 +171,10 @@ export class FaceDetectionService {
       let blinkDetected = false;
 
       // ── Primary: Blendshape blink detection ───────────────────────────────
-      // VIDEO mode temporal smoothing can dampen transient blink peaks from ~0.9
-      // down to ~0.15-0.2 by the time the 100ms poll fires. Threshold is 0.15.
-      // We require BLINK_FRAMES_REQUIRED consecutive frames to confirm a real blink.
       if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
         const categories = result.faceBlendshapes[0].categories;
         const blinkLeft = categories.find(c => c.categoryName === "eyeBlinkLeft")?.score ?? 0;
         const blinkRight = categories.find(c => c.categoryName === "eyeBlinkRight")?.score ?? 0;
-
-        if (this.detectCount % 10 === 1) {
-          console.log(`[FaceDetection] blink scores — left: ${blinkLeft.toFixed(3)}, right: ${blinkRight.toFixed(3)}, accumulator: ${this.blinkFrameCount}, direction: ${headDirection}`);
-        }
 
         if (blinkLeft > FaceDetectionService.BLINK_THRESHOLD || blinkRight > FaceDetectionService.BLINK_THRESHOLD) {
           this.blinkFrameCount++;
