@@ -287,88 +287,26 @@ async function main(): Promise<void> {
               ])
             );
 
-            let content: any = {};
-            let scoringConfig: any = {};
-
-            if (modType === "MCQ") {
-              const hasOptions = Array.isArray(q.options) && q.options.length > 0;
-              const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
-              content = {
-                prompt: q.question || q.prompt || "",
-                options: q.options || [],
-                correctAnswer: correctAns,
-                explanation: q.explanation || "",
-                category: q.category || "",
-              };
-              scoringConfig = {
-                correctIndex: hasOptions && q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0,
-                correctAnswer: correctAns,
-                points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
-              };
-            } else if (modType === "SQL") {
-              content = {
-                prompt: q.question || q.prompt || "",
-                expectedQuery: q.expectedAnswer || "SELECT * FROM employees;",
-                expectedAnswer: q.expectedAnswer || "SELECT * FROM employees;",
-                schema: q.schema || "CREATE TABLE employees (id INT PRIMARY KEY, name VARCHAR(50), salary DECIMAL(10,2), department_id INT);",
-                seedData: q.seedData || "INSERT INTO employees VALUES (1, 'Alice', 95000, 1), (2, 'Bob', 80000, 1);",
-                category: q.category || "SQL",
-              };
-              scoringConfig = { points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1 };
-            } else if (modType === "CODING" || modType === "DEBUGGING") {
-              const lang = q.language || "Python";
-              const promptClean = q.question?.replace(/\n/g, " ") || q.prompt?.replace(/\n/g, " ") || "";
-              content = {
-                prompt: q.question || q.prompt || "",
-                expectedAnswer: q.expectedAnswer || "",
-                language: lang,
-                category: q.category || modType,
-                parameters: q.parameters || "input: string",
-                returnType: q.returnType || "any",
-                functionName: q.functionName || "solution",
-                starterCode: {
-                  python: `import sys\nimport json\n\ndef solution(data):\n    \"\"\"\n    Solve: ${promptClean}\n    :param data: input string or array\n    :return: expected output\n    \"\"\"\n    # TODO: Implement your solution here\n    pass\n\nif __name__ == '__main__':\n    for line in sys.stdin:\n        if line.strip():\n            print(solution(line.strip()))\n`,
-                  javascript: `const fs = require('fs');\n\n/**\n * Solve: ${promptClean}\n * @param {string} data\n * @returns {any}\n */\nfunction solution(data) {\n  // TODO: Implement your solution here\n  return null;\n}\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n  console.log(solution(input));\n}\n`,
-                },
-                visibleTestCases: [
-                  {
-                    input: "Sample Input 1",
-                    expectedOutput: q.expectedAnswer || "Expected Result 1",
-                    label: "Example 1: Basic Input",
-                    explanation: "Verifies basic input processing.",
-                  },
-                ],
-                hiddenTestCases: [
-                  {
-                    input: "Boundary Input 1",
-                    expectedOutput: q.expectedAnswer || "Expected Result 1",
-                    label: "Hidden Case 1: Edge Conditions",
-                  },
-                ],
-                testCases: [
-                  {
-                    input: "Sample Input 1",
-                    expectedOutput: q.expectedAnswer || "Expected Result 1",
-                    label: "Example 1: Basic Input",
-                    isHidden: false,
-                  },
-                  {
-                    input: "Boundary Input 1",
-                    expectedOutput: q.expectedAnswer || "Expected Result 1",
-                    label: "Hidden Case 1: Edge Conditions",
-                    isHidden: true,
-                  },
-                ],
-              };
-              scoringConfig = { points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1 };
-            } else {
-              content = {
-                prompt: q.question || q.prompt || "",
-                expectedAnswer: q.expectedAnswer || "",
-                category: q.category || "",
-              };
-              scoringConfig = { points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1 };
+            // Only ingest MCQ from legacy proctora_question_bank to ensure CODING/DEBUGGING
+            // remain 100% authentic, executable problems with real Judge0 test cases.
+            if (modType !== "MCQ") {
+              continue;
             }
+
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+            const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
+            content = {
+              prompt: q.question || q.prompt || "",
+              options: q.options || [],
+              correctAnswer: correctAns,
+              explanation: q.explanation || "",
+              category: q.category || "",
+            };
+            scoringConfig = {
+              correctIndex: hasOptions && q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0,
+              correctAnswer: correctAns,
+              points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
+            };
 
             allQuestionItems.push({
               moduleType: modType,
@@ -490,6 +428,18 @@ async function main(): Promise<void> {
                     ...(content.hiddenTestCases || []).map((tc: any) => ({ ...tc, isHidden: true })),
                   ];
                 }
+
+                // Ensure starter code exists for all 4 languages with valid syntax
+                const fnName = content.functionName || "solution";
+                const pName = (content.prompt || "").replace(/\n/g, " ");
+                const existingStarters = content.starterCode || {};
+
+                content.starterCode = {
+                  javascript: existingStarters.javascript || `const fs = require('fs');\n\nfunction ${fnName}(input) {\n  // TODO: Implement solution\n  return input;\n}\n\nconst raw = fs.readFileSync(0, 'utf-8').trim();\nif (raw) {\n  console.log(${fnName}(raw));\n}\n`,
+                  python: existingStarters.python || `import sys\n\ndef ${fnName}(data):\n    # TODO: Implement solution\n    return data\n\nif __name__ == '__main__':\n    for line in sys.stdin:\n        if line.strip():\n            print(${fnName}(line.strip()))\n`,
+                  java: existingStarters.java || `import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static String ${fnName}(String input) {\n        // TODO: Implement solution\n        return input;\n    }\n\n    public static void main(String[] args) throws Exception {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String line;\n        while ((line = br.readLine()) != null) {\n            if (line.trim().isEmpty()) continue;\n            System.out.println(${fnName}(line.trim()));\n        }\n    }\n}\n`,
+                  cpp: existingStarters.cpp || `#include <iostream>\n#include <string>\nusing namespace std;\n\nstring ${fnName}(const string& input) {\n    // TODO: Implement solution\n    return input;\n}\n\nint main() {\n    string line;\n    while (getline(cin, line)) {\n        if (line.empty()) continue;\n        cout << ${fnName}(line) << endl;\n    }\n    return 0;\n}\n`,
+                };
               }
 
               allQuestionItems.push({

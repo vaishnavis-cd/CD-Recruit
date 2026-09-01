@@ -517,7 +517,7 @@ export class SessionScoringService {
           if (typeof simScore === "number") {
             doValue = simScore > 1 ? simScore / 100 : simScore;
           } else {
-            doValue = payload?.executionResult?.passed ? 1.0 : 0.7;
+            doValue = payload?.executionResult?.passed ? 1.0 : 0.0;
           }
         } else {
           doValue = 0.0;

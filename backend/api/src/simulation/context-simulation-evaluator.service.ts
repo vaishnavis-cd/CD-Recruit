@@ -51,6 +51,36 @@ export class ContextSimulationEvaluatorService {
   constructor(private readonly aiEvaluationService: AiEvaluationService) {}
 
   /**
+   * Validates whether candidate input text represents meaningful English/technical sentences
+   * rather than random keyboard smashing or non-actionable gibberish.
+   */
+  private isMeaningfulText(text: string): boolean {
+    if (!text || typeof text !== "string") return false;
+    const clean = text.trim();
+    if (clean.length < 8) return false;
+
+    // Check for extreme repeating characters (e.g. 'aaaaaa', 'asdfasdfasdf')
+    if (/(.)\1{4,}/.test(clean)) return false;
+
+    const words = clean.split(/\s+/).filter((w) => w.length > 0);
+    if (words.length === 1 && clean.length > 14) {
+      // Single long token without spaces is usually gibberish like 'ewqratyuilkjhngbf'
+      return false;
+    }
+
+    // Check vowel-to-consonant ratio for natural language words
+    const letters = clean.toLowerCase().replace(/[^a-z]/g, "");
+    if (letters.length < 5) return false;
+    const vowels = letters.replace(/[^aeiou]/g, "").length;
+    const vowelRatio = vowels / letters.length;
+    if (vowelRatio < 0.15 || vowelRatio > 0.85) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Part 1: Evaluate Initial SAY response (0-100)
    */
   async evaluateInitialSay(
@@ -66,16 +96,25 @@ export class ContextSimulationEvaluatorService {
       };
     }
 
+    if (!this.isMeaningfulText(initialSayText)) {
+      return {
+        score: 0,
+        reasoning: "Initial plan contains non-actionable or random keyboard text. No coherent strategy provided.",
+        strengths: [],
+        weaknesses: ["Submitted unintelligible / gibberish initial plan"],
+      };
+    }
+
     try {
       const prompt = `Evaluate the candidate's initial strategy for fixing a QA bug:
 QA Bug: ${scenario.description}
 Candidate's Stated Initial Plan:
 ${initialSayText}
 
-Rate 0-100 on logical thinking, debugging strategy, planning, and clarity.`;
-      
+Rate 0-100 on logical thinking, debugging strategy, planning, and clarity. Return 0 if the text is irrelevant or gibberish.`;
+
       const res = await this.aiEvaluationService.evaluateSimulationResponse(scenario.description, prompt);
-      const score = res.score ?? 75;
+      const score = res.score ?? 50;
       const strengths = score >= 70 ? ["Clear debugging plan outlined", "Identified potential root cause"] : ["Provided response"];
       const weaknesses = score < 70 ? ["Plan lacks specific verification steps or edge case handling"] : [];
 
@@ -87,13 +126,16 @@ Rate 0-100 on logical thinking, debugging strategy, planning, and clarity.`;
       };
     } catch (err: any) {
       this.logger.warn(`AI initial SAY evaluation fallback: ${err.message}`);
-      const length = initialSayText.trim().length;
-      const score = Math.min(95, Math.max(40, Math.floor(length / 3) + 40));
+      const lower = initialSayText.toLowerCase();
+      const keywords = ["test", "debug", "check", "fix", "inspect", "cause", "issue", "verify", "reproduce", "log"];
+      const matchCount = keywords.filter((k) => lower.includes(k)).length;
+      const score = Math.min(85, Math.max(20, matchCount * 20));
+
       return {
         score,
         reasoning: "Rule-based evaluation of initial debugging plan.",
-        strengths: ["Submitted initial strategy before coding"],
-        weaknesses: length < 50 ? ["Initial plan was brief"] : [],
+        strengths: matchCount >= 2 ? ["Identified core debugging concepts"] : ["Submitted initial strategy before coding"],
+        weaknesses: matchCount < 2 ? ["Initial plan lacks technical debugging methodology"] : [],
       };
     }
   }
@@ -114,16 +156,25 @@ Rate 0-100 on logical thinking, debugging strategy, planning, and clarity.`;
       };
     }
 
+    if (!this.isMeaningfulText(emailReplyText)) {
+      return {
+        score: 0,
+        reasoning: "Manager email response contains non-actionable or random characters.",
+        strengths: [],
+        weaknesses: ["Did not provide a coherent reply to stakeholder inquiry"],
+      };
+    }
+
     try {
       const prompt = `Evaluate candidate email response to Engineering Manager:
 Manager Query: ${scenario.managerEmail.body}
 Candidate Reply:
 ${emailReplyText}
 
-Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, and clarity.`;
+Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, and clarity. Return 0 if the reply is unintelligible.`;
 
       const res = await this.aiEvaluationService.evaluateSimulationResponse(scenario.managerEmail.body, prompt);
-      const score = res.score ?? 75;
+      const score = res.score ?? 50;
       const strengths = score >= 75 ? ["Professional tone", "Clear ETA and risk status update"] : ["Replied to manager email"];
       const weaknesses = score < 75 ? ["Response lacked clear ETA or risk assessment"] : [];
 
@@ -135,13 +186,16 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
       };
     } catch (err: any) {
       this.logger.warn(`AI Email SAY evaluation fallback: ${err.message}`);
-      const length = emailReplyText.trim().length;
-      const score = Math.min(95, Math.max(50, Math.floor(length / 2) + 45));
+      const lower = emailReplyText.toLowerCase();
+      const keywords = ["eta", "deploy", "risk", "safe", "patch", "ready", "hour", "minute", "fix", "test"];
+      const matchCount = keywords.filter((k) => lower.includes(k)).length;
+      const score = Math.min(85, Math.max(20, matchCount * 20));
+
       return {
         score,
         reasoning: "Rule-based evaluation of email response.",
         strengths: ["Communicated progress to stakeholders"],
-        weaknesses: [],
+        weaknesses: matchCount < 2 ? ["Email lacked explicit ETA or deployment risk details"] : [],
       };
     }
   }
@@ -153,33 +207,44 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
     telemetryEvents: TelemetryEvent[],
     testExecutionResult: { passedTests: number; totalTests: number; isCorrect: boolean } | null,
   ): DetailedDoScore {
-    // 1. Calculate Behaviour Score (0-100)
     const fileEdits = telemetryEvents.filter((e) => e.type === "FILE_EDIT");
     const fileOpens = telemetryEvents.filter((e) => e.type === "FILE_OPEN");
     const testRuns = telemetryEvents.filter((e) => e.type === "TEST_EXECUTE");
 
-    let behaviourScore = 70; // baseline
+    // Zero-action safeguard
+    if (fileOpens.length === 0 && fileEdits.length === 0 && testRuns.length === 0) {
+      return {
+        behaviourScore: 0,
+        technicalScore: 0,
+        compositeDoScore: 0,
+        reasoning: "Zero workspace actions, file inspections, or test runs recorded during session.",
+        strengths: [],
+        weaknesses: ["Did not inspect codebase files", "Did not apply any code modifications", "Did not execute verification tests"],
+      };
+    }
+
+    // 1. Calculate Behaviour Score (0-100)
+    let behaviourScore = 0;
     const strengths: string[] = [];
     const weaknesses: string[] = [];
 
     if (fileOpens.length > 0) {
-      behaviourScore += 10;
+      behaviourScore += 25;
       strengths.push("Inspected codebase files before modifying");
     }
     if (fileEdits.length > 0) {
-      behaviourScore += 10;
+      behaviourScore += 35;
       strengths.push("Applied targeted code changes");
     }
     if (testRuns.length > 0) {
-      behaviourScore += 10;
+      behaviourScore += 40;
       strengths.push("Executed unit tests to verify solution");
     } else {
-      behaviourScore -= 15;
       weaknesses.push("Did not run tests before submitting solution");
     }
 
-    if (fileEdits.length > 10) {
-      behaviourScore -= 10;
+    if (fileEdits.length > 12) {
+      behaviourScore = Math.max(0, behaviourScore - 10);
       weaknesses.push("Excessive edit iterations detected");
     }
 
@@ -194,13 +259,13 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
         );
       }
       if (testExecutionResult.isCorrect) {
-        technicalScore = Math.max(technicalScore, 100);
+        technicalScore = 100;
         strengths.push("Passed all functional and edge case tests");
       } else if (technicalScore < 100) {
         weaknesses.push("Failed one or more hidden edge case test cases");
       }
     } else {
-      technicalScore = fileEdits.length > 0 ? 50 : 0;
+      technicalScore = fileEdits.length > 0 ? 20 : 0;
     }
 
     // 3. Composite DO Score (50% Behaviour, 50% Technical)
@@ -224,54 +289,64 @@ Rate 0-100 on professionalism, clear ETA, acknowledgment of deployment risks, an
     telemetryEvents: TelemetryEvent[],
     scenario: ContextSimulationScenarioConfig = QA_BUG_REPORT_SCENARIO,
   ): EvaluationPartScore {
-    if (!initialSayText) {
+    if (!initialSayText || !this.isMeaningfulText(initialSayText)) {
       return {
         score: 0,
-        reasoning: "No initial plan available to compute Say-Do correlation.",
+        reasoning: "No coherent initial plan provided; Say-Do correlation score is 0%.",
         strengths: [],
-        weaknesses: ["Cannot measure correlation without initial plan"],
+        weaknesses: ["Cannot measure Say-Do correlation without valid initial plan"],
       };
     }
 
-    const lowerSay = initialSayText.toLowerCase();
     const testRuns = telemetryEvents.filter((e) => e.type === "TEST_EXECUTE");
     const fileOpens = telemetryEvents.filter((e) => e.type === "FILE_OPEN");
     const fileEdits = telemetryEvents.filter((e) => e.type === "FILE_EDIT");
 
-    let correlationScore = 75; // baseline
+    // Zero-action safeguard
+    if (fileOpens.length === 0 && fileEdits.length === 0 && testRuns.length === 0) {
+      return {
+        score: 0,
+        reasoning: "Candidate stated initial intent but performed zero workspace actions (0% consistency).",
+        strengths: [],
+        weaknesses: ["Complete Say-Do gap: Stated intentions were not followed by any workspace execution"],
+      };
+    }
+
+    const lowerSay = initialSayText.toLowerCase();
+    let correlationScore = 20; // baseline for valid plan + activity
     const strengths: string[] = [];
     const weaknesses: string[] = [];
 
     // Check plan vs execution alignment using scenario-specific expected concepts
-    const concepts = scenario.expectedConcepts || ['test', 'verify', 'check', 'inspect', 'read', 'look', 'debug'];
-    const testConcepts = concepts.filter(c => ['test', 'verify', 'check'].includes(c));
-    const inspectConcepts = concepts.filter(c => ['inspect', 'read', 'look', 'debug'].includes(c));
+    const concepts = scenario.expectedConcepts || ["test", "verify", "check", "inspect", "read", "look", "debug"];
+    const testConcepts = concepts.filter((c) => ["test", "verify", "check"].includes(c));
+    const inspectConcepts = concepts.filter((c) => ["inspect", "read", "look", "debug"].includes(c));
 
     const saidWouldTest = testConcepts.length > 0 
-      ? testConcepts.some(c => lowerSay.includes(c)) 
+      ? testConcepts.some((c) => lowerSay.includes(c)) 
       : (lowerSay.includes("test") || lowerSay.includes("verify") || lowerSay.includes("check"));
     const didRunTest = testRuns.length > 0;
 
     if (saidWouldTest && didRunTest) {
-      correlationScore += 15;
+      correlationScore += 35;
       strengths.push("Executed testing steps as promised in initial plan");
     } else if (saidWouldTest && !didRunTest) {
-      correlationScore -= 20;
+      correlationScore = Math.max(0, correlationScore - 20);
       weaknesses.push("Stated intention to run tests but did not execute tests in workspace");
     }
 
     const saidWouldInspect = inspectConcepts.length > 0 
-      ? inspectConcepts.some(c => lowerSay.includes(c)) 
+      ? inspectConcepts.some((c) => lowerSay.includes(c)) 
       : (lowerSay.includes("inspect") || lowerSay.includes("read") || lowerSay.includes("look") || lowerSay.includes("debug"));
     const didInspectFiles = fileOpens.length > 0;
 
     if (saidWouldInspect && didInspectFiles) {
-      correlationScore += 10;
+      correlationScore += 25;
       strengths.push("Inspected code files as outlined in initial plan");
     }
 
     if (fileEdits.length > 0) {
-      correlationScore += 5;
+      correlationScore += 20;
     }
 
     correlationScore = Math.min(100, Math.max(0, correlationScore));

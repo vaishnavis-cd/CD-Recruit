@@ -888,6 +888,19 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
       const moduleScoresJson = hasCompleteAiEval && normalizedScore !== null ? { SIMULATION: normalizedScore } : {};
       const sayDoScoreVal = hasCompleteAiEval && evaluation.sayDoCorrelation?.score !== null ? evaluation.sayDoCorrelation.score / 100 : null;
 
+      // Calculate dynamic AI confidence based on evidence volume
+      const telemetryCount = telemetryEvents.length;
+      let dynamicAiConfidence: number | null = null;
+      if (hasCompleteAiEval) {
+        if (telemetryCount <= 2 && (!testResults || testResults.totalTests === 0)) {
+          dynamicAiConfidence = 0.20; // minimal evidence / candidate didn't work in workspace
+        } else if (telemetryCount <= 6) {
+          dynamicAiConfidence = 0.65;
+        } else {
+          dynamicAiConfidence = Math.min(0.95, 0.70 + (telemetryCount * 0.01) + (testResults?.isCorrect ? 0.15 : 0));
+        }
+      }
+
       await this.prisma.score.upsert({
         where: { sessionId },
         create: {
@@ -898,7 +911,7 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
           totalScore: totalScoreVal,
           moduleScores: moduleScoresJson,
           sayDoConsistencyScore: sayDoScoreVal,
-          aiConfidence: hasCompleteAiEval ? 0.9 : null,
+          aiConfidence: dynamicAiConfidence,
           humanReviewed: false,
           sayDoRationale: hasCompleteAiEval ? evaluation.sayDoCorrelation?.reasoning : "Evaluation Pending — AI evaluation provider unavailable.",
           gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
@@ -909,7 +922,7 @@ export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
           totalScore: totalScoreVal,
           moduleScores: moduleScoresJson,
           sayDoConsistencyScore: sayDoScoreVal,
-          aiConfidence: hasCompleteAiEval ? 0.9 : null,
+          aiConfidence: dynamicAiConfidence,
           sayDoRationale: hasCompleteAiEval ? evaluation.sayDoCorrelation?.reasoning : "Evaluation Pending — AI evaluation provider unavailable.",
           gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
         },

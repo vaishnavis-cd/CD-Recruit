@@ -1210,18 +1210,44 @@ function IndividualResultPage() {
                         const payload = resp.responsePayload || resp.payload || resp;
                         const resolution = payload.resolutionData || payload.resolution || null;
                         const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
-                        const statusStr = resolution?.status || (payload.isCorrect !== false ? "RESOLVED & APPROVED" : "SUBMITTED");
                         const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode;
                         const summaryText = resolution?.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
-                        const passedTests = payload.passedTests !== undefined ? payload.passedTests : (payload.isCorrect ? 3 : 3);
-                        const totalTests = payload.totalTests !== undefined ? payload.totalTests : 3;
+                        
+                        const passedTests = typeof payload.passedTests === "number" ? payload.passedTests : (payload.testExecutionResult?.passedTests ?? (payload.isCorrect ? 3 : 0));
+                        const totalTests = typeof payload.totalTests === "number" ? payload.totalTests : (payload.testExecutionResult?.totalTests ?? 3);
+                        const hasRunTests = typeof payload.passedTests === "number" || typeof payload.testExecutionResult?.passedTests === "number" || payload.isCorrect !== undefined;
+
+                        let statusStr = "NOT ATTEMPTED";
+                        let badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+
+                        if (resolution?.status) {
+                          statusStr = resolution.status;
+                          badgeStyle = statusStr.includes("RESOLVED") ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-blue-50 text-brand border-blue-200";
+                        } else if (hasRunTests && totalTests > 0) {
+                          if (passedTests === totalTests) {
+                            statusStr = "RESOLVED & APPROVED";
+                            badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                          } else if (passedTests > 0) {
+                            statusStr = "PARTIALLY RESOLVED";
+                            badgeStyle = "bg-amber-50 text-amber-700 border-amber-300";
+                          } else {
+                            statusStr = "TESTS FAILED";
+                            badgeStyle = "bg-rose-50 text-rose-700 border-rose-300";
+                          }
+                        } else if (codePatch) {
+                          statusStr = "SUBMITTED (Unverified)";
+                          badgeStyle = "bg-blue-50 text-brand border-blue-200";
+                        } else {
+                          statusStr = "NOT ATTEMPTED";
+                          badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+                        }
 
                         return (
                           <div key={resp.id || idx} className="p-4 bg-canvas border border-line rounded-xl space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-sm-minus text-ink">{promptText}</span>
-                              <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
-                                {statusStr} • Passed {passedTests}/{totalTests} Tests
+                              <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${badgeStyle}`}>
+                                {statusStr} {hasRunTests ? `• Passed ${passedTests}/${totalTests} Tests` : "• 0 Tests Executed"}
                               </span>
                             </div>
 
