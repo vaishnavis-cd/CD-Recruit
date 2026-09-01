@@ -1,48 +1,125 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import {
-  LayoutGrid,
-  Share2,
-  Send,
-  BarChart2,
-  FileText,
-  Contact,
-  FolderArchive,
-  LogOut,
-  Settings as SettingsIcon,
-  AlertTriangle,
-  HelpCircle,
-  LifeBuoy,
-} from "lucide-react";
-
+import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
 
-function FigmaSettingsIcon({ size = 15, className = "" }: { size?: number; className?: string }) {
+/* --- Exact Figma-matched SVG Icons --- */
+
+interface IconProps {
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}
+
+function DashboardIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function DrivesIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="4" r="2" />
+      <circle cx="5" cy="16" r="2" />
+      <circle cx="17" cy="15" r="2" />
+      <path d="M12 6L6.5 14.5" />
+      <path d="M12 6L16 13" />
+      <path d="M7 16h8" />
+      <path d="M17 17l4 4m0 0h-3m3 0v-3" />
+    </svg>
+  );
+}
+
+function InvitesIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 4h7a2 2 0 0 1 2 2v2" />
+      <path d="M13 16v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2" />
+      <path d="M9 12h12m0 0l-3-3m3 3l-3 3" />
+    </svg>
+  );
+}
+
+function ResultsIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M7 16v-3M12 16V8M17 16v-5" />
+    </svg>
+  );
+}
+
+function ReportsIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  );
+}
+
+function RoleTemplatesIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <circle cx="8" cy="12" r="2" />
+      <path d="M13 10h5" />
+      <path d="M13 14h3" />
+    </svg>
+  );
+}
+
+function QuestionBankIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h4" />
+      <circle cx="9" cy="17" r="3" fill="#2f68ff" stroke="#2f68ff" />
+      <path d="M9 16v2" stroke="#ffffff" strokeWidth="1.5" />
+      <path d="M9 14.5v.01" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SettingsGearIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function SupportHeadsetIcon({ size = 15, strokeWidth = 2, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
     </svg>
   );
 }
 
 
 const ALL_NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/drives", label: "Drives", icon: Share2 },
-  { to: "/invites", label: "Invites", icon: Send },
-  { to: "/results", label: "Results", icon: BarChart2 },
-  { to: "/reports", label: "Reports", icon: FileText },
-  { to: "/templates", label: "Role Templates", icon: Contact },
-  { to: "/questions", label: "Question Bank", icon: FolderArchive },
-  { to: "/settings", label: "Settings", icon: FigmaSettingsIcon },
+  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon },
+  { to: "/drives", label: "Drives", icon: DrivesIcon },
+  { to: "/invites", label: "Invites", icon: InvitesIcon },
+  { to: "/results", label: "Results", icon: ResultsIcon },
+  { to: "/reports", label: "Reports", icon: ReportsIcon },
+  { to: "/templates", label: "Role Templates", icon: RoleTemplatesIcon },
+  { to: "/questions", label: "Question Bank", icon: QuestionBankIcon },
+  { to: "/settings", label: "Settings", icon: SettingsGearIcon },
 ] as const;
+
 
 export interface AppShellProps {
   title?: string;
@@ -226,14 +303,15 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
               HELP
             </div>
 
-            {/* Support with LifeBuoy icon */}
+            {/* Support with Headset icon */}
             <button
               onClick={() => window.open("mailto:support@proctora.com", "_blank")}
               className="w-full flex items-center gap-2.5 px-2 py-1 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] transition-all cursor-pointer text-left"
             >
-              <LifeBuoy size={15} className="text-[#2f68ff]" />
+              <SupportHeadsetIcon size={15} className="text-[#2f68ff]" />
               <span>Support</span>
             </button>
+
 
             {/* New Assessment Drive Promo Card */}
             <div className="p-3 bg-gradient-to-br from-[#2f68ff] to-[#1e54ea] rounded-xl text-white shadow-md shadow-blue-500/10 space-y-1.5">
