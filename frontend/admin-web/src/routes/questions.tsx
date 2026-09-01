@@ -592,14 +592,12 @@ function QuestionBankPage() {
       drive: [],
     };
 
-    // 1. Group Module Types by canonical key
+    // 1. Group Module Types by canonical key (strict moduleType matching)
     CANONICAL_MODULES.forEach((mod) => {
       const folderKey = `module:${mod.key}`;
       const matchingQuestions = questions.filter((q) => {
         const qMod = (q.moduleType || "").toUpperCase();
-        if (qMod === mod.key) return true;
-        const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
-        return mod.aliases.some((alias) => qTags.includes(alias));
+        return qMod === mod.key;
       });
 
       if (matchingQuestions.length > 0) {
@@ -618,7 +616,8 @@ function QuestionBankPage() {
     CANONICAL_LEVELS.forEach((lvl) => {
       const folderKey = `level:${lvl.key}`;
       const matchingQuestions = questions.filter((q) => {
-        if (q.targetLevel === lvl.tier) return true;
+        const targetLvl = (q.targetLevel || "").toLowerCase();
+        if (targetLvl === lvl.tier.toLowerCase() || targetLvl === lvl.key.toLowerCase()) return true;
         const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
         return lvl.aliases.some((alias) => qTags.includes(alias));
       });
@@ -638,6 +637,18 @@ function QuestionBankPage() {
     // 3. Group Topics & Drives
     const driveTagMap = new Map<string, typeof questions>();
     const topicTagMap = new Map<string, { title: string; questions: typeof questions }>();
+
+    const DEPT_TAG_ALIASES = [
+      "sde", "software_engineering", "software-engineering", "softwareengineering",
+      "qa", "quality_assurance", "quality-assurance", "testing",
+      "data_engineering", "data-engineering", "dataengineering",
+      "sre", "site_reliability", "site-reliability",
+      "secops", "cybersecurity", "security_operations", "security",
+      "sysops", "system_operations", "system-operations",
+      "itops", "it_operations", "it-operations",
+      "pmo", "project_management", "project-management",
+      "general", "fresher", "freshers", "intern", "l1", "l2", "l3",
+    ];
 
     questions.forEach((q) => {
       const rawTags = q.tags && q.tags.length > 0 ? q.tags : ["untagged"];
@@ -665,10 +676,11 @@ function QuestionBankPage() {
           return;
         }
 
-        // Skip module & level tags from topics cloud
+        // Skip module, level, & department metadata tags from topics cloud
         const cleanNormalized = cleanTag.replace(/[-_\s]+/g, "");
-        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized))) return;
-        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized))) return;
+        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized) || m.key.toLowerCase().replace(/[-_\s]+/g, "") === cleanNormalized)) return;
+        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized) || l.key.toLowerCase().replace(/[-_\s]+/g, "") === cleanNormalized)) return;
+        if (DEPT_TAG_ALIASES.some((d) => d.replace(/[-_\s]+/g, "") === cleanNormalized)) return;
 
         // Canonical topic mapping
         const canonicalTitle = formatTagDisplayName(cleanTag, "topic").title;
