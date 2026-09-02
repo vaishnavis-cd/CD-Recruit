@@ -1,6 +1,6 @@
 import {
   Controller,
-  Post,
+  All,
   Query,
   Body,
   HttpCode,
@@ -22,7 +22,7 @@ export class Judge0WebhookController {
     private readonly queueProvider: QueueProviderPort,
   ) {}
 
-  @Post()
+  @All()
   @HttpCode(HttpStatus.OK)
   @UseGuards(Judge0WebhookGuard)
   async handleCallback(

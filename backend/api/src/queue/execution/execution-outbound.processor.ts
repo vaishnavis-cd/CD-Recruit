@@ -227,7 +227,6 @@ export class OutboundExecutionProcessor extends WorkerHost {
         await this.prisma.moduleResponse.update({
           where: { id: existing.id },
           data: {
-            score,
             responsePayload: {
               ...currentPayload,
               status: overallStatus,

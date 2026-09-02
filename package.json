@@ -28,7 +28,8 @@
     "db:generate": "npm --workspace=backend/api run prisma:generate",
     "db:migrate": "npm --workspace=backend/api run prisma:migrate",
     "db:seed": "npm --workspace=backend/api run prisma:seed",
-    "db:studio": "npm --workspace=backend/api run prisma:studio"
+    "db:studio": "npm --workspace=backend/api run prisma:studio",
+    "generate:drive": "npx tsx backend/prisma/generate-drive-and-invites.ts"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
