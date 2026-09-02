@@ -1158,7 +1158,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                   </p>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
-                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-3 px-4 py-2.5 border-b border-[#E2E8F0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B]">
                       <div>USER</div>
                       <div>ACTION</div>
                       <div>ENTITY</div>
@@ -1166,19 +1166,19 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       <div>TIMESTAMP</div>
                     </div>
 
-                    <div className="divide-y divide-[#F1F5F9] max-h-[460px] overflow-y-auto">
+                    <div className="divide-y divide-[#E2E8F0] max-h-[460px] overflow-y-auto">
                       {auditLogs.map((log) => (
                         <div
                           key={log.id}
-                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-3 px-4 py-3.5 items-center hover:bg-[#FBFCFD] transition-colors"
+                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
                         >
-                          <div className="text-[12px] font-medium text-[#0F172A] truncate">
+                          <div className="text-[13px] font-medium text-[#0F172A] truncate">
                             {log.staff?.name || "Demo Admin"}
                           </div>
                           <div className="text-[12px] font-bold text-[#2563EB] font-mono truncate">
                             {log.action}
                           </div>
-                          <div className="text-[12px] text-[#64748B] truncate">
+                          <div className="text-[13px] text-[#0F172A] truncate">
                             {log.entityType}
                           </div>
                           <div
@@ -1234,7 +1234,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                   </div>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
-                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-3 px-4 py-2.5 border-b border-[#E2E8F0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B] items-center">
                       <div>PARTNER NAME</div>
                       <div>RATE LIMIT</div>
                       <div>API HITS</div>
@@ -1252,22 +1252,22 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       </div>
                     </div>
 
-                    <div className="divide-y divide-[#F1F5F9]">
+                    <div className="divide-y divide-[#E2E8F0]">
                       {partners.map((p) => (
                         <div
                           key={p.id}
-                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-3 px-4 py-3.5 items-center hover:bg-[#FBFCFD] transition-colors"
+                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
                         >
                           <div>
                             <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
-                            <p className="text-[10px] font-mono text-[#94A3B8] truncate">{p.id}</p>
+                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
                           </div>
-                          <div className="text-[12px] text-[#64748B]">{p.rateLimit} req/min</div>
-                          <div className="text-[12px] font-bold text-[#2563EB]">
+                          <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
+                          <div className="text-[13px] font-bold text-[#2563EB]">
                             {(p as any).apiHitCount ?? 0} hits
                           </div>
                           <div
-                            className="text-[12px] text-[#8C9BA5] italic truncate"
+                            className="text-[13px] text-[#8C9BA5] italic truncate"
                             title={p.callbackUrl || "None"}
                           >
                             {p.callbackUrl || "None"}
@@ -1283,7 +1283,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                               {p.isRevoked ? "REVOKED" : "ACTIVE"}
                             </span>
                           </div>
-                          <div className="text-[12px] text-[#64748B]">
+                          <div className="text-[13px] text-[#64748B]">
                             {p.createdAt
                               ? new Date(p.createdAt).toLocaleDateString("en-US", {
                                   month: "short",
@@ -1295,14 +1295,14 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setConfirmRotatePartner(p)}
-                              className="w-[25px] h-[25px] rounded-[5.5px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer"
+                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
                               title="Rotate API Key"
                             >
                               <RefreshCw size={12} />
                             </button>
                             <button
                               onClick={() => setEditingPartner({ ...p })}
-                              className="w-[25px] h-[25px] rounded-[5.5px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer"
+                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
                               title="Edit Partner Config"
                             >
                               <Edit3 size={12} />
@@ -1310,7 +1310,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                             {!p.isRevoked && (
                               <button
                                 onClick={() => setConfirmRevokePartner(p)}
-                                className="w-[25px] h-[25px] rounded-[5.5px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer"
+                                className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer shadow-2xs"
                                 title="Revoke Partner Key"
                               >
                                 <Trash2 size={12} />
