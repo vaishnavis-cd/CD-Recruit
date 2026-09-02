@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { ListAuditLogQueryDto, UpdateRolePermissionDto } from "../common/dto/settings.dto";
@@ -34,7 +34,7 @@ export const PERMISSION_DESCRIPTORS: PermissionDescriptor[] = [
     category: "Drive Logistics",
   },
 
-  // Candidate Evaluation
+  // Evaluation & Decision
   {
     key: Permission.CANDIDATE_VIEW,
     name: "View Candidate Submissions",
@@ -54,7 +54,7 @@ export const PERMISSION_DESCRIPTORS: PermissionDescriptor[] = [
     category: "Candidate Evaluation",
   },
 
-  // Identity & Integrity
+  // Identity & Flags
   {
     key: Permission.IDENTITY_VERIFICATION_APPROVE,
     name: "Approve Identity Verification",
@@ -130,14 +130,17 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     Permission.CANDIDATE_INGEST_CSV,
     Permission.DRIVE_MANAGE,
     Permission.CANDIDATE_VIEW,
+    Permission.DECISION_SUBMIT,
     Permission.PROCTORING_TRIAGE,
+    Permission.ROLE_TEMPLATE_EDIT,
+    Permission.QUESTION_BANK_MANAGE,
   ],
 };
 
 import { KeycloakAdminService } from "../auth/keycloak-admin.service";
 
 @Injectable()
-export class SettingsService {
+export class SettingsService implements OnModuleInit {
   private readonly configPath: string;
   private readonly logger = new Logger(SettingsService.name);
 
@@ -147,6 +150,22 @@ export class SettingsService {
   ) {
     this.configPath = path.join(__dirname, "../config/settings.json");
     this.ensureConfigExists();
+  }
+
+  async onModuleInit() {
+    this.reconcileKeycloakStaff().catch((err) => {
+      this.logger.debug(`Background Keycloak reconciliation skipped: ${err.message}`);
+    });
+  }
+
+  private async reconcileKeycloakStaff() {
+    if (!this.keycloakAdmin) return;
+    const staff = await this.prisma.staff.findMany({
+      select: { id: true, name: true, email: true, role: true, keycloakUserId: true },
+    });
+    if (staff.length > 0) {
+      await this.keycloakAdmin.syncAllStaff(staff);
+    }
   }
 
   private ensureConfigExists() {

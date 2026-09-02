@@ -1183,6 +1183,10 @@ function DriveDetailPage() {
       )
     );
     const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    if (isTemplateGoverned && totalDuration < 90) {
+      toast.error("Standard role templates require at least a 90-minute assessment window.");
+      return;
+    }
 
     const updatedModuleConfig = { ...moduleConfig };
     for (const [modId, conf] of Object.entries(updatedModuleConfig)) {
@@ -1254,6 +1258,15 @@ function DriveDetailPage() {
     return Object.keys(moduleConfig || {}).filter((k) => moduleConfig[k]?.enabled);
   }, [moduleConfig]);
 
+  const isTemplateGoverned = useMemo(() => {
+    if (!drive) return false;
+    const hasTemplate =
+      !!drive.roleTemplateId &&
+      ((roleTemplates || []).some((rt) => rt.id === drive.roleTemplateId) ||
+        drive.roleTemplateId.length === 36);
+    return hasTemplate;
+  }, [drive, roleTemplates]);
+
   const isQuestionsDirty = useMemo(() => {
     const sortedCurrent = [...assignedQuestions].sort();
     const sortedSaved = [...savedAssignedQuestions].sort();
@@ -1269,15 +1282,20 @@ function DriveDetailPage() {
   };
 
   const isQuestionsEditable = useMemo(() => {
+    if (isTemplateGoverned) return false;
     const roster = drive?.roster || [];
     if (roster.length === 0) return true;
     const ungeneratedCount = roster.filter((c) => !c.isGenerated).length;
     return ungeneratedCount >= 1;
-  }, [drive]);
+  }, [drive, isTemplateGoverned]);
 
   const handleSaveQuestions = async () => {
     if (!isQuestionsEditable) {
-      toast.error("Drive questions are locked because all candidate links have already been generated.");
+      toast.error(
+        isTemplateGoverned
+          ? "Drive questions are locked by Role Template to ensure standard candidate evaluation."
+          : "Drive questions are locked because all candidate links have already been generated."
+      );
       return;
     }
 
@@ -1742,30 +1760,57 @@ function DriveDetailPage() {
                 >
                   Total Weight: {weightValidation.coreSum} / 100 pts
                 </span>
-                <button
-                  type="button"
-                  onClick={handleAutoAlignAssessment}
-                  className="px-3.5 py-1 text-xs-plus font-bold text-white bg-gradient-to-r from-brand to-brand-hover hover:from-brand-hover hover:to-brand-ink rounded shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-                  title="One-click automatic alignment of weights, required question counts, difficulty distributions, and timings to fit session window"
-                >
-                  <Sparkles size={13} className="text-amber-300" />
-                  <span>Auto-Align Assessment</span>
-                </button>
-                <button
-                  onClick={handleAutoBalanceDurations}
-                  className="px-3 py-1 text-xs-plus font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-50 rounded border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1"
-                  title="Auto-balance module durations (preserves manually changed times)"
-                >
-                  <Clock size={12} /> Auto-Balance Time
-                </button>
-                <button
-                  onClick={handleAutoBalanceWeights}
-                  className="px-3 py-1 text-xs-plus font-semibold text-brand bg-brand-subtle hover:bg-brand-subtle rounded border border-brand-border transition-colors cursor-pointer"
-                >
-                  Auto-Balance Weights
-                </button>
+                {!isTemplateGoverned && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleAutoAlignAssessment}
+                      className="px-3.5 py-1 text-xs-plus font-bold text-white bg-gradient-to-r from-brand to-brand-hover hover:from-brand-hover hover:to-brand-ink rounded shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                      title="One-click automatic alignment of weights, required question counts, difficulty distributions, and timings to fit session window"
+                    >
+                      <Sparkles size={13} className="text-amber-300" />
+                      <span>Auto-Align Assessment</span>
+                    </button>
+                    <button
+                      onClick={handleAutoBalanceDurations}
+                      className="px-3 py-1 text-xs-plus font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-50 rounded border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1"
+                      title="Auto-balance module durations (preserves manually changed times)"
+                    >
+                      <Clock size={12} /> Auto-Balance Time
+                    </button>
+                    <button
+                      onClick={handleAutoBalanceWeights}
+                      className="px-3 py-1 text-xs-plus font-semibold text-brand bg-brand-subtle hover:bg-brand-subtle rounded border border-brand-border transition-colors cursor-pointer"
+                    >
+                      Auto-Balance Weights
+                    </button>
+                  </>
+                )}
               </div>
             </div>
+
+            {/* Template Governed Read-Only Banner */}
+            {isTemplateGoverned && (
+              <div className="p-4 bg-brand-subtle border border-brand-border rounded-xl flex items-start gap-3">
+                <div className="p-2 bg-white text-brand rounded-lg shadow-2xs shrink-0 mt-0.5">
+                  <ShieldCheck size={18} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-brand-ink">Standardized Role Template Governed</h4>
+                    <span className="px-2 py-0.5 bg-brand text-white text-2xs font-bold font-mono rounded">
+                      {drive?.roleTemplateName || "Role Template"}
+                    </span>
+                    <span className="px-2 py-0.5 bg-brand/10 text-brand text-2xs font-bold font-mono rounded">
+                      90 Mins Standard
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-secondary leading-relaxed">
+                    Assessment modules, durations, and score weights are calibrated and locked by the Role Template to guarantee standard candidate evaluation. To configure custom modules and questions, create a Custom Role drive.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
@@ -1788,6 +1833,7 @@ function DriveDetailPage() {
                   <div
                     key={mod.id}
                     onClick={() => {
+                      if (isTemplateGoverned) return;
                       if (!isGloballyEnabled) {
                         toast.error(`${mod.name} is disabled in Admin Settings for this department.`);
                         return;
@@ -1808,7 +1854,11 @@ function DriveDetailPage() {
                       setModuleConfig(aligned);
                     }}
                     className={`border rounded-md p-4 space-y-3 transition-colors select-none ${
-                      !isGloballyEnabled
+                      isTemplateGoverned
+                        ? conf.enabled
+                          ? "bg-white border-brand/40 shadow-xs cursor-default"
+                          : "bg-canvas border-line opacity-50 cursor-default"
+                        : !isGloballyEnabled
                         ? "bg-canvas/80 border-line opacity-40 cursor-not-allowed"
                         : conf.enabled
                         ? "bg-white border-brand shadow-sm cursor-pointer"
@@ -1829,7 +1879,7 @@ function DriveDetailPage() {
                         <input
                           type="checkbox"
                           checked={conf.enabled && isGloballyEnabled}
-                          disabled={!isGloballyEnabled}
+                          disabled={isTemplateGoverned || !isGloballyEnabled}
                           onChange={() => {}}
                           className="w-4 h-4 text-brand rounded cursor-pointer pointer-events-none disabled:opacity-40"
                         />
@@ -1845,7 +1895,7 @@ function DriveDetailPage() {
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <label className="text-ink-secondary font-medium">Duration (min)</label>
-                            {conf.isFixed && (
+                            {conf.isFixed && !isTemplateGoverned && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1863,8 +1913,10 @@ function DriveDetailPage() {
                           </div>
                           <input
                             type="number"
+                            readOnly={isTemplateGoverned}
                             value={conf.durationMinutes === 0 ? "" : conf.durationMinutes}
                             onChange={(e) => {
+                              if (isTemplateGoverned) return;
                               const raw = e.target.value;
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                               setModuleConfig({
@@ -1872,9 +1924,13 @@ function DriveDetailPage() {
                                 [mod.id]: { ...conf, durationMinutes: val, isFixed: true },
                               });
                             }}
-                            onFocus={(e) => e.target.select()}
+                            onFocus={(e) => !isTemplateGoverned && e.target.select()}
                             className={`w-full px-2 py-1 border rounded font-mono text-xs ${
-                              conf.isFixed ? "border-amber-400 bg-amber-50/30" : "border-line"
+                              isTemplateGoverned
+                                ? "bg-slate-50 text-ink-secondary border-line cursor-not-allowed"
+                                : conf.isFixed
+                                ? "border-amber-400 bg-amber-50/30"
+                                : "border-line"
                             }`}
                           />
                         </div>
@@ -1885,8 +1941,10 @@ function DriveDetailPage() {
                           </label>
                           <input
                             type="number"
+                            readOnly={isTemplateGoverned}
                             value={conf.weight === 0 ? "" : conf.weight}
                             onChange={(e) => {
+                              if (isTemplateGoverned) return;
                               const raw = e.target.value;
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                               const lowerName = (drive?.roleTemplateName || "").toLowerCase();
@@ -1909,8 +1967,12 @@ function DriveDetailPage() {
                                 },
                               } as any);
                             }}
-                            onFocus={(e) => e.target.select()}
-                            className="w-full px-2 py-1 border border-line rounded font-mono text-xs"
+                            onFocus={(e) => !isTemplateGoverned && e.target.select()}
+                            className={`w-full px-2 py-1 border rounded font-mono text-xs ${
+                              isTemplateGoverned
+                                ? "bg-slate-50 text-ink-secondary border-line cursor-not-allowed"
+                                : "border-line"
+                            }`}
                           />
                         </div>
 
@@ -1918,15 +1980,17 @@ function DriveDetailPage() {
                           <div className="col-span-2 pt-2 border-t border-surface-inset">
                             <label className="block text-ink-secondary font-medium mb-1.5 text-xs-plus">Question &amp; Validation Source</label>
                             <Select
+                              disabled={isTemplateGoverned}
                               value={(conf as any).questionSource || "AI_DYNAMIC"}
-                              onValueChange={(val) =>
+                              onValueChange={(val) => {
+                                if (isTemplateGoverned) return;
                                 setModuleConfig({
                                   ...moduleConfig,
                                   [mod.id]: { ...(conf as any), questionSource: val } as any,
-                                })
-                              }
+                                });
+                              }}
                             >
-                              <SelectTrigger className="w-full h-8 px-2.5 border border-line rounded-sm font-sans text-xs bg-white text-ink cursor-pointer">
+                              <SelectTrigger className="w-full h-8 px-2.5 border border-line rounded-sm font-sans text-xs bg-white text-ink cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed">
                                 <SelectValue placeholder="Select question source" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1981,8 +2045,10 @@ function DriveDetailPage() {
                                   <input
                                     type="number"
                                     min="0"
+                                    readOnly={isTemplateGoverned}
                                     value={dist.easy}
                                     onChange={(e) => {
+                                      if (isTemplateGoverned) return;
                                       const val = Math.max(0, parseInt(e.target.value, 10) || 0);
                                       setModuleConfig({
                                         ...moduleConfig,
@@ -1993,7 +2059,9 @@ function DriveDetailPage() {
                                         },
                                       } as any);
                                     }}
-                                    className="w-full px-1.5 py-0.5 border border-line rounded font-mono text-xs-plus"
+                                    className={`w-full px-1.5 py-0.5 border rounded font-mono text-xs-plus ${
+                                      isTemplateGoverned ? "bg-slate-50 text-ink-secondary border-line cursor-not-allowed" : "border-line"
+                                    }`}
                                   />
                                 </div>
                                 <div>
@@ -2001,8 +2069,10 @@ function DriveDetailPage() {
                                   <input
                                     type="number"
                                     min="0"
+                                    readOnly={isTemplateGoverned}
                                     value={dist.medium}
                                     onChange={(e) => {
+                                      if (isTemplateGoverned) return;
                                       const val = Math.max(0, parseInt(e.target.value, 10) || 0);
                                       setModuleConfig({
                                         ...moduleConfig,
@@ -2013,7 +2083,9 @@ function DriveDetailPage() {
                                         },
                                       } as any);
                                     }}
-                                    className="w-full px-1.5 py-0.5 border border-line rounded font-mono text-xs-plus"
+                                    className={`w-full px-1.5 py-0.5 border rounded font-mono text-xs-plus ${
+                                      isTemplateGoverned ? "bg-slate-50 text-ink-secondary border-line cursor-not-allowed" : "border-line"
+                                    }`}
                                   />
                                 </div>
                                 <div>
@@ -2021,8 +2093,10 @@ function DriveDetailPage() {
                                   <input
                                     type="number"
                                     min="0"
+                                    readOnly={isTemplateGoverned}
                                     value={dist.hard}
                                     onChange={(e) => {
+                                      if (isTemplateGoverned) return;
                                       const val = Math.max(0, parseInt(e.target.value, 10) || 0);
                                       setModuleConfig({
                                         ...moduleConfig,
@@ -2033,7 +2107,9 @@ function DriveDetailPage() {
                                         },
                                       } as any);
                                     }}
-                                    className="w-full px-1.5 py-0.5 border border-line rounded font-mono text-xs-plus"
+                                    className={`w-full px-1.5 py-0.5 border rounded font-mono text-xs-plus ${
+                                      isTemplateGoverned ? "bg-slate-50 text-ink-secondary border-line cursor-not-allowed" : "border-line"
+                                    }`}
                                   />
                                 </div>
                               </div>
@@ -2215,36 +2291,60 @@ function DriveDetailPage() {
               <div>
                 <h3 className="text-md font-semibold text-ink">Question Bank Assignment</h3>
                 <p className="text-xs text-ink-secondary mt-0.5">
-                  Select and assign questions from the central question library or import via CSV.
+                  {isTemplateGoverned
+                    ? "Questions pre-calibrated and locked by the Role Template to maintain standardized scoring."
+                    : "Select and assign questions from the central question library or import via CSV."}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    navigate({
-                      to: "/questions",
-                      search: {
-                        fromDriveId: driveId,
-                        driveName: drive.name,
-                        autoBulk: "true",
-                      } as any,
-                    });
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand-subtle border border-brand-border rounded-md transition-colors cursor-pointer"
-                >
-                  <Upload size={14} /> Bulk Import Questions
-                </button>
-              </div>
+              {!isTemplateGoverned && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      navigate({
+                        to: "/questions",
+                        search: {
+                          fromDriveId: driveId,
+                          driveName: drive.name,
+                          autoBulk: "true",
+                        } as any,
+                      });
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand-subtle border border-brand-border rounded-md transition-colors cursor-pointer"
+                  >
+                    <Upload size={14} /> Bulk Import Questions
+                  </button>
+                </div>
+              )}
             </div>
 
-            {!isQuestionsEditable && (
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center gap-2">
-                <Lock size={16} className="text-amber-600 shrink-0" />
-                <span>
-                  <strong>Questions Locked:</strong> All candidate invite links have already been generated for this drive. Questions are present below for review in read-only mode.
-                </span>
+            {/* Template Governed Questions Locked Banner */}
+            {isTemplateGoverned ? (
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">
+                <div className="p-2 bg-white text-purple-700 rounded-lg shadow-2xs shrink-0 mt-0.5">
+                  <BookOpen size={18} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-purple-900">Standardized Question Pool Locked</h4>
+                    <span className="px-2 py-0.5 bg-purple-600 text-white text-2xs font-bold font-mono rounded">
+                      {assignedQuestions.length} Questions Pre-Calibrated
+                    </span>
+                  </div>
+                  <p className="text-xs text-purple-800 leading-relaxed">
+                    Questions for this assessment are governed by Role Template <strong>{drive?.roleTemplateName || "Standard Template"}</strong> to maintain consistent evaluation benchmarks across all candidates. Question pool cannot be altered for template drives.
+                  </p>
+                </div>
               </div>
+            ) : (
+              !isQuestionsEditable && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center gap-2">
+                  <Lock size={16} className="text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Questions Locked:</strong> All candidate invite links have already been generated for this drive. Questions are present below for review in read-only mode.
+                  </span>
+                </div>
+              )
             )}
 
             {/* ASSIGNED QUESTIONS SECTION */}
@@ -2256,10 +2356,16 @@ function DriveDetailPage() {
                     Assigned Questions for this Drive ({assignedQuestions.length})
                   </h4>
                 </div>
-                {!isQuestionsEditable && (
-                  <span className="px-2.5 py-1 text-xs-plus font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full flex items-center gap-1">
-                    <Lock size={12} /> Read-Only
+                {isTemplateGoverned ? (
+                  <span className="px-2.5 py-1 text-xs-plus font-semibold text-purple-800 bg-purple-100 border border-purple-200 rounded-full flex items-center gap-1 font-mono">
+                    <Lock size={11} /> Template Standard
                   </span>
+                ) : (
+                  !isQuestionsEditable && (
+                    <span className="px-2.5 py-1 text-xs-plus font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full flex items-center gap-1">
+                      <Lock size={12} /> Read-Only
+                    </span>
+                  )
                 )}
               </div>
 
@@ -2296,7 +2402,11 @@ function DriveDetailPage() {
                           >
                             <Eye size={12} /> Preview
                           </button>
-                          {isQuestionsEditable ? (
+                          {isTemplateGoverned ? (
+                            <span className="px-2.5 py-0.5 text-2xs font-mono font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded flex items-center gap-1">
+                              <Lock size={10} /> Pre-Assigned
+                            </span>
+                          ) : isQuestionsEditable ? (
                             <button
                               type="button"
                               onClick={() => setAssignedQuestions(assignedQuestions.filter((id) => id !== qId))}
@@ -2317,430 +2427,434 @@ function DriveDetailPage() {
               )}
             </div>
 
-            {/* Pool Sufficiency & Status Banners */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-              {allowedModules.map((modId) => {
-                const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
-                if (!conf.enabled || Number(conf.weight) <= 0) return null;
+            {!isTemplateGoverned && (
+              <>
+                {/* Pool Sufficiency & Status Banners */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                  {allowedModules.map((modId) => {
+                    const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
+                    if (!conf.enabled || Number(conf.weight) <= 0) return null;
 
-                const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-                const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-                  lowerName.includes("l1") ? "l1" : (
-                    lowerName.includes("l2") ? "l2" : "l3"
-                  )
-                );
-                const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
-                const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+                    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                      lowerName.includes("l1") ? "l1" : (
+                        lowerName.includes("l2") ? "l2" : "l3"
+                      )
+                    );
+                    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                    const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+                    const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-                const poolQuestions = (questionsBank || []).filter(q => {
-                  const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-                  const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
-                  return assignedQuestions.includes(q.id) && displayMod === modId;
-                });
-                const poolSize = poolQuestions.length;
+                    const poolQuestions = (questionsBank || []).filter(q => {
+                      const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+                      const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+                      return assignedQuestions.includes(q.id) && displayMod === modId;
+                    });
+                    const poolSize = poolQuestions.length;
 
-                const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
-                const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
-                const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+                    const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+                    const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+                    const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
 
-                const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
-                const errors: string[] = [];
-                if (!hasRoleTemplate) {
-                  if (easyAvail < dist.easy) errors.push(`Need ${dist.easy - easyAvail} more Easy question(s) (Target: ${dist.easy}, Selected: ${easyAvail})`);
-                  if (mediumAvail < dist.medium) errors.push(`Need ${dist.medium - mediumAvail} more Medium question(s) (Target: ${dist.medium}, Selected: ${mediumAvail})`);
-                  if (hardAvail < dist.hard) errors.push(`Need ${dist.hard - hardAvail} more Hard question(s) (Target: ${dist.hard}, Selected: ${hardAvail})`);
-                }
+                    const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
+                    const errors: string[] = [];
+                    if (!hasRoleTemplate) {
+                      if (easyAvail < dist.easy) errors.push(`Need ${dist.easy - easyAvail} more Easy question(s) (Target: ${dist.easy}, Selected: ${easyAvail})`);
+                      if (mediumAvail < dist.medium) errors.push(`Need ${dist.medium - mediumAvail} more Medium question(s) (Target: ${dist.medium}, Selected: ${mediumAvail})`);
+                      if (hardAvail < dist.hard) errors.push(`Need ${dist.hard - hardAvail} more Hard question(s) (Target: ${dist.hard}, Selected: ${hardAvail})`);
+                    }
 
-                const isCountMatched = poolSize >= reqCount;
-                const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
+                    const isCountMatched = poolSize >= reqCount;
+                    const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
 
-                const renderDiffMetric = (label: string, val: number) => {
-                  const isZero = val === 0;
-                  return (
-                    <span className={`inline-flex items-center gap-1 ${isZero ? "text-ink-tertiary" : "text-ink"}`}>
-                      <span className={isZero ? "text-ink-tertiary" : "text-ink-secondary"}>{label}:</span>
-                      <span className={isZero ? "text-ink-tertiary font-normal" : "font-bold text-ink"}>{val}</span>
-                    </span>
-                  );
-                };
+                    const renderDiffMetric = (label: string, val: number) => {
+                      const isZero = val === 0;
+                      return (
+                        <span className={`inline-flex items-center gap-1 ${isZero ? "text-ink-tertiary" : "text-ink"}`}>
+                          <span className={isZero ? "text-ink-tertiary" : "text-ink-secondary"}>{label}:</span>
+                          <span className={isZero ? "text-ink-tertiary font-normal" : "font-bold text-ink"}>{val}</span>
+                        </span>
+                      );
+                    };
 
-                return (
-                  <div key={modId} className="bg-white border border-line rounded-lg p-3.5 space-y-2.5 text-xs shadow-sm">
-                    <div className="flex items-center justify-between font-semibold border-b border-surface-inset pb-2">
-                      <span className="text-ink font-bold text-sm-minus">
-                        {MODULE_LABEL_MAP[modId] || modId} Module
-                      </span>
-                      <span className={`text-xs-plus font-semibold ${isCountMatched ? "text-emerald-700" : "text-brand"}`}>
-                        {isCountMatched ? `Attached: ${poolSize} / ${reqCount}` : `Required: ${reqCount} (${poolSize} selected)`}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5 font-mono text-xs-plus">
-                      {/* Strictly aligned vertical grid */}
-                      <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
-                        <span className="text-ink-muted font-sans font-medium text-xs-plus">Target:</span>
-                        <div>{renderDiffMetric("Easy", dist.easy)}</div>
-                        <div>{renderDiffMetric("Medium", dist.medium)}</div>
-                        <div>{renderDiffMetric("Hard", dist.hard)}</div>
-                      </div>
-
-                      <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
-                        <span className="text-ink-muted font-sans font-medium text-xs-plus">Selected:</span>
-                        <div>{renderDiffMetric("Easy", easyAvail)}</div>
-                        <div>{renderDiffMetric("Medium", mediumAvail)}</div>
-                        <div>{renderDiffMetric("Hard", hardAvail)}</div>
-                      </div>
-
-                      {/* Emphasized Progress Ratio & Bar */}
-                      <div className="flex items-center justify-between font-sans pt-1.5 border-t border-surface-inset/80">
-                        <span className="text-ink-muted text-xs-plus font-medium">Selected:</span>
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-16 h-1.5 bg-surface-inset rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                isCountMatched ? "bg-emerald-500" : "bg-brand"
-                              }`}
-                              style={{ width: `${Math.min(100, reqCount > 0 ? (poolSize / reqCount) * 100 : 0)}%` }}
-                            />
-                          </div>
-                          <span className={`text-sm-minus font-bold font-mono ${isCountMatched ? "text-emerald-700" : "text-ink"}`}>
-                            {poolSize} / {reqCount}
+                    return (
+                      <div key={modId} className="bg-white border border-line rounded-lg p-3.5 space-y-2.5 text-xs shadow-sm">
+                        <div className="flex items-center justify-between font-semibold border-b border-surface-inset pb-2">
+                          <span className="text-ink font-bold text-sm-minus">
+                            {MODULE_LABEL_MAP[modId] || modId} Module
+                          </span>
+                          <span className={`text-xs-plus font-semibold ${isCountMatched ? "text-emerald-700" : "text-brand"}`}>
+                            {isCountMatched ? `Attached: ${poolSize} / ${reqCount}` : `Required: ${reqCount} (${poolSize} selected)`}
                           </span>
                         </div>
+
+                        <div className="space-y-1.5 font-mono text-xs-plus">
+                          {/* Strictly aligned vertical grid */}
+                          <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
+                            <span className="text-ink-muted font-sans font-medium text-xs-plus">Target:</span>
+                            <div>{renderDiffMetric("Easy", dist.easy)}</div>
+                            <div>{renderDiffMetric("Medium", dist.medium)}</div>
+                            <div>{renderDiffMetric("Hard", dist.hard)}</div>
+                          </div>
+
+                          <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
+                            <span className="text-ink-muted font-sans font-medium text-xs-plus">Selected:</span>
+                            <div>{renderDiffMetric("Easy", easyAvail)}</div>
+                            <div>{renderDiffMetric("Medium", mediumAvail)}</div>
+                            <div>{renderDiffMetric("Hard", hardAvail)}</div>
+                          </div>
+
+                          {/* Emphasized Progress Ratio & Bar */}
+                          <div className="flex items-center justify-between font-sans pt-1.5 border-t border-surface-inset/80">
+                            <span className="text-ink-muted text-xs-plus font-medium">Selected:</span>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-16 h-1.5 bg-surface-inset rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    isCountMatched ? "bg-emerald-500" : "bg-brand"
+                                  }`}
+                                  style={{ width: `${Math.min(100, reqCount > 0 ? (poolSize / reqCount) * 100 : 0)}%` }}
+                                />
+                              </div>
+                              <span className={`text-sm-minus font-bold font-mono ${isCountMatched ? "text-emerald-700" : "text-ink"}`}>
+                                {poolSize} / {reqCount}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-1.5 border-t border-surface-inset text-xs-plus space-y-1">
+                          {isCountMatched ? (
+                            isDifficultyMatched ? (
+                              <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded font-medium">
+                                ✓ Required question count &amp; target difficulty matched.
+                              </div>
+                            ) : (
+                              <div className="text-emerald-800 bg-emerald-50/80 border border-emerald-200 px-2.5 py-1.5 rounded space-y-0.5">
+                                <div className="font-medium text-emerald-800">
+                                  ✓ Required question count reached ({poolSize} attached).
+                                </div>
+                                <div className="text-2xs text-ink-secondary">
+                                  Note: Difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) differs slightly from target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
+                                </div>
+                              </div>
+                            )
+                          ) : poolSize === 0 ? (
+                            <div className="text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-2 rounded space-y-1.5">
+                              <div className="font-semibold text-rose-800 flex items-center gap-1.5">
+                                <XCircle size={13} className="text-rose-600 shrink-0" />
+                                <span>0 questions attached. Please select or import {reqCount} {MODULE_LABEL_MAP[modId] || modId} question(s).</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigate({
+                                      to: "/questions",
+                                      search: {
+                                        fromDriveId: driveId,
+                                        driveName: drive.name,
+                                        autoBulk: "true",
+                                      } as any,
+                                    });
+                                  }}
+                                  className="px-2 py-0.5 text-2xs font-semibold text-rose-800 bg-white border border-rose-300 rounded hover:bg-rose-100 flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Upload size={10} /> Bulk Import (CSV)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigate({
+                                      to: "/questions",
+                                      search: {
+                                        fromDriveId: driveId,
+                                        driveName: drive.name,
+                                      } as any,
+                                    });
+                                  }}
+                                  className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <BookOpen size={10} /> Question Bank
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("configuration")}
+                                  className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Settings size={10} /> Adjust Weight
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-2 rounded space-y-1.5">
+                              <div className="font-semibold text-amber-800 flex items-center gap-1.5">
+                                <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                                <span>Incomplete: {poolSize} / {reqCount} questions attached ({reqCount - poolSize} more required)</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigate({
+                                      to: "/questions",
+                                      search: {
+                                        fromDriveId: driveId,
+                                        driveName: drive.name,
+                                        autoBulk: "true",
+                                      } as any,
+                                    });
+                                  }}
+                                  className="px-2 py-0.5 text-2xs font-semibold text-brand bg-white border border-brand-border rounded hover:bg-brand-subtle flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Upload size={10} /> Bulk Import (CSV)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigate({
+                                      to: "/questions",
+                                      search: {
+                                        fromDriveId: driveId,
+                                        driveName: drive.name,
+                                      } as any,
+                                    });
+                                  }}
+                                  className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <BookOpen size={10} /> Question Bank
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("configuration")}
+                                  className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Settings size={10} /> Adjust Weight
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="pt-1.5 border-t border-surface-inset text-xs-plus space-y-1">
-                      {isCountMatched ? (
-                        isDifficultyMatched ? (
-                          <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded font-medium">
-                            ✓ Required question count &amp; target difficulty matched.
-                          </div>
-                        ) : (
-                          <div className="text-emerald-800 bg-emerald-50/80 border border-emerald-200 px-2.5 py-1.5 rounded space-y-0.5">
-                            <div className="font-medium text-emerald-800">
-                              ✓ Required question count reached ({poolSize} attached).
-                            </div>
-                            <div className="text-2xs text-ink-secondary">
-                              Note: Difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) differs slightly from target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
-                            </div>
-                          </div>
-                        )
-                      ) : poolSize === 0 ? (
-                        <div className="text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-2 rounded space-y-1.5">
-                          <div className="font-semibold text-rose-800 flex items-center gap-1.5">
-                            <XCircle size={13} className="text-rose-600 shrink-0" />
-                            <span>0 questions attached. Please select or import {reqCount} {MODULE_LABEL_MAP[modId] || modId} question(s).</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigate({
-                                  to: "/questions",
-                                  search: {
-                                    fromDriveId: driveId,
-                                    driveName: drive.name,
-                                    autoBulk: "true",
-                                  } as any,
-                                });
-                              }}
-                              className="px-2 py-0.5 text-2xs font-semibold text-rose-800 bg-white border border-rose-300 rounded hover:bg-rose-100 flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Upload size={10} /> Bulk Import (CSV)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigate({
-                                  to: "/questions",
-                                  search: {
-                                    fromDriveId: driveId,
-                                    driveName: drive.name,
-                                  } as any,
-                                });
-                              }}
-                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <BookOpen size={10} /> Question Bank
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab("configuration")}
-                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Settings size={10} /> Adjust Weight
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-2 rounded space-y-1.5">
-                          <div className="font-semibold text-amber-800 flex items-center gap-1.5">
-                            <AlertTriangle size={13} className="text-amber-600 shrink-0" />
-                            <span>Incomplete: {poolSize} / {reqCount} questions attached ({reqCount - poolSize} more required)</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigate({
-                                  to: "/questions",
-                                  search: {
-                                    fromDriveId: driveId,
-                                    driveName: drive.name,
-                                    autoBulk: "true",
-                                  } as any,
-                                });
-                              }}
-                              className="px-2 py-0.5 text-2xs font-semibold text-brand bg-white border border-brand-border rounded hover:bg-brand-subtle flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Upload size={10} /> Bulk Import (CSV)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigate({
-                                  to: "/questions",
-                                  search: {
-                                    fromDriveId: driveId,
-                                    driveName: drive.name,
-                                  } as any,
-                                });
-                              }}
-                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <BookOpen size={10} /> Question Bank
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab("configuration")}
-                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Settings size={10} /> Adjust Weight
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Horizontal Module Filter Chips & Search Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-canvas p-3 rounded-lg border border-line">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => setQuestionModuleFilter("ALL")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
-                    questionModuleFilter === "ALL"
-                      ? "bg-brand text-white border-brand"
-                      : "bg-white text-ink-secondary border-line hover:border-line-strong"
-                  }`}
-                >
-                  All Modules ({allowedModules.length})
-                </button>
-                {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS", "NOSQL"] as const)
-                  .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
-                  .map((modKey) => {
-                    const labelMap: Record<string, string> = {
-                      MCQ: "MCQ",
-                      SQL: "SQL",
-                      CODING: "Coding",
-                      DEBUGGING: "Debugging",
-                      AI_PROMPTING: "AI Prompting",
-                      SIMULATION: "Simulation",
-                      TEST_SCENARIOS: "Test Scenarios",
-                      NOSQL: "NoSQL",
-                    };
-                    return (
-                      <button
-                        key={modKey}
-                        onClick={() => setQuestionModuleFilter(modKey)}
-                        className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
-                          questionModuleFilter === modKey
-                            ? "bg-brand text-white border-brand"
-                            : "bg-white text-ink-secondary border-line hover:border-line-strong"
-                        }`}
-                      >
-                        <span>{labelMap[modKey] || modKey}</span>
-                      </button>
                     );
                   })}
-              </div>
+                </div>
 
-              {/* Vertical divider and Complexity Filter */}
-              <div className="flex items-center gap-3">
-                <div className="hidden sm:block h-5 w-px bg-line" />
+                {/* Horizontal Module Filter Chips & Search Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-canvas p-3 rounded-lg border border-line">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => setQuestionModuleFilter("ALL")}
+                      className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+                        questionModuleFilter === "ALL"
+                          ? "bg-brand text-white border-brand"
+                          : "bg-white text-ink-secondary border-line hover:border-line-strong"
+                      }`}
+                    >
+                      All Modules ({allowedModules.length})
+                    </button>
+                    {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS", "NOSQL"] as const)
+                      .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
+                      .map((modKey) => {
+                        const labelMap: Record<string, string> = {
+                          MCQ: "MCQ",
+                          SQL: "SQL",
+                          CODING: "Coding",
+                          DEBUGGING: "Debugging",
+                          AI_PROMPTING: "AI Prompting",
+                          SIMULATION: "Simulation",
+                          TEST_SCENARIOS: "Test Scenarios",
+                          NOSQL: "NoSQL",
+                        };
+                        return (
+                          <button
+                            key={modKey}
+                            onClick={() => setQuestionModuleFilter(modKey)}
+                            className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+                              questionModuleFilter === modKey
+                                ? "bg-brand text-white border-brand"
+                                : "bg-white text-ink-secondary border-line hover:border-line-strong"
+                            }`}
+                          >
+                            <span>{labelMap[modKey] || modKey}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-2xs font-semibold text-ink-secondary uppercase tracking-wider hidden sm:inline">Complexity:</span>
-                  <div className="flex items-center bg-white p-0.5 rounded-md border border-line">
-                    {[
-                      { id: "ALL", label: "All" },
-                      { id: "EASY", label: "Easy" },
-                      { id: "MEDIUM", label: "Medium" },
-                      { id: "HARD", label: "Hard" },
-                    ].map((diff) => (
-                      <button
-                        key={diff.id}
-                        onClick={() => setQuestionDifficultyFilter(diff.id)}
-                        className={`px-2.5 py-1 text-2xs font-semibold rounded transition-colors cursor-pointer ${
-                          questionDifficultyFilter === diff.id
-                            ? diff.id === "EASY"
-                              ? "bg-emerald-100 text-emerald-800 font-bold"
-                              : diff.id === "HARD"
-                              ? "bg-purple-subtle text-purple font-bold border border-purple-border"
-                              : diff.id === "MEDIUM"
-                              ? "bg-amber-100 text-amber-800 font-bold"
-                              : "bg-brand text-white font-bold"
-                            : "text-ink-secondary hover:text-ink"
-                        }`}
-                      >
-                        {diff.label}
-                      </button>
-                    ))}
+                  {/* Vertical divider and Complexity Filter */}
+                  <div className="flex items-center gap-3">
+                    <div className="hidden sm:block h-5 w-px bg-line" />
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xs font-semibold text-ink-secondary uppercase tracking-wider hidden sm:inline">Complexity:</span>
+                      <div className="flex items-center bg-white p-0.5 rounded-md border border-line">
+                        {[
+                          { id: "ALL", label: "All" },
+                          { id: "EASY", label: "Easy" },
+                          { id: "MEDIUM", label: "Medium" },
+                          { id: "HARD", label: "Hard" },
+                        ].map((diff) => (
+                          <button
+                            key={diff.id}
+                            onClick={() => setQuestionDifficultyFilter(diff.id)}
+                            className={`px-2.5 py-1 text-2xs font-semibold rounded transition-colors cursor-pointer ${
+                              questionDifficultyFilter === diff.id
+                                ? diff.id === "EASY"
+                                  ? "bg-emerald-100 text-emerald-800 font-bold"
+                                  : diff.id === "HARD"
+                                  ? "bg-purple-subtle text-purple font-bold border border-purple-border"
+                                  : diff.id === "MEDIUM"
+                                  ? "bg-amber-100 text-amber-800 font-bold"
+                                  : "bg-brand text-white font-bold"
+                                : "text-ink-secondary hover:text-ink"
+                            }`}
+                          >
+                            {diff.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative w-full sm:w-[200px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+                    <input
+                      type="text"
+                      value={questionSearch}
+                      onChange={(e) => setQuestionSearch(e.target.value)}
+                      placeholder="Search questions..."
+                      className="w-full pl-9 pr-3 py-1.5 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand"
+                    />
                   </div>
                 </div>
-              </div>
 
-              <div className="relative w-full sm:w-[200px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-                <input
-                  type="text"
-                  value={questionSearch}
-                  onChange={(e) => setQuestionSearch(e.target.value)}
-                  placeholder="Search questions..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand"
-                />
-              </div>
-            </div>
+                {/* Question Selector List */}
+                {isAiPromptingDynamic && (questionModuleFilter === "ALL" || questionModuleFilter === "AI_PROMPTING") && (
+                  <div className="p-3.5 bg-canvas border border-line rounded-lg text-xs italic text-ink-tertiary flex items-center gap-2">
+                    <Sparkles size={14} className="text-brand shrink-0" />
+                    <span>AI-Generated Mode Selected — Questions &amp; evaluation will be dynamically generated by AI during the candidate assessment.</span>
+                  </div>
+                )}
 
-            {/* Question Selector List */}
-            {isAiPromptingDynamic && (questionModuleFilter === "ALL" || questionModuleFilter === "AI_PROMPTING") && (
-              <div className="p-3.5 bg-canvas border border-line rounded-lg text-xs italic text-ink-tertiary flex items-center gap-2">
-                <Sparkles size={14} className="text-brand shrink-0" />
-                <span>AI-Generated Mode Selected — Questions &amp; evaluation will be dynamically generated by AI during the candidate assessment.</span>
-              </div>
-            )}
+                <div className="divide-y divide-surface-inset border border-line rounded-md max-h-[460px] overflow-y-auto">
+                  {filteredQuestionsList.length === 0 ? (
+                    <div className="p-8 text-center text-xs italic text-ink-tertiary">
+                      No matching questions found in bank.
+                    </div>
+                  ) : (
+                    filteredQuestionsList.map((q) => {
+                      const isSelected = assignedQuestions.includes(q.id);
+                      const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
+                      const difficulty = q.difficulty || "MEDIUM";
+                      const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+                      const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
+                      const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
 
-            <div className="divide-y divide-surface-inset border border-line rounded-md max-h-[460px] overflow-y-auto">
-              {filteredQuestionsList.length === 0 ? (
-                <div className="p-8 text-center text-xs italic text-ink-tertiary">
-                  No matching questions found in bank.
-                </div>
-              ) : (
-                filteredQuestionsList.map((q) => {
-                  const isSelected = assignedQuestions.includes(q.id);
-                  const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
-                  const difficulty = q.difficulty || "MEDIUM";
-                  const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-                  const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
-                  const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
-
-                  return (
-                    <div
-                      key={q.id}
-                      onClick={() => setPreviewQuestion(q)}
-                      className="p-3.5 flex items-center justify-between hover:bg-brand-subtle/50 transition-colors cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3 pr-4 flex-1">
-                        <span className="px-2 py-0.5 text-2xs font-mono font-bold uppercase rounded bg-brand-subtle text-brand-ink border border-brand-border">
-                          {MODULE_LABEL_MAP[displayModule] || displayModule}
-                        </span>
-                        <div>
-                          <div className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors line-clamp-1">
-                            {title}
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span
-                              className={`text-2xs font-mono font-semibold uppercase px-1.5 py-0.2 rounded ${
-                                difficulty.toUpperCase() === "EASY"
-                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                                  : difficulty.toUpperCase() === "HARD"
-                                  ? "bg-rose-50 text-rose-600 border border-rose-200"
-                                  : "bg-amber-50 text-amber-600 border border-amber-200"
-                              }`}
-                            >
-                              {difficulty}
+                      return (
+                        <div
+                          key={q.id}
+                          onClick={() => setPreviewQuestion(q)}
+                          className="p-3.5 flex items-center justify-between hover:bg-brand-subtle/50 transition-colors cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3 pr-4 flex-1">
+                            <span className="px-2 py-0.5 text-2xs font-mono font-bold uppercase rounded bg-brand-subtle text-brand-ink border border-brand-border">
+                              {MODULE_LABEL_MAP[displayModule] || displayModule}
                             </span>
+                            <div>
+                              <div className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors line-clamp-1">
+                                {title}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span
+                                  className={`text-2xs font-mono font-semibold uppercase px-1.5 py-0.2 rounded ${
+                                    difficulty.toUpperCase() === "EASY"
+                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                      : difficulty.toUpperCase() === "HARD"
+                                      ? "bg-rose-50 text-rose-600 border border-rose-200"
+                                      : "bg-amber-50 text-amber-600 border border-amber-200"
+                                  }`}
+                                >
+                                  {difficulty}
+                                </span>
 
-                            {displayTags.length > 0 && (
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {displayTags.map((tag: string) => (
-                                  <span key={tag} className="text-2xs text-ink-tertiary bg-surface-inset px-1.5 py-0.2 rounded font-mono">
-                                    #{tag}
-                                  </span>
-                                ))}
-                                {hiddenDriveCount > 0 && (
-                                  <span className="text-2xs text-brand bg-brand-subtle px-1.5 py-0.2 rounded font-semibold">
-                                    +{hiddenDriveCount} more drives
-                                  </span>
+                                {displayTags.length > 0 && (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {displayTags.map((tag: string) => (
+                                      <span key={tag} className="text-2xs text-ink-tertiary bg-surface-inset px-1.5 py-0.2 rounded font-mono">
+                                        #{tag}
+                                      </span>
+                                    ))}
+                                    {hiddenDriveCount > 0 && (
+                                      <span className="text-2xs text-brand bg-brand-subtle px-1.5 py-0.2 rounded font-semibold">
+                                        +{hiddenDriveCount} more drives
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs-plus text-brand opacity-0 group-hover:opacity-100 transition-opacity font-medium flex items-center gap-1">
+                              <Eye size={12} /> Preview
+                            </span>
+                            {isQuestionsEditable ? (() => {
+                              const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
+                              const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                              const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
+                              const modAssigned = (questionsBank || []).filter((item) => {
+                                const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
+                                const dMod = isDeb ? "DEBUGGING" : item.moduleType;
+                                return assignedQuestions.includes(item.id) && dMod === displayModule;
+                              });
+                              const isLimitReached = !isSelected && modAssigned.length >= reqCount;
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isSelected) {
+                                      setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
+                                    } else {
+                                      if (modAssigned.length >= reqCount) {
+                                        toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
+                                        return;
+                                      }
+                                      setAssignedQuestions([...assignedQuestions, q.id]);
+                                    }
+                                  }}
+                                  className={`px-3 py-1 rounded text-xs-plus font-semibold transition-colors ${
+                                    isSelected
+                                      ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
+                                      : isLimitReached
+                                      ? "bg-gray-100 text-ink-tertiary border border-gray-200 cursor-not-allowed"
+                                      : "bg-brand text-white hover:bg-brand-hover cursor-pointer"
+                                  }`}
+                                  title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
+                                >
+                                  {isSelected ? "Remove" : "Assign"}
+                                </button>
+                              );
+                            })() : (
+                              <button
+                                disabled
+                                className="px-3 py-1 rounded text-xs-plus font-medium bg-gray-100 text-ink-tertiary border border-gray-200 cursor-not-allowed flex items-center gap-1"
+                                title="Locked: Candidate links already generated"
+                              >
+                                <Lock size={10} /> {isSelected ? "Assigned (Locked)" : "Locked"}
+                              </button>
                             )}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs-plus text-brand opacity-0 group-hover:opacity-100 transition-opacity font-medium flex items-center gap-1">
-                          <Eye size={12} /> Preview
-                        </span>
-                        {isQuestionsEditable ? (() => {
-                          const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
-                          const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                          const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
-                          const modAssigned = (questionsBank || []).filter((item) => {
-                            const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
-                            const dMod = isDeb ? "DEBUGGING" : item.moduleType;
-                            return assignedQuestions.includes(item.id) && dMod === displayModule;
-                          });
-                          const isLimitReached = !isSelected && modAssigned.length >= reqCount;
-
-                          return (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (isSelected) {
-                                  setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
-                                } else {
-                                  if (modAssigned.length >= reqCount) {
-                                    toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
-                                    return;
-                                  }
-                                  setAssignedQuestions([...assignedQuestions, q.id]);
-                                }
-                              }}
-                              className={`px-3 py-1 rounded text-xs-plus font-semibold transition-colors ${
-                                isSelected
-                                  ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
-                                  : isLimitReached
-                                  ? "bg-gray-100 text-ink-tertiary border border-gray-200 cursor-not-allowed"
-                                  : "bg-brand text-white hover:bg-brand-hover cursor-pointer"
-                              }`}
-                              title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
-                            >
-                              {isSelected ? "Remove" : "Assign"}
-                            </button>
-                          );
-                        })() : (
-                          <button
-                            disabled
-                            className="px-3 py-1 rounded text-xs-plus font-medium bg-gray-100 text-ink-tertiary border border-gray-200 cursor-not-allowed flex items-center gap-1"
-                            title="Locked: Candidate links already generated"
-                          >
-                            <Lock size={10} /> {isSelected ? "Assigned (Locked)" : "Locked"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* BOTTOM ACTION BUTTON: Save & Next -> */}
@@ -2750,7 +2864,7 @@ function DriveDetailPage() {
               onClick={handleSaveQuestionsAndNext}
               className="flex items-center gap-2 px-6 py-2.5 bg-brand hover:bg-brand-hover text-white font-semibold text-sm rounded-lg shadow-md transition-colors cursor-pointer"
             >
-              <span>Save &amp; Next</span>
+              <span>{isTemplateGoverned ? "Continue to Candidate Roster" : "Save & Next"}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

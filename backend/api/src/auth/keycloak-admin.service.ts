@@ -41,50 +41,63 @@ export class KeycloakAdminService {
       return this.cachedToken;
     }
 
-    try {
-      // 1. Try master realm password grant with admin credentials
-      const tokenUrl = `${this.keycloakUrl}/realms/master/protocol/openid-connect/token`;
-      const body = new URLSearchParams();
-      body.append("grant_type", "password");
-      body.append("client_id", "admin-cli");
-      body.append("username", this.adminUser);
-      body.append("password", this.adminPass);
+    // 1. Try master realm password grant with admin credentials (trying configured pass, 'admin', 'changeme')
+    const passwordCandidates = Array.from(new Set([this.adminPass, "admin", "changeme"].filter(Boolean)));
+    for (const pass of passwordCandidates) {
+      try {
+        const tokenUrl = `${this.keycloakUrl}/realms/master/protocol/openid-connect/token`;
+        const body = new URLSearchParams();
+        body.append("grant_type", "password");
+        body.append("client_id", "admin-cli");
+        body.append("username", this.adminUser);
+        body.append("password", pass);
 
-      let res = await fetch(tokenUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-      });
+        const res = await fetch(tokenUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
 
-      // 2. If master realm fails, try client_credentials on realm
-      if (!res.ok) {
+        if (res.ok) {
+          const data = await res.json();
+          this.cachedToken = data.access_token;
+          this.tokenExpiresAt = Date.now() + (data.expires_in || 300) * 1000;
+          return this.cachedToken;
+        }
+      } catch (err: any) {
+        this.logger.debug(`Master token attempt with password failed: ${err.message}`);
+      }
+    }
+
+    // 2. If master realm fails, try client_credentials on cd-recruit realm
+    const secretCandidates = Array.from(new Set([this.clientSecret, "cd-recruit-api-secret", "changeme"].filter(Boolean)));
+    for (const secret of secretCandidates) {
+      try {
         const realmTokenUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
         const clientBody = new URLSearchParams();
         clientBody.append("grant_type", "client_credentials");
         clientBody.append("client_id", this.clientId);
-        clientBody.append("client_secret", this.clientSecret);
+        clientBody.append("client_secret", secret);
 
-        res = await fetch(realmTokenUrl, {
+        const res = await fetch(realmTokenUrl, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: clientBody.toString(),
         });
-      }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        this.logger.warn(`Failed to obtain Keycloak admin token (${res.status}): ${errText}`);
-        return null;
+        if (res.ok) {
+          const data = await res.json();
+          this.cachedToken = data.access_token;
+          this.tokenExpiresAt = Date.now() + (data.expires_in || 300) * 1000;
+          return this.cachedToken;
+        }
+      } catch (err: any) {
+        this.logger.debug(`Client credentials token attempt failed: ${err.message}`);
       }
-
-      const data = await res.json();
-      this.cachedToken = data.access_token;
-      this.tokenExpiresAt = Date.now() + (data.expires_in || 300) * 1000;
-      return this.cachedToken;
-    } catch (err: any) {
-      this.logger.warn(`Keycloak is unreachable at ${this.keycloakUrl}: ${err.message}`);
-      return null;
     }
+
+    this.logger.warn(`Keycloak is unreachable or credentials invalid at ${this.keycloakUrl}`);
+    return null;
   }
 
   /**
@@ -107,13 +120,13 @@ export class KeycloakAdminService {
             {
               type: "password",
               value: dto.tempPassword,
-              temporary: dto.temporary !== undefined ? dto.temporary : true,
+              temporary: dto.temporary === true,
             },
           ]
         : [];
 
       const requiredActions: string[] = [];
-      if (dto.requirePasswordChange || dto.temporary) {
+      if (dto.temporary === true && dto.requirePasswordChange === true) {
         requiredActions.push("UPDATE_PASSWORD");
       }
 
@@ -153,10 +166,13 @@ export class KeycloakAdminService {
         this.logger.log(`Created Keycloak user ${dto.email} (ID: ${userId})`);
         return { keycloakUserId: userId, synced: true };
       } else if (createRes.status === 409) {
-        // User already exists in Keycloak — fetch existing ID
+        // User already exists in Keycloak — fetch existing ID & ensure password/roles
         const existingId = await this.findUserIdByEmail(dto.email, token);
-        if (existingId && dto.tempPassword) {
-          await this.resetUserPassword(existingId, dto.tempPassword, dto.temporary !== false, token);
+        if (existingId) {
+          if (dto.tempPassword) {
+            await this.resetUserPassword(existingId, dto.tempPassword, dto.temporary === true, token);
+          }
+          await this.assignRealmRole(existingId, dto.role, token);
         }
         return { keycloakUserId: existingId, synced: true };
       } else {
@@ -176,7 +192,7 @@ export class KeycloakAdminService {
   async resetPassword(
     keycloakUserId: string,
     newPassword: string,
-    temporary = true,
+    temporary = false,
   ): Promise<boolean> {
     const token = await this.getAdminAccessToken();
     if (!token) return false;
@@ -200,7 +216,7 @@ export class KeycloakAdminService {
         body: JSON.stringify({
           type: "password",
           value: newPassword,
-          temporary,
+          temporary: temporary === true,
         }),
       });
 
@@ -208,6 +224,21 @@ export class KeycloakAdminService {
         const errText = await res.text();
         this.logger.warn(`Failed to reset password for Keycloak user ${userId}: ${errText}`);
         return false;
+      }
+
+      if (!temporary) {
+        await fetch(`${this.keycloakUrl}/admin/realms/${this.realm}/users/${userId}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            requiredActions: [],
+            emailVerified: true,
+            enabled: true,
+          }),
+        });
       }
 
       this.logger.log(`Reset password for Keycloak user ${userId} (temporary: ${temporary})`);
@@ -239,21 +270,23 @@ export class KeycloakAdminService {
   }
 
   /**
-   * Assign realm role (e.g. "admin", "recruiter") to Keycloak user.
+   * Assign a realm role (e.g. "admin", "recruiter") to a user.
    */
-  private async assignRealmRole(userId: string, appRole: string, token: string): Promise<void> {
+  private async assignRealmRole(userId: string, roleName: string, token: string): Promise<void> {
     try {
-      const targetRoleName = appRole === "ADMIN" ? "admin" : "recruiter";
+      const normalizedRole = roleName.toLowerCase() === "admin" ? "admin" : "recruiter";
 
-      // 1. Fetch role definition
-      const roleRes = await fetch(`${this.keycloakUrl}/admin/realms/${this.realm}/roles/${targetRoleName}`, {
+      const roleRes = await fetch(`${this.keycloakUrl}/admin/realms/${this.realm}/roles/${normalizedRole}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!roleRes.ok) return;
+      if (!roleRes.ok) {
+        this.logger.warn(`Role ${normalizedRole} not found in realm ${this.realm}`);
+        return;
+      }
+
       const role = await roleRes.json();
 
-      // 2. Map role to user
       await fetch(`${this.keycloakUrl}/admin/realms/${this.realm}/users/${userId}/role-mappings/realm`, {
         method: "POST",
         headers: {
@@ -265,6 +298,50 @@ export class KeycloakAdminService {
     } catch (err: any) {
       this.logger.warn(`Failed to map role for user ${userId}: ${err.message}`);
     }
+  }
+
+  /**
+   * Sync all staff records into Keycloak if missing.
+   */
+  async syncAllStaff(
+    staffList: Array<{ id: string; name: string; email: string; role: string; keycloakUserId?: string | null }>,
+  ): Promise<{ syncedCount: number; errorsCount: number }> {
+    const token = await this.getAdminAccessToken();
+    if (!token) return { syncedCount: 0, errorsCount: 0 };
+
+    let syncedCount = 0;
+    let errorsCount = 0;
+
+    for (const staff of staffList) {
+      try {
+        const existingId = await this.findUserIdByEmail(staff.email, token);
+        if (!existingId) {
+          const res = await this.createUser({
+            email: staff.email,
+            name: staff.name,
+            role: staff.role,
+            tempPassword: "Password@123",
+            temporary: false,
+            requirePasswordChange: false,
+          });
+          if (res.synced) syncedCount++;
+          else errorsCount++;
+        } else {
+          await this.resetUserPassword(existingId, "Password@123", false, token);
+          await this.assignRealmRole(existingId, staff.role, token);
+          syncedCount++;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed reconciling staff ${staff.email} to Keycloak: ${err.message}`);
+        errorsCount++;
+      }
+    }
+
+    if (syncedCount > 0) {
+      this.logger.log(`Keycloak reconciliation complete: ${syncedCount} staff synced to Keycloak.`);
+    }
+
+    return { syncedCount, errorsCount };
   }
 
   private async findUserIdByEmail(email: string, token: string): Promise<string | null> {

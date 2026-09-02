@@ -18,6 +18,7 @@ import {
   PenLine,
   BookOpen,
   RefreshCw,
+  Lock,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -794,12 +795,17 @@ function DrivesPage() {
                   </div>
 
                   {selectedTemplateObj && (
-                    <div className="p-3 bg-brand-subtle border border-brand-border rounded-lg space-y-1.5 text-xs">
+                    <div className="p-3.5 bg-brand-subtle border border-brand-border rounded-lg space-y-2 text-xs">
                       <div className="flex items-center justify-between font-semibold text-brand-ink">
                         <span>{selectedTemplateObj.roleName}</span>
-                        <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs uppercase font-mono">
-                          {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 bg-brand/10 text-brand font-mono font-bold rounded text-2xs">
+                            {Math.max(90, selectedTemplateObj.durationMinutes || 90)} mins
+                          </span>
+                          <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs uppercase font-mono font-bold">
+                            {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 text-ink-secondary text-xs-plus">
                         <span>Department: <strong className="text-ink">{selectedTemplateObj.department || "General"}</strong></span>
@@ -807,6 +813,10 @@ function DrivesPage() {
                         <span>Category: <strong className="text-ink">{(selectedTemplateObj as any).category || "FRESHER"}</strong></span>
                         <span>•</span>
                         <span>Questions: <strong className="text-ink">{((selectedTemplateObj as any).questions || []).length}</strong></span>
+                      </div>
+                      <div className="text-2xs text-brand-ink/80 flex items-center gap-1 font-medium pt-1 border-t border-brand-border/60">
+                        <Lock size={11} className="text-brand shrink-0" />
+                        <span>Template Governed: Modules and questions are standardized to ensure uniform candidate evaluation.</span>
                       </div>
                     </div>
                   )}
