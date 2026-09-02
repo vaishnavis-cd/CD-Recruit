@@ -15,9 +15,11 @@ import {
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
+import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { Roles } from "../common/decorators/roles.decorator";
+import { RequirePermission } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { StaffRole } from "@cd-recruit/shared-types";
+import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { DriveService } from "./drive.service";
 import {
   CreateDriveDto,
@@ -28,19 +30,27 @@ import {
 } from "../common/dto/drive.dto";
 
 @Controller("admin/drives")
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(StaffRole.RECRUITER, StaffRole.ADMIN)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles(
+  StaffRole.ADMIN,
+  StaffRole.HR_LEAD,
+  StaffRole.HR_ASSOCIATE,
+  StaffRole.REVIEWER,
+  StaffRole.RECRUITER,
+)
 export class DriveController {
   constructor(private readonly driveService: DriveService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission(Permission.DRIVE_CREATE)
   async create(@Body() dto: CreateDriveDto, @CurrentUser() actor: any) {
     return this.driveService.create(dto, actor.id);
   }
 
   @Post("from-template/:roleTemplateId")
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission(Permission.DRIVE_CREATE)
   async createFromTemplate(
     @Param("roleTemplateId", ParseUUIDPipe) roleTemplateId: string,
     @Body() driveMeta: any,
@@ -111,6 +121,7 @@ export class DriveController {
   }
 
   @Post(":driveId/candidates/bulk")
+  @RequirePermission(Permission.CANDIDATE_INGEST_CSV)
   async addCandidatesBulk(
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @Body() dto: AddCandidatesBulkDto,
@@ -120,6 +131,7 @@ export class DriveController {
   }
 
   @Post(":driveId/generate-links")
+  @RequirePermission(Permission.DRIVE_MANAGE)
   async generateLinks(
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @CurrentUser() actor: any,

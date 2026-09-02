@@ -11,12 +11,12 @@ export class HealthController {
   ) {}
 
   @Get()
-  async check(@Res() res: Response) {
+  async check(@Res({ passthrough: true }) res: Response) {
     return this.runHealthCheck(res);
   }
 
   @Get("ready")
-  async ready(@Res() res: Response) {
+  async ready(@Res({ passthrough: true }) res: Response) {
     return this.runHealthCheck(res);
   }
 
@@ -29,29 +29,35 @@ export class HealthController {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       dbStatus = "connected";
-    } catch (error: any) {
+    } catch {
       dbStatus = "disconnected";
       isHealthy = false;
     }
 
     if (infraMode === "full") {
       if (this.storage instanceof MinioService) {
-        const minioHealthy = await this.storage.checkHealth();
-        storageStatus = minioHealthy ? "connected" : "disconnected";
-        if (!minioHealthy) {
+        try {
+          const minioHealthy = await this.storage.checkHealth();
+          storageStatus = minioHealthy ? "connected" : "disconnected";
+          if (!minioHealthy) {
+            isHealthy = false;
+          }
+        } catch {
+          storageStatus = "disconnected";
           isHealthy = false;
         }
       }
     }
 
     const statusCode = isHealthy ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+    res.status(statusCode);
 
-    return res.status(statusCode).json({
+    return {
       status: isHealthy ? "ok" : "error",
       timestamp: new Date().toISOString(),
       infraMode,
       database: dbStatus,
       storage: storageStatus,
-    });
+    };
   }
 }

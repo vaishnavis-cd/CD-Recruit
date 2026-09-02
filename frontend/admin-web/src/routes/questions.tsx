@@ -518,8 +518,26 @@ function QuestionBankPage() {
   const [nosqlExpectedOp, setNosqlExpectedOp] = useState("");
   const [nosqlDatasetRef, setNosqlDatasetRef] = useState("");
 
-  // Coding specific (Create)
+  // Coding & Debugging specific (Create)
+  const [codingLanguage, setCodingLanguage] = useState<string>("javascript");
+  const [codingFunctionName, setCodingFunctionName] = useState("");
+  const [codingParameters, setCodingParameters] = useState("");
+  const [codingReturnType, setCodingReturnType] = useState("");
   const [starterCode, setStarterCode] = useState("");
+  const [starterCodeMap, setStarterCodeMap] = useState<Record<string, string>>({
+    javascript: "",
+    python: "",
+    java: "",
+    cpp: "",
+  });
+  const [codingSampleTestCases, setCodingSampleTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string; explanation?: string }>>([
+    { input: "", expectedOutput: "", label: "Example 1" },
+  ]);
+  const [codingHiddenTestCases, setCodingHiddenTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string }>>([
+    { input: "", expectedOutput: "", label: "Hidden 1" },
+  ]);
+  const [codingConstraints, setCodingConstraints] = useState("");
+  const [codingExplanation, setCodingExplanation] = useState("");
   const [testCasesInput, setTestCasesInput] = useState("");
 
   // Simulation specific (Create)
@@ -548,8 +566,24 @@ function QuestionBankPage() {
   const [editNosqlExpectedOp, setEditNosqlExpectedOp] = useState("");
   const [editNosqlDatasetRef, setEditNosqlDatasetRef] = useState("");
 
+  // Edit Coding & Debugging state
+  const [editCodingLanguage, setEditCodingLanguage] = useState<string>("javascript");
+  const [editCodingFunctionName, setEditCodingFunctionName] = useState("");
+  const [editCodingParameters, setEditCodingParameters] = useState("");
+  const [editCodingReturnType, setEditCodingReturnType] = useState("");
   const [editStarterCode, setEditStarterCode] = useState("");
+  const [editStarterCodeMap, setEditStarterCodeMap] = useState<Record<string, string>>({
+    javascript: "",
+    python: "",
+    java: "",
+    cpp: "",
+  });
+  const [editCodingSampleTestCases, setEditCodingSampleTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string; explanation?: string }>>([]);
+  const [editCodingHiddenTestCases, setEditCodingHiddenTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string }>>([]);
+  const [editCodingConstraints, setEditCodingConstraints] = useState("");
+  const [editCodingExplanation, setEditCodingExplanation] = useState("");
   const [editTestCasesInput, setEditTestCasesInput] = useState("");
+
   const [editSimTriggers, setEditSimTriggers] = useState("");
   const [editSimRubric, setEditSimRubric] = useState("");
   const [editAiSystemContext, setEditAiSystemContext] = useState("");
@@ -557,7 +591,7 @@ function QuestionBankPage() {
   const [editAiIdealResponse, setEditAiIdealResponse] = useState("");
 
   // Bulk Import State
-  const [importModuleType, setImportModuleType] = useState<string>("MCQ");
+  const [importModuleType, setImportModuleType] = useState<string>("ALL");
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
   // Confirmation Modal State
@@ -592,14 +626,12 @@ function QuestionBankPage() {
       drive: [],
     };
 
-    // 1. Group Module Types by canonical key
+    // 1. Group Module Types by canonical key (strict moduleType matching)
     CANONICAL_MODULES.forEach((mod) => {
       const folderKey = `module:${mod.key}`;
       const matchingQuestions = questions.filter((q) => {
         const qMod = (q.moduleType || "").toUpperCase();
-        if (qMod === mod.key) return true;
-        const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
-        return mod.aliases.some((alias) => qTags.includes(alias));
+        return qMod === mod.key;
       });
 
       if (matchingQuestions.length > 0) {
@@ -618,7 +650,8 @@ function QuestionBankPage() {
     CANONICAL_LEVELS.forEach((lvl) => {
       const folderKey = `level:${lvl.key}`;
       const matchingQuestions = questions.filter((q) => {
-        if (q.targetLevel === lvl.tier) return true;
+        const targetLvl = (q.targetLevel || "").toLowerCase();
+        if (targetLvl === lvl.tier.toLowerCase() || targetLvl === lvl.key.toLowerCase()) return true;
         const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
         return lvl.aliases.some((alias) => qTags.includes(alias));
       });
@@ -638,6 +671,18 @@ function QuestionBankPage() {
     // 3. Group Topics & Drives
     const driveTagMap = new Map<string, typeof questions>();
     const topicTagMap = new Map<string, { title: string; questions: typeof questions }>();
+
+    const DEPT_TAG_ALIASES = [
+      "sde", "software_engineering", "software-engineering", "softwareengineering",
+      "qa", "quality_assurance", "quality-assurance", "testing",
+      "data_engineering", "data-engineering", "dataengineering",
+      "sre", "site_reliability", "site-reliability",
+      "secops", "cybersecurity", "security_operations", "security",
+      "sysops", "system_operations", "system-operations",
+      "itops", "it_operations", "it-operations",
+      "pmo", "project_management", "project-management",
+      "general", "fresher", "freshers", "intern", "l1", "l2", "l3",
+    ];
 
     questions.forEach((q) => {
       const rawTags = q.tags && q.tags.length > 0 ? q.tags : ["untagged"];
@@ -665,10 +710,11 @@ function QuestionBankPage() {
           return;
         }
 
-        // Skip module & level tags from topics cloud
+        // Skip module, level, & department metadata tags from topics cloud
         const cleanNormalized = cleanTag.replace(/[-_\s]+/g, "");
-        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized))) return;
-        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized))) return;
+        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized) || m.key.toLowerCase().replace(/[-_\s]+/g, "") === cleanNormalized)) return;
+        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized) || l.key.toLowerCase().replace(/[-_\s]+/g, "") === cleanNormalized)) return;
+        if (DEPT_TAG_ALIASES.some((d) => d.replace(/[-_\s]+/g, "") === cleanNormalized)) return;
 
         // Canonical topic mapping
         const canonicalTitle = formatTagDisplayName(cleanTag, "topic").title;
@@ -744,13 +790,27 @@ function QuestionBankPage() {
       );
       setEditNosqlDatasetRef(q.content?.datasetRef || "");
     } else if (q.moduleType === "CODING" || q.moduleType === "DEBUGGING") {
-      const code = typeof q.content?.starterCode === "object"
-        ? (q.content.starterCode.javascript || q.content.starterCode.python || JSON.stringify(q.content.starterCode, null, 2))
-        : (q.content?.starterCode || "");
-      setEditStarterCode(code);
-      setEditTestCasesInput(
-        q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : ""
-      );
+      const sCode = q.content?.starterCode;
+      const sMap: Record<string, string> = {
+        javascript: typeof sCode === "object" ? sCode.javascript || "" : typeof sCode === "string" ? sCode : "",
+        python: typeof sCode === "object" ? sCode.python || "" : "",
+        java: typeof sCode === "object" ? sCode.java || "" : "",
+        cpp: typeof sCode === "object" ? sCode.cpp || "" : "",
+      };
+      setEditStarterCodeMap(sMap);
+      setEditStarterCode(sMap.javascript || sMap.python || (typeof sCode === "string" ? sCode : ""));
+      setEditCodingLanguage("javascript");
+      setEditCodingFunctionName(q.content?.functionName || "");
+      setEditCodingParameters(q.content?.parameters || "");
+      setEditCodingReturnType(q.content?.returnType || "");
+      setEditCodingConstraints(Array.isArray(q.content?.constraints) ? q.content.constraints.join("\n") : q.content?.constraints || "");
+      setEditCodingExplanation(q.content?.explanation || "");
+
+      const sampleTc = q.content?.visibleTestCases || (q.content?.testCases || []).filter((tc: any) => !tc.isHidden);
+      const hiddenTc = q.content?.hiddenTestCases || (q.content?.testCases || []).filter((tc: any) => tc.isHidden);
+      setEditCodingSampleTestCases(sampleTc.length > 0 ? sampleTc : [{ input: "", expectedOutput: "", label: "Example 1" }]);
+      setEditCodingHiddenTestCases(hiddenTc.length > 0 ? hiddenTc : [{ input: "", expectedOutput: "", label: "Hidden 1" }]);
+      setEditTestCasesInput(q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : "");
     } else if (q.moduleType === "AI_PROMPTING") {
       setEditAiSystemContext(q.content?.context || q.content?.systemContext || "");
       setEditAiTechStack(q.content?.techStack || "React/TypeScript");
@@ -778,6 +838,7 @@ function QuestionBankPage() {
           return;
         }
         scoringConfig.correctIndex = editCorrectIndex;
+        scoringConfig.correctAnswer = content.options[editCorrectIndex] || content.options[0];
       } else if (editingQuestion.moduleType === "SQL") {
         content.schema = editSqlSchema;
         content.seedData = editSqlSeed;
@@ -796,15 +857,27 @@ function QuestionBankPage() {
         }
         content.datasetRef = editNosqlDatasetRef;
       } else if (editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") {
-        content.starterCode = editStarterCode;
-        if (editTestCasesInput.trim()) {
-          try {
-            content.testCases = JSON.parse(editTestCasesInput);
-          } catch {
-            toast.error("Invalid Test Cases JSON format");
-            return;
-          }
-        }
+        content.functionName = editCodingFunctionName;
+        content.parameters = editCodingParameters;
+        content.returnType = editCodingReturnType;
+        content.constraints = editCodingConstraints.split("\n").map((c) => c.trim()).filter(Boolean);
+        content.explanation = editCodingExplanation;
+
+        const updatedCodeMap = {
+          ...editStarterCodeMap,
+          [editCodingLanguage]: editStarterCode,
+        };
+        content.starterCode = Object.values(updatedCodeMap).some(Boolean) ? updatedCodeMap : editStarterCode;
+
+        const visibleCases = editCodingSampleTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+        const hiddenCases = editCodingHiddenTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+
+        content.visibleTestCases = visibleCases;
+        content.hiddenTestCases = hiddenCases;
+        content.testCases = [
+          ...visibleCases.map((tc) => ({ ...tc, isHidden: false })),
+          ...hiddenCases.map((tc) => ({ ...tc, isHidden: true })),
+        ];
       } else if (editingQuestion.moduleType === "AI_PROMPTING") {
         content.context = editAiSystemContext;
         content.techStack = editAiTechStack;
@@ -832,7 +905,7 @@ function QuestionBankPage() {
 
   const handleCreate = async () => {
     const content: any = { prompt: promptText };
-    const scoringConfig: any = {};
+    const scoringConfig: any = { points: difficulty === "hard" ? 3 : difficulty === "medium" ? 2 : 1 };
 
     try {
       if (moduleType === "MCQ") {
@@ -842,6 +915,7 @@ function QuestionBankPage() {
           return;
         }
         scoringConfig.correctIndex = correctIndex;
+        scoringConfig.correctAnswer = content.options[correctIndex] || content.options[0];
       } else if (moduleType === "SQL") {
         content.schema = sqlSchema;
         content.seedData = sqlSeed;
@@ -860,8 +934,27 @@ function QuestionBankPage() {
         }
         content.datasetRef = nosqlDatasetRef;
       } else if (moduleType === "CODING" || moduleType === "DEBUGGING") {
-        content.starterCode = starterCode;
-        content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
+        content.functionName = codingFunctionName;
+        content.parameters = codingParameters;
+        content.returnType = codingReturnType;
+        content.constraints = codingConstraints.split("\n").map((c) => c.trim()).filter(Boolean);
+        content.explanation = codingExplanation;
+
+        const updatedCodeMap = {
+          ...starterCodeMap,
+          [codingLanguage]: starterCode,
+        };
+        content.starterCode = Object.values(updatedCodeMap).some(Boolean) ? updatedCodeMap : starterCode;
+
+        const visibleCases = codingSampleTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+        const hiddenCases = codingHiddenTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+
+        content.visibleTestCases = visibleCases;
+        content.hiddenTestCases = hiddenCases;
+        content.testCases = [
+          ...visibleCases.map((tc) => ({ ...tc, isHidden: false })),
+          ...hiddenCases.map((tc) => ({ ...tc, isHidden: true })),
+        ];
       } else if (moduleType === "AI_PROMPTING") {
         content.context = aiSystemContext;
         content.techStack = aiTechStack;
@@ -953,40 +1046,193 @@ function QuestionBankPage() {
     return lines;
   }
 
-  // Dynamic CSV Template Download
-  const handleDownloadSample = (mod: string) => {
-    let headers = "";
-    let sampleRow = "";
-    if (mod === "MCQ") {
-      headers = "prompt,difficulty,tags,role,targetLevel,option1,option2,option3,option4,correctIndex";
-      sampleRow =
-        '"What is the time complexity of binary search?",easy,"algorithms,binary search","Backend Engineer","0-1",O(n),O(log n),O(n log n),O(1),1';
-    } else if (mod === "SQL") {
-      headers = "prompt,difficulty,tags,role,targetLevel,schema,seedData";
-      sampleRow =
-        '"Select all employees from sales department",medium,"sql,databases","Data Engineer","2-5","CREATE TABLE employees (id SERIAL, name TEXT, department TEXT);","INSERT INTO employees (name, department) VALUES (\'John\', \'sales\');"';
-    } else if (mod === "NOSQL") {
-      headers = "prompt,difficulty,tags,role,targetLevel,collections,allowedOperations";
-      sampleRow =
-        '"Find all employees with salary over 50k",medium,"nosql,mongodb","Data Engineer","2-5","employees","find,aggregate"';
-    } else if (mod === "CODING") {
-      headers = "prompt,difficulty,tags,role,targetLevel,starterCode,testCasesJSON";
-      sampleRow =
-        '"Write a function to sum two numbers",easy,"basics,math","Backend Engineer","0-1","function sum(a, b) {\n  return a + b;\n}","[{\"input\": \"[1, 2]\", \"expected\": \"3\"}]"';
-    } else if (mod === "AI_PROMPTING") {
-      headers = "prompt,difficulty,tags,role,targetLevel,rubricJSON";
-      sampleRow =
-        '"Draft a prompt for an assistant to write professional emails",medium,"ai,prompting","AI Engineer","2-5","[{\\"criteria\\": \\"Tone\\", \\"maxScore\\": 5}]"';
-    } else if (mod === "SIMULATION") {
-      headers = "title,difficulty,tags,role,targetLevel,triggersJSON,rubricJSON";
-      sampleRow =
-        '"Handle a production outage call with client",hard,"communication,outage","Full-stack Engineer","6-10","[{\\"timeSeconds\\": 15, \\"message\\": \\"Client is asking for ETA.\\"}]","[{\\"criteria\\": \\"Transparency\\", \\"maxScore\\": 10}]"';
-    }
-    const csvContent =
-      "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + sampleRow);
+  // Single Unified Multi-Module Sample CSV Template Download
+  const handleDownloadUnifiedSampleCSV = () => {
+    const headers = [
+      "moduleType",
+      "prompt",
+      "difficulty",
+      "tags",
+      "role",
+      "targetLevel",
+      "options",
+      "correctAnswer",
+      "language",
+      "parameters",
+      "starterCode",
+      "sampleTestCases",
+      "hiddenTestCases",
+      "schema",
+      "seedData",
+      "explanation",
+    ].join(",");
+
+    const rows = [
+      // 1. MCQ
+      [
+        "MCQ",
+        '"What is the time complexity of searching in a balanced Binary Search Tree?"',
+        "easy",
+        '"algorithms,binary-search-tree,data-structures"',
+        '"Backend Engineer"',
+        '"0-1"',
+        '"[\\"O(1)\\", \\"O(log n)\\", \\"O(n)\\", \\"O(n log n)\\"]"',
+        '"O(log n)"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"A balanced BST halves the search space at each comparison level, leading to logarithmic O(log n) time complexity."',
+      ].join(","),
+
+      // 2. SQL
+      [
+        "SQL",
+        '"Calculate total revenue and order count for each product category having at least 5 orders."',
+        "medium",
+        '"sql,postgresql,aggregations"',
+        '"Data Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"CREATE TABLE categories (id INT PRIMARY KEY, name TEXT); CREATE TABLE products (id INT PRIMARY KEY, category_id INT, price NUMERIC); CREATE TABLE orders (id INT PRIMARY KEY, product_id INT, quantity INT);"',
+        '"INSERT INTO categories VALUES (1, \'Electronics\'), (2, \'Books\'); INSERT INTO products VALUES (101, 1, 99.99), (102, 2, 19.99); INSERT INTO orders VALUES (1, 101, 5), (2, 102, 2);"',
+        '"SELECT c.name, SUM(p.price * o.quantity) AS total_revenue, COUNT(o.id) AS order_count FROM categories c JOIN products p ON c.id = p.category_id JOIN orders o ON p.id = o.product_id GROUP BY c.name HAVING COUNT(o.id) >= 5;"',
+      ].join(","),
+
+      // 3. CODING
+      [
+        "CODING",
+        '"Given an integer array nums and an integer target, return indices of the two numbers such that they add up to target."',
+        "medium",
+        '"algorithms,arrays,hash-table"',
+        '"Backend Engineer"',
+        '"0-1"',
+        "",
+        "",
+        "javascript",
+        '"nums: number[], target: number"',
+        '"function twoSum(nums, target) {\\n  const map = new Map();\\n  for (let i = 0; i < nums.length; i++) {\\n    const diff = target - nums[i];\\n    if (map.has(diff)) return [map.get(diff), i];\\n    map.set(nums[i], i);\\n  }\\n  return [];\\n}"',
+        '"[{\\"input\\": \\"[2, 7, 11, 15], 9\\", \\"expectedOutput\\": \\"[0, 1]\\", \\"label\\": \\"Example 1: Basic case\\"}, {\\"input\\": \\"[3, 2, 4], 6\\", \\"expectedOutput\\": \\"[1, 2]\\", \\"label\\": \\"Example 2: Mixed indices\\"}]"',
+        '"[{\\"input\\": \\"[3, 3], 6\\", \\"expectedOutput\\": \\"[0, 1]\\", \\"label\\": \\"Hidden 1: Duplicate elements\\"}, {\\"input\\": \\"[-1, -2, -3, -4, -5], -8\\", \\"expectedOutput\\": \\"[2, 4]\\", \\"label\\": \\"Hidden 2: Negative numbers\\"}]"',
+        "",
+        "",
+        '"Use a Map to track visited number indices in O(n) single-pass lookup time."',
+      ].join(","),
+
+      // 4. DEBUGGING
+      [
+        "DEBUGGING",
+        '"Fix off-by-one index error in binary search loop condition."',
+        "medium",
+        '"debugging,algorithms,search"',
+        '"Software Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "javascript",
+        '"arr: number[], target: number"',
+        '"function binarySearch(arr, target) {\\n  let left = 0;\\n  let right = arr.length; // BUG: should be arr.length - 1\\n  while (left <= right) {\\n    let mid = Math.floor((left + right) / 2);\\n    if (arr[mid] === target) return mid;\\n    if (arr[mid] < target) left = mid + 1;\\n    else right = mid - 1;\\n  }\\n  return -1;\\n}"',
+        '"[{\\"input\\": \\"[1, 3, 5, 7, 9], 9\\", \\"expectedOutput\\": \\"4\\", \\"label\\": \\"Example 1: Target at end\\"}]"',
+        '"[{\\"input\\": \\"[1, 3, 5], 2\\", \\"expectedOutput\\": \\"-1\\", \\"label\\": \\"Hidden 1: Target not present\\"}]"',
+        "",
+        "",
+        '"Ensure upper bound right is initialized to arr.length - 1 to prevent out of bounds inspection."',
+      ].join(","),
+
+      // 5. NOSQL
+      [
+        "NOSQL",
+        '"Find all active customer accounts with a balance greater than 1000 and return name and balance."',
+        "medium",
+        '"nosql,mongodb,query"',
+        '"Data Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"customers"',
+        '"[{\\"filter\\": {\\"status\\": \\"ACTIVE\\", \\"balance\\": {\\"$gt\\": 1000}}, \\"projection\\": {\\"name\\": 1, \\"balance\\": 1, \\"_id\\": 0}}]"',
+        '"Execute db.customers.find({ status: \'ACTIVE\', balance: { $gt: 1000 } }, { name: 1, balance: 1, _id: 0 })."',
+      ].join(","),
+
+      // 6. AI_PROMPTING
+      [
+        "AI_PROMPTING",
+        '"Design a system prompt for a customer service assistant handling strict refund validations."',
+        "medium",
+        '"ai,prompt-engineering,system-instructions"',
+        '"AI Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"[{\\"criteria\\": \\"Policy Adherence\\", \\"maxScore\\": 5}, {\\"criteria\\": \\"Tone & Empathy\\", \\"maxScore\\": 5}, {\\"criteria\\": \\"Anti-Jailbreak Guardrails\\", \\"maxScore\\": 5}]"',
+        "",
+        "",
+        "",
+        '"Provide unambiguous role definition, order verification steps, and refusal rules for out-of-window requests."',
+      ].join(","),
+
+      // 7. SIMULATION
+      [
+        "SIMULATION",
+        '"Live Incident: Production PostgreSQL replica lag spikes to 45 minutes during high-traffic campaign."',
+        "hard",
+        '"sre,incident-management,database"',
+        '"SRE / DevOps"',
+        '"6-10"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"[{\\"timeSeconds\\": 30, \\"message\\": \\"Alert: Replica replication lag exceeded 45m.\\"}]"',
+        '"[{\\"criteria\\": \\"Root Cause Triage\\", \\"maxScore\\": 10}, {\\"criteria\\": \\"Incident Mitigation\\", \\"maxScore\\": 10}]"',
+        "",
+        "",
+        '"Identify long-running vacuums, connection starvation, or WAL sender saturation."',
+      ].join(","),
+
+      // 8. TEST_SCENARIOS
+      [
+        "TEST_SCENARIOS",
+        '"Design comprehensive integration test scenarios for an OAuth2 / OpenID Connect authorization code flow."',
+        "medium",
+        '"qa,testing,security,oauth2"',
+        '"QA Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"[{\\"scenario\\": \\"Happy Path Token Exchange\\", \\"expected\\": \\"200 OK with ID and Refresh Tokens\\"}, {\\"scenario\\": \\"Expired Auth Code\\", \\"expected\\": \\"400 Bad Request invalid_grant\\"}, {\\"scenario\\": \\"CSRF State Mismatch\\", \\"expected\\": \\"403 Forbidden state parameter rejected\\"}]"',
+        "",
+        "",
+        "",
+        '"Validate authorization grants, token refresh, expired authorization codes, invalid client secrets, and PKCE verification."',
+      ].join(","),
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + rows.join("\n"));
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
-    link.setAttribute("download", `sample_${mod.toLowerCase()}.csv`);
+    link.setAttribute("download", "cd_recruit_all_modules_sample_template.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1022,13 +1268,19 @@ function QuestionBankPage() {
             return idx !== -1 ? row[idx] : "";
           };
 
-          const difficulty = getVal("difficulty") || "medium";
+          const rawModule = getVal("moduletype") || getVal("module") || (importModuleType !== "ALL" ? importModuleType : "MCQ");
+          const targetModuleType = rawModule.toUpperCase();
+          const difficulty = (getVal("difficulty") || "medium").toLowerCase();
           const targetLvl = getVal("targetlevel") || "0-1";
           const roleVal = getVal("role") || "General";
           const tags = (getVal("tags") || "")
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean);
+
+          if (!tags.includes(targetModuleType.toLowerCase())) {
+            tags.push(targetModuleType.toLowerCase());
+          }
 
           if (driveNameParam) {
             const driveTag = `Drive: ${driveNameParam}`;
@@ -1038,44 +1290,111 @@ function QuestionBankPage() {
           }
 
           const content: any = {};
-          const scoringConfig: any = {};
+          const scoringConfig: any = { points: difficulty === "hard" ? 3 : difficulty === "medium" ? 2 : 1 };
 
-          if (importModuleType === "MCQ") {
-            content.prompt = getVal("prompt");
-            const opt1 = getVal("option1");
-            const opt2 = getVal("option2");
-            const opt3 = getVal("option3");
-            const opt4 = getVal("option4");
-            content.options = [opt1, opt2, opt3, opt4].filter(Boolean);
-            scoringConfig.correctIndex = parseInt(getVal("correctIndex")) || 0;
-          } else if (importModuleType === "SQL") {
-            content.prompt = getVal("prompt");
-            content.schema = getVal("schema");
-            content.seedData = getVal("seedData");
-          } else if (importModuleType === "NOSQL") {
-            content.prompt = getVal("prompt");
-            content.collections = (getVal("collections") || "").split(",").map((c) => c.trim()).filter(Boolean);
-            content.allowedOperations = (getVal("allowedoperations") || "").split(",").map((c) => c.trim()).filter(Boolean);
-          } else if (importModuleType === "CODING") {
-            content.prompt = getVal("prompt");
-            content.starterCode = getVal("starterCode");
-            const tcVal = getVal("testCasesJSON");
-            const tcParsed = tcVal ? JSON.parse(tcVal) : [];
-            content.testCases = tcParsed;
-            content.visibleTestCases = tcParsed;
-          } else if (importModuleType === "AI_PROMPTING") {
-            content.prompt = getVal("prompt");
-            const rub = getVal("rubricJSON");
-            content.rubric = rub ? JSON.parse(rub) : [];
-          } else if (importModuleType === "SIMULATION") {
-            content.title = getVal("title") || getVal("prompt");
-            const trig = getVal("triggersJSON");
-            const rubricVal = getVal("rubricJSON");
-            content.triggers = trig ? JSON.parse(trig) : [];
-            content.rubric = rubricVal ? JSON.parse(rubricVal) : [];
+          const prompt = getVal("prompt") || getVal("title") || getVal("question") || "Assessment Question";
+          content.prompt = prompt;
+          content.explanation = getVal("explanation") || "";
+
+          if (targetModuleType === "MCQ") {
+            let options: string[] = [];
+            const rawOptions = getVal("options");
+            if (rawOptions && rawOptions.startsWith("[")) {
+              try {
+                options = JSON.parse(rawOptions);
+              } catch {
+                options = rawOptions.split(",").map((o) => o.trim());
+              }
+            } else {
+              const opt1 = getVal("option1") || getVal("optiona");
+              const opt2 = getVal("option2") || getVal("optionb");
+              const opt3 = getVal("option3") || getVal("optionc");
+              const opt4 = getVal("option4") || getVal("optiond");
+              options = [opt1, opt2, opt3, opt4].filter(Boolean);
+            }
+            if (options.length === 0) {
+              options = ["Option A", "Option B", "Option C", "Option D"];
+            }
+            content.options = options;
+            const correctAns = getVal("correctanswer") || getVal("correctanswertext");
+            const rawIdx = getVal("correctindex");
+            let cIndex = rawIdx !== "" ? parseInt(rawIdx, 10) : 0;
+            if (correctAns && options.indexOf(correctAns) >= 0) {
+              cIndex = options.indexOf(correctAns);
+            }
+            content.correctAnswer = options[cIndex] || options[0];
+            scoringConfig.correctIndex = cIndex;
+            scoringConfig.correctAnswer = content.correctAnswer;
+          } else if (targetModuleType === "SQL") {
+            content.schema = getVal("schema") || "CREATE TABLE records (id SERIAL PRIMARY KEY, title TEXT);";
+            content.seedData = getVal("seeddata") || "INSERT INTO records (title) VALUES ('Sample Record');";
+            content.expectedQuery = getVal("expectedquery") || getVal("correctanswer") || "SELECT * FROM records;";
+          } else if (targetModuleType === "NOSQL") {
+            content.collections = (getVal("collections") || "documents").split(",").map((c) => c.trim()).filter(Boolean);
+            content.allowedOperations = (getVal("allowedoperations") || "find,aggregate").split(",").map((c) => c.trim()).filter(Boolean);
+            content.validatorType = getVal("validatortype") || "OUTPUT_COMPARISON";
+            const expOp = getVal("expectedoperation") || getVal("seeddata");
+            if (expOp) {
+              try {
+                content.expectedOperation = JSON.parse(expOp);
+              } catch {
+                content.expectedOperation = expOp;
+              }
+            }
+          } else if (targetModuleType === "CODING" || targetModuleType === "DEBUGGING") {
+            content.functionName = getVal("functionname") || "solution";
+            content.parameters = getVal("parameters") || "";
+            content.returnType = getVal("returntype") || "";
+            content.language = getVal("language") || "javascript";
+            content.starterCode = getVal("startercode") || "function solution() {\n  // Write your code here\n}";
+            content.constraints = getVal("constraints") ? getVal("constraints").split("\n").filter(Boolean) : [];
+
+            const sampleTcVal = getVal("sampletestcases") || getVal("visibletestcases") || getVal("testcasesjson");
+            const hiddenTcVal = getVal("hiddentestcases");
+
+            let visibleTestCases = [];
+            let hiddenTestCases = [];
+
+            if (sampleTcVal) {
+              try {
+                visibleTestCases = JSON.parse(sampleTcVal);
+              } catch {
+                visibleTestCases = [{ input: sampleTcVal, expectedOutput: getVal("correctanswer") || "", label: "Example 1" }];
+              }
+            }
+            if (hiddenTcVal) {
+              try {
+                hiddenTestCases = JSON.parse(hiddenTcVal);
+              } catch {
+                hiddenTestCases = [];
+              }
+            }
+
+            content.visibleTestCases = visibleTestCases;
+            content.hiddenTestCases = hiddenTestCases;
+            content.testCases = [
+              ...visibleTestCases.map((tc: any) => ({ ...tc, isHidden: false })),
+              ...hiddenTestCases.map((tc: any) => ({ ...tc, isHidden: true })),
+            ];
+          } else if (targetModuleType === "AI_PROMPTING") {
+            const rub = getVal("rubric") || getVal("rubricjson") || getVal("sampletestcases");
+            content.rubric = rub ? (typeof rub === "string" && rub.startsWith("[") ? JSON.parse(rub) : rub) : [];
+            content.systemContext = getVal("systemcontext") || getVal("context") || "";
+            content.techStack = getVal("techstack") || "React/TypeScript";
+          } else if (targetModuleType === "SIMULATION") {
+            content.title = prompt;
+            const trig = getVal("triggers") || getVal("triggersjson");
+            const rub = getVal("rubric") || getVal("rubricjson");
+            content.triggers = trig ? (typeof trig === "string" && trig.startsWith("[") ? JSON.parse(trig) : trig) : [];
+            content.rubric = rub ? (typeof rub === "string" && rub.startsWith("[") ? JSON.parse(rub) : rub) : [];
+          } else if (targetModuleType === "TEST_SCENARIOS") {
+            const scVal = getVal("sampletestcases") || getVal("testcases") || getVal("rubric");
+            content.testScenarios = scVal ? (typeof scVal === "string" && scVal.startsWith("[") ? JSON.parse(scVal) : scVal) : [];
+            content.expectedAnswer = getVal("correctanswer") || getVal("expectedanswer") || "";
           }
 
           parsedQuestions.push({
+            moduleType: targetModuleType,
             difficulty,
             targetLevel: targetLvl,
             tags,
@@ -1085,8 +1404,8 @@ function QuestionBankPage() {
           });
         }
 
-        const created = await bulkUploadQuestions(importModuleType, parsedQuestions);
-        toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
+        const created = await bulkUploadQuestions("ALL", parsedQuestions);
+        toast.success(`Successfully imported ${parsedQuestions.length} questions across all modules!`);
         setCsvFile(null);
         setShowImportModal(false);
 
@@ -2018,31 +2337,231 @@ function QuestionBankPage() {
 
               {/* Coding & Debugging Fields */}
               {(moduleType === "CODING" || moduleType === "DEBUGGING") && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Function Name
+                      </label>
+                      <input
+                        value={codingFunctionName}
+                        onChange={(e) => setCodingFunctionName(e.target.value)}
+                        placeholder="e.g. twoSum, binarySearch"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Parameters Signature
+                      </label>
+                      <input
+                        value={codingParameters}
+                        onChange={(e) => setCodingParameters(e.target.value)}
+                        placeholder="e.g. nums: number[], target: number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Return Type
+                      </label>
+                      <input
+                        value={codingReturnType}
+                        onChange={(e) => setCodingReturnType(e.target.value)}
+                        placeholder="e.g. number[], boolean, number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1">
-                      Starter Code
-                    </label>
-                    <div className="h-40 border border-line rounded-md overflow-hidden">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Starter Code &amp; Docstrings
+                      </label>
+                      <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-line">
+                        {["javascript", "python", "java", "cpp"].map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => {
+                              setStarterCodeMap((prev) => ({ ...prev, [codingLanguage]: starterCode }));
+                              setCodingLanguage(lang);
+                              setStarterCode(starterCodeMap[lang] || "");
+                            }}
+                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${
+                              codingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
+                            }`}
+                          >
+                            {lang.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="h-44 border border-line rounded-md overflow-hidden">
                       <CodeEditor
                         value={starterCode}
-                        onChange={(val) => setStarterCode(val)}
-                        language="javascript"
+                        onChange={(val) => {
+                          setStarterCode(val);
+                          setStarterCodeMap((prev) => ({ ...prev, [codingLanguage]: val }));
+                        }}
+                        language={codingLanguage}
                         theme="cd-recruit-light"
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1">
-                      Test Cases JSON (Array of input/expected)
-                    </label>
-                    <textarea
-                      value={testCasesInput}
-                      onChange={(e) => setTestCasesInput(e.target.value)}
-                      rows={3}
-                      placeholder='[{"input": "[1, 2]", "expected": "3"}]'
-                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
-                    />
+
+                  {/* Sample / Visible Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Sample (Visible) Test Cases ({codingSampleTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCodingSampleTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Example ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Sample Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {codingSampleTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Case #{idx + 1}</span>
+                            {codingSampleTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setCodingSampleTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <input
+                                value={tc.input}
+                                onChange={(e) => {
+                                  const list = [...codingSampleTestCases];
+                                  list[idx] = { ...list[idx], input: e.target.value };
+                                  setCodingSampleTestCases(list);
+                                }}
+                                placeholder="Input (e.g. [2, 7, 11, 15], 9)"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                value={tc.expectedOutput}
+                                onChange={(e) => {
+                                  const list = [...codingSampleTestCases];
+                                  list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                  setCodingSampleTestCases(list);
+                                }}
+                                placeholder="Expected Output (e.g. [0, 1])"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hidden Evaluation Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Hidden Evaluation Test Cases ({codingHiddenTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCodingHiddenTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Hidden ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Hidden Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {codingHiddenTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Hidden Case #{idx + 1}</span>
+                            {codingHiddenTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setCodingHiddenTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              value={tc.input}
+                              onChange={(e) => {
+                                const list = [...codingHiddenTestCases];
+                                list[idx] = { ...list[idx], input: e.target.value };
+                                setCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Hidden Input (e.g. [3, 3], 6)"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                            <input
+                              value={tc.expectedOutput}
+                              onChange={(e) => {
+                                const list = [...codingHiddenTestCases];
+                                list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                setCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Expected Output (e.g. [0, 1])"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Constraints (One per line)
+                      </label>
+                      <textarea
+                        value={codingConstraints}
+                        onChange={(e) => setCodingConstraints(e.target.value)}
+                        rows={2}
+                        placeholder="2 <= nums.length <= 10^4&#10;-10^9 <= nums[i] <= 10^9"
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Solution Explanation / Strategy
+                      </label>
+                      <textarea
+                        value={codingExplanation}
+                        onChange={(e) => setCodingExplanation(e.target.value)}
+                        rows={2}
+                        placeholder="Explain optimal time & space complexity approach..."
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -2164,39 +2683,21 @@ function QuestionBankPage() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <p className="text-xs text-ink-secondary">
-                Select a module category and download the matched template layout to begin importing questions.
+                Upload a CSV file containing questions across any module type (MCQ, SQL, Coding, Debugging, NoSQL, AI Prompting, Simulation, Test Scenarios).
               </p>
 
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5">
-                  Module Category
-                </label>
-                <select
-                  value={importModuleType}
-                  onChange={(e) => setImportModuleType(e.target.value)}
-                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus focus:outline-none"
-                >
-                  <option value="MCQ">Multiple Choice (MCQ)</option>
-                  <option value="SQL">SQL Database Evaluation</option>
-                  <option value="NOSQL">NoSQL Database Evaluation</option>
-                  <option value="CODING">Coding &amp; Algorithms</option>
-                  <option value="DEBUGGING">Debugging</option>
-                  <option value="AI_PROMPTING">AI Prompting</option>
-                  <option value="SIMULATION">Contextual Simulation</option>
-                </select>
-              </div>
-
-              {/* Template Downloader section */}
+              {/* Unified Multi-Module Template Downloader section */}
               <div className="p-4 bg-canvas rounded-lg border border-line flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <div className="text-xs font-semibold text-ink">CSV Template Ready</div>
+                  <div className="text-xs font-semibold text-ink">Unified Multi-Module CSV Template</div>
                   <div className="text-xs-plus text-ink-tertiary">
-                    Matches layout header schema precisely for {importModuleType}
+                    Comprises ready-to-use sample rows for all 8 assessment module formats in one file.
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDownloadSample(importModuleType)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-brand text-brand bg-white rounded hover:bg-brand hover:text-white transition-all text-xs font-medium cursor-pointer shadow-sm"
+                  type="button"
+                  onClick={handleDownloadUnifiedSampleCSV}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-brand text-brand bg-white rounded hover:bg-brand hover:text-white transition-all text-xs font-medium cursor-pointer shadow-sm shrink-0"
                 >
                   <Download size={13} />
                   Download template
@@ -2220,7 +2721,7 @@ function QuestionBankPage() {
                   <span className="text-xs text-ink-secondary font-medium text-center px-4">
                     {csvFile ? csvFile.name : "Drag & drop your CSV file here, or click to browse"}
                   </span>
-                  <span className="text-2xs text-ink-tertiary mt-1">Accepts .csv format</span>
+                  <span className="text-2xs text-ink-tertiary mt-1">Accepts .csv format (mixed modules supported)</span>
                 </div>
               </div>
             </div>
@@ -2503,31 +3004,231 @@ function QuestionBankPage() {
 
               {/* Coding & Debugging Fields */}
               {(editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Function Name
+                      </label>
+                      <input
+                        value={editCodingFunctionName}
+                        onChange={(e) => setEditCodingFunctionName(e.target.value)}
+                        placeholder="e.g. twoSum, binarySearch"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Parameters Signature
+                      </label>
+                      <input
+                        value={editCodingParameters}
+                        onChange={(e) => setEditCodingParameters(e.target.value)}
+                        placeholder="e.g. nums: number[], target: number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Return Type
+                      </label>
+                      <input
+                        value={editCodingReturnType}
+                        onChange={(e) => setEditCodingReturnType(e.target.value)}
+                        placeholder="e.g. number[], boolean, number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1">
-                      Starter Code
-                    </label>
-                    <div className="h-40 border border-line rounded-md overflow-hidden">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Starter Code &amp; Docstrings
+                      </label>
+                      <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-line">
+                        {["javascript", "python", "java", "cpp"].map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => {
+                              setEditStarterCodeMap((prev) => ({ ...prev, [editCodingLanguage]: editStarterCode }));
+                              setEditCodingLanguage(lang);
+                              setEditStarterCode(editStarterCodeMap[lang] || "");
+                            }}
+                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${
+                              editCodingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
+                            }`}
+                          >
+                            {lang.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="h-44 border border-line rounded-md overflow-hidden">
                       <CodeEditor
                         value={editStarterCode}
-                        onChange={(val) => setEditStarterCode(val)}
-                        language="javascript"
+                        onChange={(val) => {
+                          setEditStarterCode(val);
+                          setEditStarterCodeMap((prev) => ({ ...prev, [editCodingLanguage]: val }));
+                        }}
+                        language={editCodingLanguage}
                         theme="cd-recruit-light"
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1">
-                      Test Cases JSON (Array of input/expected)
-                    </label>
-                    <textarea
-                      value={editTestCasesInput}
-                      onChange={(e) => setEditTestCasesInput(e.target.value)}
-                      rows={3}
-                      placeholder='[{"input": "[1, 2]", "expected": "3"}]'
-                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
-                    />
+
+                  {/* Sample / Visible Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Sample (Visible) Test Cases ({editCodingSampleTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditCodingSampleTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Example ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Sample Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {editCodingSampleTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Case #{idx + 1}</span>
+                            {editCodingSampleTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setEditCodingSampleTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <input
+                                value={tc.input}
+                                onChange={(e) => {
+                                  const list = [...editCodingSampleTestCases];
+                                  list[idx] = { ...list[idx], input: e.target.value };
+                                  setEditCodingSampleTestCases(list);
+                                }}
+                                placeholder="Input (e.g. [2, 7, 11, 15], 9)"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                value={tc.expectedOutput}
+                                onChange={(e) => {
+                                  const list = [...editCodingSampleTestCases];
+                                  list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                  setEditCodingSampleTestCases(list);
+                                }}
+                                placeholder="Expected Output (e.g. [0, 1])"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hidden Evaluation Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Hidden Evaluation Test Cases ({editCodingHiddenTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditCodingHiddenTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Hidden ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Hidden Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {editCodingHiddenTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Hidden Case #{idx + 1}</span>
+                            {editCodingHiddenTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setEditCodingHiddenTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              value={tc.input}
+                              onChange={(e) => {
+                                const list = [...editCodingHiddenTestCases];
+                                list[idx] = { ...list[idx], input: e.target.value };
+                                setEditCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Hidden Input (e.g. [3, 3], 6)"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                            <input
+                              value={tc.expectedOutput}
+                              onChange={(e) => {
+                                const list = [...editCodingHiddenTestCases];
+                                list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                setEditCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Expected Output (e.g. [0, 1])"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Constraints (One per line)
+                      </label>
+                      <textarea
+                        value={editCodingConstraints}
+                        onChange={(e) => setEditCodingConstraints(e.target.value)}
+                        rows={2}
+                        placeholder="2 <= nums.length <= 10^4&#10;-10^9 <= nums[i] <= 10^9"
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Solution Explanation / Strategy
+                      </label>
+                      <textarea
+                        value={editCodingExplanation}
+                        onChange={(e) => setEditCodingExplanation(e.target.value)}
+                        rows={2}
+                        placeholder="Explain optimal time & space complexity approach..."
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

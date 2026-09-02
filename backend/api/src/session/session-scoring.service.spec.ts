@@ -125,10 +125,11 @@ async function runSessionScoringTests() {
   assert.strictEqual(persistedScoreData.where.sessionId, "sess-1");
   assert.strictEqual(persistedScoreData.create.humanReviewed, true, "humanReviewed should be true since aiConfidence (0.9) >= threshold (0.8)");
 
-  // Test 3: Compute scores for session with empty responses (verifying fallback defaults)
+  // Test 3: Compute scores for session with empty responses (verifying NO_DATA handling)
   const emptyResult = await service.computeSessionScores("sess-empty");
-  assert.strictEqual(emptyResult.moduleScores["MCQ"], 0.8, "Default MCQ fallback should be 0.8");
-  assert.strictEqual(emptyResult.moduleScores["CODING"], 0.85, "Default CODING fallback should be 0.85");
+  assert.strictEqual(emptyResult.gradingSource, "no_data", "Grading source should be no_data for empty responses");
+  assert.strictEqual(emptyResult.compositeScore, null, "Composite score should be null for empty responses");
+  assert.strictEqual(emptyResult.aiConfidence, 0.0, "AI confidence should be 0.0 for empty responses");
 
   console.log("✅ All SessionScoringService characterization unit tests passed successfully!");
 }

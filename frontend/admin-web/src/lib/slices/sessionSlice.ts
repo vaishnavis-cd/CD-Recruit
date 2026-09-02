@@ -70,17 +70,15 @@ function mapBackendSession(session: any): Session {
     };
   }
 
+  const rawComposite = session.compositeScore ?? session.score?.compositeScore ?? session.score?.totalScore;
   const compositeScore =
-    session.compositeScore !== null && session.compositeScore !== undefined
-      ? session.compositeScore > 1
-        ? Math.round(session.compositeScore)
-        : Math.round(session.compositeScore * 100)
+    rawComposite !== null && rawComposite !== undefined
+      ? (rawComposite <= 1.0 && rawComposite > 0 ? Math.round(rawComposite * 100) : Math.round(rawComposite))
       : null;
+  const rawSayDo = session.sayDoConsistencyScore ?? session.score?.sayDoConsistencyScore;
   const sayDoScore =
-    session.sayDoConsistencyScore !== null && session.sayDoConsistencyScore !== undefined
-      ? session.sayDoConsistencyScore > 1
-        ? Math.round(session.sayDoConsistencyScore)
-        : Math.round(session.sayDoConsistencyScore * 100)
+    rawSayDo !== null && rawSayDo !== undefined
+      ? (rawSayDo <= 1.0 && rawSayDo > 0 ? Math.round(rawSayDo * 100) : Math.round(rawSayDo))
       : null;
 
 
@@ -191,6 +189,9 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       deadlineAt: detail.deadlineAt || null,
       score: detail.score ? {
         compositeScore: detail.score.compositeScore,
+        coreScore: detail.score.coreScore,
+        bonusScore: detail.score.bonusScore,
+        totalScore: detail.score.totalScore,
         sayDoConsistencyScore: detail.score.sayDoConsistencyScore,
         aiConfidence: detail.score.aiConfidence,
         humanReviewed: detail.score.humanReviewed,

@@ -1,10 +1,138 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { StaffRole } from "@cd-recruit/shared-types";
-import { ListAuditLogQueryDto } from "../common/dto/settings.dto";
+import { StaffRole, Permission } from "@cd-recruit/shared-types";
+import { ListAuditLogQueryDto, UpdateRolePermissionDto } from "../common/dto/settings.dto";
 import { Department, ModuleType } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
+
+export interface PermissionDescriptor {
+  key: Permission;
+  name: string;
+  description: string;
+  category: "Drive Logistics" | "Candidate Evaluation" | "Identity & Integrity" | "Templates & Question Bank" | "Administration";
+}
+
+export const PERMISSION_DESCRIPTORS: PermissionDescriptor[] = [
+  // Drive Logistics
+  {
+    key: Permission.DRIVE_CREATE,
+    name: "Create Drives",
+    description: "Create assessment drives and configure candidate parameters",
+    category: "Drive Logistics",
+  },
+  {
+    key: Permission.CANDIDATE_INGEST_CSV,
+    name: "Upload Candidate CSV",
+    description: "Upload candidate spreadsheets and generate batch invite links",
+    category: "Drive Logistics",
+  },
+  {
+    key: Permission.DRIVE_MANAGE,
+    name: "Manage Drives & Links",
+    description: "Archive/cancel drives, resend assessment links, and extend deadlines",
+    category: "Drive Logistics",
+  },
+
+  // Candidate Evaluation
+  {
+    key: Permission.CANDIDATE_VIEW,
+    name: "View Candidate Submissions",
+    description: "View candidate scores, module responses, test executions, and code",
+    category: "Candidate Evaluation",
+  },
+  {
+    key: Permission.DECISION_SUBMIT,
+    name: "Submit Advance / Reject Decisions",
+    description: "Make final hiring decisions (ADVANCE / REJECT) and record reviewer notes",
+    category: "Candidate Evaluation",
+  },
+  {
+    key: Permission.MANUAL_SCORING_REVIEW,
+    name: "Manual Code & Rubric Grading",
+    description: "Submit technical evaluation scores, say-do remarks, and module rubrics",
+    category: "Candidate Evaluation",
+  },
+
+  // Identity & Integrity
+  {
+    key: Permission.IDENTITY_VERIFICATION_APPROVE,
+    name: "Approve Identity Verification",
+    description: "Review facial/ID comparisons and manually verify candidate identity",
+    category: "Identity & Integrity",
+  },
+  {
+    key: Permission.PROCTORING_TRIAGE,
+    name: "Proctoring Flag & Appeal Triage",
+    description: "Review webcam/screen evidence clips, triage integrity flags, and resolve appeals",
+    category: "Identity & Integrity",
+  },
+
+  // Templates & Question Bank
+  {
+    key: Permission.ROLE_TEMPLATE_EDIT,
+    name: "Calibrate & Edit Role Templates",
+    description: "Create and update role templates, module allocations, and passing cutoffs",
+    category: "Templates & Question Bank",
+  },
+  {
+    key: Permission.QUESTION_BANK_MANAGE,
+    name: "Manage Question Bank",
+    description: "Create, edit, and delete questions across all assessment modules",
+    category: "Templates & Question Bank",
+  },
+
+  // Administration
+  {
+    key: Permission.PARTNER_API_MANAGE,
+    name: "Manage Partner ATS Integrations",
+    description: "Register external ATS partners and generate/rotate API keys",
+    category: "Administration",
+  },
+  {
+    key: Permission.SETTINGS_MANAGE,
+    name: "System Settings & Staff",
+    description: "Configure scoring rules, biometric retention, and staff role assignments",
+    category: "Administration",
+  },
+  {
+    key: Permission.AUDIT_LOG_VIEW,
+    name: "View Platform Audit Logs",
+    description: "Inspect compliance audit trails and security event logs",
+    category: "Administration",
+  },
+];
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+  ADMIN: Object.values(Permission),
+  HR_LEAD: [
+    Permission.CANDIDATE_VIEW,
+    Permission.DECISION_SUBMIT,
+    Permission.MANUAL_SCORING_REVIEW,
+    Permission.IDENTITY_VERIFICATION_APPROVE,
+    Permission.PROCTORING_TRIAGE,
+    Permission.ROLE_TEMPLATE_EDIT,
+    Permission.AUDIT_LOG_VIEW,
+  ],
+  HR_ASSOCIATE: [
+    Permission.DRIVE_CREATE,
+    Permission.CANDIDATE_INGEST_CSV,
+    Permission.DRIVE_MANAGE,
+    Permission.CANDIDATE_VIEW,
+    Permission.PROCTORING_TRIAGE,
+  ],
+  REVIEWER: [
+    Permission.CANDIDATE_VIEW,
+    Permission.MANUAL_SCORING_REVIEW,
+  ],
+  RECRUITER: [
+    Permission.DRIVE_CREATE,
+    Permission.CANDIDATE_INGEST_CSV,
+    Permission.DRIVE_MANAGE,
+    Permission.CANDIDATE_VIEW,
+    Permission.PROCTORING_TRIAGE,
+  ],
+};
 
 @Injectable()
 export class SettingsService {
@@ -29,6 +157,7 @@ export class SettingsService {
         heartbeatStaleThresholdSeconds: 45,
         graceWindowSeconds: 300,
         maxDisconnectCount: 3,
+        rolePermissions: DEFAULT_ROLE_PERMISSIONS,
       };
       fs.writeFileSync(this.configPath, JSON.stringify(defaultConfig, null, 2), "utf8");
     } else {
@@ -50,6 +179,10 @@ export class SettingsService {
         }
         if (json.maxDisconnectCount === undefined) {
           json.maxDisconnectCount = 3;
+          updated = true;
+        }
+        if (json.rolePermissions === undefined) {
+          json.rolePermissions = DEFAULT_ROLE_PERMISSIONS;
           updated = true;
         }
         if (updated) {
@@ -515,5 +648,116 @@ export class SettingsService {
     });
 
     return this.getModuleSettings();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dynamic Role Permissions Matrix
+  // ---------------------------------------------------------------------------
+
+  async getRolePermissions() {
+    this.ensureConfigExists();
+    let permissionsMap: Record<string, string[]> = DEFAULT_ROLE_PERMISSIONS;
+    try {
+      const data = fs.readFileSync(this.configPath, "utf8");
+      const json = JSON.parse(data);
+      if (json.rolePermissions) {
+        permissionsMap = json.rolePermissions;
+      }
+    } catch {
+      // Fall back to defaults
+    }
+
+    const roles = [
+      StaffRole.ADMIN,
+      StaffRole.HR_LEAD,
+      StaffRole.HR_ASSOCIATE,
+      StaffRole.REVIEWER,
+    ];
+
+    return {
+      matrix: permissionsMap,
+      descriptors: PERMISSION_DESCRIPTORS,
+      roles,
+    };
+  }
+
+  async updateRolePermission(
+    dto: UpdateRolePermissionDto,
+    actor: any,
+  ) {
+    if (dto.role === StaffRole.ADMIN) {
+      throw new BadRequestException("Superadmin permissions cannot be modified");
+    }
+
+    this.ensureConfigExists();
+    const data = fs.readFileSync(this.configPath, "utf8");
+    const json = JSON.parse(data);
+    const rolePermissions: Record<string, string[]> = json.rolePermissions || { ...DEFAULT_ROLE_PERMISSIONS };
+
+    const currentPerms = new Set<string>(rolePermissions[dto.role] || DEFAULT_ROLE_PERMISSIONS[dto.role] || []);
+
+    if (dto.isEnabled) {
+      currentPerms.add(dto.permission);
+    } else {
+      currentPerms.delete(dto.permission);
+    }
+
+    rolePermissions[dto.role] = Array.from(currentPerms);
+    json.rolePermissions = rolePermissions;
+
+    fs.writeFileSync(this.configPath, JSON.stringify(json, null, 2), "utf8");
+
+    const actorId = await this.resolveStaffId(actor);
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "ROLE_PERMISSION_UPDATED",
+        entityType: "RolePermission",
+        entityId: `${dto.role}:${dto.permission}`,
+        metadata: { role: dto.role, permission: dto.permission, isEnabled: dto.isEnabled },
+      },
+    });
+
+    return this.getRolePermissions();
+  }
+
+  async resetRolePermissions(actor: any) {
+    this.ensureConfigExists();
+    const data = fs.readFileSync(this.configPath, "utf8");
+    const json = JSON.parse(data);
+
+    json.rolePermissions = JSON.parse(JSON.stringify(DEFAULT_ROLE_PERMISSIONS));
+    fs.writeFileSync(this.configPath, JSON.stringify(json, null, 2), "utf8");
+
+    const actorId = await this.resolveStaffId(actor);
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "ROLE_PERMISSIONS_RESET_DEFAULT",
+        entityType: "RolePermission",
+        entityId: "ALL",
+        metadata: { resetAt: new Date().toISOString() },
+      },
+    });
+
+    return this.getRolePermissions();
+  }
+
+  hasPermission(role: string, permission: Permission | string): boolean {
+    if (role === StaffRole.ADMIN) {
+      return true; // Superadmin has all permissions
+    }
+
+    try {
+      this.ensureConfigExists();
+      const data = fs.readFileSync(this.configPath, "utf8");
+      const json = JSON.parse(data);
+      const rolePermissions: Record<string, string[]> = json.rolePermissions || DEFAULT_ROLE_PERMISSIONS;
+      const permsForRole = rolePermissions[role] ?? DEFAULT_ROLE_PERMISSIONS[role] ?? [];
+      return permsForRole.includes(permission as string);
+    } catch {
+      const permsForRole = DEFAULT_ROLE_PERMISSIONS[role] ?? [];
+      return permsForRole.includes(permission as string);
+    }
   }
 }

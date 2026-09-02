@@ -44,6 +44,10 @@ export class PrismaService
         );
         if (i < retries - 1) {
           await new Promise((res) => setTimeout(res, delayMs));
+        } else if (process.env.NODE_ENV === "production") {
+          throw new Error(
+            `Fatal: Prisma could not connect to PostgreSQL after ${retries} attempts: ${err.message}`,
+          );
         }
       }
     }

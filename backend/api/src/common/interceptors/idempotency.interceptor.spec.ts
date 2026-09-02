@@ -58,10 +58,10 @@ async function runIdempotencyInterceptorTests() {
   assert.strictEqual(result2.inviteId, "inv-999");
   assert.strictEqual(handlerCalledCount, 2);
   assert.strictEqual(
-    store["idempotency:partner-456:key_abc_12345"],
+    store["idempotency:partner:partner-456:key_abc_12345"],
     JSON.stringify({ status: "success", inviteId: "inv-999" }),
   );
-  console.log("  ✔ Processes request and caches response in Redis under idempotency:partner-456:key_abc_12345");
+  console.log("  ✔ Processes request and caches response in Redis under idempotency:partner:partner-456:key_abc_12345");
 
   // Test 3: Short-circuits and returns cached response when Idempotency-Key is reused
   const mockHandler3: any = {

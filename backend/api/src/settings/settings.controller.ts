@@ -16,7 +16,14 @@ import { Roles } from "../common/decorators/roles.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { SettingsService } from "./settings.service";
-import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto, UpdateAppealWindowConfigDto } from "../common/dto/settings.dto";
+import {
+  UpdateStaffRoleDto,
+  UpdateScoringConfigDto,
+  UpdateRetentionConfigDto,
+  ListAuditLogQueryDto,
+  UpdateAppealWindowConfigDto,
+  UpdateRolePermissionDto,
+} from "../common/dto/settings.dto";
 import { Department, ModuleType } from "@prisma/client";
 
 @Controller("admin/settings")
@@ -157,5 +164,32 @@ export class SettingsController {
       dto.isEnabled,
       actor,
     );
+  }
+
+  @Get("permissions")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
+  async getRolePermissions() {
+    return this.settingsService.getRolePermissions();
+  }
+
+  @Patch("permissions")
+  @Roles(StaffRole.ADMIN)
+  async updateRolePermission(
+    @Body() dto: UpdateRolePermissionDto,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateRolePermission(dto, actor);
+  }
+
+  @Post("permissions/reset")
+  @Roles(StaffRole.ADMIN)
+  async resetRolePermissions(@CurrentUser() actor: any) {
+    return this.settingsService.resetRolePermissions(actor);
   }
 }

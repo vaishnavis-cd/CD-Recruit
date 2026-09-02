@@ -140,8 +140,36 @@ export enum SqlExecutionStatus {
 // ---------------------------------------------------------------------------
 
 export enum StaffRole {
-  RECRUITER = "RECRUITER",
   ADMIN = "ADMIN",
+  HR_LEAD = "HR_LEAD",
+  HR_ASSOCIATE = "HR_ASSOCIATE",
+  REVIEWER = "REVIEWER",
+  RECRUITER = "RECRUITER", // Legacy alias
+}
+
+export enum Permission {
+  // Drive Logistics
+  DRIVE_CREATE = "DRIVE_CREATE",
+  CANDIDATE_INGEST_CSV = "CANDIDATE_INGEST_CSV",
+  DRIVE_MANAGE = "DRIVE_MANAGE",
+
+  // Evaluation & Decision
+  CANDIDATE_VIEW = "CANDIDATE_VIEW",
+  DECISION_SUBMIT = "DECISION_SUBMIT",
+  MANUAL_SCORING_REVIEW = "MANUAL_SCORING_REVIEW",
+
+  // Identity & Flags
+  IDENTITY_VERIFICATION_APPROVE = "IDENTITY_VERIFICATION_APPROVE",
+  PROCTORING_TRIAGE = "PROCTORING_TRIAGE",
+
+  // Templates & Bank
+  ROLE_TEMPLATE_EDIT = "ROLE_TEMPLATE_EDIT",
+  QUESTION_BANK_MANAGE = "QUESTION_BANK_MANAGE",
+
+  // Administration
+  PARTNER_API_MANAGE = "PARTNER_API_MANAGE",
+  SETTINGS_MANAGE = "SETTINGS_MANAGE",
+  AUDIT_LOG_VIEW = "AUDIT_LOG_VIEW",
 }
 
 // ---------------------------------------------------------------------------

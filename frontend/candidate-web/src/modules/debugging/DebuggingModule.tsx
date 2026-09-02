@@ -257,6 +257,35 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
     );
   }
 
+  function getBugTrace(content: any): string {
+    if (content.stackTrace && typeof content.stackTrace === 'string' && content.stackTrace.trim().length > 0) {
+      return content.stackTrace;
+    }
+    if (content.bugDescription && typeof content.bugDescription === 'string' && content.bugDescription.trim().length > 0) {
+      return content.bugDescription;
+    }
+
+    const funcName = content.functionName || 'solution';
+    const prompt = (content.prompt || content.title || '').toLowerCase();
+
+    if (prompt.includes('null') || prompt.includes('dereference')) {
+      return `NullPointerException: Cannot invoke method or access property on null reference\n    at ${funcName} (solution.ts:14:12)\n    at TestRunner.execute (runner.ts:45:8)\n    at process.processTicksAndRejections (node:internal:95:5)`;
+    }
+    if (prompt.includes('index') || prompt.includes('bound') || prompt.includes('range')) {
+      return `IndexOutOfBoundsException: Index out of range for array/collection boundary\n    at ${funcName} (solution.ts:18:21)\n    at Object.<anonymous> (test_suite.ts:32:15)\n    at TestRunner.run (runner.ts:88:4)`;
+    }
+    if (prompt.includes('type') || prompt.includes('parameter') || prompt.includes('signature')) {
+      return `TypeError: Incompatible argument passed to method signature\n    at ${funcName} (solution.ts:22:9)\n    at evaluateInputs (test_suite.ts:40:11)\n    at runAll (runner.ts:102:7)`;
+    }
+    if (prompt.includes('memory') || prompt.includes('leak')) {
+      return `OutOfMemoryError: Heap memory exhaustion from retained references\n    at EventTracker.subscribe (solution.ts:29:16)\n    at MemoryAuditTest.testLeak (MemoryAuditTest.ts:54)`;
+    }
+    if (prompt.includes('increasing') || prompt.includes('sequence') || prompt.includes('duplicate')) {
+      return `AssertionError: expected 'false' but got 'true' (failed on duplicate [1, 2, 2, 4])\n    at isStrictlyIncreasing (solution.ts:11:5)\n    at test_sequence_boundaries (test_suite.ts:36:12)`;
+    }
+    return `AssertionError: Output mismatch on edge case validation in ${funcName}()\n    at assertEqual (test_suite.ts:24:5)\n    at test_${funcName}_edge_cases (test_suite.ts:36:12)\n    at TestSuite.runAll (runner.ts:78:9)`;
+  }
+
   if (error || !questionData) {
     return (
       <ModuleShell
@@ -283,7 +312,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
   }
 
   const content = questionData.content || {};
-  const bugTrace = content.stackTrace || content.bugDescription || 'AssertionError: Exception raised during test suite execution.';
+  const bugTrace = getBugTrace(content);
 
   return (
     <ModuleShell

@@ -3,7 +3,6 @@ import { registerAs } from "@nestjs/config";
 export default registerAs("app", () => {
   const requiredEnv = [
     "DATABASE_URL",
-    "SANDBOX_DB_URL",
     "JWT_SECRET",
     "MINIO_ENDPOINT",
     "MINIO_PORT",
@@ -12,10 +11,11 @@ export default registerAs("app", () => {
     "MINIO_BUCKET_BIOMETRIC",
   ];
 
-  const sandboxDbUrl = process.env.SANDBOX_DB_URL || "postgresql://cdrecruit:cdrecruit123@localhost:5434/cdrecruit_sandbox";
+  const sandboxDbUrl =
+    process.env.SANDBOX_DB_URL ||
+    "postgresql://cdrecruit:cdrecruit123@localhost:5434/cdrecruit_sandbox";
 
   for (const envVar of requiredEnv) {
-    if (envVar === "SANDBOX_DB_URL") continue;
     if (!process.env[envVar]) {
       throw new Error(
         `Config validation error: missing environment variable ${envVar}`,
@@ -23,7 +23,7 @@ export default registerAs("app", () => {
     }
   }
 
-  if (sandboxDbUrl === process.env.DATABASE_URL) {
+  if (process.env.DATABASE_URL && sandboxDbUrl === process.env.DATABASE_URL) {
     throw new Error(
       "Security validation error: SANDBOX_DB_URL must not equal DATABASE_URL. SQL sandbox queries cannot execute against production database.",
     );

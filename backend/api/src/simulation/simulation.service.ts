@@ -1,9 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException, Logger, Optional } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException, Logger, Optional, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { SessionLogService, SimulationSession } from "./session-log.service";
 import { EventGenerationService } from "./event-generation.service";
 import { CompetencyEngine } from "./competency-engine";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
 import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { SimulationTelemetryService, TelemetryEventType, TelemetryEvent } from "./simulation-telemetry.service";
@@ -30,7 +31,7 @@ export interface SimulationInboxMessage {
 }
 
 @Injectable()
-export class SimulationService implements AssessmentModuleEngine {
+export class SimulationService implements AssessmentModuleEngine, OnModuleInit {
   readonly moduleType = ModuleType.SIMULATION;
   private readonly logger = new Logger(SimulationService.name);
 
@@ -54,7 +55,40 @@ export class SimulationService implements AssessmentModuleEngine {
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,
     @Optional() private minioService?: MinioService,
+    @Optional() private engineRegistry?: AssessmentEngineRegistry,
   ) {}
+
+  onModuleInit() {
+    this.engineRegistry?.registerEngine(this);
+  }
+
+  async validateSubmission(submission: any): Promise<boolean> {
+    if (!submission || typeof submission !== "object") return false;
+    return !!(
+      submission.code ||
+      submission.fixedCode ||
+      submission.initialSayText ||
+      submission.emailReplyText ||
+      submission.testResults ||
+      submission.responses
+    );
+  }
+
+  async evaluateSubmission(
+    sessionId: string,
+    questionId: string,
+    submission: any,
+  ): Promise<ModuleEvaluationResult<FullSimulationEvaluationResult>> {
+    const evalResult = await this.submitSimulation(sessionId, submission);
+    const score = Math.max(0.0, Math.min(1.0, (evalResult.overallScore || 0) / 100));
+
+    return {
+      status: ExecutionStatus.COMPLETED,
+      score,
+      scoreDetail: evalResult,
+      evaluatedAt: new Date(),
+    };
+  }
 
   /**
    * Return scenario configuration dynamically from DB or fallback
@@ -845,39 +879,67 @@ export class SimulationService implements AssessmentModuleEngine {
       this.logger.warn(`[submitSimulation] ModuleResponse upsert failed: ${dbErr.message}`);
     }
 
-    // Update Score model in DB
+    // Update Score model in DB (merging with existing moduleScores to preserve other modules)
     try {
       const hasCompleteAiEval = evaluation.initialSay?.score !== null && evaluation.emailSay?.score !== null && evaluation.sayDoCorrelation?.score !== null;
-      const normalizedScore = hasCompleteAiEval ? evaluation.overallScore / 100 : null;
+      const normalizedScore = hasCompleteAiEval ? evaluation.overallScore / 100 : 0.0;
       const coreScoreVal = hasCompleteAiEval && evaluation.overallScore !== null ? Math.round(evaluation.overallScore) : 0;
-      const totalScoreVal = coreScoreVal;
-      const moduleScoresJson = hasCompleteAiEval && normalizedScore !== null ? { SIMULATION: normalizedScore } : {};
       const sayDoScoreVal = hasCompleteAiEval && evaluation.sayDoCorrelation?.score !== null ? evaluation.sayDoCorrelation.score / 100 : null;
+
+      // Load existing score to merge module scores
+      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
+      const prevModuleScores = (existingScore?.moduleScores as Record<string, number>) || {};
+      const mergedModuleScores: Record<string, number> = {
+        ...prevModuleScores,
+        SIMULATION: normalizedScore,
+      };
+
+      const modKeys = Object.keys(mergedModuleScores);
+      let calculatedComposite = coreScoreVal;
+      if (modKeys.length > 1) {
+        const sum = modKeys.reduce((acc, k) => acc + (mergedModuleScores[k] || 0), 0);
+        calculatedComposite = Math.round((sum / modKeys.length) * 100);
+      } else if (modKeys.length === 1 && mergedModuleScores[modKeys[0]] !== undefined) {
+        calculatedComposite = Math.round(mergedModuleScores[modKeys[0]] * 100);
+      }
+
+      // Calculate dynamic AI confidence based on evidence volume
+      const telemetryCount = telemetryEvents.length;
+      let dynamicAiConfidence: number | null = existingScore?.aiConfidence ?? null;
+      if (hasCompleteAiEval) {
+        if (telemetryCount <= 2 && (!testResults || testResults.totalTests === 0)) {
+          dynamicAiConfidence = 0.20; // minimal evidence / candidate didn't work in workspace
+        } else if (telemetryCount <= 6) {
+          dynamicAiConfidence = 0.65;
+        } else {
+          dynamicAiConfidence = Math.min(0.95, 0.70 + (telemetryCount * 0.01) + (testResults?.isCorrect ? 0.15 : 0));
+        }
+      }
 
       await this.prisma.score.upsert({
         where: { sessionId },
         create: {
           sessionId,
-          compositeScore: normalizedScore,
-          coreScore: coreScoreVal,
+          compositeScore: calculatedComposite,
+          coreScore: calculatedComposite,
           bonusScore: 0,
-          totalScore: totalScoreVal,
-          moduleScores: moduleScoresJson,
+          totalScore: calculatedComposite,
+          moduleScores: mergedModuleScores,
           sayDoConsistencyScore: sayDoScoreVal,
-          aiConfidence: hasCompleteAiEval ? 0.9 : null,
+          aiConfidence: dynamicAiConfidence,
           humanReviewed: false,
           sayDoRationale: hasCompleteAiEval ? evaluation.sayDoCorrelation?.reasoning : "Evaluation Pending — AI evaluation provider unavailable.",
-          gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
+          gradingSource: "SIMULATION_OFFLINE_ORCHESTRATOR",
         },
         update: {
-          compositeScore: normalizedScore,
-          coreScore: coreScoreVal,
-          totalScore: totalScoreVal,
-          moduleScores: moduleScoresJson,
+          compositeScore: calculatedComposite,
+          coreScore: calculatedComposite,
+          totalScore: calculatedComposite,
+          moduleScores: mergedModuleScores,
           sayDoConsistencyScore: sayDoScoreVal,
-          aiConfidence: hasCompleteAiEval ? 0.9 : null,
+          aiConfidence: dynamicAiConfidence,
           sayDoRationale: hasCompleteAiEval ? evaluation.sayDoCorrelation?.reasoning : "Evaluation Pending — AI evaluation provider unavailable.",
-          gradingSource: hasCompleteAiEval ? "deterministic" : "pending",
+          gradingSource: "SIMULATION_OFFLINE_ORCHESTRATOR",
         },
       });
     } catch (scoreErr: any) {
@@ -913,24 +975,6 @@ export class SimulationService implements AssessmentModuleEngine {
     return evaluation;
   }
 
-  // --- AssessmentModuleEngine interface compliance ---
-  async validateSubmission(submission: any): Promise<boolean> {
-    return true;
-  }
-
-  async evaluateSubmission(
-    sessionId: string,
-    questionId: string,
-    submission: any,
-  ): Promise<ModuleEvaluationResult> {
-    const evalRes = await this.submitSimulation(sessionId, submission);
-    return {
-      status: ExecutionStatus.COMPLETED as any,
-      score: evalRes.overallScore / 100,
-      scoreDetail: evalRes,
-      evaluatedAt: new Date(),
-    };
-  }
 
   async startSimulation(sessionId: string): Promise<any> {
     const scenario = await this.getScenarioConfig(sessionId);

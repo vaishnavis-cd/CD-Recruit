@@ -224,15 +224,17 @@ export class FaceVerifyOnnxService implements OnModuleInit {
   verifyEmbeddings(
     embA: number[],
     embB: number[],
+    customThreshold?: number,
   ): { matched: boolean; distance: number; threshold: number } {
+    const threshold = customThreshold ?? ONNX_ARCFACE_THRESHOLD;
     const vecA = new Float32Array(embA);
     const vecB = new Float32Array(embB);
     const distance = this.cosineDistance(vecA, vecB);
-    const matched = distance <= ONNX_ARCFACE_THRESHOLD;
+    const matched = distance <= threshold;
     return {
       matched,
       distance: Number(distance.toFixed(4)),
-      threshold: ONNX_ARCFACE_THRESHOLD,
+      threshold,
     };
   }
 

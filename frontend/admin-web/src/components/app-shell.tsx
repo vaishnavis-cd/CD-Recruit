@@ -84,7 +84,6 @@ function SupportHeadsetIcon({ size = 18, className = "" }: IconProps) {
   );
 }
 
-
 const ALL_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: DashboardIcon },
   { to: "/drives", label: "Drives", icon: DrivesIcon },
@@ -95,7 +94,6 @@ const ALL_NAV = [
   { to: "/questions", label: "Question Bank", icon: QuestionBankIcon },
   { to: "/settings", label: "Settings", icon: SettingsGearIcon },
 ] as const;
-
 
 export interface AppShellProps {
   title?: string;
@@ -135,7 +133,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
     const user = getUserProfile();
     if (user) {
       const name = user.name || "Demo Admin";
-      const role = user.role ? user.role.toUpperCase() : "ADMIN";
+      const role = (user.role ? user.role : "ADMIN").toUpperCase();
       const inits = name
         .split(" ")
         .map((n) => n[0])
@@ -241,7 +239,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
             </div>
           )}
 
-          {/* Bottom Card: Remaining Nav Items + HELP & Promo (Unified single card as in Image 2) */}
+          {/* Bottom Card: Remaining Nav Items + HELP & Promo */}
           <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3.5 space-y-2.5">
             {/* Bottom Nav items before HELP */}
             {bottomItems.length > 0 && (
@@ -288,7 +286,6 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
               <span>Support</span>
             </button>
 
-
             {/* New Assessment Drive Promo Card */}
             <div className="p-3 bg-gradient-to-br from-[#2f68ff] to-[#1e54ea] rounded-xl text-white shadow-md shadow-blue-500/10 space-y-1.5">
               <div className="text-xs font-bold leading-tight">New Assessment Drive</div>
@@ -306,7 +303,6 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
         </div>
 
         {/* User Profile Footer */}
-
         <div className="p-3 flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
             {userInfo.initials}
@@ -328,9 +324,6 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
           </button>
         </div>
       </aside>
-
-
-
 
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 max-w-full overflow-x-hidden flex flex-col">
@@ -390,4 +383,3 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
     </div>
   );
 }
-

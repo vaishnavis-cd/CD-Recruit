@@ -41,8 +41,11 @@ enum CvMode {
 }
 
 enum StaffRole {
-  RECRUITER
   ADMIN
+  HR_LEAD
+  HR_ASSOCIATE
+  REVIEWER
+  RECRUITER
 }
 
 enum DecisionType {
@@ -118,24 +121,27 @@ enum Department {
   SRE
 }
 
+enum CandidateCategory {
+  FRESHER
+  EXPERIENCED
+}
+
 enum ExperienceLevel {
   FRESHER
   EXPERIENCED
 }
 
-
-
 model RoleTemplate {
-  id              String           @id @default(uuid())
-  roleName        String           @map("role_name")
-  weightingPreset Json             @map("weighting_preset")
-  durationMinutes Int              @map("duration_minutes") // drives session.deadlineAt
-  department      Department?      @map("department")
-  level           ExperienceLevel? @map("level")
-  category        String?          @map("category")
-  experienceTier  String?          @map("experience_tier")
-  version         Int              @default(1) @map("version")
-  isActive        Boolean          @default(true) @map("is_active")
+  id              String             @id @default(uuid())
+  roleName        String             @map("role_name")
+  weightingPreset Json               @map("weighting_preset")
+  durationMinutes Int                @map("duration_minutes") // drives session.deadlineAt
+  department      Department?        @map("department")
+  level           ExperienceLevel?   @map("level")
+  category        CandidateCategory? @map("category")
+  experienceTier  String?            @map("experience_tier")
+  version         Int                @default(1) @map("version")
+  isActive        Boolean            @default(true) @map("is_active")
 
   sessions  Session[]
   invites   Invite[]
@@ -467,9 +473,9 @@ model Invite {
   originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
   idProofRef        String?      @map("id_proof_ref")
   idProofEmbedding  Json?        @map("id_proof_embedding")
-  idProofUploadedAt DateTime?    @map("id_proof_uploaded_at")
-  category          String?      @map("category")
-  experienceTier    String?      @map("experience_tier")
+  idProofUploadedAt DateTime?          @map("id_proof_uploaded_at")
+  category          CandidateCategory? @map("category")
+  experienceTier    String?            @map("experience_tier")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])

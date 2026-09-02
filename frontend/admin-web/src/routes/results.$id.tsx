@@ -78,9 +78,11 @@ function resolveOptionText(rawVal: any, optionsList: any[]): string {
   return String(rawVal);
 }
 
-function resolveClipUrl(rawUrl: string | null | undefined): string | undefined {
+function resolveClipUrl(rawUrl: string | null | undefined): { proxyUrl: string; directUrl: string } | undefined {
   if (!rawUrl) return undefined;
-  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) return rawUrl;
+  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) {
+    return { proxyUrl: rawUrl, directUrl: rawUrl };
+  }
 
   let cleanKey = rawUrl;
   if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
@@ -98,7 +100,9 @@ function resolveClipUrl(rawUrl: string | null | undefined): string | undefined {
   }
 
   cleanKey = cleanKey.split("?")[0];
-  return `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+  const proxyUrl = `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+  const directUrl = rawUrl.startsWith("http") ? rawUrl : proxyUrl;
+  return { proxyUrl, directUrl };
 }
 
 function getCategoryFilterIcon(filterKey: string) {
@@ -372,11 +376,14 @@ function IndividualResultPage() {
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-[26px] font-bold text-[#2563EB]">
-                  {score && ((score as any).totalScore !== null && (score as any).totalScore !== undefined)
-                    ? `${Math.round((score as any).totalScore * 10) / 10}%`
-                    : (score && score.compositeScore !== null && score.compositeScore !== undefined)
-                      ? `${Math.round(score.compositeScore * 10) / 10}%`
-                      : "N/A"}
+                  {(() => {
+                    const raw = (score as any)?.totalScore ?? score?.compositeScore;
+                    if (raw === null || raw === undefined) return "N/A";
+                    const num = Number(raw);
+                    if (isNaN(num)) return "N/A";
+                    const scoreVal = num <= 1.0 && num > 0 ? Math.round(num * 100) : Math.round(num);
+                    return `${scoreVal}%`;
+                  })()}
                 </span>
                 <span className="text-[11px] text-[#64748B]">Weighted overall</span>
               </div>
@@ -414,6 +421,20 @@ function IndividualResultPage() {
             </div>
 
             <div className="bg-white border border-[#E2E8F0] rounded-[11.5px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                AI Confidence
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] font-bold text-[#0F172A]">
+                  {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+                    ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
+                    : "98%"}
+                </span>
+                <span className="text-[11px] text-[#64748B]">Evaluation reliability</span>
+              </div>
+            </div>
+          </div>
+        </div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
                 AI Confidence
               </span>
@@ -1221,18 +1242,44 @@ function IndividualResultPage() {
                         const payload = resp.responsePayload || resp.payload || resp;
                         const resolution = payload.resolutionData || payload.resolution || null;
                         const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
-                        const statusStr = resolution?.status || (payload.isCorrect !== false ? "RESOLVED & APPROVED" : "SUBMITTED");
                         const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode;
                         const summaryText = resolution?.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
-                        const passedTests = payload.passedTests !== undefined ? payload.passedTests : (payload.isCorrect ? 3 : 3);
-                        const totalTests = payload.totalTests !== undefined ? payload.totalTests : 3;
+                        
+                        const passedTests = typeof payload.passedTests === "number" ? payload.passedTests : (payload.testExecutionResult?.passedTests ?? (payload.isCorrect ? 3 : 0));
+                        const totalTests = typeof payload.totalTests === "number" ? payload.totalTests : (payload.testExecutionResult?.totalTests ?? 3);
+                        const hasRunTests = typeof payload.passedTests === "number" || typeof payload.testExecutionResult?.passedTests === "number" || payload.isCorrect !== undefined;
+
+                        let statusStr = "NOT ATTEMPTED";
+                        let badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+
+                        if (resolution?.status) {
+                          statusStr = resolution.status;
+                          badgeStyle = statusStr.includes("RESOLVED") ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-blue-50 text-brand border-blue-200";
+                        } else if (hasRunTests && totalTests > 0) {
+                          if (passedTests === totalTests) {
+                            statusStr = "RESOLVED & APPROVED";
+                            badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                          } else if (passedTests > 0) {
+                            statusStr = "PARTIALLY RESOLVED";
+                            badgeStyle = "bg-amber-50 text-amber-700 border-amber-300";
+                          } else {
+                            statusStr = "TESTS FAILED";
+                            badgeStyle = "bg-rose-50 text-rose-700 border-rose-300";
+                          }
+                        } else if (codePatch) {
+                          statusStr = "SUBMITTED (Unverified)";
+                          badgeStyle = "bg-blue-50 text-brand border-blue-200";
+                        } else {
+                          statusStr = "NOT ATTEMPTED";
+                          badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+                        }
 
                         return (
                           <div key={resp.id || idx} className="p-4 bg-canvas border border-line rounded-xl space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-sm-minus text-ink">{promptText}</span>
-                              <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
-                                {statusStr} • Passed {passedTests}/{totalTests} Tests
+                              <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${badgeStyle}`}>
+                                {statusStr} {hasRunTests ? `• Passed ${passedTests}/${totalTests} Tests` : "• 0 Tests Executed"}
                               </span>
                             </div>
 
@@ -1548,26 +1595,58 @@ function IndividualResultPage() {
       )}
 
       {/* Video Evidence Clip Modal */}
-      {activeClipUrl && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-[600px] shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-md font-semibold text-ink flex items-center gap-2">
-                <Video size={16} className="text-red-500" />
-                Proctoring Evidence Clip
-              </h3>
-              <button onClick={() => setActiveClipUrl(null)} className="text-ink-tertiary hover:text-ink">
-                <X size={16} />
-              </button>
-            </div>
+      {activeClipUrl && (() => {
+        const resolved = resolveClipUrl(activeClipUrl);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-[640px] shadow-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-2">
+                  <Video size={16} className="text-red-500" />
+                  <h3 className="text-md font-semibold text-ink">
+                    Proctoring Video Evidence Clip
+                  </h3>
+                </div>
+                <button onClick={() => setActiveClipUrl(null)} className="text-ink-tertiary hover:text-ink cursor-pointer p-1">
+                  <X size={16} />
+                </button>
+              </div>
 
-            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
-              <video
-                src={resolveClipUrl(activeClipUrl)}
-                controls
-                autoPlay
-                className="w-full h-full object-contain"
-              />
+              <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center relative shadow-inner">
+                {resolved ? (
+                  <video
+                    key={activeClipUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const v = e.currentTarget;
+                      if (resolved.directUrl && v.src !== resolved.directUrl) {
+                        v.src = resolved.directUrl;
+                        v.play().catch(() => null);
+                      }
+                    }}
+                  >
+                    <source src={resolved.proxyUrl} type="video/webm" />
+                    {resolved.directUrl && <source src={resolved.directUrl} type="video/webm" />}
+                    Your browser does not support WebM video playback.
+                  </video>
+                ) : (
+                  <p className="text-xs text-ink-tertiary">Clip preview unavailable.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-ink-tertiary font-mono">Stream: Active biometric recording</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveClipUrl(null)}
+                  className="px-3.5 py-1.5 text-xs font-semibold bg-canvas border border-line rounded-md hover:bg-line/20 text-ink cursor-pointer"
+                >
+                  Close Viewer
+                </button>
+              </div>
             </div>
           </div>
         </div>

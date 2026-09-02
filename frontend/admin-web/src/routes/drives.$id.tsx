@@ -1097,27 +1097,33 @@ function DriveDetailPage() {
     };
   }, [moduleConfig, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow, drive]);
 
-  const areQuestionsFullyAssigned = useMemo(() => {
-    const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
-    if (hasRoleTemplate && assignedQuestions.length > 0) return true;
-
+  const questionDeficits = useMemo(() => {
     const { summaryData } = driveEvaluationSummary;
-    if (summaryData.length === 0) return false;
+    const deficits: { modId: string; label: string; reqCount: number; currentCount: number; missing: number }[] = [];
+    if (summaryData.length === 0) return deficits;
 
     for (const m of summaryData) {
-      const poolQuestions = (questionsBank || []).filter(q => {
+      const poolQuestions = (questionsBank || []).filter((q) => {
         const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
         const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
         return assignedQuestions.includes(q.id) && displayMod === m.modId;
       });
-      if (poolQuestions.length !== m.count) return false;
-      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
-      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
-      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
-      if (easyAvail !== m.dist.easy || mediumAvail !== m.dist.medium || hardAvail !== m.dist.hard) return false;
+      if (poolQuestions.length < m.count) {
+        deficits.push({
+          modId: m.modId,
+          label: MODULE_LABEL_MAP[m.modId] || m.modId,
+          reqCount: m.count,
+          currentCount: poolQuestions.length,
+          missing: m.count - poolQuestions.length,
+        });
+      }
     }
-    return true;
-  }, [driveEvaluationSummary, assignedQuestions, questionsBank, drive]);
+    return deficits;
+  }, [driveEvaluationSummary, assignedQuestions, questionsBank]);
+
+  const areQuestionsFullyAssigned = useMemo(() => {
+    return questionDeficits.length === 0 && assignedQuestions.length > 0;
+  }, [questionDeficits, assignedQuestions]);
 
   const isScheduleUnlocked = useMemo(() => {
     return (
@@ -1275,44 +1281,16 @@ function DriveDetailPage() {
       return;
     }
 
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
-    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-
-    for (const [modId, conf] of Object.entries(moduleConfig)) {
-      if (!conf.enabled || Number(conf.weight) <= 0) continue;
-      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
-      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-
-      const poolQuestions = (questionsBank || []).filter(q => {
-        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
-        return assignedQuestions.includes(q.id) && displayMod === modId;
-      });
-
-      if (poolQuestions.length !== reqCount) {
-        toast.error(`Incomplete question selection for ${modId}. Please select exactly ${reqCount} required questions (${poolQuestions.length} currently selected).`);
-        return;
-      }
-
-      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
-      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
-      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
-
-      if (easyAvail !== dist.easy || mediumAvail !== dist.medium || hardAvail !== dist.hard) {
-        toast.error(`Selected difficulty composition for ${modId} (${easyAvail}E / ${mediumAvail}M / ${hardAvail}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`);
-        return;
-      }
-    }
-
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
-      toast.success("Assigned questions saved!");
+      if (questionDeficits.length > 0) {
+        toast.info(
+          `Assigned questions saved (Draft). Note: ${questionDeficits.length} module(s) need more questions before links can be generated.`
+        );
+      } else {
+        toast.success("Assigned questions saved!");
+      }
       loadData();
     } catch (err: any) {
       toast.error("Failed saving questions: " + err.message);
@@ -1326,44 +1304,16 @@ function DriveDetailPage() {
       return;
     }
 
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
-    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-
-    for (const [modId, conf] of Object.entries(moduleConfig)) {
-      if (!conf.enabled || Number(conf.weight) <= 0) continue;
-      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
-      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-
-      const poolQuestions = (questionsBank || []).filter(q => {
-        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
-        return assignedQuestions.includes(q.id) && displayMod === modId;
-      });
-
-      if (poolQuestions.length !== reqCount) {
-        toast.error(`Incomplete question selection for ${modId}. Please select exactly ${reqCount} required questions (${poolQuestions.length} currently selected).`);
-        return;
-      }
-
-      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
-      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
-      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
-
-      if (easyAvail !== dist.easy || mediumAvail !== dist.medium || hardAvail !== dist.hard) {
-        toast.error(`Selected difficulty composition for ${modId} (${easyAvail}E / ${mediumAvail}M / ${hardAvail}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`);
-        return;
-      }
-    }
-
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
-      toast.success("Assigned questions saved! Moving to Candidate Roster...");
+      if (questionDeficits.length > 0) {
+        toast.info(
+          `Assigned questions saved (Draft). Note: ${questionDeficits.length} module(s) need more questions before links can be generated.`
+        );
+      } else {
+        toast.success("Assigned questions saved! Moving to Candidate Roster...");
+      }
       loadData();
       setActiveTab("roster");
     } catch (err: any) {
@@ -1437,6 +1387,13 @@ function DriveDetailPage() {
   };
 
   const handleGenerateLinks = async () => {
+    if (questionDeficits.length > 0) {
+      const deficitDetails = questionDeficits.map((d) => `${d.label} (${d.currentCount}/${d.reqCount})`).join(", ");
+      toast.error(`Cannot generate links: Please assign all required questions for ${deficitDetails}.`);
+      setActiveTab("questions");
+      setConfirmGenerateLinks(false);
+      return;
+    }
     setGenerating(true);
     try {
       await generateDriveLinks(driveId);
@@ -1477,94 +1434,41 @@ function DriveDetailPage() {
   }, [drive]);
 
   const allowedModules = useMemo(() => {
-    return getDepartmentAllowedModules(driveTargetDept);
-  }, [driveTargetDept]);
+    const enabled = Object.keys(moduleConfig || {}).filter((k) => moduleConfig[k]?.enabled);
+    const deptAllowed = getDepartmentAllowedModules(driveTargetDept);
+    return Array.from(new Set([...enabled, ...deptAllowed]));
+  }, [moduleConfig, driveTargetDept]);
 
   const filteredQuestionsList = useMemo(() => {
-    const DEPT_TAGS_MAP: Record<string, string[]> = {
-      SOFTWARE_ENGINEERING: ["sde", "software_engineering", "software engineering", "software developer", "software engineer"],
-      DATA_ENGINEERING: ["data_engineering", "data engineering", "de"],
-      QA: ["qa", "quality assurance", "testing"],
-      SRE: ["sre", "site reliability"],
-      SYSOPS: ["sysops"],
-      ITOPS: ["itops"],
-      PMO: ["pmo"],
-      SECOPS: ["secops", "cybersecurity", "security operations"],
-    };
-
-    const targetDeptNorm = (driveTargetDept as string) === "SDE" ? "SOFTWARE_ENGINEERING" : driveTargetDept;
-
     return questionsBank.filter((q) => {
       if (q.status === "ARCHIVED") return false;
 
-      const isAssigned = assignedQuestions.includes(q.id);
+      const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
 
-      if (!isAssigned) {
-        const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+      // Module Filter
+      if (questionModuleFilter !== "ALL") {
+        if (questionModuleFilter === "DEBUGGING") {
+          if (!isDebuggingQuestion) return false;
+        } else if (questionModuleFilter === "CODING") {
+          if (q.moduleType !== "CODING" || isDebuggingQuestion) return false;
+        } else {
+          if (q.moduleType !== questionModuleFilter) return false;
+        }
+      } else {
+        // In "ALL" view, show questions whose module is enabled in this drive or allowed for this role
         const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
         if (!allowedModules.includes(effectiveModule) && !allowedModules.includes(q.moduleType)) {
           return false;
         }
-
-        const qRoleUpper = (q.role || "").toUpperCase();
-        const qContentDeptUpper = (q.content?.department || "").toUpperCase();
-        const qTagsLower = (q.tags || []).map((t: string) => t.toLowerCase());
-
-        let qDept: string | null = null;
-        if (qRoleUpper === "SOFTWARE_ENGINEERING" || qRoleUpper === "SDE" || qContentDeptUpper === "SDE" || qContentDeptUpper === "SOFTWARE_ENGINEERING") {
-          qDept = "SOFTWARE_ENGINEERING";
-        } else if (qRoleUpper === "DATA_ENGINEERING" || qContentDeptUpper === "DATA_ENGINEERING") {
-          qDept = "DATA_ENGINEERING";
-        } else if (qRoleUpper === "QA" || qContentDeptUpper === "QA") {
-          qDept = "QA";
-        } else if (qRoleUpper === "SRE" || qContentDeptUpper === "SRE") {
-          qDept = "SRE";
-        } else if (qRoleUpper === "SYSOPS" || qContentDeptUpper === "SYSOPS") {
-          qDept = "SYSOPS";
-        } else if (qRoleUpper === "ITOPS" || qContentDeptUpper === "ITOPS") {
-          qDept = "ITOPS";
-        } else if (qRoleUpper === "PMO" || qContentDeptUpper === "PMO") {
-          qDept = "PMO";
-        } else if (qRoleUpper === "SECOPS" || qContentDeptUpper === "SECOPS") {
-          qDept = "SECOPS";
-        }
-
-        if (!qDept) {
-          for (const [deptKey, tagsList] of Object.entries(DEPT_TAGS_MAP)) {
-            if (qTagsLower.some((t: string) => tagsList.includes(t))) {
-              qDept = deptKey;
-              break;
-            }
-          }
-        }
-
-        if (qDept && qDept !== targetDeptNorm) {
-          return false;
-        }
       }
 
-      if (q.moduleType === "AI_PROMPTING" && isAiPromptingDynamic && questionModuleFilter === "ALL") {
-        return false;
-      }
-
-      const isDebuggingQuestion = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-
-      if (questionModuleFilter === "ALL") {
-        const effectiveModule = isDebuggingQuestion ? "DEBUGGING" : q.moduleType;
-        if (!allowedModules.includes(effectiveModule) && !allowedModules.includes(q.moduleType)) return false;
-      } else if (questionModuleFilter === "DEBUGGING") {
-        if (!isDebuggingQuestion) return false;
-      } else if (questionModuleFilter === "CODING") {
-        if (q.moduleType !== "CODING" || (Array.isArray(q.tags) && q.tags.includes("debugging"))) return false;
-      } else {
-        if (q.moduleType !== questionModuleFilter) return false;
-      }
-
+      // Difficulty Filter
       if (questionDifficultyFilter !== "ALL") {
         const diff = (q.difficulty || "MEDIUM").toUpperCase();
         if (diff !== questionDifficultyFilter.toUpperCase()) return false;
       }
 
+      // Search Query Filter
       if (questionSearch.trim()) {
         const s = questionSearch.toLowerCase().trim();
         const title = (
@@ -1580,9 +1484,10 @@ function DriveDetailPage() {
         const tags = (q.tags || []).join(" ").toLowerCase();
         if (!title.includes(s) && !tags.includes(s)) return false;
       }
+
       return true;
     });
-  }, [questionsBank, driveTargetDept, allowedModules, assignedQuestions, questionModuleFilter, questionDifficultyFilter, questionSearch, isAiPromptingDynamic]);
+  }, [questionsBank, allowedModules, questionModuleFilter, questionDifficultyFilter, questionSearch]);
 
   if (loading || !drive) {
     return (
@@ -1613,9 +1518,16 @@ function DriveDetailPage() {
               } else {
                 const reasons: string[] = [];
                 if (!isScheduleDateValid) reasons.push("valid future date & time");
-                if (!hasQuestionsSelected) reasons.push("at least 1 question assigned");
                 if (!hasCandidatesSelected) reasons.push("at least 1 candidate roster item");
-                toast.error(`Drive scheduling locked. Requirements needed: ${reasons.join(", ")}.`);
+                if (!weightValidation.valid) reasons.push("module weights must total 100%");
+                if (driveEvaluationSummary.isOverTime) reasons.push("estimated duration within schedule window");
+                if (questionDeficits.length > 0) {
+                  const deficitDetails = questionDeficits.map((d) => `${d.label} (${d.currentCount}/${d.reqCount})`).join(", ");
+                  reasons.push(`assign all required questions (${deficitDetails})`);
+                } else if (!hasQuestionsSelected) {
+                  reasons.push("at least 1 question assigned");
+                }
+                toast.error(`Drive scheduling locked. Requirements needed: ${reasons.join("; ")}.`);
               }
             }}
             disabled={generating}
@@ -1626,7 +1538,15 @@ function DriveDetailPage() {
             }`}
             title={
               !isScheduleUnlocked
-                ? "Requires valid future date/time, at least 1 assigned question, and at least 1 candidate in roster"
+                ? `Requirements needed: ${[
+                    !isScheduleDateValid ? "valid future date/time" : null,
+                    !hasCandidatesSelected ? "candidate in roster" : null,
+                    !weightValidation.valid ? "module weights total 100%" : null,
+                    driveEvaluationSummary.isOverTime ? "time within window" : null,
+                    questionDeficits.length > 0
+                      ? `assign questions (${questionDeficits.map((d) => `${d.label} ${d.currentCount}/${d.reqCount}`).join(", ")})`
+                      : !hasQuestionsSelected ? "assign questions" : null,
+                  ].filter(Boolean).join(", ")}`
                 : "Schedule drive and generate candidate links"
             }
           >
@@ -2432,7 +2352,7 @@ function DriveDetailPage() {
                   if (hardAvail < dist.hard) errors.push(`Need ${dist.hard - hardAvail} more Hard question(s) (Target: ${dist.hard}, Selected: ${hardAvail})`);
                 }
 
-                const isCountMatched = poolSize === reqCount;
+                const isCountMatched = poolSize >= reqCount;
                 const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
 
                 const renderDiffMetric = (label: string, val: number) => {
@@ -2451,8 +2371,8 @@ function DriveDetailPage() {
                       <span className="text-ink font-bold text-sm-minus">
                         {MODULE_LABEL_MAP[modId] || modId} Module
                       </span>
-                      <span className="text-brand text-xs-plus font-semibold">
-                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required: ${reqCount}`}
+                      <span className={`text-xs-plus font-semibold ${isCountMatched ? "text-emerald-700" : "text-brand"}`}>
+                        {isCountMatched ? `Attached: ${poolSize} / ${reqCount}` : `Required: ${reqCount} (${poolSize} selected)`}
                       </span>
                     </div>
 
@@ -2479,12 +2399,12 @@ function DriveDetailPage() {
                           <div className="w-16 h-1.5 bg-surface-inset rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
-                                poolSize === reqCount ? "bg-emerald-500" : "bg-brand"
+                                isCountMatched ? "bg-emerald-500" : "bg-brand"
                               }`}
                               style={{ width: `${Math.min(100, reqCount > 0 ? (poolSize / reqCount) * 100 : 0)}%` }}
                             />
                           </div>
-                          <span className={`text-sm-minus font-bold font-mono ${poolSize === reqCount ? "text-emerald-700" : "text-ink"}`}>
+                          <span className={`text-sm-minus font-bold font-mono ${isCountMatched ? "text-emerald-700" : "text-ink"}`}>
                             {poolSize} / {reqCount}
                           </span>
                         </div>
@@ -2492,42 +2412,115 @@ function DriveDetailPage() {
                     </div>
 
                     <div className="pt-1.5 border-t border-surface-inset text-xs-plus space-y-1">
-                      {hasRoleTemplate ? (
-                        poolSize > 0 ? (
-                          <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
-                            ✓ {poolSize} questions curated from Role Template.
+                      {isCountMatched ? (
+                        isDifficultyMatched ? (
+                          <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded font-medium">
+                            ✓ Required question count &amp; target difficulty matched.
                           </div>
                         ) : (
-                          <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
-                            ⚠ No questions attached from Role Template for this module.
+                          <div className="text-emerald-800 bg-emerald-50/80 border border-emerald-200 px-2.5 py-1.5 rounded space-y-0.5">
+                            <div className="font-medium text-emerald-800">
+                              ✓ Required question count reached ({poolSize} attached).
+                            </div>
+                            <div className="text-2xs text-ink-secondary">
+                              Note: Difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) differs slightly from target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
+                            </div>
                           </div>
                         )
+                      ) : poolSize === 0 ? (
+                        <div className="text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-2 rounded space-y-1.5">
+                          <div className="font-semibold text-rose-800 flex items-center gap-1.5">
+                            <XCircle size={13} className="text-rose-600 shrink-0" />
+                            <span>0 questions attached. Please select or import {reqCount} {MODULE_LABEL_MAP[modId] || modId} question(s).</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate({
+                                  to: "/questions",
+                                  search: {
+                                    fromDriveId: driveId,
+                                    driveName: drive.name,
+                                    autoBulk: "true",
+                                  } as any,
+                                });
+                              }}
+                              className="px-2 py-0.5 text-2xs font-semibold text-rose-800 bg-white border border-rose-300 rounded hover:bg-rose-100 flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Upload size={10} /> Bulk Import (CSV)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate({
+                                  to: "/questions",
+                                  search: {
+                                    fromDriveId: driveId,
+                                    driveName: drive.name,
+                                  } as any,
+                                });
+                              }}
+                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <BookOpen size={10} /> Question Bank
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab("configuration")}
+                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Settings size={10} /> Adjust Weight
+                            </button>
+                          </div>
+                        </div>
                       ) : (
-                        <>
-                          {poolSize < reqCount && (
-                            <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
-                              ⚠ {poolSize} / {reqCount} required questions selected.
-                            </div>
-                          )}
-
-                          {isCountMatched && isDifficultyMatched && (
-                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
-                              ✓ Required question count reached. No additional questions can be added.
-                            </div>
-                          )}
-
-                          {isCountMatched && !isDifficultyMatched && (
-                            <div className="text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded">
-                              ⚠ Selected difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) does not match target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
-                            </div>
-                          )}
-
-                          {!isCountMatched && errors.map((err, idx) => (
-                            <div key={idx} className="text-amber-700 bg-amber-50/50 border border-amber-200 px-2.5 py-0.5 rounded text-2xs">
-                              ⚠ {err}
-                            </div>
-                          ))}
-                        </>
+                        <div className="text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-2 rounded space-y-1.5">
+                          <div className="font-semibold text-amber-800 flex items-center gap-1.5">
+                            <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                            <span>Incomplete: {poolSize} / {reqCount} questions attached ({reqCount - poolSize} more required)</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate({
+                                  to: "/questions",
+                                  search: {
+                                    fromDriveId: driveId,
+                                    driveName: drive.name,
+                                    autoBulk: "true",
+                                  } as any,
+                                });
+                              }}
+                              className="px-2 py-0.5 text-2xs font-semibold text-brand bg-white border border-brand-border rounded hover:bg-brand-subtle flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Upload size={10} /> Bulk Import (CSV)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate({
+                                  to: "/questions",
+                                  search: {
+                                    fromDriveId: driveId,
+                                    driveName: drive.name,
+                                  } as any,
+                                });
+                              }}
+                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <BookOpen size={10} /> Question Bank
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab("configuration")}
+                              className="px-2 py-0.5 text-2xs font-semibold text-ink-secondary bg-white border border-line rounded hover:text-ink flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Settings size={10} /> Adjust Weight
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

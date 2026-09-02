@@ -59,7 +59,7 @@ async function runPartnerApiKeyGuardTests() {
     await guard.canActivate(ctx as any);
   } catch (err: any) {
     invalidKeyError = true;
-    assert.strictEqual(err.message, "Invalid X-API-Key");
+    assert.strictEqual(err.message, "Invalid or revoked X-API-Key");
   }
   assert.strictEqual(invalidKeyError, true, "Should throw UnauthorizedException on invalid API key");
   console.log("  ✔ Throws UnauthorizedException on invalid X-API-Key");

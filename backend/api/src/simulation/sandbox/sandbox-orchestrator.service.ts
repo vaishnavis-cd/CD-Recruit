@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { execFile } from "child_process";
 import * as fs from "fs";
@@ -21,9 +21,9 @@ export class SandboxOrchestratorService {
   private readonly baseWorkspaceDir: string;
   private readonly defaultImage: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(@Optional() private readonly config?: ConfigService) {
     this.baseWorkspaceDir = path.join(process.cwd(), "temp_workspaces");
-    this.defaultImage = this.config.get<string>("SIMULATION_DOCKER_IMAGE") || "node:18-alpine";
+    this.defaultImage = this.config?.get<string>("SIMULATION_DOCKER_IMAGE") || "node:18-alpine";
 
     if (!fs.existsSync(this.baseWorkspaceDir)) {
       fs.mkdirSync(this.baseWorkspaceDir, { recursive: true });

@@ -28,7 +28,7 @@ import { PushPartnerCandidatesDto } from "./dto/partner-candidates.dto";
   name: "X-API-Key",
   description: "Partner API key issued from Settings → Integrations (pk_live_...)",
   required: true,
-  example: "pk_live_822aab083e827cfc8a583514b51ff47638ad3515ed0f44f7",
+  example: "pk_live_YOUR_PARTNER_KEY_HERE",
 })
 @Controller("partner/candidates")
 @UseGuards(PartnerApiKeyGuard)

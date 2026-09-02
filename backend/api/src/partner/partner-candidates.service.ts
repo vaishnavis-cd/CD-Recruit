@@ -121,15 +121,30 @@ export class PartnerCandidatesService {
     }
 
     const customOrRoleName = dto.drive_name?.trim() || primaryTemplate.roleName;
-    const driveName = `${customOrRoleName} (P) (${requisition_ref})`;
+    const driveName = `[Partner:${partner.id}:${requisition_ref}] ${customOrRoleName} (P) (${requisition_ref})`;
     const auditActorLabel = `API:${partner.name}`;
 
     // Resolve system staff account for Drive.createdById FK
-    const systemStaff =
+    let systemStaff =
       (await this.prisma.staff.findFirst({
         where: { role: "ADMIN" },
         orderBy: { createdAt: "asc" },
       })) ?? (await this.prisma.staff.findFirst({ orderBy: { createdAt: "asc" } }));
+
+    if (!systemStaff) {
+      try {
+        systemStaff = await this.prisma.staff.create({
+          data: {
+            email: "system.partner@cd-recruit.internal",
+            name: "Partner API System Service",
+            keycloakUserId: "system-partner-service-account",
+            role: "ADMIN" as any,
+          },
+        });
+      } catch {
+        systemStaff = await this.prisma.staff.findFirst({ orderBy: { createdAt: "asc" } });
+      }
+    }
 
     if (!systemStaff) {
       throw new UnprocessableEntityException(
@@ -142,9 +157,9 @@ export class PartnerCandidatesService {
     let drive = await this.prisma.drive.findFirst({
       where: {
         OR: [
+          { name: { startsWith: `[Partner:${partner.id}:${requisition_ref}]` } },
           { name: driveName },
           { name: { contains: `(${requisition_ref})` } },
-          { name: { startsWith: `[Partner:${partner.id}:${requisition_ref}]` } },
           { name: { startsWith: `[REQ:${requisition_ref}]` } },
         ],
       },
@@ -231,7 +246,6 @@ export class PartnerCandidatesService {
         candidate_email: inv.candidateEmail,
         candidate_name: inv.candidateName,
         category: inv.category || category,
-        level: inv.experienceTier || tierInfo?.tier || "0-1",
         experience_tier: inv.experienceTier || tierInfo?.tier || "0-1",
         level_label: tierInfo?.label || "Standard",
         assessment_link: `${candidateWebUrl}/invite/${inv.token}`,
@@ -254,7 +268,6 @@ export class PartnerCandidatesService {
       requisition_ref,
       department_code,
       category,
-      level: dto.level || category,
       candidate_count: candidates.length,
       created_count: ingestionResult.createdCount,
       invites: inviteResults,
@@ -266,8 +279,8 @@ export class PartnerCandidatesService {
     const drive = await this.prisma.drive.findFirst({
       where: {
         OR: [
-          { name: { contains: `(${ref})` } },
           { name: { startsWith: `[Partner:${partner.id}:${ref}]` } },
+          { name: { contains: `(${ref})` } },
           { name: { startsWith: `[REQ:${ref}]` } },
         ],
       },
@@ -277,6 +290,8 @@ export class PartnerCandidatesService {
             session: {
               include: {
                 score: true,
+                candidate: true,
+                reviewerDecision: true,
               },
             },
           },
@@ -296,6 +311,7 @@ export class PartnerCandidatesService {
     const candidateStatuses = drive.invites.map((inv) => {
       const session = inv.session;
       const score = session?.score;
+      const candidateObj = session?.candidate;
 
       // Only populate score fields if a real, non-placeholder persisted Score row exists
       const isScored = !!(
@@ -316,20 +332,54 @@ export class PartnerCandidatesService {
         else scoreBand = "FAIL";
       }
 
+      // Compute Identity Verification Status
+      const idVerifiedAt = session?.idVerifiedAt || candidateObj?.idVerifiedAt;
+      const idResult = (session?.identityVerificationResult || candidateObj?.identityVerificationResult) as Record<string, any> | null;
+
+      let identityStatus: "VERIFIED" | "FAILED" | "PENDING" = "PENDING";
+      let identityVerifiedAtIso: string | null = null;
+
+      if (idVerifiedAt || idResult?.matched === true) {
+        identityStatus = "VERIFIED";
+        identityVerifiedAtIso = idVerifiedAt ? idVerifiedAt.toISOString() : (idResult?.verifiedAt || null);
+      } else if (idResult?.matched === false) {
+        identityStatus = "FAILED";
+        identityVerifiedAtIso = null;
+      }
+
+      // Compute Final Hiring / Assessment Decision (APPROVED | REJECTED | PENDING)
+      const reviewerDec = session?.reviewerDecision;
+      let decision: "APPROVED" | "REJECTED" | "PENDING" = "PENDING";
+      let decidedAtIso: string | null = null;
+
+      if (reviewerDec) {
+        decision = reviewerDec.decision === "ADVANCE" ? "APPROVED" : "REJECTED";
+        decidedAtIso = reviewerDec.decidedAt ? reviewerDec.decidedAt.toISOString() : null;
+      } else if (isScored) {
+        if (identityStatus === "FAILED" || scoreBand === "FAIL") {
+          decision = "REJECTED";
+          decidedAtIso = session?.submittedAt ? session.submittedAt.toISOString() : null;
+        } else if (scoreBand === "STRONG_PASS" || scoreBand === "PASS") {
+          decision = "APPROVED";
+          decidedAtIso = session?.submittedAt ? session.submittedAt.toISOString() : null;
+        }
+      }
+
       return {
         candidate_email: inv.candidateEmail,
         candidate_name: inv.candidateName,
         category: inv.category || "FRESHER",
-        level: inv.experienceTier || "0-1",
         experience_tier: inv.experienceTier || "0-1",
         invite_status: inv.status,
         session_status: session?.status || "NOT_STARTED",
         score_status: isScored ? "SCORED" : "PENDING",
+        decision,
+        decided_at: decidedAtIso,
         assessment_link: `${candidateWebUrl}/invite/${inv.token}`,
-        is_scored: isScored,
         composite_score: compositeScore,
-        score_band: scoreBand === "STRONG_PASS" ? "HIGH" : scoreBand === "PASS" ? "MEDIUM" : scoreBand ? "LOW" : null,
         composite_score_band: scoreBand,
+        identity_status: identityStatus,
+        identity_verified_at: identityVerifiedAtIso,
         started_at: session?.startedAt?.toISOString() || null,
         submitted_at: session?.submittedAt?.toISOString() || null,
         expires_at: inv.expiresAt.toISOString(),

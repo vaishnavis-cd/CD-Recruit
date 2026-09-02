@@ -20,6 +20,7 @@ import { InviteStatus, SessionStatus, ModuleType, OriginChannel, Department } fr
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
+import { DriveRepository } from "./drive.repository";
 import {
   getRequiredQuestionCount,
   getDefaultDifficultyDistribution,
@@ -28,12 +29,17 @@ import {
 
 @Injectable()
 export class DriveService {
+  private readonly driveRepo: DriveRepository;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly candidateIngestionService: CandidateIngestionService,
     private readonly csvIngestionService: CsvIngestionService,
-  ) {}
+    driveRepository?: DriveRepository,
+  ) {
+    this.driveRepo = driveRepository ?? new DriveRepository(prisma);
+  }
 
   async create(dto: CreateDriveDto, staffId: string) {
     const {
