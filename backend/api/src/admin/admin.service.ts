@@ -225,6 +225,9 @@ export class AdminService {
             question: true,
           },
         },
+        codingExecutions: {
+          orderBy: { createdAt: "desc" },
+        },
         integrityFlags: {
           include: {
             evidenceClip: true,
@@ -273,6 +276,9 @@ export class AdminService {
               include: {
                 question: true,
               },
+            },
+            codingExecutions: {
+              orderBy: { createdAt: "desc" },
             },
             integrityFlags: {
               include: {
@@ -417,12 +423,35 @@ export class AdminService {
         (typeof promptText === "string" && promptText.toLowerCase().includes("debugging challenge"));
       const effectiveModuleType = isDebug ? "DEBUGGING" : res.question?.moduleType;
 
+      const isCoding = effectiveModuleType === "CODING" || effectiveModuleType === "DEBUGGING";
+      const codingExec = isCoding
+        ? (session.codingExecutions || []).find(
+            (ce) => ce.questionId === res.questionId && (ce.submissionType === "SUBMIT" || ce.status === "COMPLETED"),
+          ) || (session.codingExecutions || []).find((ce) => ce.questionId === res.questionId)
+        : null;
+
+      const rawPayload = (res.responsePayload as any) || {};
+      const payload = {
+        ...rawPayload,
+        ...(codingExec
+          ? {
+              status: codingExec.status,
+              passedTests: codingExec.passedTests,
+              totalTests: codingExec.totalTests,
+              stdout: codingExec.stdout || rawPayload.stdout,
+              stderr: codingExec.stderr || rawPayload.stderr,
+              compileOutput: codingExec.compileOutput || rawPayload.compileOutput,
+              isCorrect: codingExec.passedTests === codingExec.totalTests && codingExec.totalTests > 0,
+            }
+          : {}),
+      };
+
       return {
         id: res.id,
         moduleResponseId: res.id,
         questionId: res.questionId,
         moduleType: (effectiveModuleType || "MCQ") as ModuleType,
-        responsePayload: res.responsePayload as any,
+        responsePayload: payload,
         timeSpentSeconds: res.timeSpentSeconds,
         isDraft: res.isDraft,
         lastAutosavedAt: res.lastAutosavedAt
