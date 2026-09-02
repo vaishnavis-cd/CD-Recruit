@@ -1,4 +1,4 @@
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
@@ -107,8 +107,6 @@ export interface AppShellProps {
 
 export function AppShell({ title, count, actions, search, hideHeader = false, children }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const activeIndex = NAV.findIndex((item) => pathname === item.to || pathname.startsWith(item.to + "/"));
-  const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const [userInfo, setUserInfo] = useState<{ userName: string; userRole: string; initials: string }>({
@@ -162,134 +160,170 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
   );
 
   const topItems = activeIdx >= 0 ? ALL_NAV.slice(0, activeIdx) : ALL_NAV.slice(0, 7);
-  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : ALL_NAV[7];
+  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : ALL_NAV[0];
   const bottomItems = activeIdx >= 0 ? ALL_NAV.slice(activeIdx + 1) : [];
 
   return (
     <div
-      className="flex h-screen w-screen max-h-screen max-w-full overflow-hidden text-slate-900 font-sans select-none relative bg-transparent"
+      className="flex min-h-screen w-full max-w-full overflow-x-hidden text-ink font-sans relative bg-transparent"
     >
       {/* Figma Light Gradient 13 Global Mesh Background */}
       <LightGradientBackground />
 
-      {/* Sidebar: Fits 100% Desktop Viewport */}
-      <aside className="w-[204px] min-w-[204px] max-w-[204px] shrink-0 text-slate-800 flex flex-col justify-between h-screen max-h-screen overflow-hidden z-20 select-none">
-        {/* Top Logo */}
-        <div
-          className={`w-full h-[46px] pt-[4px] pb-[2px] px-[14px] flex items-center shrink-0 bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] ${
-            activeIndex === 0 ? "rounded-br-[18px] border-b border-slate-200/80" : ""
-          }`}
-        >
-          <Link to="/dashboard" className="flex items-center gap-[8px] w-full group">
-            <div>
-              <div className="text-[17px] font-extrabold tracking-tight text-slate-900 leading-tight">Proctora</div>
-              <div className="text-[8.5px] font-bold tracking-[0.18em] text-blue-600 uppercase leading-none mt-0.5">
+      {/* Left Sidebar: Split card layout with transparent active cutout */}
+      <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col justify-between sticky top-0 h-screen z-20 overflow-y-auto no-scrollbar py-2">
+        <div className="flex flex-col gap-1.5">
+          {/* Top Floating White Card */}
+          <div className="bg-white rounded-b-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 pt-5 pb-3 space-y-2">
+            {/* Brand Header */}
+            <div className="px-2">
+              <div className="text-base font-bold tracking-tight text-[#0d1424]">Proctora</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#2f68ff] leading-none mt-0.5">
                 ADMIN
               </div>
             </div>
-          </Link>
-        </div>
 
-        {/* Navigation items */}
-        <nav className="flex-1 overflow-hidden flex flex-col justify-center">
-          <div className="flex flex-col">
-            {NAV.map((item, index) => {
-              const active = index === activeIndex;
-              const isBeforeActive = index === activeIndex - 1;
-              const isAfterActive = index === activeIndex + 1;
-              const Icon = item.icon;
-
-              let itemCorner = "";
-              if (isBeforeActive) {
-                itemCorner = "rounded-br-[18px] border-b border-slate-200/80";
-              } else if (isAfterActive) {
-                itemCorner = "rounded-tr-[18px] border-t border-slate-200/80";
-              }
-
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`relative w-full h-[38px] pl-[16px] pr-[12px] flex items-center gap-[9px] text-[11.5px] transition-colors duration-150 ${
-                    active
-                      ? "text-blue-600 bg-transparent font-semibold z-10"
-                      : `text-slate-500 hover:text-slate-900 hover:bg-slate-50/80 font-medium bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] ${itemCorner}`
-                  }`}
-                >
-                  {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3.5px] h-[20px] bg-blue-600 rounded-r-full" />
-                  )}
-                  <div className="relative inline-flex items-center justify-center shrink-0">
-                    <Icon
-                      size={17}
-                      active={active}
-                      className={`${active ? "text-blue-600" : "text-[#4F8BFF] group-hover:text-blue-600"}`}
-                    />
-                    {item.to === "/results" && hasUnreadResults && (
-                      <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                    )}
-                  </div>
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
+            {/* Primary Nav Links before active */}
+            {topItems.length > 0 && (
+              <nav className="space-y-0.5 pt-1">
+                {topItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                    >
+                      <div className="relative inline-flex items-center justify-center shrink-0">
+                        <Icon
+                          size={15}
+                          strokeWidth={1.75}
+                          className="text-[#708099]"
+                        />
+                        {item.to === "/results" && hasUnreadResults && (
+                          <span
+                            className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                            title="New candidate results pending review"
+                          />
+                        )}
+                      </div>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
           </div>
 
-          {/* HELP Section */}
-          <div
-            className={`pt-[4px] pb-[2px] bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] ${
-              activeIndex === NAV.length - 1 ? "rounded-tr-[18px] border-t border-slate-200/80" : ""
-            }`}
-          >
-            <div className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 px-[16px] mb-[1px]">
+          {/* Active Item Cutout Slot (showing gradient backdrop) */}
+          {activeItem && (
+            <div className="relative px-2 py-0.5">
+              <Link
+                to={activeItem.to}
+                className="relative flex items-center gap-2.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-[#2f68ff] transition-all"
+              >
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-5 bg-[#2f68ff] rounded-r" />
+                <div className="relative inline-flex items-center justify-center shrink-0 text-[#2f68ff]">
+                  <activeItem.icon
+                    size={15}
+                    strokeWidth={2.2}
+                    className="text-[#2f68ff]"
+                  />
+                  {activeItem.to === "/results" && hasUnreadResults && (
+                    <span
+                      className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                      title="New candidate results pending review"
+                    />
+                  )}
+                </div>
+                <span>{activeItem.label}</span>
+              </Link>
+            </div>
+          )}
+
+          {/* Bottom Card: Remaining Nav Items + HELP & Promo */}
+          <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3.5 space-y-2.5">
+            {/* Bottom Nav items before HELP */}
+            {bottomItems.length > 0 && (
+              <nav className="space-y-0.5 pb-1">
+                {bottomItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                    >
+                      <div className="relative inline-flex items-center justify-center shrink-0">
+                        <Icon
+                          size={15}
+                          strokeWidth={1.75}
+                          className="text-[#708099]"
+                        />
+                        {item.to === "/results" && hasUnreadResults && (
+                          <span
+                            className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                            title="New candidate results pending review"
+                          />
+                        )}
+                      </div>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {/* HELP header */}
+            <div className="px-2 text-[9.5px] font-bold text-[#94a3b8] tracking-wider uppercase pt-0.5">
               HELP
             </div>
-            <Link
-              to="/settings"
-              className="w-full h-[34px] pl-[16px] pr-[12px] flex items-center gap-[9px] text-[11px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50/80 transition-none"
-            >
-              <SupportIcon size={16} className="text-[#4F8BFF]" />
-              <span>Support</span>
-            </Link>
-          </div>
 
-          {/* "New Assessment Drive" Promo Card */}
-          <div className="pt-[2px] pb-[4px] px-[8px] bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
-            <div className="w-full bg-gradient-to-br from-blue-600 to-blue-700 rounded-[10px] p-[8px] text-white shadow-md shadow-blue-600/20 relative overflow-hidden">
-              <div className="text-[10.5px] font-bold text-white mb-0.5">New Assessment Drive</div>
-              <p className="text-[9px] text-blue-100/90 leading-tight mb-1.5">
+            {/* Support with Headset icon */}
+            <button
+              onClick={() => window.open("mailto:support@proctora.com", "_blank")}
+              className="w-full flex items-center gap-2.5 px-2 py-1 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] transition-all cursor-pointer text-left"
+            >
+              <SupportHeadsetIcon size={15} className="text-[#2f68ff]" />
+              <span>Support</span>
+            </button>
+
+            {/* New Assessment Drive Promo Card */}
+            <div className="p-3 bg-gradient-to-br from-[#2f68ff] to-[#1e54ea] rounded-xl text-white shadow-md shadow-blue-500/10 space-y-1.5">
+              <div className="text-xs font-bold leading-tight">New Assessment Drive</div>
+              <p className="text-[9.5px] text-blue-100/90 leading-snug">
                 Launch Q3 hiring drive and invite candidates instantly.
               </p>
               <Link
                 to="/drives"
-                className="block w-full text-center py-1 px-2 bg-white text-blue-600 hover:bg-blue-50 font-bold text-[10px] rounded-[6px] transition-none shadow-xs"
+                className="block w-full text-center py-1.5 px-2.5 bg-white text-[#2f68ff] hover:bg-blue-50 font-bold text-[10.5px] rounded-full transition-all shadow-xs"
               >
                 Create Drive
               </Link>
             </div>
           </div>
-        </nav>
+        </div>
 
-        {/* User profile footer */}
-        <div className="px-[8px] py-[6px] bg-white/95 backdrop-blur-sm border-r border-t border-slate-200/80 shrink-0 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
-          <div className="w-full flex items-center gap-[8px] p-[5px] rounded-[8px] hover:bg-slate-50 transition-none">
-            <div className="w-6.5 h-6.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs shadow-blue-500/20">
-              {userInfo.initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-bold truncate text-slate-900 leading-tight">{userInfo.userName}</div>
-              <div className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">
-                {userInfo.userRole}
-              </div>
-            </div>
-            <button
-              onClick={() => setShowLogoutModal(true)}
-              title="Log out"
-              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[5px] transition-none cursor-pointer"
-            >
-              <LogOut size={13} />
-            </button>
+        {/* User Profile Footer */}
+        <div className="p-3 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
+            {userInfo.initials}
           </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs truncate text-[#0d1424] font-bold leading-tight">
+              {userInfo.userName}
+            </div>
+            <div className="text-[9px] font-semibold text-[#8c9ba5] uppercase tracking-wider mt-0.5">
+              {userInfo.userRole}
+            </div>
+          </div>
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            title="Log out"
+            className="p-1 text-[#8c9ba5] hover:text-danger-hover hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </aside>
 

@@ -42,6 +42,7 @@ async function bootstrap(): Promise<void> {
     : [];
 
   app.enableCors({
+    origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
@@ -61,9 +62,8 @@ async function bootstrap(): Promise<void> {
     },
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    allowedHeaders: "Content-Type, Accept, Authorization, X-Requested-With, Origin, x-api-key, X-API-Key, Cache-Control",
+    allowedHeaders: "Content-Type, Accept, Authorization, X-Requested-With, Origin, x-api-key, Cache-Control",
     exposedHeaders: "Content-Range, X-Content-Range, Authorization",
-  });
   });
 
 
