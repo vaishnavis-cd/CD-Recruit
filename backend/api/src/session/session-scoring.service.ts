@@ -153,6 +153,7 @@ export class SessionScoringService {
 
     // Track question-level evaluation results: mod -> array of { questionId, accuracy (0-1), pointShare }
     const moduleQuestionScores: Record<string, QuestionScoreItem[]> = {};
+    const questionConfidences: number[] = [];
 
     for (const resp of responses) {
       const q = questionMap.get(resp.questionId);
@@ -169,21 +170,32 @@ export class SessionScoringService {
       const qContent = (q.content as QuestionContent) || {};
 
       let accuracy = 0.0;
+      let qConfidence = 0.85;
 
       if (mod === "MCQ") {
         accuracy = this.evaluateMCQ(payload, qContent, q.scoringConfig);
+        qConfidence = 1.0;
       } else if (mod === "SQL") {
         accuracy = this.evaluateSQL(payload);
+        const execPassed = payload?.executionResult?.passed || payload?.executionResult?.matched || payload?.executionResult?.status === "SUCCESS";
+        qConfidence = execPassed ? 1.0 : (payload?.query || payload?.code ? 0.70 : 0.0);
       } else if (mod === "NOSQL") {
         accuracy = this.evaluateNoSQL(payload);
+        const execPassed = payload?.executionResult?.passed || payload?.executionResult?.status === "SUCCESS";
+        qConfidence = execPassed ? 1.0 : 0.50;
       } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
-        accuracy = this.evaluateCoding(payload, codingExecutionsMap.get(q.id) || []);
+        const executions = codingExecutionsMap.get(q.id) || [];
+        accuracy = this.evaluateCoding(payload, executions);
+        qConfidence = executions.length > 0 ? 0.95 : (payload?.code ? 0.60 : 0.0);
       } else if (mod === "AI_PROMPTING") {
         accuracy = this.evaluateAIPrompting(payload);
+        qConfidence = (payload?.evaluation?.overallScore !== undefined || (payload as any)?.promptStructureScore !== undefined) ? 0.90 : 0.70;
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
+        qConfidence = (payload?.overallScore !== undefined || (payload as any)?.compositeDoScore !== undefined) ? 0.90 : 0.70;
       } else if (mod === "TEST_SCENARIOS") {
         accuracy = this.evaluateTestScenarios(payload, q);
+        qConfidence = (payload?.evaluation?.overallScore !== undefined || payload?.score !== undefined) ? 0.90 : 0.85;
       }
 
       moduleQuestionScores[mod].push({
@@ -191,6 +203,7 @@ export class SessionScoringService {
         accuracy: Math.max(0.0, Math.min(1.0, accuracy)),
         pointShare,
       });
+      questionConfidences.push(qConfidence);
     }
 
     const moduleScores = this.calculateModuleScores(moduleQuestionScores, driveModuleConfig);
@@ -205,7 +218,7 @@ export class SessionScoringService {
     );
 
     const hasExecutions = codingExecutions.length > 0 || sqlExecutions.length > 0;
-    const aiConfidence = this.calculateAIConfidence(responses.length, questionIds.length, hasExecutions);
+    const aiConfidence = this.calculateAIConfidence(responses.length, questionIds.length, questionConfidences, hasExecutions);
 
     const hasNoData = responses.length === 0;
     const gradingSource = !hasNoData ? MODULE_SCORING : NO_DATA;
@@ -595,16 +608,31 @@ export class SessionScoringService {
   }
 
   /**
-   * Compute dynamic AI Confidence score based on evaluation completeness and test executions.
+   * Compute dynamic AI Confidence score based on evaluation completeness, signal certainty, and test executions.
    */
-  private calculateAIConfidence(responsesCount: number, questionIdsCount: number, hasExecutions: boolean): number | null {
-    if (responsesCount === 0) return 0.0;
+  calculateAIConfidence(
+    responsesCount: number,
+    questionIdsCount: number,
+    questionConfidences: number[] = [],
+    hasExecutions = false,
+  ): number | null {
+    if (responsesCount === 0 || questionIdsCount === 0) return 0.0;
 
     const completionRatio = Math.min(1.0, responsesCount / Math.max(1, questionIdsCount));
-    const executionBonus = hasExecutions ? AI_CONFIDENCE_EXECUTION_BONUS : 0.0;
-    const rawConfidence = AI_CONFIDENCE_COMPLETION_RATIO_WEIGHT * completionRatio + executionBonus;
 
-    return Math.min(1.0, this.roundToTwoDecimals(rawConfidence));
+    // Average signal quality across evaluated questions
+    const avgSignalQuality =
+      questionConfidences.length > 0
+        ? questionConfidences.reduce((a, b) => a + b, 0) / questionConfidences.length
+        : 0.90;
+
+    // Execution bonus when code/query test execution harness ran
+    const executionBonus = hasExecutions ? 0.05 : 0.0;
+
+    // Weighted confidence: 60% completion ratio, 35% signal certainty, 5% execution verification
+    const rawConfidence = completionRatio * 0.60 + avgSignalQuality * 0.35 + executionBonus;
+
+    return Math.min(1.0, Math.max(0.0, this.roundToTwoDecimals(rawConfidence)));
   }
 
   /**

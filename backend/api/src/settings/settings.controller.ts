@@ -23,6 +23,8 @@ import {
   ListAuditLogQueryDto,
   UpdateAppealWindowConfigDto,
   UpdateRolePermissionDto,
+  CreateStaffDto,
+  ResetStaffPasswordDto,
 } from "../common/dto/settings.dto";
 import { Department, ModuleType } from "@prisma/client";
 
@@ -39,10 +41,19 @@ export class SettingsController {
 
   @Post("staff")
   async createStaff(
-    @Body() dto: { name: string; email: string; role: StaffRole },
+    @Body() dto: CreateStaffDto,
     @CurrentUser() actor: any,
   ) {
     return this.settingsService.createStaff(dto, actor);
+  }
+
+  @Post("staff/:staffId/reset-password")
+  async resetStaffPassword(
+    @Param("staffId", ParseUUIDPipe) staffId: string,
+    @Body() dto: ResetStaffPasswordDto,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.resetStaffPassword(staffId, dto, actor);
   }
 
   @Delete("staff/:staffId")

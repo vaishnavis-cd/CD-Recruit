@@ -224,7 +224,25 @@ function SettingsPage() {
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("RECRUITER");
+  const [newStaffTempPassword, setNewStaffTempPassword] = useState("");
+  const [newStaffRequirePwChange, setNewStaffRequirePwChange] = useState(true);
   const [creatingStaff, setCreatingStaff] = useState(false);
+
+  // Reset Password Modal state
+  const [showResetPwModal, setShowResetPwModal] = useState(false);
+  const [selectedStaffForReset, setSelectedStaffForReset] = useState<any | null>(null);
+  const [resetPwValue, setResetPwValue] = useState("");
+  const [resetPwTemporary, setResetPwTemporary] = useState(true);
+  const [resettingPw, setResettingPw] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+    let pwd = "";
+    for (let i = 0; i < 12; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pwd;
+  };
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,22 +263,65 @@ function SettingsPage() {
           name: newStaffName.trim(),
           email: newStaffEmail.trim(),
           role: newStaffRole,
+          tempPassword: newStaffTempPassword || undefined,
+          temporary: newStaffRequirePwChange,
+          requirePasswordChange: newStaffRequirePwChange,
         }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message || "Failed to add staff member");
       }
-      toast.success(`Staff member "${newStaffName}" added successfully`);
+      const data = await res.json();
+      toast.success(
+        data.keycloakSynced
+          ? `Staff member "${newStaffName}" created & synced to Keycloak!`
+          : `Staff member "${newStaffName}" added successfully`
+      );
       setShowAddStaffModal(false);
       setNewStaffName("");
       setNewStaffEmail("");
       setNewStaffRole("RECRUITER");
+      setNewStaffTempPassword("");
+      setNewStaffRequirePwChange(true);
       loadStaffList();
     } catch (err: any) {
       toast.error(err.message || "Failed to create staff member");
     } finally {
       setCreatingStaff(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaffForReset) return;
+    setResettingPw(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/staff/${selectedStaffForReset.id}/reset-password`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          newPassword: resetPwValue || undefined,
+          temporary: resetPwTemporary,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to reset password");
+      }
+      const data = await res.json();
+      toast.success(`Temporary password set to: ${data.newPassword}`);
+      setShowResetPwModal(false);
+      setSelectedStaffForReset(null);
+      setResetPwValue("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset password");
+    } finally {
+      setResettingPw(false);
     }
   };
 
@@ -888,12 +949,21 @@ function SettingsPage() {
                               }`}>
                               {s.role}
                             </span>
+                            {s.keycloakUserId && !s.keycloakUserId.startsWith("keycloak_") ? (
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Keycloak user synced">
+                                Keycloak
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-slate-50 text-slate-500 border border-slate-200" title="Local / Dev unlinked">
+                                Local
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs-plus text-ink-secondary font-mono">{s.email}</div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <select
                           value={s.role}
                           onChange={(e) => handleUpdateRole(s.id, e.target.value)}
@@ -905,6 +975,19 @@ function SettingsPage() {
                           <option value="REVIEWER">Technical Evaluator</option>
                           <option value="RECRUITER">Recruiter (Legacy)</option>
                         </select>
+
+                        <button
+                          onClick={() => {
+                            setSelectedStaffForReset(s);
+                            setResetPwValue(generateRandomPassword());
+                            setResetPwTemporary(true);
+                            setShowResetPwModal(true);
+                          }}
+                          title="Reset temporary password"
+                          className="p-1.5 text-ink-tertiary hover:text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
+                        >
+                          <Key size={15} />
+                        </button>
 
                         <button
                           onClick={() => handleDeleteStaff(s.id, s.name)}
@@ -927,7 +1010,7 @@ function SettingsPage() {
               {/* Add Staff Modal */}
               {showAddStaffModal && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+                  <div className="bg-white border border-line rounded-xl max-w-[440px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
                     <div className="flex items-center justify-between border-b border-surface-inset pb-3">
                       <div className="flex items-center gap-2">
                         <UserPlus size={16} className="text-brand" />
@@ -981,6 +1064,39 @@ function SettingsPage() {
                         </select>
                       </div>
 
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-medium text-ink-secondary">Initial / Temp Password</label>
+                          <button
+                            type="button"
+                            onClick={() => setNewStaffTempPassword(generateRandomPassword())}
+                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
+                          >
+                            Generate Strong Password
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={newStaffTempPassword}
+                          onChange={(e) => setNewStaffTempPassword(e.target.value)}
+                          placeholder="Leave blank to auto-generate (Password@123)"
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="checkbox"
+                          id="requirePwChangeCheck"
+                          checked={newStaffRequirePwChange}
+                          onChange={(e) => setNewStaffRequirePwChange(e.target.checked)}
+                          className="rounded border-line text-brand focus:ring-brand"
+                        />
+                        <label htmlFor="requirePwChangeCheck" className="text-xs text-ink-secondary cursor-pointer">
+                          Require password update upon first login in Keycloak
+                        </label>
+                      </div>
+
                       <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
                         <button
                           type="button"
@@ -995,6 +1111,89 @@ function SettingsPage() {
                           className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
                         >
                           {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Reset Password Modal */}
+              {showResetPwModal && selectedStaffForReset && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white border border-line rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
+                      <div className="flex items-center gap-2">
+                        <Key size={16} className="text-brand" />
+                        <h3 className="text-md font-semibold text-ink">Reset Staff Password</h3>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowResetPwModal(false);
+                          setSelectedStaffForReset(null);
+                        }}
+                        className="text-ink-tertiary hover:text-ink cursor-pointer"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleResetPasswordSubmit} className="space-y-4 text-sm-minus">
+                      <div className="p-3 bg-surface rounded-lg border border-line space-y-1">
+                        <div className="text-xs font-semibold text-ink">{selectedStaffForReset.name}</div>
+                        <div className="text-2xs font-mono text-ink-secondary">{selectedStaffForReset.email}</div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-medium text-ink-secondary">New Temporary Password</label>
+                          <button
+                            type="button"
+                            onClick={() => setResetPwValue(generateRandomPassword())}
+                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
+                          >
+                            Generate
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={resetPwValue}
+                          onChange={(e) => setResetPwValue(e.target.value)}
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="checkbox"
+                          id="temporaryResetCheck"
+                          checked={resetPwTemporary}
+                          onChange={(e) => setResetPwTemporary(e.target.checked)}
+                          className="rounded border-line text-brand focus:ring-brand"
+                        />
+                        <label htmlFor="temporaryResetCheck" className="text-xs text-ink-secondary cursor-pointer">
+                          Mark as temporary (requires user to set new password on login)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowResetPwModal(false);
+                            setSelectedStaffForReset(null);
+                          }}
+                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={resettingPw}
+                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
+                        >
+                          {resettingPw ? "Resetting…" : "Confirm Reset"}
                         </button>
                       </div>
                     </form>

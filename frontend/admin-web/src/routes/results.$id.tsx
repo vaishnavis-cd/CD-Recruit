@@ -30,6 +30,7 @@ import {
   UserCheck,
   Camera,
   FileText,
+  Info,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
@@ -296,8 +297,13 @@ function IndividualResultPage() {
       <div className="bg-white border border-line rounded-xl p-6 shadow-sm mb-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-surface-inset pb-5">
           <div>
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h2 className="text-xl font-semibold text-ink">{detail.candidateName}</h2>
+              {detail.referenceId && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                  Ref: {detail.referenceId}
+                </span>
+              )}
               {isApproved ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <CheckCircle2 size={14} /> Approved
@@ -406,10 +412,16 @@ function IndividualResultPage() {
             </span>
           </div>
 
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              AI Confidence
-            </span>
+          <div
+            className="bg-canvas border border-line rounded-md p-3.5 relative group cursor-help"
+            title="AI Confidence reflects the automated grading certainty based on response completion ratio, deterministic test executions, and evaluation signal quality."
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block">
+                AI Confidence
+              </span>
+              <Info size={13} className="text-ink-tertiary opacity-70 group-hover:opacity-100 transition-opacity" />
+            </div>
             <span className="text-2xl font-mono font-bold text-ink">
               {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
                 ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
@@ -1494,7 +1506,7 @@ function IndividualResultPage() {
                                   </span>
                                 </div>
                                 <p className="text-xs-plus text-ink-secondary font-mono mt-0.5">
-                                  Confidence: {Math.round((flag.confidence || 0.9) * 100)}% • Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                                  {typeof flag.confidence === "number" ? `Confidence: ${Math.round(flag.confidence <= 1.0 ? flag.confidence * 100 : flag.confidence)}% • ` : ""}Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
                                 </p>
                                 {flag.promptText && (
                                   <p className="text-xs-plus text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">

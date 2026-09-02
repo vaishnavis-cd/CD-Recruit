@@ -33,6 +33,7 @@ export interface DriveCandidateRosterItem {
   inviteStatus: string;
   inviteLink: string;
   sessionId: string | null;
+  referenceId?: string | null;
   sessionStatus: string | null;
   compositeScore: number | null;
   submittedAt: string | null;
@@ -111,6 +112,7 @@ export interface AuditLog {
 export interface SessionResultItem {
   id: string;
   sessionId: string;
+  referenceId?: string | null;
   candidateId: string;
   candidateName: string;
   candidateEmail: string;
@@ -141,6 +143,7 @@ export interface SessionResultItem {
 
 export interface CandidateSessionDetail {
   id: string;
+  referenceId?: string | null;
   candidate: {
     id: string;
     name: string;

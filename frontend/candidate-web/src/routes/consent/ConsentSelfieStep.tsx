@@ -147,6 +147,8 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     }
   }
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   async function handleCapture() {
     if (!videoRef.current || !hasStream) return;
 
@@ -166,22 +168,25 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       localStorage.setItem('cd-recruit-selfie-data', dataUrl);
       setCapturedDataUrl(dataUrl);
       setSelfieCaptured(true);
-
-      // Upload baseline selfie directly to MinIO and extract embedding in PostgreSQL
-      if (sessionId) {
-        try {
-          await apiClient.post(`/sessions/${sessionId}/selfie`, { image: dataUrl });
-          console.log('[ConsentSelfieStep] Baseline selfie uploaded and enrolled successfully.');
-        } catch (err) {
-          console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err);
-        }
-      }
-
-      // Proceed to next step / test start smoothly
-      setTimeout(() => {
-        onComplete();
-      }, 700);
     }
+  }
+
+  async function handleConfirmAndProceed() {
+    if (!capturedDataUrl) return;
+    setIsSubmitting(true);
+
+    // Upload baseline selfie directly to MinIO and extract embedding in PostgreSQL
+    if (sessionId) {
+      try {
+        await apiClient.post(`/sessions/${sessionId}/selfie`, { image: capturedDataUrl });
+        console.log('[ConsentSelfieStep] Baseline selfie uploaded and enrolled successfully.');
+      } catch (err) {
+        console.error('[ConsentSelfieStep] Failed to upload selfie to MinIO:', err);
+      }
+    }
+
+    setIsSubmitting(false);
+    onComplete();
   }
 
   function handleRetake() {
@@ -374,27 +379,25 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
 
         {selfieCaptured ? (
           <div className="flex items-center gap-3">
+            <RetryButton onClick={handleRetake} label="Retake Selfie" />
             {verificationState.type === 'not_verified' ? (
-              <>
-                <RetryButton onClick={handleRetake} label="Retake Selfie" />
-                <button
-                  onClick={() => setShowFlagConfirmModal(true)}
-                  type="button"
-                  className="px-4 py-2.5 rounded-lg text-xs font-semibold bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-700/50 transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <ShieldAlert size={14} /> Flag & Continue
-                </button>
-              </>
-            ) : verificationState.type === 'no_id_proof_on_file' || verificationState.type === 'idle' ? (
               <button
-                onClick={onComplete}
+                onClick={() => setShowFlagConfirmModal(true)}
                 type="button"
-                className="btn-primary text-xs font-semibold px-6 py-2.5 animate-border-ripple shadow-lg cursor-pointer"
+                className="px-4 py-2.5 rounded-lg text-xs font-semibold bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-700/50 transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                Continue to Test
+                <ShieldAlert size={14} /> Flag & Continue
               </button>
             ) : (
-              <RetryButton onClick={handleRetake} label="Retake Selfie" />
+              <button
+                onClick={handleConfirmAndProceed}
+                disabled={isSubmitting}
+                type="button"
+                className="btn-primary text-xs font-semibold px-6 py-2.5 animate-border-ripple shadow-lg cursor-pointer flex items-center gap-1.5"
+              >
+                {isSubmitting && <Loader2 size={13} className="animate-spin" />}
+                {isSubmitting ? 'Saving...' : 'Confirm & Continue to Test'}
+              </button>
             )}
           </div>
         ) : (
