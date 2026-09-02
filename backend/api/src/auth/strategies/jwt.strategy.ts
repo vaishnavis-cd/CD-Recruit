@@ -145,7 +145,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             id: staffId,
             email,
             name: displayName,
-            role: (role as any) || (StaffRole.ADMIN as any),
+            role: (role || StaffRole.ADMIN) as any,
             keycloakUserId: `keycloak-${staffId}`,
           },
         });

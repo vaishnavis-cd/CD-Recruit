@@ -249,11 +249,10 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch results");
       const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.items || data.data || []);
-      set({ resultsList: list, loading: false });
+      set({ resultsList: data.items, loading: false });
     } catch (err: any) {
       console.error(err);
-      set({ resultsList: [], error: err.message, loading: false });
+      set({ error: err.message, loading: false });
     }
   },
 
