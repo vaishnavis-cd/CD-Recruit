@@ -4,15 +4,8 @@ import { loginWithKeycloak, isAuthenticated } from "../lib/auth";
 import {
   AlertCircle,
   Loader2,
-  Code2,
-  Terminal,
-  Trophy,
-  Database,
-  Users,
-  ClipboardList,
-  PieChart,
-  Server,
-  Monitor,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
@@ -62,65 +55,106 @@ function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen w-full font-sans flex items-center justify-center p-4 relative overflow-hidden bg-[#060A14]"
-      style={{
-        backgroundImage: "url('/Login-admin-bg.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      {/* Subtle Background Watermark Tech Icons matching Figma */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-        {/* Top-Left: Code Bracket */}
-        <div className="absolute left-[8%] top-[9%] text-slate-500/20">
-          <Code2 size={42} strokeWidth={1.5} />
+    <div className="min-h-screen w-full font-sans flex items-center justify-center p-4 relative overflow-hidden bg-[#070B16] select-none">
+      {/* Figma Ambient Background Watermark Icons (Clean Minimalist Vector Outlines) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden text-[#334155]/50">
+        {/* Top-Left: Code Bracket </> */}
+        <div className="absolute left-[7%] top-[9%]">
+          <svg className="w-14 h-14" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 14L6 24L16 34" />
+            <path d="M32 14L42 24L32 34" />
+            <path d="M27 10L21 38" />
+          </svg>
         </div>
 
-        {/* Top-Right: Terminal Prompt */}
-        <div className="absolute right-[10%] top-[8%] text-slate-500/20">
-          <Terminal size={38} strokeWidth={1.5} />
+        {/* Top-Right: Terminal Prompt >_ */}
+        <div className="absolute right-[9%] top-[7%]">
+          <svg className="w-12 h-12" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 14L18 24L8 34" />
+            <path d="M22 34H38" />
+          </svg>
         </div>
 
-        {/* Mid-Left: Trophy */}
-        <div className="absolute left-[19%] top-[29%] text-slate-500/20">
-          <Trophy size={36} strokeWidth={1.5} />
+        {/* Mid-Left (Upper): Trophy */}
+        <div className="absolute left-[19%] top-[29%]">
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 4h16v5a8 8 0 0 1-8 8 8 8 0 0 1-8-8Z" />
+            <path d="M12 17v4" />
+            <path d="M8 21h8" />
+          </svg>
         </div>
 
-        {/* Mid-Left: Database */}
-        <div className="absolute left-[9%] top-[48%] text-slate-500/20">
-          <Database size={34} strokeWidth={1.5} />
+        {/* Mid-Left (Lower): Database Cylinder */}
+        <div className="absolute left-[9%] top-[49%]">
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+          </svg>
         </div>
 
         {/* Mid-Right: Users */}
-        <div className="absolute right-[16%] top-[51%] text-slate-500/20">
-          <Users size={34} strokeWidth={1.5} />
+        <div className="absolute right-[15%] top-[52%]">
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
         </div>
 
-        {/* Bottom-Left: Clipboard */}
-        <div className="absolute left-[16%] bottom-[16%] text-slate-500/20">
-          <ClipboardList size={34} strokeWidth={1.5} />
-        </div>
-
-        {/* Bottom-Center: Pie Chart */}
-        <div className="absolute left-[54%] bottom-[23%] text-slate-500/20">
-          <PieChart size={38} strokeWidth={1.5} />
-        </div>
-
-        {/* Bottom-Right: Server Stack */}
-        <div className="absolute right-[18%] bottom-[13%] text-slate-500/20">
-          <Server size={34} strokeWidth={1.5} />
+        {/* Bottom-Left: Clipboard Document */}
+        <div className="absolute left-[16%] bottom-[15%]">
+          <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="14" height="18" x="5" y="4" rx="2" />
+            <path d="M9 2h6a1 1 0 0 1 1 1v1H8V3a1 1 0 0 1 1-1Z" />
+          </svg>
         </div>
 
         {/* Bottom-Center-Left: Monitor */}
-        <div className="absolute left-[31%] bottom-[6%] text-slate-500/20">
-          <Monitor size={34} strokeWidth={1.5} />
+        <div className="absolute left-[31%] bottom-[5%]">
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="20" height="14" x="2" y="3" rx="2" />
+            <line x1="8" x2="16" y1="21" y2="21" />
+            <line x1="12" x2="12" y1="17" y2="21" />
+          </svg>
+        </div>
+
+        {/* Bottom-Center-Right: Pie Chart */}
+        <div className="absolute left-[54%] bottom-[22%]">
+          <svg className="w-11 h-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+            <path d="M22 12A10 10 0 0 0 12 2v10z" />
+          </svg>
+        </div>
+
+        {/* Bottom-Right: Server Rack */}
+        <div className="absolute right-[17%] bottom-[11%]">
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="20" height="8" x="2" y="2" rx="2" />
+            <rect width="20" height="8" x="2" y="14" rx="2" />
+            <line x1="6" x2="6.01" y1="6" y2="6" />
+            <line x1="6" x2="6.01" y1="18" y2="18" />
+            <line x1="10" x2="10.01" y1="6" y2="6" />
+            <line x1="10" x2="10.01" y1="18" y2="18" />
+          </svg>
         </div>
       </div>
 
+      {/* Bottom Center Figma Navigation Pill */}
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 px-3 py-1 rounded-full bg-[#0B101E]/70 border border-slate-800/60 text-slate-600 select-none">
+        <button type="button" className="hover:text-slate-300 transition-colors p-0.5">
+          <ChevronLeft size={15} />
+        </button>
+        <button type="button" className="hover:text-slate-300 transition-colors p-0.5">
+          <ChevronRight size={15} />
+        </button>
+      </div>
+
       {/* Figma LoginCard (Width: 480px, Radius: 24px, Padding: 40px, Gap: 24px, Drop Shadow: 0 16px 32px rgba(0,0,0,0.2)) */}
-      <div className="w-full max-w-[480px] relative z-10 bg-white rounded-[24px] p-[40px] shadow-[0_16px_32px_rgba(0,0,0,0.20)] border border-[#E2E8F0]/30 transition-all">
+      <div className="w-full max-w-[480px] relative z-10 bg-white rounded-[24px] p-[40px] shadow-[0_16px_32px_rgba(0,0,0,0.20)] border border-slate-100 transition-all select-text">
         {/* Logo Header */}
         <div className="flex items-center gap-3.5 mb-6">
           <div className="w-[38px] h-[38px] rounded-full bg-[#2563EB] flex items-center justify-center p-1.5 shrink-0 shadow-xs">
