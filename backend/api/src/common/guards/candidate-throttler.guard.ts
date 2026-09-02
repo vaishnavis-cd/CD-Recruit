@@ -1,5 +1,12 @@
 import { Injectable, ExecutionContext } from "@nestjs/common";
-import { ThrottlerGuard } from "@nestjs/throttler";
+import {
+  ThrottlerGuard,
+  ThrottlerModuleOptions,
+  ThrottlerStorage,
+  InjectThrottlerOptions,
+  InjectThrottlerStorage,
+} from "@nestjs/throttler";
+import { Reflector } from "@nestjs/core";
 
 /**
  * CandidateThrottlerGuard — Rate-limits candidate actions (e.g. Run Code, Submit).
@@ -10,6 +17,13 @@ import { ThrottlerGuard } from "@nestjs/throttler";
  */
 @Injectable()
 export class CandidateThrottlerGuard extends ThrottlerGuard {
+  constructor(
+    @InjectThrottlerOptions() options: ThrottlerModuleOptions,
+    @InjectThrottlerStorage() storageService: ThrottlerStorage,
+    reflector: Reflector,
+  ) {
+    super(options, storageService, reflector);
+  }
   protected async getTracker(req: Record<string, any>): Promise<string> {
     let key = "unknown";
     // 1. Prefer sessionId from request body or headers

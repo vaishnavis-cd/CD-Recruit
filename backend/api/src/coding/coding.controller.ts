@@ -4,7 +4,6 @@ import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { CodingService } from "./coding.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { SessionOwnerGuard } from "../common/guards/session-owner.guard";
-import { CandidateThrottlerGuard } from "../common/guards/candidate-throttler.guard";
 
 @Controller("coding")
 export class CodingController {
@@ -12,7 +11,7 @@ export class CodingController {
 
   @Post("run")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(SessionOwnerGuard, CandidateThrottlerGuard)
+  @UseGuards(SessionOwnerGuard)
   @Throttle({ default: { limit: 20, ttl: 10000 } })
   async run(@Body() dto: RunCodingDto, @Req() req: Request) {
     return this.codingService.run(dto, req);
@@ -27,7 +26,7 @@ export class CodingController {
 
   @Post("submit")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(SessionOwnerGuard, CandidateThrottlerGuard)
+  @UseGuards(SessionOwnerGuard)
   @Throttle({ default: { limit: 5, ttl: 10000 } })
   async submit(@Body() dto: SubmitCodingDto) {
     return this.codingService.submit(dto);

@@ -99,7 +99,9 @@ export class OutboundExecutionProcessor extends WorkerHost {
       }
     }
 
-    const tokens = (execution.judge0Tokens as string[]) || [];
+    const tokens = execution.judge0Token
+      ? execution.judge0Token.split(",").filter(Boolean)
+      : [];
 
     const detailedResults = testCases.map((tc, idx) => {
       const token = tokens[idx];
@@ -227,7 +229,6 @@ export class OutboundExecutionProcessor extends WorkerHost {
         await this.prisma.moduleResponse.update({
           where: { id: existing.id },
           data: {
-            score,
             responsePayload: {
               ...currentPayload,
               status: overallStatus,

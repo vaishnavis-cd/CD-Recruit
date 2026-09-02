@@ -28,7 +28,7 @@ import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
 import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 
-import { APP_GUARD } from "@nestjs/core";
+import { APP_GUARD, Reflector } from "@nestjs/core";
 import { CandidateThrottlerGuard } from "./common/guards/candidate-throttler.guard";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
@@ -100,6 +100,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     TestScenariosModule,
   ],
   providers: [
+    Reflector,
     {
       provide: APP_GUARD,
       useClass: CandidateThrottlerGuard,

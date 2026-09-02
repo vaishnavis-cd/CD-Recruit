@@ -32,7 +32,9 @@ export class WatchdogExecutionProcessor extends WorkerHost {
       return;
     }
 
-    const tokens = (execution.judge0Tokens as string[]) || [];
+    const tokens = execution.judge0Token
+      ? execution.judge0Token.split(",").filter(Boolean)
+      : [];
     if (tokens.length === 0) {
       this.logger.warn(`[WatchdogExecutionProcessor] Execution ${executionId} has no tokens recorded. Marking TIMEOUT.`);
       await this.prisma.codingExecution.update({

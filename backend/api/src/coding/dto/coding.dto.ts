@@ -49,11 +49,11 @@ export class TestCaseDto {
 }
 
 export class RunCodingDto {
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   sessionId: string;
 
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   questionId: string;
 
@@ -82,11 +82,11 @@ export class RunCodingDto {
 }
 
 export class SubmitCodingDto {
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   sessionId: string;
 
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   questionId: string;
 
@@ -113,11 +113,11 @@ export class SubmitCodingDto {
 }
 
 export class DraftCodingDto {
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   sessionId: string;
 
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   questionId: string;
 

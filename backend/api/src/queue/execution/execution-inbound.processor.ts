@@ -10,6 +10,8 @@ import { QueueProviderPort } from "../queue-provider.port";
 import { AppConfig } from "../../config/configuration";
 import { SubmissionType, ExecutionStatus } from "@cd-recruit/shared-types";
 
+import { RedisService } from "../../common/redis/redis.service";
+
 @Processor("execution-inbound", { concurrency: 50 })
 @Injectable()
 export class InboundExecutionProcessor extends WorkerHost {
@@ -21,6 +23,7 @@ export class InboundExecutionProcessor extends WorkerHost {
     private readonly judge0Service: Judge0Service,
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly queueProvider: QueueProviderPort,
+    private readonly redisService: RedisService,
   ) {
     super();
   }
@@ -136,7 +139,7 @@ export class InboundExecutionProcessor extends WorkerHost {
       await this.prisma.codingExecution.update({
         where: { id: executionId },
         data: {
-          judge0Tokens: tokens,
+          judge0Token: tokens.join(","),
           totalTests: testCases.length,
         },
       });
@@ -155,6 +158,39 @@ export class InboundExecutionProcessor extends WorkerHost {
       this.logger.log(
         `[InboundExecutionProcessor] Dispatched ${testCases.length} tests for execution ${executionId} to Judge0. Watchdog delay: ${dynamicDelayMs}ms`,
       );
+
+      // Launch proactive background polling so execution resolves in <1-2s even if Docker webhook delivery is blocked
+      setImmediate(async () => {
+        const maxPollAttempts = 25; // 25 * 300ms = 7.5s max
+        for (let i = 0; i < maxPollAttempts; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          try {
+            const currentExec = await this.prisma.codingExecution.findUnique({
+              where: { id: executionId },
+              select: { status: true },
+            });
+            if (!currentExec || currentExec.status !== ExecutionStatus.PENDING) {
+              return; // Already marked finished by webhook callback
+            }
+
+            const batchResults = await this.judge0Client.getBatchSubmissions(tokens);
+            if (batchResults && batchResults.length > 0) {
+              const allDone = batchResults.every(
+                (r) => r.status && r.status.id !== 1 && r.status.id !== 2,
+              );
+              if (allDone) {
+                await this.queueProvider.enqueue("execution-outbound", "save-result", {
+                  executionId,
+                  judge0Results: batchResults,
+                });
+                return;
+              }
+            }
+          } catch {
+            // Ignore transient network errors during active polling
+          }
+        }
+      });
     } catch (err: any) {
       this.logger.error(
         `[InboundExecutionProcessor] Failed to dispatch execution ${executionId} to Judge0: ${err.message}`,
@@ -167,6 +203,21 @@ export class InboundExecutionProcessor extends WorkerHost {
           completedAt: new Date(),
         },
       });
+
+      await this.redisService.set(
+        `execution:${executionId}`,
+        JSON.stringify({
+          executionId,
+          status: ExecutionStatus.FAILED,
+          passedTests: 0,
+          totalTests: 0,
+          executionTime: null,
+          memoryUsage: null,
+          stdout: `Failed to dispatch to Judge0 sandbox: ${err.message}`,
+          results: [],
+        }),
+        300,
+      );
     }
   }
 }
