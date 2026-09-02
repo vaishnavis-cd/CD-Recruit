@@ -610,13 +610,28 @@ function RetentionPolicyIcon({ size = 16, className = "" }: { size?: number; cla
   );
 }
 
+function AuditLogsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="383 3869 14 12" fill="none" className={className}>
+      <path
+        d="M384 3870.33H384.667M384 3875H384.667M384 3879.67H384.667M387.333 3870.33H388M387.333 3875H388M387.333 3879.67H388M390.667 3870.33H396M390.667 3875H396M390.667 3879.67H396"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function IntegrationsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M6 3v6a3 3 0 0 0 3 3h6" />
-      <path d="M18 9l3 3-3 3" />
-      <circle cx="6" cy="18" r="3" />
-      <circle cx="18" cy="6" r="3" />
+    <svg width={size} height={size} viewBox="383 3909 15 15" fill="none" className={className}>
+      <path
+        d="M390.74 3914.11L391.927 3915.89M391.441 3917.53L389.225 3918.47M395.333 3911.67L391.293 3912.68M384 3911V3921.67C384 3922.02 384.14 3922.36 384.391 3922.61C384.641 3922.86 384.98 3923 385.333 3923H396M391.333 3913C391.333 3913.74 390.736 3914.33 390 3914.33C389.264 3914.33 388.667 3913.74 388.667 3913C388.667 3912.26 389.264 3911.67 390 3911.67C390.736 3911.67 391.333 3912.26 391.333 3913ZM394 3917C394 3917.74 393.403 3918.33 392.667 3918.33C391.93 3918.33 391.333 3917.74 391.333 3917C391.333 3916.26 391.93 3915.67 392.667 3915.67C393.403 3915.67 394 3916.26 394 3917ZM389.333 3919C389.333 3919.74 388.736 3920.33 388 3920.33C387.264 3920.33 386.667 3919.74 386.667 3919C386.667 3918.26 387.264 3917.67 388 3917.67C388.736 3917.67 389.333 3918.26 389.333 3919Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -627,7 +642,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
     { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
     { id: "system", label: "System Timing", icon: SystemTimingIcon },
     { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
-    { id: "audit", label: "Audit Logs", icon: List },
+    { id: "audit", label: "Audit Logs", icon: AuditLogsIcon },
     { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
   ] as const;
 
@@ -1226,7 +1241,15 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       <div>CALLBACK URL</div>
                       <div>STATUS</div>
                       <div>CREATED</div>
-                      <div className="text-center tracking-widest">ACTIONS</div>
+                      <div className="flex flex-col items-center justify-center text-[8px] leading-[9px] font-bold text-[#64748B]">
+                        <span>A</span>
+                        <span>C</span>
+                        <span>T</span>
+                        <span>I</span>
+                        <span>O</span>
+                        <span>N</span>
+                        <span>S</span>
+                      </div>
                     </div>
 
                     <div className="divide-y divide-[#F1F5F9]">
