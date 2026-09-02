@@ -39,7 +39,7 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
   head: () => ({
     meta: [
-      { title: "Settings & Administration â€” Proctora" },
+      { title: "Settings & Administration — Proctora" },
       {
         name: "description",
         content:
@@ -771,7 +771,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
                 {loadingStaff ? (
                   <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                    Loading staff rosterâ€¦
+                    Loading staff roster…
                   </p>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-[12px] divide-y divide-[#E2E8F0] overflow-hidden bg-white shadow-xs">
@@ -903,7 +903,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                             disabled={creatingStaff}
                             className="px-5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 rounded-full transition-all cursor-pointer shadow-xs"
                           >
-                            {creatingStaff ? "Adding Staffâ€¦" : "Add Staff Member"}
+                            {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
                           </button>
                         </div>
                       </form>
@@ -935,10 +935,10 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                       onChange={(e) => setAiIntensity(e.target.value)}
                       className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
                     >
-                      <option value="HIGH">High (Strict â€” Flag multi-face &amp; tab switches quickly)</option>
-                      <option value="MEDIUM">Medium (Balanced â€” Standard monitoring threshold)</option>
-                      <option value="LOW">Low (Permissive â€” Minimum flags for minor shifts)</option>
-                      <option value="STRICT">Strict (Maximum Enforcement â€” Instant alert triggers)</option>
+                      <option value="HIGH">High (Strict — Flag multi-face &amp; tab switches quickly)</option>
+                      <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
+                      <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
+                      <option value="STRICT">Strict (Maximum Enforcement — Instant alert triggers)</option>
                     </select>
                   </div>
 
@@ -995,7 +995,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     disabled={savingScoring}
                     className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
                   >
-                    {savingScoring ? "Saving AI Configurationâ€¦" : "Save AI Configuration"}
+                    {savingScoring ? "Saving Scoring & AI Config…" : "Save Scoring & AI Config"}
                   </button>
                 </div>
               </div>
@@ -1066,7 +1066,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     disabled={savingSystem}
                     className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
                   >
-                    {savingSystem ? "Saving Timing Configâ€¦" : "Save Timing Config"}
+                    {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
                   </button>
                 </div>
               </div>
@@ -1107,7 +1107,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     disabled={savingRetention}
                     className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
                   >
-                    {savingRetention ? "Updating Policyâ€¦" : "Update Policy"}
+                    {savingRetention ? "Saving Configurations…" : "Save Configurations"}
                   </button>
                 </div>
               </div>
@@ -1139,7 +1139,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
                 {loadingLogs ? (
                   <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                    Querying logsâ€¦
+                    Querying logs…
                   </p>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
@@ -1170,10 +1170,10 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                             className="text-[12px] font-mono text-[#64748B] truncate"
                             title={typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "")}
                           >
-                            {typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "â€”")}
+                            {typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "—")}
                           </div>
                           <div className="text-[12px] font-mono text-[#64748B] whitespace-nowrap">
-                            {log.occurredAt ? log.occurredAt.slice(0, 16).replace("T", " ") : "â€”"}
+                            {log.occurredAt ? log.occurredAt.slice(0, 16).replace("T", " ") : "—"}
                           </div>
                         </div>
                       ))}
@@ -1209,7 +1209,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
                 {loadingPartners ? (
                   <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                    Loading partner integration recordsâ€¦
+                    Loading partner integration records…
                   </p>
                 ) : partners.length === 0 ? (
                   <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
@@ -1257,7 +1257,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                                   : "bg-[#ECFDF5] text-[#059669]"
                               }`}
                             >
-                              {p.isRevoked ? "REVOKED" : "CONNECTED"}
+                              {p.isRevoked ? "REVOKED" : "ACTIVE"}
                             </span>
                           </div>
                           <div className="text-[12px] text-[#64748B]">
@@ -1267,7 +1267,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                                   day: "numeric",
                                   year: "2-digit",
                                 })
-                              : "â€”"}
+                              : "—"}
                           </div>
                           <div className="flex items-center justify-center gap-1.5">
                             <button
@@ -1314,7 +1314,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
 
                 {loadingModules ? (
                   <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                    Loading assessment module configurationsâ€¦
+                    Loading assessment module configurations…
                   </p>
                 ) : (
                   <div className="border border-[#e2e8f0] rounded-xl overflow-x-auto shadow-xs bg-white text-xs">
@@ -1521,7 +1521,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                   disabled={creatingPartner}
                   className="px-5 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] disabled:opacity-50 rounded-full transition-all cursor-pointer shadow-xs"
                 >
-                  {creatingPartner ? "Generating Keyâ€¦" : "Generate API Key"}
+                  {creatingPartner ? "Generating Key…" : "Generate API Key"}
                 </button>
               </div>
             </form>
