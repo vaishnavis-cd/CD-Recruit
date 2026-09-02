@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
+import { LightGradientBackground } from "./common/LightGradientBackground";
 
 // Exact Lucide-compliant vector icons pixel-matched from the reference screenshot
 function DashboardIcon({ className, size = 18 }: { className?: string; size?: number; active?: boolean }) {
@@ -120,6 +121,7 @@ export interface AppShellProps {
 
 export function AppShell({ title, count, actions, search, children, hideHeader }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const activeIndex = NAV.findIndex((item) => pathname === item.to || pathname.startsWith(item.to + "/"));
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -170,19 +172,19 @@ export function AppShell({ title, count, actions, search, children, hideHeader }
 
   return (
     <div
-      className="flex h-screen w-screen max-h-screen max-w-full overflow-hidden text-slate-900 font-sans select-none"
-      style={{ background: "linear-gradient(90deg, #F3F7FE 0%, #F7F5FD 45%, #FDFDF6 70%, #F4F5E9 100%)" }}
+      className="flex h-screen w-screen max-h-screen max-w-full overflow-hidden text-slate-900 font-sans select-none relative bg-transparent"
     >
-      {/* Background Ambient Mesh Lights */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-blue-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-amber-100/20 blur-[140px]" />
-      </div>
+      {/* Figma Light Gradient 13 Global Mesh Background */}
+      <LightGradientBackground />
 
       {/* Sidebar: Fits 100% Desktop Viewport */}
-      <aside className="w-[204px] min-w-[204px] max-w-[204px] shrink-0 bg-white/95 backdrop-blur-sm border-r border-slate-200/80 rounded-r-[14px] text-slate-800 flex flex-col justify-between h-screen max-h-screen overflow-hidden z-20 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
+      <aside className="w-[204px] min-w-[204px] max-w-[204px] shrink-0 text-slate-800 flex flex-col justify-between h-screen max-h-screen overflow-hidden z-20 select-none">
         {/* Top Logo */}
-        <div className="w-full h-[46px] pt-[4px] pb-[2px] px-[12px] flex items-center shrink-0">
+        <div
+          className={`w-full h-[46px] pt-[4px] pb-[2px] px-[14px] flex items-center shrink-0 bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] ${
+            activeIndex === 0 ? "rounded-br-[18px] border-b border-slate-200/80" : ""
+          }`}
+        >
           <Link to="/dashboard" className="flex items-center gap-[8px] w-full group">
             <div>
               <div className="text-[17px] font-extrabold tracking-tight text-slate-900 leading-tight">Proctora</div>
@@ -194,46 +196,62 @@ export function AppShell({ title, count, actions, search, children, hideHeader }
         </div>
 
         {/* Navigation items */}
-        <nav className="flex-1 px-[8px] py-[2px] space-y-[1px] overflow-hidden flex flex-col justify-center">
-          {NAV.map((item) => {
-            const active = pathname === item.to || pathname.startsWith(item.to + "/");
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`relative w-full h-[38px] px-[10px] rounded-[9px] flex items-center gap-[8px] text-[11.5px] font-medium transition-all duration-150 ${
-                  active
-                    ? "text-blue-600 bg-gradient-to-r from-blue-50/90 via-blue-100/50 to-indigo-50/30 font-semibold shadow-xs shadow-blue-500/5 border border-blue-100/60"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50/80"
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[18px] bg-blue-600 rounded-r-full shadow-xs shadow-blue-500/50" />
-                )}
-                <div className="relative inline-flex items-center justify-center shrink-0">
-                  <Icon
-                    size={17}
-                    active={active}
-                    className={`${active ? "text-blue-600" : "text-[#4F8BFF] group-hover:text-blue-600"}`}
-                  />
-                  {item.to === "/results" && hasUnreadResults && (
-                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+        <nav className="flex-1 overflow-hidden flex flex-col justify-center">
+          <div className="flex flex-col">
+            {NAV.map((item, index) => {
+              const active = index === activeIndex;
+              const isBeforeActive = index === activeIndex - 1;
+              const isAfterActive = index === activeIndex + 1;
+              const Icon = item.icon;
+
+              let itemCorner = "";
+              if (isBeforeActive) {
+                itemCorner = "rounded-br-[18px] border-b border-slate-200/80";
+              } else if (isAfterActive) {
+                itemCorner = "rounded-tr-[18px] border-t border-slate-200/80";
+              }
+
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`relative w-full h-[38px] pl-[16px] pr-[12px] flex items-center gap-[9px] text-[11.5px] transition-colors duration-150 ${
+                    active
+                      ? "text-blue-600 bg-transparent font-semibold z-10"
+                      : `text-slate-500 hover:text-slate-900 hover:bg-slate-50/80 font-medium bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] ${itemCorner}`
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3.5px] h-[20px] bg-blue-600 rounded-r-full" />
                   )}
-                </div>
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
+                  <div className="relative inline-flex items-center justify-center shrink-0">
+                    <Icon
+                      size={17}
+                      active={active}
+                      className={`${active ? "text-blue-600" : "text-[#4F8BFF] group-hover:text-blue-600"}`}
+                    />
+                    {item.to === "/results" && hasUnreadResults && (
+                      <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                    )}
+                  </div>
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
 
           {/* HELP Section */}
-          <div className="pt-[3px] pb-[1px]">
-            <div className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 px-[10px] mb-[1px]">
+          <div
+            className={`pt-[4px] pb-[2px] bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] ${
+              activeIndex === NAV.length - 1 ? "rounded-tr-[18px] border-t border-slate-200/80" : ""
+            }`}
+          >
+            <div className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 px-[16px] mb-[1px]">
               HELP
             </div>
             <Link
               to="/settings"
-              className="w-full h-[34px] px-[10px] rounded-[9px] flex items-center gap-[8px] text-[11px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50/80 transition-none"
+              className="w-full h-[34px] pl-[16px] pr-[12px] flex items-center gap-[9px] text-[11px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50/80 transition-none"
             >
               <SupportIcon size={16} className="text-[#4F8BFF]" />
               <span>Support</span>
@@ -241,7 +259,7 @@ export function AppShell({ title, count, actions, search, children, hideHeader }
           </div>
 
           {/* "New Assessment Drive" Promo Card */}
-          <div className="pt-[2px] pb-[2px]">
+          <div className="pt-[2px] pb-[4px] px-[8px] bg-white/95 backdrop-blur-sm border-r border-slate-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
             <div className="w-full bg-gradient-to-br from-blue-600 to-blue-700 rounded-[10px] p-[8px] text-white shadow-md shadow-blue-600/20 relative overflow-hidden">
               <div className="text-[10.5px] font-bold text-white mb-0.5">New Assessment Drive</div>
               <p className="text-[9px] text-blue-100/90 leading-tight mb-1.5">
@@ -258,7 +276,7 @@ export function AppShell({ title, count, actions, search, children, hideHeader }
         </nav>
 
         {/* User profile footer */}
-        <div className="px-[8px] py-[6px] border-t border-slate-200/80 shrink-0">
+        <div className="px-[8px] py-[6px] bg-white/95 backdrop-blur-sm border-r border-t border-slate-200/80 shrink-0 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
           <div className="w-full flex items-center gap-[8px] p-[5px] rounded-[8px] hover:bg-slate-50 transition-none">
             <div className="w-6.5 h-6.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs shadow-blue-500/20">
               {userInfo.initials}

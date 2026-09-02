@@ -147,9 +147,11 @@
     border-color: var(--color-border);
   }
   body {
-    background-color: #f7f7f9;
+    background-color: #ffffff;
     color: #0b0b0d;
     font-family: var(--font-sans);
+    min-height: 100vh;
+    overflow-x: hidden;
   }
   code,
   kbd,
