@@ -78,6 +78,8 @@ export class OutboundExecutionProcessor extends WorkerHost {
     const { executionId, judge0Results } = job.data;
     this.logger.log(`[OutboundExecutionProcessor] Processing results for execution ${executionId}`);
 
+    await this.redisService.set(`execution:${executionId}:outbound-start`, "1", 600);
+
     const execution = await this.prisma.codingExecution.findUnique({
       where: { id: executionId },
       include: { question: true },

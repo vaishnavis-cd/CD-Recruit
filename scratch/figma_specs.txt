@@ -1,0 +1,62 @@
+
+      • [FRAME] "Frame 7" (id: 59:25) size: 389x399
+        • [FRAME] "Container" (id: 59:26) size: 390x399 bg: #5282FF
+          • [FRAME] "Container" (id: 59:27) size: 40x40 bg: #ECF1FF
+            • [FRAME] "IconUser" (id: 59:28) size: 20x20
+              • [VECTOR] "Vector" (id: 59:29) size: 7x7
+              • [VECTOR] "Vector" (id: 59:30) size: 14x7
+          • [FRAME] "Heading 3" (id: 59:31) size: 331x40
+            • [TEXT] "Resume screens" (id: 59:32) size: 124x24 text: "Resume screens" bg: #FFFFFF
+          • [FRAME] "Paragraph" (id: 59:33) size: 331x80
+            • [TEXT] "Filters that measure a candidate's pedigree and pa" (id: 59:34) size: 281x70 text: "Filters that measure a candidate's pedigree and past logos instead of their actual judgment." bg: #FFFFFF
+        • [RECTANGLE] "image 9" (id: 59:35) size: 212x212 bg: IMAGE
+        • [RECTANGLE] "Rectangle 6" (id: 61:420) size: 389x399 bg: LINEAR_GRADIENT
+    • [FRAME] "Frame 3" (id: 27:380) size: 1200x181 bg: #F4F4F4
+      • [FRAME] "Frame 2" (id: 27:379) size: 561x131
+        • [FRAME] "Container" (id: 7:60) size: 561x18
+          • [TEXT] "What Proctora sees" (id: 7:61) size: 160x18 text: "What Proctora sees" bg: #000000
+        • [FRAME] "Heading 3" (id: 7:63) size: 526x49
+          • [TEXT] "The Full Picture." (id: 7:64) size: 192x39 text: "The Full Picture." bg: #000000
+        • [FRAME] "Paragraph" (id: 7:66) size: 526x64
+          • [TEXT] "We check the tests, the syntax, and the speed. But" (id: 7:67) size: 526x48 text: "We check the tests, the syntax, and the speed. But more importantly, we check if the code actually matches what they told a teammate they'd do." bg: #000000
+      • [FRAME] "Container:margin" (id: 7:100) size: 557x85
+        • [FRAME] "Container" (id: 7:69) size: 526x49
+          • [FRAME] "Container" (id: 7:70) size: 258x20
+            • [FRAME] "Container" (id: 7:71) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:72) size: 12x12
+                • [VECTOR] "Vector" (id: 7:73) size: 8x5
+            • [FRAME] "Text" (id: 7:74) size: 62x20
+              • [TEXT] "Tests pass" (id: 7:75) size: 62x20 text: "Tests pass" bg: #000000
+          • [FRAME] "Container" (id: 7:77) size: 258x20
+            • [FRAME] "Container" (id: 7:78) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:79) size: 12x12
+                • [VECTOR] "Vector" (id: 7:80) size: 8x5
+            • [FRAME] "Text" (id: 7:81) size: 123x20
+              • [TEXT] "Contextual accuracy" (id: 7:82) size: 123x20 text: "Contextual accuracy" bg: #000000
+          • [FRAME] "Container" (id: 7:84) size: 258x20
+            • [FRAME] "Container" (id: 7:85) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:86) size: 12x12
+                • [VECTOR] "Vector" (id: 7:87) size: 8x5
+            • [FRAME] "Text" (id: 7:88) size: 77x20
+              • [TEXT] "Clean syntax" (id: 7:89) size: 77x20 text: "Clean syntax" bg: #000000
+          • [FRAME] "Container" (id: 7:91) size: 258x20
+            • [FRAME] "Container" (id: 7:92) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:93) size: 12x12
+                • [VECTOR] "Vector" (id: 7:94) size: 8x5
+            • [FRAME] "Text" (id: 7:95) size: 108x20
+              • [TEXT] "Say-Do alignment" (id: 7:96) size: 108x20 text: "Say-Do alignment" bg: #000000
+  • [FRAME] "Container" (id: 121:613) size: 1470x394 bg: #5282FF
+    • [FRAME] "Frame 25" (id: 121:614) size: 1470x394
+      • [FRAME] "Frame 9" (id: 121:615) size: 591x298
+        • [TEXT] "See what your current process is missing." (id: 121:616) size: 591x126 text: "See what your current\nprocess is missing." bg: #FFFFFF
+        • [TEXT] "Walk through a real session and see the Say-Do Sco" (id: 121:617) size: 440x58 text: "Walk through a real session and see the Say-Do Score applied to an actual candidate response." bg: #FFFFFF
+        • [FRAME] "Container" (id: 121:618) size: 186x54
+          • [FRAME] "Button" (id: 121:619) size: 186x54 bg: #FFFFFF
+            • [TEXT] "Request a demo" (id: 121:620) size: 122x24 text: "Request a demo" bg: #000000
+      • [VECTOR] "Vector" (id: 121:621) size: 756x821 bg: #EBEBEB
+      • [VECTOR] "Vector" (id: 121:622) size: 828x779 bg: #EBEBEB
+      • [RECTANGLE] "image 10" (id: 121:623) size: 372x235 bg: IMAGE
+      • [RECTANGLE] "Screenshot 2026-08-20 115855 1" (id: 121:624) size: 372x235 bg: IMAGE
+      • [RECTANGLE] "image 12" (id: 121:626) size: 373x237 bg: IMAGE
+      • [RECTANGLE] "image 13" (id: 121:627) size: 371x233 bg: IMAGE
+      • [RECTANGLE] "image 11" (id: 121:628) size: 372x235 bg: IMAGE

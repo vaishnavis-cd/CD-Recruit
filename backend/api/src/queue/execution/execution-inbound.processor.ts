@@ -3,6 +3,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Job } from "bullmq";
 import { PrismaService } from "@app/prisma/prisma.service";
+import { RedisService } from "../../common/redis/redis.service";
 import { Judge0Client } from "../../integrations/judge0/judge0.client";
 import { Judge0Service } from "../../integrations/judge0/judge0.service";
 import { generateJudge0WebhookSignature } from "../../integrations/judge0/judge0-webhook.guard";
@@ -21,6 +22,7 @@ export class InboundExecutionProcessor extends WorkerHost {
     private readonly judge0Service: Judge0Service,
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly queueProvider: QueueProviderPort,
+    private readonly redisService: RedisService,
   ) {
     super();
   }
@@ -84,6 +86,8 @@ export class InboundExecutionProcessor extends WorkerHost {
     const { executionId, type } = job.data;
     this.logger.log(`[InboundExecutionProcessor] Processing ${type} execution ${executionId}`);
 
+    await this.redisService.set(`execution:${executionId}:inbound-start`, "1", 600);
+
     const execution = await this.prisma.codingExecution.findUnique({
       where: { id: executionId },
       include: { question: true },
@@ -140,6 +144,8 @@ export class InboundExecutionProcessor extends WorkerHost {
           totalTests: testCases.length,
         },
       });
+
+      await this.redisService.set(`execution:${executionId}:dispatched`, "1", 600);
 
       // Compute dynamic watchdog timeout based on CPU time limit & total tests
       const cpuLimit = this.configService.get<number>("judge0CpuTimeLimit", { infer: true }) ?? 5.0;
