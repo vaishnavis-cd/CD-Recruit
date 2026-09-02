@@ -81,6 +81,7 @@ function mapBackendSession(session: any): Session {
       ? (rawSayDo <= 1.0 && rawSayDo > 0 ? Math.round(rawSayDo * 100) : Math.round(rawSayDo))
       : null;
 
+
   const initials = session.candidateName
     ? session.candidateName
       .split(" ")
@@ -147,14 +148,15 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         url += `&search=${encodeURIComponent(query.search)}`;
       }
       const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
-      const mapped = data.items.map((s: any) => mapBackendSession(s));
+      const items = Array.isArray(data) ? data : (data.items || data.data || []);
+      const mapped = items.map((s: any) => mapBackendSession(s));
       set({ sessions: mapped, loading: false });
     } catch (err: any) {
       console.error(err);
       set({ error: err.message, loading: false });
     }
+
   },
 
   fetchSessionDetail: async (sessionId: string): Promise<CandidateSessionDetail> => {

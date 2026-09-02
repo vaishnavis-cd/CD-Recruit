@@ -151,135 +151,112 @@ function ResultsPage() {
   }
 
   return (
-    <AppShell
-      title="Candidate Results"
-      count={filtered.length}
-      search={
-        <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search candidate name or email…"
-            className="w-full pl-9 pr-3 py-2 text-sm-minus border border-line rounded-md bg-canvas focus:outline-none focus:border-brand"
-          />
-        </div>
-      }
-      actions={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle border border-brand-border rounded hover:bg-brand-subtle transition-colors cursor-pointer"
-            title="Download full candidate evaluation CSV dataset from server"
-          >
-            <Download size={13} />
-            Export CSV
-          </button>
-          <ExportDropdown
-            data={filtered}
-            filenamePrefix="proctora-candidate-results"
-            title="Candidate Assessment Results"
-          />
-        </div>
-      }
-    >
-      {/* Metric Cards Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-ink-tertiary mb-1">
-            Total Evaluated
+    <AppShell hideHeader={true}>
+      <div className="max-w-[1320px] mx-auto w-full space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight">
+              Candidate Results
+            </h1>
+            <p className="text-[12px] text-[#64748B] mt-1">
+              Review candidate performance scores, integrity flags, evaluated tracks, and record pass/fail hiring decisions.
+            </p>
           </div>
-          <div className="text-2xl font-mono font-semibold text-ink">{stats.total}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-amber-600 mb-1">
-            Pending Review
-          </div>
-          <div className="text-2xl font-mono font-semibold text-amber-700">{stats.pending}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-emerald-700 mb-1">
-            Approved (Pass)
-          </div>
-          <div className="text-2xl font-mono font-semibold text-emerald-700">{stats.approved}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-rose-700 mb-1">
-            Rejected (Fail)
-          </div>
-          <div className="text-2xl font-mono font-semibold text-rose-700">{stats.rejected}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-brand mb-1">
-            Avg Composite Score
-          </div>
-          <div className="text-2xl font-mono font-semibold text-brand">{stats.avgScore}%</div>
-        </div>
-      </div>
 
-      {/* Filter Bar with Verify All button placed next to Drive Filter */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              { id: "all", label: `All Results (${stats.total})` },
-              { id: "pending", label: `Pending (${stats.pending})` },
-              { id: "PASS", label: `Approved (${stats.approved})` },
-              { id: "FAIL", label: `Rejected (${stats.rejected})` },
-            ] as const
-          ).map((chip) => (
+          <div className="flex items-center gap-2.5">
             <button
-              key={chip.id}
-              onClick={() => setStatusFilter(chip.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                statusFilter === chip.id
-                  ? "bg-brand text-white border-brand"
-                  : "bg-white text-ink-secondary border-line hover:border-line-strong"
-              }`}
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
+              title="Download full candidate evaluation CSV dataset from server"
             >
-              {chip.label}
+              <Download size={13} />
+              <span>Export CSV</span>
             </button>
-          ))}
+            <ExportDropdown
+              data={filtered}
+              filenamePrefix="proctora-candidate-results"
+              title="Candidate Assessment Results"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Verify All Button near Filter Dropdown - visible only when Approved filter is active */}
-          {statusFilter === "PASS" && (
-            <button
-              id="verify-all-btn"
-              onClick={handleVerifyAll}
-              disabled={verifying || filtered.length === 0}
-              title={
-                filtered.length === 0
-                  ? "No candidates to verify"
-                  : `Verify identity for ${filtered.length} candidate${filtered.length === 1 ? "" : "s"}`
-              }
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all shadow-sm ${
-                filtered.length === 0 || verifying
-                  ? "bg-canvas text-ink-muted border-line cursor-not-allowed"
-                  : "text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
-              }`}
-            >
-              {verifying ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  Verifying…
-                </>
-              ) : (
-                <>
-                  <ScanFace size={13} />
-                  Verify All ({filtered.length})
-                </>
-              )}
-            </button>
-          )}
+        {/* Metric Cards Summary Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+              Total Evaluated
+            </div>
+            <div className="text-[24px] font-bold text-[#0F172A]">{stats.total}</div>
+          </div>
+          <div className="bg-[#FFFDF5] border border-[#FEF3C7] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#D97706] mb-1">
+              Pending Review
+            </div>
+            <div className="text-[24px] font-bold text-[#D97706]">{stats.pending}</div>
+          </div>
+          <div className="bg-[#F6FEF9] border border-[#D1FAE5] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#059669] mb-1">
+              Approved (Pass)
+            </div>
+            <div className="text-[24px] font-bold text-[#059669]">{stats.approved}</div>
+          </div>
+          <div className="bg-[#FEF6F6] border border-[#FEE2E2] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#DC2626] mb-1">
+              Rejected (Fail)
+            </div>
+            <div className="text-[24px] font-bold text-[#DC2626]">{stats.rejected}</div>
+          </div>
+          <div className="bg-[#F8FAFF] border border-[#DBEAFE] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#2563EB] mb-1">
+              Avg Composite Score
+            </div>
+            <div className="text-[24px] font-bold text-[#2563EB]">{stats.avgScore}%</div>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-ink-secondary font-medium">Filter by Drive:</label>
+        {/* Filter Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: "all", label: `All Results (${stats.total})` },
+                { id: "pending", label: `Pending (${stats.pending})` },
+                { id: "PASS", label: `Approved (${stats.approved})` },
+                { id: "FAIL", label: `Rejected (${stats.rejected})` },
+              ] as const
+            ).map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => setStatusFilter(chip.id)}
+                className={`h-[35px] px-4 rounded-full text-[13px] transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === chip.id
+                    ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                    : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal border border-transparent"
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Search Input */}
+            <div className="relative w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search candidate..."
+                className="w-full h-[35px] pl-9 pr-3 text-[12px] border border-[#E2E8F0] rounded-[8px] bg-white text-[#0F172A] outline-none focus:border-[#2563EB] shadow-xs"
+              />
+            </div>
+
+            {/* Filter by Drive */}
             <select
               value={driveFilter}
               onChange={(e) => setDriveFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
+              className="h-[35px] px-3 text-[12px] border border-[#E2E8F0] rounded-[8px] bg-white text-[#0F172A] focus:border-[#2563EB] outline-none shadow-xs cursor-pointer"
             >
               <option value="all">All Drives</option>
               {drives.map((d) => (
@@ -290,31 +267,30 @@ function ResultsPage() {
             </select>
           </div>
         </div>
-      </div>
 
-      {/* Results Data Table */}
-      <div className="bg-white border border-line rounded-lg shadow-sm overflow-hidden">
+        {/* Results Data Table */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[12px] shadow-xs overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-12 text-center">
-            <FileSpreadsheet size={32} className="mx-auto text-ink-tertiary mb-2" />
-            <p className="text-sm-minus text-ink-tertiary italic">No candidate evaluation results found.</p>
+            <FileSpreadsheet size={32} className="mx-auto text-[#94A3B8] mb-2" />
+            <p className="text-[13px] text-[#94A3B8] italic">No candidate evaluation results found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className="bg-canvas border-b border-line text-2xs font-mono uppercase tracking-wider text-ink-secondary">
-                  <th className="py-3 px-4 font-semibold">Candidate</th>
-                  <th className="py-3 px-4 font-semibold">Drive &amp; Track</th>
-                  <th className="py-3 px-4 font-semibold">Submitted</th>
-                  <th className="py-3 px-4 font-semibold text-center">Score</th>
-                  <th className="py-3 px-4 font-semibold text-center">Integrity Risk</th>
-                  <th className="py-3 px-4 font-semibold text-center">Decision</th>
-                  <th className="py-3 px-4 font-semibold text-center">Verification</th>
-                  <th className="py-3 px-4 font-semibold text-right">Action</th>
+                <tr className="bg-white border-b border-[#E2E8F0] text-[10px] font-bold font-sans uppercase tracking-wider text-[#64748B]">
+                  <th className="py-3 px-4">Candidate</th>
+                  <th className="py-3 px-4">Drive &amp; Track</th>
+                  <th className="py-3 px-4">Submitted</th>
+                  <th className="py-3 px-4 text-center">Score</th>
+                  <th className="py-3 px-4 text-center">Integrity Risk</th>
+                  <th className="py-3 px-4 text-center">Decision</th>
+                  <th className="py-3 px-4 text-center">Verification</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="divide-y divide-[#F1F5F9]">
                 {filtered.map((item: any) => {
                   const rawScore = item.compositeScore;
                   const scoreVal = typeof rawScore === "number" ? Math.round(rawScore) : 0;
@@ -465,6 +441,7 @@ function ResultsPage() {
           onClose={() => setSelectedVerificationItem(null)}
         />
       )}
+      </div>
     </AppShell>
   );
 }

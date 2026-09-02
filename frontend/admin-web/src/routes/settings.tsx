@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Users,
   Sliders,
-  Shield,
+  Settings2,
   ShieldCheck,
   FileText,
+  List,
   Check,
   AlertCircle,
   Search,
@@ -21,8 +22,14 @@ import {
   Lock,
   Unlock,
   Globe,
-  RotateCcw,
+  Contact,
+  AlarmClock,
+  Plug,
+  Cpu,
+  GitFork,
 } from "lucide-react";
+
+
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
@@ -47,16 +54,8 @@ function SettingsPage() {
   const isAdmin = profile?.role === "ADMIN";
 
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "permissions" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
 
-  // Dynamic Role Permissions state
-  const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, string[]>>({});
-  const [permissionDescriptors, setPermissionDescriptors] = useState<any[]>([]);
-  const [matrixRoles, setMatrixRoles] = useState<string[]>([]);
-  const [loadingPermissions, setLoadingPermissions] = useState(false);
-  const [savingPermissionKey, setSavingPermissionKey] = useState<string | null>(null);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resettingPermissions, setResettingPermissions] = useState(false);
 
   // Assessment Modules Settings state
   const [moduleSettings, setModuleSettings] = useState<any[]>([]);
@@ -67,6 +66,7 @@ function SettingsPage() {
   const [adminName, setAdminName] = useState("Lead Proctor Admin");
   const [adminEmail, setAdminEmail] = useState("admin@proctora.com");
   const [apiKeyGenerated, setApiKeyGenerated] = useState<string | null>(null);
+
 
   // Staff state
   const [staff, setStaff] = useState<any[]>([]);
@@ -468,106 +468,8 @@ function SettingsPage() {
     }
   };
 
-  const loadPermissions = async () => {
-    setLoadingPermissions(true);
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/settings/permissions`, { headers });
-      if (!res.ok) throw new Error("Failed to load permissions matrix");
-      const data = await res.json();
-      if (data?.matrix) {
-        setPermissionsMatrix(data.matrix);
-        setPermissionDescriptors(data.descriptors || []);
-        setMatrixRoles(data.roles || []);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to load permissions");
-    } finally {
-      setLoadingPermissions(false);
-    }
-  };
-
-  const handleTogglePermission = async (role: string, permissionKey: string, currentVal: boolean) => {
-    if (role === "ADMIN") {
-      toast.error("Superadmin permissions cannot be modified");
-      return;
-    }
-
-    const cellKey = `${role}-${permissionKey}`;
-    setSavingPermissionKey(cellKey);
-
-    // Optimistic UI update
-    setPermissionsMatrix((prev) => {
-      const perms = new Set(prev[role] || []);
-      if (!currentVal) {
-        perms.add(permissionKey);
-      } else {
-        perms.delete(permissionKey);
-      }
-      return {
-        ...prev,
-        [role]: Array.from(perms),
-      };
-    });
-
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/settings/permissions`, {
-        method: "PATCH",
-        headers: {
-          ...headers,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          role,
-          permission: permissionKey,
-          isEnabled: !currentVal,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to update role permission");
-      }
-
-      toast.success(
-        !currentVal
-          ? `Granted ${permissionKey} to ${role.replace("_", " ")}`
-          : `Revoked ${permissionKey} from ${role.replace("_", " ")}`
-      );
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update permission");
-      loadPermissions(); // rollback
-    } finally {
-      setSavingPermissionKey(null);
-    }
-  };
-
-  const handleResetPermissions = async () => {
-    setResettingPermissions(true);
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/settings/permissions/reset`, {
-        method: "POST",
-        headers,
-      });
-
-      if (!res.ok) throw new Error("Failed to reset permissions");
-      const data = await res.json();
-      if (data?.matrix) {
-        setPermissionsMatrix(data.matrix);
-      }
-      toast.success("Role permissions restored to system defaults");
-      setShowResetModal(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to reset permissions");
-    } finally {
-      setResettingPermissions(false);
-    }
-  };
-
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
-    if (activeTab === "permissions") loadPermissions();
     if (activeTab === "scoring") loadScoringConfig();
     if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
@@ -668,1074 +570,979 @@ function SettingsPage() {
     }
   };
 
+function AdminProfileIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
-    <AppShell title="Settings & Administration">
-      <div className="flex gap-8">
-        {/* Navigation Tabs Side */}
-        <div className="w-[180px] shrink-0 flex flex-col gap-1 text-sm-minus">
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "profile"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Users size={14} />
-            Admin Profile
-          </button>
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "users"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Users size={14} />
-            Staff & Roles
-          </button>
-          <button
-            onClick={() => setActiveTab("permissions")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "permissions"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <ShieldCheck size={14} />
-            Roles &amp; Permissions
-          </button>
-          <button
-            onClick={() => setActiveTab("scoring")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "scoring"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Sliders size={14} />
-            AI & Scoring
-          </button>
-          <button
-            onClick={() => setActiveTab("system")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "system"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Sliders size={14} />
-            System Timing
-          </button>
-          <button
-            onClick={() => setActiveTab("retention")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "retention"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Shield size={14} />
-            Data Retention
-          </button>
-          <button
-            onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "audit"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <FileText size={14} />
-            Audit Logs
-          </button>
-          <button
-            onClick={() => setActiveTab("integrations")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "integrations"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Key size={14} />
-            Integrations
-          </button>
-          <button
-            onClick={() => setActiveTab("modules")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "modules"
-                ? "bg-white border border-line text-brand shadow-sm"
-                : "text-ink-secondary hover:text-ink"
-              }`}
-          >
-            <Sliders size={14} />
-            Assessment Modules
-          </button>
-        </div>
+    <svg width={size} height={size} viewBox="282 156 16 14" fill="none" className={className}>
+      <path d="M292.667 161.667H294.001M292.667 164.334H294.001M286.113 165C286.251 164.609 286.506 164.271 286.844 164.032C287.182 163.792 287.586 163.664 288 163.664C288.414 163.664 288.818 163.792 289.156 164.032C289.494 164.271 289.749 164.609 289.887 165M289.333 162.333C289.333 163.07 288.736 163.667 288 163.667C287.264 163.667 286.667 163.07 286.667 162.333C286.667 161.597 287.264 161 288 161C288.736 161 289.333 161.597 289.333 162.333ZM284.666 158.333H295.334C296.07 158.333 296.667 158.93 296.667 159.666V166.334C296.667 167.07 296.07 167.667 295.334 167.667H284.666C283.93 167.667 283.333 167.07 283.333 166.334V159.666C283.333 158.93 283.93 158.333 284.666 158.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
-        {/* Tab Body */}
-        <div className="flex-1 min-w-0 bg-white border border-line rounded-lg p-6">
-          {/* Tab 0: Admin Profile */}
-          {activeTab === "profile" && (
-            <div className="max-w-[480px] space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-ink">
-                  Admin Account Details
-                </h3>
-                <p className="text-xs-plus text-ink-tertiary mt-0.5">
-                  Manage your administrator display name and email address.
-                </p>
-              </div>
+function StaffRolesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 198 16 14" fill="none" className={className}>
+      <path d="M292.667 211V209.667C292.667 208.959 292.386 208.281 291.886 207.781C291.386 207.281 290.708 207 290 207H286C285.293 207 284.614 207.281 284.114 207.781C283.614 208.281 283.333 208.959 283.333 209.667V211M292.667 199.085C293.239 199.234 293.745 199.567 294.107 200.035C294.469 200.502 294.665 201.076 294.665 201.667C294.665 202.257 294.469 202.831 294.107 203.299C293.745 203.766 293.239 204.1 292.667 204.248M296.667 211V209.667C296.667 209.076 296.47 208.502 296.108 208.035C295.746 207.568 295.239 207.234 294.667 207.087M290.667 201.667C290.667 203.139 289.473 204.333 288 204.333C286.527 204.333 285.333 203.139 285.333 201.667C285.333 200.194 286.527 199 288 199C289.473 199 290.667 200.194 290.667 201.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
-              <div className="space-y-4 text-sm-minus">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    Display Name
-                  </label>
-                  <input
-                    value={adminName}
-                    onChange={(e) => setAdminName(e.target.value)}
-                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
-                  />
-                </div>
+function AIScoringIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 239 16 16" fill="none" className={className}>
+      <path d="M290 252.334V253.667M290 240.333V241.666M293.334 252.334V253.667M293.334 240.333V241.666M283.333 247H284.666M283.333 250.334H284.666M283.333 243.667H284.666M295.334 247H296.667M295.334 250.334H296.667M295.334 243.667H296.667M286.667 252.334V253.667M286.667 240.333V241.666M286 241.666H294.001C294.737 241.666 295.334 242.263 295.334 243V251.001C295.334 251.737 294.737 252.334 294.001 252.334H286C285.263 252.334 284.666 251.737 284.666 251.001V243C284.666 242.263 285.263 241.666 286 241.666ZM288 244.333H292C292.369 244.333 292.667 244.632 292.667 245V249C292.667 249.369 292.369 249.667 292 249.667H288C287.632 249.667 287.333 249.369 287.333 249V245C287.333 244.632 287.632 244.333 288 244.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    Admin Email
-                  </label>
-                  <input
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
-                  />
-                </div>
+function SystemTimingIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 281 16 16" fill="none" className={className}>
+      <path d="M290 287V289.667L291.334 291M285.333 283L283.333 285M296.667 285L294.667 283M286.253 293.467L284.666 295M293.76 293.447L295.334 295M295.334 289.667C295.334 292.612 292.946 295 290 295C287.054 295 284.666 292.612 284.666 289.667C284.666 286.721 287.054 284.333 290 284.333C292.946 284.333 295.334 286.721 295.334 289.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    System Role
-                  </label>
-                  <div className="px-3 py-2 border border-line rounded bg-canvas text-ink-secondary font-mono text-xs">
-                    ADMIN (Full Privileges & Governance)
-                  </div>
-                </div>
-              </div>
+function RetentionPolicyIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="282 323 16 16" fill="none" className={className}>
+      <path d="M288 331L289.333 332.333L292 329.667M295.333 331.667C295.333 335 292.999 336.667 290.226 337.634C290.081 337.683 289.923 337.681 289.78 337.627C287 336.667 284.667 335 284.667 331.667V327C284.667 326.823 284.737 326.654 284.862 326.529C284.987 326.404 285.157 326.333 285.334 326.333C286.667 326.333 288.333 325.533 289.493 324.52C289.634 324.399 289.814 324.333 290 324.333C290.186 324.333 290.365 324.399 290.506 324.52C291.673 325.54 293.333 326.333 294.666 326.333C294.843 326.333 295.012 326.404 295.137 326.529C295.262 326.654 295.333 326.823 295.333 327V331.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
-              <button
-                onClick={() => toast.success("Admin Profile details updated successfully")}
-                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover shadow-sm transition-colors cursor-pointer"
-              >
-                Save Profile
-              </button>
-            </div>
-          )}
+function AuditLogsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="383 3869 14 12" fill="none" className={className}>
+      <path
+        d="M384 3870.33H384.667M384 3875H384.667M384 3879.67H384.667M387.333 3870.33H388M387.333 3875H388M387.333 3879.67H388M390.667 3870.33H396M390.667 3875H396M390.667 3879.67H396"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
-          {/* Tab 1: Staff & Roles */}
-          {activeTab === "users" && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-ink">
-                    Manage Staff &amp; Team Permissions
-                  </h3>
-                  <p className="text-xs-plus text-ink-tertiary mt-0.5">
-                    Add team members, assign operational roles, and manage system privileges:
-                  </p>
-                </div>
+function IntegrationsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="383 3909 15 15" fill="none" className={className}>
+      <path
+        d="M390.74 3914.11L391.927 3915.89M391.441 3917.53L389.225 3918.47M395.333 3911.67L391.293 3912.68M384 3911V3921.67C384 3922.02 384.14 3922.36 384.391 3922.61C384.641 3922.86 384.98 3923 385.333 3923H396M391.333 3913C391.333 3913.74 390.736 3914.33 390 3914.33C389.264 3914.33 388.667 3913.74 388.667 3913C388.667 3912.26 389.264 3911.67 390 3911.67C390.736 3911.67 391.333 3912.26 391.333 3913ZM394 3917C394 3917.74 393.403 3918.33 392.667 3918.33C391.93 3918.33 391.333 3917.74 391.333 3917C391.333 3916.26 391.93 3915.67 392.667 3915.67C393.403 3915.67 394 3916.26 394 3917ZM389.333 3919C389.333 3919.74 388.736 3920.33 388 3920.33C387.264 3920.33 386.667 3919.74 386.667 3919C386.667 3918.26 387.264 3917.67 388 3917.67C388.736 3917.67 389.333 3918.26 389.333 3919Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+  const TABS = [
+    { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
+    { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
+    { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
+    { id: "system", label: "System Timing", icon: SystemTimingIcon },
+    { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
+    { id: "audit", label: "Audit Logs", icon: AuditLogsIcon },
+    { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
+  ] as const;
+
+  return (
+    <AppShell hideHeader={true}>
+      <div className="max-w-[1320px] mx-auto w-full">
+        {/* Main Header */}
+        <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-8">
+          Settings &amp; Administration
+        </h1>
+
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* Navigation Tabs Side */}
+          <div className="w-full lg:w-[200px] shrink-0 flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
                 <button
-                  onClick={() => setShowAddStaffModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2.5 px-4 h-[35px] rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-[13px] ${
+                    active
+                      ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                      : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
+                  }`}
                 >
-                  <UserPlus size={14} /> Add Staff Member
+                  <Icon size={15} className={active ? "text-[#2E5DE0]" : "text-[#64748B]"} />
+                  <span>{tab.label}</span>
                 </button>
-              </div>
+              );
+            })}
+          </div>
 
-              {/* Roles Breakdown Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-rose-700 uppercase">ADMIN</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Full access to settings, system timing, staff roles & audit logs.</p>
-                </div>
-                <div className="p-3 bg-brand-subtle border border-brand-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-brand-ink uppercase">RECRUITER</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Drive creation, candidate invitations, and hiring decision log.</p>
-                </div>
-                <div className="p-3 bg-warning-subtle border border-warning-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-amber-800 uppercase">PROCTOR</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Real-time session monitoring, integrity flag review & video evidence.</p>
-                </div>
-                <div className="p-3 bg-success-subtle border border-success-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-emerald-800 uppercase">EVALUATOR</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Technical evaluation of code, SQL queries, and AI prompt traces.</p>
-                </div>
-              </div>
-
-              {loadingStaff ? (
-                <p className="text-center font-mono text-xs text-ink-tertiary py-6">
-                  Loading staff roster…
-                </p>
-              ) : (
-                <div className="border border-line rounded-lg divide-y divide-surface-inset overflow-hidden bg-white shadow-sm">
-                  {staff.map((s) => (
-                    <div key={s.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-canvas">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-subtle border border-brand-border text-brand font-bold text-xs flex items-center justify-center font-mono shrink-0">
-                          {s.name ? s.name.charAt(0).toUpperCase() : "S"}
-                        </div>
-                        <div>
-                          <div className="text-sm-minus font-semibold text-ink flex items-center gap-2">
-                            <span>{s.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${s.role === "ADMIN"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : s.role === "HR_LEAD"
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : s.role === "HR_ASSOCIATE"
-                                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                                    : s.role === "REVIEWER"
-                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                      : "bg-slate-50 text-slate-700 border-slate-200"
-                              }`}>
-                              {s.role}
-                            </span>
-                          </div>
-                          <div className="text-xs-plus text-ink-secondary font-mono">{s.email}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <select
-                          value={s.role}
-                          onChange={(e) => handleUpdateRole(s.id, e.target.value)}
-                          className="px-2.5 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink outline-none shadow-sm cursor-pointer"
-                        >
-                          <option value="ADMIN">Admin (Superadmin)</option>
-                          <option value="HR_LEAD">HR Lead / Manager</option>
-                          <option value="HR_ASSOCIATE">HR Associate / Recruiter</option>
-                          <option value="REVIEWER">Technical Evaluator</option>
-                          <option value="RECRUITER">Recruiter (Legacy)</option>
-                        </select>
-
-                        <button
-                          onClick={() => handleDeleteStaff(s.id, s.name)}
-                          title="Remove staff member"
-                          className="p-1.5 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {staff.length === 0 && (
-                    <div className="p-6 text-center text-ink-tertiary text-xs">
-                      No staff members registered. Click "Add Staff Member" to grant access.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Add Staff Modal */}
-              {showAddStaffModal && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
-                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
-                      <div className="flex items-center gap-2">
-                        <UserPlus size={16} className="text-brand" />
-                        <h3 className="text-md font-semibold text-ink">Add New Staff Member</h3>
-                      </div>
-                      <button
-                        onClick={() => setShowAddStaffModal(false)}
-                        className="text-ink-tertiary hover:text-ink cursor-pointer"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleCreateStaff} className="space-y-4 text-sm-minus">
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Full Name</label>
-                        <input
-                          type="text"
-                          required
-                          value={newStaffName}
-                          onChange={(e) => setNewStaffName(e.target.value)}
-                          placeholder="e.g. Sarah Connor"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          required
-                          value={newStaffEmail}
-                          onChange={(e) => setNewStaffEmail(e.target.value)}
-                          placeholder="e.g. sarah@company.com"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Assigned Role</label>
-                        <select
-                          value={newStaffRole}
-                          onChange={(e) => setNewStaffRole(e.target.value)}
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        >
-                          <option value="HR_LEAD">HR Lead / Manager (Decisions, Evaluations &amp; Governance)</option>
-                          <option value="HR_ASSOCIATE">HR Associate (Drives &amp; Candidate Ingestion)</option>
-                          <option value="ADMIN">Admin (Superadmin — Full Platform Access)</option>
-                          <option value="REVIEWER">Technical Evaluator (Submission Scoring)</option>
-                          <option value="RECRUITER">Recruiter (Legacy Full Access)</option>
-                        </select>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
-                        <button
-                          type="button"
-                          onClick={() => setShowAddStaffModal(false)}
-                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={creatingStaff}
-                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
-                        >
-                          {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Dynamic Roles & Permissions Matrix */}
-          {activeTab === "permissions" && (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between border-b border-line pb-4">
+          {/* Tab Body Card */}
+          <div className="flex-1 min-w-0 w-full bg-white rounded-[16px] p-8 md:p-10 border border-[#E2E8F0] shadow-xs min-h-[480px]">
+            {/* Tab 1: Admin Profile */}
+            {activeTab === "profile" && (
+              <div className="max-w-[956px] space-y-6">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck size={18} className="text-brand" />
-                    <h3 className="text-md font-semibold text-ink">
-                      Dynamic Role-Based Access Control (RBAC)
-                    </h3>
-                  </div>
-                  <p className="text-xs-plus text-ink-tertiary mt-1 max-w-2xl">
-                    Configure platform action permissions for each role dynamically.
-                    Toggle capabilities ON or OFF to grant or restrict access instantly without code changes.
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">Admin Account Details</h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Manage your administrator display name and email address.
                   </p>
                 </div>
 
-                {isAdmin && (
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      Display Name
+                    </label>
+                    <input
+                      value={adminName}
+                      onChange={(e) => setAdminName(e.target.value)}
+                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 outline-none transition-all"
+                      placeholder="Lead Proctor Admin"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      Admin Email
+                    </label>
+                    <input
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 outline-none transition-all"
+                      placeholder="admin@proctora.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      System Role
+                    </label>
+                    <input
+                      disabled
+                      value="ADMIN (Full Privileges & Governance)"
+                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#64748B] bg-[#F8FAFC] cursor-not-allowed select-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-3">
                   <button
-                    onClick={() => setShowResetModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas transition-colors cursor-pointer shadow-sm"
+                    onClick={() => toast.success("Admin Profile details updated successfully")}
+                    className="px-6 h-[36px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full shadow-xs transition-all cursor-pointer"
                   >
-                    <RotateCcw size={13} />
-                    Reset to Defaults
+                    Save Profile
                   </button>
-                )}
+                </div>
               </div>
+            )}
 
-              {loadingPermissions ? (
-                <div className="py-12 text-center text-ink-tertiary text-xs">
-                  Loading role permissions matrix…
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  {/* Iterate by Category */}
-                  {Array.from(new Set(permissionDescriptors.map((d) => d.category))).map((category) => {
-                    const descriptorsInCategory = permissionDescriptors.filter((d) => d.category === category);
-                    return (
-                      <div key={category} className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
-                            {category}
-                          </h4>
-                          <div className="h-px flex-1 bg-surface-inset" />
-                        </div>
-
-                        <div className="border border-line rounded-lg overflow-hidden bg-white shadow-xs">
-                          <table className="w-full text-left text-xs-plus border-collapse">
-                            <thead>
-                              <tr className="bg-canvas border-b border-line text-xs font-semibold text-ink-secondary">
-                                <th className="py-3 px-4 w-2/5">Capability / Action</th>
-                                <th className="py-3 px-3 text-center w-[15%]">
-                                  <div className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
-                                    <Lock size={10} /> ADMIN
-                                  </div>
-                                </th>
-                                <th className="py-3 px-3 text-center w-[15%]">
-                                  <div className="inline-flex items-center gap-1 text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
-                                    HR LEAD
-                                  </div>
-                                </th>
-                                <th className="py-3 px-3 text-center w-[15%]">
-                                  <div className="inline-flex items-center gap-1 text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
-                                    HR ASSOCIATE
-                                  </div>
-                                </th>
-                                <th className="py-3 px-3 text-center w-[15%]">
-                                  <div className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
-                                    REVIEWER
-                                  </div>
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-line">
-                              {descriptorsInCategory.map((desc) => {
-                                return (
-                                  <tr key={desc.key} className="hover:bg-canvas/50 transition-colors">
-                                    <td className="py-3 px-4">
-                                      <div className="font-medium text-ink">{desc.name}</div>
-                                      <div className="text-2xs text-ink-tertiary mt-0.5">{desc.description}</div>
-                                      <div className="text-3xs font-mono text-ink-quaternary mt-0.5">{desc.key}</div>
-                                    </td>
-
-                                    {/* ADMIN Column (Always ON, locked) */}
-                                    <td className="py-3 px-3 text-center">
-                                      <div className="inline-flex items-center justify-center">
-                                        <div className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full bg-brand/80 border-2 border-transparent transition-colors duration-200 ease-in-out opacity-75">
-                                          <span className="translate-x-4 pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out" />
-                                        </div>
-                                      </div>
-                                    </td>
-
-                                    {/* Configurable Roles Columns */}
-                                    {["HR_LEAD", "HR_ASSOCIATE", "REVIEWER"].map((roleKey) => {
-                                      const isEnabled = (permissionsMatrix[roleKey] || []).includes(desc.key);
-                                      const isSaving = savingPermissionKey === `${roleKey}-${desc.key}`;
-
-                                      return (
-                                        <td key={roleKey} className="py-3 px-3 text-center">
-                                          <div className="inline-flex items-center justify-center">
-                                            <button
-                                              type="button"
-                                              disabled={!isAdmin || isSaving}
-                                              onClick={() => handleTogglePermission(roleKey, desc.key, isEnabled)}
-                                              title={
-                                                !isAdmin
-                                                  ? "Only Admins can change role permissions"
-                                                  : `Toggle ${desc.name} for ${roleKey}`
-                                              }
-                                              className={`relative inline-flex h-5 w-9 shrink-0 ${!isAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                                                } rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isEnabled ? "bg-brand" : "bg-line hover:bg-line-strong"
-                                                }`}
-                                            >
-                                              <span
-                                                className={`${isEnabled ? "translate-x-4" : "translate-x-0"
-                                                  } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out`}
-                                              />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      );
-                                    })}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Reset to Defaults Confirmation Modal */}
-              {showResetModal && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[400px] w-full p-6 shadow-xl space-y-4">
-                    <div className="flex items-center gap-2 text-amber-600">
-                      <AlertCircle size={20} />
-                      <h3 className="text-md font-semibold text-ink">Reset Role Permissions?</h3>
-                    </div>
-                    <p className="text-xs text-ink-secondary">
-                      This will restore all capabilities for <strong>HR Lead</strong>, <strong>HR Associate</strong>, and <strong>Reviewer</strong> back to their factory default settings.
+            {/* Tab 2: Staff & Roles */}
+            {activeTab === "users" && (
+              <div className="space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Manage Staff &amp; Team Permissions</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Add team members, assign operational roles, and manage system privileges.
                     </p>
-                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
-                      <button
-                        type="button"
-                        onClick={() => setShowResetModal(false)}
-                        className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        disabled={resettingPermissions}
-                        onClick={handleResetPermissions}
-                        className="px-4 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
-                      >
-                        {resettingPermissions ? "Resetting…" : "Confirm Reset"}
-                      </button>
-                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab 2: Scoring & AI Intensity */}
-          {activeTab === "scoring" && (
-            <div className="max-w-[440px] space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-ink">
-                  AI Proctoring Intensity &amp; Scoring Controls
-                </h3>
-                <p className="text-xs-plus text-ink-tertiary mt-0.5">
-                  Configure real-time monitoring strictness and score threshold levels:
-                </p>
-              </div>
-
-              <div className="space-y-4 text-sm-minus">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    AI Proctoring Intensity Level
-                  </label>
-                  <select
-                    value={aiIntensity}
-                    onChange={(e) => setAiIntensity(e.target.value)}
-                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink text-sm-minus outline-none"
+                  <button
+                    onClick={() => setShowAddStaffModal(true)}
+                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
                   >
-                    <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
-                    <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
-                    <option value="HIGH">High (Strict — Flag multi-face & tab switches quickly)</option>
-                    <option value="STRICT">Strict (Maximum Enforcement — Instant alert triggers)</option>
-                  </select>
+                    <Plus size={14} strokeWidth={2.5} />
+                    <span>Add Staff Member</span>
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs text-ink-secondary mb-1">
-                    AI Confidence Audit Level
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="1"
-                      step="0.05"
-                      value={aiThreshold}
-                      onChange={(e) => setAiThreshold(parseFloat(e.target.value))}
-                      className="flex-1"
-                    />
-                    <span className="font-mono font-semibold text-ink w-12 text-right">
-                      {Math.round(aiThreshold * 100)}%
-                    </span>
+                {/* Roles Breakdown Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div className="p-4 bg-[#FFF4F4] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#DC2626] tracking-wider uppercase">ADMIN</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
+                      Full access to settings, system timing, staff roles &amp; audit logs.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-[#F3F8FF] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#2563EB] tracking-wider uppercase">RECRUITER</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
+                      Drive creation, candidate invitations, and hiring decision log.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-[#FFFCF0] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#D97706] tracking-wider uppercase">PROCTOR</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
+                      Real-time session monitoring, integrity flag review &amp; video evidence.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-[#F3FFF9] rounded-[10px] border-0">
+                    <div className="text-[10px] font-bold text-[#16A34A] tracking-wider uppercase">EVALUATOR</div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-1.5">
+                      Technical evaluation of code, SQL queries, and AI prompt traces.
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs text-ink-secondary mb-1">
-                    Module Passing Score Threshold
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="1"
-                      step="0.05"
-                      value={passThreshold}
-                      onChange={(e) => setPassThreshold(parseFloat(e.target.value))}
-                      className="flex-1"
-                    />
-                    <span className="font-mono font-semibold text-ink w-12 text-right">
-                      {Math.round(passThreshold * 100)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSaveScoring}
-                disabled={savingScoring}
-                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover disabled:bg-brand-border shadow-sm transition-colors cursor-pointer"
-              >
-                {savingScoring ? "Saving Config…" : "Save Scoring & AI Config"}
-              </button>
-            </div>
-          )}
-
-          {/* Tab 3: System Timing & Session Parameters */}
-          {activeTab === "system" && (
-            <div className="max-w-[440px] space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-ink">
-                  System &amp; Session Integrity Parameters
-                </h3>
-                <p className="text-xs-plus text-ink-tertiary mt-0.5">
-                  Adjust session disconnect tolerances and heartbeat timeout thresholds:
-                </p>
-              </div>
-
-              <div className="space-y-4 text-sm-minus">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    Heartbeat Stale Threshold (Seconds)
-                  </label>
-                  <input
-                    type="number"
-                    value={staleHeartbeat}
-                    onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
-                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
-                  />
-                  <p className="text-2xs text-ink-tertiary mt-1">Time without heartbeat before session is marked connection degraded.</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    Reconnection Grace Window (Seconds)
-                  </label>
-                  <input
-                    type="number"
-                    value={graceWindow}
-                    onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
-                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
-                  />
-                  <p className="text-2xs text-ink-tertiary mt-1">Allowed window for candidate to re-establish connection without termination.</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1">
-                    Maximum Disconnect Count Allowance
-                  </label>
-                  <input
-                    type="number"
-                    value={maxDisconnects}
-                    onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
-                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
-                  />
-                  <p className="text-2xs text-ink-tertiary mt-1">Max disconnects before requiring proctor manual review.</p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSaveSystem}
-                disabled={savingSystem}
-                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover disabled:bg-brand-border shadow-sm transition-colors cursor-pointer"
-              >
-                {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
-              </button>
-            </div>
-          )}
-
-          {/* Tab 4: Retention */}
-          {activeTab === "retention" && (
-            <div className="max-w-[420px] space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-ink">
-                  Evidence &amp; Proctoring Retention Schedules
-                </h3>
-                <p className="text-xs-plus text-ink-tertiary mt-0.5">
-                  Define timelines for purging biometric clips and screenshots:
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs text-ink-secondary mb-1">Purge files after</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="365"
-                    value={retentionDays}
-                    onChange={(e) => setRetentionDays(parseInt(e.target.value) || 1)}
-                    className="w-20 px-2 py-1.5 border border-line rounded text-sm-minus"
-                  />
-                  <span className="text-sm-minus text-ink-secondary">days</span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSaveRetention}
-                disabled={savingRetention}
-                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover disabled:bg-brand-border shadow-sm transition-colors cursor-pointer"
-              >
-                {savingRetention ? "Saving schedule…" : "Save Configurations"}
-              </button>
-            </div>
-          )}
-
-          {/* Tab 5: Audit */}
-          {activeTab === "audit" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-ink">System Audit Logs</h3>
-                  <p className="text-xs-plus text-ink-tertiary mt-0.5">
-                    Chronological record of all administrative operations:
+                {loadingStaff ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Loading staff roster…
                   </p>
-                </div>
-                <div className="relative w-[200px]">
-                  <Search
-                    size={12}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted"
-                  />
-                  <input
-                    value={logsQuery}
-                    onChange={(e) => setLogsQuery(e.target.value)}
-                    placeholder="Search logs…"
-                    className="w-full pl-8 pr-2.5 py-1 text-xs border border-line rounded bg-white"
-                  />
-                </div>
-              </div>
+                ) : (
+                  <div className="border border-[#E2E8F0] rounded-[12px] divide-y divide-[#E2E8F0] overflow-hidden bg-white shadow-xs">
+                    {staff.map((s, idx) => {
+                      const isDemoAdmin = s.name?.toLowerCase().includes("admin") || s.role === "ADMIN";
+                      const avatarBg = isDemoAdmin ? "bg-[#FEF2F2] text-[#EF4444]" : "bg-[#EFF6FF] text-[#2563EB]";
+                      const badgeBg = isDemoAdmin
+                        ? "text-[#EF4444] bg-[#FEF2F2]"
+                        : s.role === "PROCTOR"
+                          ? "text-[#D97706] bg-[#FFFCF0]"
+                          : s.role === "EVALUATOR"
+                            ? "text-[#16A34A] bg-[#F3FFF9]"
+                            : "text-[#2563EB] bg-[#EFF6FF]";
 
-              {loadingLogs ? (
-                <p className="text-center font-mono text-xs text-ink-tertiary py-4">
-                  Querying logs…
-                </p>
-              ) : (
-                <div className="border border-line rounded-md overflow-hidden text-xs">
-                  <div className="grid grid-cols-[1.5fr_1.8fr_1fr_2.5fr_1.5fr] gap-3 px-3 py-2 border-b border-line bg-canvas font-mono text-2xs uppercase tracking-wide text-ink-secondary">
-                    <div>User</div>
-                    <div>Action</div>
-                    <div>Entity</div>
-                    <div>Metadata Context</div>
-                    <div>Timestamp</div>
-                  </div>
-
-                  <div className="divide-y divide-surface-inset max-h-[360px] overflow-y-auto">
-                    {auditLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="grid grid-cols-[1.5fr_1.8fr_1fr_2.5fr_1.5fr] gap-3 p-3 items-center"
-                      >
-                        <div className="truncate font-medium">{log.staff.name}</div>
-                        <div className="font-mono text-xs-plus text-brand-ink truncate">
-                          {log.action}
-                        </div>
-                        <div className="font-mono text-xs-plus text-ink-secondary">{log.entityType}</div>
-                        <div
-                          className="font-mono text-2xs text-ink-secondary truncate"
-                          title={JSON.stringify(log.metadata)}
-                        >
-                          {JSON.stringify(log.metadata)}
-                        </div>
-                        <div className="font-mono text-xs-plus text-ink-tertiary">
-                          {log.occurredAt.slice(0, 16).replace("T", " ")}
-                        </div>
-                      </div>
-                    ))}
-                    {auditLogs.length === 0 && (
-                      <p className="text-center py-6 text-xs text-ink-tertiary">
-                        No logs found matching search query.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab 6: Integrations */}
-          {activeTab === "integrations" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-ink">Partner API Integrations</h3>
-                  <p className="text-xs text-ink-secondary mt-0.5">
-                    Manage external ATS partner API credentials, rate limits, and callback configurations.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowCreatePartnerModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-brand rounded-md hover:bg-brand-hover shadow-sm transition-colors cursor-pointer"
-                >
-                  <Plus size={14} /> Register Partner
-                </button>
-              </div>
-
-              {loadingPartners ? (
-                <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                  Loading partner integration records…
-                </p>
-              ) : partners.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-line rounded-xl space-y-2">
-                  <Key className="w-8 h-8 text-ink-tertiary mx-auto" />
-                  <p className="text-sm font-semibold text-ink">No Partner API Keys Configured</p>
-                  <p className="text-xs text-ink-secondary">Register an external ATS partner to issue X-API-Key credentials.</p>
-                </div>
-              ) : (
-                <div className="border border-line rounded-xl overflow-hidden shadow-xs bg-white text-xs">
-                  <div className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-2.5 border-b border-line bg-canvas font-mono text-2xs uppercase tracking-wide font-semibold text-ink-secondary">
-                    <div>Partner Name</div>
-                    <div>Rate Limit</div>
-                    <div>API Hits</div>
-                    <div>Callback URL</div>
-                    <div>Status</div>
-                    <div>Created</div>
-                    <div className="text-right">Actions</div>
-                  </div>
-
-                  <div className="divide-y divide-surface-inset">
-                    {partners.map((p) => (
-                      <div key={p.id} className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-3.5 items-center hover:bg-canvas transition-colors">
-                        <div>
-                          <p className="font-bold text-ink">{p.name}</p>
-                          <p className="text-2xs font-mono text-ink-tertiary truncate">{p.id}</p>
-                        </div>
-                        <div className="font-mono text-xs text-ink-secondary">{p.rateLimit} req/min</div>
-                        <div className="font-mono text-xs font-semibold text-brand">{(p as any).apiHitCount ?? 0} hits</div>
-                        <div className="font-mono text-xs text-ink-secondary truncate" title={p.callbackUrl || "Not configured"}>
-                          {p.callbackUrl ? (
-                            <span className="flex items-center gap-1 text-brand">
-                              <Globe size={12} /> {p.callbackUrl}
-                            </span>
-                          ) : (
-                            <span className="text-ink-tertiary italic">None</span>
-                          )}
-                        </div>
-                        <div>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-2xs font-mono font-bold uppercase ${p.isRevoked ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                              }`}
-                          >
-                            {p.isRevoked ? "Revoked" : "Active"}
-                          </span>
-                        </div>
-                        <div className="font-mono text-xs text-ink-tertiary">
-                          {p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }) : "—"}
-                        </div>
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setConfirmRotatePartner(p)}
-                            className="p-1.5 text-ink-secondary hover:text-brand hover:bg-brand-subtle border border-line rounded-md transition-all cursor-pointer"
-                            title="Rotate API Key"
-                          >
-                            <RefreshCw size={13} />
-                          </button>
-                          <button
-                            onClick={() => setEditingPartner({ ...p })}
-                            className="p-1.5 text-ink-secondary hover:text-brand hover:bg-brand-subtle border border-line rounded-md transition-all cursor-pointer"
-                            title="Edit Partner Config"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                          {!p.isRevoked && (
-                            <button
-                              onClick={() => setConfirmRevokePartner(p)}
-                              className="p-1.5 text-ink-secondary hover:text-rose-700 hover:bg-rose-50 border border-line rounded-md transition-all cursor-pointer"
-                              title="Revoke Partner Key"
-                            >
-                              <Lock size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab 7: Assessment Modules */}
-          {activeTab === "modules" && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-base font-bold text-ink">Assessment Modules</h3>
-                <p className="text-xs text-ink-secondary mt-0.5">
-                  Configure the global availability of assessment modules per department. Enabling a module makes it available for Drive configurations.
-                </p>
-              </div>
-
-              {loadingModules ? (
-                <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                  Loading assessment module configurations…
-                </p>
-              ) : (
-                <div className="border border-line rounded-xl overflow-x-auto shadow-xs bg-white text-xs">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-line bg-canvas font-mono text-2xs uppercase tracking-wider font-semibold text-ink-secondary">
-                        <th className="px-4 py-3 text-left min-w-[200px]">Department</th>
-                        {[
-                          { key: "MCQ", label: "MCQ" },
-                          { key: "SQL", label: "SQL" },
-                          { key: "NOSQL", label: "NoSQL" },
-                          { key: "CODING", label: "Coding" },
-                          { key: "DEBUGGING", label: "Debugging" },
-                          { key: "AI_PROMPTING", label: "AI Prompt" },
-                          { key: "SIMULATION", label: "Simulation" },
-                          { key: "TEST_SCENARIOS", label: "Test Scenarios" },
-                        ].map((m) => (
-                          <th
-                            key={m.key}
-                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${hoveredCell?.mod === m.key ? "bg-brand-subtle text-brand" : ""
-                              }`}
-                          >
-                            {m.label}
-                          </th>
-                        ))}
-                        <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Bulk Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line text-xs">
-                      {[
-                        { key: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
-                        { key: "DATA_ENGINEERING", label: "Data Engineering" },
-                        { key: "QA", label: "QA & Testing" },
-                        { key: "SRE", label: "Site Reliability (SRE)" },
-                        { key: "SYSOPS", label: "System Operations" },
-                        { key: "ITOPS", label: "IT Operations" },
-                        { key: "SECOPS", label: "Security Operations" },
-                        { key: "PMO", label: "PMO / Management" },
-                      ].map((d) => {
-                        const modulesList = [
-                          "MCQ",
-                          "SQL",
-                          "NOSQL",
-                          "CODING",
-                          "DEBUGGING",
-                          "AI_PROMPTING",
-                          "SIMULATION",
-                          "TEST_SCENARIOS",
-                        ];
-                        const isRowHovered = hoveredCell?.dept === d.key;
-                        const enabledCount = modulesList.filter((mod) => {
-                          const s = moduleSettings.find(
-                            (item) => item.department === d.key && item.moduleType === mod
-                          );
-                          return s ? s.isEnabled : false;
-                        }).length;
-                        const isBulkSaving = savingModule === `bulk-${d.key}`;
-
-                        return (
-                          <tr
-                            key={d.key}
-                            className={`transition-colors ${isRowHovered ? "bg-brand-subtle/60" : "hover:bg-canvas/70"
-                              }`}
-                          >
-                            <td className="px-4 py-3 font-semibold text-ink">
+                      return (
+                        <div key={s.id || idx} className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-[#FBFCFD] transition-colors">
+                          <div className="flex items-center gap-3.5">
+                            <div className={`w-10 h-10 rounded-full ${avatarBg} font-bold text-xs flex items-center justify-center shrink-0`}>
+                              {s.name ? s.name.charAt(0).toUpperCase() : "S"}
+                            </div>
+                            <div>
                               <div className="flex items-center gap-2">
-                                <span>{d.label}</span>
-                                <span className="px-1.5 py-0.5 text-2xs font-mono font-medium rounded-full bg-canvas text-ink-secondary border border-line">
-                                  {enabledCount}/{modulesList.length}
+                                <span className="text-[13px] font-bold text-[#0F172A]">{s.name}</span>
+                                <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${badgeBg}`}>
+                                  {s.role}
                                 </span>
                               </div>
-                            </td>
+                              <div className="text-[12px] text-[#64748B] mt-0.5">{s.email}</div>
+                            </div>
+                          </div>
 
-                            {modulesList.map((mod) => {
-                              const setting = moduleSettings.find(
-                                (s) => s.department === d.key && s.moduleType === mod
-                              );
-                              const isEnabled = setting ? setting.isEnabled : false;
-                              const cellKey = `${d.key}-${mod}`;
-                              const isSaving = savingModule === cellKey || isBulkSaving;
-                              const isCellHovered =
-                                hoveredCell?.dept === d.key && hoveredCell?.mod === mod;
-                              const isColHovered = hoveredCell?.mod === mod;
+                          <div className="flex items-center gap-3">
+                            <select
+                              value={s.role}
+                              onChange={(e) => handleUpdateRole(s.id, e.target.value)}
+                              className="px-3 h-[31px] text-[12px] text-[#334155] border border-[#E2E8F0] rounded-[7.5px] bg-white outline-none cursor-pointer hover:border-[#CBD5E1] focus:border-[#2563EB]"
+                            >
+                              <option value="ADMIN">Admin</option>
+                              <option value="RECRUITER">Recruiter</option>
+                              <option value="PROCTOR">Proctor</option>
+                              <option value="EVALUATOR">Evaluator</option>
+                            </select>
 
-                              return (
-                                <td
-                                  key={mod}
-                                  onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
-                                  onMouseLeave={() => setHoveredCell(null)}
-                                  className={`px-3 py-3 text-center transition-colors ${isCellHovered
-                                      ? "bg-brand-subtle"
-                                      : isColHovered
-                                        ? "bg-brand-subtle/50"
-                                        : isRowHovered
-                                          ? "bg-brand-subtle/60"
-                                          : ""
-                                    }`}
-                                >
-                                  <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isEnabled}
-                                      disabled={isSaving || !isAdmin}
-                                      onChange={() => handleToggleModule(d.key, mod, isEnabled)}
-                                      className="rounded border-brand-border text-brand focus:ring-brand/30 w-4 h-4 cursor-pointer disabled:opacity-50"
-                                    />
-                                  </label>
-                                </td>
-                              );
-                            })}
+                            <button
+                              onClick={() => handleDeleteStaff(s.id, s.name)}
+                              title="Remove staff member"
+                              className="p-1.5 text-[#94A3B8] hover:text-[#EF4444] hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {staff.length === 0 && (
+                      <div className="p-8 text-center text-ink-tertiary text-xs">
+                        No staff members registered. Click "Add Staff Member" to grant access.
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                            <td className="px-4 py-3 text-right font-medium">
-                              <div className="flex items-center justify-end gap-2 text-xs-plus">
-                                <button
-                                  onClick={() => handleBulkDepartmentModules(d.key, true)}
-                                  disabled={isBulkSaving || !isAdmin || enabledCount === modulesList.length}
-                                  className="text-brand hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
-                                  title="Enable all modules for this department"
-                                >
-                                  Select All
-                                </button>
-                                <span className="text-ink-tertiary">|</span>
-                                <button
-                                  onClick={() => handleBulkDepartmentModules(d.key, false)}
-                                  disabled={isBulkSaving || !isAdmin || enabledCount === 0}
-                                  className="text-rose-500 hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
-                                  title="Clear all modules for this department"
-                                >
-                                  Clear All
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                {/* Add Staff Modal */}
+                {showAddStaffModal && (
+                  <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white border border-line rounded-2xl max-w-[420px] w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+                      <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
+                        <div className="flex items-center gap-2">
+                          <UserPlus size={16} className="text-[#2563EB]" />
+                          <h3 className="text-sm font-bold text-[#0F172A]">Add New Staff Member</h3>
+                        </div>
+                        <button
+                          onClick={() => setShowAddStaffModal(false)}
+                          className="text-[#94A3B8] hover:text-ink cursor-pointer p-1 rounded-lg hover:bg-[#F1F5F9]"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
+                        <div>
+                          <label className="block font-semibold text-[#3D4B60] mb-1">Full Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={newStaffName}
+                            onChange={(e) => setNewStaffName(e.target.value)}
+                            placeholder="e.g. Rachel Brooks"
+                            className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] text-xs outline-none focus:border-[#2563EB]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-[#3D4B60] mb-1">Email Address</label>
+                          <input
+                            type="email"
+                            required
+                            value={newStaffEmail}
+                            onChange={(e) => setNewStaffEmail(e.target.value)}
+                            placeholder="e.g. recruiter@example.com"
+                            className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] text-xs outline-none focus:border-[#2563EB]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-[#3D4B60] mb-1">Assigned Role</label>
+                          <select
+                            value={newStaffRole}
+                            onChange={(e) => setNewStaffRole(e.target.value)}
+                            className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] text-xs outline-none focus:border-[#2563EB]"
+                          >
+                            <option value="RECRUITER">Recruiter (Drives, Invites &amp; Hiring Decisions)</option>
+                            <option value="ADMIN">Admin (Full System Governance &amp; Configuration)</option>
+                            <option value="PROCTOR">Proctor (Live Monitoring &amp; Integrity Review)</option>
+                            <option value="EVALUATOR">Evaluator (Technical Code &amp; Submission Grading)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#F1F5F9]">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddStaffModal(false)}
+                            className="px-4 py-2 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] rounded-full hover:bg-[#F1F5F9] cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={creatingStaff}
+                            className="px-5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 rounded-full transition-all cursor-pointer shadow-xs"
+                          >
+                            {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 3: Scoring & AI Intensity */}
+            {activeTab === "scoring" && (
+              <div className="max-w-[499px] space-y-6">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
+                    AI Proctoring Intensity &amp; Scoring Controls
+                  </h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Configure real-time monitoring strictness and score threshold levels.
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
+
+                <div className="space-y-5 pt-2">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      AI Proctoring Intensity Level
+                    </label>
+                    <select
+                      value={aiIntensity}
+                      onChange={(e) => setAiIntensity(e.target.value)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    >
+                      <option value="HIGH">High (Strict — Flag multi-face &amp; tab switches quickly)</option>
+                      <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
+                      <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
+                      <option value="STRICT">Strict (Maximum Enforcement — Instant alert triggers)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      AI Confidence Audit Level
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.05"
+                        value={aiThreshold}
+                        onChange={(e) => setAiThreshold(parseFloat(e.target.value))}
+                        className="flex-1 figma-slider"
+                        style={{
+                          background: `linear-gradient(to right, #2563EB ${aiThreshold * 100}%, #E2E8F0 ${aiThreshold * 100}%)`,
+                        }}
+                      />
+                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
+                        {Math.round(aiThreshold * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      Module Passing Score Threshold
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.05"
+                        value={passThreshold}
+                        onChange={(e) => setPassThreshold(parseFloat(e.target.value))}
+                        className="flex-1 figma-slider"
+                        style={{
+                          background: `linear-gradient(to right, #2563EB ${passThreshold * 100}%, #E2E8F0 ${passThreshold * 100}%)`,
+                        }}
+                      />
+                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
+                        {Math.round(passThreshold * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3">
+                  <button
+                    onClick={handleSaveScoring}
+                    disabled={savingScoring}
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
+                  >
+                    {savingScoring ? "Saving Scoring & AI Config…" : "Save Scoring & AI Config"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: System Timing & Session Parameters */}
+            {activeTab === "system" && (
+              <div className="max-w-[499px] space-y-6">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
+                    System &amp; Session Integrity Parameters
+                  </h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Adjust session disconnect tolerances and heartbeat timeout thresholds.
+                  </p>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                      Heartbeat Stale Threshold (Seconds)
+                    </label>
+                    <input
+                      type="number"
+                      value={staleHeartbeat}
+                      onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
+                      Time without heartbeat before session is marked connection degraded.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                      Reconnection Grace Window (Seconds)
+                    </label>
+                    <input
+                      type="number"
+                      value={graceWindow}
+                      onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
+                      Allowed window for candidate to re-establish connection without termination.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                      Maximum Disconnect Count Allowance
+                    </label>
+                    <input
+                      type="number"
+                      value={maxDisconnects}
+                      onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
+                      Max disconnects before requiring proctor manual review.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-3">
+                  <button
+                    onClick={handleSaveSystem}
+                    disabled={savingSystem}
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
+                  >
+                    {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 5: Retention */}
+            {activeTab === "retention" && (
+              <div className="max-w-[499px] space-y-6">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
+                    Evidence &amp; Proctoring Retention Schedules
+                  </h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Define timelines for purging biometric clips and screenshots.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <label className="block text-[12px] font-semibold text-[#475569]">
+                    Purge files after
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={retentionDays}
+                      onChange={(e) => setRetentionDays(parseInt(e.target.value) || 1)}
+                      className="w-[99px] h-[39px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] font-bold text-center text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <span className="text-[13px] font-medium text-[#64748B]">days</span>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    onClick={handleSaveRetention}
+                    disabled={savingRetention}
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
+                  >
+                    {savingRetention ? "Saving Configurations…" : "Save Configurations"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 6: Audit Logs */}
+            {activeTab === "audit" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">System Audit Logs</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Chronological record of all administrative operations.
+                    </p>
+                  </div>
+                  <div className="relative w-[259px]">
+                    <Search
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                    />
+                    <input
+                      value={logsQuery}
+                      onChange={(e) => setLogsQuery(e.target.value)}
+                      placeholder="Search logs..."
+                      className="w-full h-[31px] pl-9 pr-3 text-[12px] border border-[#E2E8F0] rounded-[7.5px] bg-white text-[#0F172A] outline-none focus:border-[#2563EB] shadow-xs"
+                    />
+                  </div>
+                </div>
+
+                {loadingLogs ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Querying logs…
+                  </p>
+                ) : (
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B]">
+                      <div>USER</div>
+                      <div>ACTION</div>
+                      <div>ENTITY</div>
+                      <div>METADATA CONTEXT</div>
+                      <div>TIMESTAMP</div>
+                    </div>
+
+                    <div className="divide-y divide-[#E2E8F0] max-h-[460px] overflow-y-auto">
+                      {auditLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
+                        >
+                          <div className="text-[13px] font-medium text-[#0F172A] truncate">
+                            {log.staff?.name || "Demo Admin"}
+                          </div>
+                          <div className="text-[12px] font-bold text-[#2563EB] font-mono truncate">
+                            {log.action}
+                          </div>
+                          <div className="text-[13px] text-[#0F172A] truncate">
+                            {log.entityType}
+                          </div>
+                          <div
+                            className="text-[12px] font-mono text-[#64748B] truncate"
+                            title={typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "")}
+                          >
+                            {typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "—")}
+                          </div>
+                          <div className="text-[12px] font-mono text-[#64748B] whitespace-nowrap">
+                            {log.occurredAt ? log.occurredAt.slice(0, 16).replace("T", " ") : "—"}
+                          </div>
+                        </div>
+                      ))}
+                      {auditLogs.length === 0 && (
+                        <div className="p-8 text-center text-xs text-[#8C9BA5]">
+                          No audit logs found matching search query.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 7: Integrations */}
+            {activeTab === "integrations" && (
+              <div className="space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Partner API Integrations</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Manage external ATS partner API credentials, rate limits, and callback configurations.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowCreatePartnerModal(true)}
+                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                    <span>Register Partner</span>
+                  </button>
+                </div>
+
+                {loadingPartners ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Loading partner integration records…
+                  </p>
+                ) : partners.length === 0 ? (
+                  <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
+                    <Key className="w-8 h-8 text-[#94A3B8] mx-auto" />
+                    <p className="text-sm font-bold text-[#0F172A]">No Partner API Keys Configured</p>
+                    <p className="text-xs text-[#8C9BA5]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                  </div>
+                ) : (
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B] items-center">
+                      <div>PARTNER NAME</div>
+                      <div>RATE LIMIT</div>
+                      <div>API HITS</div>
+                      <div>CALLBACK URL</div>
+                      <div>STATUS</div>
+                      <div>CREATED</div>
+                      <div className="flex flex-col items-center justify-center text-[8px] leading-[9px] font-bold text-[#64748B]">
+                        <span>A</span>
+                        <span>C</span>
+                        <span>T</span>
+                        <span>I</span>
+                        <span>O</span>
+                        <span>N</span>
+                        <span>S</span>
+                      </div>
+                    </div>
+
+                    <div className="divide-y divide-[#E2E8F0]">
+                      {partners.map((p) => (
+                        <div
+                          key={p.id}
+                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
+                        >
+                          <div>
+                            <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
+                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
+                          </div>
+                          <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
+                          <div className="text-[13px] font-bold text-[#2563EB]">
+                            {(p as any).apiHitCount ?? 0} hits
+                          </div>
+                          <div
+                            className="text-[13px] text-[#8C9BA5] italic truncate"
+                            title={p.callbackUrl || "None"}
+                          >
+                            {p.callbackUrl || "None"}
+                          </div>
+                          <div>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
+                                p.isRevoked
+                                  ? "bg-[#FEF2F2] text-[#EF4444]"
+                                  : "bg-[#ECFDF5] text-[#059669]"
+                              }`}
+                            >
+                              {p.isRevoked ? "REVOKED" : "ACTIVE"}
+                            </span>
+                          </div>
+                          <div className="text-[13px] text-[#64748B]">
+                            {p.createdAt
+                              ? new Date(p.createdAt).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "2-digit",
+                                })
+                              : "—"}
+                          </div>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => setConfirmRotatePartner(p)}
+                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
+                              title="Rotate API Key"
+                            >
+                              <RefreshCw size={12} />
+                            </button>
+                            <button
+                              onClick={() => setEditingPartner({ ...p })}
+                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
+                              title="Edit Partner Config"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            {!p.isRevoked && (
+                              <button
+                                onClick={() => setConfirmRevokePartner(p)}
+                                className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer shadow-2xs"
+                                title="Revoke Partner Key"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 8: Assessment Modules */}
+            {activeTab === "modules" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-sm font-bold text-[#0d1424]">Assessment Modules</h2>
+                  <p className="text-xs text-[#8c9ba5] mt-1">
+                    Configure the global availability of assessment modules per department. Enabling a module makes it available for Drive configurations.
+                  </p>
+                </div>
+
+                {loadingModules ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Loading assessment module configurations…
+                  </p>
+                ) : (
+                  <div className="border border-[#e2e8f0] rounded-xl overflow-x-auto shadow-xs bg-white text-xs">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#e2e8f0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748b]">
+                          <th className="px-4 py-3 text-left min-w-[200px]">Department</th>
+                          {[
+                            { key: "MCQ", label: "MCQ" },
+                            { key: "SQL", label: "SQL" },
+                            { key: "NOSQL", label: "NoSQL" },
+                            { key: "CODING", label: "Coding" },
+                            { key: "DEBUGGING", label: "Debugging" },
+                            { key: "AI_PROMPTING", label: "AI Prompt" },
+                            { key: "SIMULATION", label: "Simulation" },
+                            { key: "TEST_SCENARIOS", label: "Test Scenarios" },
+                          ].map((m) => (
+                            <th
+                              key={m.key}
+                              className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
+                                hoveredCell?.mod === m.key ? "bg-blue-50/60 text-[#2f68ff]" : ""
+                              }`}
+                            >
+                              {m.label}
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Bulk Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#f1f5f9] text-xs">
+                        {[
+                          { key: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
+                          { key: "DATA_ENGINEERING", label: "Data Engineering" },
+                          { key: "QA", label: "QA & Testing" },
+                          { key: "SRE", label: "Site Reliability (SRE)" },
+                          { key: "SYSOPS", label: "System Operations" },
+                          { key: "ITOPS", label: "IT Operations" },
+                          { key: "SECOPS", label: "Security Operations" },
+                          { key: "PMO", label: "PMO / Management" },
+                        ].map((d) => {
+                          const modulesList = [
+                            "MCQ",
+                            "SQL",
+                            "NOSQL",
+                            "CODING",
+                            "DEBUGGING",
+                            "AI_PROMPTING",
+                            "SIMULATION",
+                            "TEST_SCENARIOS",
+                          ];
+                          const isRowHovered = hoveredCell?.dept === d.key;
+                          const enabledCount = modulesList.filter((mod) => {
+                            const s = moduleSettings.find(
+                              (item) => item.department === d.key && item.moduleType === mod
+                            );
+                            return s ? s.isEnabled : false;
+                          }).length;
+                          const isBulkSaving = savingModule === `bulk-${d.key}`;
+
+                          return (
+                            <tr
+                              key={d.key}
+                              className={`transition-colors ${
+                                isRowHovered ? "bg-blue-50/40" : "hover:bg-[#fbfcfd]"
+                              }`}
+                            >
+                              <td className="px-4 py-3 font-bold text-[#0d1424]">
+                                <div className="flex items-center gap-2">
+                                  <span>{d.label}</span>
+                                  <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0]">
+                                    {enabledCount}/{modulesList.length}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {modulesList.map((mod) => {
+                                const setting = moduleSettings.find(
+                                  (s) => s.department === d.key && s.moduleType === mod
+                                );
+                                const isEnabled = setting ? setting.isEnabled : false;
+                                const cellKey = `${d.key}-${mod}`;
+                                const isSaving = savingModule === cellKey || isBulkSaving;
+                                const isCellHovered =
+                                  hoveredCell?.dept === d.key && hoveredCell?.mod === mod;
+                                const isColHovered = hoveredCell?.mod === mod;
+
+                                return (
+                                  <td
+                                    key={mod}
+                                    onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
+                                    onMouseLeave={() => setHoveredCell(null)}
+                                    className={`px-3 py-3 text-center transition-colors ${
+                                      isCellHovered
+                                        ? "bg-blue-50"
+                                        : isColHovered
+                                          ? "bg-blue-50/50"
+                                          : isRowHovered
+                                            ? "bg-blue-50/30"
+                                            : ""
+                                    }`}
+                                  >
+                                    <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={isEnabled}
+                                        disabled={isSaving || !isAdmin}
+                                        onChange={() => handleToggleModule(d.key, mod, isEnabled)}
+                                        className="rounded border-[#cbd5e1] text-[#2f68ff] focus:ring-[#2f68ff]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
+                                      />
+                                    </label>
+                                  </td>
+                                );
+                              })}
+
+                              <td className="px-4 py-3 text-right font-medium">
+                                <div className="flex items-center justify-end gap-2 text-xs">
+                                  <button
+                                    onClick={() => handleBulkDepartmentModules(d.key, true)}
+                                    disabled={isBulkSaving || !isAdmin || enabledCount === modulesList.length}
+                                    className="text-[#2f68ff] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer font-semibold"
+                                    title="Enable all modules for this department"
+                                  >
+                                    Select All
+                                  </button>
+                                  <span className="text-[#cbd5e1]">|</span>
+                                  <button
+                                    onClick={() => handleBulkDepartmentModules(d.key, false)}
+                                    disabled={isBulkSaving || !isAdmin || enabledCount === 0}
+                                    className="text-rose-500 hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer font-semibold"
+                                    title="Clear all modules for this department"
+                                  >
+                                    Clear All
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Modal: Create Partner */}
       {showCreatePartnerModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900">Register Partner API Key</h3>
-              <button onClick={() => setShowCreatePartnerModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+              <div className="flex items-center gap-2">
+                <Key size={16} className="text-[#2f68ff]" />
+                <h3 className="text-sm font-bold text-[#0d1424]">Register Partner API Key</h3>
+              </div>
+              <button onClick={() => setShowCreatePartnerModal(false)} className="text-[#94a3b8] hover:text-[#0d1424] cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]">
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleCreatePartner} className="space-y-4">
+            <form onSubmit={handleCreatePartner} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Partner Name *</label>
+                <label className="block font-semibold text-[#3d4b60] mb-1">Partner Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Greenhouse ATS"
                   value={newPartnerName}
                   onChange={(e) => setNewPartnerName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                  className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Rate Limit (requests / min)</label>
+                <label className="block font-semibold text-[#3d4b60] mb-1">Rate Limit (requests / min)</label>
                 <input
                   type="number"
                   min={1}
                   value={newPartnerRateLimit}
                   onChange={(e) => setNewPartnerRateLimit(parseInt(e.target.value) || 100)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                  className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Callback URL (Optional)</label>
+                <label className="block font-semibold text-[#3d4b60] mb-1">Callback URL (Optional)</label>
                 <input
                   type="url"
                   placeholder="https://ats.partner.com/webhooks/cd-recruit"
                   value={newPartnerCallbackUrl}
                   onChange={(e) => setNewPartnerCallbackUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                  className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
                 />
               </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f5f9]">
                 <button
                   type="button"
                   onClick={() => setShowCreatePartnerModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creatingPartner}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-sm cursor-pointer"
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] disabled:opacity-50 rounded-full transition-all cursor-pointer shadow-xs"
                 >
                   {creatingPartner ? "Generating Key…" : "Generate API Key"}
                 </button>
@@ -1747,23 +1554,23 @@ function SettingsPage() {
 
       {/* Modal: Display Raw API Key */}
       {newlyCreatedKey && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
             <div className="flex items-center gap-2 text-emerald-600">
-              <Check className="w-6 h-6 shrink-0" />
-              <h3 className="text-base font-bold text-gray-900">API Key Issued for {newlyCreatedKey.partnerName}</h3>
+              <Check className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-[#0d1424]">API Key Issued for {newlyCreatedKey.partnerName}</h3>
             </div>
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed">
+            <p className="text-xs text-amber-800 bg-[#fffbf0] border border-[#fde68a] p-3 rounded-xl leading-relaxed">
               <strong>Copy this API key now.</strong> For security reasons, you will not be able to view it again.
             </p>
-            <div className="p-3 bg-gray-900 rounded-lg font-mono text-xs text-emerald-400 break-all flex items-center justify-between gap-2">
+            <div className="p-3 bg-[#0d1424] rounded-xl font-mono text-xs text-emerald-400 break-all flex items-center justify-between gap-2">
               <span>{newlyCreatedKey.apiKey}</span>
               <button
                 onClick={async () => {
                   await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
                   toast.success("API key copied to clipboard!");
                 }}
-                className="px-2.5 py-1 text-xs-plus font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded cursor-pointer shrink-0"
+                className="px-3 py-1 text-xs font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-full cursor-pointer shrink-0"
               >
                 Copy
               </button>
@@ -1771,7 +1578,7 @@ function SettingsPage() {
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setNewlyCreatedKey(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg cursor-pointer"
+                className="px-5 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] rounded-full cursor-pointer shadow-xs"
               >
                 Done
               </button>
@@ -1782,25 +1589,25 @@ function SettingsPage() {
 
       {/* Modal: Confirm Rotate Key */}
       {confirmRotatePartner && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
             <div className="flex items-center gap-3 text-amber-600">
-              <RefreshCw className="w-6 h-6 shrink-0" />
-              <h3 className="text-base font-bold text-gray-900">Rotate API Key for {confirmRotatePartner.name}?</h3>
+              <RefreshCw className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-[#0d1424]">Rotate API Key for {confirmRotatePartner.name}?</h3>
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed">
+            <p className="text-xs text-[#64748b] leading-relaxed">
               Rotating this API key will immediately invalidate the active key for <strong>{confirmRotatePartner.name}</strong>. Existing integration calls using the old key will fail. This action will be logged in the Audit Log.
             </p>
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f5f9]">
               <button
                 onClick={() => setConfirmRotatePartner(null)}
-                className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRotateKey}
-                className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm cursor-pointer"
+                className="px-5 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-full shadow-xs cursor-pointer"
               >
                 Confirm Rotate
               </button>
@@ -1811,25 +1618,25 @@ function SettingsPage() {
 
       {/* Modal: Confirm Revoke Partner */}
       {confirmRevokePartner && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
             <div className="flex items-center gap-3 text-rose-600">
-              <Lock className="w-6 h-6 shrink-0" />
-              <h3 className="text-base font-bold text-gray-900">Revoke Partner Access for {confirmRevokePartner.name}?</h3>
+              <Lock className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-[#0d1424]">Revoke Partner Access for {confirmRevokePartner.name}?</h3>
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed">
+            <p className="text-xs text-[#64748b] leading-relaxed">
               Revoking access will immediately block all API requests from <strong>{confirmRevokePartner.name}</strong>. This action will be recorded in the Audit Log.
             </p>
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f5f9]">
               <button
                 onClick={() => setConfirmRevokePartner(null)}
-                className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRevokePartner}
-                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm cursor-pointer"
+                className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-full shadow-xs cursor-pointer"
               >
                 Confirm Revoke
               </button>
@@ -1840,56 +1647,56 @@ function SettingsPage() {
 
       {/* Modal: Edit Partner */}
       {editingPartner && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900">Edit Partner: {editingPartner.name}</h3>
-              <button onClick={() => setEditingPartner(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+              <h3 className="text-sm font-bold text-[#0d1424]">Edit Partner: {editingPartner.name}</h3>
+              <button onClick={() => setEditingPartner(null)} className="text-[#94a3b8] hover:text-[#0d1424] cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]">
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleUpdatePartner} className="space-y-4">
+            <form onSubmit={handleUpdatePartner} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Partner Name</label>
+                <label className="block font-semibold text-[#3d4b60] mb-1">Partner Name</label>
                 <input
                   type="text"
                   required
                   value={editingPartner.name}
                   onChange={(e) => setEditingPartner({ ...editingPartner, name: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                  className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Rate Limit (requests / min)</label>
+                <label className="block font-semibold text-[#3d4b60] mb-1">Rate Limit (requests / min)</label>
                 <input
                   type="number"
                   min={1}
                   value={editingPartner.rateLimit}
                   onChange={(e) => setEditingPartner({ ...editingPartner, rateLimit: parseInt(e.target.value) || 100 })}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                  className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Callback URL</label>
+                <label className="block font-semibold text-[#3d4b60] mb-1">Callback URL</label>
                 <input
                   type="url"
                   placeholder="https://ats.partner.com/webhooks/cd-recruit"
                   value={editingPartner.callbackUrl || ""}
                   onChange={(e) => setEditingPartner({ ...editingPartner, callbackUrl: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                  className="w-full h-10 px-3 border border-[#e2e8f0] rounded-lg bg-white text-[#0d1424] text-xs outline-none focus:border-[#2f68ff]"
                 />
               </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f5f9]">
                 <button
                   type="button"
                   onClick={() => setEditingPartner(null)}
-                  className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-sm cursor-pointer"
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[#2f68ff] hover:bg-[#1e54ea] rounded-full shadow-xs cursor-pointer"
                 >
                   Save Changes
                 </button>
@@ -1901,3 +1708,4 @@ function SettingsPage() {
     </AppShell>
   );
 }
+
