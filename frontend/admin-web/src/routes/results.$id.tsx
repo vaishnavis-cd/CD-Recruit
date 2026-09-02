@@ -435,20 +435,6 @@ function IndividualResultPage() {
             </div>
           </div>
         </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
-                AI Confidence
-              </span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-[26px] font-bold text-[#0F172A]">
-                  {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
-                    ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
-                    : "98%"}
-                </span>
-                <span className="text-[11px] text-[#64748B]">Evaluation reliability</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Module Navigation Tabs (Figma Pill Tabs) */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -1649,8 +1635,8 @@ function IndividualResultPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       </div>
     </AppShell>
   );
