@@ -224,38 +224,38 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex h-full w-full overflow-hidden select-none">
+      <div className="flex h-full w-full overflow-hidden select-none bg-canvas dark:bg-[#0B0F19]">
         {/* Left Panel: Description */}
         <div
           style={{ width: `${leftWidthPct}%` }}
-          className="bg-[var(--surface)] overflow-y-auto flex flex-col h-full shrink-0 border-r border-[var(--border)]"
+          className="bg-canvas dark:bg-[#0B0F19] overflow-y-auto flex flex-col h-full shrink-0 border-r border-line dark:border-slate-800"
         >
-          <div className="px-6 py-5 space-y-5">
+          <div className="p-6 space-y-5">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
+                <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
                   CHALLENGE {currentIndex + 1} OF {codingQuestions.length || 1}
                 </span>
-                <span className="px-2 py-0.5 rounded text-2xs font-bold bg-[var(--accent)]/10 text-[var(--accent)] uppercase tracking-wider font-mono">
+                <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-mono border border-emerald-200 dark:border-emerald-800">
                   {workspaceQuestion.content.difficulty}
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-[var(--foreground)] tracking-tight">
+              <h2 className="text-xl font-bold text-ink dark:text-white tracking-tight">
                 {workspaceQuestion.title}
               </h2>
             </div>
 
-            <div className="text-xs text-[var(--foreground)] leading-relaxed whitespace-pre-wrap font-sans">
+            <div className="text-sm text-ink dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-normal">
               {workspaceQuestion.prompt}
             </div>
 
             {/* Constraints */}
             {workspaceQuestion.content.constraints && workspaceQuestion.content.constraints.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-                <h4 className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
-                  Constraints
+              <div className="space-y-2 pt-3 border-t border-line dark:border-slate-800">
+                <h4 className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+                  CONSTRAINTS
                 </h4>
-                <ul className="list-disc list-inside text-xs text-[var(--muted-foreground)] space-y-1 font-mono">
+                <ul className="list-disc list-inside text-xs text-ink-secondary dark:text-slate-300 space-y-1.5 font-mono">
                   {workspaceQuestion.content.constraints.map((c: string, i: number) => (
                     <li key={i}>{c}</li>
                   ))}
@@ -265,30 +265,24 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
 
             {/* Sample Test Cases (DB-backed - strictly 2 visible) */}
             {testCasesList.length > 0 && (
-              <div className="pt-4 border-t border-[var(--border)] space-y-3">
-                <h4 className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
-                  Sample Test Cases (2 Visible)
+              <div className="pt-4 border-t border-line dark:border-slate-800 space-y-3">
+                <h4 className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+                  SAMPLE TEST CASES (2 VISIBLE)
                 </h4>
                 <div className="space-y-3">
                   {testCasesList.map((tc: any, i: number) => (
                     <div
                       key={i}
-                      className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--background)] font-mono text-xs space-y-2 shadow-sm"
+                      className="p-4 rounded-xl border border-line dark:border-slate-800 bg-white dark:bg-[#111827] text-xs space-y-1.5 shadow-xs"
                     >
-                      <div className="text-xs-plus font-bold text-[var(--accent)] uppercase">
-                        {tc.label || `Example ${i + 1}`}
+                      <div className="text-xs font-bold text-brand uppercase">
+                        {tc.label || `EXAMPLE ${i + 1}`}
                       </div>
-                      <div>
-                        <span className="text-[var(--muted-foreground)]">Input:</span>
-                        <div className="mt-1 p-2 rounded bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] overflow-x-auto">
-                          {tc.input}
-                        </div>
+                      <div className="text-ink dark:text-slate-300 font-mono">
+                        Input: {tc.input}
                       </div>
-                      <div>
-                        <span className="text-[var(--muted-foreground)]">Expected Output:</span>
-                        <div className="mt-1 p-2 rounded bg-[var(--surface)] text-[var(--success)] border border-[var(--border)] overflow-x-auto">
-                          {tc.expectedOutput || tc.expected}
-                        </div>
+                      <div className="font-mono font-bold text-success">
+                        Expected Output: {tc.expectedOutput || tc.expected}
                       </div>
                     </div>
                   ))}
@@ -298,21 +292,17 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
           </div>
         </div>
 
-        {/* Horizontal Drag Resizer Slider Handle with Larger Dots */}
+        {/* Horizontal Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="w-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-col-resize flex items-center justify-center border-l border-r border-[var(--border)] group transition-colors shrink-0 select-none"
+          className="w-2 hover:w-2.5 bg-line dark:bg-slate-800 hover:bg-brand/40 cursor-col-resize flex items-center justify-center transition-all shrink-0 select-none z-10"
           title="Drag left or right to adjust panel split"
         >
-          <div className="w-2 h-9 rounded-full bg-[var(--border)] group-hover:bg-[var(--accent)] transition-colors flex flex-col items-center justify-center gap-1.5 py-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted-foreground)] group-hover:bg-white" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted-foreground)] group-hover:bg-white" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted-foreground)] group-hover:bg-white" />
-          </div>
+          <GripVertical className="w-3 h-3 text-ink-muted opacity-60" />
         </div>
 
         {/* Right Panel: Monaco Workspace */}
-        <div className="flex-1 h-full flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 h-full flex flex-col min-w-0 overflow-hidden bg-white dark:bg-[#111827]">
           <CodingWorkspace
             question={workspaceQuestion}
             currentIndex={currentIndex}

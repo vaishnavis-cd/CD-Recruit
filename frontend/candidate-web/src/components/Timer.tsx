@@ -40,12 +40,6 @@ export function Timer() {
   const totalMs = assessment.totalSeconds * 1000
   const remainingSeconds = Math.max(0, Math.floor((totalMs - elapsedMs) / 1000))
 
-  // Color thresholds: amber at 10/5/1 min
-  let colorClass = 'text-[var(--text-primary)] border-[var(--border)]'
-  if (remainingSeconds <= 60) colorClass = 'text-[var(--warning)] font-bold border-[var(--warning)] bg-[var(--warning)]/10 animate-pulse'
-  else if (remainingSeconds <= 300) colorClass = 'text-[var(--warning)] font-bold border-[var(--warning)]/40 bg-[var(--warning)]/5'
-  else if (remainingSeconds <= 600) colorClass = 'text-[var(--text-primary)] font-bold border-[var(--accent)]/30'
-
   const label = remainingSeconds <= 60
     ? 'Less than 1 minute remaining'
     : remainingSeconds <= 300
@@ -54,12 +48,12 @@ export function Timer() {
 
   return (
     <div
-      className={`timer-shell font-mono-data text-base font-bold px-4 py-1.5 rounded-xl bg-[var(--surface)] border-2 ${colorClass} tabular-nums flex items-center gap-2 shadow-xs transition-all`}
+      className="font-mono text-base font-bold px-3.5 py-1.5 rounded-lg bg-red-50/70 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-critical dark:text-red-400 tabular-nums flex items-center justify-center shadow-xs"
       role="timer"
       aria-label={label}
       aria-live="off"
     >
-      <span aria-hidden className="tracking-tight">{formatTime(remainingSeconds)}</span>
+      <span aria-hidden className="tracking-tight text-critical dark:text-red-400">{formatTime(remainingSeconds)}</span>
       <span className="sr-only">{label}</span>
     </div>
   )

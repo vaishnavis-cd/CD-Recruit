@@ -407,36 +407,38 @@ export function CodingWorkspace({
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
+            type="button"
             onClick={handleResetCode}
             disabled={isRunning}
-            className="btn-secondary inline-flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             title="Reset code editor to starter boilerplate template"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 text-ink-muted" />
             <span>Reset Code</span>
           </button>
 
           <button
+            type="button"
             onClick={handleRun}
             disabled={isRunning || !activeCode.trim()}
-            className="btn-secondary inline-flex items-center gap-1.5 text-xs cursor-pointer"
+            className="px-3.5 py-1.5 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             title="Run code against sample test cases"
           >
             {isRunning && runType === "RUN" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
             ) : (
-              <Play className="w-3.5 h-3.5 text-[var(--success)]" />
+              <Play className="w-3.5 h-3.5 text-success fill-success" />
             )}
             <span>Run Code</span>
           </button>
           
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={isRunning || !activeCode.trim()}
-            className="btn-primary inline-flex items-center gap-1.5 text-xs cursor-pointer"
+            className="px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
             title="Submit solution against all test cases"
           >
             {isRunning && runType === "SUBMIT" ? (
@@ -449,7 +451,6 @@ export function CodingWorkspace({
         </div>
       </div>
 
-      {/* Editor Panel */}
       <div className="flex-1 min-h-0 relative">
         <CodeEditor
           language={activeLangConfig.monacoLanguage}
@@ -462,286 +463,200 @@ export function CodingWorkspace({
         />
       </div>
 
-      {/* Vertical Drag Resizer Slider Handle with Larger Dots */}
       {terminalOpen && (
         <div
           onMouseDown={handleVerticalMouseDown}
-          className="h-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 cursor-row-resize flex items-center justify-center border-t border-b border-[var(--border)] group transition-colors select-none shrink-0"
+          className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-row-resize flex items-center justify-center border-t border-b border-line dark:border-slate-800 group transition-colors select-none shrink-0"
           title="Drag up or down to adjust terminal height"
         >
-          <div className="h-2 w-10 rounded-full bg-[var(--border)] group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center gap-1.5 px-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-white" />
-          </div>
+          <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
         </div>
       )}
 
-      {/* Terminal panel */}
       <div
-        style={{ height: terminalOpen ? `${terminalHeight}px` : "40px" }}
-        className="border-t border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 overflow-hidden"
+        style={{ height: terminalOpen ? `${terminalHeight}px` : "36px" }}
+        className="border-t border-line dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col shrink-0 overflow-hidden select-none"
       >
-        <div
-          onClick={() => setTerminalOpen(!terminalOpen)}
-          className="px-4 py-2 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]/80 hover:bg-[var(--surface)] cursor-pointer select-none"
-        >
-          <div className="flex items-center gap-2 text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
-            <Terminal className="w-4 h-4 text-[var(--accent)]" />
-            <span>Output &amp; Test Results</span>
+        <div className="flex items-center justify-between px-6 border-b border-line dark:border-slate-800 bg-white dark:bg-[#111827]">
+          <div className="flex gap-6">
+            <button
+              type="button"
+              onClick={() => { setTerminalOpen(true); setActiveTab("testCases"); }}
+              className={`py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                activeTab === "testCases" && terminalOpen
+                  ? "text-brand border-b-2 border-brand"
+                  : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white"
+              }`}
+            >
+              Test Cases
+            </button>
+            <button
+              type="button"
+              onClick={() => { setTerminalOpen(true); setActiveTab("console"); }}
+              className={`py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                activeTab === "console" && terminalOpen
+                  ? "text-brand border-b-2 border-brand"
+                  : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white"
+              }`}
+            >
+              Compiler Output
+            </button>
           </div>
-          <div>
-            {terminalOpen ? <ChevronDown className="w-4 h-4 text-[var(--muted-foreground)]" /> : <ChevronUp className="w-4 h-4 text-[var(--muted-foreground)]" />}
-          </div>
+
+          <button
+            type="button"
+            onClick={() => setTerminalOpen(!terminalOpen)}
+            className="p-1 rounded text-ink-muted hover:text-ink cursor-pointer"
+          >
+            {terminalOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          </button>
         </div>
 
         {terminalOpen && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]/95 font-mono text-xs text-[var(--foreground)]">
-            {/* Tabs */}
-            <div className="flex border-b border-[var(--border)] bg-[var(--surface)]/40 shrink-0">
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveTab("testCases"); }}
-                className={`px-4 py-2 border-r border-[var(--border)] text-xs-plus font-bold uppercase transition-all ${
-                  activeTab === "testCases" ? "bg-[var(--bg)] text-[var(--accent)] border-b-2 border-b-[var(--accent)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                }`}
-              >
-                Test Cases
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveTab("console"); }}
-                className={`px-4 py-2 border-r border-[var(--border)] text-xs-plus font-bold uppercase transition-all ${
-                  activeTab === "console" ? "bg-[var(--bg)] text-[var(--accent)] border-b-2 border-b-[var(--accent)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                }`}
-              >
-                Compiler Output
-              </button>
-            </div>
+          <div className="flex-1 overflow-y-auto p-6 bg-canvas dark:bg-[#0B0F19] text-xs">
+            {isRunning && (
+              <div className="flex flex-col items-center justify-center h-full gap-2 py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-brand" />
+                <span className="text-xs text-ink-secondary font-semibold">Running program on sandbox...</span>
+              </div>
+            )}
 
-            {/* Content Tab Panel */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {isRunning && (
-                <div className="flex flex-col items-center justify-center h-full gap-2 py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-[var(--accent)]" />
-                  <span className="text-xs text-[var(--muted-foreground)] font-semibold">Running program on Judge0 sandbox...</span>
-                </div>
-              )}
+            {!isRunning && errorMsg && (
+              <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl text-critical flex gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
 
-              {!isRunning && errorMsg && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-600 dark:text-rose-400 flex gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {!isRunning && !errorMsg && !executionResult && (
-                <div className="space-y-3">
-                  {activeTab === "testCases" && (() => {
-                    const samples = (question.content?.testCases || []).filter(tc => !tc.isHidden);
-                    if (samples.length === 0) {
-                      return (
-                        <div className="text-center text-[var(--muted-foreground)] py-6 text-xs">
-                          No sample test cases. Click "Run Code" to execute.
-                        </div>
-                      );
-                    }
+            {!isRunning && !errorMsg && !executionResult && (
+              <div className="space-y-3">
+                {activeTab === "testCases" && (() => {
+                  const samples = (question.content?.testCases || []).filter(tc => !tc.isHidden);
+                  if (samples.length === 0) {
                     return (
-                      <>
-                        <p className="text-xs-plus text-[var(--muted-foreground)] font-semibold">
-                          Sample test cases — click <span className="text-[var(--accent)]">"Run Code"</span> to evaluate your solution against these.
-                        </p>
+                      <div className="text-center text-ink-muted py-6 text-xs">
+                        No sample test cases. Click "Run Code" to execute.
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-xs text-ink-secondary dark:text-slate-400 font-normal">
+                        Sample test cases - click <span className="font-bold text-ink dark:text-white">"Run Code"</span> to evaluate your solution
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {samples.map((tc, idx) => (
-                          <div key={idx} className="p-3 bg-[var(--surface)]/50 border border-[var(--border)] rounded-lg space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
-                                {tc.label || `Example ${idx + 1}`}
-                              </span>
-                              <span className="text-2xs bg-[var(--surface)] text-[var(--muted-foreground)] px-2 py-0.5 rounded border border-[var(--border)]">
-                                Sample
-                              </span>
+                          <div
+                            key={idx}
+                            className="p-4 bg-white dark:bg-[#111827] border border-line dark:border-slate-800 rounded-xl space-y-1.5 shadow-xs"
+                          >
+                            <div className="text-2xs font-bold text-ink-dim uppercase">
+                              {tc.label || `EXAMPLE ${idx + 1}`}
                             </div>
-                            <div className="grid grid-cols-2 gap-3 text-xs-plus font-mono">
-                              <div>
-                                <div className="text-[var(--muted-foreground)] mb-0.5">Input:</div>
-                                <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{tc.input}</pre>
-                              </div>
-                              <div>
-                                <div className="text-[var(--muted-foreground)] mb-0.5">Expected Output:</div>
-                                <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{tc.expectedOutput}</pre>
-                              </div>
+                            <div className="text-xs font-mono text-ink dark:text-slate-200">
+                              Input: {tc.input}
+                            </div>
+                            <div className="text-xs font-mono font-bold text-success">
+                              Expected: {tc.expectedOutput}
                             </div>
                           </div>
                         ))}
-                      </>
-                    );
-                  })()}
-                  {activeTab === "console" && (
-                    <div className="text-[var(--muted-foreground)] text-center py-6 text-xs">
-                      No compiler output yet. Click "Run Code" or "Submit Solution".
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {!isRunning && !errorMsg && executionResult && (
-                (() => {
-                  const res: any = executionResult;
-                  const passedCnt = res.passedTests ?? res.summary?.passed ?? (res.results || res.testResults || []).filter((r: any) => r.passed).length;
-                  const totalCnt = res.totalTests ?? res.summary?.total ?? (res.results || res.testResults || []).length;
-                  const execTime = res.executionTime ?? res.executionTimeMs ?? null;
-                  const memUsage = res.memoryUsage ?? res.memoryKb ?? null;
-                  const detailsList = res.results || res.testResults || [];
-                  const isAllPassed = (res.status === "COMPLETED" || res.status === "PASSED") && passedCnt === totalCnt && totalCnt > 0;
-
-                  return (
-                    <>
-                      {activeTab === "testCases" && (
-                        <div className="space-y-4">
-                          {/* Summary Banner */}
-                          <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                            isAllPassed ? "bg-emerald-500/5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/5 border-rose-500/30 text-rose-600 dark:text-rose-400"
-                          }`}>
-                            <div className="flex items-center gap-3">
-                              {isAllPassed ? (
-                                <CheckCircle className="w-6 h-6" />
-                              ) : (
-                                <AlertCircle className="w-6 h-6" />
-                              )}
-                              <div>
-                                <div className="font-bold text-sm">
-                                  {executionResult.status === "COMPLETED" || executionResult.status === "PASSED"
-                                    ? `${passedCnt} / ${totalCnt} Tests Passed`
-                                    : `Execution status: ${executionResult.status}`}
-                                </div>
-                                <div className="text-xs-plus text-[var(--muted-foreground)] mt-0.5">
-                                  {runType === "SUBMIT" ? "Evaluated against all visible and hidden cases." : "Evaluated against sample test cases."}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-right text-xs-plus text-[var(--muted-foreground)] font-mono">
-                              {execTime !== null && <div>Time: {execTime} ms</div>}
-                              {memUsage !== null && <div>Memory: {memUsage} KB</div>}
-                            </div>
-                          </div>
-
-                          {/* Execution Details per test case */}
-                          {detailsList.length > 0 && (
-                            <div className="space-y-2">
-                              <h4 className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider">Granular Results</h4>
-                              {detailsList.map((r: any, idx: number) => (
-                                <div key={idx} className="p-3 bg-[var(--surface)]/50 border border-[var(--border)] rounded-lg space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-[var(--muted-foreground)]">
-                                      {r.isHidden ? `Hidden Test Case ${idx + 1}` : r.label || `Test Case ${idx + 1}`}
-                                    </span>
-                                    {r.passed ? (
-                                      <span className="text-2xs bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-bold uppercase">Passed</span>
-                                    ) : (
-                                      <span className="text-2xs bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded font-bold uppercase">Failed ({r.status})</span>
-                                    )}
-                                  </div>
-                                  
-                                  {!r.isHidden && (
-                                    <div className="grid grid-cols-2 gap-4 text-xs-plus font-mono">
-                                      <div>
-                                        <div className="text-[var(--muted-foreground)] mb-0.5">Input:</div>
-                                        <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{r.input}</pre>
-                                      </div>
-                                      <div>
-                                        <div className="text-[var(--muted-foreground)] mb-0.5">Expected Output:</div>
-                                        <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{r.expectedOutput}</pre>
-                                      </div>
-                                      {r.stdout && (
-                                        <div className="col-span-2">
-                                          <div className="text-[var(--muted-foreground)] mb-0.5">Actual Program Output:</div>
-                                          <pre className="bg-[var(--bg)] p-1.5 rounded border border-[var(--border)]/40 overflow-x-auto whitespace-pre-wrap">{r.stdout}</pre>
-                                        </div>
-                                      )}
-                                      {r.stderr && (
-                                        <div className="col-span-2">
-                                          <div className="text-[var(--muted-foreground)] mb-0.5 text-rose-500">Errors:</div>
-                                          <pre className="bg-rose-500/5 text-rose-500 p-1.5 rounded border border-rose-500/20 overflow-x-auto whitespace-pre-wrap">{r.stderr}</pre>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {r.isHidden && (
-                                    <div className="text-xs-plus text-[var(--muted-foreground)] italic">
-                                      Test case inputs, outputs and console logs are hidden for security.
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {activeTab === "console" && (
-                        <div className="h-full">
-                          {executionResult.stdout ? (
-                            <pre className="bg-[var(--surface)]/50 p-4 rounded-xl border border-[var(--border)] overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-relaxed text-[var(--foreground)]">
-                              {executionResult.stdout}
-                            </pre>
-                          ) : (
-                            <div className="text-[var(--muted-foreground)] text-center py-6">
-                              No compiler logs generated during sandbox execution.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
                   );
-                })()
-              )}
-            </div>
+                })()}
+                {activeTab === "console" && (
+                  <div className="text-ink-muted text-center py-6 text-xs">
+                    No compiler output yet. Click "Run Code" or "Submit Solution".
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isRunning && !errorMsg && executionResult && (
+              (() => {
+                const res: any = executionResult;
+                const passedCnt = res.passedTests ?? res.summary?.passed ?? (res.results || res.testResults || []).filter((r: any) => r.passed).length;
+                const totalCnt = res.totalTests ?? res.summary?.total ?? (res.results || res.testResults || []).length;
+                const detailsList = res.results || res.testResults || [];
+                const isAllPassed = (res.status === "COMPLETED" || res.status === "PASSED") && passedCnt === totalCnt && totalCnt > 0;
+
+                return (
+                  <>
+                    {activeTab === "testCases" && (
+                      <div className="space-y-4">
+                        <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                          isAllPassed
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 text-emerald-800 dark:text-emerald-300"
+                            : "bg-red-50 dark:bg-red-950/40 border-red-200 text-critical"
+                        }`}>
+                          <div className="flex items-center gap-2 font-bold text-sm">
+                            {isAllPassed ? <CheckCircle className="w-5 h-5 text-success" /> : <AlertCircle className="w-5 h-5 text-critical" />}
+                            <span>{isAllPassed ? "All Test Cases Passed!" : `${passedCnt} / ${totalCnt} Test Cases Passed`}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {detailsList.map((r: any, i: number) => (
+                            <div
+                              key={i}
+                              className={`p-4 rounded-xl border bg-white dark:bg-[#111827] shadow-xs space-y-2 ${
+                                r.passed ? "border-emerald-200" : "border-red-200"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs font-bold text-ink-dim uppercase">
+                                  {r.label || `EXAMPLE ${i + 1}`}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
+                                  r.passed ? "bg-emerald-50 text-success" : "bg-red-50 text-critical"
+                                }`}>
+                                  {r.passed ? "Passed" : "Failed"}
+                                </span>
+                              </div>
+                              {!r.isHidden && (
+                                <div className="space-y-1 font-mono text-xs">
+                                  <div className="text-ink dark:text-slate-200">Input: {r.input}</div>
+                                  <div className="text-success font-bold">Expected: {r.expectedOutput}</div>
+                                  <div className={r.passed ? "text-success" : "text-critical font-bold"}>
+                                    Actual: {r.actualOutput || "(none)"}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === "console" && (
+                      <div className="h-full">
+                        {executionResult.stdout ? (
+                          <pre className="bg-white dark:bg-[#111827] p-4 rounded-xl border border-line dark:border-slate-800 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-relaxed text-ink dark:text-slate-200">
+                            {executionResult.stdout}
+                          </pre>
+                        ) : (
+                          <div className="text-ink-muted text-center py-6">
+                            No compiler logs generated during sandbox execution.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            )}
           </div>
         )}
       </div>
 
-      {/* Standardized Pinned Bottom Navigation Bar */}
-      <footer className="h-14 border-t border-[var(--border)] bg-[var(--surface)] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRun}
-            disabled={isRunning || !activeCode.trim()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-bold text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40 cursor-pointer shadow-xs"
-            title="Run code against sample test cases"
-          >
-            {isRunning && runType === "RUN" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
-            ) : (
-              <Play className="w-3.5 h-3.5 text-[var(--success)]" />
-            )}
-            <span>Run Code</span>
-          </button>
-
-          <button
-            onClick={handleSubmit}
-            disabled={isRunning || !activeCode.trim()}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
-            title="Submit solution against all test cases"
-          >
-            {isRunning && runType === "SUBMIT" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Server className="w-3.5 h-3.5" />
-            )}
-            <span>Submit Solution</span>
-          </button>
-        </div>
-
-        <span className="text-xs font-mono font-medium text-[var(--muted-foreground)] hidden sm:inline">
-          Coding Challenge {currentIndex + 1} of {totalQuestions}
-        </span>
-
-        <div className="flex items-center gap-2">
+      <footer className="h-14 border-t border-line bg-white px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+        <div className="flex items-center gap-3">
           {onPrevious && (
             <button
               onClick={onPrevious}
               disabled={currentIndex === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               aria-label="Previous question"
             >
               <ChevronLeft size={14} />
@@ -751,9 +666,43 @@ export function CodingWorkspace({
 
           <button
             onClick={onNext}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+            className="px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <span>{nextButtonLabel}</span>
+          </button>
+        </div>
+
+        <span className="text-xs font-mono font-medium text-ink-muted hidden sm:inline">
+          Coding Challenge {currentIndex + 1} of {totalQuestions}
+        </span>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRun}
+            disabled={isRunning || !activeCode.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-white text-xs font-bold text-ink hover:bg-slate-50 disabled:opacity-40 cursor-pointer shadow-xs transition-colors"
+            title="Run code against sample test cases"
+          >
+            {isRunning && runType === "RUN" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
+            ) : (
+              <Play className="w-3.5 h-3.5 text-success fill-success" />
+            )}
+            <span>Run Tests</span>
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            disabled={isRunning || !activeCode.trim()}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+            title="Submit solution against all test cases"
+          >
+            {isRunning && runType === "SUBMIT" ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Server className="w-3.5 h-3.5" />
+            )}
+            <span>Submit Solution</span>
           </button>
         </div>
       </footer>

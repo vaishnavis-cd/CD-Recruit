@@ -4,30 +4,36 @@
 
 :root {
   /* Brand Accent */
-  --color-brand: #2f5cff;
-  --color-brand-hover: #0037ff;
-  --color-brand-ink: #15308f;
-  --color-brand-subtle: #eaf0ff;
-  --color-brand-border: #b3c5ff;
+  --color-brand: #2F65F6;
+  --color-brand-hover: #1D4ED8;
+  --color-brand-ink: #1E40AF;
+  --color-brand-subtle: #EFF6FF;
+  --color-brand-border: #BFDBFE;
+
+  /* Ink / Text */
+  --color-ink: #0F172A;
+  --color-ink-secondary: #475569;
+  --color-ink-muted: #64748B;
+  --color-ink-dim: #94A3B8;
 
   /* Semantic Feedback */
-  --color-critical: #e5484d;
-  --color-critical-dark: #f0555b;
-  --color-critical-subtle: #fef2f2;
-  --color-critical-border: #fecaca;
+  --color-critical: #EF4444;
+  --color-critical-dark: #F87171;
+  --color-critical-subtle: #FEF2F2;
+  --color-critical-border: #FECACA;
 
-  --color-warning: #f59e0b;
-  --color-warning-dark: #fbbf24;
-  --color-warning-subtle: #fffbeb;
-  --color-warning-border: #fde68a;
+  --color-warning: #B45309;
+  --color-warning-dark: #F59E0B;
+  --color-warning-subtle: #FFFBEB;
+  --color-warning-border: #FDE68A;
 
-  --color-success: #12b76a;
-  --color-success-dark: #3ecf8e;
-  --color-success-subtle: #ecfdf5;
-  --color-success-border: #a7f3d0;
+  --color-success: #15803D;
+  --color-success-dark: #22C55E;
+  --color-success-subtle: #ECFDF5;
+  --color-success-border: #A7F3D0;
 
   /* Fonts */
-  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Radius Scale */

@@ -631,71 +631,75 @@ function SettingsPage() {
     }
   };
 
-function AdminProfileIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="282 156 16 14" fill="none" className={className}>
-      <path d="M292.667 161.667H294.001M292.667 164.334H294.001M286.113 165C286.251 164.609 286.506 164.271 286.844 164.032C287.182 163.792 287.586 163.664 288 163.664C288.414 163.664 288.818 163.792 289.156 164.032C289.494 164.271 289.749 164.609 289.887 165M289.333 162.333C289.333 163.07 288.736 163.667 288 163.667C287.264 163.667 286.667 163.07 286.667 162.333C286.667 161.597 287.264 161 288 161C288.736 161 289.333 161.597 289.333 162.333ZM284.666 158.333H295.334C296.07 158.333 296.667 158.93 296.667 159.666V166.334C296.667 167.07 296.07 167.667 295.334 167.667H284.666C283.93 167.667 283.333 167.07 283.333 166.334V159.666C283.333 158.93 283.93 158.333 284.666 158.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
+  function AdminProfileIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="282 156 16 14" fill="none" className={className}>
+        <path d="M292.667 161.667H294.001M292.667 164.334H294.001M286.113 165C286.251 164.609 286.506 164.271 286.844 164.032C287.182 163.792 287.586 163.664 288 163.664C288.414 163.664 288.818 163.792 289.156 164.032C289.494 164.271 289.749 164.609 289.887 165M289.333 162.333C289.333 163.07 288.736 163.667 288 163.667C287.264 163.667 286.667 163.07 286.667 162.333C286.667 161.597 287.264 161 288 161C288.736 161 289.333 161.597 289.333 162.333ZM284.666 158.333H295.334C296.07 158.333 296.667 158.93 296.667 159.666V166.334C296.667 167.07 296.07 167.667 295.334 167.667H284.666C283.93 167.667 283.333 167.07 283.333 166.334V159.666C283.333 158.93 283.93 158.333 284.666 158.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
 
-function StaffRolesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="282 198 16 14" fill="none" className={className}>
-      <path d="M292.667 211V209.667C292.667 208.959 292.386 208.281 291.886 207.781C291.386 207.281 290.708 207 290 207H286C285.293 207 284.614 207.281 284.114 207.781C283.614 208.281 283.333 208.959 283.333 209.667V211M292.667 199.085C293.239 199.234 293.745 199.567 294.107 200.035C294.469 200.502 294.665 201.076 294.665 201.667C294.665 202.257 294.469 202.831 294.107 203.299C293.745 203.766 293.239 204.1 292.667 204.248M296.667 211V209.667C296.667 209.076 296.47 208.502 296.108 208.035C295.746 207.568 295.239 207.234 294.667 207.087M290.667 201.667C290.667 203.139 289.473 204.333 288 204.333C286.527 204.333 285.333 203.139 285.333 201.667C285.333 200.194 286.527 199 288 199C289.473 199 290.667 200.194 290.667 201.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
+  function StaffRolesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="282 198 16 14" fill="none" className={className}>
+        <path d="M292.667 211V209.667C292.667 208.959 292.386 208.281 291.886 207.781C291.386 207.281 290.708 207 290 207H286C285.293 207 284.614 207.281 284.114 207.781C283.614 208.281 283.333 208.959 283.333 209.667V211M292.667 199.085C293.239 199.234 293.745 199.567 294.107 200.035C294.469 200.502 294.665 201.076 294.665 201.667C294.665 202.257 294.469 202.831 294.107 203.299C293.745 203.766 293.239 204.1 292.667 204.248M296.667 211V209.667C296.667 209.076 296.47 208.502 296.108 208.035C295.746 207.568 295.239 207.234 294.667 207.087M290.667 201.667C290.667 203.139 289.473 204.333 288 204.333C286.527 204.333 285.333 203.139 285.333 201.667C285.333 200.194 286.527 199 288 199C289.473 199 290.667 200.194 290.667 201.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
 
-function AIScoringIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="282 239 16 16" fill="none" className={className}>
-      <path d="M290 252.334V253.667M290 240.333V241.666M293.334 252.334V253.667M293.334 240.333V241.666M283.333 247H284.666M283.333 250.334H284.666M283.333 243.667H284.666M295.334 247H296.667M295.334 250.334H296.667M295.334 243.667H296.667M286.667 252.334V253.667M286.667 240.333V241.666M286 241.666H294.001C294.737 241.666 295.334 242.263 295.334 243V251.001C295.334 251.737 294.737 252.334 294.001 252.334H286C285.263 252.334 284.666 251.737 284.666 251.001V243C284.666 242.263 285.263 241.666 286 241.666ZM288 244.333H292C292.369 244.333 292.667 244.632 292.667 245V249C292.667 249.369 292.369 249.667 292 249.667H288C287.632 249.667 287.333 249.369 287.333 249V245C287.333 244.632 287.632 244.333 288 244.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
+  function AIScoringIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="282 239 16 16" fill="none" className={className}>
+        <path d="M290 252.334V253.667M290 240.333V241.666M293.334 252.334V253.667M293.334 240.333V241.666M283.333 247H284.666M283.333 250.334H284.666M283.333 243.667H284.666M295.334 247H296.667M295.334 250.334H296.667M295.334 243.667H296.667M286.667 252.334V253.667M286.667 240.333V241.666M286 241.666H294.001C294.737 241.666 295.334 242.263 295.334 243V251.001C295.334 251.737 294.737 252.334 294.001 252.334H286C285.263 252.334 284.666 251.737 284.666 251.001V243C284.666 242.263 285.263 241.666 286 241.666ZM288 244.333H292C292.369 244.333 292.667 244.632 292.667 245V249C292.667 249.369 292.369 249.667 292 249.667H288C287.632 249.667 287.333 249.369 287.333 249V245C287.333 244.632 287.632 244.333 288 244.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
 
-function SystemTimingIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="282 281 16 16" fill="none" className={className}>
-      <path d="M290 287V289.667L291.334 291M285.333 283L283.333 285M296.667 285L294.667 283M286.253 293.467L284.666 295M293.76 293.447L295.334 295M295.334 289.667C295.334 292.612 292.946 295 290 295C287.054 295 284.666 292.612 284.666 289.667C284.666 286.721 287.054 284.333 290 284.333C292.946 284.333 295.334 286.721 295.334 289.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
+  function SystemTimingIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="282 281 16 16" fill="none" className={className}>
+        <path d="M290 287V289.667L291.334 291M285.333 283L283.333 285M296.667 285L294.667 283M286.253 293.467L284.666 295M293.76 293.447L295.334 295M295.334 289.667C295.334 292.612 292.946 295 290 295C287.054 295 284.666 292.612 284.666 289.667C284.666 286.721 287.054 284.333 290 284.333C292.946 284.333 295.334 286.721 295.334 289.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
 
-function RetentionPolicyIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="282 323 16 16" fill="none" className={className}>
-      <path d="M288 331L289.333 332.333L292 329.667M295.333 331.667C295.333 335 292.999 336.667 290.226 337.634C290.081 337.683 289.923 337.681 289.78 337.627C287 336.667 284.667 335 284.667 331.667V327C284.667 326.823 284.737 326.654 284.862 326.529C284.987 326.404 285.157 326.333 285.334 326.333C286.667 326.333 288.333 325.533 289.493 324.52C289.634 324.399 289.814 324.333 290 324.333C290.186 324.333 290.365 324.399 290.506 324.52C291.673 325.54 293.333 326.333 294.666 326.333C294.843 326.333 295.012 326.404 295.137 326.529C295.262 326.654 295.333 326.823 295.333 327V331.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
+  function RetentionPolicyIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="282 323 16 16" fill="none" className={className}>
+        <path d="M288 331L289.333 332.333L292 329.667M295.333 331.667C295.333 335 292.999 336.667 290.226 337.634C290.081 337.683 289.923 337.681 289.78 337.627C287 336.667 284.667 335 284.667 331.667V327C284.667 326.823 284.737 326.654 284.862 326.529C284.987 326.404 285.157 326.333 285.334 326.333C286.667 326.333 288.333 325.533 289.493 324.52C289.634 324.399 289.814 324.333 290 324.333C290.186 324.333 290.365 324.399 290.506 324.52C291.673 325.54 293.333 326.333 294.666 326.333C294.843 326.333 295.012 326.404 295.137 326.529C295.262 326.654 295.333 326.823 295.333 327V331.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
 
-function AuditLogsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="383 3869 14 12" fill="none" className={className}>
-      <path
-        d="M384 3870.33H384.667M384 3875H384.667M384 3879.67H384.667M387.333 3870.33H388M387.333 3875H388M387.333 3879.67H388M390.667 3870.33H396M390.667 3875H396M390.667 3879.67H396"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+  function AuditLogsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="383 3869 14 12" fill="none" className={className}>
+        <path
+          d="M384 3870.33H384.667M384 3875H384.667M384 3879.67H384.667M387.333 3870.33H388M387.333 3875H388M387.333 3879.67H388M390.667 3870.33H396M390.667 3875H396M390.667 3879.67H396"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
 
-function IntegrationsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="383 3909 15 15" fill="none" className={className}>
-      <path
-        d="M390.74 3914.11L391.927 3915.89M391.441 3917.53L389.225 3918.47M395.333 3911.67L391.293 3912.68M384 3911V3921.67C384 3922.02 384.14 3922.36 384.391 3922.61C384.641 3922.86 384.98 3923 385.333 3923H396M391.333 3913C391.333 3913.74 390.736 3914.33 390 3914.33C389.264 3914.33 388.667 3913.74 388.667 3913C388.667 3912.26 389.264 3911.67 390 3911.67C390.736 3911.67 391.333 3912.26 391.333 3913ZM394 3917C394 3917.74 393.403 3918.33 392.667 3918.33C391.93 3918.33 391.333 3917.74 391.333 3917C391.333 3916.26 391.93 3915.67 392.667 3915.67C393.403 3915.67 394 3916.26 394 3917ZM389.333 3919C389.333 3919.74 388.736 3920.33 388 3920.33C387.264 3920.33 386.667 3919.74 386.667 3919C386.667 3918.26 387.264 3917.67 388 3917.67C388.736 3917.67 389.333 3918.26 389.333 3919Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+  function IntegrationsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return (
+      <svg width={size} height={size} viewBox="383 3909 15 15" fill="none" className={className}>
+        <path
+          d="M390.74 3914.11L391.927 3915.89M391.441 3917.53L389.225 3918.47M395.333 3911.67L391.293 3912.68M384 3911V3921.67C384 3922.02 384.14 3922.36 384.391 3922.61C384.641 3922.86 384.98 3923 385.333 3923H396M391.333 3913C391.333 3913.74 390.736 3914.33 390 3914.33C389.264 3914.33 388.667 3913.74 388.667 3913C388.667 3912.26 389.264 3911.67 390 3911.67C390.736 3911.67 391.333 3912.26 391.333 3913ZM394 3917C394 3917.74 393.403 3918.33 392.667 3918.33C391.93 3918.33 391.333 3917.74 391.333 3917C391.333 3916.26 391.93 3915.67 392.667 3915.67C393.403 3915.67 394 3916.26 394 3917ZM389.333 3919C389.333 3919.74 388.736 3920.33 388 3920.33C387.264 3920.33 386.667 3919.74 386.667 3919C386.667 3918.26 387.264 3917.67 388 3917.67C388.736 3917.67 389.333 3918.26 389.333 3919Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  function ModulesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+    return <Sliders size={size} className={className} />;
+  }
 
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
@@ -705,6 +709,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
     { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
     { id: "audit", label: "Audit Logs", icon: AuditLogsIcon },
     { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
+    { id: "modules", label: "Assessment Modules", icon: ModulesIcon },
   ] as const;
 
   return (
@@ -725,11 +730,10 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2.5 px-4 h-[35px] rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-[13px] ${
-                    active
+                  className={`flex items-center gap-2.5 px-4 h-[35px] rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-[13px] ${active
                       ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
                       : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
-                  }`}
+                    }`}
                 >
                   <Icon size={15} className={active ? "text-[#2E5DE0]" : "text-[#64748B]"} />
                   <span>{tab.label}</span>
@@ -738,311 +742,11 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
             })}
           </div>
 
-              {/* Roles Breakdown Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-rose-700 uppercase">ADMIN</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Full access to settings, system timing, staff roles & audit logs.</p>
-                </div>
-                <div className="p-3 bg-brand-subtle border border-brand-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-brand-ink uppercase">RECRUITER</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Drive creation, candidate invitations, and hiring decision log.</p>
-                </div>
-                <div className="p-3 bg-warning-subtle border border-warning-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-amber-800 uppercase">PROCTOR</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Real-time session monitoring, integrity flag review & video evidence.</p>
-                </div>
-                <div className="p-3 bg-success-subtle border border-success-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-emerald-800 uppercase">EVALUATOR</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Technical evaluation of code, SQL queries, and AI prompt traces.</p>
-                </div>
-              </div>
-
-              {loadingStaff ? (
-                <p className="text-center font-mono text-xs text-ink-tertiary py-6">
-                  Loading staff roster…
-                </p>
-              ) : (
-                <div className="border border-line rounded-lg divide-y divide-surface-inset overflow-hidden bg-white shadow-sm">
-                  {staff.map((s) => (
-                    <div key={s.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-canvas">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-subtle border border-brand-border text-brand font-bold text-xs flex items-center justify-center font-mono shrink-0">
-                          {s.name ? s.name.charAt(0).toUpperCase() : "S"}
-                        </div>
-                        <div>
-                          <div className="text-sm-minus font-semibold text-ink flex items-center gap-2">
-                            <span>{s.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${s.role === "ADMIN"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : s.role === "HR_LEAD"
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : s.role === "HR_ASSOCIATE"
-                                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                                    : s.role === "REVIEWER"
-                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                      : "bg-slate-50 text-slate-700 border-slate-200"
-                              }`}>
-                              {s.role}
-                            </span>
-                            {s.keycloakUserId && !s.keycloakUserId.startsWith("keycloak_") ? (
-                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Keycloak user synced">
-                                Keycloak
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-slate-50 text-slate-500 border border-slate-200" title="Local / Dev unlinked">
-                                Local
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs-plus text-ink-secondary font-mono">{s.email}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2.5">
-                        <select
-                          value={s.role}
-                          onChange={(e) => handleUpdateRole(s.id, e.target.value)}
-                          className="px-2.5 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink outline-none shadow-sm cursor-pointer"
-                        >
-                          <option value="ADMIN">Admin (Superadmin)</option>
-                          <option value="HR_LEAD">HR Lead / Manager</option>
-                          <option value="HR_ASSOCIATE">HR Associate / Recruiter</option>
-                          <option value="REVIEWER">Technical Evaluator</option>
-                          <option value="RECRUITER">Recruiter (Legacy)</option>
-                        </select>
-
-                        <button
-                          onClick={() => {
-                            setSelectedStaffForReset(s);
-                            setResetPwValue(generateRandomPassword());
-                            setResetPwTemporary(true);
-                            setShowResetPwModal(true);
-                          }}
-                          title="Reset temporary password"
-                          className="p-1.5 text-ink-tertiary hover:text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
-                        >
-                          <Key size={15} />
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteStaff(s.id, s.name)}
-                          title="Remove staff member"
-                          className="p-1.5 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {staff.length === 0 && (
-                    <div className="p-6 text-center text-ink-tertiary text-xs">
-                      No staff members registered. Click "Add Staff Member" to grant access.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Add Staff Modal */}
-              {showAddStaffModal && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[440px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
-                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
-                      <div className="flex items-center gap-2">
-                        <UserPlus size={16} className="text-brand" />
-                        <h3 className="text-md font-semibold text-ink">Add New Staff Member</h3>
-                      </div>
-                      <button
-                        onClick={() => setShowAddStaffModal(false)}
-                        className="text-ink-tertiary hover:text-ink cursor-pointer"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleCreateStaff} className="space-y-4 text-sm-minus">
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Full Name</label>
-                        <input
-                          type="text"
-                          required
-                          value={newStaffName}
-                          onChange={(e) => setNewStaffName(e.target.value)}
-                          placeholder="e.g. Sarah Connor"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          required
-                          value={newStaffEmail}
-                          onChange={(e) => setNewStaffEmail(e.target.value)}
-                          placeholder="e.g. sarah@company.com"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Assigned Role</label>
-                        <select
-                          value={newStaffRole}
-                          onChange={(e) => setNewStaffRole(e.target.value)}
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        >
-                          <option value="HR_LEAD">HR Lead / Manager (Decisions, Evaluations &amp; Governance)</option>
-                          <option value="HR_ASSOCIATE">HR Associate (Drives &amp; Candidate Ingestion)</option>
-                          <option value="ADMIN">Admin (Superadmin — Full Platform Access)</option>
-                          <option value="REVIEWER">Technical Evaluator (Submission Scoring)</option>
-                          <option value="RECRUITER">Recruiter (Legacy Full Access)</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-medium text-ink-secondary">Initial / Temp Password</label>
-                          <button
-                            type="button"
-                            onClick={() => setNewStaffTempPassword(generateRandomPassword())}
-                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
-                          >
-                            Generate Strong Password
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          value={newStaffTempPassword}
-                          onChange={(e) => setNewStaffTempPassword(e.target.value)}
-                          placeholder="Leave blank to auto-generate (Password@123)"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="checkbox"
-                          id="requirePwChangeCheck"
-                          checked={newStaffRequirePwChange}
-                          onChange={(e) => setNewStaffRequirePwChange(e.target.checked)}
-                          className="rounded border-line text-brand focus:ring-brand"
-                        />
-                        <label htmlFor="requirePwChangeCheck" className="text-xs text-ink-secondary cursor-pointer">
-                          Require password update upon first login in Keycloak
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
-                        <button
-                          type="button"
-                          onClick={() => setShowAddStaffModal(false)}
-                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={creatingStaff}
-                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
-                        >
-                          {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {/* Reset Password Modal */}
-              {showResetPwModal && selectedStaffForReset && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
-                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
-                      <div className="flex items-center gap-2">
-                        <Key size={16} className="text-brand" />
-                        <h3 className="text-md font-semibold text-ink">Reset Staff Password</h3>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowResetPwModal(false);
-                          setSelectedStaffForReset(null);
-                        }}
-                        className="text-ink-tertiary hover:text-ink cursor-pointer"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleResetPasswordSubmit} className="space-y-4 text-sm-minus">
-                      <div className="p-3 bg-surface rounded-lg border border-line space-y-1">
-                        <div className="text-xs font-semibold text-ink">{selectedStaffForReset.name}</div>
-                        <div className="text-2xs font-mono text-ink-secondary">{selectedStaffForReset.email}</div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-medium text-ink-secondary">New Temporary Password</label>
-                          <button
-                            type="button"
-                            onClick={() => setResetPwValue(generateRandomPassword())}
-                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
-                          >
-                            Generate
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={resetPwValue}
-                          onChange={(e) => setResetPwValue(e.target.value)}
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="checkbox"
-                          id="temporaryResetCheck"
-                          checked={resetPwTemporary}
-                          onChange={(e) => setResetPwTemporary(e.target.checked)}
-                          className="rounded border-line text-brand focus:ring-brand"
-                        />
-                        <label htmlFor="temporaryResetCheck" className="text-xs text-ink-secondary cursor-pointer">
-                          Mark as temporary (requires user to set new password on login)
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowResetPwModal(false);
-                            setSelectedStaffForReset(null);
-                          }}
-                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={resettingPw}
-                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
-                        >
-                          {resettingPw ? "Resetting…" : "Confirm Reset"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Dynamic Roles & Permissions Matrix */}
-          {activeTab === "permissions" && (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between border-b border-line pb-4">
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0 bg-white border border-[#E2E8F0] rounded-[16px] p-6 lg:p-8 shadow-xs">
+            {/* Tab 1: Admin Profile */}
+            {activeTab === "profile" && (
+              <div className="max-w-[499px] space-y-6">
                 <div>
                   <h2 className="text-[16px] font-bold text-[#0F172A]">Admin Account Details</h2>
                   <p className="text-[12px] text-[#64748B] mt-1">
@@ -1635,11 +1339,10 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           </div>
                           <div>
                             <span
-                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
-                                p.isRevoked
+                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${p.isRevoked
                                   ? "bg-[#FEF2F2] text-[#EF4444]"
                                   : "bg-[#ECFDF5] text-[#059669]"
-                              }`}
+                                }`}
                             >
                               {p.isRevoked ? "REVOKED" : "ACTIVE"}
                             </span>
@@ -1647,10 +1350,10 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           <div className="text-[13px] text-[#64748B]">
                             {p.createdAt
                               ? new Date(p.createdAt).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "2-digit",
-                                })
+                                month: "short",
+                                day: "numeric",
+                                year: "2-digit",
+                              })
                               : "—"}
                           </div>
                           <div className="flex items-center justify-center gap-1.5">
@@ -1718,9 +1421,8 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           ].map((m) => (
                             <th
                               key={m.key}
-                              className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
-                                hoveredCell?.mod === m.key ? "bg-blue-50/60 text-[#2f68ff]" : ""
-                              }`}
+                              className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${hoveredCell?.mod === m.key ? "bg-blue-50/60 text-[#2f68ff]" : ""
+                                }`}
                             >
                               {m.label}
                             </th>
@@ -1761,9 +1463,8 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           return (
                             <tr
                               key={d.key}
-                              className={`transition-colors ${
-                                isRowHovered ? "bg-blue-50/40" : "hover:bg-[#fbfcfd]"
-                              }`}
+                              className={`transition-colors ${isRowHovered ? "bg-blue-50/40" : "hover:bg-[#fbfcfd]"
+                                }`}
                             >
                               <td className="px-4 py-3 font-bold text-[#0d1424]">
                                 <div className="flex items-center gap-2">
@@ -1790,15 +1491,14 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                                     key={mod}
                                     onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
                                     onMouseLeave={() => setHoveredCell(null)}
-                                    className={`px-3 py-3 text-center transition-colors ${
-                                      isCellHovered
+                                    className={`px-3 py-3 text-center transition-colors ${isCellHovered
                                         ? "bg-blue-50"
                                         : isColHovered
                                           ? "bg-blue-50/50"
                                           : isRowHovered
                                             ? "bg-blue-50/30"
                                             : ""
-                                    }`}
+                                      }`}
                                   >
                                     <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
                                       <input
@@ -1928,8 +1628,10 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
               <span>{newlyCreatedKey.apiKey}</span>
               <button
                 onClick={async () => {
-                  await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
-                  toast.success("API key copied to clipboard!");
+                  if (newlyCreatedKey?.apiKey) {
+                    await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
+                    toast.success("API key copied to clipboard!");
+                  }
                 }}
                 className="px-3 py-1 text-xs font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-full cursor-pointer shrink-0"
               >

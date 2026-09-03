@@ -193,55 +193,43 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </div>
       )}
 
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="font-semibold text-base text-[var(--foreground)] tracking-tight">
+      {/* Top bar with 3-part layout: Left Branding, Center Camera & Timer, Right Actions */}
+      <header className="relative flex items-center justify-between px-6 py-2.5 border-b border-line dark:border-slate-800 bg-white dark:bg-[#111827] flex-shrink-0">
+        {/* Left Branding & Active Module Info */}
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-bold tracking-tight text-ink dark:text-white">
+            Proctora
+          </span>
+          <div className="h-4 w-px bg-line dark:bg-slate-700" />
+          <span className="text-sm font-bold text-brand">
             {currentModule?.name ?? `Module ${moduleIndex + 1}`}
-          </div>
+          </span>
           {currentModule && (
-            <span className="text-xs text-[var(--muted-foreground)] hidden sm:block font-mono-data">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
               Q{currentQuestionIndex + 1} of {questions.length}
             </span>
           )}
         </div>
 
+        {/* Center Live Camera & Countdown Timer */}
         <div className="flex items-center gap-3">
           <ProctoringIndicator cvMode={cvMode} />
           <Timer />
+        </div>
 
-          {/* Module navigation tabs — only show active modules assigned to drive */}
-          <nav aria-label="Module navigation" className="hidden md:flex items-center gap-1.5 bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
-            {activeModules.map((mod, i) => (
-              <button
-                key={i}
-                onClick={() => transitionTo({ type: 'assessment', moduleIndex: i, sessionId: assessment?.sessionId ?? '' })}
-                aria-label={`Go to ${mod.name}`}
-                aria-current={i === moduleIndex ? 'page' : undefined}
-                className={`
-                  px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
-                  ${i === moduleIndex
-                    ? 'bg-[var(--accent)] text-white font-semibold'
-                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)]'
-                  }
-                `}
-              >
-                {mod.name}
-              </button>
-            ))}
-          </nav>
-
+        {/* Right Actions: Theme toggle & Review & Submit */}
+        <div className="flex items-center gap-3">
           <button
             onClick={toggle}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            className="p-2 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors border border-[var(--border)] cursor-pointer"
+            className="w-9 h-9 rounded-full border border-line dark:border-slate-700 flex items-center justify-center text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </button>
 
           <button
             onClick={handleSubmitAssessment}
-            className="btn-primary text-xs cursor-pointer"
+            className="bg-brand hover:bg-brand-hover text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
             aria-label="Review and submit assessment"
           >
             Review &amp; Submit
@@ -249,11 +237,33 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </div>
       </header>
 
+      {/* Module sub-navigation tabs bar */}
+      <div className="px-6 py-2.5 bg-white dark:bg-[#111827] border-b border-line dark:border-slate-800 flex items-center gap-2 overflow-x-auto no-scrollbar flex-shrink-0">
+        {activeModules.map((mod, i) => {
+          const isActive = i === moduleIndex;
+          return (
+            <button
+              key={i}
+              onClick={() => transitionTo({ type: 'assessment', moduleIndex: i, sessionId: assessment?.sessionId ?? '' })}
+              aria-label={`Go to ${mod.name}`}
+              aria-current={isActive ? 'page' : undefined}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-white dark:bg-[#1e293b] border-2 border-brand text-brand shadow-xs font-bold'
+                  : 'text-ink-secondary dark:text-slate-400 hover:text-ink dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-850 border border-transparent'
+              }`}
+            >
+              {mod.name}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Main content + sidebar */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden bg-canvas dark:bg-[#0B0F19]">
         {/* Sidebar: Question palette */}
         <aside
-          className="w-56 flex-shrink-0 border-r border-[var(--border)] bg-[var(--surface)] overflow-y-auto hidden lg:block"
+          className="w-60 flex-shrink-0 border-r border-line dark:border-slate-800 bg-white dark:bg-[#111827] overflow-y-auto hidden lg:block"
           aria-label="Question navigation sidebar"
         >
           <QuestionPalette
@@ -265,7 +275,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </aside>
 
         {/* Question content */}
-        <main className="flex-1 h-full flex flex-col min-h-0 overflow-hidden" id="main-content" tabIndex={-1}>
+        <main className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-canvas dark:bg-[#0B0F19]" id="main-content" tabIndex={-1}>
           {children}
         </main>
       </div>

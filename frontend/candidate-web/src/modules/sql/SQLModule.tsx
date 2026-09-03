@@ -614,55 +614,60 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           )}
 
           {/* Standardized Pinned Bottom Navigation Bar */}
-          <footer className="h-14 border-t border-[var(--border)] bg-[var(--surface)] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+          <footer className="h-14 border-t border-line bg-white px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div className="flex items-center gap-3">
               <button
-                onClick={handleRun}
-                disabled={running || !query.trim()}
-                className="px-3.5 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
-              >
-                {running ? 'Running…' : '▶ Run Query'}
-              </button>
-
-              <button
-                onClick={handleSubmitQuery}
-                disabled={submitting || !query.trim()}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
-              >
-                {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Save Answer'}
-              </button>
-
-              {evalResult && (
-                <div className={`px-2.5 py-1 rounded-full text-xs-plus font-mono font-medium flex items-center gap-1.5 ${
-                  evalResult.passed 
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
-                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-                }`}>
-                  <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
-                  <span className="text-2xs opacity-75">({evalResult.executionTime}ms)</span>
-                </div>
-              )}
-            </div>
-
-            <span className="text-xs font-mono font-medium text-[var(--text-secondary)] hidden sm:inline">
-              SQL Task {currentIndex + 1} of {questions.length}
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
+                type="button"
                 onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 aria-label="Previous question"
               >
                 <ChevronLeft size={14} />
                 <span>Previous</span>
               </button>
+
               <button
+                type="button"
                 onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                className="px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <span>{nextButtonLabel}</span>
+              </button>
+            </div>
+
+            <span className="text-xs font-mono font-medium text-ink-muted hidden sm:inline">
+              SQL Task {currentIndex + 1} of {questions.length}
+            </span>
+
+            <div className="flex items-center gap-3">
+              {evalResult && (
+                <div className={`px-3 py-1 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 ${
+                  evalResult.passed 
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                    : 'bg-red-50 text-critical border border-red-200'
+                }`}>
+                  <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
+                  <span className="text-2xs opacity-75">({evalResult.executionTime}ms)</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleRun}
+                disabled={running || !query.trim()}
+                className="px-4 py-2 rounded-lg border border-line bg-white text-ink hover:bg-slate-50 text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                {running ? 'Running…' : '▶ Run Query'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmitQuery}
+                disabled={submitting || !query.trim()}
+                className="px-6 py-2.5 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+              >
+                {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Save Answer'}
               </button>
             </div>
           </footer>

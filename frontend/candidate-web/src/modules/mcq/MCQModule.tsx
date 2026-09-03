@@ -4,7 +4,7 @@ import { useSessionStore } from '../../store/sessionMachine';
 import { ModuleShell } from '../../components/ModuleShell';
 import { useModuleNavigation } from '../../hooks/useModuleNavigation';
 import apiClient from '../../api/client';
-import { Check, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 
 interface MCQModuleProps {
   moduleIndex: number;
@@ -136,7 +136,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
     return (
       <ModuleShell moduleIndex={moduleIndex} questions={paletteItems} currentQuestionIndex={currentIndex} onNavigate={setCurrentIndex}>
         <div className="flex items-center justify-center h-full min-h-[400px]">
-          <span className="text-[var(--text-secondary)] text-sm animate-pulse">Loading question…</span>
+          <span className="text-ink-secondary text-sm animate-pulse">Loading question…</span>
         </div>
       </ModuleShell>
     );
@@ -146,7 +146,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
     return (
       <ModuleShell moduleIndex={moduleIndex} questions={paletteItems} currentQuestionIndex={currentIndex} onNavigate={setCurrentIndex}>
         <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-2">
-          <span className="text-[var(--warning)] text-sm">{error || 'No questions available for this module.'}</span>
+          <span className="text-warning text-sm font-semibold">{error || 'No questions available for this module.'}</span>
         </div>
       </ModuleShell>
     );
@@ -159,45 +159,45 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-[var(--background)]">
+      <div className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-canvas dark:bg-[#0B0F19]">
         {/* Scrollable Question Content Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6">
-          <div className="max-w-3xl mx-auto space-y-6 animate-cd-fade-in">
-            {/* Question Header */}
+        <div className="flex-1 min-h-0 overflow-y-auto py-8 px-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {/* Question Tracker & Multiple Select Badge */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] font-mono">
-                Question {currentIndex + 1} of {questions.length}
+              <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+                QUESTION {currentIndex + 1} OF {questions.length}
               </span>
               {question?.allowMultiple && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--accent)] font-medium">
-                  Multiple select
+                <span className="text-xs px-3 py-1 rounded-full bg-brand-subtle dark:bg-blue-950/50 border border-brand-border dark:border-blue-800 text-brand dark:text-blue-300 font-bold">
+                  Multiple Select
                 </span>
               )}
             </div>
 
             {/* Question Text */}
-            <h2 className="text-lg sm:text-xl font-semibold text-[var(--foreground)] leading-relaxed">
+            <h2 className="text-lg font-bold text-ink dark:text-white leading-relaxed">
               {question?.text}
             </h2>
 
-            {/* Options */}
+            {/* Options List */}
             <fieldset aria-label={`Question ${currentIndex + 1} options`}>
               <legend className="sr-only">Options</legend>
-              <div className="space-y-3">
-                {question?.options.map(option => {
+              <div className="space-y-3 pt-2">
+                {question?.options.map((option, optIdx) => {
                   const isSelected = currentSelection.includes(option.id);
                   const inputType = question.allowMultiple ? 'checkbox' : 'radio';
+                  const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+                  const letterPrefix = optionLetters[optIdx] ? `${optionLetters[optIdx]}. ` : '';
 
                   return (
                     <label
                       key={option.id}
-                      className={`
-                        flex items-center gap-4 p-4 rounded-xl border text-sm transition-all cursor-pointer select-none
-                        ${isSelected
-                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)] font-medium shadow-xs ring-1 ring-[var(--accent)]/30'
-                          : 'border-[var(--border)] bg-[var(--surface)] text-[var(--muted-foreground)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]'
-                        }
-                      `}
+                      className={`flex items-center gap-3.5 p-4 rounded-xl border text-sm transition-all cursor-pointer select-none shadow-xs ${
+                        isSelected
+                          ? 'border-2 border-brand bg-brand-subtle dark:bg-blue-950/50 text-ink dark:text-white font-bold'
+                          : 'border-line dark:border-slate-800 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:text-ink dark:hover:text-white'
+                      }`}
                     >
                       <input
                         type={inputType}
@@ -208,63 +208,84 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                         className="sr-only"
                       />
 
-                      {/* Custom Indicator */}
+                      {/* Custom Radio / Checkbox Indicator */}
                       <span
                         aria-hidden
-                        className={`
-                          w-5 h-5 flex items-center justify-center border text-xs font-bold transition-colors shrink-0
-                          ${question.allowMultiple ? 'rounded-md' : 'rounded-full'}
-                          ${isSelected
-                            ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                            : 'border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)]'
-                          }
-                        `}
+                        className={`w-5 h-5 flex items-center justify-center border text-xs font-bold transition-all shrink-0 ${
+                          question.allowMultiple ? 'rounded-md' : 'rounded-full'
+                        } ${
+                          isSelected
+                            ? 'border-2 border-brand bg-white dark:bg-[#111827]'
+                            : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-[#111827]'
+                        }`}
                       >
-                        {isSelected ? <Check size={12} strokeWidth={3} /> : null}
+                        {isSelected && (
+                          <span
+                            className={`${
+                              question.allowMultiple
+                                ? 'w-3 h-3 rounded-xs bg-brand'
+                                : 'w-2.5 h-2.5 rounded-full bg-brand'
+                            }`}
+                          />
+                        )}
                       </span>
 
-                      <span className="flex-1">{option.text}</span>
+                      <span className="flex-1 text-sm font-inherit leading-normal">
+                        {option.text.startsWith('A.') || option.text.startsWith('B.') || option.text.startsWith('C.') || option.text.startsWith('D.')
+                          ? option.text
+                          : `${letterPrefix}${option.text}`}
+                      </span>
                     </label>
                   );
                 })}
               </div>
             </fieldset>
+
+            {/* Bottom Actions Bar */}
+            <div className="flex items-center justify-between pt-6 border-t border-line dark:border-slate-800 mt-8">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+                  disabled={currentIndex === 0}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  aria-label="Previous question"
+                >
+                  <ChevronLeft size={14} />
+                  <span>Previous</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+                  className="px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  aria-label={nextButtonLabel}
+                >
+                  <span>{nextButtonLabel}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white border border-line dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors cursor-pointer"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+                  disabled={currentSelection.length === 0}
+                  aria-label="Submit answer for this question"
+                  className="px-6 py-2.5 rounded-lg text-xs font-bold bg-brand text-white hover:bg-brand-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-brand flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <span>Submit Question</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Standardized Pinned Bottom Navigation Bar */}
-        <footer className="h-14 border-t border-[var(--border)] bg-[var(--surface)] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
-          <button
-            onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            aria-label="Previous question"
-          >
-            <ChevronLeft size={14} />
-            <span>Previous</span>
-          </button>
-
-          <span className="text-xs font-mono font-medium text-[var(--muted-foreground)] hidden sm:inline">
-            Question {currentIndex + 1} of {questions.length}
-          </span>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleSkip}
-              className="px-3.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
-              aria-label="Skip this question"
-            >
-              Skip
-            </button>
-            <button
-              onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
-              aria-label={nextButtonLabel}
-            >
-              <span>{nextButtonLabel}</span>
-            </button>
-          </div>
-        </footer>
       </div>
     </ModuleShell>
   );

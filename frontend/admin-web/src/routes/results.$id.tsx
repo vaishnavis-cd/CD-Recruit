@@ -286,51 +286,45 @@ function IndividualResultPage() {
       title={`Evaluation: ${detail.candidateName}`}
       hideHeader={true}
     >
-      {/* Header Banner */}
-      <div className="bg-white border border-line rounded-xl p-6 shadow-sm mb-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-surface-inset pb-5">
-          <div>
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
-              <h2 className="text-xl font-semibold text-ink">{detail.candidateName}</h2>
-              {detail.referenceId && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
-                  Ref: {detail.referenceId}
-                </span>
-              )}
-              {isApproved ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <CheckCircle2 size={14} /> Approved
-                </span>
-              ) : isRejected ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                  <XCircle size={14} /> Rejected
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                  <Clock size={14} /> Pending Review
-                </span>
-              )}
-            </div>
-            <p className="text-sm-minus text-ink-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>{detail.candidateEmail}</span>
-              <span>•</span>
-              <span>Drive: <strong className="font-semibold text-ink">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
-              <span>•</span>
-              <span className="font-mono text-xs text-ink">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
-              {detail.startedAt && detail.submittedAt && (
-                <>
-                  <span>•</span>
-                  <span>Drive: <strong className="font-semibold text-[#0F172A]">{formatDriveName(detail.driveName)}</strong></span>
-                  <span>•</span>
-                  <span className="text-[#64748B]">Submitted: <strong className="text-[#0F172A]">{formatTimestamp(detail.submittedAt)}</strong></span>
-                  {detail.startedAt && detail.submittedAt && (
-                    <>
-                      <span>•</span>
-                      <span className="text-[#2563EB]">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
-                    </>
-                  )}
-                </p>
+      <div className="max-w-[1320px] mx-auto w-full space-y-6">
+        {/* Header Banner */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[16px] p-6 shadow-xs">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-[#F1F5F9] pb-5">
+            <div>
+              <div className="flex items-center gap-3 mb-1 flex-wrap">
+                <h2 className="text-xl font-bold text-[#0F172A]">{detail.candidateName}</h2>
+                {detail.referenceId && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]" title="Candidate Reference ID">
+                    Ref: {detail.referenceId}
+                  </span>
+                )}
+                {isApproved ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 size={14} /> Approved
+                  </span>
+                ) : isRejected ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                    <XCircle size={14} /> Rejected
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    <Clock size={14} /> Pending Review
+                  </span>
+                )}
               </div>
+              <p className="text-xs text-[#64748B] flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{detail.candidateEmail}</span>
+                <span>•</span>
+                <span>Drive: <strong className="font-semibold text-[#0F172A]">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
+                <span>•</span>
+                <span className="font-mono text-xs text-[#0F172A]">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
+                {detail.startedAt && detail.submittedAt && (
+                  <>
+                    <span>•</span>
+                    <span className="text-[#2563EB]">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
+                  </>
+                )}
+              </p>
             </div>
 
             {/* Action Decision Buttons */}
@@ -371,64 +365,6 @@ function IndividualResultPage() {
                     return `${scoreVal}%`;
                   })()}
                 </span>
-              ) : (
-                <span className="text-2xl font-mono font-bold text-ink flex items-center gap-1">
-                  <ShieldCheck size={20} className="text-emerald-600" /> Clean
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Say/Do Alignment
-            </span>
-            <span className="text-2xl font-mono font-bold text-ink">
-              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
-                ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
-                : "Pending"}
-            </span>
-          </div>
-
-          <div
-            className="bg-canvas border border-line rounded-md p-3.5 relative group cursor-help"
-            title="AI Confidence reflects the automated grading certainty based on response completion ratio, deterministic test executions, and evaluation signal quality."
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block">
-                AI Confidence
-              </span>
-              <Info size={13} className="text-ink-tertiary opacity-70 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <span className="text-2xl font-mono font-bold text-ink">
-              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
-                ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
-                : "Pending"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Module Navigation Tabs */}
-      <div className="flex border-b border-line mb-6 space-x-6">
-        {availableTabs.map((tab: any) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          const mScore = score?.moduleScores?.[tab.id];
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-3 text-sm-minus font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
-                  ? "border-brand text-brand font-semibold"
-                  : "border-transparent text-ink-secondary hover:text-ink"
-                }`}
-            >
-              <div className="relative inline-flex items-center justify-center shrink-0">
-                <Icon size={16} />
-                {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
-                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                )}
               </div>
             </div>
 
@@ -489,11 +425,10 @@ function IndividualResultPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 h-[39px] px-5 rounded-[19.5px] text-[13px] transition-all cursor-pointer whitespace-nowrap ${
-                  isActive
+                className={`flex items-center gap-2 h-[39px] px-5 rounded-[19.5px] text-[13px] transition-all cursor-pointer whitespace-nowrap ${isActive
                     ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
                     : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
-                }`}
+                  }`}
               >
                 <div className="relative inline-flex items-center justify-center shrink-0">
                   <Icon size={15} />
@@ -516,1170 +451,1166 @@ function IndividualResultPage() {
 
         {/* Tab Contents Card */}
         <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs min-h-[420px]">
-        {/* CODING TAB */}
-        {activeTab === "CODING" && (() => {
-          const isDebuggingItem = (item: any) => {
-            if (!item) return false;
-            const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
-            if (modType === "DEBUGGING") return true;
-            const tags = item.tags || item.question?.tags || [];
-            if (Array.isArray(tags) && tags.includes("debugging")) return true;
-            const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
-            if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
-            return false;
-          };
+          {/* CODING TAB */}
+          {activeTab === "CODING" && (() => {
+      const isDebuggingItem = (item: any) => {
+        if (!item) return false;
+        const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
+        if (modType === "DEBUGGING") return true;
+        const tags = item.tags || item.question?.tags || [];
+        if (Array.isArray(tags) && tags.includes("debugging")) return true;
+        const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
+        if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
+        return false;
+      };
 
-          const codingResponses = (detail.moduleResponses || []).filter(
-            (r) =>
-              (r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined) &&
-              !isDebuggingItem(r)
-          );
-          return (
-            <div className="space-y-4">
-              <h3 className="text-md font-semibold text-ink">Coding Submissions &amp; Unit Test Execution Results</h3>
-              {codingResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No coding submissions recorded for this assessment.</p>
-              ) : (
-                codingResponses.map((resp, idx) => {
-                  const payload = resp.responsePayload || (resp as any).payload || resp;
-                  const codeText = payload.sourceCode || payload.code || "// No code submitted";
-                  const lang = payload.language || "python";
-                  const promptText = (resp.question as any)?.prompt || payload.questionText || `Coding Problem #${idx + 1}`;
-                  const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
-                  const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
-                  const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
-                  const isAllPassed = passedCount === totalCount && totalCount > 0;
-                  return (
-                    <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm-minus font-semibold text-ink">
-                          {promptText} ({lang})
-                        </span>
-                        <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
-                          Passed {passedCount} / {totalCount} Tests
-                        </span>
-                      </div>
-
-                      <div className="h-48 border border-line rounded-md overflow-hidden">
-                        <CodeEditor
-                          value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
-                          language={lang}
-                          readOnly={true}
-                          theme="cd-recruit-dark"
-                        />
-                      </div>
-
-                      {resp.responsePayload?.stdout && (
-                        <div>
-                          <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
-                          <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
-                            {resp.responsePayload.stdout}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          );
-        })()}
-
-        {/* DEBUGGING TAB */}
-        {activeTab === "DEBUGGING" && (() => {
-          const isDebuggingItem = (item: any) => {
-            if (!item) return false;
-            const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
-            if (modType === "DEBUGGING") return true;
-            const tags = item.tags || item.question?.tags || [];
-            if (Array.isArray(tags) && tags.includes("debugging")) return true;
-            const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
-            if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
-            return false;
-          };
-
-          const debuggingResponses = (detail.moduleResponses || []).filter(
-            (r) => isDebuggingItem(r)
-          );
-
-          return (
-            <div className="space-y-4">
-              <h3 className="text-md font-semibold text-ink">Debugging Fix Submissions &amp; Test Suite Verification</h3>
-              {debuggingResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No debugging submissions recorded for this assessment.</p>
-              ) : (
-                debuggingResponses.map((resp, idx) => {
-                  const payload = resp.responsePayload || (resp as any).payload || resp;
-                  const codeText = payload.sourceCode || payload.code || "// No fixed code submitted";
-                  const lang = payload.language || "python";
-                  const promptText = (resp.question as any)?.prompt || payload.questionText || `Debugging Challenge #${idx + 1}`;
-                  const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
-                  const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
-                  const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
-                  const isAllPassed = passedCount === totalCount && totalCount > 0;
-
-                  return (
-                    <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm-minus font-semibold text-ink">
-                          {promptText} ({lang})
-                        </span>
-                        <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${
-                          isAllPassed
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                            : "bg-amber-50 text-amber-800 border-amber-300"
-                        }`}>
-                          Passed {passedCount} / {totalCount} Tests
-                        </span>
-                      </div>
-
-                      <div className="h-48 border border-line rounded-md overflow-hidden">
-                        <CodeEditor
-                          value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
-                          language={lang}
-                          readOnly={true}
-                          theme="cd-recruit-dark"
-                        />
-                      </div>
-
-                      {resp.responsePayload?.stdout && (
-                        <div>
-                          <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
-                          <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
-                            {resp.responsePayload.stdout}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          );
-        })()}
-
-        {/* SQL TAB */}
-        {activeTab === "SQL" && (() => {
-          const sqlResponses = (detail.moduleResponses || []).filter(
-            r => (r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL') && r.moduleType !== 'NOSQL' && r.responsePayload?.moduleType !== 'NOSQL'
-          );
-          return (
-            <div className="space-y-4">
-              <h3 className="text-md font-semibold text-ink">SQL Query Submissions &amp; Execution Results</h3>
-              {sqlResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No SQL queries recorded for this assessment.</p>
-              ) : (
-                sqlResponses.map((resp, idx) => {
-                  const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted";
-                  const execResult = resp.responsePayload?.executionResult;
-                  const hasResult = execResult !== undefined;
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
-                  const badgeColor = hasResult
-                    ? (isCorrect
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                        : "bg-rose-50 text-rose-800 border-rose-300")
-                    : "bg-brand-subtle text-brand-ink border-brand-border";
-
-                  return (
-                    <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono font-semibold text-ink">SQL Query #{idx + 1}</span>
-                        <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
-                          {statusText}
-                        </span>
-                      </div>
-
-                      <div className="h-44 border border-line rounded-md overflow-hidden">
-                        <CodeEditor
-                          value={queryText}
-                          language="sql"
-                          readOnly={true}
-                          theme="cd-recruit-dark"
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          );
-        })()}
-
-        {/* NoSQL TAB */}
-        {activeTab === "NOSQL" && (() => {
-          const nosqlResponses = (detail.moduleResponses || []).filter(
-            r => (r.moduleType === 'NOSQL' || r.responsePayload?.moduleType === 'NOSQL') && r.moduleType !== 'SQL' && r.responsePayload?.moduleType !== 'SQL'
-          );
-          return (
-            <div className="space-y-4">
-              <h3 className="text-md font-semibold text-ink">NoSQL Query Submissions &amp; Execution Results</h3>
-              {nosqlResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No NoSQL queries recorded for this assessment.</p>
-              ) : (
-                nosqlResponses.map((resp, idx) => {
-                  const op = resp.responsePayload?.operation || {};
-                  const rawQuery = resp.responsePayload?.query;
-                  const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2));
-                  const displayLanguage = rawQuery ? "javascript" : "json";
-
-                  const execResult = resp.responsePayload?.executionResult;
-                  const hasResult = execResult !== undefined;
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
-                  const badgeColor = hasResult
-                    ? (isCorrect
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                        : "bg-rose-50 text-rose-800 border-rose-300")
-                    : "bg-brand-subtle text-brand-ink border-brand-border";
-
-                  return (
-                    <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono font-semibold text-ink">NoSQL Operation #{idx + 1}</span>
-                        <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
-                          {statusText}
-                        </span>
-                      </div>
-
-                      <div className="h-44 border border-line rounded-md overflow-hidden">
-                        <CodeEditor
-                          value={displayQuery}
-                          language={displayLanguage}
-                          readOnly={true}
-                          theme="cd-recruit-dark"
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          );
-        })()}
-
-        {/* MCQ TAB */}
-        {activeTab === "MCQ" && (() => {
-          const mcqResponses = (detail.moduleResponses || []).filter(
-            r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
-          );
-          const correctCount = mcqResponses.filter(r => {
-            const qObj = r.question || {};
-            const qContent = qObj.content || {};
-            const optionsList = qObj.options || qContent.options || [];
-            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
-            const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
-            
-            if (r.responsePayload?.isCorrect !== undefined) return Boolean(r.responsePayload.isCorrect);
-            if (selectedRaw === undefined || correctRaw === undefined) return false;
-            
-            const selText = Array.isArray(selectedRaw) ? selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ") : resolveOptionText(selectedRaw, optionsList);
-            const corrText = resolveOptionText(correctRaw, optionsList);
-            return selText.trim().toLowerCase() === corrText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
-          }).length;
-
-          const skippedCount = mcqResponses.filter(r => {
-            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
-            return selectedRaw === undefined || selectedRaw === null || (Array.isArray(selectedRaw) && selectedRaw.length === 0);
-          }).length;
-
-          const incorrectCount = Math.max(0, mcqResponses.length - correctCount - skippedCount);
-
-          return (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-                <div>
-                  <h3 className="text-md font-semibold text-ink">Multiple Choice Responses &amp; Accuracy Breakdown</h3>
-                  <p className="text-sm-minus text-ink-tertiary">Detailed evaluation of candidate option selections, correctness, and correct reference answers.</p>
-                </div>
-                {mcqResponses.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Correct: {correctCount}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-rose-50 text-rose-700 border border-rose-200">
-                      Incorrect: {incorrectCount}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-slate-100 text-slate-700 border border-slate-200">
-                      Skipped: {skippedCount}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {mcqResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No MCQ responses recorded for this assessment.</p>
-              ) : (
-                <div className="space-y-3">
-                  {mcqResponses.map((resp, idx) => {
-                    const qObj = resp.question || {};
-                    const qContent = qObj.content || {};
-                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || resp.responsePayload?.questionText || `Question #${idx + 1}`;
-                    
-                    const optionsList: Array<any> = qObj.options || qContent.options || [];
-
-                    const selectedRaw = resp.responsePayload?.selectedOption ?? resp.responsePayload?.selectedOptions ?? resp.responsePayload?.selectedOptionIndex ?? resp.responsePayload?.selectedIndex;
-
-                    let selectedOptionText = "None selected";
-                    if (selectedRaw !== undefined && selectedRaw !== null) {
-                      if (Array.isArray(selectedRaw)) {
-                        selectedOptionText = selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ");
-                      } else {
-                        selectedOptionText = resolveOptionText(selectedRaw, optionsList);
-                      }
-                    }
-
-                    const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
-                    let correctAnswerText = "";
-                    if (correctRaw !== undefined && correctRaw !== null) {
-                      correctAnswerText = resolveOptionText(correctRaw, optionsList);
-                    }
-
-                    let isCorrect = false;
-                    if (resp.responsePayload?.isCorrect !== undefined) {
-                      isCorrect = Boolean(resp.responsePayload.isCorrect);
-                    } else if (selectedRaw !== undefined && correctRaw !== undefined) {
-                      isCorrect = selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
-                    }
-
-                    return (
-                      <div key={resp.id || idx} className="p-4 bg-white border border-line rounded-xl space-y-3 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-bold bg-brand-subtle text-brand shrink-0">
-                                Q{idx + 1}
-                              </span>
-                              <h4 className="text-sm-minus font-semibold text-ink leading-snug">
-                                {promptText}
-                              </h4>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs-plus font-semibold font-mono shrink-0 ${
-                            isCorrect ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                          }`}>
-                            {isCorrect ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-                            <span>{isCorrect ? "Correct" : "Incorrect"}</span>
-                          </span>
-                        </div>
-
-                        <div className="text-xs space-y-2 pt-2 border-t border-surface-inset">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-ink-secondary">Selected Option:</span>
-                            <span className="font-semibold text-ink font-mono">{selectedOptionText}</span>
-                          </div>
-                          {!isCorrect && correctAnswerText && (
-                            <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-md text-emerald-900 text-xs space-y-0.5">
-                              <span className="font-semibold text-emerald-800">Correct Answer: </span>
-                              <span className="font-medium text-emerald-950">{correctAnswerText}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* TEST SCENARIOS TAB */}
-        {activeTab === "TEST_SCENARIOS" && (() => {
-          const scenarioResponses = (detail.moduleResponses || []).filter(
-            (r) => r.moduleType === "TEST_SCENARIOS" || r.responsePayload?.moduleType === "TEST_SCENARIOS" || (r as any).question?.moduleType === "TEST_SCENARIOS" || r.responsePayload?.answer !== undefined
-          );
-
-          return (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-                <div>
-                  <h3 className="text-md font-semibold text-ink">Test Scenarios Submissions &amp; Evaluation</h3>
-                  <p className="text-sm-minus text-ink-tertiary">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {score?.moduleScores?.TEST_SCENARIOS !== undefined && (
-                    <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-brand-subtle text-brand-ink border border-brand-border">
-                      Module Score: {Math.round(score.moduleScores.TEST_SCENARIOS * 100)}%
-                    </span>
-                  )}
-                  <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    Total Scenarios: {scenarioResponses.length}
-                  </span>
-                </div>
-              </div>
-
-              {scenarioResponses.length === 0 ? (
-                <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
-                  No Test Scenario responses recorded for this candidate session.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {scenarioResponses.map((res: any, index: number) => {
-                    const qObj = res.question || {};
-                    const qContent = qObj.content || {};
-                    const promptText = res.prompt || qObj.prompt || qContent.prompt || qContent.question || `Test Scenario #${index + 1}`;
-                    const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
-                    const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
-                    const category = qContent.category || qObj.category || "Scenario Evaluation";
-                    const evaluation = res.responsePayload?.evaluation;
-                    const scoreVal = evaluation?.overallScore ?? null;
-
-                    return (
-                      <div key={res.id || index} className="border border-line rounded-md p-5 space-y-4 bg-canvas">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <span className="text-xs-plus font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
-                              Scenario {index + 1} • {category}
-                            </span>
-                            <h4 className="text-sm font-bold text-ink">{promptText}</h4>
-                          </div>
-                          {scoreVal !== null && (
-                            <span className="px-2.5 py-1 rounded text-xs-plus font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
-                              Score: {scoreVal}%
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-xs-plus font-mono uppercase text-ink-secondary font-semibold block">
-                            Candidate's Solution &amp; Action Plan:
-                          </label>
-                          <div className="bg-white border border-line p-4 rounded-md text-sm-minus font-sans text-ink leading-relaxed whitespace-pre-wrap">
-                            {candidateAnswer}
-                          </div>
-                        </div>
-
-                        {expectedAnswer && (
-                          <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-xs text-indigo-950 space-y-1">
-                            <span className="font-semibold text-indigo-900 block font-mono uppercase text-2xs">Expected Criteria / Key Guidelines:</span>
-                            <p className="leading-relaxed">{expectedAnswer}</p>
-                          </div>
-                        )}
-
-                        {evaluation?.feedback && (
-                          <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-md text-xs text-blue-950 space-y-1">
-                            <span className="font-semibold text-blue-900 block font-mono uppercase text-2xs">AI Evaluation &amp; Feedback:</span>
-                            <p className="leading-relaxed">{evaluation.feedback}</p>
-                            {evaluation.reasoning && (
-                              <p className="text-xs-plus text-blue-800/80 mt-1 font-medium italic">Reasoning: {evaluation.reasoning}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* AI PROMPTING TAB */}
-        {activeTab === "AI_PROMPTING" && (() => {
-          const aiPromptingResponses = (detail.moduleResponses || []).filter(
-            (r) => r.responsePayload?.moduleType === "AI_PROMPTING" || r.responsePayload?.prompt
-          );
-
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <h3 className="text-md font-semibold text-ink">AI Prompting Evaluation &amp; Conversation Trace</h3>
-                  <p className="text-sm-minus text-ink-tertiary">Reviews prompt engineering structure, clarity, and anti-cheating guardrail flags.</p>
-                </div>
-              </div>
-
-              {aiPromptingResponses.length === 0 ? (
-                <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
-                  No AI Prompting module responses recorded for this candidate session.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {aiPromptingResponses.map((res, index) => {
-                    const payload = res.responsePayload || {};
-                    const promptStr = String(payload.prompt || "").trim();
-                    const isShortOrGibberish = promptStr.length < 15 || !promptStr.includes(" ");
-                    const isJailbreak = !!payload.isJailbreakAttempt;
-                    const isVerbatim = !!payload.isVerbatimCopy;
-                    const isGreeting = !!payload.isMinimalOrGreeting || isShortOrGibberish;
-                    const similarity = payload.promptSimilarity || 0;
-                    const structureScore = payload.promptStructureScore ?? (isJailbreak ? 0 : isVerbatim ? 30 : isGreeting ? 15 : 85);
-                    const aiScore = payload.aiValidationScore ?? (isGreeting ? 15 : structureScore);
-
-                    return (
-                      <div
-                        key={res.id || index}
-                        className={`p-5 bg-white border rounded-xl space-y-4 transition-shadow ${isJailbreak
-                            ? "border-red-300 bg-red-50/20"
-                            : isVerbatim
-                              ? "border-amber-300 bg-amber-50/20"
-                              : isShortOrGibberish
-                                ? "border-rose-300 bg-rose-50/10"
-                                : "border-line"
-                          }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
-                          <span className="text-sm-minus font-semibold text-ink">
-                            Prompt Question {index + 1}
-                          </span>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {isJailbreak && (
-                              <span className="px-2.5 py-1 rounded text-xs-plus font-semibold bg-red-100 text-red-700 border border-red-200 flex items-center gap-1 font-mono">
-                                <ShieldAlert size={12} /> Jailbreak Attempt (0%)
-                              </span>
-                            )}
-                            {isVerbatim && (
-                              <span className="px-2.5 py-1 rounded text-xs-plus font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1 font-mono">
-                                <AlertTriangle size={12} /> Verbatim Copy ({Math.round(similarity * 100)}% Match)
-                              </span>
-                            )}
-                            {!isJailbreak && !isVerbatim && (
-                              <span className={`px-2.5 py-1 rounded text-xs-plus font-semibold border flex items-center gap-1 font-mono ${
-                                structureScore >= 70 ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
-                              }`}>
-                                {structureScore >= 70 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                                Structure Score: {structureScore}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Scores Breakdown Badges */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-canvas p-3 rounded-lg border border-line">
-                          <div>
-                            <span className="text-2xs uppercase font-mono text-ink-tertiary block">Structure Correctness</span>
-                            <span className="text-sm font-bold font-mono text-ink">
-                              {structureScore}% ({structureScore >= 70 ? "Correct" : "Needs Work"})
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-2xs uppercase font-mono text-ink-tertiary block">AI Validation Score</span>
-                            <span className="text-sm font-bold font-mono text-ink">
-                              {aiScore}%
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-2xs uppercase font-mono text-ink-tertiary block">Jailbreak Flag</span>
-                            <span className={`text-sm-minus font-semibold font-mono ${isJailbreak ? "text-rose-600" : "text-emerald-600"}`}>
-                              {isJailbreak ? "TRIGGERED" : "CLEAN"}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-2xs uppercase font-mono text-ink-tertiary block">Verbatim Flag</span>
-                            <span className={`text-sm-minus font-semibold font-mono ${isVerbatim ? "text-amber-600" : "text-emerald-600"}`}>
-                              {isVerbatim ? "FLAGGED" : "CLEAN"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Candidate Submitted Prompt */}
-                        <div>
-                          <div className="text-xs-plus font-medium text-ink-tertiary uppercase tracking-wider mb-1">
-                            Candidate Submitted Prompt
-                          </div>
-                          <div className="p-3 bg-white border border-line rounded-lg font-mono text-xs text-ink whitespace-pre-wrap">
-                            {payload.prompt || "(No prompt submitted)"}
-                          </div>
-                        </div>
-
-                        {payload.aiReasoning && (
-                          <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-lg text-xs text-blue-900">
-                            <strong>AI Validation Rationale: </strong>
-                            <span>{payload.aiReasoning}</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* SIMULATION TAB */}
-        {activeTab === "SIMULATION" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-md font-semibold text-ink">Contextual Simulation &amp; Say-Do Consistency</h3>
-                <p className="text-sm-minus text-ink-tertiary">Cross-referenced AI evaluation comparing candidate written statements against code diff actions.</p>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-xs-plus font-semibold bg-brand-subtle text-brand-ink border border-brand-border">
-                Track: {detail.roleTemplateName?.toLowerCase()?.includes("junior") || detail.roleTemplateName?.toLowerCase()?.includes("fresher") ? "Fresher Track (Coachability)" : "Experienced Track (Judgment)"}
-              </span>
-            </div>
-
-            {/* Score & Rationale Card */}
-            <div className="border border-line rounded-md p-5 bg-white space-y-4">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div>
-                  <span className="text-xs-plus font-mono uppercase text-ink-tertiary">Say-Do Consistency Score</span>
-                  <div className="text-2xl font-bold text-ink mt-0.5">
-                    {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score.sayDoConsistencyScore >= 0
-                      ? `${Math.round(detail.score.sayDoConsistencyScore <= 1.0 ? detail.score.sayDoConsistencyScore * 100 : detail.score.sayDoConsistencyScore)}%`
-                      : "Pending Evaluation"}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs-plus font-mono uppercase text-ink-tertiary">AI Confidence</span>
-                  <div className="text-sm font-semibold text-emerald-700 mt-0.5">
-                    {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score?.aiConfidence
-                      ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%`
-                      : "Pending"}
-                  </div>
-                </div>
-              </div>
-
-              {detail.score?.sayDoRationale && (
-                <div>
-                  <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">AI Evaluation Rationale:</span>
-                  <p className="text-sm-minus text-ink leading-relaxed bg-canvas p-3 rounded border border-line">
-                    {detail.score.sayDoRationale}
-                  </p>
-                </div>
-              )}
-
-              {/* Mismatches List */}
-              {(detail.score as any)?.sayDoMismatches && Array.isArray((detail.score as any).sayDoMismatches) && (detail.score as any).sayDoMismatches.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-xs-plus font-mono uppercase text-red-600 font-semibold block">Detected Say-Do Mismatches:</span>
-                  <div className="space-y-2">
-                    {((detail.score as any).sayDoMismatches as any[]).map((m, idx) => (
-                      <div key={idx} className="p-3 bg-red-50/50 border border-red-200 rounded-md text-xs space-y-1">
-                        <div className="flex items-center gap-2 text-red-900 font-semibold">
-                          <span>Said:</span> <span className="font-normal">{m.said}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-red-900 font-semibold">
-                          <span>Did:</span> <span className="font-normal">{m.did}</span>
-                        </div>
-                        {m.impact && (
-                          <div className="text-xs-plus text-red-700 italic">
-                            Impact: {m.impact}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Candidate Submissions & Actions Linkage */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Initial SAY Plan */}
-              <div className="border border-line rounded-md p-4 bg-white space-y-2">
-                <span className="text-xs-plus font-mono uppercase text-brand font-bold block">
-                  1. Candidate Initial SAY Debugging Plan
-                </span>
-                <div className="p-3 bg-canvas border border-line rounded text-xs text-ink whitespace-pre-wrap min-h-[90px]">
-                  {(detail as any).simulationSnapshot?.initialSayText || 
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.sayText ||
-                   (detail.moduleResponses || []).find((r: any) => r.moduleType === 'SIMULATION' && r.responsePayload?.text)?.responsePayload?.text ||
-                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
-                   "Candidate entered workspace directly without initial plan submission."}
-                </div>
-              </div>
-
-              {/* Manager Email Reply */}
-              <div className="border border-line rounded-md p-4 bg-white space-y-2">
-                <span className="text-xs-plus font-mono uppercase text-emerald-600 font-bold block">
-                  2. Manager Email Stakeholder Reply
-                </span>
-                <div className="p-3 bg-canvas border border-line rounded text-xs text-ink whitespace-pre-wrap min-h-[90px]">
-                  {(detail as any).simulationSnapshot?.emailReplyText || 
-                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.replyText ||
-                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.reply ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.replyText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReply ||
-                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
-                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
-                   "No manager email reply recorded."}
-                </div>
-              </div>
-            </div>
-
-            {/* Telemetry Action Log */}
-            <div className="border border-line rounded-md p-4 bg-white space-y-2">
-              <span className="text-xs-plus font-mono uppercase text-ink-tertiary font-bold block">
-                3. Candidate Telemetry &amp; Action Audit Stream
-              </span>
-              <div className="p-3 bg-canvas border border-line rounded text-xs-plus font-mono text-ink-secondary space-y-1.5 max-h-56 overflow-y-auto">
-                {(() => {
-                  const rawActions = (detail as any).telemetryActions || (detail as any).simulationSnapshot?.telemetryActions || [];
-                  const actionsList = Array.isArray(rawActions) && rawActions.length > 0
-                    ? rawActions
-                    : (detail as any).simulationSnapshot?.evaluation?.actionTimeline?.map((item: any) => ({
-                        timestamp: item.timestamp,
-                        type: "ACTION",
-                        label: item.action,
-                      })) || [];
-
-                  const totalCount = Math.max(actionsList.length, (detail as any).simulationSnapshot?.telemetryCount || 0);
-
-                  if (actionsList.length === 0) {
-                    return <div className="text-ink-tertiary italic">No telemetry actions recorded during session.</div>;
-                  }
-
-                  return (
-                    <>
-                      {actionsList.map((act: any, idx: number) => (
-                        <div key={idx} className="flex items-center gap-2 py-0.5 border-b border-gray-100 last:border-0">
-                          <span className="text-ink-tertiary shrink-0 font-mono text-2xs">[{act.timestamp || `#${idx + 1}`}]</span>
-                          <span className="font-semibold text-brand shrink-0 text-2xs px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded">
-                            [{act.type || "ACTION"}]
-                          </span>
-                          <span className="text-ink text-xs-plus truncate">{act.label || act.action || "Action logged"}</span>
-                        </div>
-                      ))}
-                      {totalCount > 0 && (
-                        <div className="text-emerald-600 font-semibold pt-2 border-t border-line mt-1 text-xs-plus flex items-center gap-1.5">
-                          <span>✓ Total Recorded Work Events:</span>
-                          <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-2xs">{totalCount}</span>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Recorded Simulation Module Submissions */}
-            {(() => {
-              const allResponses = detail.moduleResponses || (detail as any).submissions || [];
-              const simResponses = allResponses.filter(
-                (r: any) => {
-                  const p = r.responsePayload || r.payload || r;
-                  return r.moduleType === "SIMULATION" || p?.moduleType === "SIMULATION" || p?.sayText || p?.ticketReply || p?.resolutionData || p?.resolution || p?.initialSayText;
-                }
-              );
+      const codingResponses = (detail.moduleResponses || []).filter(
+        (r) =>
+          (r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined) &&
+          !isDebuggingItem(r)
+      );
+      return (
+        <div className="space-y-4">
+          <h3 className="text-md font-semibold text-ink">Coding Submissions &amp; Unit Test Execution Results</h3>
+          {codingResponses.length === 0 ? (
+            <p className="text-sm-minus text-ink-tertiary italic">No coding submissions recorded for this assessment.</p>
+          ) : (
+            codingResponses.map((resp, idx) => {
+              const payload = resp.responsePayload || (resp as any).payload || resp;
+              const codeText = payload.sourceCode || payload.code || "// No code submitted";
+              const lang = payload.language || "python";
+              const promptText = (resp.question as any)?.prompt || payload.questionText || `Coding Problem #${idx + 1}`;
+              const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
+              const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
+              const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
+              const isAllPassed = passedCount === totalCount && totalCount > 0;
               return (
-                <div className="border border-line rounded-md p-4 bg-white space-y-3">
-                  <span className="text-xs-plus font-mono uppercase text-ink font-bold block">
-                    4. Contextual Simulation Recorded Submissions &amp; Resolutions ({simResponses.length})
-                  </span>
-                  {simResponses.length === 0 ? (
-                    <p className="text-xs text-ink-tertiary italic">No direct simulation question responses recorded.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {simResponses.map((resp: any, idx: number) => {
-                        const payload = resp.responsePayload || resp.payload || resp;
-                        const resolution = payload.resolutionData || payload.resolution || null;
-                        const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
-                        const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode;
-                        const summaryText = resolution?.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
-                        
-                        const passedTests = typeof payload.passedTests === "number" ? payload.passedTests : (payload.testExecutionResult?.passedTests ?? (payload.isCorrect ? 3 : 0));
-                        const totalTests = typeof payload.totalTests === "number" ? payload.totalTests : (payload.testExecutionResult?.totalTests ?? 3);
-                        const hasRunTests = typeof payload.passedTests === "number" || typeof payload.testExecutionResult?.passedTests === "number" || payload.isCorrect !== undefined;
+                <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm-minus font-semibold text-ink">
+                      {promptText} ({lang})
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+                      Passed {passedCount} / {totalCount} Tests
+                    </span>
+                  </div>
 
-                        let statusStr = "NOT ATTEMPTED";
-                        let badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+                  <div className="h-48 border border-line rounded-md overflow-hidden">
+                    <CodeEditor
+                      value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
+                      language={lang}
+                      readOnly={true}
+                      theme="cd-recruit-dark"
+                    />
+                  </div>
 
-                        if (resolution?.status) {
-                          statusStr = resolution.status;
-                          badgeStyle = statusStr.includes("RESOLVED") ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-blue-50 text-brand border-blue-200";
-                        } else if (hasRunTests && totalTests > 0) {
-                          if (passedTests === totalTests) {
-                            statusStr = "RESOLVED & APPROVED";
-                            badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300";
-                          } else if (passedTests > 0) {
-                            statusStr = "PARTIALLY RESOLVED";
-                            badgeStyle = "bg-amber-50 text-amber-700 border-amber-300";
-                          } else {
-                            statusStr = "TESTS FAILED";
-                            badgeStyle = "bg-rose-50 text-rose-700 border-rose-300";
-                          }
-                        } else if (codePatch) {
-                          statusStr = "SUBMITTED (Unverified)";
-                          badgeStyle = "bg-blue-50 text-brand border-blue-200";
-                        } else {
-                          statusStr = "NOT ATTEMPTED";
-                          badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
-                        }
-
-                        return (
-                          <div key={resp.id || idx} className="p-4 bg-canvas border border-line rounded-xl space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-sm-minus text-ink">{promptText}</span>
-                              <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${badgeStyle}`}>
-                                {statusStr} {hasRunTests ? `• Passed ${passedTests}/${totalTests} Tests` : "• 0 Tests Executed"}
-                              </span>
-                            </div>
-
-                            {summaryText && (
-                              <div className="space-y-1">
-                                <span className="text-2xs font-mono uppercase text-ink-tertiary block">Candidate Resolution Rationale &amp; Incident Plan:</span>
-                                <div className="p-3 bg-white border border-line rounded text-xs text-ink leading-relaxed">
-                                  {summaryText}
-                                </div>
-                              </div>
-                            )}
-
-                            {codePatch && (
-                              <div className="space-y-1">
-                                <span className="text-2xs font-mono uppercase text-ink-tertiary block">Submitted Hotfix Source Code:</span>
-                                <div className="h-44 border border-line rounded-md overflow-hidden">
-                                  <CodeEditor
-                                    value={typeof codePatch === "string" ? codePatch : JSON.stringify(codePatch, null, 2)}
-                                    language="python"
-                                    readOnly={true}
-                                    theme="cd-recruit-dark"
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                  {resp.responsePayload?.stdout && (
+                    <div>
+                      <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
+                      <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
+                        {resp.responsePayload.stdout}
+                      </div>
                     </div>
                   )}
                 </div>
+              );
+            })
+          )}
+        </div>
+      );
+    })()}
+
+    {/* DEBUGGING TAB */}
+    {activeTab === "DEBUGGING" && (() => {
+      const isDebuggingItem = (item: any) => {
+        if (!item) return false;
+        const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
+        if (modType === "DEBUGGING") return true;
+        const tags = item.tags || item.question?.tags || [];
+        if (Array.isArray(tags) && tags.includes("debugging")) return true;
+        const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
+        if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
+        return false;
+      };
+
+      const debuggingResponses = (detail.moduleResponses || []).filter(
+        (r) => isDebuggingItem(r)
+      );
+
+      return (
+        <div className="space-y-4">
+          <h3 className="text-md font-semibold text-ink">Debugging Fix Submissions &amp; Test Suite Verification</h3>
+          {debuggingResponses.length === 0 ? (
+            <p className="text-sm-minus text-ink-tertiary italic">No debugging submissions recorded for this assessment.</p>
+          ) : (
+            debuggingResponses.map((resp, idx) => {
+              const payload = resp.responsePayload || (resp as any).payload || resp;
+              const codeText = payload.sourceCode || payload.code || "// No fixed code submitted";
+              const lang = payload.language || "python";
+              const promptText = (resp.question as any)?.prompt || payload.questionText || `Debugging Challenge #${idx + 1}`;
+              const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
+              const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
+              const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
+              const isAllPassed = passedCount === totalCount && totalCount > 0;
+
+              return (
+                <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm-minus font-semibold text-ink">
+                      {promptText} ({lang})
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                        : "bg-amber-50 text-amber-800 border-amber-300"
+                      }`}>
+                      Passed {passedCount} / {totalCount} Tests
+                    </span>
+                  </div>
+
+                  <div className="h-48 border border-line rounded-md overflow-hidden">
+                    <CodeEditor
+                      value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
+                      language={lang}
+                      readOnly={true}
+                      theme="cd-recruit-dark"
+                    />
+                  </div>
+
+                  {resp.responsePayload?.stdout && (
+                    <div>
+                      <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
+                      <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
+                        {resp.responsePayload.stdout}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      );
+    })()}
+
+    {/* SQL TAB */}
+    {activeTab === "SQL" && (() => {
+      const sqlResponses = (detail.moduleResponses || []).filter(
+        r => (r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL') && r.moduleType !== 'NOSQL' && r.responsePayload?.moduleType !== 'NOSQL'
+      );
+      return (
+        <div className="space-y-4">
+          <h3 className="text-md font-semibold text-ink">SQL Query Submissions &amp; Execution Results</h3>
+          {sqlResponses.length === 0 ? (
+            <p className="text-sm-minus text-ink-tertiary italic">No SQL queries recorded for this assessment.</p>
+          ) : (
+            sqlResponses.map((resp, idx) => {
+              const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted";
+              const execResult = resp.responsePayload?.executionResult;
+              const hasResult = execResult !== undefined;
+              const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
+              const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
+              const badgeColor = hasResult
+                ? (isCorrect
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                  : "bg-rose-50 text-rose-800 border-rose-300")
+                : "bg-brand-subtle text-brand-ink border-brand-border";
+
+              return (
+                <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-semibold text-ink">SQL Query #{idx + 1}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
+                      {statusText}
+                    </span>
+                  </div>
+
+                  <div className="h-44 border border-line rounded-md overflow-hidden">
+                    <CodeEditor
+                      value={queryText}
+                      language="sql"
+                      readOnly={true}
+                      theme="cd-recruit-dark"
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      );
+    })()
+  }
+
+  {/* NoSQL TAB */ }
+  {
+    activeTab === "NOSQL" && (() => {
+      const nosqlResponses = (detail.moduleResponses || []).filter(
+        r => (r.moduleType === 'NOSQL' || r.responsePayload?.moduleType === 'NOSQL') && r.moduleType !== 'SQL' && r.responsePayload?.moduleType !== 'SQL'
+      );
+      return (
+        <div className="space-y-4">
+          <h3 className="text-md font-semibold text-ink">NoSQL Query Submissions &amp; Execution Results</h3>
+          {nosqlResponses.length === 0 ? (
+            <p className="text-sm-minus text-ink-tertiary italic">No NoSQL queries recorded for this assessment.</p>
+          ) : (
+            nosqlResponses.map((resp, idx) => {
+              const op = resp.responsePayload?.operation || {};
+              const rawQuery = resp.responsePayload?.query;
+              const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2));
+              const displayLanguage = rawQuery ? "javascript" : "json";
+
+              const execResult = resp.responsePayload?.executionResult;
+              const hasResult = execResult !== undefined;
+              const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
+              const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
+              const badgeColor = hasResult
+                ? (isCorrect
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                  : "bg-rose-50 text-rose-800 border-rose-300")
+                : "bg-brand-subtle text-brand-ink border-brand-border";
+
+              return (
+                <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-semibold text-ink">NoSQL Operation #{idx + 1}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
+                      {statusText}
+                    </span>
+                  </div>
+
+                  <div className="h-44 border border-line rounded-md overflow-hidden">
+                    <CodeEditor
+                      value={displayQuery}
+                      language={displayLanguage}
+                      readOnly={true}
+                      theme="cd-recruit-dark"
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      );
+    })()}
+
+    {/* MCQ TAB */}
+    {activeTab === "MCQ" && (() => {
+      const mcqResponses = (detail.moduleResponses || []).filter(
+        r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
+      );
+      const correctCount = mcqResponses.filter(r => {
+        const qObj = r.question || {};
+        const qContent = qObj.content || {};
+        const optionsList = qObj.options || qContent.options || [];
+        const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
+        const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
+
+        if (r.responsePayload?.isCorrect !== undefined) return Boolean(r.responsePayload.isCorrect);
+        if (selectedRaw === undefined || correctRaw === undefined) return false;
+
+        const selText = Array.isArray(selectedRaw) ? selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ") : resolveOptionText(selectedRaw, optionsList);
+        const corrText = resolveOptionText(correctRaw, optionsList);
+        return selText.trim().toLowerCase() === corrText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
+      }).length;
+
+      const skippedCount = mcqResponses.filter(r => {
+        const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
+        return selectedRaw === undefined || selectedRaw === null || (Array.isArray(selectedRaw) && selectedRaw.length === 0);
+      }).length;
+
+      const incorrectCount = Math.max(0, mcqResponses.length - correctCount - skippedCount);
+
+      return (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+            <div>
+              <h3 className="text-md font-semibold text-ink">Multiple Choice Responses &amp; Accuracy Breakdown</h3>
+              <p className="text-sm-minus text-ink-tertiary">Detailed evaluation of candidate option selections, correctness, and correct reference answers.</p>
+            </div>
+            {mcqResponses.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Correct: {correctCount}
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-rose-50 text-rose-700 border border-rose-200">
+                  Incorrect: {incorrectCount}
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-slate-100 text-slate-700 border border-slate-200">
+                  Skipped: {skippedCount}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {mcqResponses.length === 0 ? (
+            <p className="text-sm-minus text-ink-tertiary italic">No MCQ responses recorded for this assessment.</p>
+          ) : (
+            <div className="space-y-3">
+              {mcqResponses.map((resp, idx) => {
+                const qObj = resp.question || {};
+                const qContent = qObj.content || {};
+                const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || resp.responsePayload?.questionText || `Question #${idx + 1}`;
+
+                const optionsList: Array<any> = qObj.options || qContent.options || [];
+
+                const selectedRaw = resp.responsePayload?.selectedOption ?? resp.responsePayload?.selectedOptions ?? resp.responsePayload?.selectedOptionIndex ?? resp.responsePayload?.selectedIndex;
+
+                let selectedOptionText = "None selected";
+                if (selectedRaw !== undefined && selectedRaw !== null) {
+                  if (Array.isArray(selectedRaw)) {
+                    selectedOptionText = selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ");
+                  } else {
+                    selectedOptionText = resolveOptionText(selectedRaw, optionsList);
+                  }
+                }
+
+                const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
+                let correctAnswerText = "";
+                if (correctRaw !== undefined && correctRaw !== null) {
+                  correctAnswerText = resolveOptionText(correctRaw, optionsList);
+                }
+
+                let isCorrect = false;
+                if (resp.responsePayload?.isCorrect !== undefined) {
+                  isCorrect = Boolean(resp.responsePayload.isCorrect);
+                } else if (selectedRaw !== undefined && correctRaw !== undefined) {
+                  isCorrect = selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
+                }
+
+                return (
+                  <div key={resp.id || idx} className="p-4 bg-white border border-line rounded-xl space-y-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-bold bg-brand-subtle text-brand shrink-0">
+                            Q{idx + 1}
+                          </span>
+                          <h4 className="text-sm-minus font-semibold text-ink leading-snug">
+                            {promptText}
+                          </h4>
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs-plus font-semibold font-mono shrink-0 ${isCorrect ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+                        }`}>
+                        {isCorrect ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                        <span>{isCorrect ? "Correct" : "Incorrect"}</span>
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-2 pt-2 border-t border-surface-inset">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-ink-secondary">Selected Option:</span>
+                        <span className="font-semibold text-ink font-mono">{selectedOptionText}</span>
+                      </div>
+                      {!isCorrect && correctAnswerText && (
+                        <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-md text-emerald-900 text-xs space-y-0.5">
+                          <span className="font-semibold text-emerald-800">Correct Answer: </span>
+                          <span className="font-medium text-emerald-950">{correctAnswerText}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    })()}
+
+    {/* TEST SCENARIOS TAB */}
+    {activeTab === "TEST_SCENARIOS" && (() => {
+      const scenarioResponses = (detail.moduleResponses || []).filter(
+        (r) => r.moduleType === "TEST_SCENARIOS" || r.responsePayload?.moduleType === "TEST_SCENARIOS" || (r as any).question?.moduleType === "TEST_SCENARIOS" || r.responsePayload?.answer !== undefined
+      );
+
+      return (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+            <div>
+              <h3 className="text-md font-semibold text-ink">Test Scenarios Submissions &amp; Evaluation</h3>
+              <p className="text-sm-minus text-ink-tertiary">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {score?.moduleScores?.TEST_SCENARIOS !== undefined && (
+                <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-brand-subtle text-brand-ink border border-brand-border">
+                  Module Score: {Math.round(score.moduleScores.TEST_SCENARIOS * 100)}%
+                </span>
+              )}
+              <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+                Total Scenarios: {scenarioResponses.length}
+              </span>
+            </div>
+          </div>
+
+          {scenarioResponses.length === 0 ? (
+            <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
+              No Test Scenario responses recorded for this candidate session.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {scenarioResponses.map((res: any, index: number) => {
+                const qObj = res.question || {};
+                const qContent = qObj.content || {};
+                const promptText = res.prompt || qObj.prompt || qContent.prompt || qContent.question || `Test Scenario #${index + 1}`;
+                const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
+                const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
+                const category = qContent.category || qObj.category || "Scenario Evaluation";
+                const evaluation = res.responsePayload?.evaluation;
+                const scoreVal = evaluation?.overallScore ?? null;
+
+                return (
+                  <div key={res.id || index} className="border border-line rounded-md p-5 space-y-4 bg-canvas">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <span className="text-xs-plus font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
+                          Scenario {index + 1} • {category}
+                        </span>
+                        <h4 className="text-sm font-bold text-ink">{promptText}</h4>
+                      </div>
+                      {scoreVal !== null && (
+                        <span className="px-2.5 py-1 rounded text-xs-plus font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
+                          Score: {scoreVal}%
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs-plus font-mono uppercase text-ink-secondary font-semibold block">
+                        Candidate's Solution &amp; Action Plan:
+                      </label>
+                      <div className="bg-white border border-line p-4 rounded-md text-sm-minus font-sans text-ink leading-relaxed whitespace-pre-wrap">
+                        {candidateAnswer}
+                      </div>
+                    </div>
+
+                    {expectedAnswer && (
+                      <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-xs text-indigo-950 space-y-1">
+                        <span className="font-semibold text-indigo-900 block font-mono uppercase text-2xs">Expected Criteria / Key Guidelines:</span>
+                        <p className="leading-relaxed">{expectedAnswer}</p>
+                      </div>
+                    )}
+
+                    {evaluation?.feedback && (
+                      <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-md text-xs text-blue-950 space-y-1">
+                        <span className="font-semibold text-blue-900 block font-mono uppercase text-2xs">AI Evaluation &amp; Feedback:</span>
+                        <p className="leading-relaxed">{evaluation.feedback}</p>
+                        {evaluation.reasoning && (
+                          <p className="text-xs-plus text-blue-800/80 mt-1 font-medium italic">Reasoning: {evaluation.reasoning}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    })()}
+
+    {/* AI PROMPTING TAB */}
+    {activeTab === "AI_PROMPTING" && (() => {
+      const aiPromptingResponses = (detail.moduleResponses || []).filter(
+        (r) => r.responsePayload?.moduleType === "AI_PROMPTING" || r.responsePayload?.prompt
+      );
+
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <div>
+              <h3 className="text-md font-semibold text-ink">AI Prompting Evaluation &amp; Conversation Trace</h3>
+              <p className="text-sm-minus text-ink-tertiary">Reviews prompt engineering structure, clarity, and anti-cheating guardrail flags.</p>
+            </div>
+          </div>
+
+          {aiPromptingResponses.length === 0 ? (
+            <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
+              No AI Prompting module responses recorded for this candidate session.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {aiPromptingResponses.map((res, index) => {
+                const payload = res.responsePayload || {};
+                const promptStr = String(payload.prompt || "").trim();
+                const isShortOrGibberish = promptStr.length < 15 || !promptStr.includes(" ");
+                const isJailbreak = !!payload.isJailbreakAttempt;
+                const isVerbatim = !!payload.isVerbatimCopy;
+                const isGreeting = !!payload.isMinimalOrGreeting || isShortOrGibberish;
+                const similarity = payload.promptSimilarity || 0;
+                const structureScore = payload.promptStructureScore ?? (isJailbreak ? 0 : isVerbatim ? 30 : isGreeting ? 15 : 85);
+                const aiScore = payload.aiValidationScore ?? (isGreeting ? 15 : structureScore);
+
+                return (
+                  <div
+                    key={res.id || index}
+                    className={`p-5 bg-white border rounded-xl space-y-4 transition-shadow ${isJailbreak
+                      ? "border-red-300 bg-red-50/20"
+                      : isVerbatim
+                        ? "border-amber-300 bg-amber-50/20"
+                        : isShortOrGibberish
+                          ? "border-rose-300 bg-rose-50/10"
+                          : "border-line"
+                      }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
+                      <span className="text-sm-minus font-semibold text-ink">
+                        Prompt Question {index + 1}
+                      </span>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isJailbreak && (
+                          <span className="px-2.5 py-1 rounded text-xs-plus font-semibold bg-red-100 text-red-700 border border-red-200 flex items-center gap-1 font-mono">
+                            <ShieldAlert size={12} /> Jailbreak Attempt (0%)
+                          </span>
+                        )}
+                        {isVerbatim && (
+                          <span className="px-2.5 py-1 rounded text-xs-plus font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1 font-mono">
+                            <AlertTriangle size={12} /> Verbatim Copy ({Math.round(similarity * 100)}% Match)
+                          </span>
+                        )}
+                        {!isJailbreak && !isVerbatim && (
+                          <span className={`px-2.5 py-1 rounded text-xs-plus font-semibold border flex items-center gap-1 font-mono ${structureScore >= 70 ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
+                            }`}>
+                            {structureScore >= 70 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                            Structure Score: {structureScore}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Scores Breakdown Badges */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-canvas p-3 rounded-lg border border-line">
+                      <div>
+                        <span className="text-2xs uppercase font-mono text-ink-tertiary block">Structure Correctness</span>
+                        <span className="text-sm font-bold font-mono text-ink">
+                          {structureScore}% ({structureScore >= 70 ? "Correct" : "Needs Work"})
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs uppercase font-mono text-ink-tertiary block">AI Validation Score</span>
+                        <span className="text-sm font-bold font-mono text-ink">
+                          {aiScore}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs uppercase font-mono text-ink-tertiary block">Jailbreak Flag</span>
+                        <span className={`text-sm-minus font-semibold font-mono ${isJailbreak ? "text-rose-600" : "text-emerald-600"}`}>
+                          {isJailbreak ? "TRIGGERED" : "CLEAN"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs uppercase font-mono text-ink-tertiary block">Verbatim Flag</span>
+                        <span className={`text-sm-minus font-semibold font-mono ${isVerbatim ? "text-amber-600" : "text-emerald-600"}`}>
+                          {isVerbatim ? "FLAGGED" : "CLEAN"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Candidate Submitted Prompt */}
+                    <div>
+                      <div className="text-xs-plus font-medium text-ink-tertiary uppercase tracking-wider mb-1">
+                        Candidate Submitted Prompt
+                      </div>
+                      <div className="p-3 bg-white border border-line rounded-lg font-mono text-xs text-ink whitespace-pre-wrap">
+                        {payload.prompt || "(No prompt submitted)"}
+                      </div>
+                    </div>
+
+                    {payload.aiReasoning && (
+                      <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-lg text-xs text-blue-900">
+                        <strong>AI Validation Rationale: </strong>
+                        <span>{payload.aiReasoning}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    })()}
+
+    {/* SIMULATION TAB */}
+    {activeTab === "SIMULATION" && (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-md font-semibold text-ink">Contextual Simulation &amp; Say-Do Consistency</h3>
+            <p className="text-sm-minus text-ink-tertiary">Cross-referenced AI evaluation comparing candidate written statements against code diff actions.</p>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-xs-plus font-semibold bg-brand-subtle text-brand-ink border border-brand-border">
+            Track: {detail.roleTemplateName?.toLowerCase()?.includes("junior") || detail.roleTemplateName?.toLowerCase()?.includes("fresher") ? "Fresher Track (Coachability)" : "Experienced Track (Judgment)"}
+          </span>
+        </div>
+
+        {/* Score & Rationale Card */}
+        <div className="border border-line rounded-md p-5 bg-white space-y-4">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <div>
+              <span className="text-xs-plus font-mono uppercase text-ink-tertiary">Say-Do Consistency Score</span>
+              <div className="text-2xl font-bold text-ink mt-0.5">
+                {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score.sayDoConsistencyScore >= 0
+                  ? `${Math.round(detail.score.sayDoConsistencyScore <= 1.0 ? detail.score.sayDoConsistencyScore * 100 : detail.score.sayDoConsistencyScore)}%`
+                  : "Pending Evaluation"}
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs-plus font-mono uppercase text-ink-tertiary">AI Confidence</span>
+              <div className="text-sm font-semibold text-emerald-700 mt-0.5">
+                {typeof detail.score?.sayDoConsistencyScore === "number" && detail.score?.aiConfidence
+                  ? `${Math.round(detail.score.aiConfidence <= 1.0 ? detail.score.aiConfidence * 100 : detail.score.aiConfidence)}%`
+                  : "Pending"}
+              </div>
+            </div>
+          </div>
+
+          {detail.score?.sayDoRationale && (
+            <div>
+              <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">AI Evaluation Rationale:</span>
+              <p className="text-sm-minus text-ink leading-relaxed bg-canvas p-3 rounded border border-line">
+                {detail.score.sayDoRationale}
+              </p>
+            </div>
+          )}
+
+          {/* Mismatches List */}
+          {(detail.score as any)?.sayDoMismatches && Array.isArray((detail.score as any).sayDoMismatches) && (detail.score as any).sayDoMismatches.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-xs-plus font-mono uppercase text-red-600 font-semibold block">Detected Say-Do Mismatches:</span>
+              <div className="space-y-2">
+                {((detail.score as any).sayDoMismatches as any[]).map((m, idx) => (
+                  <div key={idx} className="p-3 bg-red-50/50 border border-red-200 rounded-md text-xs space-y-1">
+                    <div className="flex items-center gap-2 text-red-900 font-semibold">
+                      <span>Said:</span> <span className="font-normal">{m.said}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-red-900 font-semibold">
+                      <span>Did:</span> <span className="font-normal">{m.did}</span>
+                    </div>
+                    {m.impact && (
+                      <div className="text-xs-plus text-red-700 italic">
+                        Impact: {m.impact}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Candidate Submissions & Actions Linkage */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Initial SAY Plan */}
+          <div className="border border-line rounded-md p-4 bg-white space-y-2">
+            <span className="text-xs-plus font-mono uppercase text-brand font-bold block">
+              1. Candidate Initial SAY Debugging Plan
+            </span>
+            <div className="p-3 bg-canvas border border-line rounded text-xs text-ink whitespace-pre-wrap min-h-[90px]">
+              {(detail as any).simulationSnapshot?.initialSayText ||
+                (detail.moduleResponses || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
+                (detail.moduleResponses || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.sayText ||
+                (detail.moduleResponses || []).find((r: any) => r.moduleType === 'SIMULATION' && r.responsePayload?.text)?.responsePayload?.text ||
+                ((detail as any).submissions || []).find((r: any) => r.responsePayload?.initialSayText || r.responsePayload?.sayText)?.responsePayload?.initialSayText ||
+                "Candidate entered workspace directly without initial plan submission."}
+            </div>
+          </div>
+
+          {/* Manager Email Reply */}
+          <div className="border border-line rounded-md p-4 bg-white space-y-2">
+            <span className="text-xs-plus font-mono uppercase text-emerald-600 font-bold block">
+              2. Manager Email Stakeholder Reply
+            </span>
+            <div className="p-3 bg-canvas border border-line rounded text-xs text-ink whitespace-pre-wrap min-h-[90px]">
+              {(detail as any).simulationSnapshot?.emailReplyText ||
+                ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.replyText ||
+                ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.reply ||
+                (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
+                (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
+                (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.replyText ||
+                (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReply ||
+                ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
+                ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
+                "No manager email reply recorded."}
+            </div>
+          </div>
+        </div>
+
+        {/* Telemetry Action Log */}
+        <div className="border border-line rounded-md p-4 bg-white space-y-2">
+          <span className="text-xs-plus font-mono uppercase text-ink-tertiary font-bold block">
+            3. Candidate Telemetry &amp; Action Audit Stream
+          </span>
+          <div className="p-3 bg-canvas border border-line rounded text-xs-plus font-mono text-ink-secondary space-y-1.5 max-h-56 overflow-y-auto">
+            {(() => {
+              const rawActions = (detail as any).telemetryActions || (detail as any).simulationSnapshot?.telemetryActions || [];
+              const actionsList = Array.isArray(rawActions) && rawActions.length > 0
+                ? rawActions
+                : (detail as any).simulationSnapshot?.evaluation?.actionTimeline?.map((item: any) => ({
+                  timestamp: item.timestamp,
+                  type: "ACTION",
+                  label: item.action,
+                })) || [];
+
+              const totalCount = Math.max(actionsList.length, (detail as any).simulationSnapshot?.telemetryCount || 0);
+
+              if (actionsList.length === 0) {
+                return <div className="text-ink-tertiary italic">No telemetry actions recorded during session.</div>;
+              }
+
+              return (
+                <>
+                  {actionsList.map((act: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2 py-0.5 border-b border-gray-100 last:border-0">
+                      <span className="text-ink-tertiary shrink-0 font-mono text-2xs">[{act.timestamp || `#${idx + 1}`}]</span>
+                      <span className="font-semibold text-brand shrink-0 text-2xs px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded">
+                        [{act.type || "ACTION"}]
+                      </span>
+                      <span className="text-ink text-xs-plus truncate">{act.label || act.action || "Action logged"}</span>
+                    </div>
+                  ))}
+                  {totalCount > 0 && (
+                    <div className="text-emerald-600 font-semibold pt-2 border-t border-line mt-1 text-xs-plus flex items-center gap-1.5">
+                      <span>✓ Total Recorded Work Events:</span>
+                      <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-2xs">{totalCount}</span>
+                    </div>
+                  )}
+                </>
               );
             })()}
           </div>
-        )}
+        </div>
 
-        {/* INTEGRITY TAB */}
-        {activeTab === "INTEGRITY" && (() => {
-          const aiPromptingFlags = (detail.moduleResponses || [])
-            .filter((r) => r.responsePayload?.isJailbreakAttempt || r.responsePayload?.isVerbatimCopy)
-            .map((r) => ({
-              id: r.id,
-              category: r.responsePayload?.isJailbreakAttempt ? "AI Prompting Jailbreak Attempt" : "AI Prompting Verbatim Copy",
-              severity: r.responsePayload?.isJailbreakAttempt ? "CRITICAL" : "MEDIUM",
-              confidence: r.responsePayload?.promptSimilarity || 0.95,
-              flaggedAt: new Date().toISOString(),
-              promptText: r.responsePayload?.prompt,
-            }));
-
-          const combinedFlags = [...flags, ...aiPromptingFlags];
-
-          const filteredFlags = combinedFlags.filter((f: any) => {
-            const cat = String(f.category || "").toUpperCase();
-            if (integrityCategoryFilter === "ALL") return true;
-            if (integrityCategoryFilter === "CLIPS_ONLY") return Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef);
-            
-            if (integrityCategoryFilter === "UNAUTHORIZED_OBJECTS") return ["PHONE_DETECTED", "HEADPHONES_DETECTED", "BOOK_DETECTED"].includes(cat);
-            if (integrityCategoryFilter === "VISUAL_GAZE") return ["LOOKING_AWAY", "EXCESSIVE_MOVEMENT", "GAZE_AWAY"].includes(cat);
-            if (integrityCategoryFilter === "FACE_SEAT") return ["FACE_MISSING", "SEAT_EXIT", "NO_FACE"].includes(cat);
-            if (integrityCategoryFilter === "MULTIPLE_PERSONS") return ["MULTIPLE_FACES", "IDENTITY_MISMATCH", "SECOND_PERSON"].includes(cat);
-            if (integrityCategoryFilter === "AUDIO_SPEECH") return ["SPEECH_DETECTED", "SECOND_VOICE_SUSPECTED", "AUDIO_NOISE", "VOICE_DETECTED"].includes(cat);
-            if (integrityCategoryFilter === "BROWSER_APP") return ["TAB_SWITCH", "FULLSCREEN_EXIT", "PASTE"].includes(cat);
-
-            return cat === integrityCategoryFilter;
-          });
-
-          // Separate video evidence clips from non-video telemetry logs
-          const videoClips = filteredFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef));
-          const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && !f.clipUrl && !f.storageRef);
-
-          const idVerifyResult = detail.candidate?.identityVerificationResult || (detail as any).identityVerificationResult;
-          const faceVerify = idVerifyResult?.face;
-          const nameVerify = idVerifyResult?.name;
-
+        {/* Recorded Simulation Module Submissions */}
+        {(() => {
+          const allResponses = detail.moduleResponses || (detail as any).submissions || [];
+          const simResponses = allResponses.filter(
+            (r: any) => {
+              const p = r.responsePayload || r.payload || r;
+              return r.moduleType === "SIMULATION" || p?.moduleType === "SIMULATION" || p?.sayText || p?.ticketReply || p?.resolutionData || p?.resolution || p?.initialSayText;
+            }
+          );
           return (
-            <div className="space-y-6">
+            <div className="border border-line rounded-md p-4 bg-white space-y-3">
+              <span className="text-xs-plus font-mono uppercase text-ink font-bold block">
+                4. Contextual Simulation Recorded Submissions &amp; Resolutions ({simResponses.length})
+              </span>
+              {simResponses.length === 0 ? (
+                <p className="text-xs text-ink-tertiary italic">No direct simulation question responses recorded.</p>
+              ) : (
+                <div className="space-y-4">
+                  {simResponses.map((resp: any, idx: number) => {
+                    const payload = resp.responsePayload || resp.payload || resp;
+                    const resolution = payload.resolutionData || payload.resolution || null;
+                    const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
+                    const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode;
+                    const summaryText = resolution?.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
 
-              {/* Custom Styled Dropdown Component with Rounded Corners & Theme Blue (50%) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-line rounded-xl p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-brand-subtle rounded-lg border border-brand-border text-brand">
-                    {getCategoryFilterIcon(integrityCategoryFilter)}
-                  </div>
-                  <div>
-                    <h4 className="text-sm-minus font-semibold text-ink">Filter Integrity Evidences</h4>
-                    <p className="text-xs-plus text-ink-tertiary">Classify and view proctoring evidence by category.</p>
-                  </div>
-                </div>
+                    const passedTests = typeof payload.passedTests === "number" ? payload.passedTests : (payload.testExecutionResult?.passedTests ?? (payload.isCorrect ? 3 : 0));
+                    const totalTests = typeof payload.totalTests === "number" ? payload.totalTests : (payload.testExecutionResult?.totalTests ?? 3);
+                    const hasRunTests = typeof payload.passedTests === "number" || typeof payload.testExecutionResult?.passedTests === "number" || payload.isCorrect !== undefined;
 
-                {/* Custom Popover Dropdown */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIntegrityFilterOpen((prev) => !prev)}
-                    className="inline-flex items-center justify-between gap-3 px-3.5 py-2 text-xs font-semibold bg-brand-subtle hover:bg-brand-subtle text-brand-ink border border-brand-border rounded-lg shadow-sm transition-all cursor-pointer min-w-[290px]"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      {getCategoryFilterIcon(integrityCategoryFilter)}
-                      <span className="truncate">
-                        {integrityCategoryFilter === "ALL" && `All Integrity Evidences (${combinedFlags.length})`}
-                        {integrityCategoryFilter === "CLIPS_ONLY" && `Video Clips Only (${combinedFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef)).length})`}
-                        {integrityCategoryFilter === "UNAUTHORIZED_OBJECTS" && "Unauthorized Objects (Phone, Headphones, Book)"}
-                        {integrityCategoryFilter === "VISUAL_GAZE" && "Visual & Gaze (Looking Away, Movement)"}
-                        {integrityCategoryFilter === "FACE_SEAT" && "Face & Seat (Face Missing, Seat Exit)"}
-                        {integrityCategoryFilter === "MULTIPLE_PERSONS" && "Multiple Persons & Identity Mismatch"}
-                        {integrityCategoryFilter === "AUDIO_SPEECH" && "Audio & Voice (Speech, Second Voice)"}
-                        {integrityCategoryFilter === "BROWSER_APP" && "Browser & App (Tab Switch, Fullscreen, Paste)"}
-                      </span>
-                    </div>
-                    <ChevronDown size={14} className={`text-brand shrink-0 transition-transform ${integrityFilterOpen ? "rotate-180" : ""}`} />
-                  </button>
+                    let statusStr = "NOT ATTEMPTED";
+                    let badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
 
-                  {integrityFilterOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setIntegrityFilterOpen(false)} />
-                      <div className="absolute right-0 mt-2 w-[320px] bg-white border border-brand-border rounded-xl shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
-                        {[
-                          { value: "ALL", label: `All Integrity Evidences (${combinedFlags.length})` },
-                          { value: "CLIPS_ONLY", label: `Video Clips Only (${combinedFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef)).length})` },
-                          { value: "UNAUTHORIZED_OBJECTS", label: "Unauthorized Objects (Phone, Headphones, Book)" },
-                          { value: "VISUAL_GAZE", label: "Visual & Gaze (Looking Away, Movement)" },
-                          { value: "FACE_SEAT", label: "Face & Seat (Face Missing, Seat Exit)" },
-                          { value: "MULTIPLE_PERSONS", label: "Multiple Persons & Identity Mismatch" },
-                          { value: "AUDIO_SPEECH", label: "Audio & Voice (Speech, Second Voice)" },
-                          { value: "BROWSER_APP", label: "Browser & App (Tab Switch, Fullscreen, Paste)" },
-                        ].map((opt) => {
-                          const isSelected = integrityCategoryFilter === opt.value;
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setIntegrityCategoryFilter(opt.value);
-                                setIntegrityFilterOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md font-medium transition-colors cursor-pointer text-left ${
-                                isSelected
-                                  ? "bg-brand-subtle text-brand-ink font-semibold"
-                                  : "text-ink hover:bg-brand-subtle"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 truncate">
-                                {getCategoryFilterIcon(opt.value)}
-                                <span className="truncate">{opt.label}</span>
-                              </div>
-                              {isSelected && <Check size={14} className="text-brand shrink-0" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+                    if (resolution?.status) {
+                      statusStr = resolution.status;
+                      badgeStyle = statusStr.includes("RESOLVED") ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-blue-50 text-brand border-blue-200";
+                    } else if (hasRunTests && totalTests > 0) {
+                      if (passedTests === totalTests) {
+                        statusStr = "RESOLVED & APPROVED";
+                        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                      } else if (passedTests > 0) {
+                        statusStr = "PARTIALLY RESOLVED";
+                        badgeStyle = "bg-amber-50 text-amber-700 border-amber-300";
+                      } else {
+                        statusStr = "TESTS FAILED";
+                        badgeStyle = "bg-rose-50 text-rose-700 border-rose-300";
+                      }
+                    } else if (codePatch) {
+                      statusStr = "SUBMITTED (Unverified)";
+                      badgeStyle = "bg-blue-50 text-brand border-blue-200";
+                    } else {
+                      statusStr = "NOT ATTEMPTED";
+                      badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+                    }
 
-              {/* Section 1: Webcam Video Evidence Clips */}
-              <div className="space-y-3">
-                <h3 className="text-md font-semibold text-ink flex items-center gap-2">
-                  <Video size={16} className="text-red-500" />
-                  Webcam Video Evidence Clips ({videoClips.length})
-                </h3>
-                {videoClips.length === 0 ? (
-                  <p className="text-xs text-ink-tertiary italic bg-canvas p-3 rounded border border-line">
-                    No video evidence clips recorded for this filter selection.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {videoClips.map((flag: any) => (
-                      <div key={flag.id || flag.flagId} className="p-3.5 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
-                        <div className="flex items-start gap-3">
-                          <Video size={16} className="text-red-500 shrink-0 mt-0.5" />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm-minus font-semibold text-ink">{flag.category}</span>
-                              <span className={`px-2 py-0.5 rounded text-2xs font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"}`}>
-                                {flag.severity}
-                              </span>
-                            </div>
-                            <p className="text-xs-plus text-ink-secondary font-mono mt-0.5">
-                              Confidence: {Math.round(flag.confidence * 100)}% • Timestamp: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
-                            </p>
-                          </div>
+                    return (
+                      <div key={resp.id || idx} className="p-4 bg-canvas border border-line rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm-minus text-ink">{promptText}</span>
+                          <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${badgeStyle}`}>
+                            {statusStr} {hasRunTests ? `• Passed ${passedTests}/${totalTests} Tests` : "• 0 Tests Executed"}
+                          </span>
                         </div>
-                        <button
-                          onClick={() => setActiveClipUrl(flag.evidenceClipUrl || flag.clipUrl)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                        >
-                          <Play size={13} />
-                          Play Video Clip
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Section 2: Non-Video Telemetry & Integrity Logs */}
-              <div className="space-y-3 pt-4 border-t border-line">
-                <h3 className="text-md font-semibold text-ink flex items-center gap-2">
-                  <ShieldAlert size={16} className="text-amber-600" />
-                  Telemetry &amp; Integrity Signal Log ({telemetryLogs.length})
-                </h3>
-                {telemetryLogs.length === 0 ? (
-                  <p className="text-xs text-ink-tertiary italic bg-canvas p-3 rounded border border-line">
-                    No tab switches, fullscreen exits, or paste anomalies logged.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {telemetryLogs
-                      .sort((a: any, b: any) => new Date(a.flaggedAt || 0).getTime() - new Date(b.flaggedAt || 0).getTime())
-                      .map((flag: any, idx: number) => {
-                        const cat = flag.category;
-                        const isCorrelatedPaste = cat === "CORRELATED_PASTE_ANOMALY" || cat === "PASTE_AFTER_TABSWITCH";
-                        const isFullscreenExit = cat === "FULLSCREEN_EXIT" || cat === "FULLSCREEN_EXITED" || cat === "FULLSCREEN_EXIT_FLAG";
-                        const isTabSwitch = cat === "TAB_SWITCH" || cat === "TAB_HIDDEN";
-                        const isPaste = cat === "PASTE" || cat === "EXTERNAL_INSERT_FLAG";
-
-                        const title = isCorrelatedPaste
-                          ? "Correlated Paste Anomaly (Pasted Code/Text within 40s of Tab-Switch)"
-                          : isFullscreenExit
-                          ? "Fullscreen Exit Detected"
-                          : isTabSwitch
-                          ? "Tab Switch / Window Blur"
-                          : isPaste
-                          ? "External Paste Anomaly"
-                          : cat;
-
-                        return (
-                          <div key={flag.id || flag.flagId || idx} className={`p-3.5 border rounded-md flex items-center justify-between ${
-                            isCorrelatedPaste ? "border-red-300 bg-red-50/70" : isFullscreenExit ? "border-amber-300 bg-amber-50/50" : "border-line bg-canvas"
-                          }`}>
-                            <div className="flex items-start gap-3">
-                              <AlertTriangle size={16} className={isCorrelatedPaste ? "text-red-600 shrink-0 mt-0.5" : "text-amber-600 shrink-0 mt-0.5"} />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm-minus font-semibold text-ink">{title}</span>
-                                  <span className={`px-2 py-0.5 rounded text-2xs font-mono uppercase font-semibold ${
-                                    flag.severity === "CRITICAL" ? "bg-red-600 text-white" : flag.severity === "HIGH" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-800"
-                                  }`}>
-                                    {flag.severity || "MEDIUM"}
-                                  </span>
-                                </div>
-                                <p className="text-xs-plus text-ink-secondary font-mono mt-0.5">
-                                  {typeof flag.confidence === "number" ? `Confidence: ${Math.round(flag.confidence <= 1.0 ? flag.confidence * 100 : flag.confidence)}% • ` : ""}Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
-                                </p>
-                                {flag.promptText && (
-                                  <p className="text-xs-plus text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">
-                                    Prompt: "{flag.promptText}"
-                                  </p>
-                                )}
-                              </div>
+                        {summaryText && (
+                          <div className="space-y-1">
+                            <span className="text-2xs font-mono uppercase text-ink-tertiary block">Candidate Resolution Rationale &amp; Incident Plan:</span>
+                            <div className="p-3 bg-white border border-line rounded text-xs text-ink leading-relaxed">
+                              {summaryText}
                             </div>
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
+                        )}
+
+                        {codePatch && (
+                          <div className="space-y-1">
+                            <span className="text-2xs font-mono uppercase text-ink-tertiary block">Submitted Hotfix Source Code:</span>
+                            <div className="h-44 border border-line rounded-md overflow-hidden">
+                              <CodeEditor
+                                value={typeof codePatch === "string" ? codePatch : JSON.stringify(codePatch, null, 2)}
+                                language="python"
+                                readOnly={true}
+                                theme="cd-recruit-dark"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })()}
       </div>
+    )}
 
-      {/* Decision Confirmation Modal */}
-      {showDecisionModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-[460px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-base font-semibold text-ink">
-                Confirm Decision: {showDecisionModal === "PASS" ? "Approve Candidate" : "Reject Candidate"}
-              </h3>
-              <button onClick={() => setShowDecisionModal(null)} className="text-ink-tertiary hover:text-ink">
-                <X size={16} />
-              </button>
+    {/* INTEGRITY TAB */}
+    {activeTab === "INTEGRITY" && (() => {
+      const aiPromptingFlags = (detail.moduleResponses || [])
+        .filter((r) => r.responsePayload?.isJailbreakAttempt || r.responsePayload?.isVerbatimCopy)
+        .map((r) => ({
+          id: r.id,
+          category: r.responsePayload?.isJailbreakAttempt ? "AI Prompting Jailbreak Attempt" : "AI Prompting Verbatim Copy",
+          severity: r.responsePayload?.isJailbreakAttempt ? "CRITICAL" : "MEDIUM",
+          confidence: r.responsePayload?.promptSimilarity || 0.95,
+          flaggedAt: new Date().toISOString(),
+          promptText: r.responsePayload?.prompt,
+        }));
+
+      const combinedFlags = [...flags, ...aiPromptingFlags];
+
+      const filteredFlags = combinedFlags.filter((f: any) => {
+        const cat = String(f.category || "").toUpperCase();
+        if (integrityCategoryFilter === "ALL") return true;
+        if (integrityCategoryFilter === "CLIPS_ONLY") return Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef);
+
+        if (integrityCategoryFilter === "UNAUTHORIZED_OBJECTS") return ["PHONE_DETECTED", "HEADPHONES_DETECTED", "BOOK_DETECTED"].includes(cat);
+        if (integrityCategoryFilter === "VISUAL_GAZE") return ["LOOKING_AWAY", "EXCESSIVE_MOVEMENT", "GAZE_AWAY"].includes(cat);
+        if (integrityCategoryFilter === "FACE_SEAT") return ["FACE_MISSING", "SEAT_EXIT", "NO_FACE"].includes(cat);
+        if (integrityCategoryFilter === "MULTIPLE_PERSONS") return ["MULTIPLE_FACES", "IDENTITY_MISMATCH", "SECOND_PERSON"].includes(cat);
+        if (integrityCategoryFilter === "AUDIO_SPEECH") return ["SPEECH_DETECTED", "SECOND_VOICE_SUSPECTED", "AUDIO_NOISE", "VOICE_DETECTED"].includes(cat);
+        if (integrityCategoryFilter === "BROWSER_APP") return ["TAB_SWITCH", "FULLSCREEN_EXIT", "PASTE"].includes(cat);
+
+        return cat === integrityCategoryFilter;
+      });
+
+      // Separate video evidence clips from non-video telemetry logs
+      const videoClips = filteredFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef));
+      const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && !f.clipUrl && !f.storageRef);
+
+      const idVerifyResult = detail.candidate?.identityVerificationResult || (detail as any).identityVerificationResult;
+      const faceVerify = idVerifyResult?.face;
+      const nameVerify = idVerifyResult?.name;
+
+      return (
+        <div className="space-y-6">
+
+          {/* Custom Styled Dropdown Component with Rounded Corners & Theme Blue (50%) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-line rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-brand-subtle rounded-lg border border-brand-border text-brand">
+                {getCategoryFilterIcon(integrityCategoryFilter)}
+              </div>
+              <div>
+                <h4 className="text-sm-minus font-semibold text-ink">Filter Integrity Evidences</h4>
+                <p className="text-xs-plus text-ink-tertiary">Classify and view proctoring evidence by category.</p>
+              </div>
             </div>
 
-            <p className="text-sm-minus text-ink-secondary leading-relaxed">
-              Are you sure you want to mark candidate <span className="font-semibold text-ink">{detail.candidateName}</span> as{" "}
-              <span className={`font-semibold ${showDecisionModal === "PASS" ? "text-emerald-700" : "text-rose-700"}`}>
-                {showDecisionModal === "PASS" ? "Approved (Pass)" : "Rejected (Fail)"}
-              </span>?
-            </p>
-
-            <div>
-              <label className="block text-xs font-medium text-ink-secondary mb-1.5">Reviewer Decision Note (Optional)</label>
-              <textarea
-                value={decisionNote}
-                onChange={(e) => setDecisionNote(e.target.value)}
-                placeholder="e.g. Excellent SQL optimization and clean code structure."
-                rows={3}
-                className="w-full px-3 py-2 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand resize-none"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Custom Popover Dropdown */}
+            <div className="relative">
               <button
-                onClick={() => setShowDecisionModal(null)}
-                className="px-3.5 py-2 text-xs font-medium border border-line rounded hover:bg-canvas text-ink-secondary"
+                type="button"
+                onClick={() => setIntegrityFilterOpen((prev) => !prev)}
+                className="inline-flex items-center justify-between gap-3 px-3.5 py-2 text-xs font-semibold bg-brand-subtle hover:bg-brand-subtle text-brand-ink border border-brand-border rounded-lg shadow-sm transition-all cursor-pointer min-w-[290px]"
               >
-                Cancel
+                <div className="flex items-center gap-2 truncate">
+                  {getCategoryFilterIcon(integrityCategoryFilter)}
+                  <span className="truncate">
+                    {integrityCategoryFilter === "ALL" && `All Integrity Evidences (${combinedFlags.length})`}
+                    {integrityCategoryFilter === "CLIPS_ONLY" && `Video Clips Only (${combinedFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef)).length})`}
+                    {integrityCategoryFilter === "UNAUTHORIZED_OBJECTS" && "Unauthorized Objects (Phone, Headphones, Book)"}
+                    {integrityCategoryFilter === "VISUAL_GAZE" && "Visual & Gaze (Looking Away, Movement)"}
+                    {integrityCategoryFilter === "FACE_SEAT" && "Face & Seat (Face Missing, Seat Exit)"}
+                    {integrityCategoryFilter === "MULTIPLE_PERSONS" && "Multiple Persons & Identity Mismatch"}
+                    {integrityCategoryFilter === "AUDIO_SPEECH" && "Audio & Voice (Speech, Second Voice)"}
+                    {integrityCategoryFilter === "BROWSER_APP" && "Browser & App (Tab Switch, Fullscreen, Paste)"}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`text-brand shrink-0 transition-transform ${integrityFilterOpen ? "rotate-180" : ""}`} />
               </button>
-              <button
-                onClick={handleDecisionSubmit}
-                disabled={submittingDecision}
-                className={`px-4 py-2 text-xs font-semibold text-white rounded shadow-sm transition-colors ${showDecisionModal === "PASS" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-rose-700 hover:bg-rose-800"
-                  }`}
-              >
-                {submittingDecision ? "Saving..." : "Confirm Decision"}
-              </button>
+
+              {integrityFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIntegrityFilterOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-[320px] bg-white border border-brand-border rounded-xl shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                    {[
+                      { value: "ALL", label: `All Integrity Evidences (${combinedFlags.length})` },
+                      { value: "CLIPS_ONLY", label: `Video Clips Only (${combinedFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef)).length})` },
+                      { value: "UNAUTHORIZED_OBJECTS", label: "Unauthorized Objects (Phone, Headphones, Book)" },
+                      { value: "VISUAL_GAZE", label: "Visual & Gaze (Looking Away, Movement)" },
+                      { value: "FACE_SEAT", label: "Face & Seat (Face Missing, Seat Exit)" },
+                      { value: "MULTIPLE_PERSONS", label: "Multiple Persons & Identity Mismatch" },
+                      { value: "AUDIO_SPEECH", label: "Audio & Voice (Speech, Second Voice)" },
+                      { value: "BROWSER_APP", label: "Browser & App (Tab Switch, Fullscreen, Paste)" },
+                    ].map((opt) => {
+                      const isSelected = integrityCategoryFilter === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setIntegrityCategoryFilter(opt.value);
+                            setIntegrityFilterOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md font-medium transition-colors cursor-pointer text-left ${isSelected
+                              ? "bg-brand-subtle text-brand-ink font-semibold"
+                              : "text-ink hover:bg-brand-subtle"
+                            }`}
+                        >
+                          <div className="flex items-center gap-2.5 truncate">
+                            {getCategoryFilterIcon(opt.value)}
+                            <span className="truncate">{opt.label}</span>
+                          </div>
+                          {isSelected && <Check size={14} className="text-brand shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Video Evidence Clip Modal */}
-      {activeClipUrl && (() => {
-        const resolved = resolveClipUrl(activeClipUrl);
-        return (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl w-full max-w-[640px] shadow-2xl p-5 space-y-4">
+          {/* Section 1: Webcam Video Evidence Clips */}
+          <div className="space-y-3">
+            <h3 className="text-md font-semibold text-ink flex items-center gap-2">
+              <Video size={16} className="text-red-500" />
+              Webcam Video Evidence Clips ({videoClips.length})
+            </h3>
+            {videoClips.length === 0 ? (
+              <p className="text-xs text-ink-tertiary italic bg-canvas p-3 rounded border border-line">
+                No video evidence clips recorded for this filter selection.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {videoClips.map((flag: any) => (
+                  <div key={flag.id || flag.flagId} className="p-3.5 border border-red-200 bg-red-50/50 rounded-md flex items-center justify-between">
+                    <div className="flex items-start gap-3">
+                      <Video size={16} className="text-red-500 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm-minus font-semibold text-ink">{flag.category}</span>
+                          <span className={`px-2 py-0.5 rounded text-2xs font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"}`}>
+                            {flag.severity}
+                          </span>
+                        </div>
+                        <p className="text-xs-plus text-ink-secondary font-mono mt-0.5">
+                          Confidence: {Math.round(flag.confidence * 100)}% • Timestamp: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveClipUrl(flag.evidenceClipUrl || flag.clipUrl)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <Play size={13} />
+                      Play Video Clip
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Non-Video Telemetry & Integrity Logs */}
+          <div className="space-y-3 pt-4 border-t border-line">
+            <h3 className="text-md font-semibold text-ink flex items-center gap-2">
+              <ShieldAlert size={16} className="text-amber-600" />
+              Telemetry &amp; Integrity Signal Log ({telemetryLogs.length})
+            </h3>
+            {telemetryLogs.length === 0 ? (
+              <p className="text-xs text-ink-tertiary italic bg-canvas p-3 rounded border border-line">
+                No tab switches, fullscreen exits, or paste anomalies logged.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {telemetryLogs
+                  .sort((a: any, b: any) => new Date(a.flaggedAt || 0).getTime() - new Date(b.flaggedAt || 0).getTime())
+                  .map((flag: any, idx: number) => {
+                    const cat = flag.category;
+                    const isCorrelatedPaste = cat === "CORRELATED_PASTE_ANOMALY" || cat === "PASTE_AFTER_TABSWITCH";
+                    const isFullscreenExit = cat === "FULLSCREEN_EXIT" || cat === "FULLSCREEN_EXITED" || cat === "FULLSCREEN_EXIT_FLAG";
+                    const isTabSwitch = cat === "TAB_SWITCH" || cat === "TAB_HIDDEN";
+                    const isPaste = cat === "PASTE" || cat === "EXTERNAL_INSERT_FLAG";
+
+                    const title = isCorrelatedPaste
+                      ? "Correlated Paste Anomaly (Pasted Code/Text within 40s of Tab-Switch)"
+                      : isFullscreenExit
+                        ? "Fullscreen Exit Detected"
+                        : isTabSwitch
+                          ? "Tab Switch / Window Blur"
+                          : isPaste
+                            ? "External Paste Anomaly"
+                            : cat;
+
+                    return (
+                      <div key={flag.id || flag.flagId || idx} className={`p-3.5 border rounded-md flex items-center justify-between ${isCorrelatedPaste ? "border-red-300 bg-red-50/70" : isFullscreenExit ? "border-amber-300 bg-amber-50/50" : "border-line bg-canvas"
+                        }`}>
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle size={16} className={isCorrelatedPaste ? "text-red-600 shrink-0 mt-0.5" : "text-amber-600 shrink-0 mt-0.5"} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm-minus font-semibold text-ink">{title}</span>
+                              <span className={`px-2 py-0.5 rounded text-2xs font-mono uppercase font-semibold ${flag.severity === "CRITICAL" ? "bg-red-600 text-white" : flag.severity === "HIGH" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-800"
+                                }`}>
+                                {flag.severity || "MEDIUM"}
+                              </span>
+                            </div>
+                            <p className="text-xs-plus text-ink-secondary font-mono mt-0.5">
+                              {typeof flag.confidence === "number" ? `Confidence: ${Math.round(flag.confidence <= 1.0 ? flag.confidence * 100 : flag.confidence)}% • ` : ""}Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                            </p>
+                            {flag.promptText && (
+                              <p className="text-xs-plus text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">
+                                Prompt: "{flag.promptText}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    })()}
+  </div>
+
+        {/* Decision Confirmation Modal */}
+        {showDecisionModal && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-[460px] shadow-2xl p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-line pb-3">
-                <div className="flex items-center gap-2">
-                  <Video size={16} className="text-red-500" />
-                  <h3 className="text-md font-semibold text-ink">
-                    Proctoring Video Evidence Clip
-                  </h3>
-                </div>
-                <button onClick={() => setActiveClipUrl(null)} className="text-ink-tertiary hover:text-ink cursor-pointer p-1">
+                <h3 className="text-base font-semibold text-ink">
+                  Confirm Decision: {showDecisionModal === "PASS" ? "Approve Candidate" : "Reject Candidate"}
+                </h3>
+                <button onClick={() => setShowDecisionModal(null)} className="text-ink-tertiary hover:text-ink">
                   <X size={16} />
                 </button>
               </div>
 
-              <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center relative shadow-inner">
-                {resolved ? (
-                  <video
-                    key={activeClipUrl}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      const v = e.currentTarget;
-                      if (resolved.directUrl && v.src !== resolved.directUrl) {
-                        v.src = resolved.directUrl;
-                        v.play().catch(() => null);
-                      }
-                    }}
-                  >
-                    <source src={resolved.proxyUrl} type="video/webm" />
-                    {resolved.directUrl && <source src={resolved.directUrl} type="video/webm" />}
-                    Your browser does not support WebM video playback.
-                  </video>
-                ) : (
-                  <p className="text-xs text-ink-tertiary">Clip preview unavailable.</p>
-                )}
+              <p className="text-sm-minus text-ink-secondary leading-relaxed">
+                Are you sure you want to mark candidate <span className="font-semibold text-ink">{detail.candidateName}</span> as{" "}
+                <span className={`font-semibold ${showDecisionModal === "PASS" ? "text-emerald-700" : "text-rose-700"}`}>
+                  {showDecisionModal === "PASS" ? "Approved (Pass)" : "Rejected (Fail)"}
+                </span>?
+              </p>
+
+              <div>
+                <label className="block text-xs font-medium text-ink-secondary mb-1.5">Reviewer Decision Note (Optional)</label>
+                <textarea
+                  value={decisionNote}
+                  onChange={(e) => setDecisionNote(e.target.value)}
+                  placeholder="e.g. Excellent SQL optimization and clean code structure."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand resize-none"
+                />
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-ink-tertiary font-mono">Stream: Active biometric recording</span>
+              <div className="flex justify-end gap-2 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setActiveClipUrl(null)}
-                  className="px-3.5 py-1.5 text-xs font-semibold bg-canvas border border-line rounded-md hover:bg-line/20 text-ink cursor-pointer"
+                  onClick={() => setShowDecisionModal(null)}
+                  className="px-3.5 py-2 text-xs font-medium border border-line rounded hover:bg-canvas text-ink-secondary"
                 >
-                  Close Viewer
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDecisionSubmit}
+                  disabled={submittingDecision}
+                  className={`px-4 py-2 text-xs font-semibold text-white rounded shadow-sm transition-colors ${showDecisionModal === "PASS" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-rose-700 hover:bg-rose-800"
+                    }`}
+                >
+                  {submittingDecision ? "Saving..." : "Confirm Decision"}
                 </button>
               </div>
             </div>
           </div>
-        );
-      })()}
+        )}
+
+        {/* Video Evidence Clip Modal */}
+        {activeClipUrl && (() => {
+          const resolved = resolveClipUrl(activeClipUrl);
+          return (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl w-full max-w-[640px] shadow-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
+                  <div className="flex items-center gap-2">
+                    <Video size={16} className="text-red-500" />
+                    <h3 className="text-md font-semibold text-ink">
+                      Proctoring Video Evidence Clip
+                    </h3>
+                  </div>
+                  <button onClick={() => setActiveClipUrl(null)} className="text-ink-tertiary hover:text-ink cursor-pointer p-1">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center relative shadow-inner">
+                  {resolved ? (
+                    <video
+                      key={activeClipUrl}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const v = e.currentTarget;
+                        if (resolved.directUrl && v.src !== resolved.directUrl) {
+                          v.src = resolved.directUrl;
+                          v.play().catch(() => null);
+                        }
+                      }}
+                    >
+                      <source src={resolved.proxyUrl} type="video/webm" />
+                      {resolved.directUrl && <source src={resolved.directUrl} type="video/webm" />}
+                      Your browser does not support WebM video playback.
+                    </video>
+                  ) : (
+                    <p className="text-xs text-ink-tertiary">Clip preview unavailable.</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-ink-tertiary font-mono">Stream: Active biometric recording</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveClipUrl(null)}
+                    className="px-3.5 py-1.5 text-xs font-semibold bg-canvas border border-line rounded-md hover:bg-line/20 text-ink cursor-pointer"
+                  >
+                    Close Viewer
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </AppShell>
   );
