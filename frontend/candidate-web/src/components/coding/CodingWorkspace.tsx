@@ -257,53 +257,52 @@ export function CodingWorkspace({ question, onNext, updateStatus }: CodingWorksp
     }
   };
 
-  const getPollingIntervalMs = (attempt: number): number => {
-    if (attempt <= 4) return 250;   // 0s - 1s: Check every 250ms (ultra-fast for quick runs)
-    if (attempt <= 10) return 500;  // 1s - 4s: Check every 500ms
-    if (attempt <= 20) return 1000; // 4s - 14s: Check every 1000ms
-    return 2000;                    // 14s+: Backoff to 2000ms
-  };
-
-  const pollExecution = async (executionId: string, maxAttempts = 35) => {
+  const pollExecution = async (executionId: string, maxAttempts = 60): Promise<CodingExecutionResponse> => {
     let attempt = 0;
     while (attempt < maxAttempts && activePollRef.current) {
       attempt++;
       try {
         const result = await getCodingExecution(executionId);
-        if (result.status !== "PENDING" && result.status !== "RUNNING") {
+        if (result.status && result.status !== "PENDING" && result.status !== "RUNNING") {
           return result;
         }
       } catch (err) {
         console.error("Polling error:", err);
       }
-      const delay = getPollingIntervalMs(attempt);
-      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, 300));
     }
     throw new Error("Execution timed out.");
   };
 
   const executeWithRetry = async (
     actionFn: () => Promise<CodingExecutionResponse>,
-    maxRetries = 2,
-    baseBackoffMs = 1000,
   ): Promise<CodingExecutionResponse> => {
-    let attempt = 0;
-    while (true) {
-      try {
-        const response = await actionFn();
-        let finalResult = response;
-        if (response.status === "PENDING" || response.status === "RUNNING") {
-          finalResult = await pollExecution(response.executionId);
-        }
-        return finalResult;
-      } catch (err) {
-        attempt++;
-        if (attempt > maxRetries || !activePollRef.current) {
-          throw err;
-        }
-        await new Promise((resolve) => setTimeout(resolve, baseBackoffMs * attempt));
-      }
+    const response = await actionFn();
+    if (response.status === "PENDING" || response.status === "RUNNING") {
+      // Race SSE and fast 300ms Redis polling so the absolute fastest path always wins
+      return await Promise.race([
+        pollExecution(response.executionId),
+        new Promise<CodingExecutionResponse>((resolve) => {
+          try {
+            const sseUrl = `/api/v1/coding/execution/${response.executionId}/events`;
+            const eventSource = new EventSource(sseUrl);
+            eventSource.onmessage = (event) => {
+              try {
+                const payload = JSON.parse(event.data);
+                if (payload.status && payload.status !== "PENDING" && payload.status !== "RUNNING") {
+                  eventSource.close();
+                  resolve(payload);
+                }
+              } catch {}
+            };
+            eventSource.onerror = () => {
+              eventSource.close();
+            };
+          } catch {}
+        }),
+      ]);
     }
+    return response;
   };
 
   const handleRun = async () => {
