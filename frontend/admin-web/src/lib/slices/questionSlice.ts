@@ -60,10 +60,11 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch questions");
       const data = await res.json();
-      set({ questions: data.items, loading: false });
+      const items = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      set({ questions: items, loading: false });
     } catch (err: any) {
       console.error(err);
-      set({ error: err.message, loading: false });
+      set({ questions: [], error: err.message, loading: false });
     }
   },
 

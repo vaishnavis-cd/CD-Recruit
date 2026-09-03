@@ -158,7 +158,7 @@ function DashboardPage() {
 
   const [selectedDrive, setSelectedDrive] = useState<string>("all");
   const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<string>("30");
+  const [dateRange, setDateRange] = useState<string>("all");
 
   // Roster search & filter state
   const [rosterQuery, setRosterQuery] = useState("");

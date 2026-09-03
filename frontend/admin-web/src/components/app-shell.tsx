@@ -341,7 +341,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
             {actions}
           </header>
         )}
-        <main className={`flex-1 min-w-0 max-w-full overflow-x-hidden ${hideHeader ? "px-10 py-8" : "px-8 py-6"}`}>{children}</main>
+        <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-8 py-6">{children}</main>
       </div>
 
       {/* Blurred Logout Confirmation Modal */}
