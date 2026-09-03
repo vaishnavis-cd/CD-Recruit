@@ -625,7 +625,12 @@ function DriveDetailPage() {
         setActiveTab("roster");
       }
       
-      const effectiveDuration = isPartnerApi || rollingWindow ? 90 : winMins;
+      const isCustom = Boolean(
+        (data.moduleConfig as any)?.isCustomRole === true ||
+        ((data.moduleConfig as any)?.isCustomRole !== false &&
+         !(roleTemplates || []).some((rt) => rt.id === data.roleTemplateId && rt.department))
+      );
+      const effectiveDuration = isPartnerApi || rollingWindow ? 90 : (isCustom ? winMins : ((data as any).roleTemplate?.durationMinutes || 90));
       const confSum = Object.values(initialConfig).filter((m: any) => m.enabled).reduce((sum: number, m: any) => sum + (Number(m.durationMinutes) || 0), 0);
       if (confSum !== effectiveDuration) {
         initialConfig = autoAllocateModuleDurations(initialConfig, effectiveDuration);
@@ -678,7 +683,13 @@ function DriveDetailPage() {
       const updateRes = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ roleTemplateId: templateId }),
+        body: JSON.stringify({
+          roleTemplateId: templateId,
+          moduleConfig: {
+            ...moduleConfig,
+            isCustomRole: false,
+          },
+        }),
       });
 
       if (!updateRes.ok) {
@@ -744,6 +755,22 @@ function DriveDetailPage() {
     }
   };
 
+  const isCustomRole = useMemo(() => {
+    if (!drive) return false;
+    if ((drive.moduleConfig as any)?.isCustomRole === true) return true;
+    if ((drive.moduleConfig as any)?.isCustomRole === false) return false;
+    // Check if matching template is a real curated template with department
+    const matchingTemplate = (roleTemplates || []).find((rt) => rt.id === drive.roleTemplateId);
+    if (matchingTemplate && matchingTemplate.department) {
+      return false;
+    }
+    return true;
+  }, [drive, roleTemplates]);
+
+  const isTemplateGoverned = useMemo(() => {
+    return !isCustomRole;
+  }, [isCustomRole]);
+
   const MODULE_TIME_COMPLEXITY: Record<string, number> = {
     CODING: 3,
     SIMULATION: 3,
@@ -761,8 +788,8 @@ function DriveDetailPage() {
     endMinStr: string,
     endAmPmStr: string
   ): number => {
-    const templateDuration = (drive as any)?.roleTemplate?.durationMinutes || 90;
-    if (rollingWindow || (drive as any)?.originChannel === "PARTNER_API") {
+    if (isTemplateGoverned || rollingWindow || (drive as any)?.originChannel === "PARTNER_API") {
+      const templateDuration = (drive as any)?.roleTemplate?.durationMinutes || 90;
       return templateDuration;
     }
 
@@ -781,7 +808,6 @@ function DriveDetailPage() {
     let diff = endTotalMins - startTotalMins;
 
     if (diff <= 0) diff += 24 * 60;
-    if (diff > 240) return templateDuration;
     return diff > 0 ? diff : 60;
   };
 
@@ -1098,6 +1124,11 @@ function DriveDetailPage() {
   }, [moduleConfig, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow, drive]);
 
   const questionDeficits = useMemo(() => {
+    // If governed by Role Template, questions are fixed by template — bypass algorithmic deficit check
+    if (isTemplateGoverned) {
+      return [];
+    }
+
     const { summaryData } = driveEvaluationSummary;
     const deficits: { modId: string; label: string; reqCount: number; currentCount: number; missing: number }[] = [];
     if (summaryData.length === 0) return deficits;
@@ -1119,13 +1150,23 @@ function DriveDetailPage() {
       }
     }
     return deficits;
-  }, [driveEvaluationSummary, assignedQuestions, questionsBank]);
+  }, [isTemplateGoverned, driveEvaluationSummary, assignedQuestions, questionsBank]);
 
   const areQuestionsFullyAssigned = useMemo(() => {
+    if (isTemplateGoverned) {
+      return assignedQuestions.length > 0;
+    }
     return questionDeficits.length === 0 && assignedQuestions.length > 0;
-  }, [questionDeficits, assignedQuestions]);
+  }, [isTemplateGoverned, questionDeficits, assignedQuestions]);
 
   const isScheduleUnlocked = useMemo(() => {
+    if (isTemplateGoverned) {
+      return (
+        isScheduleDateValid &&
+        hasCandidatesSelected &&
+        assignedQuestions.length > 0
+      );
+    }
     return (
       isScheduleDateValid &&
       hasCandidatesSelected &&
@@ -1133,7 +1174,7 @@ function DriveDetailPage() {
       !driveEvaluationSummary.isOverTime &&
       areQuestionsFullyAssigned
     );
-  }, [isScheduleDateValid, hasCandidatesSelected, weightValidation, driveEvaluationSummary, areQuestionsFullyAssigned]);
+  }, [isTemplateGoverned, isScheduleDateValid, hasCandidatesSelected, weightValidation, driveEvaluationSummary, areQuestionsFullyAssigned, assignedQuestions]);
 
   const validateCumulativeDuration = (config = moduleConfig): boolean => {
     const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
@@ -1237,7 +1278,11 @@ function DriveDetailPage() {
           scheduleStart: startIso,
           scheduleEnd: endIso,
           status: editStatus,
-          moduleConfig: { ...updatedModuleConfig, proctoringConfig },
+          moduleConfig: {
+            ...updatedModuleConfig,
+            isCustomRole: isCustomRole,
+            proctoringConfig,
+          },
         }),
       });
 
@@ -1257,15 +1302,6 @@ function DriveDetailPage() {
   const enabledModuleKeys = useMemo(() => {
     return Object.keys(moduleConfig || {}).filter((k) => moduleConfig[k]?.enabled);
   }, [moduleConfig]);
-
-  const isTemplateGoverned = useMemo(() => {
-    if (!drive) return false;
-    const hasTemplate =
-      !!drive.roleTemplateId &&
-      ((roleTemplates || []).some((rt) => rt.id === drive.roleTemplateId) ||
-        drive.roleTemplateId.length === 36);
-    return hasTemplate;
-  }, [drive, roleTemplates]);
 
   const isQuestionsDirty = useMemo(() => {
     const sortedCurrent = [...assignedQuestions].sort();
@@ -1599,21 +1635,42 @@ function DriveDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-ink-secondary">
-            <div className="flex items-center gap-1.5">
-              <span>
-                Role Template: <span className="font-semibold text-ink">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName}</span> (v{(drive as any).roleTemplate?.version || 1})
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedTemplateForDrive((drive as any).roleTemplateId || "");
-                  setShowSelectTemplateModal(true);
-                }}
-                className="px-2 py-0.5 text-xs-plus font-medium text-brand bg-brand-subtle hover:bg-brand-subtle rounded transition-colors cursor-pointer border border-brand-border flex items-center gap-1"
-                title="Select or apply Role Template to this drive"
-              >
-                <Sparkles size={11} /> Select / Change Template
-              </button>
-            </div>
+            {isTemplateGoverned ? (
+              <div className="flex items-center gap-1.5">
+                <span>
+                  Role Template: <span className="font-semibold text-ink">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName}</span> (v{(drive as any).roleTemplate?.version || 1})
+                </span>
+                <button
+                  onClick={() => {
+                    setSelectedTemplateForDrive((drive as any).roleTemplateId || "");
+                    setShowSelectTemplateModal(true);
+                  }}
+                  className="px-2 py-0.5 text-xs-plus font-medium text-brand bg-brand-subtle hover:bg-brand-subtle rounded transition-colors cursor-pointer border border-brand-border flex items-center gap-1"
+                  title="Select or apply Role Template to this drive"
+                >
+                  <Sparkles size={11} /> Change Template
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span>
+                  Custom Role: <span className="font-semibold text-ink">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName || "Custom Role"}</span>
+                </span>
+                <span className="px-2 py-0.5 text-2xs font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded">
+                  Unlocked Custom Timing &amp; Modules
+                </span>
+                <button
+                  onClick={() => {
+                    setSelectedTemplateForDrive("");
+                    setShowSelectTemplateModal(true);
+                  }}
+                  className="px-2 py-0.5 text-xs-plus font-medium text-brand bg-brand-subtle hover:bg-brand-subtle rounded transition-colors cursor-pointer border border-brand-border flex items-center gap-1"
+                  title="Switch this custom drive to a standardized Role Template"
+                >
+                  <Sparkles size={11} /> Apply Role Template
+                </button>
+              </div>
+            )}
             <span>•</span>
             <span
               className={`px-2 py-0.5 rounded-full text-2xs font-mono font-bold uppercase ${

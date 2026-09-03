@@ -97,11 +97,14 @@ export class DriveService {
     );
 
     let defaultModuleConfig: any;
+    const isCustomRole = Boolean((moduleConfig as any)?.isCustomRole);
+    const hasModuleEntries = moduleConfig && Object.keys(moduleConfig).some((k) => Object.values(ModuleType).includes(k as any));
 
-    if (moduleConfig) {
+    if (hasModuleEntries) {
       defaultModuleConfig = moduleConfig;
       let totalWeight = 0;
       for (const [moduleType, modConf] of Object.entries(defaultModuleConfig)) {
+        if (!Object.values(ModuleType).includes(moduleType as any)) continue;
         const conf = modConf as any;
         if (!conf) continue;
         const weight = Number(conf.weight) || 0;
@@ -118,13 +121,17 @@ export class DriveService {
           totalWeight += weight;
         }
       }
-      if (totalWeight !== 100) {
-        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
+        if (totalWeight !== 100) {
+          throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+        }
       }
     } else {
       const preset = (template.weightingPreset as Record<string, number>) || {};
       const allModules = Object.values(ModuleType);
-      const configMap: Record<string, any> = {};
+      const configMap: Record<string, any> = {
+        isCustomRole: isCustomRole,
+      };
       let totalWeight = 0;
       for (const mod of allModules) {
         const isGloballyEnabled = enabledModules.has(mod);

@@ -875,8 +875,9 @@ function DrivesPage() {
                     return;
                   }
 
+                  const isCustom = creationMode === "CUSTOM";
                   const effectiveRoleTemplateId =
-                    creationMode === "TEMPLATE" && selectedTemplateId
+                    !isCustom && selectedTemplateId
                       ? selectedTemplateId
                       : role.trim();
 
@@ -885,9 +886,16 @@ function DrivesPage() {
                       name: driveName.trim(),
                       roleTemplateId: effectiveRoleTemplateId,
                       status: "DRAFT",
+                      moduleConfig: {
+                        isCustomRole: isCustom,
+                      },
                     });
                     const targetId = res?.driveId || res?.id;
-                    toast.success("Drive created with selected template! Opening configuration screen...");
+                    toast.success(
+                      isCustom
+                        ? "Custom Role drive created! Opening full configuration workspace..."
+                        : "Drive created with selected Role Template! Opening configuration screen..."
+                    );
                     setShowWizard(false);
                     if (targetId) {
                       navigate({ to: "/drives/$id", params: { id: targetId } });
