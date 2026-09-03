@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards, Req } from "@nestjs/common";
+import { Controller, Post, Get, Sse, Body, Param, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards, Req } from "@nestjs/common";
 import { Request } from "express";
 import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { CodingService } from "./coding.service";
@@ -23,6 +23,12 @@ export class CodingController {
   @HttpCode(HttpStatus.OK)
   async getExecution(@Param("id", ParseUUIDPipe) id: string) {
     return this.codingService.getExecution(id);
+  }
+
+  @Sse("execution/:id/events")
+  @SkipThrottle()
+  getExecutionEvents(@Param("id", ParseUUIDPipe) id: string) {
+    return this.codingService.getExecutionEvents(id);
   }
 
   @Post("submit")

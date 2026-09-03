@@ -112,6 +112,33 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  async publish(channel: string, message: string): Promise<number> {
+    if (!this.client || !this.isConnected) return 0;
+    try {
+      return await this.client.publish(channel, message);
+    } catch (err: any) {
+      this.logger.warn(`Redis PUBLISH failed for channel ${channel}: ${err.message}`);
+      return 0;
+    }
+  }
+
+  createSubscriberClient(): Redis | null {
+    if (!this.client) return null;
+    try {
+      const redisUrl =
+        this.configService.get<string>("REDIS_URL") ||
+        this.configService.get<string>("redisUrl") ||
+        "redis://localhost:6379";
+      return new Redis(redisUrl, {
+        lazyConnect: false,
+        maxRetriesPerRequest: null,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to create Redis subscriber client: ${err.message}`);
+      return null;
+    }
+  }
+
   getClient(): Redis | null {
     return this.client;
   }

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, MessageEvent } from "@nestjs/common";
 import { Request } from "express";
+import { Observable } from "rxjs";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { Judge0Service } from "../integrations/judge0/judge0.service";
 import { QaAutomationSandboxService } from "../execution/qa-automation-sandbox.service";
@@ -254,6 +255,95 @@ export class CodingService implements AssessmentModuleEngine {
     }
 
     return payload;
+  }
+
+  /**
+   * Server-Sent Events (SSE) Unidirectional Webhook Stream for sub-millisecond execution delivery.
+   * Utilizes the Cache-First Handshake + Redis Pub/Sub broadcast.
+   */
+  getExecutionEvents(id: string): Observable<MessageEvent> {
+    return new Observable<MessageEvent>((subscriber) => {
+      let isClosed = false;
+
+      // 1. Cache-First Handshake: Check if execution is already COMPLETED in Redis cache
+      this.redisService.get(`execution:${id}`).then((cached) => {
+        if (isClosed) return;
+
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (
+              parsed.status &&
+              parsed.status !== ExecutionStatus.PENDING &&
+              parsed.status !== ExecutionStatus.RUNNING
+            ) {
+              this.logger.log(`[SSE] Cache-first hit for execution ${id}. Emitting instantly.`);
+              subscriber.next({ data: parsed } as MessageEvent);
+              subscriber.complete();
+              return;
+            }
+          } catch {
+            // Fallback to Pub/Sub if parse fails
+          }
+        }
+
+        // 2. Subscribe to Redis Pub/Sub channel for live worker broadcast
+        const subClient = this.redisService.createSubscriberClient();
+        if (!subClient) {
+          this.logger.warn(`[SSE] Redis subscriber unavailable for execution ${id}`);
+          subscriber.error(new Error("Redis subscriber unavailable"));
+          return;
+        }
+
+        const channel = `execution:events:${id}`;
+        subClient.subscribe(channel, (err) => {
+          if (err) {
+            this.logger.warn(`[SSE] Failed to subscribe to channel ${channel}: ${err.message}`);
+            subscriber.error(err);
+          }
+        });
+
+        subClient.on("message", (ch, message) => {
+          if (ch === channel) {
+            this.logger.log(`[SSE] Live completion event received for execution ${id}`);
+            try {
+              const data = JSON.parse(message);
+              subscriber.next({ data } as MessageEvent);
+            } catch {
+              subscriber.next({ data: message } as MessageEvent);
+            }
+            subscriber.complete();
+          }
+        });
+
+        // 3. Keep-alive heartbeat interval (every 15s) to prevent intermediate proxy drops
+        const heartbeatInterval = setInterval(() => {
+          if (!isClosed) {
+            subscriber.next({ data: { type: "heartbeat", timestamp: Date.now() } } as MessageEvent);
+          }
+        }, 15000);
+
+        // 4. Safety timeout (auto-close after 35s)
+        const safetyTimeout = setTimeout(() => {
+          if (!isClosed) {
+            this.logger.log(`[SSE] Stream safety timeout reached for execution ${id}`);
+            subscriber.complete();
+          }
+        }, 35000);
+
+        // 5. Cleanup on stream close / unsubscribe
+        return () => {
+          isClosed = true;
+          clearInterval(heartbeatInterval);
+          clearTimeout(safetyTimeout);
+          subClient.unsubscribe(channel).catch(() => {});
+          subClient.quit().catch(() => {});
+        };
+      }).catch((err) => {
+        this.logger.error(`[SSE] Error during cache lookup for execution ${id}: ${err.message}`);
+        subscriber.error(err);
+      });
+    });
   }
 
   /**

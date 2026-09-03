@@ -261,6 +261,12 @@ export class OutboundExecutionProcessor extends WorkerHost {
       300, // 5 minutes TTL
     );
 
+    // Broadcast instant completion event to connected SSE streams (<1ms)
+    await this.redisService.publish(
+      `execution:events:${executionId}`,
+      JSON.stringify(finalResponsePayload),
+    );
+
     this.logger.log(
       `[OutboundExecutionProcessor] Execution ${executionId} completed. Status: ${overallStatus}, Passed: ${passedCount}/${testCases.length}`,
     );
