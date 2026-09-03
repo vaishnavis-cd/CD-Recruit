@@ -73,8 +73,10 @@ function ResultsPage() {
     return null;
   };
 
+  const safeResultsList = useMemo(() => (Array.isArray(resultsList) ? resultsList : []), [resultsList]);
+
   const filtered = useMemo(() => {
-    return resultsList.filter((item) => {
+    return safeResultsList.filter((item) => {
       const q = query.trim().toLowerCase();
       const matchesQuery =
         !q ||
@@ -91,20 +93,20 @@ function ResultsPage() {
 
       return matchesQuery && matchesStatus;
     });
-  }, [resultsList, query, statusFilter]);
+  }, [safeResultsList, query, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = resultsList.length;
-    const pending = resultsList.filter((r) => !getItemDecision(r)).length;
-    const approved = resultsList.filter((r) => getItemDecision(r) === "PASS").length;
-    const rejected = resultsList.filter((r) => getItemDecision(r) === "FAIL").length;
-    const scores = resultsList
+    const total = safeResultsList.length;
+    const pending = safeResultsList.filter((r) => !getItemDecision(r)).length;
+    const approved = safeResultsList.filter((r) => getItemDecision(r) === "PASS").length;
+    const rejected = safeResultsList.filter((r) => getItemDecision(r) === "FAIL").length;
+    const scores = safeResultsList
       .map((r) => (typeof r.compositeScore === "number" ? r.compositeScore : null))
       .filter((s): s is number => s !== null);
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     return { total, pending, approved, rejected, avgScore };
-  }, [resultsList]);
+  }, [safeResultsList]);
 
   const handleExportCsv = () => {
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1";

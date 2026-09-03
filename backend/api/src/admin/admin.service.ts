@@ -483,7 +483,7 @@ export class AdminService {
       const tags = res.question?.tags || [];
       const promptText = qContent.prompt || qContent.title || qContent.text || qContent.question || "Question";
       const payloadModType = (res.responsePayload as any)?.moduleType;
-      const rawModuleType = res.moduleType || res.question?.moduleType || payloadModType;
+      const rawModuleType = res.question?.moduleType || payloadModType;
       const isDebug = rawModuleType === "DEBUGGING" ||
         res.question?.moduleType === "DEBUGGING" ||
         tags.includes("debugging") ||

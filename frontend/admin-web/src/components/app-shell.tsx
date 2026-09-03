@@ -165,13 +165,13 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
   return (
     <div
-      className="flex min-h-screen w-full max-w-full overflow-x-hidden text-ink font-sans relative bg-transparent"
+      className="flex h-screen max-h-screen w-full max-w-full overflow-hidden text-ink font-sans relative bg-transparent"
     >
       {/* Figma Light Gradient 13 Global Mesh Background */}
       <LightGradientBackground />
 
-      {/* Left Sidebar: Split card layout with transparent active cutout */}
-      <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col justify-between sticky top-0 h-screen z-20 overflow-y-auto no-scrollbar py-2">
+      {/* Left Sidebar: Fixed in place */}
+      <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col justify-between h-screen z-20 overflow-y-auto no-scrollbar py-2">
         <div className="flex flex-col gap-1.5">
           {/* Top Floating White Card */}
           <div className="bg-white rounded-b-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 pt-5 pb-3 space-y-2">
@@ -328,7 +328,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden flex flex-col">
+      <div className="flex-1 h-screen overflow-y-auto overflow-x-hidden flex flex-col min-w-0 max-w-full">
         {!hideHeader && title && (
           <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-[#e8ecf4] px-8 h-[64px] flex items-center gap-4">
             <div className="flex items-baseline gap-3 flex-1 min-w-0">
