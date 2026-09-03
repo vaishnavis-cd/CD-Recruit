@@ -546,7 +546,7 @@ async function main() {
         isGenerated: true,
         scheduledTime: scheduleStart,
         bufferMinutes: CONFIG.bufferMinutes,
-        graceMinutes: CONFIG.graceMinutes,
+        graceMinutes: 120,
         originChannel: OriginChannel.DIRECT,
       },
     });

@@ -298,14 +298,18 @@ export class SessionService implements SessionStatusPort {
         where: { id: payload.inviteId },
         include: { drive: true },
       });
-      if (invite?.scheduledTime) {
+      if (invite) {
         const now = new Date();
-        const graceMinutes = 20; // 20 minutes grace window
-        const cutoff = new Date(invite.scheduledTime.getTime() + graceMinutes * 60 * 1000);
-        if (now > cutoff) {
+        if (invite.expiresAt && now > invite.expiresAt) {
           throw new UnauthorizedException({
             code: "INVITE_TOKEN_EXPIRED",
-            message: "The assessment window has expired.",
+            message: "The assessment invite link has expired.",
+          });
+        }
+        if (invite.drive?.scheduleEnd && now > invite.drive.scheduleEnd) {
+          throw new UnauthorizedException({
+            code: "INVITE_TOKEN_EXPIRED",
+            message: "The assessment drive window has closed.",
           });
         }
       }

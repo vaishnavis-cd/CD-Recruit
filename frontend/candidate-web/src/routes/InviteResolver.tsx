@@ -24,28 +24,27 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
       devForceJump({ type: 'session-conflict' })
     })
 
+    // Clear stale local storage if new candidate token is passed
+    const storedToken = localStorage.getItem('cd-recruit-session-token')
+    if (token && storedToken !== token) {
+      console.log('[InviteResolver] New candidate token detected! Clearing stale local session.')
+      localStorage.removeItem('cd-recruit-session')
+      localStorage.removeItem('cd-recruit-assessment-state')
+      localStorage.removeItem('cd-recruit-autosave')
+      localStorage.removeItem('cd-recruit-scheduled-ms')
+      localStorage.setItem('cd-recruit-session-token', token)
+      useSessionStore.setState({ session: null, assessment: null })
+    }
+
     async function resolve() {
       try {
         const { invite, drive, session } = await services.sessionApi.resolveInvite(token)
 
         // If session was already submitted or completed, lock access and show link expired screen
-        if (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED') {
-          if (session) setSession(session)
+        if (session && (session.status === 'submitted' || (session as any).status === 'SUBMITTED' || (session as any).status === 'COMPLETED')) {
+          setSession(session)
           transitionTo({ type: 'expired', reason: 'already-submitted' as any })
           return
-        }
-
-        // Detect if token changed or new candidate link opened
-        const storedToken = localStorage.getItem('cd-recruit-session-token')
-        if (!storedToken || storedToken !== token) {
-          console.log('[InviteResolver] New candidate token detected! Clearing stale local session.')
-          localStorage.removeItem('cd-recruit-session')
-          localStorage.removeItem('cd-recruit-assessment-state')
-          localStorage.removeItem('cd-recruit-autosave')
-          localStorage.setItem('cd-recruit-session-token', token)
-          useSessionStore.setState({ session: null, assessment: null })
-        } else {
-          localStorage.setItem('cd-recruit-session-token', token)
         }
 
         // Always update session and questions from latest API resolution
