@@ -90,12 +90,12 @@ export class AdminService {
     }
 
     if (search) {
-      where.candidate = {
-        OR: [
-          { name: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
-        ],
-      };
+      where.OR = [
+        { referenceId: { contains: search, mode: "insensitive" } },
+        { id: { contains: search, mode: "insensitive" } },
+        { candidate: { name: { contains: search, mode: "insensitive" } } },
+        { candidate: { email: { contains: search, mode: "insensitive" } } },
+      ];
     }
 
     // Sorting mapping
@@ -111,7 +111,7 @@ export class AdminService {
       }
     }
 
-    // Execute queries
+    // Execute queries with lightweight counts rather than loading all proctoring events
     const [items, total] = await Promise.all([
       this.prisma.session.findMany({
         where,
@@ -126,8 +126,12 @@ export class AdminService {
           reviewerDecision: {
             include: { staff: true },
           },
-          integrityFlags: true,
-          proctoringEvents: true,
+          _count: {
+            select: {
+              integrityFlags: true,
+              proctoringEvents: true,
+            },
+          },
         },
       }),
       this.prisma.session.count({ where }),
@@ -148,11 +152,11 @@ export class AdminService {
         session.score.aiConfidence >= 0 &&   // exclude -1.0 sentinel (unscored)
         session.score.aiConfidence < 0.8;
 
-      const flagCount = (session.integrityFlags ? session.integrityFlags.length : 0) +
-        ((session as any).proctoringEvents ? (session as any).proctoringEvents.length : 0);
+      const flagCount = (session._count?.integrityFlags ?? 0) + (session._count?.proctoringEvents ?? 0);
 
       return {
         sessionId: session.id,
+        referenceId: session.referenceId ?? null,
         candidateId: session.candidate.id,
         candidateName: session.invite?.candidateName || session.candidate.name,
         candidateEmail: session.candidate.email,
@@ -267,8 +271,13 @@ export class AdminService {
   }
 
   async getSessionDetail(sessionId: string): Promise<SessionDetail> {
-    let session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
+    let session = await this.prisma.session.findFirst({
+      where: {
+        OR: [
+          { id: sessionId },
+          { referenceId: sessionId },
+        ],
+      },
       include: {
         candidate: true,
         roleTemplate: true,
@@ -703,6 +712,7 @@ export class AdminService {
     return {
       id: session.id,
       sessionId: session.id,
+      referenceId: session.referenceId ?? null,
       candidate: session.candidate
         ? {
             id: session.candidate.id,

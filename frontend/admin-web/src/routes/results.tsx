@@ -331,7 +331,14 @@ function ResultsPage() {
                             {initialLetter}
                           </div>
                           <div>
-                            <div className="font-semibold text-ink">{item.candidateName}</div>
+                            <div className="font-semibold text-ink flex items-center gap-1.5">
+                              <span>{item.candidateName}</span>
+                              {item.referenceId && (
+                                <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                                  {item.referenceId}
+                                </span>
+                              )}
+                            </div>
                             <div className="text-2xs font-mono text-ink-tertiary">{item.candidateEmail}</div>
                           </div>
                         </div>

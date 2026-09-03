@@ -105,7 +105,7 @@ export function RoleTemplatesPage() {
   const [department, setDepartment] = useState<string>("SOFTWARE_ENGINEERING");
   const [category, setCategory] = useState<string>("EXPERIENCED");
   const [experienceTier, setExperienceTier] = useState<string>("2-5");
-  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [durationMinutes, setDurationMinutes] = useState(90);
   const [isActive, setIsActive] = useState(true);
   const [weightingPreset, setWeightingPreset] = useState({
     MCQ: 20,
@@ -273,7 +273,7 @@ export function RoleTemplatesPage() {
     setDepartment("SOFTWARE_ENGINEERING");
     setCategory("EXPERIENCED");
     setExperienceTier("2-5");
-    setDurationMinutes(60);
+    setDurationMinutes(90);
     setIsActive(true);
     setWeightingPreset({
       MCQ: 20,
@@ -299,7 +299,7 @@ export function RoleTemplatesPage() {
     const tCategory = tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
     setCategory(tCategory);
     setExperienceTier(tpl.experienceTier || (tCategory === "FRESHER" ? "0-1" : "2-5"));
-    setDurationMinutes(tpl.durationMinutes || 60);
+    setDurationMinutes(Math.max(90, tpl.durationMinutes || 90));
     setIsActive(tpl.isActive ?? true);
 
     const preset =
@@ -341,6 +341,11 @@ export function RoleTemplatesPage() {
       return;
     }
 
+    if (Number(durationMinutes) < 90) {
+      toast.error("Assessment duration must be at least 90 minutes for standardized evaluation.");
+      return;
+    }
+
     setSaving(true);
     const questionPayload = Object.entries(selectedQuestionsMap).map(([qId, val], idx) => {
       const foundQ = questionsBank.find((q) => q.id === qId);
@@ -373,7 +378,7 @@ export function RoleTemplatesPage() {
       category,
       experienceTier: category === "FRESHER" ? "0-1" : experienceTier,
       level: category === "FRESHER" ? "FRESHER" : "EXPERIENCED",
-      durationMinutes: Number(durationMinutes) || 90,
+      durationMinutes: Math.max(90, Number(durationMinutes) || 90),
       isActive,
       weightingPreset: cleanPreset,
       questions: questionPayload,
@@ -1036,16 +1041,17 @@ export function RoleTemplatesPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
-                      Assessment Duration (Minutes) <span className="text-rose-500">*</span>
+                      Assessment Duration (Minutes — Minimum 90 mins) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="number"
-                      min={15}
+                      min={90}
                       max={240}
                       value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand bg-white shadow-2xs"
+                      onChange={(e) => setDurationMinutes(Math.max(90, Number(e.target.value) || 90))}
+                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand bg-white shadow-2xs font-mono"
                     />
+                    <p className="text-2xs text-ink-tertiary mt-1">Standard role templates require a minimum 90-minute evaluation window.</p>
                   </div>
 
                   <div>

@@ -30,6 +30,7 @@ import {
   UserCheck,
   Camera,
   FileText,
+  Info,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
@@ -285,54 +286,39 @@ function IndividualResultPage() {
       title={`Evaluation: ${detail.candidateName}`}
       hideHeader={true}
     >
-      <div className="max-w-[1320px] mx-auto w-full space-y-6">
-        {/* Top Navigation Bar */}
-        <div className="flex items-center justify-between gap-4">
-          <Link
-            to="/results"
-            className="flex items-center gap-2 h-[32px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
-          >
-            <ArrowLeft size={14} /> <span>Back to Results</span>
-          </Link>
-
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 h-[32px] px-4 text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[16px] transition-all cursor-pointer shadow-xs"
-          >
-            <FileText size={14} />
-            <span>Export Evaluation PDF</span>
-          </button>
-        </div>
-
-        {/* Header Hero Banner Card */}
-        <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-[#F1F5F9] pb-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-base flex items-center justify-center shrink-0 border border-[#DBEAFE]">
-                {(detail.candidateName || "C").charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
-                  <h2 className="text-[22px] font-bold text-[#0F172A] tracking-tight">{detail.candidateName}</h2>
-                  {isApproved ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-[11px] text-[11px] font-bold bg-[#10B981] text-white shadow-xs">
-                      <CheckCircle2 size={13} /> Approved
-                    </span>
-                  ) : isRejected ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-[11px] text-[11px] font-bold bg-[#EF4444] text-white shadow-xs">
-                      <XCircle size={13} /> Rejected
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-[11px] text-[11px] font-bold bg-[#F59E0B] text-white shadow-xs">
-                      <Clock size={13} /> Pending Review
-                    </span>
-                  )}
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-[11px] text-[11px] font-bold bg-[#F3F8FF] text-[#2563EB] border border-[#DBEAFE]">
-                    {detail.roleTemplateName || "Software Engineer"}
-                  </span>
-                </div>
-                <p className="text-[12px] text-[#64748B] flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <span>{detail.candidateEmail}</span>
+      {/* Header Banner */}
+      <div className="bg-white border border-line rounded-xl p-6 shadow-sm mb-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-surface-inset pb-5">
+          <div>
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
+              <h2 className="text-xl font-semibold text-ink">{detail.candidateName}</h2>
+              {detail.referenceId && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                  Ref: {detail.referenceId}
+                </span>
+              )}
+              {isApproved ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 size={14} /> Approved
+                </span>
+              ) : isRejected ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                  <XCircle size={14} /> Rejected
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <Clock size={14} /> Pending Review
+                </span>
+              )}
+            </div>
+            <p className="text-sm-minus text-ink-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>{detail.candidateEmail}</span>
+              <span>•</span>
+              <span>Drive: <strong className="font-semibold text-ink">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
+              <span>•</span>
+              <span className="font-mono text-xs text-ink">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
+              {detail.startedAt && detail.submittedAt && (
+                <>
                   <span>•</span>
                   <span>Drive: <strong className="font-semibold text-[#0F172A]">{formatDriveName(detail.driveName)}</strong></span>
                   <span>•</span>
@@ -385,7 +371,64 @@ function IndividualResultPage() {
                     return `${scoreVal}%`;
                   })()}
                 </span>
-                <span className="text-[11px] text-[#64748B]">Weighted overall</span>
+              ) : (
+                <span className="text-2xl font-mono font-bold text-ink flex items-center gap-1">
+                  <ShieldCheck size={20} className="text-emerald-600" /> Clean
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-canvas border border-line rounded-md p-3.5">
+            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
+              Say/Do Alignment
+            </span>
+            <span className="text-2xl font-mono font-bold text-ink">
+              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
+                ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
+                : "Pending"}
+            </span>
+          </div>
+
+          <div
+            className="bg-canvas border border-line rounded-md p-3.5 relative group cursor-help"
+            title="AI Confidence reflects the automated grading certainty based on response completion ratio, deterministic test executions, and evaluation signal quality."
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block">
+                AI Confidence
+              </span>
+              <Info size={13} className="text-ink-tertiary opacity-70 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <span className="text-2xl font-mono font-bold text-ink">
+              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+                ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
+                : "Pending"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Module Navigation Tabs */}
+      <div className="flex border-b border-line mb-6 space-x-6">
+        {availableTabs.map((tab: any) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          const mScore = score?.moduleScores?.[tab.id];
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 pb-3 text-sm-minus font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
+                  ? "border-brand text-brand font-semibold"
+                  : "border-transparent text-ink-secondary hover:text-ink"
+                }`}
+            >
+              <div className="relative inline-flex items-center justify-center shrink-0">
+                <Icon size={16} />
+                {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
+                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                )}
               </div>
             </div>
 
@@ -1509,7 +1552,7 @@ function IndividualResultPage() {
                                   </span>
                                 </div>
                                 <p className="text-xs-plus text-ink-secondary font-mono mt-0.5">
-                                  Confidence: {Math.round((flag.confidence || 0.9) * 100)}% • Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
+                                  {typeof flag.confidence === "number" ? `Confidence: ${Math.round(flag.confidence <= 1.0 ? flag.confidence * 100 : flag.confidence)}% • ` : ""}Logged At: {flag.flaggedAt ? flag.flaggedAt.slice(0, 19).replace("T", " ") : "N/A"}
                                 </p>
                                 {flag.promptText && (
                                   <p className="text-xs-plus text-red-800 font-mono mt-1 bg-red-100/60 p-2 rounded border border-red-200/50">

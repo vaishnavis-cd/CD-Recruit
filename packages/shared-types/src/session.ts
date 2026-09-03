@@ -12,6 +12,7 @@ export interface StartSessionRequest {
 
 export interface StartSessionResponse {
   sessionId: string;
+  referenceId?: string | null;
   candidateId: string;
   roleTemplateId: string;
   roleTemplateName: string;
@@ -114,6 +115,7 @@ export interface SessionProgressResponse {
 
 export interface CloseSessionResponse {
   sessionId: string;
+  referenceId?: string | null;
   status: SessionStatus;
   submittedAt: string; // ISO-8601
 }

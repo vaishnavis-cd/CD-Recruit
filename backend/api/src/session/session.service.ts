@@ -575,6 +575,11 @@ export class SessionService implements SessionStatusPort {
       where: { id: payload.inviteId },
     });
 
+    const shortId = (payload.inviteId || candidateRecord.id).replace(/-/g, "").slice(0, 6).toUpperCase();
+    const driveCode = invite?.driveId ? invite.driveId.replace(/-/g, "").slice(0, 4).toUpperCase() : "DRV";
+    const tsCode = Date.now().toString(36).slice(-4).toUpperCase();
+    const referenceId = `REF-${driveCode}-${shortId}-${tsCode}`;
+
     const session = await this.prisma.session.create({
       data: {
         candidateId: candidateRecord.id,
@@ -587,6 +592,7 @@ export class SessionService implements SessionStatusPort {
         lastHeartbeatAt: null,
         lastActivityAt: now,
         disconnectCount: 0,
+        referenceId,
       },
       include: { roleTemplate: true },
     });
@@ -959,12 +965,21 @@ export class SessionService implements SessionStatusPort {
       });
     }
 
+    let referenceId = session.referenceId;
+    if (!referenceId) {
+      const shortId = session.id.replace(/-/g, "").slice(0, 6).toUpperCase();
+      const driveCode = session.driveId ? session.driveId.replace(/-/g, "").slice(0, 4).toUpperCase() : "DRV";
+      const tsCode = Date.now().toString(36).slice(-4).toUpperCase();
+      referenceId = `REF-${driveCode}-${shortId}-${tsCode}`;
+    }
+
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
         status: SessionStatus.SUBMITTED,
         submittedAt: now,
         lastActivityAt: now,
+        referenceId,
       },
     });
 
@@ -1008,15 +1023,17 @@ export class SessionService implements SessionStatusPort {
           routing: "HUMAN_REVIEW_QUEUE",
           humanReviewed: false,
           reason: "TRACK_B_FAILSAFE_DEFAULT",
+          referenceId,
         },
         occurredAt: now,
       },
     });
 
-    this.logger.log(`Session closed (submitted): ${sessionId} (Routed to Human Review Queue)`);
+    this.logger.log(`Session closed (submitted): ${sessionId} (Ref: ${referenceId})`);
 
     return {
       sessionId: updated.id,
+      referenceId,
       status:
         updated.status as unknown as import("@cd-recruit/shared-types").SessionStatus,
       submittedAt: now.toISOString(),
@@ -1207,6 +1224,7 @@ export class SessionService implements SessionStatusPort {
 
     return {
       sessionId: session.id,
+      referenceId: session.referenceId || null,
       candidateId,
       roleTemplateId: session.roleTemplateId,
       roleTemplateName: session.roleTemplate.roleName,

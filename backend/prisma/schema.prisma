@@ -311,6 +311,7 @@ model Session {
   workspaceStatus   String?   @default("provisioning") @map("workspace_status")
   simulationSnapshot Json?    @map("simulation_snapshot")
   originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
+  referenceId       String?   @unique @map("reference_id")
 
   organization Organization? @relation(fields: [organizationId], references: [id])
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
@@ -328,8 +329,12 @@ model Session {
   sqlExecutions     SQLExecution[]
   identityCaptures  IdentityCapture[]
 
+  @@index([referenceId])
   @@index([candidateId])
+  @@index([driveId])
   @@index([status])
+  @@index([startedAt])
+  @@index([submittedAt])
   @@index([deadlineAt])
   @@index([lastHeartbeatAt])
   @@map("session")
@@ -351,6 +356,8 @@ model ModuleResponse {
   question Question @relation(fields: [questionId], references: [id])
 
   @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
   @@map("module_response")
 }
 
@@ -367,6 +374,8 @@ model EventLog {
 
   session Session @relation(fields: [sessionId], references: [id])
 
+  @@index([sessionId])
+  @@index([eventType])
   @@map("event_log")
 }
 
@@ -385,6 +394,9 @@ model IntegrityFlag {
   session      Session       @relation(fields: [sessionId], references: [id])
   evidenceClip EvidenceClip?
 
+  @@index([sessionId])
+  @@index([category])
+  @@index([severity])
   @@map("integrity_flag")
 }
 
@@ -416,6 +428,9 @@ model Score {
 
   session Session @relation(fields: [sessionId], references: [id])
 
+  @@index([sessionId])
+  @@index([compositeScore])
+  @@index([aiConfidence])
   @@map("score")
 }
 

@@ -15,6 +15,7 @@ import { Score } from "./score.js";
 
 export interface SessionListItem {
   sessionId: string;
+  referenceId?: string | null;
   candidateName: string;
   candidateEmail: string;
   roleTemplateName: string;
@@ -66,6 +67,7 @@ export interface ModuleResponseDetail {
 
 export interface SessionDetail {
   sessionId: string;
+  referenceId?: string | null;
   id?: string;
   candidateName?: string;
   candidateEmail?: string;

@@ -469,7 +469,14 @@ function DashboardPage() {
                     return (
                       <tr key={s.id} className="hover:bg-canvas/60 transition-colors">
                         <td className="py-3 px-4 font-medium text-ink">
-                          <div>{s.candidate?.name || s.candidateName || "Candidate"}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span>{s.candidate?.name || s.candidateName || "Candidate"}</span>
+                            {(s.referenceId || s.candidate?.referenceId) && (
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                                {s.referenceId || s.candidate?.referenceId}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-ink-tertiary font-normal">{s.candidate?.email || s.candidateEmail || "No email"}</div>
                         </td>
                         <td className="py-3 px-4 text-ink-secondary">

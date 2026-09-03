@@ -87,3 +87,36 @@ export class UpdateRolePermissionDto {
   @IsBoolean()
   isEnabled: boolean;
 }
+
+export class CreateStaffDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  email: string;
+
+  @IsEnum(StaffRole)
+  role: StaffRole;
+
+  @IsOptional()
+  @IsString()
+  tempPassword?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  temporary?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requirePasswordChange?: boolean;
+}
+
+export class ResetStaffPasswordDto {
+  @IsOptional()
+  @IsString()
+  newPassword?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  temporary?: boolean;
+}

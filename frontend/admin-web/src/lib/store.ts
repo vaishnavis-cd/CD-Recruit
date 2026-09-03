@@ -26,6 +26,8 @@ if (typeof window !== "undefined") {
   };
 }
 
+let inflightTokenPromise: Promise<string | null> | null = null;
+
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   if (typeof window === "undefined") {
     return {
@@ -35,20 +37,26 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   }
   let token = getStoredToken();
   if (!token) {
-    const candidateUrls = ["/api/v1", "http://127.0.0.1:3001/api/v1", "http://localhost:3001/api/v1"];
-    for (const base of candidateUrls) {
-      try {
-        const res = await fetch(`${base}/auth/dev-token?role=ADMIN`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.token) {
-            token = data.token;
-            localStorage.setItem("admin_token", token || "");
-            break;
+    if (!inflightTokenPromise) {
+      inflightTokenPromise = (async () => {
+        try {
+          const res = await fetch(`${API_BASE}/auth/dev-token?role=ADMIN`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.token) {
+              localStorage.setItem("admin_token", data.token);
+              return data.token;
+            }
           }
+        } catch {
+          // Dev token fetch failed, proceed with empty token
+        } finally {
+          inflightTokenPromise = null;
         }
-      } catch (err) {}
+        return null;
+      })();
     }
+    token = await inflightTokenPromise;
   }
   return {
     Authorization: token ? `Bearer ${token}` : "",

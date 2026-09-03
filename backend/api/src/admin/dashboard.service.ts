@@ -52,11 +52,7 @@ export class DashboardService {
       }
     }
 
-    const responsesWhere: any = { session: {} };
-    if (driveId) responsesWhere.session.driveId = driveId;
-    if (roleTemplateId) responsesWhere.session.roleTemplateId = roleTemplateId;
-
-    // Fetch baseline metrics
+    // Fetch baseline metrics efficiently
     const [
       totalSessions,
       totalCandidates,
@@ -98,8 +94,16 @@ export class DashboardService {
         where: decisionsWhere,
       }),
       this.prisma.moduleResponse.findMany({
-        where: responsesWhere,
-        include: { question: true },
+        where: {
+          timeSpentSeconds: { not: null },
+          session: sessionsWhere,
+        },
+        select: {
+          timeSpentSeconds: true,
+          question: {
+            select: { moduleType: true },
+          },
+        },
       }),
     ]);
 
