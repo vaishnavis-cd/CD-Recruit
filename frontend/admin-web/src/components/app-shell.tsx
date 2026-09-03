@@ -1,8 +1,9 @@
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
+import { LightGradientBackground } from "./common/LightGradientBackground";
 
 /* --- Exact Figma-matched SVG Icons --- */
 
@@ -106,7 +107,6 @@ export interface AppShellProps {
 
 export function AppShell({ title, count, actions, search, hideHeader = false, children }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const [userInfo, setUserInfo] = useState<{ userName: string; userRole: string; initials: string }>({
@@ -160,16 +160,18 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
   );
 
   const topItems = activeIdx >= 0 ? ALL_NAV.slice(0, activeIdx) : ALL_NAV.slice(0, 7);
-  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : ALL_NAV[7];
+  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : ALL_NAV[0];
   const bottomItems = activeIdx >= 0 ? ALL_NAV.slice(activeIdx + 1) : [];
 
   return (
     <div
-      className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-cover bg-center bg-no-repeat bg-fixed text-ink font-sans"
-      style={{ backgroundImage: "url('/light-gradient-14.svg')" }}
+      className="flex h-screen max-h-screen w-full max-w-full overflow-hidden text-ink font-sans relative bg-transparent"
     >
-      {/* Left Sidebar */}
-      <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col justify-between sticky top-0 h-screen z-20 overflow-y-auto no-scrollbar py-2">
+      {/* Figma Light Gradient 13 Global Mesh Background */}
+      <LightGradientBackground />
+
+      {/* Left Sidebar: Fixed in place */}
+      <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col justify-between h-screen z-20 overflow-y-auto no-scrollbar py-2">
         <div className="flex flex-col gap-1.5">
           {/* Top Floating White Card */}
           <div className="bg-white rounded-b-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 pt-5 pb-3 space-y-2">
@@ -326,7 +328,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden flex flex-col">
+      <div className="flex-1 h-screen overflow-y-auto overflow-x-hidden flex flex-col min-w-0 max-w-full">
         {!hideHeader && title && (
           <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-[#e8ecf4] px-8 h-[64px] flex items-center gap-4">
             <div className="flex items-baseline gap-3 flex-1 min-w-0">

@@ -8,7 +8,7 @@ import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { useTheme } from '../theme/ThemeProvider';
 import { ProctoringModule } from '../proctoring/proctoring.module';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, RotateCcw } from 'lucide-react';
 
 import { WatermarkOverlay } from './common/WatermarkOverlay';
 import { IntegrityAlertBanner } from './common/IntegrityAlertBanner';
@@ -61,10 +61,29 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const cvMode = useSessionStore(s => s.cvMode);
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
   const assessment = useSessionStore(s => s.assessment);
+  const inviteToken = useSessionStore(s => s.inviteToken);
+  const session = useSessionStore(s => s.session);
   const transitionTo = useSessionStore(s => s.transitionTo);
   const { theme, toggle } = useTheme();
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge();
   const [networkDisconnected, setNetworkDisconnected] = React.useState(false);
+
+  // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+  const isUnlimitedDemo =
+    (assessment && assessment.totalSeconds >= 86400 * 30) ||
+    inviteToken === 'demo' ||
+    inviteToken?.startsWith('demo') ||
+    inviteToken?.startsWith('unlimited-') ||
+    (session as any)?.durationMinutes >= 999999;
+
+  const handleResetDemoState = () => {
+    if (confirm('Reset demo state? This will clear local responses and reload fresh questions for UI development.')) {
+      localStorage.removeItem('cd-recruit-assessment-state');
+      localStorage.removeItem('cd-recruit-session');
+      localStorage.removeItem('cd-recruit-autosave');
+      window.location.reload();
+    }
+  };
 
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
@@ -175,7 +194,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
       )}
 
       {/* Fullscreen exit nudge — functional, NOT an accusation */}
-      {fullscreenExited && (
+      {fullscreenExited && !isUnlimitedDemo && (
         <div
           role="status"
           aria-live="polite"
@@ -219,6 +238,17 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
 
         {/* Right Actions: Theme toggle & Review & Submit */}
         <div className="flex items-center gap-3">
+          {isUnlimitedDemo && (
+            <button
+              onClick={handleResetDemoState}
+              title="Reset / Demolish Demo Answers and Reload Fresh Questions"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+            >
+              <RotateCcw size={13} />
+              <span>Reset State</span>
+            </button>
+          )}
+
           <button
             onClick={toggle}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}

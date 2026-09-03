@@ -37,23 +37,33 @@ async function bootstrap(): Promise<void> {
   // ── CORS ──────────────────────────────────────────────────────────────
   // Reads CORS_ALLOWED_ORIGINS from environment or defaults to dev endpoints.
   const corsAllowedEnv = process.env.CORS_ALLOWED_ORIGINS;
-  const allowedOrigins = corsAllowedEnv
-    ? corsAllowedEnv.split(",").map((o) => o.trim()).filter(Boolean)
-    : true;
+  const explicitOrigins = corsAllowedEnv
+    ? corsAllowedEnv.split(",").map((o) => o.trim().toLowerCase()).filter(Boolean)
+    : [];
 
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin || origin.includes("localhost") || origin.includes("127.0.0.1")) {
-        callback(null, true);
-      } else if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, true);
+      // Allow requests with no origin (like mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.toLowerCase();
+      const isLocal =
+        normalizedOrigin.startsWith("http://localhost:") ||
+        normalizedOrigin.startsWith("http://127.0.0.1:") ||
+        normalizedOrigin.startsWith("https://localhost:") ||
+        normalizedOrigin.startsWith("https://127.0.0.1:") ||
+        normalizedOrigin === "http://localhost" ||
+        normalizedOrigin === "http://127.0.0.1";
+
+      if (isLocal || explicitOrigins.includes(normalizedOrigin) || process.env.NODE_ENV !== "production") {
+        return callback(null, true);
       }
+      callback(null, false);
     },
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    allowedHeaders: "Content-Type, Accept, Authorization, X-API-Key, Origin, X-Requested-With",
+    allowedHeaders: "Content-Type, Accept, Authorization, X-Requested-With, Origin, x-api-key, Cache-Control",
+    exposedHeaders: "Content-Range, X-Content-Range, Authorization",
   });
 
 

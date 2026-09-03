@@ -8,7 +8,7 @@ import { useModuleNavigation } from '../../hooks/useModuleNavigation';
 import apiClient from '../../api/client';
 import { services } from '../../services';
 import { ProctoringEventService } from '../../proctoring/proctoring-event.service';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 let sqlPromise: Promise<any> | null = null;
 
@@ -529,21 +529,17 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           </div>
         </div>
 
-        {/* Horizontal Resizer handle with grip dots */}
+        {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="hidden lg:flex w-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 border-x border-[var(--border)] cursor-col-resize items-center justify-center transition-colors group select-none shrink-0"
+          className="hidden lg:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 border-l border-r border-line dark:border-slate-800 cursor-col-resize items-center justify-center transition-colors group select-none shrink-0 z-10"
           title="Drag horizontally to adjust panel widths"
         >
-          <div className="w-1.5 h-8 flex flex-col justify-between items-center opacity-60 group-hover:opacity-100">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-          </div>
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Column: SQL Editor & Output */}
-        <div className="flex-1 h-full flex flex-col min-w-0 bg-[var(--background)] select-text overflow-hidden">
+        <div className="flex-1 h-full flex flex-col min-w-0 bg-white dark:bg-[#111827] select-text overflow-hidden">
           {/* Editor Area */}
           <div className="flex-1 min-h-0 relative">
             <CodeEditor
@@ -558,17 +554,13 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           {/* Results Output Panel & Vertical Resizer */}
           {(results || error) && (
             <>
-              {/* Vertical Resizer handle with grip dots */}
+              {/* Horizontal Resizer handle */}
               <div
                 onMouseDown={handleVerticalMouseDown}
-                className="h-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 border-y border-[var(--border)] cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
+                className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 border-t border-b border-line dark:border-slate-800 cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
                 title="Drag vertically to adjust results terminal height"
               >
-                <div className="h-1.5 w-8 flex justify-between items-center opacity-60 group-hover:opacity-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-                </div>
+                <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
               </div>
 
               <div
@@ -614,38 +606,35 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           )}
 
           {/* Standardized Pinned Bottom Navigation Bar */}
-          <footer className="h-14 border-t border-line bg-white px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+          <footer className="h-14 border-t border-line dark:border-slate-800 bg-white dark:bg-[#111827] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 aria-label="Previous question"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={14} className="shrink-0" />
                 <span>Previous</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-                className="px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <span>{nextButtonLabel}</span>
+                <ChevronRight size={14} className="shrink-0" />
               </button>
             </div>
-
-            <span className="text-xs font-mono font-medium text-ink-muted hidden sm:inline">
-              SQL Task {currentIndex + 1} of {questions.length}
-            </span>
 
             <div className="flex items-center gap-3">
               {evalResult && (
                 <div className={`px-3 py-1 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 ${
                   evalResult.passed 
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                    : 'bg-red-50 text-critical border border-red-200'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' 
+                    : 'bg-red-50 dark:bg-red-950/40 text-critical border border-red-200 dark:border-red-900'
                 }`}>
                   <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
                   <span className="text-2xs opacity-75">({evalResult.executionTime}ms)</span>
@@ -656,7 +645,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                 type="button"
                 onClick={handleRun}
                 disabled={running || !query.trim()}
-                className="px-4 py-2 rounded-lg border border-line bg-white text-ink hover:bg-slate-50 text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+                className="px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
               >
                 {running ? 'Running…' : '▶ Run Query'}
               </button>

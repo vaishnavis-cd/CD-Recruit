@@ -28,11 +28,22 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
       try {
         const { invite, drive, session } = await services.sessionApi.resolveInvite(token);
 
-        // If session was already submitted or completed, lock access and show DoneScreen (Thank You page)
+        // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+        const isUnlimitedDemo =
+          token === 'demo' ||
+          token.startsWith('demo') ||
+          token.startsWith('unlimited-') ||
+          (session as any)?.durationMinutes >= 999999;
+
+        // If session was already submitted or completed, lock access and show DoneScreen (for demo tokens, allow re-entering)
         if (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED') {
-          if (session) setSession(session);
-          transitionTo({ type: 'done', referenceId: session?.id || 'COMPLETED', sessionId: session?.id || 'COMPLETED', auto: false });
-          return;
+          if (!isUnlimitedDemo) {
+            if (session) setSession(session);
+            transitionTo({ type: 'done', referenceId: session?.id || 'COMPLETED', sessionId: session?.id || 'COMPLETED', auto: false });
+            return;
+          } else {
+            console.log('[InviteResolver] Unlimited Demo Mode: Allowing continuous UI development access.');
+          }
         }
 
         // Detect if token changed or new candidate link opened
@@ -60,12 +71,12 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
           }
           setSession(session);
           const sessionQuestions = session.questions || [];
-          const durationSeconds = (session.durationMinutes || 60) * 60;
+          const durationSeconds = isUnlimitedDemo ? 99999999 : (session.durationMinutes || 60) * 60;
           initAssessment(session.id, durationSeconds, sessionQuestions);
         }
 
         // Drive closed?
-        if (drive.status === 'closed') {
+        if (drive.status === 'closed' && !isUnlimitedDemo) {
           transitionTo({ type: 'expired', reason: 'drive-closed' });
           return;
         }

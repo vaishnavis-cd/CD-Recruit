@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { CodeEditor, PasteEventData } from "@/components/common/CodeEditor";
-import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, GripHorizontal, RotateCcw } from "lucide-react";
+import { Play, Server, Loader2, AlertCircle, CheckCircle, Terminal, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, GripHorizontal, RotateCcw, Check, Code2 } from "lucide-react";
 import { runCoding, submitCoding, saveCodingDraft, getCodingExecution, CodingExecutionResponse, TestResultDetail } from "@/api/coding";
 import { useSessionStore } from "@/store/sessionMachine";
 import { SUPPORTED_CODING_LANGUAGES } from "@cd-recruit/shared-types";
@@ -160,6 +160,22 @@ export function CodingWorkspace({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [terminalOpen, setTerminalOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"testCases" | "console">("testCases");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    }
+    if (langMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [langMenuOpen]);
 
   const activePollRef = useRef<boolean>(false);
 
@@ -386,25 +402,62 @@ export function CodingWorkspace({
   const activeLangConfig = LANGUAGES.find((l) => l.value === selectedLanguage) || LANGUAGES[0];
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--bg)] overflow-hidden h-full">
+    <div className="flex-1 flex flex-col bg-white dark:bg-[#111827] overflow-hidden h-full">
       {/* Top Bar */}
-      <div className="bg-[var(--surface)] border-b border-[var(--border)] px-4 py-2 flex items-center justify-between gap-2 z-10 shrink-0 overflow-x-auto">
+      <div className="bg-white dark:bg-[#111827] border-b border-line dark:border-slate-800 px-4 py-2 flex items-center justify-between gap-2 z-20 shrink-0">
         <div className="flex items-center gap-2 shrink-0">
-          <div className="relative">
-            <select
-              value={selectedLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="bg-[var(--background)] text-[var(--foreground)] text-xs font-semibold px-3 py-1 rounded border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] cursor-pointer pr-7 appearance-none"
+          <div className="relative" ref={langMenuRef}>
+            <button
+              type="button"
+              onClick={() => setLangMenuOpen((prev) => !prev)}
+              className="px-3 py-1.5 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+              aria-haspopup="listbox"
+              aria-expanded={langMenuOpen}
+              title="Select programming language"
             >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.value} value={lang.value}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--muted-foreground)]">
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
+              <Code2 size={13} className="text-brand shrink-0" />
+              <span>{activeLangConfig.label}</span>
+              <ChevronDown
+                size={13}
+                className={`text-ink-muted dark:text-slate-400 shrink-0 transition-transform duration-200 ${
+                  langMenuOpen ? "rotate-180 text-brand" : ""
+                }`}
+              />
+            </button>
+
+            {langMenuOpen && (
+              <div
+                role="listbox"
+                className="absolute left-0 top-full mt-1.5 w-52 rounded-xl border border-line dark:border-slate-700 bg-white dark:bg-[#111827] shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+              >
+                <div className="px-3 py-1.5 text-2xs font-bold font-mono uppercase tracking-wider text-ink-dim dark:text-slate-400 border-b border-line dark:border-slate-800/80 mb-1">
+                  Select Language
+                </div>
+                {LANGUAGES.map((lang) => {
+                  const isSelected = lang.value === selectedLanguage;
+                  return (
+                    <button
+                      key={lang.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        handleLanguageChange(lang.value);
+                        setLangMenuOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-brand-subtle dark:bg-blue-950/40 text-brand dark:text-blue-400 font-bold"
+                          : "text-ink dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                      }`}
+                    >
+                      <span>{lang.label}</span>
+                      {isSelected && <Check size={14} className="text-brand dark:text-blue-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2.5 shrink-0">
@@ -438,15 +491,15 @@ export function CodingWorkspace({
             type="button"
             onClick={handleSubmit}
             disabled={isRunning || !activeCode.trim()}
-            className="px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer relative"
             title="Submit solution against all test cases"
           >
-            {isRunning && runType === "SUBMIT" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Server className="w-3.5 h-3.5" />
+            <span className={isRunning && runType === "SUBMIT"? "invisible" : ""}>
+              Submit Solution
+            </span>
+            {isRunning && runType === "SUBMIT" && (
+              <Loader2 className="w-3.5 h-3.5 animate-spin absolute"/>
             )}
-            <span>Submit Solution</span>
           </button>
         </div>
       </div>
@@ -543,15 +596,14 @@ export function CodingWorkspace({
                     <div className="space-y-3">
                       <p className="text-xs text-ink-secondary dark:text-slate-400 font-normal">
                         Sample test cases - click <span className="font-bold text-ink dark:text-white">"Run Code"</span> to evaluate your solution
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      </p>                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {samples.map((tc, idx) => (
                           <div
                             key={idx}
                             className="p-4 bg-white dark:bg-[#111827] border border-line dark:border-slate-800 rounded-xl space-y-1.5 shadow-xs"
                           >
-                            <div className="text-2xs font-bold text-ink-dim uppercase">
-                              {tc.label || `EXAMPLE ${idx + 1}`}
+                            <div className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wide">
+                              Case {idx + 1}
                             </div>
                             <div className="text-xs font-mono text-ink dark:text-slate-200">
                               Input: {tc.input}
@@ -587,8 +639,8 @@ export function CodingWorkspace({
                       <div className="space-y-4">
                         <div className={`p-4 rounded-xl border flex items-center justify-between ${
                           isAllPassed
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 text-emerald-800 dark:text-emerald-300"
-                            : "bg-red-50 dark:bg-red-950/40 border-red-200 text-critical"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+                            : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-critical"
                         }`}>
                           <div className="flex items-center gap-2 font-bold text-sm">
                             {isAllPassed ? <CheckCircle className="w-5 h-5 text-success" /> : <AlertCircle className="w-5 h-5 text-critical" />}
@@ -597,34 +649,45 @@ export function CodingWorkspace({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {detailsList.map((r: any, i: number) => (
-                            <div
-                              key={i}
-                              className={`p-4 rounded-xl border bg-white dark:bg-[#111827] shadow-xs space-y-2 ${
-                                r.passed ? "border-emerald-200" : "border-red-200"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-2xs font-bold text-ink-dim uppercase">
-                                  {r.label || `EXAMPLE ${i + 1}`}
-                                </span>
-                                <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
-                                  r.passed ? "bg-emerald-50 text-success" : "bg-red-50 text-critical"
-                                }`}>
-                                  {r.passed ? "Passed" : "Failed"}
-                                </span>
-                              </div>
-                              {!r.isHidden && (
-                                <div className="space-y-1 font-mono text-xs">
-                                  <div className="text-ink dark:text-slate-200">Input: {r.input}</div>
-                                  <div className="text-success font-bold">Expected: {r.expectedOutput}</div>
-                                  <div className={r.passed ? "text-success" : "text-critical font-bold"}>
-                                    Actual: {r.actualOutput || "(none)"}
+                          {(() => {
+                            let visibleCount = 0;
+                            let hiddenCount = 0;
+                            return detailsList.map((r: any, i: number) => {
+                              const isHidden = !!r.isHidden;
+                              if (isHidden) hiddenCount++;
+                              else visibleCount++;
+                              const caseTitle = isHidden ? `Hidden Case ${hiddenCount}` : `Case ${visibleCount}`;
+
+                              return (
+                                <div
+                                  key={i}
+                                  className={`p-4 rounded-xl border bg-white dark:bg-[#111827] shadow-xs space-y-2 ${
+                                    r.passed ? "border-emerald-200 dark:border-emerald-900" : "border-red-200 dark:border-red-900"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wide">
+                                      {caseTitle}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
+                                      r.passed ? "bg-emerald-50 dark:bg-emerald-950/60 text-success" : "bg-red-50 dark:bg-red-950/60 text-critical"
+                                    }`}>
+                                      {r.passed ? "Passed" : "Failed"}
+                                    </span>
                                   </div>
+                                  {!isHidden && (
+                                    <div className="space-y-1 font-mono text-xs">
+                                      <div className="text-ink dark:text-slate-200">Input: {r.input}</div>
+                                      <div className="text-success font-bold">Expected: {r.expectedOutput}</div>
+                                      <div className={r.passed ? "text-success" : "text-critical font-bold"}>
+                                        Actual: {r.actualOutput || "(none)"}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          ))}
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     )}
@@ -650,59 +713,26 @@ export function CodingWorkspace({
         )}
       </div>
 
-      <footer className="h-14 border-t border-line bg-white px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+      <footer className="h-14 border-t border-line dark:border-slate-800 bg-white dark:bg-[#111827] px-6 flex items-center justify-end shrink-0 z-10 shadow-xs">
         <div className="flex items-center gap-3">
           {onPrevious && (
             <button
               onClick={onPrevious}
               disabled={currentIndex === 0}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               aria-label="Previous question"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={14} className="shrink-0" />
               <span>Previous</span>
             </button>
           )}
 
           <button
             onClick={onNext}
-            className="px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <span>{nextButtonLabel}</span>
-          </button>
-        </div>
-
-        <span className="text-xs font-mono font-medium text-ink-muted hidden sm:inline">
-          Coding Challenge {currentIndex + 1} of {totalQuestions}
-        </span>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleRun}
-            disabled={isRunning || !activeCode.trim()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-white text-xs font-bold text-ink hover:bg-slate-50 disabled:opacity-40 cursor-pointer shadow-xs transition-colors"
-            title="Run code against sample test cases"
-          >
-            {isRunning && runType === "RUN" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
-            ) : (
-              <Play className="w-3.5 h-3.5 text-success fill-success" />
-            )}
-            <span>Run Tests</span>
-          </button>
-
-          <button
-            onClick={handleSubmit}
-            disabled={isRunning || !activeCode.trim()}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
-            title="Submit solution against all test cases"
-          >
-            {isRunning && runType === "SUBMIT" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Server className="w-3.5 h-3.5" />
-            )}
-            <span>Submit Solution</span>
+            <ChevronRight size={14} className="shrink-0" />
           </button>
         </div>
       </footer>

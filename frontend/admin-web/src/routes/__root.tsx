@@ -14,6 +14,7 @@ import { Toaster } from "../components/ui/sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { isAuthenticated } from "../lib/auth";
+import { LightGradientBackground } from "../components/common/LightGradientBackground";
 
 function NotFoundComponent() {
   return (
@@ -124,6 +125,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <LightGradientBackground />
         {children}
         <Scripts />
       </body>

@@ -275,8 +275,8 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
                       key={i}
                       className="p-4 rounded-xl border border-line dark:border-slate-800 bg-white dark:bg-[#111827] text-xs space-y-1.5 shadow-xs"
                     >
-                      <div className="text-xs font-bold text-brand uppercase">
-                        {tc.label || `EXAMPLE ${i + 1}`}
+                      <div className="text-xs font-bold text-brand uppercase tracking-wide">
+                        {tc.isHidden ? `Hidden Case ${i + 1}` : `Case ${i + 1}`}
                       </div>
                       <div className="text-ink dark:text-slate-300 font-mono">
                         Input: {tc.input}
@@ -292,13 +292,13 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
           </div>
         </div>
 
-        {/* Horizontal Drag Resizer Handle */}
+        {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="w-2 hover:w-2.5 bg-line dark:bg-slate-800 hover:bg-brand/40 cursor-col-resize flex items-center justify-center transition-all shrink-0 select-none z-10"
+          className="w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-col-resize flex items-center justify-center border-l border-r border-line dark:border-slate-800 group transition-colors shrink-0 select-none z-10"
           title="Drag left or right to adjust panel split"
         >
-          <GripVertical className="w-3 h-3 text-ink-muted opacity-60" />
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Panel: Monaco Workspace */}

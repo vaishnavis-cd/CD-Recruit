@@ -126,14 +126,14 @@ export function getUserProfile(): UserProfile | null {
   const payload = parseJwtPayload(token);
   if (!payload) return null;
 
-  const roles: string[] = payload.realm_access?.roles || [];
+  const roles: string[] = payload.realm_access?.roles || (payload.role ? [payload.role] : []);
   const isAdmin = roles.some((r) => r.toLowerCase() === "admin");
 
   return {
     sub: payload.sub || "",
     email: payload.email || payload.preferred_username || "",
-    name: payload.name || payload.given_name || payload.preferred_username || "User",
-    username: payload.preferred_username || "",
+    name: payload.name || payload.given_name || payload.preferred_username || (payload.email ? payload.email.split("@")[0] : "Demo Admin"),
+    username: payload.preferred_username || payload.email || "",
     role: isAdmin ? "ADMIN" : "RECRUITER",
   };
 }

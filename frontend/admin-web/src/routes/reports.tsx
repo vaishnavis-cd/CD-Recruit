@@ -9,6 +9,7 @@ import {
   CheckCircle2, 
   Check,
   ShieldAlert,
+  Shield,
   Award,
   TrendingUp,
   Activity,
@@ -19,6 +20,10 @@ import {
   Bug,
   Hexagon,
   SlidersHorizontal,
+  Monitor,
+  User,
+  AlertTriangle,
+  Mic,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { ExportDropdown } from "../components/export-dropdown";
@@ -236,18 +241,70 @@ function ReportsPage() {
       });
     });
 
-    const total = allSessions.length || 1;
+    const total = allSessions.length || 0;
+    const lowPct = total > 0 ? Math.round((lowRiskCount / total) * 100) : 100;
+    const medPct = total > 0 ? Math.round((medRiskCount / total) * 100) : 0;
+    const highPct = total > 0 ? Math.round((highRiskCount / total) * 100) : 0;
+
     return {
-      lowPct: Math.round((lowRiskCount / total) * 100) || 72,
-      medPct: Math.round((medRiskCount / total) * 100) || 18,
-      highPct: Math.round((highRiskCount / total) * 100) || 10,
+      lowPct,
+      medPct,
+      highPct,
       violations: [
-        { name: "Tab Switches & Focus Loss", category: "BROWSER_APP", count: tabSwitchCount || 3, risk: "LOW", rate: `${Math.round(((tabSwitchCount || 3) / total) * 100)}%` },
-        { name: "Gaze Away & Head Movements", category: "VISUAL_GAZE", count: gazeCount || 5, risk: "LOW", rate: `${Math.round(((gazeCount || 5) / total) * 100)}%` },
-        { name: "Face Missing from Camera", category: "FACE_SEAT", count: faceMissingCount || 2, risk: "MEDIUM", rate: `${Math.round(((faceMissingCount || 2) / total) * 100)}%` },
-        { name: "Unauthorized Objects (Phone/Headphones/Book)", category: "UNAUTHORIZED_OBJECTS", count: objectCount || 1, risk: "HIGH", rate: `${Math.round(((objectCount || 1) / total) * 100)}%` },
-        { name: "Audio & Voice Activity", category: "AUDIO_SPEECH", count: audioCount || 2, risk: "MEDIUM", rate: `${Math.round(((audioCount || 2) / total) * 100)}%` },
-        { name: "Multiple Faces / Seat Exits", category: "MULTIPLE_PERSONS", count: multiFaceCount || 1, risk: "HIGH", rate: `${Math.round(((multiFaceCount || 1) / total) * 100)}%` },
+        {
+          name: "Tab Switches & Focus Loss",
+          category: "BROWSER_APP",
+          count: tabSwitchCount,
+          risk: "LOW",
+          rate: `${total > 0 ? Math.round((tabSwitchCount / total) * 100) : 0}% of total sessions`,
+          icon: Monitor,
+          color: "blue",
+        },
+        {
+          name: "Gaze Away & Head Movements",
+          category: "VISUAL_GAZE",
+          count: gazeCount,
+          risk: "LOW",
+          rate: `${total > 0 ? Math.round((gazeCount / total) * 100) : 0}% of total sessions`,
+          icon: Eye,
+          color: "blue",
+        },
+        {
+          name: "Face Missing from Camera",
+          category: "FACE_SEAT",
+          count: faceMissingCount,
+          risk: "MEDIUM",
+          rate: `${total > 0 ? Math.round((faceMissingCount / total) * 100) : 0}% of total sessions`,
+          icon: User,
+          color: "amber",
+        },
+        {
+          name: "Unauthorized Objects (Phone/Headphones/Book)",
+          category: "UNAUTHORIZED_OBJECTS",
+          count: objectCount,
+          risk: "HIGH",
+          rate: `${total > 0 ? Math.round((objectCount / total) * 100) : 0}% of total sessions`,
+          icon: AlertTriangle,
+          color: "rose",
+        },
+        {
+          name: "Audio & Voice Activity",
+          category: "AUDIO_SPEECH",
+          count: audioCount,
+          risk: "MEDIUM",
+          rate: `${total > 0 ? Math.round((audioCount / total) * 100) : 0}% of total sessions`,
+          icon: Mic,
+          color: "amber",
+        },
+        {
+          name: "Multiple Faces / Seat Exits",
+          category: "MULTIPLE_PERSONS",
+          count: multiFaceCount,
+          risk: "HIGH",
+          rate: `${total > 0 ? Math.round((multiFaceCount / total) * 100) : 0}% of total sessions`,
+          icon: Users,
+          color: "rose",
+        },
       ],
     };
   }, [allSessions]);
@@ -433,106 +490,122 @@ function ReportsPage() {
 
         {/* TAB 2: INTEGRITY & RISK ANALYTICS */}
         {activeTab === "INTEGRITY" && (
-          <div className="flex flex-col gap-[20px]">
-            {/* Risk Category Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-[14px] shrink-0">
+          <div className="flex flex-col gap-[12px]">
+            {/* Top 3 Risk KPI Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-[12px] shrink-0">
               {/* Low Risk */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="w-full h-[100px] p-[14px] px-[16px] bg-white border border-[#E2E8F0] rounded-[14px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
+                  <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     LOW RISK SESSIONS
                   </span>
-                  <div className="w-7 h-7 rounded-[7px] bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <CheckCircle2 size={14} />
+                  <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                    <Shield size={14} />
                   </div>
                 </div>
-                <div className="text-[26px] font-extrabold text-slate-900 font-sans leading-none">
+                <div className="text-[24px] font-extrabold text-slate-900 font-sans leading-none">
                   {integrityAnalytics.lowPct}%
                 </div>
-                <div className="text-[10.5px] text-slate-500 font-medium">
+                <div className="text-[10px] text-slate-500 font-medium">
                   0–1 minor integrity telemetry logs
                 </div>
               </div>
 
               {/* Medium Risk */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="w-full h-[100px] p-[14px] px-[16px] bg-white border border-[#E2E8F0] rounded-[14px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
+                  <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     MEDIUM RISK SESSIONS
                   </span>
-                  <div className="w-7 h-7 rounded-[7px] bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center">
                     <ShieldAlert size={14} />
                   </div>
                 </div>
-                <div className="text-[26px] font-extrabold text-slate-900 font-sans leading-none">
+                <div className="text-[24px] font-extrabold text-slate-900 font-sans leading-none">
                   {integrityAnalytics.medPct}%
                 </div>
-                <div className="text-[10.5px] text-slate-500 font-medium">
+                <div className="text-[10px] text-slate-500 font-medium">
                   2–3 tab switches or gaze shifts
                 </div>
               </div>
 
               {/* High Risk */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="w-full h-[100px] p-[14px] px-[16px] bg-white border border-[#E2E8F0] rounded-[14px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
+                  <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     HIGH RISK SESSIONS
                   </span>
-                  <div className="w-7 h-7 rounded-[7px] bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
                     <ShieldAlert size={14} />
                   </div>
                 </div>
-                <div className="text-[26px] font-extrabold text-slate-900 font-sans leading-none">
+                <div className="text-[24px] font-extrabold text-slate-900 font-sans leading-none">
                   {integrityAnalytics.highPct}%
                 </div>
-                <div className="text-[10.5px] text-slate-500 font-medium">
+                <div className="text-[10px] text-slate-500 font-medium">
                   Multiple face/object/speech flags
                 </div>
               </div>
             </div>
 
-            {/* Violation Breakdown Table Card */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[18px] p-[24px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col">
-              <div>
-                <h3 className="text-[14px] font-bold text-slate-900 leading-tight">Proctoring Flag &amp; Evidence Analytics</h3>
-                <p className="text-[11px] text-slate-400 mt-[4px]">Breakdown of behavioral flags and integrity telemetry detected across candidate assessments.</p>
-              </div>
+            {/* Proctoring Flag & Evidence Analytics Table Card */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[16px] p-[16px] px-[20px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col">
+              <h3 className="text-[12.5px] font-bold text-slate-900 leading-tight mb-[10px]">
+                Proctoring Flag &amp; Evidence Analytics
+              </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-[12px] mt-[16px]">
-                {integrityAnalytics.violations.map((item) => (
-                  <div
-                    key={item.name}
-                    className="group flex items-center justify-between border border-[#E2E8F0] rounded-[12px] px-[16px] py-[13px] hover:border-blue-300 hover:bg-blue-50/10 transition-all cursor-pointer bg-white"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 ${
-                        item.risk === "HIGH" ? "bg-rose-50 text-rose-600" : item.risk === "MEDIUM" ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-blue-600"
-                      }`}>
-                        <ShieldAlert size={15} />
+              <div className="divide-y divide-slate-100">
+                {integrityAnalytics.violations.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between py-[7.5px] first:pt-0 last:pb-0"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                            item.color === "rose"
+                              ? "bg-rose-50 text-rose-500"
+                              : item.color === "amber"
+                              ? "bg-amber-50 text-amber-500"
+                              : "bg-blue-50 text-blue-500"
+                          }`}
+                        >
+                          <Icon size={14} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[11.5px] font-bold text-slate-900 leading-tight">
+                            {item.name}
+                          </div>
+                          <div className="text-[9.5px] text-slate-400 mt-0.5">
+                            Category Code: <span className="font-mono">{item.category}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-bold text-slate-900 leading-tight truncate">{item.name}</div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5 truncate">Code: {item.category}</div>
+
+                      <div className="flex items-center gap-3.5 shrink-0 ml-3">
+                        <div className="text-right">
+                          <div className="text-[11px] font-bold text-slate-900">
+                            {item.count} occurrences
+                          </div>
+                          <div className="text-[9px] text-slate-400 mt-0.5">{item.rate}</div>
+                        </div>
+                        <span
+                          className={`min-w-[76px] text-center px-2.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-wider uppercase ${
+                            item.risk === "HIGH"
+                              ? "bg-[#FEF2F2] text-[#DC2626]"
+                              : item.risk === "MEDIUM"
+                              ? "bg-[#FFFBEB] text-[#D97706]"
+                              : "bg-[#EEF4FF] text-[#2563EB]"
+                          }`}
+                        >
+                          {item.risk} RISK
+                        </span>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-3 shrink-0 ml-3">
-                      <div className="text-right">
-                        <div className="text-[12px] font-bold text-slate-900 font-mono leading-tight">{item.count} hits</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{item.rate}</div>
-                      </div>
-                      <span className={`px-2.5 py-1 rounded-full text-[9.5px] font-bold tracking-wider uppercase ${
-                        item.risk === "HIGH" 
-                          ? "bg-[#FEF2F2] text-[#DC2626]" 
-                          : item.risk === "MEDIUM" 
-                          ? "bg-[#FFFBEB] text-[#D97706]" 
-                          : "bg-[#EEF4FF] text-[#2563EB]"
-                      }`}>
-                        {item.risk} RISK
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

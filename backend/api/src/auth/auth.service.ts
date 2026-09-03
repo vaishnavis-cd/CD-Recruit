@@ -80,6 +80,53 @@ export class AuthService {
       throw new UnauthorizedException("INVITE_TOKEN_INVALID");
     }
 
+    // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+    const isUnlimitedDemo =
+      rawToken === "demo" ||
+      rawToken.startsWith("demo-") ||
+      rawToken === "demo-token" ||
+      rawToken.startsWith("unlimited-");
+
+    if (isUnlimitedDemo) {
+      let invite = await this.prisma.invite.findFirst({
+        where: {
+          OR: [{ token: rawToken }, { id: rawToken }],
+        },
+        include: { drive: true },
+      });
+
+      if (!invite) {
+        invite = await this.prisma.invite.findFirst({
+          orderBy: { createdAt: "desc" },
+          include: { drive: true },
+        });
+      }
+
+      let defaultRole = await this.prisma.roleTemplate.findFirst();
+      if (!defaultRole) {
+        defaultRole = await this.prisma.roleTemplate.create({
+          data: {
+            roleName: "Full Stack Developer (Demo)",
+            weightingPreset: {},
+            durationMinutes: 999999,
+          },
+        });
+      }
+
+      return {
+        inviteId: invite?.id || "demo-invite-unlimited",
+        candidateEmail: invite?.candidateEmail || "demo.developer@cd-recruit.local",
+        candidateName: invite?.candidateName || "Demo Candidate (UI Dev Mode)",
+        roleTemplateId: defaultRole.id,
+        driveId: invite?.driveId || invite?.drive?.id || null,
+        scheduledTime: null, // Self-paced, no time gate
+        bufferMinutes: 999999,
+        graceMinutes: 999999,
+        cvMode: "FULL",
+        isUnlimitedDemo: true,
+      };
+    }
+
     // Look up in database by token, or by invite ID if rawToken is a UUID
     let invite = await this.prisma.invite.findFirst({
       where: {

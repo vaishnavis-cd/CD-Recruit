@@ -238,3 +238,15 @@
 @utility animate-cd-pulse-warn { animation: cd-pulse-warn 1.6s var(--ease-cd) infinite; }
 @utility animate-cd-flash { animation: cd-flash 500ms var(--ease-cd) both; }
 @utility animate-border-ripple { animation: btnBorderRipple 1.2s cubic-bezier(0, 0.2, 0.8, 1) infinite; }
+
+/* Disable transitions during theme switches to eliminate staggered color changes */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+  -ms-transition: none !important;
+  transition: none !important;
+}

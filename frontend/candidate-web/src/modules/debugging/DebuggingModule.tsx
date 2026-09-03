@@ -4,9 +4,10 @@ import { ModuleShell } from '../../components/ModuleShell';
 import { CodeEditor } from '../../components/common/CodeEditor';
 import apiClient from '../../api/client';
 import { runCoding, TestResultDetail, CodingExecutionResponse } from '../../api/coding';
-import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown, ChevronLeft } from 'lucide-react';
+import { Loader2, AlertCircle, Bug, Terminal as TerminalIcon, Play, CheckCircle2, XCircle, GripVertical, GripHorizontal, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useModuleNavigation } from '../../hooks/useModuleNavigation';
 import { getEffectiveModuleType } from '../../utils/moduleType';
+import { useTheme } from '../../theme/ThemeProvider';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,6 +16,7 @@ interface DebuggingModuleProps {
 }
 
 export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
+  const { theme } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const assessment = useSessionStore(s => s.assessment);
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
@@ -357,27 +359,27 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           </div>
         </div>
 
-        {/* Horizontal Drag Resizer Handle */}
+        {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="hidden md:flex w-2 hover:w-2.5 bg-line hover:bg-brand/40 cursor-col-resize items-center justify-center transition-all z-20 shrink-0"
+          className="hidden md:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-col-resize flex items-center justify-center border-l border-r border-line dark:border-slate-800 group transition-colors select-none z-10 shrink-0"
           title="Drag to resize panels"
         >
-          <GripVertical className="w-3 h-3 text-ink-muted opacity-60" />
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Pane: Buggy Code Editor & Diagnostic Test Runner */}
-        <div className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#111827] overflow-hidden">
           {/* Top Bar */}
-          <div className="px-5 py-2.5 border-b border-line bg-white flex items-center justify-between gap-3 shrink-0">
+          <div className="px-5 py-2.5 border-b border-line dark:border-slate-800 bg-white dark:bg-[#111827] flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 font-mono text-xs font-bold text-ink">
+              <div className="flex items-center gap-2 font-mono text-xs font-bold text-ink dark:text-white">
                 <TerminalIcon className="w-4 h-4 text-brand" />
                 <span>Interactive Fix Editor</span>
               </div>
 
               {/* Target Language Badge */}
-              <div className="px-2.5 py-0.5 rounded-full text-2xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border">
+              <div className="px-2.5 py-0.5 rounded-full text-2xs font-mono font-bold bg-brand-subtle dark:bg-blue-950/50 text-brand dark:text-blue-300 border border-brand-border dark:border-blue-900">
                 {activeLang.toUpperCase()}
               </div>
             </div>
@@ -389,16 +391,17 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               value={code}
               onChange={(v) => handleCodeChange(v || '')}
               language={activeLang}
+              theme={theme === 'dark' ? 'dark' : 'light'}
             />
           </div>
 
-          {/* Vertical Drag Resizer Handle */}
+          {/* Horizontal Drag Resizer Handle */}
           <div
             onMouseDown={handleVerticalMouseDown}
-            className="h-1.5 hover:h-2 bg-line hover:bg-brand cursor-row-resize flex items-center justify-center transition-all z-20 shrink-0"
+            className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-row-resize flex items-center justify-center border-t border-b border-line dark:border-slate-800 group transition-colors select-none shrink-0"
             title="Drag to resize terminal console"
           >
-            <GripHorizontal className="w-3 h-3 text-ink-muted opacity-60" />
+            <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
           </div>
 
           {/* Judge0 Test Runner Console Panel */}
@@ -466,13 +469,13 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                           key={i}
                           className={`p-2.5 rounded-lg border flex items-center justify-between text-xs font-mono ${
                             r.passed
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                              : 'bg-red-50 border-red-200 text-red-800'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                              : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-800 dark:text-red-300'
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             {r.passed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-red-600" />}
-                            <span>Test Case #{i + 1}: {r.label || r.status}</span>
+                            <span className="font-bold">Case {i + 1}</span>
                           </div>
                           {r.executionTime && <span>{r.executionTime}ms</span>}
                         </div>
@@ -483,7 +486,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               )}
 
               {!isRunning && !execError && !executionResult && (
-                <div className="text-ink-muted italic">
+                <div className="text-ink-muted text-slate-400 italic">
                   Click "Run Diagnostics" to execute your patched code against test cases.
                 </div>
               )}
@@ -491,38 +494,35 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           </div>
 
           {/* Standardized Pinned Bottom Navigation Bar */}
-          <footer className="h-14 border-t border-line bg-white px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+          <footer className="h-14 border-t border-line dark:border-slate-800 bg-white dark:bg-[#111827] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 aria-label="Previous question"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={14} className="shrink-0" />
                 <span>Previous</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleSaveAndNext}
-                className="px-4 py-2 rounded-lg border border-line bg-white text-ink-secondary hover:text-ink hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <span>{nextButtonLabel}</span>
+                <ChevronRight size={14} className="shrink-0" />
               </button>
             </div>
-
-            <span className="text-xs font-mono font-medium text-ink-muted hidden sm:inline">
-              Debugging Task {currentIndex + 1} of {debuggingQuestions.length || 1}
-            </span>
 
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handleRunDiagnostics}
                 disabled={isRunning}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-white text-xs font-bold text-ink hover:bg-slate-50 disabled:opacity-40 cursor-pointer shadow-xs transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-xs font-bold text-ink dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer shadow-xs transition-colors"
                 title="Run diagnostic tests"
               >
                 {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" /> : <Play className="w-3.5 h-3.5 text-success fill-success" />}

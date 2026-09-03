@@ -4,7 +4,7 @@ import { useSessionStore } from '../../store/sessionMachine';
 import { ModuleShell } from '../../components/ModuleShell';
 import { useModuleNavigation } from '../../hooks/useModuleNavigation';
 import apiClient from '../../api/client';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MCQModuleProps {
   moduleIndex: number;
@@ -248,20 +248,21 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
                   type="button"
                   onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                   disabled={currentIndex === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                   aria-label="Previous question"
                 >
-                  <ChevronLeft size={14} />
+                  <ChevronLeft size={14} className="shrink-0" />
                   <span>Previous</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-                  className="px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                   aria-label={nextButtonLabel}
                 >
                   <span>{nextButtonLabel}</span>
+                  <ChevronRight size={14} className="shrink-0" />
                 </button>
               </div>
 

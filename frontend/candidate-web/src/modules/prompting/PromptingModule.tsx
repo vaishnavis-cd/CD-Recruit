@@ -7,7 +7,7 @@ import { ProctoringEventService } from '../../proctoring/proctoring-event.servic
 import { useModuleNavigation } from '../../hooks/useModuleNavigation';
 import apiClient from '../../api/client';
 import { StatusChip } from '../../components/common/StatusChip';
-import { Loader2, Sparkles, Lightbulb, ChevronLeft, Info } from 'lucide-react';
+import { Loader2, Sparkles, Lightbulb, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
 interface PromptingModuleProps {
   moduleIndex: number;
@@ -217,19 +217,11 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
         <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
           <div className="max-w-5xl mx-auto space-y-5 pb-8">
             {/* Guidance Banner */}
-            <div className="p-4 rounded-xl bg-brand-subtle dark:bg-blue-950/40 border border-brand-border dark:border-blue-900 text-xs text-brand-ink dark:text-blue-200 flex items-center justify-between gap-4 shadow-xs">
-              <div className="flex items-center gap-3">
-                <Info size={18} className="text-brand shrink-0" />
-                <span className="font-normal leading-relaxed">
-                  Iterate freely on your prompt. Only your final active prompt &amp; generated output submission will be evaluated by the grading engine.
-                </span>
-              </div>
-              <button
-                type="button"
-                className="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-brand-border dark:border-blue-900 text-brand dark:text-blue-400 text-xs font-bold shadow-xs whitespace-nowrap cursor-default"
-              >
-                Task Scoped AI Sandbox
-              </button>
+            <div className="p-4 rounded-xl bg-brand-subtle dark:bg-blue-950/40 border border-brand-border dark:border-blue-900 text-xs text-brand-ink dark:text-blue-200 flex items-center gap-3 shadow-xs">
+              <Info size={18} className="text-brand shrink-0" />
+              <span className="font-normal leading-relaxed">
+                Iterate freely on your prompt. Only your final active prompt &amp; generated output submission will be evaluated by the grading engine.
+              </span>
             </div>
 
             {/* Question Tracker Header */}
@@ -277,9 +269,9 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
                 onPaste={handlePaste}
                 disabled={loadingPrompt}
                 placeholder="Write your prompt here..."
-                rows={8}
+                rows={7}
                 aria-label="Enter your prompt to the AI assistant"
-                className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#111827] text-ink dark:text-white text-sm font-normal placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-y focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:opacity-60 transition-colors shadow-xs"
+                className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#111827] text-ink dark:text-white text-sm font-normal placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-y min-h-[170px] focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:opacity-60 transition-colors shadow-xs"
               />
               {isVerbatimPrompt && (
                 <div className="text-xs text-warning flex items-start gap-1.5 pt-1">
@@ -313,7 +305,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
                 <div className="flex items-center justify-between border-b border-line dark:border-slate-800 pb-2">
                   <div className="text-xs font-bold text-ink dark:text-white uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} className="text-brand" />
-                    <span>AI Assistant Output</span>
+                    <span>AI Output</span>
                   </div>
                   {isVerbatimPrompt && (
                     <StatusChip
@@ -336,20 +328,21 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
                   type="button"
                   onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                   disabled={currentIndex === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                   aria-label="Previous prompt"
                 >
-                  <ChevronLeft size={14} />
+                  <ChevronLeft size={14} className="shrink-0" />
                   <span>Previous</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-                  className="px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                   aria-label={nextButtonLabel}
                 >
                   <span>{nextButtonLabel}</span>
+                  <ChevronRight size={14} className="shrink-0" />
                 </button>
               </div>
 
