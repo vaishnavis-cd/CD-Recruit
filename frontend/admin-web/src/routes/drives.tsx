@@ -18,6 +18,7 @@ import {
   PenLine,
   BookOpen,
   RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -88,6 +89,7 @@ function DrivesPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DriveStatus | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "DIRECT" | "PARTNER_API">("all");
+  const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
   const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
@@ -522,175 +524,748 @@ function DrivesPage() {
   }
 
   return (
-    <AppShell
-      title="Drives"
-      count={filtered.length}
-      search={
-        <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search drives by name…"
-            className="w-full pl-9 pr-3 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
-          />
-        </div>
-      }
-      actions={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm-minus font-medium text-ink-secondary bg-white border border-line rounded-md hover:bg-canvas hover:text-ink transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-            title="Refresh Drives list from server"
-          >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-brand" : "text-ink-tertiary"} />
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
-          <button
-            onClick={() => {
-              resetWizard();
-              setShowWizard(true);
+    <AppShell hideHeader={true}>
+      <div
+        className="w-full max-w-[1269px] min-h-[944px] flex flex-col mx-auto opacity-100 rotate-0 transition-opacity"
+        style={{
+          maxWidth: "1269px",
+          minHeight: "944px",
+          opacity: 1,
+          transform: "rotate(0deg)",
+        }}
+      >
+        {/* TopBar (1269x49) */}
+        <div
+          className="w-full max-w-[1269px] h-[49px] flex items-center justify-between opacity-100 rotate-0 shrink-0"
+          style={{
+            height: "49px",
+            justifyContent: "space-between",
+            transform: "rotate(0deg)",
+            opacity: 1,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-[#0d1424]">Drives</h1>
+          </div>
+
+          {/* Right Action Container: Search bar + Create Drive Button */}
+          <div
+            className="w-[430px] h-[36px] gap-[16px] flex items-center shrink-0 opacity-100 rotate-0"
+            style={{
+              width: "430px",
+              height: "36px",
+              gap: "16px",
+              transform: "rotate(0deg)",
+              opacity: 1,
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-sm-minus font-medium text-white bg-brand rounded-md hover:bg-brand-hover shadow-sm transition-colors cursor-pointer"
           >
-            <Plus size={14} />
-            Create Drive
-          </button>
-        </div>
-      }
-    >
-      {/* Filter chips */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(["all", "DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                statusFilter === s
-                  ? "text-black border-brand border-2"
-                  : "bg-white text-ink-secondary border-line border-2 hover:border-line-strong"
-              }`}
+            {/* Search Container */}
+            <div
+              className="w-[280px] h-[36px] pt-[10px] pb-[10px] px-[16px] gap-[8px] rounded-[99px] flex items-center shrink-0 opacity-100 rotate-0 shadow-xs"
+              style={{
+                width: "280px",
+                height: "36px",
+                paddingTop: "10px",
+                paddingBottom: "10px",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+                gap: "8px",
+                borderRadius: "99px",
+                border: "1px solid #D5DAEC",
+                background: "#FFFFFF",
+                transform: "rotate(0deg)",
+                opacity: 1,
+              }}
             >
-              {s === "all" ? "All Drives" : STATUS_LABEL[s]}  
-            </button>
-          ))}
-        </div>
+              <Search
+                size={14}
+                className="w-[14px] h-[14px] text-[#94a3b8] shrink-0 opacity-100 rotate-0"
+                style={{
+                  width: "14px",
+                  height: "14px",
+                  transform: "rotate(0deg)",
+                  opacity: 1,
+                }}
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search drives by name..."
+                className="w-[226px] h-[16px] text-xs bg-transparent border-none text-[#0d1424] placeholder:text-[#94a3b8] focus:outline-none p-0 leading-none opacity-100 rotate-0"
+                style={{
+                  width: "226px",
+                  height: "16px",
+                  transform: "rotate(0deg)",
+                  opacity: 1,
+                }}
+              />
+            </div>
 
-        <div className="flex items-center gap-1.5 border-l border-line pl-3">
-          <span className="text-xs-plus font-semibold text-ink-tertiary uppercase tracking-wider">Source:</span>
-          {(["all", "DIRECT", "PARTNER_API"] as const).map((src) => (
+            {/* Create Drive Button */}
             <button
-              key={src}
-              onClick={() => setSourceFilter(src)}
-              className={`px-2.5 py-1 rounded-full text-xs-plus font-medium border transition-colors cursor-pointer ${
-                sourceFilter === src
-                  ? "bg-brand text-white border-brand"
-                  : "bg-white text-ink-secondary border-line hover:border-line-strong"
-              }`}
+              onClick={() => {
+                resetWizard();
+                setShowWizard(true);
+              }}
+              className="w-[134px] h-[34px] pt-[9px] pb-[9px] px-[18px] gap-[7px] text-white text-xs font-semibold rounded-[24px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-none"
+              style={{
+                width: "134px",
+                height: "34px",
+                paddingTop: "9px",
+                paddingBottom: "9px",
+                paddingLeft: "18px",
+                paddingRight: "18px",
+                gap: "7px",
+                borderRadius: "24px",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                background: "linear-gradient(135deg, #3A91ED 0%, #2E5DE0 100%)",
+                boxShadow: "0px 4px 14px 0px #2E5DE0BF",
+                animationDuration: "0ms",
+              }}
             >
-              {src === "all" ? "All Sources" : src === "DIRECT" ? "Direct" : "Partner API"}
+              <Plus size={14} className="shrink-0" />
+              <span>Create Drive</span>
             </button>
-          ))}
+          </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-xs-plus font-medium text-emerald-800">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Live Auto-Sync</span>
-        </div>
-      </div>
-
-      {/* Grid of Drives */}
-      {filtered.length === 0 ? (
-        <div className="flex justify-center w-full py-8">
-          <p className="text-xs italic text-ink-tertiary">To get Started click on Create Drive</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
-          {filtered.map((d) => {
-            const isNewlyDetected = newDriveIds.has(d.id);
-            return (
-              <div
-                key={d.id}
-                className={`bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative ${
-                  isNewlyDetected
-                    ? "border-brand ring-2 ring-brand/30 bg-blue-50/10"
-                    : "border-line"
-                }`}
+        {/* Filters-Row (1269x65, border-bottom 1px solid #2E5DE01A) */}
+        <div
+          className="w-full max-w-[1269px] h-[65px] pt-[16px] pb-[16px] flex items-center justify-between opacity-100 rotate-0 shrink-0 relative z-30"
+          style={{
+            height: "65px",
+            paddingTop: "16px",
+            paddingBottom: "16px",
+            justifyContent: "space-between",
+            borderBottom: "1px solid #2E5DE01A",
+            borderBottomWidth: "1px",
+            transform: "rotate(0deg)",
+            opacity: 1,
+          }}
+        >
+          {/* Left Filter Buttons Container (443x33, gap 8px) */}
+          <div
+            className="w-[443px] h-[33px] gap-[8px] flex items-center shrink-0 opacity-100 rotate-0"
+            style={{
+              width: "443px",
+              height: "33px",
+              gap: "8px",
+              transform: "rotate(0deg)",
+              opacity: 1,
+            }}
+          >
+            {/* All Drives */}
+            <button
+              onClick={() => setStatusFilter("all")}
+              className="w-[91px] h-[32px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
+              style={{
+                width: "91px",
+                height: "32px",
+                paddingTop: "8px",
+                paddingBottom: "8px",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+                borderRadius: "99px",
+                borderWidth: "1px",
+                background: "#FFFFFF",
+                border: statusFilter === "all" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                className="whitespace-nowrap"
+                style={{
+                  fontFamily: "Instrument Sans, sans-serif",
+                  fontWeight: statusFilter === "all" ? 700 : 500,
+                  fontSize: "13px",
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  color: statusFilter === "all" ? "#2E5DE0" : "#6B7280",
+                  whiteSpace: "nowrap",
+                }}
               >
-                {isNewlyDetected && (
-                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-brand to-brand-ink text-white text-2xs font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
-                    <Sparkles size={11} className="text-amber-300" />
-                    <span>NEW</span>
-                  </div>
-                )}
-                <div className="space-y-3.5 mb-6">
-                  {/* Top Badges Bar: Origin, Status & Date */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-2xs font-mono uppercase tracking-wider font-semibold ${
-                          (d as any).originChannel === "PARTNER_API"
-                            ? "bg-purple-100 text-purple-800 border border-purple-200"
-                            : "bg-gray-100 text-gray-600 border border-gray-200"
+                All Drives
+              </span>
+            </button>
+
+            {/* Draft */}
+            <button
+              onClick={() => setStatusFilter("DRAFT")}
+              className="w-[66px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
+              style={{
+                width: "66px",
+                height: "33px",
+                paddingTop: "8px",
+                paddingBottom: "8px",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+                borderRadius: "99px",
+                borderWidth: "1px",
+                background: "#FFFFFF",
+                border: statusFilter === "DRAFT" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                className="whitespace-nowrap"
+                style={{
+                  fontFamily: "Instrument Sans, sans-serif",
+                  fontWeight: statusFilter === "DRAFT" ? 700 : 500,
+                  fontSize: "14px",
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  color: statusFilter === "DRAFT" ? "#2E5DE0" : "#6B7280",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Draft
+              </span>
+            </button>
+
+            {/* Scheduled */}
+            <button
+              onClick={() => setStatusFilter("SCHEDULED")}
+              className="w-[102px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
+              style={{
+                width: "102px",
+                height: "33px",
+                paddingTop: "8px",
+                paddingBottom: "8px",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+                borderRadius: "99px",
+                borderWidth: "1px",
+                background: "#FFFFFF",
+                border: statusFilter === "SCHEDULED" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                className="whitespace-nowrap"
+                style={{
+                  fontFamily: "Instrument Sans, sans-serif",
+                  fontWeight: statusFilter === "SCHEDULED" ? 700 : 500,
+                  fontSize: "14px",
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  color: statusFilter === "SCHEDULED" ? "#2E5DE0" : "#6B7280",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Scheduled
+              </span>
+            </button>
+
+            {/* Active */}
+            <button
+              onClick={() => setStatusFilter("ACTIVE")}
+              className="w-[74px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
+              style={{
+                width: "74px",
+                height: "33px",
+                paddingTop: "8px",
+                paddingBottom: "8px",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+                borderRadius: "99px",
+                borderWidth: "1px",
+                background: "#FFFFFF",
+                border: statusFilter === "ACTIVE" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                className="whitespace-nowrap"
+                style={{
+                  fontFamily: "Instrument Sans, sans-serif",
+                  fontWeight: statusFilter === "ACTIVE" ? 700 : 500,
+                  fontSize: "14px",
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  color: statusFilter === "ACTIVE" ? "#2E5DE0" : "#6B7280",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Active
+              </span>
+            </button>
+
+            {/* Closed */}
+            <button
+              onClick={() => setStatusFilter("CLOSED")}
+              className="w-[78px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
+              style={{
+                width: "78px",
+                height: "33px",
+                paddingTop: "8px",
+                paddingBottom: "8px",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+                borderRadius: "99px",
+                borderWidth: "1px",
+                background: "#FFFFFF",
+                border: statusFilter === "CLOSED" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                className="whitespace-nowrap"
+                style={{
+                  fontFamily: "Instrument Sans, sans-serif",
+                  fontWeight: statusFilter === "CLOSED" ? 700 : 500,
+                  fontSize: "14px",
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  color: statusFilter === "CLOSED" ? "#2E5DE0" : "#6B7280",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Closed
+              </span>
+            </button>
+          </div>
+
+          {/* Source Container (217x32, gap 8px) */}
+          <div
+            className="w-[217px] h-[32px] gap-[8px] flex items-center justify-end shrink-0 opacity-100 rotate-0"
+            style={{
+              width: "217px",
+              height: "32px",
+              gap: "8px",
+              transform: "rotate(0deg)",
+              opacity: 1,
+            }}
+          >
+            {/* SOURCE: Label (49x10) */}
+            <span
+              className="w-[49px] h-[10px] uppercase shrink-0 opacity-100 rotate-0 inline-flex items-center whitespace-nowrap"
+              style={{
+                width: "49px",
+                height: "10px",
+                fontFamily: "Instrument Sans, sans-serif",
+                fontWeight: 700,
+                fontSize: "11px",
+                lineHeight: "100%",
+                letterSpacing: "0.08em",
+                color: "#9CA3AF",
+                transform: "rotate(0deg)",
+                opacity: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              SOURCE:
+            </span>
+
+            {/* All Sources Custom Dropdown (160x32) */}
+            <div
+              className="relative w-[160px] h-[32px] shrink-0 opacity-100 rotate-0"
+              style={{
+                width: "160px",
+                height: "32px",
+                transform: "rotate(0deg)",
+                opacity: 1,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSourceDropdownOpen((prev) => !prev)}
+                className="w-[160px] h-[32px] pt-[8px] pb-[8px] pl-[16px] pr-[16px] rounded-[16px] flex items-center justify-between cursor-pointer focus:outline-none transition-all select-none"
+                style={{
+                  width: "160px",
+                  height: "32px",
+                  paddingTop: "8px",
+                  paddingBottom: "8px",
+                  paddingLeft: "16px",
+                  paddingRight: "16px",
+                  borderRadius: "16px",
+                  border: "1px solid #D5DAEC",
+                  background: "#FFFFFF",
+                  fontFamily: "Instrument Sans, sans-serif",
+                  fontWeight: 500,
+                  fontSize: "13px",
+                  lineHeight: "100%",
+                  letterSpacing: "0%",
+                  color: "#6B7280",
+                }}
+              >
+                <span className="truncate">
+                  {sourceFilter === "DIRECT"
+                    ? "Direct"
+                    : sourceFilter === "PARTNER_API"
+                    ? "Partner API"
+                    : "All Sources"}
+                </span>
+                <ChevronDown
+                  size={12}
+                  className={`w-[12px] h-[12px] transition-transform duration-150 shrink-0 ${
+                    sourceDropdownOpen ? "rotate-180" : ""
+                  }`}
+                  style={{
+                    width: "12px",
+                    height: "12px",
+                    color: "#6B7280",
+                  }}
+                />
+              </button>
+
+              {sourceDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setSourceDropdownOpen(false)}
+                  />
+                  <div
+                    className="absolute top-[36px] left-0 w-[160px] bg-white border border-[#D5DAEC] rounded-[12px] shadow-lg py-1 z-40 overflow-hidden"
+                    style={{
+                      fontFamily: "Instrument Sans, sans-serif",
+                    }}
+                  >
+                    {[
+                      { label: "All Sources", value: "all" },
+                      { label: "Direct", value: "DIRECT" },
+                      { label: "Partner API", value: "PARTNER_API" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSourceFilter(opt.value as any);
+                          setSourceDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                          sourceFilter === opt.value
+                            ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
+                            : "text-[#6B7280] hover:bg-slate-50 font-medium"
                         }`}
                       >
-                        {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
-                      </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs-plus font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
-                      >
-                        {STATUS_LABEL[d.status]}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs-plus font-medium text-ink-tertiary shrink-0">
-                      <Calendar size={13} className="text-ink-tertiary shrink-0" />
-                      <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
-                    </div>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
                   </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
 
-                  {/* Middle Row: Full Width Primary Drive Name & Subtitle */}
-                  <div className="space-y-1">
-                    <h3
-                      className="text-base font-bold text-ink tracking-tight leading-snug line-clamp-2"
-                      title={d.name}
+        {/* Grid of Drives */}
+        {filtered.length === 0 ? (
+          <div className="flex justify-center w-full py-16">
+            <p className="text-xs italic text-[#94a3b8]">To get started click on Create Drive</p>
+          </div>
+        ) : (
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px] w-full max-w-[1269px] pt-[16px] pb-[16px] opacity-100 rotate-0"
+            style={{
+              minHeight: "226px",
+              paddingTop: "16px",
+              paddingBottom: "16px",
+              gap: "24px",
+              transform: "rotate(0deg)",
+              opacity: 1,
+            }}
+          >
+            {filtered.map((d) => {
+              const isNewlyDetected = newDriveIds.has(d.id);
+              const isPartner = (d as any).originChannel === "PARTNER_API";
+              return (
+                <div
+                  key={d.id}
+                  className="w-[407px] max-w-full h-[194px] p-[24px] rounded-[16px] bg-white flex flex-col justify-between relative transition-all opacity-100 rotate-0 shrink-0"
+                  style={{
+                    width: "407px",
+                    height: "194px",
+                    padding: "24px",
+                    gap: "20px",
+                    borderRadius: "16px",
+                    background: "#FFFFFF",
+                    border: "1px solid #E8EDF2",
+                    boxShadow: "-4px 4px 15px 0px rgba(156, 163, 175, 0.2)",
+                    animationDuration: "0ms",
+                    transform: "rotate(0deg)",
+                    opacity: 1,
+                  }}
+                >
+                  {isNewlyDetected && (
+                    <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-brand to-brand-ink text-white text-2xs font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 z-10">
+                      <Sparkles size={11} className="text-amber-300" />
+                      <span>NEW</span>
+                    </div>
+                  )}
+
+                  {/* Top Content Frame (359x51, gap 12px) */}
+                  <div
+                    className="w-[359px] max-w-full h-[51px] flex flex-col justify-between opacity-100 rotate-0"
+                    style={{
+                      width: "359px",
+                      height: "51px",
+                      gap: "12px",
+                      transform: "rotate(0deg)",
+                      opacity: 1,
+                    }}
+                  >
+                    {/* Top Row: Title & Badges ("test frame" - 359x22) */}
+                    <div
+                      className="w-[359px] max-w-full h-[22px] flex items-center justify-between opacity-100 rotate-0"
+                      style={{
+                        width: "359px",
+                        height: "22px",
+                        justifyContent: "space-between",
+                        transform: "rotate(0deg)",
+                        opacity: 1,
+                      }}
                     >
-                      {formatDriveName(d.name)}
-                    </h3>
-                    <p className="text-xs text-ink-tertiary font-medium truncate" title={d.roleTemplateName || "Software Developer"}>
+                      <h3
+                        className="truncate"
+                        title={d.name}
+                        style={{
+                          maxWidth: "220px",
+                          fontFamily: "Instrument Sans, sans-serif",
+                          fontWeight: 700,
+                          fontSize: "18px",
+                          lineHeight: "100%",
+                          letterSpacing: "0%",
+                          color: "#1E1B4B",
+                          transform: "rotate(0deg)",
+                          opacity: 1,
+                        }}
+                      >
+                        {formatDriveName(d.name)}
+                      </h3>
+
+                      {/* Badges Container ("active+direct frame" - 112x18, gap 6px) */}
+                      <div
+                        className="h-[18px] flex items-center opacity-100 rotate-0"
+                        style={{
+                          gap: "6px",
+                          transform: "rotate(0deg)",
+                          opacity: 1,
+                        }}
+                      >
+                        {/* Origin Badge */}
+                        <div
+                          className="h-[18px] flex items-center justify-center opacity-100 rotate-0"
+                          style={{
+                            minWidth: isPartner ? "74px" : "53px",
+                            height: "18px",
+                            paddingTop: "3px",
+                            paddingBottom: "3px",
+                            paddingLeft: "8px",
+                            paddingRight: "8px",
+                            borderRadius: "6px",
+                            background: isPartner ? "#EDE9FE" : "#F3F4F6",
+                            transform: "rotate(0deg)",
+                            opacity: 1,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: "Instrument Sans, sans-serif",
+                              fontWeight: 700,
+                              fontSize: "10px",
+                              lineHeight: "100%",
+                              letterSpacing: "0%",
+                              color: isPartner ? "#8B5CF6" : "#6B7280",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {isPartner ? "PARTNER API" : "DIRECT"}
+                          </span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div
+                          className="h-[18px] flex items-center justify-center opacity-100 rotate-0"
+                          style={{
+                            minWidth: "53px",
+                            height: "18px",
+                            paddingTop: "3px",
+                            paddingBottom: "3px",
+                            paddingLeft: "8px",
+                            paddingRight: "8px",
+                            borderRadius: "6px",
+                            background:
+                              d.status === "ACTIVE"
+                                ? "#D1FAE5"
+                                : d.status === "SCHEDULED"
+                                ? "#E0E7FF"
+                                : d.status === "CLOSED"
+                                ? "#FEF3C7"
+                                : "#F3F4F6",
+                            transform: "rotate(0deg)",
+                            opacity: 1,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: "Instrument Sans, sans-serif",
+                              fontWeight: 700,
+                              fontSize: "10px",
+                              lineHeight: "100%",
+                              letterSpacing: "0%",
+                              color:
+                                d.status === "ACTIVE"
+                                  ? "#10B981"
+                                  : d.status === "SCHEDULED"
+                                  ? "#4338CA"
+                                  : d.status === "CLOSED"
+                                  ? "#D97706"
+                                  : "#6B7280",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {d.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subtitle / Role ("sde-text" - 359x17) */}
+                    <p
+                      className="truncate"
+                      title={d.roleTemplateName || "Software Developer"}
+                      style={{
+                        width: "359px",
+                        maxWidth: "100%",
+                        height: "17px",
+                        fontFamily: "Instrument Sans, sans-serif",
+                        fontWeight: 400,
+                        fontSize: "14px",
+                        lineHeight: "100%",
+                        letterSpacing: "0%",
+                        color: "#6B7280",
+                        transform: "rotate(0deg)",
+                        opacity: 1,
+                      }}
+                    >
                       {d.roleTemplateName || "Software Developer"}
                     </p>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3.5">
-                  <Link
-                    to="/drives/$id"
-                    params={{ id: d.id }}
-                    className="flex-1 py-1.5 px-4 text-sm-minus font-semibold text-brand border border-brand bg-transparent hover:bg-brand hover:text-white rounded-xl transition-all text-center cursor-pointer flex items-center justify-center"
+                  {/* Date Frame (359x15, gap 6px) */}
+                  <div
+                    className="w-[359px] max-w-full h-[15px] flex items-center opacity-100 rotate-0"
+                    style={{
+                      width: "359px",
+                      height: "15px",
+                      gap: "6px",
+                      transform: "rotate(0deg)",
+                      opacity: 1,
+                    }}
                   >
-                    View Drive
-                  </Link>
-                  <button
-                    onClick={() => setConfirmDeleteDrive(d)}
-                    className="p-2 text-ink-tertiary hover:text-danger hover:bg-danger-subtle border border-line hover:border-danger-border rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
-                    title="Delete Drive"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    <Calendar
+                      size={14}
+                      className="w-[14px] h-[14px] text-[#9CA3AF] shrink-0"
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        color: "#9CA3AF",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: "Instrument Sans, sans-serif",
+                        fontWeight: 500,
+                        fontSize: "12px",
+                        lineHeight: "100%",
+                        letterSpacing: "0%",
+                        color: "#9CA3AF",
+                      }}
+                    >
+                      {formatShortDate(d.scheduleStart || d.createdAt)}
+                    </span>
+                  </div>
 
-      {/* Streamlined Drive Creation Modal */}
+                  {/* Actions Row ("view drive+delete icon frame" - 359x40, gap 12px) */}
+                  <div
+                    className="w-[359px] max-w-full h-[40px] flex items-center opacity-100 rotate-0"
+                    style={{
+                      width: "359px",
+                      height: "40px",
+                      gap: "12px",
+                      transform: "rotate(0deg)",
+                      opacity: 1,
+                    }}
+                  >
+                    <Link
+                      to="/drives/$id"
+                      params={{ id: d.id }}
+                      className="w-[307px] flex-1 h-[37px] rounded-[19px] flex items-center justify-center cursor-pointer transition-all hover:bg-blue-50/40"
+                      style={{
+                        width: "307px",
+                        height: "37px",
+                        paddingTop: "10px",
+                        paddingBottom: "10px",
+                        borderRadius: "19px",
+                        borderWidth: "1px",
+                        border: "1px solid #E9EEFE",
+                        background: "#FFFFFF",
+                        transform: "rotate(0deg)",
+                        opacity: 1,
+                        animationDuration: "0ms",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "Instrument Sans, sans-serif",
+                          fontWeight: 600,
+                          fontSize: "14px",
+                          lineHeight: "100%",
+                          letterSpacing: "0%",
+                          color: "#2E5DE0",
+                        }}
+                      >
+                        View Drive
+                      </span>
+                    </Link>
+                    <button
+                      onClick={() => setConfirmDeleteDrive(d)}
+                      className="w-[40px] h-[40px] rounded-[20px] flex items-center justify-center cursor-pointer transition-all hover:border-rose-200 hover:bg-rose-50 group shrink-0"
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        padding: "10px",
+                        borderRadius: "20px",
+                        borderWidth: "1px",
+                        border: "1px solid #E9EEFE",
+                        background: "#FFFFFF",
+                        transform: "rotate(0deg)",
+                        opacity: 1,
+                      }}
+                      title="Delete Drive"
+                    >
+                      <Trash2 size={16} className="w-[16px] h-[16px] text-[#9CA3AF] group-hover:text-rose-600 transition-colors" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* CreateNewDriveModal Overlay (Instant animation) */}
       {showWizard && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh]">
+        <div
+          data-overlay="CreateNewDriveModal"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-none"
+          style={{ animationDuration: "0ms", transitionDuration: "0ms" }}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh] transition-none"
+            style={{ animationDuration: "0ms", transitionDuration: "0ms" }}
+          >
             <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-ink">Create New Drive</h2>
