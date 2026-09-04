@@ -5,6 +5,7 @@ import { SessionRouter } from './routes/SessionRouter'
 import { LandingPage } from './routes/LandingPage'
 
 import { ShieldAlert } from 'lucide-react'
+import { LightGradientBackground } from './components/common/LightGradientBackground'
 
 function TokenRouteHandler() {
   const { token: pathToken } = useParams<{ token?: string }>()
@@ -56,6 +57,7 @@ function RootHandler() {
 export default function App() {
   return (
     <ThemeProvider>
+      <LightGradientBackground />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/invite/:token" element={<TokenRouteHandler />} />

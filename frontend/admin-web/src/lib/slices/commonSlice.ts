@@ -28,10 +28,11 @@ export const createCommonSlice: StateCreator<any, [], [], CommonSlice> = (set, g
     try {
       const headers = await getAuthHeaders();
       const res = await fetch(`${API_BASE}/admin/role-templates`, { headers });
-      if (!res.ok) throw new Error("Failed to fetch role templates");
       const data = await res.json();
-      set({ roleTemplates: data });
+      const items = Array.isArray(data) ? data : (data.items || data.data || []);
+      set({ roleTemplates: items });
     } catch (err: any) {
+
       console.error(err);
     }
   },

@@ -1,0 +1,310 @@
+=== FULL FIGMA SPEC TREE ===
+• [FRAME] "Slide 16:9 - 1" (id: 19:141) size: 1920x4016 bg: #FFFFFF
+  • [FRAME] "BG" (id: 25:168) size: 1920x867 bg: IMAGE
+    • [RECTANGLE] "image 3" (id: 25:170) size: 3370x1896 bg: IMAGE
+    • [FRAME] "Div [innerContainer]" (id: 42:350) size: 2005x2172 bg: IMAGE
+      • [RECTANGLE] "3D Image - 40" (id: 55:411) size: 455x415 bg: IMAGE
+      • [RECTANGLE] "3D Image - 40" (id: 61:423) size: 429x455 bg: IMAGE
+  • [VECTOR] "Vector 1" (id: 25:233) size: 768x729 bg: #7F30FF
+  • [FRAME] "Nav bar" (id: 7:435) size: 1920x104
+    • [FRAME] "Container:align" (id: 7:461) size: 1012x32
+      • [FRAME] "Container" (id: 7:436) size: 116x32
+        • [FRAME] "Container" (id: 7:437) size: 32x32 bg: LINEAR_GRADIENT
+          • [FRAME] "IconShield" (id: 7:438) size: 16x16
+            • [VECTOR] "Vector" (id: 7:439) size: 11x13
+            • [VECTOR] "Vector" (id: 7:440) size: 5x3
+        • [FRAME] "Text" (id: 7:441) size: 74x27
+          • [TEXT] "Proctora" (id: 7:442) size: 74x27 text: "Proctora" bg: #000000
+    • [FRAME] "Frame 1" (id: 6:3) size: 604x37
+      • [FRAME] "Container" (id: 7:444) size: 327x21
+        • [FRAME] "Link" (id: 7:445) size: 58x21
+          • [TEXT] "Platform" (id: 7:446) size: 58x21 text: "Platform" bg: #000000
+        • [FRAME] "Link" (id: 7:448) size: 118x21
+          • [TEXT] "The Say-Do Score" (id: 7:449) size: 118x21 text: "The Say-Do Score" bg: #000000
+        • [FRAME] "Link" (id: 7:451) size: 55x21
+          • [TEXT] "Security" (id: 7:452) size: 55x21 text: "Security" bg: #000000
+      • [FRAME] "Container" (id: 7:454) size: 277x37
+        • [FRAME] "Link" (id: 7:455) size: 98x21
+          • [TEXT] "Have an invite?" (id: 7:456) size: 98x21 text: "Have an invite?" bg: #000000
+        • [FRAME] "Button" (id: 7:458) size: 128x37 bg: #2E5DE0
+          • [TEXT] "Book Demo →" (id: 7:459) size: 92x21 text: "Book Demo →" bg: #FFFFFF
+  • [FRAME] "Container" (id: 25:172) size: 1200x867
+    • [FRAME] "Heading 1" (id: 25:173) size: 990x200
+      • [TEXT] "They can say the right thing. But do they actually" (id: 25:174) size: 997x200 text: "They can say the right thing.\nBut do they actually build it?" bg: #FFFFFF
+    • [FRAME] "Paragraph:margin" (id: 25:175) size: 847x89
+      • [TEXT] "Proctora runs candidates through real code, real t" (id: 25:176) size: 847x65 text: "Proctora runs candidates through real code, real tickets, and real pressure. Then checks whether their code matches their promises. The signal most platforms miss." bg: #000000
+    • [FRAME] "Container" (id: 25:177) size: 560x97
+      • [FRAME] "Container" (id: 25:178) size: 399x49 bg: #FFFFFF1A
+        • [FRAME] "Text" (id: 25:179) size: 16x16
+          • [FRAME] "IconLink" (id: 25:180) size: 16x16
+            • [VECTOR] "Vector" (id: 25:181) size: 8x9
+            • [VECTOR] "Vector" (id: 25:182) size: 8x9
+        • [FRAME] "Text Input" (id: 25:183) size: 349x47
+          • [TEXT] "Paste your assessment invite link…" (id: 25:184) size: 325x17 text: "Paste your assessment invite link…" bg: #0F0F1A80
+      • [FRAME] "Button" (id: 25:185) size: 151x49 bg: #2E5DE0
+        • [TEXT] "Start Session →" (id: 25:186) size: 103x21 text: "Start Session →" bg: #FFFFFF
+    • [FRAME] "Container:margin" (id: 25:187) size: 840x357
+      • [FRAME] "CodeMockup" (id: 25:188) size: 840x285 bg: #1A1B2E
+        • [FRAME] "Container" (id: 25:189) size: 838x42 bg: #FFFFFF08
+          • [FRAME] "Container" (id: 25:190) size: 10x10 bg: #FF5F57
+          • [FRAME] "Container" (id: 25:191) size: 10x10 bg: #FEBC2E
+          • [FRAME] "Container" (id: 25:192) size: 10x10 bg: #28C840
+          • [FRAME] "Text:align" (id: 25:193) size: 752x17
+            • [FRAME] "Text" (id: 25:194) size: 238x17
+              • [TEXT] "assess.proctora.com/workspace/●●●●●●" (id: 25:195) size: 238x17 text: "assess.proctora.com/workspace/●●●●●●" bg: #FFFFFF4D
+        • [FRAME] "Container" (id: 25:196) size: 838x242
+          • [FRAME] "Container" (id: 25:197) size: 240x242
+            • [FRAME] "Container" (id: 25:198) size: 199x35
+              • [FRAME] "Container" (id: 25:199) size: 32x32 bg: LINEAR_GRADIENT
+                • [TEXT] "P" (id: 25:200) size: 9x20 text: "P" bg: #FFFFFF
+              • [FRAME] "Container" (id: 25:201) size: 68x35
+                • [FRAME] "Container" (id: 25:202) size: 68x18
+                  • [TEXT] "Priya Shah" (id: 25:203) size: 60x18 text: "Priya Shah" bg: #F0F0F8
+                • [FRAME] "Container" (id: 25:204) size: 68x17
+                  • [TEXT] "Eng Manager" (id: 25:205) size: 68x17 text: "Eng Manager" bg: #FFFFFF66
+            • [FRAME] "Container:margin" (id: 25:206) size: 199x94
+              • [FRAME] "Container" (id: 25:207) size: 199x80 bg: #2E5DE026
+                • [TEXT] ""Good catch — I'll make sure to add payload valida" (id: 25:208) size: 173x58 text: ""Good catch — I'll make sure to add payload validation before this ships to prod."" bg: #FFFFFFB2
+            • [FRAME] "Container" (id: 25:209) size: 199x74
+              • [FRAME] "Container" (id: 25:210) size: 199x17
+                • [TEXT] "Say-Do Gap" (id: 25:211) size: 75x17 text: "Say-Do Gap" bg: #FFFFFF4D
+              • [FRAME] "Container:margin" (id: 25:212) size: 199x41
+                • [FRAME] "Container" (id: 25:213) size: 200x33
+                  • [FRAME] "Container" (id: 25:214) size: 8x8 bg: #EF4444
+                  • [FRAME] "Text" (id: 25:215) size: 186x33
+                    • [TEXT] "Detected. No validation found." (id: 25:216) size: 186x33 text: "Detected. No validation found." bg: #EF4444
+          • [FRAME] "Container" (id: 25:217) size: 598x242
+            • [FRAME] "Container" (id: 25:218) size: 550x25
+              • [TEXT] "// Candidate promised: payload validation" (id: 25:219) size: 308x25 text: "// Candidate promised: payload validation" bg: #FFFFFF40
+            • [FRAME] "Container" (id: 25:220) size: 550x29
+              • [TEXT] "// Status: Say-Do gap detected. No validation foun" (id: 25:221) size: 390x25 text: "// Status: Say-Do gap detected. No validation found." bg: #FFFFFF40
+            • [FRAME] "Container" (id: 25:222) size: 550x37
+              • [TEXT] "export async function saveUser(payload) {" (id: 25:223) size: 308x25 text: "export async function saveUser(payload) {" bg: #7C85FF
+            • [FRAME] "Container" (id: 25:224) size: 550x25
+              • [TEXT] "const user = payload.user;" (id: 25:225) size: 195x25 text: "const user = payload.user;" bg: #C792EA
+            • [FRAME] "Container" (id: 25:226) size: 550x25
+              • [TEXT] "await db.insert('users').values(user);" (id: 25:227) size: 285x25 text: "await db.insert('users').values(user);" bg: #C792EA
+            • [FRAME] "Container" (id: 25:228) size: 550x25
+              • [TEXT] "return { ok: true };" (id: 25:229) size: 150x25 text: "return { ok: true };" bg: #C792EA
+            • [FRAME] "Container" (id: 25:230) size: 550x25
+              • [TEXT] "}" (id: 25:231) size: 8x25 text: "}" bg: #E8EAF6
+  • [FRAME] "Container:margin" (id: 7:254) size: 1872x487
+    • [FRAME] "Container" (id: 7:168) size: 1200x487
+      • [FRAME] "Container" (id: 7:169) size: 560x487
+        • [FRAME] "Heading 2" (id: 7:178) size: 560x152
+          • [TEXT] "We check if the conversation and the code agree." (id: 7:179) size: 560x152 text: "We check if the conversation and the code agree." bg: #0F0F1A
+        • [FRAME] "Paragraph" (id: 7:181) size: 560x104
+          • [TEXT] "The Correlation Engine cross-references every writ" (id: 7:182) size: 560x84 text: "The Correlation Engine cross-references every written response against the code changes that follow it, scoring the distance between the two — not just whether it compiles." bg: #6B6B88
+        • [FRAME] "Container:margin" (id: 7:197) size: 560x219
+          • [FRAME] "Container" (id: 7:184) size: 560x187
+            • [FRAME] "Container" (id: 7:185) size: 518x17
+              • [TEXT] "Example Event" (id: 7:186) size: 106x17 text: "Example Event" bg: #6B6B88
+            • [FRAME] "Paragraph" (id: 7:188) size: 518x35
+              • [TEXT] "Candidate writes: "Good catch, I'll add input vali" (id: 7:189) size: 440x23 text: "Candidate writes: "Good catch, I'll add input validation before this ships."" bg: #6B6B88
+            • [FRAME] "Paragraph" (id: 7:191) size: 518x53
+              • [TEXT] "They submit code with no validation. The unit test" (id: 7:192) size: 518x45 text: "They submit code with no validation. The unit tests still pass. Proctora flags the mismatch anyway." bg: #6B6B88
+      • [FRAME] "Container" (id: 7:199) size: 560x487
+        • [FRAME] "Container" (id: 7:200) size: 486x94
+          • [FRAME] "Container" (id: 7:201) size: 486x72
+            • [TEXT] "94%" (id: 7:202) size: 138x72 text: "94%" bg: #2E5DE0
+          • [FRAME] "Container" (id: 7:204) size: 486x22
+            • [TEXT] "Say-Do Sync Score" (id: 7:205) size: 145x18 text: "Say-Do Sync Score" bg: #6B6B88
+        • [FRAME] "Container" (id: 7:208) size: 486x64
+          • [FRAME] "Container" (id: 7:209) size: 486x18
+            • [FRAME] "Text" (id: 7:210) size: 108x18
+              • [TEXT] "Responses Flagged" (id: 7:211) size: 108x18 text: "Responses Flagged" bg: #6B6B88
+            • [FRAME] "Text" (id: 7:213) size: 51x18
+              • [TEXT] "1 of 14" (id: 7:214) size: 51x18 text: "1 of 14" bg: #6B6B88
+          • [FRAME] "Container:margin" (id: 7:218) size: 486x14
+            • [FRAME] "Container" (id: 7:216) size: 486x6 bg: #F0F1F7
+              • [FRAME] "Container" (id: 7:217) size: 34x6 bg: LINEAR_GRADIENT
+        • [FRAME] "Container:margin" (id: 7:253) size: 486x179
+          • [FRAME] "Container" (id: 7:219) size: 486x155
+            • [FRAME] "Container" (id: 7:220) size: 237x72 bg: #EFF3FF
+              • [FRAME] "Container" (id: 7:221) size: 207x27
+                • [TEXT] "14" (id: 7:222) size: 22x27 text: "14" bg: #0F0F1A
+              • [FRAME] "Container" (id: 7:224) size: 207x19
+                • [TEXT] "Code Reviewed" (id: 7:225) size: 79x17 text: "Code Reviewed" bg: #6B6B88
+            • [FRAME] "Container" (id: 7:228) size: 237x72 bg: #EFF3FF
+              • [FRAME] "Container" (id: 7:229) size: 207x27
+                • [TEXT] "3.2m" (id: 7:230) size: 43x27 text: "3.2m" bg: #0F0F1A
+              • [FRAME] "Container" (id: 7:232) size: 207x19
+                • [TEXT] "Avg Response Time" (id: 7:233) size: 100x17 text: "Avg Response Time" bg: #6B6B88
+            • [FRAME] "Container" (id: 7:236) size: 237x72 bg: #EFF3FF
+              • [FRAME] "Container" (id: 7:237) size: 207x27
+                • [TEXT] "94%" (id: 7:238) size: 32x27 text: "94%" bg: #0F0F1A
+              • [FRAME] "Container" (id: 7:240) size: 207x19
+                • [TEXT] "Sync Accuracy" (id: 7:241) size: 75x17 text: "Sync Accuracy" bg: #6B6B88
+            • [FRAME] "Container" (id: 7:244) size: 237x72 bg: #EFF3FF
+              • [FRAME] "Container" (id: 7:245) size: 207x27
+                • [TEXT] "12/12" (id: 7:246) size: 53x27 text: "12/12" bg: #0F0F1A
+              • [FRAME] "Container" (id: 7:248) size: 207x19
+                • [TEXT] "Tests Passed" (id: 7:249) size: 66x17 text: "Tests Passed" bg: #6B6B88
+  • [FRAME] "Footer" (id: 7:275) size: 1920x324 bg: #F8F8F8
+    • [FRAME] "Container:margin" (id: 7:339) size: 1872x220
+      • [FRAME] "Container" (id: 7:276) size: 1200x220
+        • [FRAME] "Container" (id: 7:277) size: 1401x127
+          • [FRAME] "Container" (id: 7:278) size: 260x127
+            • [FRAME] "Container" (id: 7:279) size: 260x28
+              • [FRAME] "Container" (id: 7:280) size: 28x28 bg: #EBEFFB
+                • [FRAME] "IconShield" (id: 7:281) size: 16x16
+                  • [VECTOR] "Vector" (id: 7:282) size: 11x13
+                  • [VECTOR] "Vector" (id: 7:283) size: 5x3
+              • [FRAME] "Text" (id: 7:284) size: 67x24
+                • [TEXT] "Proctora" (id: 7:285) size: 67x24 text: "Proctora" bg: #000000
+            • [FRAME] "Paragraph" (id: 7:287) size: 260x83
+              • [TEXT] "Technical hiring that checks whether candidates me" (id: 7:288) size: 260x69 text: "Technical hiring that checks whether candidates meant what they said, not just whether the code runs." bg: #000000
+          • [FRAME] "Container" (id: 7:291) size: 265x127
+            • [FRAME] "Container" (id: 7:292) size: 265x18
+              • [TEXT] "Product" (id: 7:293) size: 67x18 text: "Product" bg: #000000
+            • [FRAME] "Link" (id: 7:295) size: 265x37
+              • [TEXT] "Platform" (id: 7:296) size: 57x21 text: "Platform" bg: #000000
+            • [FRAME] "Link" (id: 7:298) size: 265x31
+              • [TEXT] "Say-Do Score" (id: 7:299) size: 88x21 text: "Say-Do Score" bg: #000000
+            • [FRAME] "Link" (id: 7:301) size: 265x41
+              • [TEXT] "Security" (id: 7:302) size: 54x21 text: "Security" bg: #000000
+          • [FRAME] "Container" (id: 7:307) size: 265x127
+            • [FRAME] "Container" (id: 7:308) size: 265x18
+              • [TEXT] "Candidates" (id: 7:309) size: 88x18 text: "Candidates" bg: #000000
+            • [FRAME] "Link" (id: 7:311) size: 265x37
+              • [TEXT] "Start Assessment" (id: 7:312) size: 114x21 text: "Start Assessment" bg: #000000
+            • [FRAME] "Link" (id: 7:314) size: 265x41
+              • [TEXT] "Support" (id: 7:315) size: 53x21 text: "Support" bg: #000000
+          • [FRAME] "Container" (id: 7:319) size: 265x127
+            • [FRAME] "Container" (id: 7:320) size: 265x18
+              • [TEXT] "Legal" (id: 7:321) size: 44x18 text: "Legal" bg: #000000
+            • [FRAME] "Link" (id: 7:323) size: 265x37
+              • [TEXT] "Privacy Policy" (id: 7:324) size: 88x21 text: "Privacy Policy" bg: #000000
+            • [FRAME] "Link" (id: 7:326) size: 265x41
+              • [TEXT] "Terms of Service" (id: 7:327) size: 107x21 text: "Terms of Service" bg: #000000
+        • [FRAME] "Container:margin" (id: 7:338) size: 1200x93
+          • [FRAME] "Container" (id: 7:331) size: 1200x45
+            • [FRAME] "Text" (id: 7:332) size: 99x20
+              • [TEXT] "© 2026 Proctora" (id: 7:333) size: 99x20 text: "© 2026 Proctora" bg: #FFFFFF
+            • [FRAME] "Link" (id: 7:335) size: 141x20
+              • [TEXT] "hello@proctora.com" (id: 7:336) size: 141x20 text: "hello@proctora.com" bg: #FFFFFF
+  • [FRAME] "Frame 4" (id: 42:378) size: 1200x404
+    • [TEXT] "5 Core Modules" (id: 27:417) size: 465x49 text: "5 Core Modules" bg: #000000
+    • [RECTANGLE] "Rectangle 1" (id: 31:472) size: 180x255 bg: LINEAR_GRADIENT
+    • [RECTANGLE] "Rectangle 5" (id: 42:377) size: 180x255 bg: LINEAR_GRADIENT
+    • [RECTANGLE] "Rectangle 2" (id: 42:352) size: 180x255 bg: LINEAR_GRADIENT
+    • [RECTANGLE] "Rectangle 3" (id: 42:353) size: 180x255 bg: LINEAR_GRADIENT
+    • [RECTANGLE] "Rectangle 4" (id: 42:354) size: 180x255 bg: LINEAR_GRADIENT
+    • [FRAME] "Text" (id: 27:457) size: 83x40
+      • [TEXT] "Contextual Simulation" (id: 27:458) size: 83x40 text: "Contextual\nSimulation" bg: #000000
+    • [FRAME] "Text" (id: 27:449) size: 81x40
+      • [TEXT] "AI Prompting" (id: 27:450) size: 81x40 text: "AI\nPrompting" bg: #000000
+    • [FRAME] "Text" (id: 27:442) size: 55x40
+      • [TEXT] "Coding & DSA" (id: 27:443) size: 55x40 text: "Coding\n& DSA" bg: #000000
+    • [FRAME] "Text" (id: 27:435) size: 33x46
+      • [TEXT] "SQL" (id: 27:436) size: 33x46 text: "SQL" bg: #000000
+    • [FRAME] "Text" (id: 27:426) size: 40x46
+      • [TEXT] "MCQ" (id: 27:427) size: 40x46 text: "MCQ" bg: #000000
+    • [FRAME] "IconGrid" (id: 82:453) size: 50x50
+      • [VECTOR] "Vector" (id: 82:454) size: 14x13
+      • [VECTOR] "Vector" (id: 82:455) size: 14x13
+      • [VECTOR] "Vector" (id: 82:456) size: 14x13
+      • [VECTOR] "Vector" (id: 82:457) size: 14x13
+    • [FRAME] "IconDatabase" (id: 82:458) size: 50x50
+      • [VECTOR] "Vector" (id: 82:459) size: 35x13
+      • [VECTOR] "Vector" (id: 82:460) size: 35x19
+      • [VECTOR] "Vector" (id: 82:461) size: 35x19
+    • [FRAME] "IconCode" (id: 82:462) size: 50x50
+      • [VECTOR] "Vector" (id: 82:463) size: 40x25
+    • [FRAME] "IconBrain" (id: 82:464) size: 50x50
+      • [VECTOR] "Vector" (id: 82:465) size: 35x36
+    • [FRAME] "IconCpu" (id: 82:466) size: 50x50
+      • [VECTOR] "Vector" (id: 82:467) size: 25x25
+      • [VECTOR] "Vector" (id: 82:468) size: 35x35
+  • [FRAME] "Frame 8" (id: 61:422) size: 1200x832
+    • [FRAME] "Container" (id: 7:10) size: 1200x188
+      • [FRAME] "Heading 2" (id: 7:11) size: 1200x110
+        • [TEXT] "Skill tests grade the output. They ignore the cont" (id: 7:12) size: 904x110 text: "Skill tests grade the output.\nThey ignore the context." bg: #0F0F1A
+      • [FRAME] "Paragraph:margin" (id: 7:17) size: 1200x78
+        • [TEXT] "A candidate can promise anything in a chat reply. " (id: 7:15) size: 688x58 text: "A candidate can promise anything in a chat reply. Most platforms never connect that promise back to the code. If tests pass, they pass." bg: #6B6B88
+    • [FRAME] "Container" (id: 59:2) size: 1200x399
+      • [FRAME] "Frame 5" (id: 59:3) size: 389x399
+        • [FRAME] "Container" (id: 59:4) size: 390x399 bg: #5282FF
+          • [FRAME] "Container" (id: 59:5) size: 40x40 bg: #ECF1FF
+            • [FRAME] "IconBriefcase" (id: 59:6) size: 20x20
+              • [VECTOR] "Vector" (id: 59:7) size: 16x11
+              • [VECTOR] "Vector" (id: 59:8) size: 6x5
+          • [FRAME] "Heading 3" (id: 59:9) size: 331x40
+            • [TEXT] "Take-homes" (id: 59:10) size: 95x24 text: "Take-homes" bg: #FFFFFF
+          • [FRAME] "Paragraph" (id: 59:11) size: 333x80
+            • [TEXT] "Projects that sit in a queue nobody on your team a" (id: 59:12) size: 246x70 text: "Projects that sit in a queue nobody on your team actually has time to review properly." bg: #FFFFFF
+        • [RECTANGLE] "image 8" (id: 59:13) size: 205x205 bg: IMAGE
+        • [RECTANGLE] "Rectangle 6" (id: 61:417) size: 389x399 bg: LINEAR_GRADIENT
+      • [FRAME] "Frame 6" (id: 59:14) size: 389x399
+        • [FRAME] "Container" (id: 59:15) size: 390x399 bg: #5282FF
+          • [FRAME] "Container" (id: 59:16) size: 40x40 bg: #ECF1FF
+            • [FRAME] "IconVideo" (id: 59:17) size: 20x20
+              • [VECTOR] "Vector" (id: 59:18) size: 12x10
+              • [VECTOR] "Vector" (id: 59:19) size: 4x7
+          • [FRAME] "Heading 3" (id: 59:20) size: 331x40
+            • [TEXT] "Live interviews" (id: 59:21) size: 112x24 text: "Live interviews" bg: #FFFFFF
+          • [FRAME] "Paragraph" (id: 59:22) size: 331x80
+            • [TEXT] "High-stress, performative sessions that don't scal" (id: 59:23) size: 254x70 text: "High-stress, performative sessions that don't scale past a handful of candidates a week." bg: #FFFFFF
+        • [RECTANGLE] "image 7" (id: 59:24) size: 232x232 bg: IMAGE
+        • [RECTANGLE] "Rectangle 6" (id: 61:418) size: 389x399 bg: LINEAR_GRADIENT
+      • [FRAME] "Frame 7" (id: 59:25) size: 389x399
+        • [FRAME] "Container" (id: 59:26) size: 390x399 bg: #5282FF
+          • [FRAME] "Container" (id: 59:27) size: 40x40 bg: #ECF1FF
+            • [FRAME] "IconUser" (id: 59:28) size: 20x20
+              • [VECTOR] "Vector" (id: 59:29) size: 7x7
+              • [VECTOR] "Vector" (id: 59:30) size: 14x7
+          • [FRAME] "Heading 3" (id: 59:31) size: 331x40
+            • [TEXT] "Resume screens" (id: 59:32) size: 124x24 text: "Resume screens" bg: #FFFFFF
+          • [FRAME] "Paragraph" (id: 59:33) size: 331x80
+            • [TEXT] "Filters that measure a candidate's pedigree and pa" (id: 59:34) size: 281x70 text: "Filters that measure a candidate's pedigree and past logos instead of their actual judgment." bg: #FFFFFF
+        • [RECTANGLE] "image 9" (id: 59:35) size: 212x212 bg: IMAGE
+        • [RECTANGLE] "Rectangle 6" (id: 61:420) size: 389x399 bg: LINEAR_GRADIENT
+    • [FRAME] "Frame 3" (id: 27:380) size: 1200x181 bg: #F4F4F4
+      • [FRAME] "Frame 2" (id: 27:379) size: 561x131
+        • [FRAME] "Container" (id: 7:60) size: 561x18
+          • [TEXT] "What Proctora sees" (id: 7:61) size: 160x18 text: "What Proctora sees" bg: #000000
+        • [FRAME] "Heading 3" (id: 7:63) size: 526x49
+          • [TEXT] "The Full Picture." (id: 7:64) size: 192x39 text: "The Full Picture." bg: #000000
+        • [FRAME] "Paragraph" (id: 7:66) size: 526x64
+          • [TEXT] "We check the tests, the syntax, and the speed. But" (id: 7:67) size: 526x48 text: "We check the tests, the syntax, and the speed. But more importantly, we check if the code actually matches what they told a teammate they'd do." bg: #000000
+      • [FRAME] "Container:margin" (id: 7:100) size: 557x85
+        • [FRAME] "Container" (id: 7:69) size: 526x49
+          • [FRAME] "Container" (id: 7:70) size: 258x20
+            • [FRAME] "Container" (id: 7:71) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:72) size: 12x12
+                • [VECTOR] "Vector" (id: 7:73) size: 8x5
+            • [FRAME] "Text" (id: 7:74) size: 62x20
+              • [TEXT] "Tests pass" (id: 7:75) size: 62x20 text: "Tests pass" bg: #000000
+          • [FRAME] "Container" (id: 7:77) size: 258x20
+            • [FRAME] "Container" (id: 7:78) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:79) size: 12x12
+                • [VECTOR] "Vector" (id: 7:80) size: 8x5
+            • [FRAME] "Text" (id: 7:81) size: 123x20
+              • [TEXT] "Contextual accuracy" (id: 7:82) size: 123x20 text: "Contextual accuracy" bg: #000000
+          • [FRAME] "Container" (id: 7:84) size: 258x20
+            • [FRAME] "Container" (id: 7:85) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:86) size: 12x12
+                • [VECTOR] "Vector" (id: 7:87) size: 8x5
+            • [FRAME] "Text" (id: 7:88) size: 77x20
+              • [TEXT] "Clean syntax" (id: 7:89) size: 77x20 text: "Clean syntax" bg: #000000
+          • [FRAME] "Container" (id: 7:91) size: 258x20
+            • [FRAME] "Container" (id: 7:92) size: 18x18 bg: #F0F4FF
+              • [FRAME] "IconCheck" (id: 7:93) size: 12x12
+                • [VECTOR] "Vector" (id: 7:94) size: 8x5
+            • [FRAME] "Text" (id: 7:95) size: 108x20
+              • [TEXT] "Say-Do alignment" (id: 7:96) size: 108x20 text: "Say-Do alignment" bg: #000000
+  • [FRAME] "Container" (id: 121:613) size: 1470x394 bg: #5282FF
+    • [FRAME] "Frame 25" (id: 121:614) size: 1470x394
+      • [FRAME] "Frame 9" (id: 121:615) size: 591x298
+        • [TEXT] "See what your current process is missing." (id: 121:616) size: 591x126 text: "See what your current\nprocess is missing." bg: #FFFFFF
+        • [TEXT] "Walk through a real session and see the Say-Do Sco" (id: 121:617) size: 440x58 text: "Walk through a real session and see the Say-Do Score applied to an actual candidate response." bg: #FFFFFF
+        • [FRAME] "Container" (id: 121:618) size: 186x54
+          • [FRAME] "Button" (id: 121:619) size: 186x54 bg: #FFFFFF
+            • [TEXT] "Request a demo" (id: 121:620) size: 122x24 text: "Request a demo" bg: #000000
+      • [VECTOR] "Vector" (id: 121:621) size: 756x821 bg: #EBEBEB
+      • [VECTOR] "Vector" (id: 121:622) size: 828x779 bg: #EBEBEB
+      • [RECTANGLE] "image 10" (id: 121:623) size: 372x235 bg: IMAGE
+      • [RECTANGLE] "Screenshot 2026-08-20 115855 1" (id: 121:624) size: 372x235 bg: IMAGE
+      • [RECTANGLE] "image 12" (id: 121:626) size: 373x237 bg: IMAGE
+      • [RECTANGLE] "image 13" (id: 121:627) size: 371x233 bg: IMAGE
+      • [RECTANGLE] "image 11" (id: 121:628) size: 372x235 bg: IMAGE

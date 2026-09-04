@@ -10,7 +10,7 @@
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
     "prisma:push": "prisma db push --schema=../prisma/schema.prisma --skip-generate --accept-data-loss",
     "prisma:seed": "prisma db seed",
     "seed:candidate": "ts-node scripts/seed-candidate-dev.ts",

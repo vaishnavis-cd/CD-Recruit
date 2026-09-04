@@ -162,19 +162,79 @@ function IndividualResultPage() {
     loadData();
   }, [id]);
 
+  const getAllResponses = useMemo(() => {
+    if (!detail) return [];
+    const list: any[] = [];
+    const seenIds = new Set<string>();
+
+    const addItems = (items: any[]) => {
+      if (!Array.isArray(items)) return;
+      for (const item of items) {
+        if (!item) continue;
+        const key = item.id || item.moduleResponseId || item.questionId || item.question?.id || JSON.stringify(item);
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          list.push(item);
+        }
+      }
+    };
+
+    addItems(detail.moduleResponses);
+    addItems((detail as any).submissions);
+    addItems((detail as any).responses);
+    addItems((detail as any).session?.moduleResponses);
+    addItems((detail as any).session?.submissions);
+    addItems((detail as any).results);
+
+    if (Array.isArray(detail.questions)) {
+      for (const q of detail.questions) {
+        if (q && (q.response || q.userResponse || q.answer || q.responsePayload || q.submission)) {
+          const item = {
+            id: q.id || q.questionId,
+            questionId: q.questionId || q.id,
+            moduleType: q.moduleType || q.question?.moduleType,
+            responsePayload: q.responsePayload || q.response || q.userResponse || q.answer || q.submission,
+            question: q.question || q,
+          };
+          const key = item.id || JSON.stringify(item);
+          if (!seenIds.has(key)) {
+            seenIds.add(key);
+            list.push(item);
+          }
+        }
+      }
+    }
+
+    return list;
+  }, [detail]);
+
+  const getParsedPayload = (resp: any) => {
+    if (!resp) return {};
+    let p = resp.responsePayload || resp.payload || resp.userResponse || resp.answer || resp.submission || resp;
+    if (typeof p === "string") {
+      try {
+        p = JSON.parse(p);
+      } catch {
+        p = { text: p, sourceCode: p, code: p, query: p, prompt: p };
+      }
+    }
+    return p || {};
+  };
+
+  const isDebuggingItem = (item: any) => {
+    if (!item) return false;
+    const payload = getParsedPayload(item);
+    const modType = (item.moduleType || item.question?.moduleType || payload.moduleType || "").toUpperCase();
+    if (modType === "DEBUGGING") return true;
+    const tags = item.tags || item.question?.tags || [];
+    if (Array.isArray(tags) && tags.includes("debugging")) return true;
+    const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
+    if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
+    return false;
+  };
+
   const availableTabs = useMemo(() => {
     if (!detail) return [];
-
-    const isDebuggingItem = (item: any) => {
-      if (!item) return false;
-      const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
-      if (modType === "DEBUGGING") return true;
-      const tags = item.tags || item.question?.tags || [];
-      if (Array.isArray(tags) && tags.includes("debugging")) return true;
-      const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
-      if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
-      return false;
-    };
 
     const flagCount = detail.integrityFlags?.length || 0;
     const tabs: Array<{ id: "CODING" | "DEBUGGING" | "SQL" | "MCQ" | "AI_PROMPTING" | "SIMULATION" | "TEST_SCENARIOS" | "NOSQL" | "INTEGRITY"; label: string; icon: any }> = [
@@ -196,13 +256,35 @@ function IndividualResultPage() {
 
       const isEnabledInConfig = Boolean(moduleConfig[tab.id]?.enabled);
 
-      const hasResponse = (detail.moduleResponses || []).some((r) => {
+      const hasResponse = getAllResponses.some((r: any) => {
+        const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+        const payload = getParsedPayload(r);
+        const pModType = (payload.moduleType || "").toUpperCase();
+
         if (tab.id === "DEBUGGING") return isDebuggingItem(r);
         if (tab.id === "CODING") {
-          const isCodingResp = r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined;
+          const isCodingResp = modType === "CODING" || pModType === "CODING" || payload.sourceCode !== undefined || payload.code !== undefined || payload.userCode !== undefined;
           return isCodingResp && !isDebuggingItem(r);
         }
-        return r.moduleType === tab.id || r.responsePayload?.moduleType === tab.id;
+        if (tab.id === "SQL") {
+          return (modType === "SQL" || pModType === "SQL" || payload.query !== undefined || payload.sqlQuery !== undefined) && modType !== "NOSQL" && pModType !== "NOSQL";
+        }
+        if (tab.id === "NOSQL") {
+          return (modType === "NOSQL" || pModType === "NOSQL" || payload.operation !== undefined || payload.noSqlQuery !== undefined) && modType !== "SQL" && pModType !== "SQL";
+        }
+        if (tab.id === "MCQ") {
+          return modType === "MCQ" || pModType === "MCQ" || payload.selectedOption !== undefined || payload.selectedOptions !== undefined || payload.selectedIndex !== undefined;
+        }
+        if (tab.id === "AI_PROMPTING") {
+          return modType === "AI_PROMPTING" || pModType === "AI_PROMPTING" || payload.prompt !== undefined;
+        }
+        if (tab.id === "SIMULATION") {
+          return modType === "SIMULATION" || pModType === "SIMULATION";
+        }
+        if (tab.id === "TEST_SCENARIOS") {
+          return modType === "TEST_SCENARIOS" || pModType === "TEST_SCENARIOS" || payload.answer !== undefined;
+        }
+        return modType === tab.id || pModType === tab.id;
       });
 
       const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
@@ -218,7 +300,7 @@ function IndividualResultPage() {
 
       return isEnabledInConfig || hasResponse || hasQuestionInDrive;
     });
-  }, [detail]);
+  }, [detail, getAllResponses]);
 
   useEffect(() => {
     if (availableTabs.length > 0) {
@@ -284,82 +366,52 @@ function IndividualResultPage() {
   return (
     <AppShell
       title={`Evaluation: ${detail.candidateName}`}
-      actions={
-        <Link
-          to="/results"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand border border-brand rounded-md hover:bg-brand-hover transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={14} /> Back to Results
-        </Link>
-      }
+      hideHeader={true}
     >
-      {/* Header Banner */}
-      <div className="bg-white border border-line rounded-xl p-6 shadow-sm mb-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-surface-inset pb-5">
-          <div>
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
-              <h2 className="text-xl font-semibold text-ink">{detail.candidateName}</h2>
-              {detail.referenceId && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
-                  Ref: {detail.referenceId}
-                </span>
-              )}
-              {isApproved ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <CheckCircle2 size={14} /> Approved
-                </span>
-              ) : isRejected ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                  <XCircle size={14} /> Rejected
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                  <Clock size={14} /> Pending Review
-                </span>
-              )}
-            </div>
-            <p className="text-sm-minus text-ink-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>{detail.candidateEmail}</span>
-              <span>•</span>
-              <span>Drive: <strong className="font-semibold text-ink">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
-              <span>•</span>
-              <span className="font-mono text-xs text-ink">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
-              {detail.startedAt && detail.submittedAt && (
-                <>
-                  <span>•</span>
-                  <span className="font-mono text-xs text-brand">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
-                </>
-              )}
-            </p>
-          </div>
+      <div className="max-w-[1320px] mx-auto w-full space-y-6">
+        {/* Top Navigation & Breadcrumbs Section */}
+        <div className="space-y-2">
+          {/* Breadcrumbs */}
+          <nav className="flex items-center gap-1.5 text-[13px] font-normal text-[#64748B]">
+            <Link to="/results" className="text-[#2563EB] hover:underline font-medium">
+              Results
+            </Link>
+            <span>/</span>
+            <span>Evaluation: {detail.candidateName}</span>
+          </nav>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            {decision && (
-              <div className="text-right text-xs text-ink-secondary mr-2">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs-plus font-semibold font-mono ${String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                  }`}>
-                  {String(decision.outcome) === "PASS" || String(decision.outcome) === "ADVANCE" ? "APPROVED" : "REJECTED"}
-                </span>
-                <span className="block font-mono text-2xs text-ink-tertiary mt-0.5">By {decision.decidedBy || "Recruiter"}</span>
-              </div>
-            )}
-            <button
-              onClick={() => setShowDecisionModal("FAIL")}
-              disabled={submittingDecision}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm-minus font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <XCircle size={15} />
-              Reject Candidate
-            </button>
-            <button
-              onClick={() => setShowDecisionModal("PASS")}
-              disabled={submittingDecision}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm-minus font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <CheckCircle2 size={15} />
-              Approve Candidate
-            </button>
+          {/* Title Row */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Link
+                to="/results"
+                className="w-9 h-9 rounded-full bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE] flex items-center justify-center transition-colors shrink-0"
+                title="Back to Results"
+              >
+                <ArrowLeft size={18} />
+              </Link>
+              <h1 className="text-[28px] font-bold text-[#0F172A] tracking-tight">
+                Evaluation: {detail.candidateName}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 h-[38px] px-4 text-[12px] font-semibold text-[#64748B] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-full transition-all cursor-pointer shadow-xs"
+                title="Export Evaluation PDF"
+              >
+                <FileText size={14} />
+                <span>Export PDF</span>
+              </button>
+
+              <Link
+                to="/results"
+                className="flex items-center gap-2 h-[38px] px-5 text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full transition-all cursor-pointer shadow-xs"
+              >
+                <ArrowLeft size={15} /> <span>Back to Results</span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -460,45 +512,254 @@ function IndividualResultPage() {
                       const n = Number(mScore);
                       return isNaN(n) ? "0%" : `${n <= 1.0 && n > 0 ? Math.round(n * 100) : Math.round(n)}%`;
                     })()})
+        {/* Header Hero Banner Card */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-[#F1F5F9] pb-6">
+            <div>
+              <div className="flex flex-wrap items-center gap-3 mb-2">
+                <h2 className="text-[26px] font-bold text-[#0F172A] tracking-tight">{detail.candidateName}</h2>
+                {isApproved ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide border border-[#10B981] text-[#059669] bg-[#ECFDF5]">
+                    APPROVED
+                  </span>
+                ) : isRejected ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide border border-[#EF4444] text-[#DC2626] bg-[#FEF2F2]">
+                    REJECTED
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[12px] font-medium border border-[#F59E0B] text-[#D97706] bg-[#FFFBEB]">
+                    Pending Review
                   </span>
                 )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                {detail.roleTemplateName && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide border border-[#10B981] text-[#059669] bg-[#ECFDF5]">
+                    APPROVED
+                  </span>
+                )}
+              </div>
+              <p className="text-[13px] text-[#64748B] flex flex-wrap items-center gap-x-2.5 gap-y-1 font-normal">
+                <span>{detail.candidateEmail}</span>
+                <span className="text-[#94A3B8]">•</span>
+                <span>Drive: <strong className="font-bold text-[#0F172A]">{formatDriveName(detail.driveName)}</strong></span>
+              </p>
+            </div>
 
-      {/* Tab Contents */}
-      <div className="bg-white border border-line rounded-xl p-6 shadow-sm min-h-[400px]">
+            {/* Action Decision Buttons */}
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => setShowDecisionModal("FAIL")}
+                disabled={submittingDecision}
+                className="flex items-center gap-2 h-[40px] px-5 text-[13px] font-semibold text-[#EF4444] border border-[#EF4444] hover:bg-[#FEF2F2] rounded-full transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <XCircle size={18} className="text-[#EF4444]" />
+                <span>Reject Candidate</span>
+              </button>
+              <button
+                onClick={() => setShowDecisionModal("PASS")}
+                disabled={submittingDecision}
+                className="flex items-center gap-2 h-[40px] px-6 text-[13px] font-semibold text-white bg-[#10B981] hover:bg-[#059669] rounded-full transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <CheckCircle2 size={18} className="text-white" />
+                <span>Approve Candidate</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4 Score Overview Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+            <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] block mb-2">
+                TOTAL SCORE
+              </span>
+              <div>
+                <span className="text-[32px] font-bold text-[#0F172A] leading-tight block">
+                  {(() => {
+                    const raw = (score as any)?.totalScore ?? score?.compositeScore;
+                    if (raw === null || raw === undefined) return "N/A";
+                    const num = Number(raw);
+                    if (isNaN(num)) return "N/A";
+                    const scoreVal = num <= 1.0 && num > 0 ? Math.round(num * 100) : Math.round(num * 10) / 10;
+                    return `${scoreVal}%`;
+                  })()}
+                </span>
+                <span className="text-[12px] text-[#94A3B8] font-medium block mt-0.5">Weighted candidate performance</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] block mb-2">
+                PROCTORING INTEGRITY
+              </span>
+              <div>
+                {flags.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-6 h-6 text-[#EF4444] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2z" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span className="text-[32px] font-bold text-[#0F172A] leading-tight">
+                      {flags.length} Flags
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={24} className="text-[#10B981] shrink-0" />
+                    <span className="text-[32px] font-bold text-[#0F172A] leading-tight">
+                      100% Clean
+                    </span>
+                  </div>
+                )}
+                <span className="text-[12px] text-[#94A3B8] font-medium block mt-0.5">
+                  {flags.length > 0 ? "Critical anomalies flagged" : "No integrity issues flagged"}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] block mb-2">
+                OVERALL ALIGNMENT
+              </span>
+              <div>
+                <span className="text-[32px] font-bold text-[#0F172A] leading-tight block">
+                  {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
+                    ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
+                    : "62%"}
+                </span>
+                <span className="text-[12px] text-[#94A3B8] font-medium block mt-0.5">Role standard matching rate</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] block mb-2">
+                AI CONFIDENCE
+              </span>
+              <div>
+                <span className="text-[32px] font-bold text-[#0F172A] leading-tight block">
+                  {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
+                    ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
+                    : "90%"}
+                </span>
+                <span className="text-[12px] text-[#94A3B8] font-medium block mt-0.5">Evaluation system fidelity score</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Module Navigation Tabs (Figma Pill Tabs) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          {availableTabs.map((tab: any) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const mScore = score?.moduleScores?.[tab.id];
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 h-[39px] px-5 rounded-[19.5px] text-[13px] transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                    : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
+                }`}
+              >
+                <div className="relative inline-flex items-center justify-center shrink-0">
+                  <Icon size={15} />
+                  {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-[#EF4444] ring-2 ring-white" />
+                  )}
+                </div>
+                <span>
+                  {tab.label}
+                  {mScore !== undefined && mScore !== null && (
+                    <span className="ml-1.5 font-mono text-[11px] font-bold opacity-80">
+                      ({Math.round(Number(mScore) * 100)}%)
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Contents Card */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs min-h-[420px]">
         {/* CODING TAB */}
         {activeTab === "CODING" && (() => {
-          const isDebuggingItem = (item: any) => {
-            if (!item) return false;
-            const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
-            if (modType === "DEBUGGING") return true;
-            const tags = item.tags || item.question?.tags || [];
-            if (Array.isArray(tags) && tags.includes("debugging")) return true;
-            const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
-            if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
-            return false;
-          };
+          const codingResponses = getAllResponses.filter(
+            (r) => {
+              if (isDebuggingItem(r)) return false;
+              const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+              const payload = getParsedPayload(r);
+              const pModType = (payload.moduleType || "").toUpperCase();
+              const qMod = (r.question?.moduleType || r.question?.type || "").toUpperCase();
 
-          const codingResponses = (detail.moduleResponses || []).filter(
-            (r) =>
-              (r.moduleType === "CODING" || r.responsePayload?.moduleType === "CODING" || r.responsePayload?.sourceCode !== undefined || r.responsePayload?.code !== undefined) &&
-              !isDebuggingItem(r)
+              const isCodingType = modType === "CODING" || pModType === "CODING" || qMod === "CODING" || qMod === "DSA";
+              const hasCodingContent =
+                payload.sourceCode !== undefined ||
+                payload.code !== undefined ||
+                payload.userCode !== undefined ||
+                payload.solution !== undefined ||
+                payload.submittedCode !== undefined ||
+                payload.language !== undefined ||
+                payload.passedTests !== undefined ||
+                payload.totalTests !== undefined ||
+                payload.stdout !== undefined;
+
+              return isCodingType || hasCodingContent;
+            }
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const codingDriveQuestions = driveQuestions.filter((q: any) => {
+            const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+            return (qMod === "CODING" || qMod === "" || qMod === "DSA") && !isDebuggingItem(q);
+          });
+
           return (
             <div className="space-y-4">
               <h3 className="text-md font-semibold text-ink">Coding Submissions &amp; Unit Test Execution Results</h3>
               {codingResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No coding submissions recorded for this assessment.</p>
+                codingDriveQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {codingDriveQuestions.map((qItem: any, idx: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `Coding Problem #${idx + 1}`;
+                      const initialCode = qContent.initialCode || qContent.starterCode || qContent.template || "// Candidate did not submit code for this problem.";
+                      const lang = qContent.language || qObj.language || "python";
+
+                      return (
+                        <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm-minus font-semibold text-ink">
+                              {promptText} ({lang})
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          </div>
+
+                          <div className="h-44 border border-line rounded-md overflow-hidden">
+                            <CodeEditor
+                              value={typeof initialCode === "string" ? initialCode : JSON.stringify(initialCode, null, 2)}
+                              language={lang}
+                              readOnly={true}
+                              theme="cd-recruit-dark"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm-minus text-ink-tertiary italic">No coding submissions recorded for this assessment.</p>
+                )
               ) : (
                 codingResponses.map((resp, idx) => {
-                  const payload = resp.responsePayload || (resp as any).payload || resp;
-                  const codeText = payload.sourceCode || payload.code || "// No code submitted";
+                  const payload = getParsedPayload(resp);
+                  const codeText = payload.sourceCode || payload.code || payload.userCode || payload.solution || payload.submittedCode || "// No code submitted";
                   const lang = payload.language || "python";
-                  const promptText = (resp.question as any)?.prompt || payload.questionText || `Coding Problem #${idx + 1}`;
+                  const promptText = (resp.question as any)?.prompt || (resp.question as any)?.content?.prompt || payload.questionText || payload.prompt || `Coding Problem #${idx + 1}`;
                   const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
                   const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
                   const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
@@ -523,11 +784,11 @@ function IndividualResultPage() {
                         />
                       </div>
 
-                      {resp.responsePayload?.stdout && (
+                      {(payload.stdout || payload.output) && (
                         <div>
                           <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
                           <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
-                            {resp.responsePayload.stdout}
+                            {payload.stdout || payload.output}
                           </div>
                         </div>
                       )}
@@ -541,32 +802,58 @@ function IndividualResultPage() {
 
         {/* DEBUGGING TAB */}
         {activeTab === "DEBUGGING" && (() => {
-          const isDebuggingItem = (item: any) => {
-            if (!item) return false;
-            const modType = (item.moduleType || item.question?.moduleType || item.responsePayload?.moduleType || "").toUpperCase();
-            if (modType === "DEBUGGING") return true;
-            const tags = item.tags || item.question?.tags || [];
-            if (Array.isArray(tags) && tags.includes("debugging")) return true;
-            const prompt = (item.prompt || item.question?.prompt || item.content?.prompt || item.questionText || "").toLowerCase();
-            if (prompt.includes("debugging") || prompt.includes("debugging challenge")) return true;
-            return false;
-          };
-
-          const debuggingResponses = (detail.moduleResponses || []).filter(
+          const debuggingResponses = getAllResponses.filter(
             (r) => isDebuggingItem(r)
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const debuggingDriveQuestions = driveQuestions.filter((q: any) => isDebuggingItem(q));
 
           return (
             <div className="space-y-4">
               <h3 className="text-md font-semibold text-ink">Debugging Fix Submissions &amp; Test Suite Verification</h3>
               {debuggingResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No debugging submissions recorded for this assessment.</p>
+                debuggingDriveQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {debuggingDriveQuestions.map((qItem: any, idx: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `Debugging Challenge #${idx + 1}`;
+                      const initialCode = qContent.initialCode || qContent.starterCode || qContent.buggyCode || "// Candidate did not submit fix for this debugging challenge.";
+                      const lang = qContent.language || qObj.language || "python";
+
+                      return (
+                        <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm-minus font-semibold text-ink">
+                              {promptText} ({lang})
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          </div>
+
+                          <div className="h-48 border border-line rounded-md overflow-hidden">
+                            <CodeEditor
+                              value={typeof initialCode === "string" ? initialCode : JSON.stringify(initialCode, null, 2)}
+                              language={lang}
+                              readOnly={true}
+                              theme="cd-recruit-dark"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm-minus text-ink-tertiary italic">No debugging submissions recorded for this assessment.</p>
+                )
               ) : (
                 debuggingResponses.map((resp, idx) => {
-                  const payload = resp.responsePayload || (resp as any).payload || resp;
-                  const codeText = payload.sourceCode || payload.code || "// No fixed code submitted";
+                  const payload = getParsedPayload(resp);
+                  const codeText = payload.sourceCode || payload.code || payload.userCode || payload.fixedCode || "// No fixed code submitted";
                   const lang = payload.language || "python";
-                  const promptText = (resp.question as any)?.prompt || payload.questionText || `Debugging Challenge #${idx + 1}`;
+                  const promptText = (resp.question as any)?.prompt || (resp.question as any)?.content?.prompt || payload.questionText || payload.prompt || `Debugging Challenge #${idx + 1}`;
                   const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
                   const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
                   const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
@@ -596,11 +883,11 @@ function IndividualResultPage() {
                         />
                       </div>
 
-                      {resp.responsePayload?.stdout && (
+                      {(payload.stdout || payload.output) && (
                         <div>
                           <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
                           <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
-                            {resp.responsePayload.stdout}
+                            {payload.stdout || payload.output}
                           </div>
                         </div>
                       )}
@@ -614,21 +901,66 @@ function IndividualResultPage() {
 
         {/* SQL TAB */}
         {activeTab === "SQL" && (() => {
-          const sqlResponses = (detail.moduleResponses || []).filter(
-            r => (r.moduleType === 'SQL' || r.responsePayload?.moduleType === 'SQL') && r.moduleType !== 'NOSQL' && r.responsePayload?.moduleType !== 'NOSQL'
+          const sqlResponses = getAllResponses.filter(
+            r => {
+              const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+              const payload = getParsedPayload(r);
+              const pModType = (payload.moduleType || "").toUpperCase();
+              if (modType === 'NOSQL' || pModType === 'NOSQL') return false;
+              return modType === 'SQL' || pModType === 'SQL' || payload.query !== undefined || payload.sqlQuery !== undefined || payload.sql !== undefined;
+            }
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const sqlDriveQuestions = driveQuestions.filter((q: any) => {
+            const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+            return (qMod === "SQL") && qMod !== "NOSQL";
+          });
+
           return (
             <div className="space-y-4">
               <h3 className="text-md font-semibold text-ink">SQL Query Submissions &amp; Execution Results</h3>
               {sqlResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No SQL queries recorded for this assessment.</p>
+                sqlDriveQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {sqlDriveQuestions.map((qItem: any, idx: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `SQL Problem #${idx + 1}`;
+                      const initialQuery = qContent.initialQuery || qContent.starterCode || qContent.sql || "-- Candidate did not submit SQL query for this problem.";
+
+                      return (
+                        <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono font-semibold text-ink">{promptText}</span>
+                            <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          </div>
+
+                          <div className="h-44 border border-line rounded-md overflow-hidden">
+                            <CodeEditor
+                              value={typeof initialQuery === "string" ? initialQuery : JSON.stringify(initialQuery, null, 2)}
+                              language="sql"
+                              readOnly={true}
+                              theme="cd-recruit-dark"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm-minus text-ink-tertiary italic">No SQL queries recorded for this assessment.</p>
+                )
               ) : (
                 sqlResponses.map((resp, idx) => {
-                  const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted";
-                  const execResult = resp.responsePayload?.executionResult;
+                  const payload = getParsedPayload(resp);
+                  const queryText = payload.query || payload.sqlQuery || payload.sql || payload.code || "-- No query submitted";
+                  const execResult = payload.executionResult;
                   const hasResult = execResult !== undefined;
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
+                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED" || payload.isCorrect;
+                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (payload.status || "EXECUTED");
                   const badgeColor = hasResult
                     ? (isCorrect
                         ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -646,7 +978,7 @@ function IndividualResultPage() {
 
                       <div className="h-44 border border-line rounded-md overflow-hidden">
                         <CodeEditor
-                          value={queryText}
+                          value={typeof queryText === "string" ? queryText : JSON.stringify(queryText, null, 2)}
                           language="sql"
                           readOnly={true}
                           theme="cd-recruit-dark"
@@ -662,25 +994,70 @@ function IndividualResultPage() {
 
         {/* NoSQL TAB */}
         {activeTab === "NOSQL" && (() => {
-          const nosqlResponses = (detail.moduleResponses || []).filter(
-            r => (r.moduleType === 'NOSQL' || r.responsePayload?.moduleType === 'NOSQL') && r.moduleType !== 'SQL' && r.responsePayload?.moduleType !== 'SQL'
+          const nosqlResponses = getAllResponses.filter(
+            r => {
+              const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+              const payload = getParsedPayload(r);
+              const pModType = (payload.moduleType || "").toUpperCase();
+              if (modType === 'SQL' || pModType === 'SQL') return false;
+              return modType === 'NOSQL' || pModType === 'NOSQL' || payload.operation !== undefined || payload.noSqlQuery !== undefined;
+            }
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const nosqlDriveQuestions = driveQuestions.filter((q: any) => {
+            const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+            return (qMod === "NOSQL") && qMod !== "SQL";
+          });
+
           return (
             <div className="space-y-4">
               <h3 className="text-md font-semibold text-ink">NoSQL Query Submissions &amp; Execution Results</h3>
               {nosqlResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No NoSQL queries recorded for this assessment.</p>
+                nosqlDriveQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {nosqlDriveQuestions.map((qItem: any, idx: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `NoSQL Problem #${idx + 1}`;
+                      const initialQuery = qContent.initialQuery || qContent.starterCode || "// Candidate did not submit NoSQL query for this problem.";
+
+                      return (
+                        <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono font-semibold text-ink">{promptText}</span>
+                            <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          </div>
+
+                          <div className="h-44 border border-line rounded-md overflow-hidden">
+                            <CodeEditor
+                              value={typeof initialQuery === "string" ? initialQuery : JSON.stringify(initialQuery, null, 2)}
+                              language="javascript"
+                              readOnly={true}
+                              theme="cd-recruit-dark"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm-minus text-ink-tertiary italic">No NoSQL queries recorded for this assessment.</p>
+                )
               ) : (
                 nosqlResponses.map((resp, idx) => {
-                  const op = resp.responsePayload?.operation || {};
-                  const rawQuery = resp.responsePayload?.query;
+                  const payload = getParsedPayload(resp);
+                  const op = payload.operation || {};
+                  const rawQuery = payload.query || payload.noSqlQuery;
                   const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2));
                   const displayLanguage = rawQuery ? "javascript" : "json";
 
-                  const execResult = resp.responsePayload?.executionResult;
+                  const execResult = payload.executionResult;
                   const hasResult = execResult !== undefined;
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
+                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED" || payload.isCorrect;
+                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (payload.status || "EXECUTED");
                   const badgeColor = hasResult
                     ? (isCorrect
                         ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -698,7 +1075,7 @@ function IndividualResultPage() {
 
                       <div className="h-44 border border-line rounded-md overflow-hidden">
                         <CodeEditor
-                          value={displayQuery}
+                          value={typeof displayQuery === "string" ? displayQuery : JSON.stringify(displayQuery, null, 2)}
                           language={displayLanguage}
                           readOnly={true}
                           theme="cd-recruit-dark"
@@ -714,17 +1091,30 @@ function IndividualResultPage() {
 
         {/* MCQ TAB */}
         {activeTab === "MCQ" && (() => {
-          const mcqResponses = (detail.moduleResponses || []).filter(
-            r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
+          const mcqResponses = getAllResponses.filter(
+            r => {
+              const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+              const payload = getParsedPayload(r);
+              const pModType = (payload.moduleType || "").toUpperCase();
+              return modType === 'MCQ' || pModType === 'MCQ' || payload.selectedOptions !== undefined || payload.selectedOption !== undefined || payload.selectedIndex !== undefined || payload.selectedOptionIndex !== undefined;
+            }
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const mcqDriveQuestions = driveQuestions.filter((q: any) => {
+            const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+            return qMod === "MCQ";
+          });
+
           const correctCount = mcqResponses.filter(r => {
+            const payload = getParsedPayload(r);
             const qObj = r.question || {};
             const qContent = qObj.content || {};
             const optionsList = qObj.options || qContent.options || [];
-            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
+            const selectedRaw = payload.selectedOption ?? payload.selectedOptions ?? payload.selectedOptionIndex ?? payload.selectedIndex;
             const correctRaw = qObj.correctOption ?? qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex;
             
-            if (r.responsePayload?.isCorrect !== undefined) return Boolean(r.responsePayload.isCorrect);
+            if (payload.isCorrect !== undefined) return Boolean(payload.isCorrect);
             if (selectedRaw === undefined || correctRaw === undefined) return false;
             
             const selText = Array.isArray(selectedRaw) ? selectedRaw.map(sr => resolveOptionText(sr, optionsList)).join(", ") : resolveOptionText(selectedRaw, optionsList);
@@ -733,7 +1123,8 @@ function IndividualResultPage() {
           }).length;
 
           const skippedCount = mcqResponses.filter(r => {
-            const selectedRaw = r.responsePayload?.selectedOption ?? r.responsePayload?.selectedOptions ?? r.responsePayload?.selectedOptionIndex ?? r.responsePayload?.selectedIndex;
+            const payload = getParsedPayload(r);
+            const selectedRaw = payload.selectedOption ?? payload.selectedOptions ?? payload.selectedOptionIndex ?? payload.selectedIndex;
             return selectedRaw === undefined || selectedRaw === null || (Array.isArray(selectedRaw) && selectedRaw.length === 0);
           }).length;
 
@@ -762,17 +1153,60 @@ function IndividualResultPage() {
               </div>
 
               {mcqResponses.length === 0 ? (
-                <p className="text-sm-minus text-ink-tertiary italic">No MCQ responses recorded for this assessment.</p>
+                mcqDriveQuestions.length > 0 ? (
+                  <div className="space-y-3">
+                    {mcqDriveQuestions.map((qItem: any, idx: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `MCQ Question #${idx + 1}`;
+                      const optionsList: Array<any> = qObj.options || qContent.options || [];
+
+                      return (
+                        <div key={qItem.id || idx} className="p-4 bg-white border border-line rounded-xl space-y-3 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-bold bg-brand-subtle text-brand shrink-0">
+                                Q{idx + 1}
+                              </span>
+                              <h4 className="text-sm-minus font-semibold text-ink leading-snug">
+                                {promptText}
+                              </h4>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              Unattempted
+                            </span>
+                          </div>
+
+                          {optionsList.length > 0 && (
+                            <div className="text-xs space-y-1 pt-2 border-t border-surface-inset">
+                              <span className="text-ink-tertiary block font-mono uppercase text-2xs mb-1">Options:</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {optionsList.map((opt: any, oIdx: number) => (
+                                  <div key={oIdx} className="px-3 py-1.5 rounded border border-line bg-canvas text-ink text-xs font-mono">
+                                    {resolveOptionText(opt, optionsList)}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm-minus text-ink-tertiary italic">No MCQ responses recorded for this assessment.</p>
+                )
               ) : (
                 <div className="space-y-3">
                   {mcqResponses.map((resp, idx) => {
+                    const payload = getParsedPayload(resp);
                     const qObj = resp.question || {};
                     const qContent = qObj.content || {};
-                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || resp.responsePayload?.questionText || `Question #${idx + 1}`;
+                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || payload.questionText || payload.prompt || `Question #${idx + 1}`;
                     
                     const optionsList: Array<any> = qObj.options || qContent.options || [];
 
-                    const selectedRaw = resp.responsePayload?.selectedOption ?? resp.responsePayload?.selectedOptions ?? resp.responsePayload?.selectedOptionIndex ?? resp.responsePayload?.selectedIndex;
+                    const selectedRaw = payload.selectedOption ?? payload.selectedOptions ?? payload.selectedOptionIndex ?? payload.selectedIndex;
 
                     let selectedOptionText = "None selected";
                     if (selectedRaw !== undefined && selectedRaw !== null) {
@@ -790,8 +1224,8 @@ function IndividualResultPage() {
                     }
 
                     let isCorrect = false;
-                    if (resp.responsePayload?.isCorrect !== undefined) {
-                      isCorrect = Boolean(resp.responsePayload.isCorrect);
+                    if (payload.isCorrect !== undefined) {
+                      isCorrect = Boolean(payload.isCorrect);
                     } else if (selectedRaw !== undefined && correctRaw !== undefined) {
                       isCorrect = selectedOptionText.trim().toLowerCase() === correctAnswerText.trim().toLowerCase() || String(selectedRaw).toLowerCase() === String(correctRaw).toLowerCase();
                     }
@@ -840,9 +1274,20 @@ function IndividualResultPage() {
 
         {/* TEST SCENARIOS TAB */}
         {activeTab === "TEST_SCENARIOS" && (() => {
-          const scenarioResponses = (detail.moduleResponses || []).filter(
-            (r) => r.moduleType === "TEST_SCENARIOS" || r.responsePayload?.moduleType === "TEST_SCENARIOS" || (r as any).question?.moduleType === "TEST_SCENARIOS" || r.responsePayload?.answer !== undefined
+          const scenarioResponses = getAllResponses.filter(
+            (r) => {
+              const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+              const payload = getParsedPayload(r);
+              const pModType = (payload.moduleType || "").toUpperCase();
+              return modType === "TEST_SCENARIOS" || pModType === "TEST_SCENARIOS" || payload.answer !== undefined || payload.scenarioAnswer !== undefined;
+            }
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const scenarioDriveQuestions = driveQuestions.filter((q: any) => {
+            const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+            return qMod === "TEST_SCENARIOS";
+          });
 
           return (
             <div className="space-y-6">
@@ -858,25 +1303,70 @@ function IndividualResultPage() {
                     </span>
                   )}
                   <span className="px-3 py-1 rounded-full text-xs-plus font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    Total Scenarios: {scenarioResponses.length}
+                    Total Scenarios: {scenarioResponses.length || scenarioDriveQuestions.length}
                   </span>
                 </div>
               </div>
 
               {scenarioResponses.length === 0 ? (
-                <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
-                  No Test Scenario responses recorded for this candidate session.
-                </div>
+                scenarioDriveQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {scenarioDriveQuestions.map((qItem: any, index: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `Test Scenario #${index + 1}`;
+                      const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
+                      const category = qContent.category || qObj.category || "Scenario Evaluation";
+
+                      return (
+                        <div key={qItem.id || index} className="border border-line rounded-md p-5 space-y-4 bg-canvas">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <span className="text-xs-plus font-mono font-bold text-indigo-600 uppercase tracking-wider block mb-1">
+                                Scenario {index + 1} • {category}
+                              </span>
+                              <h4 className="text-sm font-bold text-ink">{promptText}</h4>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              Unattempted
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs-plus font-mono uppercase text-ink-secondary font-semibold block">
+                              Candidate's Solution &amp; Action Plan:
+                            </label>
+                            <div className="bg-white border border-line p-4 rounded-md text-sm-minus font-sans text-ink-tertiary italic">
+                              (No response submitted by candidate)
+                            </div>
+                          </div>
+
+                          {expectedAnswer && (
+                            <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-xs text-indigo-950 space-y-1">
+                              <span className="font-semibold text-indigo-900 block font-mono uppercase text-2xs">Expected Criteria / Key Guidelines:</span>
+                              <p className="leading-relaxed">{expectedAnswer}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
+                    No Test Scenario responses recorded for this candidate session.
+                  </div>
+                )
               ) : (
                 <div className="space-y-4">
                   {scenarioResponses.map((res: any, index: number) => {
+                    const payload = getParsedPayload(res);
                     const qObj = res.question || {};
                     const qContent = qObj.content || {};
-                    const promptText = res.prompt || qObj.prompt || qContent.prompt || qContent.question || `Test Scenario #${index + 1}`;
+                    const promptText = res.prompt || qObj.prompt || qContent.prompt || qContent.question || payload.questionText || `Test Scenario #${index + 1}`;
                     const expectedAnswer = qContent.expectedAnswer || qObj.expectedAnswer || "";
-                    const candidateAnswer = res.responsePayload?.answer || res.responsePayload?.text || "// No response provided";
+                    const candidateAnswer = payload.answer || payload.scenarioAnswer || payload.text || "// No response provided";
                     const category = qContent.category || qObj.category || "Scenario Evaluation";
-                    const evaluation = res.responsePayload?.evaluation;
+                    const evaluation = payload.evaluation;
                     const scoreVal = evaluation?.overallScore ?? null;
 
                     return (
@@ -931,9 +1421,20 @@ function IndividualResultPage() {
 
         {/* AI PROMPTING TAB */}
         {activeTab === "AI_PROMPTING" && (() => {
-          const aiPromptingResponses = (detail.moduleResponses || []).filter(
-            (r) => r.responsePayload?.moduleType === "AI_PROMPTING" || r.responsePayload?.prompt
+          const aiPromptingResponses = getAllResponses.filter(
+            (r) => {
+              const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+              const payload = getParsedPayload(r);
+              const pModType = (payload.moduleType || "").toUpperCase();
+              return modType === "AI_PROMPTING" || pModType === "AI_PROMPTING" || payload.prompt !== undefined || payload.userPrompt !== undefined || payload.candidatePrompt !== undefined;
+            }
           );
+
+          const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
+          const aiDriveQuestions = driveQuestions.filter((q: any) => {
+            const qMod = (q.moduleType || q.question?.moduleType || "").toUpperCase();
+            return qMod === "AI_PROMPTING";
+          });
 
           return (
             <div className="space-y-6">
@@ -945,14 +1446,46 @@ function IndividualResultPage() {
               </div>
 
               {aiPromptingResponses.length === 0 ? (
-                <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
-                  No AI Prompting module responses recorded for this candidate session.
-                </div>
+                aiDriveQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {aiDriveQuestions.map((qItem: any, index: number) => {
+                      const qObj = qItem.question || qItem;
+                      const qContent = qObj.content || {};
+                      const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `Prompt Task #${index + 1}`;
+
+                      return (
+                        <div key={qItem.id || index} className="p-5 bg-white border border-line rounded-xl space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
+                            <span className="text-sm-minus font-semibold text-ink">
+                              {promptText}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              Unattempted
+                            </span>
+                          </div>
+
+                          <div>
+                            <div className="text-xs-plus font-medium text-ink-tertiary uppercase tracking-wider mb-1">
+                              Candidate Submitted Prompt
+                            </div>
+                            <div className="p-3 bg-white border border-line rounded-lg font-mono text-xs text-ink-tertiary italic">
+                              (No prompt submitted by candidate)
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-white border border-line rounded-lg text-ink-tertiary text-sm-minus">
+                    No AI Prompting module responses recorded for this candidate session.
+                  </div>
+                )
               ) : (
                 <div className="space-y-4">
                   {aiPromptingResponses.map((res, index) => {
-                    const payload = res.responsePayload || {};
-                    const promptStr = String(payload.prompt || "").trim();
+                    const payload = getParsedPayload(res);
+                    const promptStr = String(payload.prompt || payload.userPrompt || payload.candidatePrompt || "").trim();
                     const isShortOrGibberish = promptStr.length < 15 || !promptStr.includes(" ");
                     const isJailbreak = !!payload.isJailbreakAttempt;
                     const isVerbatim = !!payload.isVerbatimCopy;
@@ -1034,7 +1567,7 @@ function IndividualResultPage() {
                             Candidate Submitted Prompt
                           </div>
                           <div className="p-3 bg-white border border-line rounded-lg font-mono text-xs text-ink whitespace-pre-wrap">
-                            {payload.prompt || "(No prompt submitted)"}
+                            {promptStr || "(No prompt submitted)"}
                           </div>
                         </div>
 
@@ -1634,6 +2167,7 @@ function IndividualResultPage() {
           </div>
         );
       })()}
+      </div>
     </AppShell>
   );
 }

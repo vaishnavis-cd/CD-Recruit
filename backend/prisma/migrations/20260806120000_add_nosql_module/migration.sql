@@ -1,5 +1,4 @@
 -- AlterEnum
-ALTER TYPE "ModuleType" ADD VALUE 'DEBUGGING';
 ALTER TYPE "ModuleType" ADD VALUE 'NOSQL';
 
 -- AlterTable

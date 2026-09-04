@@ -145,11 +145,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             id: staffId,
             email,
             name: displayName,
-            role: role || StaffRole.RECRUITER,
+            role: (role || StaffRole.ADMIN) as any,
             keycloakUserId: `keycloak-${staffId}`,
           },
         });
       }
+    }
+
+    if (staff && role && staff.role !== (role as any)) {
+      staff = await this.prisma.staff.update({
+        where: { id: staff.id },
+        data: { role: role as any },
+      });
     }
 
     return {
@@ -160,3 +167,4 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
+

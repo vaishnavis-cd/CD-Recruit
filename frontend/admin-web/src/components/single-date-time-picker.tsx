@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, Clock, RefreshCw } from "lucide-react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { ChevronLeft, ChevronRight, ChevronDown, Clock, Calendar as CalendarIcon, X } from "lucide-react";
 
 interface SingleDateTimePickerProps {
   selectedDate: string; // ISO date string "YYYY-MM-DD"
@@ -39,7 +39,6 @@ interface TimeInputGroupProps {
   minuteValue: string;
   onChangeHour: (h: string) => void;
   onChangeMinute: (m: string) => void;
-  /** When true accepts 0–23 and shows no AM/PM selector */
   is24h?: boolean;
 }
 
@@ -117,7 +116,7 @@ function TimeInputGroup({
   };
 
   return (
-    <div className="flex items-center gap-1 font-mono text-base text-ink">
+    <div className="flex items-center justify-center gap-1 font-mono text-[14px] text-[#1E1B4B]">
       <input
         ref={hourRef}
         type="text"
@@ -127,10 +126,10 @@ function TimeInputGroup({
         onBlur={handleHourBlur}
         onKeyDown={handleHourKeyDown}
         onFocus={(e) => e.target.select()}
-        className="w-8 text-center focus:outline-none bg-canvas focus:bg-brand-subtle focus:text-brand rounded py-0.5 transition-colors font-semibold"
-        placeholder="HH"
+        className="w-6 text-center focus:outline-none bg-transparent rounded py-0.5 transition-colors font-bold text-[#1E1B4B]"
+        placeholder="09"
       />
-      <span className="text-ink-tertiary font-semibold">:</span>
+      <span className="text-[#6B7280] font-bold">:</span>
       <input
         ref={minuteRef}
         type="text"
@@ -140,8 +139,8 @@ function TimeInputGroup({
         onBlur={handleMinuteBlur}
         onKeyDown={handleMinuteKeyDown}
         onFocus={(e) => e.target.select()}
-        className="w-8 text-center focus:outline-none bg-canvas focus:bg-brand-subtle focus:text-brand rounded py-0.5 transition-colors font-semibold"
-        placeholder="MM"
+        className="w-6 text-center focus:outline-none bg-transparent rounded py-0.5 transition-colors font-bold text-[#1E1B4B]"
+        placeholder="00"
       />
     </div>
   );
@@ -175,13 +174,35 @@ export function SingleDateTimePicker({
 }: SingleDateTimePickerProps) {
   const initialDateObj = useMemo(() => {
     if (!selectedDate) return new Date();
-    const d = new Date(selectedDate);
-    return isNaN(d.getTime()) ? new Date() : d;
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    if (y && m && d) return new Date(y, m - 1, d);
+    const parsed = new Date(selectedDate);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
   }, [selectedDate]);
 
   const [currentMonth, setCurrentMonth] = useState<number>(initialDateObj.getMonth());
   const [currentYear, setCurrentYear] = useState<number>(initialDateObj.getFullYear());
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showDatePickerOverlay, setShowDatePickerOverlay] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCurrentMonth(initialDateObj.getMonth());
+    setCurrentYear(initialDateObj.getFullYear());
+  }, [initialDateObj]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setShowDatePickerOverlay(false);
+      }
+    };
+    if (showDatePickerOverlay) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [showDatePickerOverlay]);
 
   const today = new Date();
   const todayYear = today.getFullYear();
@@ -192,7 +213,8 @@ export function SingleDateTimePicker({
   const selectedMonth = initialDateObj.getMonth();
   const selectedDayNum = initialDateObj.getDate();
 
-  const handlePrevMonth = () => {
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear((y) => y - 1);
@@ -201,7 +223,8 @@ export function SingleDateTimePicker({
     }
   };
 
-  const handleNextMonth = () => {
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear((y) => y + 1);
@@ -260,183 +283,238 @@ export function SingleDateTimePicker({
       endSecond: "00",
       endAmPm,
     });
+    setShowDatePickerOverlay(false);
   };
 
-  // Derive rolling end label for display
-  const rollingEndLabel = useMemo(() => {
-    if (!rollingWindow || !selectedDate) return null;
-    const endIso = computeRollingEndDate(selectedDate, startHour, startMinute, startAmPm);
-    const endDate = new Date(endIso);
-    return endDate.toLocaleString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  }, [rollingWindow, selectedDate, startHour, startMinute, startAmPm]);
+  const formattedDateDisplay = useMemo(() => {
+    if (!selectedDate) return "Select date";
+    try {
+      const [y, m, d] = selectedDate.split("-").map(Number);
+      if (y && m && d) {
+        const dateObj = new Date(y, m - 1, d);
+        return dateObj.toLocaleDateString("en-US", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      }
+      return selectedDate;
+    } catch {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
+  // Preset Date Handlers
+  const handleSetToday = () => {
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    handleSelectDate(dateStr);
+  };
+
+  const handleSetTomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    handleSelectDate(dateStr);
+  };
+
+  const handleSetNextWeek = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    handleSelectDate(dateStr);
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Calendar Card */}
-        <div className="lg:col-span-7 bg-white border border-line rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="w-9 h-9 flex items-center justify-center border border-line rounded-lg text-ink-secondary hover:bg-canvas transition-colors cursor-pointer"
+    <div
+      className="w-full max-w-[1263px] min-h-[281px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] flex flex-col gap-6 relative"
+      style={{ fontFamily: "Instrument Sans, sans-serif" }}
+    >
+      {/* Header: Clock Icon + Assessment Date & Time Window */}
+      <div className="flex items-center gap-2">
+        <Clock size={18} className="text-[#2E5DE0] shrink-0" />
+        <h2 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+          Assessment Date &amp; Time Window
+        </h2>
+      </div>
+
+      {/* Frame 11: 2 Boxes Container (Date Box + Start/End Time Box) */}
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Frame 9: Date Box (Left) */}
+        <div className="w-full bg-[#FFFFFF] border border-[#E9EEFE] rounded-[16px] p-5 flex flex-col justify-between min-h-[189px] gap-4 relative">
+          <div className="space-y-2 relative">
+            <label className="block text-[14px] font-semibold text-[#1E1B4B]">Date</label>
+
+            {/* Date Input Box with Calendar Icon & Chevron */}
+            <div
+              onClick={() => setShowDatePickerOverlay(!showDatePickerOverlay)}
+              className="w-full h-[37px] px-4 rounded-[19px] border border-[#E9EEFE] bg-[#FFFFFF] flex items-center justify-between cursor-pointer hover:border-[#2E5DE0] transition-colors"
             >
-              <ChevronLeft size={18} />
-            </button>
-
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowMonthPicker((v) => !v)}
-                className="flex items-center gap-1.5 text-base font-semibold text-ink cursor-pointer hover:opacity-80 px-2.5 py-1 rounded-lg hover:bg-canvas transition-colors"
-              >
-                <span>{MONTH_NAMES[currentMonth]} {currentYear}</span>
-                <ChevronDown size={16} className={`text-ink-tertiary transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showMonthPicker && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-line rounded-xl p-3 shadow-xl flex items-center gap-2 min-w-[250px]">
-                  <select
-                    value={currentMonth}
-                    onChange={(e) => {
-                      setCurrentMonth(parseInt(e.target.value, 10));
-                      setShowMonthPicker(false);
-                    }}
-                    className="flex-1 px-2.5 py-1.5 text-sm-minus font-medium bg-canvas border border-line rounded-lg text-ink outline-none cursor-pointer hover:bg-white transition-colors"
-                  >
-                    {MONTH_NAMES.map((name, idx) => (
-                      <option key={name} value={idx}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={currentYear}
-                    onChange={(e) => {
-                      setCurrentYear(parseInt(e.target.value, 10));
-                      setShowMonthPicker(false);
-                    }}
-                    className="px-2.5 py-1.5 text-sm-minus font-medium bg-canvas border border-line rounded-lg text-ink outline-none cursor-pointer hover:bg-white transition-colors"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => 2024 + i).map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-[#1E1B4B]">
+                <CalendarIcon size={16} className="text-[#2E5DE0] shrink-0" />
+                <span className="text-[13px] font-medium text-[#1E1B4B]">
+                  {formattedDateDisplay}
+                </span>
+              </div>
+              <ChevronDown size={16} className={`text-[#6B7280] transition-transform ${showDatePickerOverlay ? "rotate-180" : ""}`} />
             </div>
 
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="w-9 h-9 flex items-center justify-center border border-line rounded-lg text-ink-secondary hover:bg-canvas transition-colors cursor-pointer"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 text-center mb-3">
-            {WEEKDAYS.map((wd) => (
-              <div key={wd} className="text-sm-minus font-medium text-ink-tertiary py-1">
-                {wd}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center">
-            {calendarDays.map((cell, idx) => {
-              const isSelected =
-                cell.currentMonth &&
-                currentYear === selectedYear &&
-                currentMonth === selectedMonth &&
-                cell.day === selectedDayNum;
-
-              const isToday =
-                cell.currentMonth &&
-                currentYear === todayYear &&
-                currentMonth === todayMonth &&
-                cell.day === todayDay;
-
-              return (
-                <div key={idx} className="flex flex-col items-center justify-center relative py-0.5">
+            {/* Calendar Overlay (Frame 7) */}
+            {showDatePickerOverlay && (
+              <div
+                ref={calendarRef}
+                className="absolute top-full left-0 mt-2 z-50 bg-white border border-[#E9EEFE] rounded-2xl p-4 shadow-2xl w-[320px] animate-fade-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Month/Year Navigation */}
+                <div className="flex items-center justify-between mb-4">
                   <button
                     type="button"
-                    onClick={() => handleSelectDate(cell.dateStr)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-brand text-white font-semibold shadow-md"
-                        : isToday
-                        ? "text-brand font-semibold hover:bg-brand-subtle"
-                        : cell.currentMonth
-                        ? "text-ink hover:bg-surface-inset"
-                        : "text-ink-tertiary hover:text-ink-tertiary"
-                    }`}
+                    onClick={handlePrevMonth}
+                    className="w-7 h-7 flex items-center justify-center rounded-full border border-[#E9EEFE] text-[#6B7280] hover:bg-slate-50 cursor-pointer"
                   >
-                    {cell.day}
+                    <ChevronLeft size={14} />
                   </button>
-                  {isToday && !isSelected && (
-                    <span className="w-1.5 h-1.5 bg-brand rounded-full absolute bottom-0"></span>
-                  )}
+                  <span className="text-[14px] font-bold text-[#1E1B4B]">
+                    {MONTH_NAMES[currentMonth]} {currentYear}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="w-7 h-7 flex items-center justify-center rounded-full border border-[#E9EEFE] text-[#6B7280] hover:bg-slate-50 cursor-pointer"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
-              );
-            })}
+
+                {/* Weekdays */}
+                <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                  {WEEKDAYS.map((wd) => (
+                    <div key={wd} className="text-[11px] font-semibold text-[#9CA3AF] py-1">
+                      {wd}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day Matrix */}
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {calendarDays.map((cell, idx) => {
+                    const isSelected =
+                      cell.currentMonth &&
+                      currentYear === selectedYear &&
+                      currentMonth === selectedMonth &&
+                      cell.day === selectedDayNum;
+
+                    const isToday =
+                      cell.currentMonth &&
+                      currentYear === todayYear &&
+                      currentMonth === todayMonth &&
+                      cell.day === todayDay;
+
+                    return (
+                      <div key={idx} className="flex flex-col items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectDate(cell.dateStr)}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-[#2E5DE0] text-white shadow-sm"
+                              : isToday
+                              ? "text-[#2E5DE0] bg-blue-50 font-bold"
+                              : cell.currentMonth
+                              ? "text-[#1E1B4B] hover:bg-slate-100"
+                              : "text-[#D1D5DB] hover:text-[#9CA3AF]"
+                          }`}
+                        >
+                          {cell.day}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Date Presets */}
+          <div className="space-y-2 pt-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+              QUICK DATE PRESETS
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSetToday}
+                className="h-[31px] px-[12px] py-[8px] rounded-[16px] bg-[#F3F4F6] text-[12px] font-semibold text-[#6B7280] hover:bg-[#E9EEFE] hover:text-[#2E5DE0] transition-colors cursor-pointer"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={handleSetTomorrow}
+                className="h-[31px] px-[12px] py-[8px] rounded-[16px] bg-[#F3F4F6] text-[12px] font-semibold text-[#6B7280] hover:bg-[#E9EEFE] hover:text-[#2E5DE0] transition-colors cursor-pointer"
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                onClick={handleSetNextWeek}
+                className="h-[31px] px-[12px] py-[8px] rounded-[16px] bg-[#F3F4F6] text-[12px] font-semibold text-[#6B7280] hover:bg-[#E9EEFE] hover:text-[#2E5DE0] transition-colors cursor-pointer"
+              >
+                Next Week
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Time Controls */}
-        <div className="lg:col-span-5 bg-white border border-line rounded-3xl p-6 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 border-b border-surface-inset pb-3">
-            <Clock size={18} className={rollingWindow ? "text-purple" : "text-brand"} />
-            <h3 className="text-md font-semibold text-ink">
-              {rollingWindow ? "Window Opens At" : "Assessment Time Window"}
-            </h3>
-          </div>
+        {/* Frame 10: Start Time / End Time Box (Right) */}
+        <div className="w-full bg-[#FFFFFF] border border-[#E9EEFE] rounded-[16px] p-5 flex flex-col justify-between min-h-[189px] gap-4">
+          {/* Start Time and End Time Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Start Time Column */}
+            <div className="space-y-1.5">
+              <label className="block text-[14px] font-semibold text-[#1E1B4B]">Start time</label>
+              <div className="flex items-center gap-2">
+                {/* Time Value Box (153.75 x 37) */}
+                <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-[16px] py-[10px] flex items-center justify-center focus-within:border-[#2E5DE0] transition-colors">
+                  <TimeInputGroup
+                    hourValue={startHour}
+                    minuteValue={startMinute}
+                    onChangeHour={(h) =>
+                      onChange({
+                        date: selectedDate,
+                        startHour: h,
+                        startMinute,
+                        startSecond: "00",
+                        startAmPm,
+                        endHour,
+                        endMinute,
+                        endSecond: "00",
+                        endAmPm,
+                      })
+                    }
+                    onChangeMinute={(m) =>
+                      onChange({
+                        date: selectedDate,
+                        startHour,
+                        startMinute: m,
+                        startSecond: "00",
+                        startAmPm,
+                        endHour,
+                        endMinute,
+                        endSecond: "00",
+                        endAmPm,
+                      })
+                    }
+                  />
+                </div>
 
-          {/* START TIME */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-ink">
-              {rollingWindow ? "Start time (24-hr)" : "Start time"}
-            </label>
-            <div className="bg-white border border-line rounded-xl px-4 py-3 flex items-center justify-between focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10 transition-all">
-              <TimeInputGroup
-                hourValue={startHour}
-                minuteValue={startMinute}
-                is24h={rollingWindow}
-                onChangeHour={(h) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour: h,
-                    startMinute,
-                    startSecond: "00",
-                    startAmPm,
-                    endHour,
-                    endMinute,
-                    endSecond: "00",
-                    endAmPm,
-                  })
-                }
-                onChangeMinute={(m) =>
-                  onChange({
-                    date: selectedDate,
-                    startHour,
-                    startMinute: m,
-                    startSecond: "00",
-                    startAmPm,
-                    endHour,
-                    endMinute,
-                    endSecond: "00",
-                    endAmPm,
-                  })
-                }
-              />
-
-              {!rollingWindow && (
-                <div className="relative flex items-center gap-1">
+                {/* AM/PM Dropdown Box (100 x 37) */}
+                <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-3.5 flex items-center justify-between relative cursor-pointer hover:border-[#2E5DE0] transition-colors">
+                  <span className="text-[13px] font-bold text-[#1E1B4B] select-none">
+                    {startAmPm}
+                  </span>
+                  <ChevronDown size={14} className="text-[#6B7280] pointer-events-none" />
                   <select
                     value={startAmPm}
                     onChange={(e) =>
@@ -452,62 +530,59 @@ export function SingleDateTimePicker({
                         endAmPm,
                       })
                     }
-                    className="appearance-none bg-canvas border border-line rounded-md px-3 py-1 text-sm-minus font-semibold text-ink focus:outline-none cursor-pointer pr-7"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
                   </select>
-                  <ChevronDown size={14} className="text-ink-tertiary absolute right-2.5 pointer-events-none" />
                 </div>
-              )}
-
-              {rollingWindow && (
-                <span className="text-xs font-mono bg-purple-subtle text-purple px-2 py-1 rounded-md font-semibold">
-                  24h
-                </span>
-              )}
+              </div>
             </div>
-          </div>
 
-          {/* END TIME — shown only in fixed mode */}
-          {!rollingWindow && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink">
-                End time
-              </label>
-              <div className="bg-white border border-line rounded-xl px-4 py-3 flex items-center justify-between focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/10 transition-all">
-                <TimeInputGroup
-                  hourValue={endHour}
-                  minuteValue={endMinute}
-                  onChangeHour={(h) =>
-                    onChange({
-                      date: selectedDate,
-                      startHour,
-                      startMinute,
-                      startSecond: "00",
-                      startAmPm,
-                      endHour: h,
-                      endMinute,
-                      endSecond: "00",
-                      endAmPm,
-                    })
-                  }
-                  onChangeMinute={(m) =>
-                    onChange({
-                      date: selectedDate,
-                      startHour,
-                      startMinute,
-                      startSecond: "00",
-                      startAmPm,
-                      endHour,
-                      endMinute: m,
-                      endSecond: "00",
-                      endAmPm,
-                    })
-                  }
-                />
+            {/* End Time Column */}
+            <div className="space-y-1.5">
+              <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
+              <div className="flex items-center gap-2">
+                {/* Time Value Box (153.75 x 37) */}
+                <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-[16px] py-[10px] flex items-center justify-center focus-within:border-[#2E5DE0] transition-colors">
+                  <TimeInputGroup
+                    hourValue={endHour}
+                    minuteValue={endMinute}
+                    onChangeHour={(h) =>
+                      onChange({
+                        date: selectedDate,
+                        startHour,
+                        startMinute,
+                        startSecond: "00",
+                        startAmPm,
+                        endHour: h,
+                        endMinute,
+                        endSecond: "00",
+                        endAmPm,
+                      })
+                    }
+                    onChangeMinute={(m) =>
+                      onChange({
+                        date: selectedDate,
+                        startHour,
+                        startMinute,
+                        startSecond: "00",
+                        startAmPm,
+                        endHour,
+                        endMinute: m,
+                        endSecond: "00",
+                        endAmPm,
+                      })
+                    }
+                  />
+                </div>
 
-                <div className="relative flex items-center gap-1">
+                {/* AM/PM Dropdown Box (100 x 37) */}
+                <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-3.5 flex items-center justify-between relative cursor-pointer hover:border-[#2E5DE0] transition-colors">
+                  <span className="text-[13px] font-bold text-[#1E1B4B] select-none">
+                    {endAmPm}
+                  </span>
+                  <ChevronDown size={14} className="text-[#6B7280] pointer-events-none" />
                   <select
                     value={endAmPm}
                     onChange={(e) =>
@@ -523,62 +598,50 @@ export function SingleDateTimePicker({
                         endAmPm: e.target.value,
                       })
                     }
-                    className="appearance-none bg-canvas border border-line rounded-md px-3 py-1 text-sm-minus font-semibold text-ink focus:outline-none cursor-pointer pr-7"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
                   </select>
-                  <ChevronDown size={14} className="text-ink-tertiary absolute right-2.5 pointer-events-none" />
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Rolling window: show computed end label */}
-          {rollingWindow && rollingEndLabel && (
-            <div className="p-3 bg-purple-subtle border border-purple-border rounded-lg space-y-1">
-              <p className="text-xs-plus font-semibold text-purple uppercase tracking-wider">Window Closes</p>
-              <p className="text-sm-minus font-semibold text-purple">{rollingEndLabel}</p>
-              <p className="text-xs-plus text-purple">Exactly 24 hours after opening</p>
+          {/* Quick Duration Presets */}
+          <div className="space-y-2 pt-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+              QUICK DURATION PRESETS
             </div>
-          )}
-
-          {/* Quick Presets — only in fixed mode */}
-          {!rollingWindow && (
-            <div className="pt-2">
-              <label className="block text-xs-plus font-mono uppercase tracking-wider text-ink-tertiary mb-2 font-semibold">
-                Quick Duration Presets
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { label: "2 Hrs (9 AM - 11 AM)", sH: "09", sM: "00", sAp: "AM", eH: "11", eM: "00", eAp: "AM" },
-                  { label: "3 Hrs (9 AM - 12 PM)", sH: "09", sM: "00", sAp: "AM", eH: "12", eM: "00", eAp: "PM" },
-                  { label: "Full Day (9 AM - 5 PM)", sH: "09", sM: "00", sAp: "AM", eH: "05", eM: "00", eAp: "PM" },
-                ].map((preset, pIdx) => (
-                  <button
-                    key={pIdx}
-                    type="button"
-                    onClick={() =>
-                      onChange({
-                        date: selectedDate,
-                        startHour: preset.sH,
-                        startMinute: preset.sM,
-                        startSecond: "00",
-                        startAmPm: preset.sAp,
-                        endHour: preset.eH,
-                        endMinute: preset.eM,
-                        endSecond: "00",
-                        endAmPm: preset.eAp,
-                      })
-                    }
-                    className="px-3 py-1.5 rounded-full text-xs font-medium border border-line bg-canvas hover:bg-brand-subtle hover:border-brand text-ink-secondary hover:text-brand transition-all cursor-pointer"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "2 Hrs (9 AM - 11 AM)", sH: "09", sM: "00", sAp: "AM", eH: "11", eM: "00", eAp: "AM" },
+                { label: "3 Hrs (9 AM - 12 PM)", sH: "09", sM: "00", sAp: "AM", eH: "12", eM: "00", eAp: "PM" },
+                { label: "Full Day (9 AM - 5 PM)", sH: "09", sM: "00", sAp: "AM", eH: "05", eM: "00", eAp: "PM" },
+              ].map((preset, pIdx) => (
+                <button
+                  key={pIdx}
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      date: selectedDate,
+                      startHour: preset.sH,
+                      startMinute: preset.sM,
+                      startSecond: "00",
+                      startAmPm: preset.sAp,
+                      endHour: preset.eH,
+                      endMinute: preset.eM,
+                      endSecond: "00",
+                      endAmPm: preset.eAp,
+                    })
+                  }
+                  className="h-[31px] px-[12px] py-[8px] rounded-[16px] bg-[#F3F4F6] text-[12px] font-semibold text-[#6B7280] hover:bg-[#E9EEFE] hover:text-[#2E5DE0] transition-colors cursor-pointer"
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -39,11 +39,12 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
       if (query?.status) url += `&status=${query.status}`;
       if (query?.search) url += `&search=${encodeURIComponent(query.search)}`;
       const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed to fetch drives");
       const data = await res.json();
-      set({ drives: data.items, loading: false });
-      return data.items || [];
+      const items = Array.isArray(data) ? data : (data.items || data.data || []);
+      set({ drives: items, loading: false });
+      return items;
     } catch (err: any) {
+
       console.error(err);
       if (!silent) set({ error: err.message, loading: false });
       return [];

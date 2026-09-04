@@ -6,7 +6,7 @@ import { type QuestionSlice, createQuestionSlice } from "./slices/questionSlice"
 import { type CommonSlice, createCommonSlice } from "./slices/commonSlice";
 import { clearStoredToken, getStoredToken } from "./auth";
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+export const API_BASE = typeof window !== "undefined" ? "/api/v1" : (import.meta.env.VITE_API_BASE_URL ?? "/api/v1");
 
 // Global fetch interceptor to handle 401 errors by clearing token and redirecting to login
 if (typeof window !== "undefined") {
@@ -37,24 +37,19 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   }
   let token = getStoredToken();
   if (!token) {
-    if (!inflightTokenPromise) {
-      inflightTokenPromise = (async () => {
-        try {
-          const res = await fetch(`${API_BASE}/auth/dev-token?role=ADMIN`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.token) {
-              localStorage.setItem("admin_token", data.token);
-              return data.token;
-            }
+    const candidateUrls = ["/api/v1", "http://127.0.0.1:3001/api/v1", "http://localhost:3001/api/v1"];
+    for (const base of candidateUrls) {
+      try {
+        const res = await fetch(`${base}/auth/dev-token?role=ADMIN`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            token = data.token;
+            localStorage.setItem("admin_token", token || "");
+            break;
           }
-        } catch {
-          // Dev token fetch failed, proceed with empty token
-        } finally {
-          inflightTokenPromise = null;
         }
-        return null;
-      })();
+      } catch (err) {}
     }
     token = await inflightTokenPromise;
   }
@@ -63,6 +58,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
     "Content-Type": "application/json",
   };
 }
+
 
 export type Store = SessionSlice & InviteSlice & DriveSlice & QuestionSlice & CommonSlice;
 

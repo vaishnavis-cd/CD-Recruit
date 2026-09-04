@@ -21,6 +21,7 @@ import {
   Sparkles,
   Layers,
   GraduationCap,
+  ChevronDown,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
@@ -1430,649 +1431,544 @@ function QuestionBankPage() {
   };
 
   return (
-    <AppShell
-      title="Question Bank"
-      count={questions.length}
-      actions={
-        <div className="flex items-center gap-2">
-          <select
-            value={modFilter}
-            onChange={(e) => setModFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
-          >
-            <option value="all">All Modules</option>
-            <option value="MCQ">MCQ</option>
-            <option value="SQL">SQL</option>
-            <option value="NOSQL">NoSQL</option>
-            <option value="CODING">Coding</option>
-            <option value="DEBUGGING">Debugging</option>
-            <option value="AI_PROMPTING">AI Prompting</option>
-            <option value="SIMULATION">Context Simulation</option>
-            <option value="TEST_SCENARIOS">Test Scenarios</option>
-          </select>
+    <AppShell hideHeader={true}>
+      <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+        {/* Single-Click Return Banner if navigated from a Drive */}
+        {(() => {
+          if (typeof window === "undefined") return null;
+          const params = new URLSearchParams(window.location.search);
+          const driveId = params.get("driveId") || params.get("fromDrive");
+          if (!driveId) return null;
+          return (
+            <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2.5 text-blue-900 text-xs font-medium">
+                <Sparkles size={16} className="text-[#2563EB]" />
+                <span>You are currently managing questions for an active Drive.</span>
+              </div>
+              <Link
+                to="/drives/$id"
+                params={{ id: driveId }}
+                search={{ tab: "questions" } as any}
+                className="px-4 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft size={14} />
+                <span>Return to Drive Questions</span>
+              </Link>
+            </div>
+          );
+        })()}
 
-          {/* Difficulty Filter */}
-          <select
-            value={diffFilter}
-            onChange={(e) => setDiffFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
-          >
-            <option value="all">All Difficulties</option>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
+        {/* Top Header Row matching Reference Images */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div className="flex items-center gap-3">
+            {selectedFolder !== null && (
+              <button
+                onClick={() => {
+                  setSelectedFolder(null);
+                  setFolderQuery("");
+                }}
+                className="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-[#2563EB] flex items-center justify-center transition-colors cursor-pointer"
+                title="Back to Repositories"
+              >
+                <ArrowLeft size={16} strokeWidth={2.5} />
+              </button>
+            )}
+            <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Question Bank</h1>
+            <span className="w-5 h-5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-2xs inline-flex items-center justify-center border border-blue-100 shadow-2xs">
+              {questions.length}
+            </span>
+          </div>
 
-          {/* Target Level Filter */}
-          <select
-            value={targetLevelFilter}
-            onChange={(e) => setTargetLevelFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
-          >
-            <option value="all">All Levels</option>
-            <option value="0-1">0-1 yrs (Fresher)</option>
-            <option value="2-5">2-5 yrs (Level 1)</option>
-            <option value="6-10">6-10 yrs (Level 2)</option>
-            <option value="11-15">11+ yrs (Level 3)</option>
-          </select>
-
-          {/* Department / Role Filter */}
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
-          >
-            <option value="all">All Roles / Depts</option>
-            <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
-            <option value="DATA_ENGINEERING">Data Engineering</option>
-            <option value="QA">QA</option>
-            <option value="SRE">SRE</option>
-            <option value="SYSOPS">SysOps</option>
-            <option value="ITOPS">ITOps</option>
-            <option value="PMO">PMO</option>
-            <option value="SECOPS">SecOps</option>
-            <option value="General">General</option>
-          </select>
-
-          <div className="relative group">
-            <button
-              className="flex items-center gap-1.5 px-3.5 py-2 text-sm-minus font-medium text-white bg-brand hover:bg-brand-hover cursor-pointer shadow-sm transition-colors rounded-md"
-            >
-              <Plus size={14} /> Add Question
-            </button>
-            <div className="absolute right-0 top-full w-44 pt-1.5 z-50 hidden group-hover:block hover:block">
-              <div className="bg-white border border-line rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <div className="relative w-48 sm:w-56">
+              <Search
+                size={14}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300"
+              />
+              <input
+                type="text"
+                placeholder="Search questions or tags..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full pl-9 pr-7 py-2 text-xs border border-[#E2E8F0] rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-[#2563EB] shadow-2xs"
+              />
+              {query && (
                 <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="w-full text-left px-4 py-2 text-xs text-ink hover:bg-canvas hover:text-brand font-medium transition-colors cursor-pointer"
+                  onClick={() => setQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
-                  Create Manually
+                  <X size={13} />
                 </button>
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  className="w-full text-left px-4 py-2 text-xs text-ink hover:bg-canvas hover:text-brand font-medium transition-colors cursor-pointer"
-                >
-                  Bulk Import CSV
-                </button>
+              )}
+            </div>
+
+            {/* Module Filter */}
+            <div className="relative">
+              <select
+                value={modFilter}
+                onChange={(e) => setModFilter(e.target.value)}
+                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer"
+              >
+                <option value="all">All Modules</option>
+                <option value="MCQ">MCQ</option>
+                <option value="SQL">SQL</option>
+                <option value="NOSQL">NoSQL</option>
+                <option value="CODING">Coding</option>
+                <option value="DEBUGGING">Debugging</option>
+                <option value="AI_PROMPTING">AI Prompting</option>
+                <option value="SIMULATION">Context Simulation</option>
+                <option value="TEST_SCENARIOS">Test Scenarios</option>
+              </select>
+              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Difficulty Filter */}
+            <div className="relative">
+              <select
+                value={diffFilter}
+                onChange={(e) => setDiffFilter(e.target.value)}
+                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer"
+              >
+                <option value="all">All Difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Target Role / Department Filter */}
+            <div className="relative">
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer"
+              >
+                <option value="all">All Roles</option>
+                <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                <option value="DATA_ENGINEERING">Data Engineering</option>
+                <option value="QA">QA</option>
+                <option value="SRE">SRE</option>
+                <option value="SYSOPS">SysOps</option>
+                <option value="ITOPS">ITOps</option>
+                <option value="PMO">PMO</option>
+                <option value="SECOPS">SecOps</option>
+                <option value="General">General</option>
+              </select>
+              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Add Question Button */}
+            <div className="relative group ml-1">
+              <button
+                className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/25 transition-all"
+              >
+                <Plus size={15} strokeWidth={2.5} />
+                <span>Add Question</span>
+              </button>
+              <div className="absolute right-0 top-full w-48 pt-1.5 z-50 hidden group-hover:block hover:block">
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-xl py-2 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-[#2563EB] font-medium transition-colors cursor-pointer"
+                  >
+                    Create Manually
+                  </button>
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-[#2563EB] font-medium transition-colors cursor-pointer"
+                  >
+                    Bulk Import CSV
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      }
-    >
-      {/* Single-Click Return Banner if navigated from a Drive */}
-      {(() => {
-        if (typeof window === "undefined") return null;
-        const params = new URLSearchParams(window.location.search);
-        const driveId = params.get("driveId") || params.get("fromDrive");
-        if (!driveId) return null;
-        return (
-          <div className="mb-4 p-3 bg-brand-subtle border border-brand/30 rounded-xl flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2.5 text-brand-ink text-sm-minus font-medium">
-              <Sparkles size={16} className="text-brand" />
-              <span>You are currently managing questions for an active Drive.</span>
-            </div>
-            <Link
-              to="/drives/$id"
-              params={{ id: driveId }}
-              search={{ tab: "questions" } as any}
-              className="px-3.5 py-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <ArrowLeft size={14} />
-              <span>Return to Drive Questions</span>
-            </Link>
-          </div>
-        );
-      })()}
 
-      {/* Tag Directory Navigation */}
-      {query.trim() !== "" ? (
-        /* Search results list */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <h3 className="text-sm-minus font-semibold text-ink">
-              Search Results for "{query}" ({questions.length})
-            </h3>
-            <div className="flex items-center gap-3">
-              <div className="relative w-[280px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search questions or tags…"
-                  className="w-full pl-9 pr-8 py-1.5 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
-                />
-                {query && (
-                  <button
-                    onClick={() => setQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
-                    title="Clear search"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
+        {/* Tag Directory Navigation */}
+        {query.trim() !== "" ? (
+          /* Search results list */
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-sm font-semibold text-[#0F172A]">
+                Search Results for "{query}" ({questions.length})
+              </h3>
               <button
                 onClick={() => setQuery("")}
-                className="text-xs-plus text-brand hover:underline cursor-pointer whitespace-nowrap"
+                className="text-xs text-[#2563EB] hover:underline cursor-pointer font-medium"
               >
                 Clear search
               </button>
             </div>
-          </div>
-          <div className="space-y-3">
-            {questions.length === 0 ? (
-              <div className="text-center py-12 bg-white border border-line rounded-xl p-8 space-y-3">
-                <p className="text-sm-minus text-ink-tertiary font-mono">
-                  No questions found matching "<strong className="text-ink">{query}</strong>".
-                </p>
-                <button
-                  onClick={() => setQuery("")}
-                  className="px-3.5 py-1.5 bg-canvas hover:bg-surface-inset text-ink text-xs font-medium rounded-lg border border-line cursor-pointer transition-colors"
-                >
-                  Clear Search Filter
-                </button>
-              </div>
-            ) : (
-              questions.map((q) => (
-                <div
-                  key={q.id}
-                  className="bg-white border border-line rounded-lg p-4 shadow-sm hover:border-line-strong transition-colors flex items-start justify-between"
-                >
-                  <div className="space-y-1.5 flex-1 min-w-0 pr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-surface-inset text-ink-secondary font-mono text-2xs uppercase font-semibold">
-                        {q.moduleType}
-                      </span>
-                      <span className="text-2xs text-ink-tertiary font-mono">v{q.version}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-2xs font-mono capitalize ${
-                          q.difficulty === "easy"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : q.difficulty === "medium"
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {q.difficulty}
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-brand-subtle text-brand-ink text-2xs font-medium">
-                        Role: {q.role || "General"}
-                      </span>
-                    </div>
-                    <h4 className="text-sm-minus font-medium text-ink line-clamp-2">
-                      {q.content?.prompt || q.content?.title || "Simulation Scenario"}
-                    </h4>
-                    {q.tags && q.tags.length > 0 && (() => {
-                      const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
-                      return (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                          {displayTags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-2xs text-ink-secondary font-mono"
-                            >
-                              <Tag size={8} />
-                              {tag}
-                            </span>
-                          ))}
-                          {hiddenDriveCount > 0 && (
-                            <span className="text-2xs text-brand bg-brand-subtle px-2 py-0.5 rounded-full font-semibold">
-                              +{hiddenDriveCount} more drives
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  <div className="flex items-center gap-6 shrink-0">
-                    <div className="text-center font-mono">
-                      <div className="text-sm-minus font-semibold text-ink">{q.usageCount}</div>
-                      <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Drives</div>
-                    </div>
-                    <div className="text-center font-mono">
-                      <div className="text-sm-minus font-semibold text-ink">
-                        {q.avgScore !== null ? `${q.avgScore}%` : "—"}
-                      </div>
-                      <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Avg Score</div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenEdit(q)}
-                        className="p-2 text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
-                        title="Preview & Edit"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmArchiveQuestion(q)}
-                        className="p-2 text-danger hover:bg-danger-subtle rounded transition-colors cursor-pointer"
-                        title="Archive"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      ) : selectedFolder !== null ? (
-        /* Inside a folder */
-        (() => {
-          const currentSection = classifyTag(selectedFolder);
-          const { title: displayTitle } = formatTagDisplayName(selectedFolder, currentSection);
-          const allFolderQuestions = groupedQuestions[selectedFolder] || [];
-          const currentList = folderQuery.trim()
-            ? allFolderQuestions.filter((q) => {
-                const fq = folderQuery.toLowerCase().trim();
-                const prompt = (q.content?.prompt || q.content?.title || "").toLowerCase();
-                const tags = (q.tags || []).join(" ").toLowerCase();
-                const role = (q.role || "").toLowerCase();
-                const diff = (q.difficulty || "").toLowerCase();
-                const mod = (q.moduleType || "").toLowerCase();
-                return prompt.includes(fq) || tags.includes(fq) || role.includes(fq) || diff.includes(fq) || mod.includes(fq);
-              })
-            : allFolderQuestions;
-
-          return (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div className="flex items-center gap-2 flex-wrap">
+            <div className="space-y-3">
+              {questions.length === 0 ? (
+                <div className="text-center py-12 bg-white border border-[#E2E8F0] rounded-2xl p-8 space-y-3 shadow-2xs">
+                  <p className="text-xs text-slate-400 font-mono">
+                    No questions found matching "<strong className="text-slate-700">{query}</strong>".
+                  </p>
                   <button
-                    onClick={() => {
-                      setSelectedFolder(null);
-                      setFolderQuery("");
-                    }}
-                    className="flex items-center gap-1 text-xs font-medium text-brand hover:underline cursor-pointer"
+                    onClick={() => setQuery("")}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-full cursor-pointer transition-colors"
                   >
-                    <ArrowLeft size={13} /> Back to Repositories
+                    Clear Search Filter
                   </button>
-                  <span className="text-ink-tertiary">/</span>
-                  <span className="text-sm-minus font-semibold text-ink capitalize flex items-center gap-1.5">
-                    <Folder size={14} className="text-brand" />
-                    {displayTitle} ({allFolderQuestions.length})
-                  </span>
                 </div>
-                <div className="relative w-[280px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-                  <input
-                    value={folderQuery}
-                    onChange={(e) => setFolderQuery(e.target.value)}
-                    placeholder="Filter in this folder…"
-                    className="w-full pl-9 pr-8 py-1.5 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
-                  />
-                  {folderQuery && (
+              ) : (
+                questions.map((q) => (
+                  <div
+                    key={q.id}
+                    className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex items-start justify-between gap-4"
+                  >
+                    <div className="space-y-2 flex-1 min-w-0 pr-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold text-2xs uppercase">
+                          {q.moduleType}
+                        </span>
+                        <span className="text-2xs text-slate-400 font-mono">v{q.version}</span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded text-2xs font-semibold capitalize ${
+                            q.difficulty === "easy"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : q.difficulty === "medium"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : "bg-rose-50 text-rose-700 border border-rose-200"
+                          }`}
+                        >
+                          {q.difficulty}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-2xs font-medium">
+                          Role: {q.role || "General"}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-sm text-[#0F172A] leading-relaxed line-clamp-2">
+                        {q.content?.prompt || q.content?.title || "Simulation Scenario"}
+                      </h4>
+                      {q.tags && q.tags.length > 0 && (() => {
+                        const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+                        return (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            {displayTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-slate-200 text-2xs text-slate-500 font-mono bg-slate-50"
+                              >
+                                <Tag size={8} />
+                                {tag}
+                              </span>
+                            ))}
+                            {hiddenDriveCount > 0 && (
+                              <span className="text-2xs text-[#2563EB] bg-blue-50 px-2.5 py-0.5 rounded-full font-semibold">
+                                +{hiddenDriveCount} more drives
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-6 shrink-0 pt-1">
+                      <div className="text-center font-mono">
+                        <div className="text-sm font-bold text-[#0F172A]">{q.usageCount}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DRIVES</div>
+                      </div>
+                      <div className="text-center font-mono">
+                        <div className="text-sm font-bold text-[#0F172A]">
+                          {q.avgScore !== null ? `${q.avgScore}%` : "-"}
+                        </div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AVG SCORE</div>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <button
+                          onClick={() => handleOpenEdit(q)}
+                          className="p-2 text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="Preview & Edit"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmArchiveQuestion(q)}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Archive"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : selectedFolder !== null ? (
+          /* Inside a folder / directory questions view */
+          (() => {
+            const currentSection = classifyTag(selectedFolder);
+            const { title: displayTitle } = formatTagDisplayName(selectedFolder, currentSection);
+            const allFolderQuestions = groupedQuestions[selectedFolder] || [];
+            const currentList = folderQuery.trim()
+              ? allFolderQuestions.filter((q) => {
+                  const fq = folderQuery.toLowerCase().trim();
+                  const prompt = (q.content?.prompt || q.content?.title || "").toLowerCase();
+                  const tags = (q.tags || []).join(" ").toLowerCase();
+                  const role = (q.role || "").toLowerCase();
+                  const diff = (q.difficulty || "").toLowerCase();
+                  const mod = (q.moduleType || "").toLowerCase();
+                  return prompt.includes(fq) || tags.includes(fq) || role.includes(fq) || diff.includes(fq) || mod.includes(fq);
+                })
+              : allFolderQuestions;
+
+            return (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
-                      onClick={() => setFolderQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
-                      title="Clear filter"
+                      onClick={() => {
+                        setSelectedFolder(null);
+                        setFolderQuery("");
+                      }}
+                      className="flex items-center gap-1 text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
                     >
-                      <X size={13} />
+                      <ArrowLeft size={13} /> Back to Repositories
                     </button>
+                    <span className="text-slate-300">/</span>
+                    <span className="text-sm font-bold text-[#0F172A] capitalize flex items-center gap-1.5">
+                      <Folder size={15} className="text-[#2563EB]" fill="#2563EB" />
+                      {displayTitle} ({allFolderQuestions.length})
+                    </span>
+                  </div>
+                  <div className="relative w-64">
+                    <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
+                    <input
+                      value={folderQuery}
+                      onChange={(e) => setFolderQuery(e.target.value)}
+                      placeholder="Filter in this folder..."
+                      className="w-full pl-9 pr-8 py-2 text-xs border border-[#E2E8F0] rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-[#2563EB] shadow-2xs"
+                    />
+                    {folderQuery && (
+                      <button
+                        onClick={() => setFolderQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title="Clear filter"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {currentList.length === 0 ? (
+                    <div className="text-center py-12 bg-white border border-[#E2E8F0] rounded-2xl p-8 space-y-2 shadow-2xs">
+                      <p className="text-xs text-slate-400 font-mono">
+                        No questions in this folder match "{folderQuery}".
+                      </p>
+                      <button
+                        onClick={() => setFolderQuery("")}
+                        className="text-xs text-[#2563EB] hover:underline cursor-pointer font-medium"
+                      >
+                        Clear Filter
+                      </button>
+                    </div>
+                  ) : (
+                    currentList.map((q) => (
+                      <div
+                        key={q.id}
+                        className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex items-start justify-between gap-4"
+                      >
+                        <div className="space-y-2 flex-1 min-w-0 pr-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold text-2xs uppercase">
+                              {q.moduleType}
+                            </span>
+                            <span className="text-2xs text-slate-400 font-mono">v{q.version}</span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded text-2xs font-semibold capitalize ${
+                                q.difficulty === "easy"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : q.difficulty === "medium"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                    : "bg-rose-50 text-rose-700 border border-rose-200"
+                              }`}
+                            >
+                              {q.difficulty}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-2xs font-medium">
+                              Role: {q.role || "General"}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-[#0F172A] leading-relaxed line-clamp-2 pt-0.5">
+                            {q.content?.prompt || q.content?.title || "Simulation Scenario"}
+                          </h4>
+                          {q.tags && q.tags.length > 0 && (() => {
+                            const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+                            return (
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {displayTags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-slate-200 text-2xs text-slate-500 font-mono bg-slate-50"
+                                  >
+                                    <Tag size={8} />
+                                    {tag}
+                                  </span>
+                                ))}
+                                {hiddenDriveCount > 0 && (
+                                  <span className="text-2xs text-[#2563EB] bg-blue-50 px-2.5 py-0.5 rounded-full font-semibold">
+                                    +{hiddenDriveCount} more drives
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-6 shrink-0 pt-1">
+                          <div className="text-center font-mono">
+                            <div className="text-sm font-bold text-[#0F172A]">{q.usageCount}</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DRIVES</div>
+                          </div>
+                          <div className="text-center font-mono">
+                            <div className="text-sm font-bold text-[#0F172A]">
+                              {q.avgScore !== null ? `${q.avgScore}%` : "-"}
+                            </div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AVG SCORE</div>
+                          </div>
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={() => handleOpenEdit(q)}
+                              className="p-2 text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Preview & Edit"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              onClick={() => setConfirmArchiveQuestion(q)}
+                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Archive"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
-              <div className="space-y-3">
-                {currentList.length === 0 ? (
-                  <div className="text-center py-10 bg-white border border-line rounded-xl p-6 space-y-2">
-                    <p className="text-xs text-ink-tertiary font-mono">
-                      No questions in this folder match "{folderQuery}".
-                    </p>
-                    <button
-                      onClick={() => setFolderQuery("")}
-                      className="text-xs text-brand hover:underline cursor-pointer font-medium"
-                    >
-                      Clear Filter
-                    </button>
-                  </div>
-                ) : (
-                  currentList.map((q) => (
-                    <div
-                      key={q.id}
-                      className="bg-white border border-line rounded-lg p-4 shadow-sm hover:border-line-strong transition-colors flex items-start justify-between"
-                    >
-                      <div className="space-y-1.5 flex-1 min-w-0 pr-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded bg-surface-inset text-ink-secondary font-mono text-2xs uppercase font-semibold">
-                            {q.moduleType}
-                          </span>
-                          <span className="text-2xs text-ink-tertiary font-mono">v{q.version}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-2xs font-mono capitalize ${
-                              q.difficulty === "easy"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : q.difficulty === "medium"
-                                  ? "bg-amber-50 text-amber-700"
-                                  : "bg-rose-50 text-rose-700"
-                            }`}
-                          >
-                            {q.difficulty}
-                          </span>
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 text-2xs font-medium">
-                            Level: {q.targetLevel || "All"}
-                          </span>
-                          <span className="px-2 py-0.5 rounded bg-brand-subtle text-brand-ink text-2xs font-medium">
-                            Role: {q.role || "General"}
-                          </span>
-                        </div>
-                        <h4 className="text-sm-minus font-medium text-ink line-clamp-2">
-                          {q.content?.prompt || q.content?.title || "Simulation Scenario"}
-                        </h4>
-                        {q.tags && q.tags.length > 0 && (() => {
-                          const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
-                          return (
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              {displayTags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-2xs text-ink-secondary font-mono"
-                                >
-                                  <Tag size={8} />
-                                  {tag}
-                                </span>
-                              ))}
-                              {hiddenDriveCount > 0 && (
-                                <span className="text-2xs text-brand bg-brand-subtle px-2 py-0.5 rounded-full font-semibold">
-                                  +{hiddenDriveCount} more drives
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      <div className="flex items-center gap-6 shrink-0">
-                        <div className="text-center font-mono">
-                          <div className="text-sm-minus font-semibold text-ink">{q.usageCount}</div>
-                          <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Drives</div>
-                        </div>
-                        <div className="text-center font-mono">
-                          <div className="text-sm-minus font-semibold text-ink">
-                            {q.avgScore !== null ? `${q.avgScore}%` : "—"}
-                          </div>
-                          <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Avg Score</div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleOpenEdit(q)}
-                            className="p-2 text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
-                            title="Preview & Edit"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            onClick={() => setConfirmArchiveQuestion(q)}
-                            className="p-2 text-danger hover:bg-danger-subtle rounded transition-colors cursor-pointer"
-                            title="Archive"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
+            );
+          })()
+        ) : (
+          /* Question Repositories Directory Grid View matching Reference Image 1 */
+          <div className="space-y-6 pt-1">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-[#0F172A]">Question Repositories</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Browse questions organized by module format, seniority level, topic domains, and drive batches.
+                </p>
               </div>
-            </div>
-          );
-        })()
-      ) : (
-        /* Categorized Folder Grid directory list */
-        <div className="space-y-6">
-          {/* Header Bar */}
-          <div className="flex items-center justify-between border-b border-line pb-3">
-            <div>
-              <h3 className="text-sm font-semibold text-ink">Question Repositories</h3>
-              <p className="text-xs text-ink-secondary mt-0.5">
-                Browse questions organized by module format, seniority level, topic domains, and drive batches.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs-plus text-ink-tertiary font-mono whitespace-nowrap bg-canvas px-2.5 py-1 rounded-md border border-line">
-                {Object.keys(groupedQuestions).length} total tags
+              <span className="text-xs text-slate-400 font-normal">
+                {Object.keys(groupedQuestions).length} tag directories
               </span>
-              <div className="relative w-[260px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search questions or tags…"
-                  className="w-full pl-9 pr-8 py-1.5 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
-                />
-                {query && (
-                  <button
-                    onClick={() => setQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
-                    title="Clear search"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Section 1: Module Types */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm-minus font-semibold text-ink">1. Module Types</h4>
-                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
-                  {categorizedTagGroups.module.length} formats
-                </span>
-              </div>
-            </div>
-            {categorizedTagGroups.module.length === 0 ? (
-              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
-                No module categories found.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {categorizedTagGroups.module.map((item) => (
-                  <div
-                    key={item.tag}
-                    onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
-                        {item.title}
-                      </h5>
-                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
-                        {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
-                      </p>
-                    </div>
-                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Section 2: Experience Levels */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm-minus font-semibold text-ink">2. Experience Levels</h4>
-                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
-                  {categorizedTagGroups.level.length} levels
-                </span>
-              </div>
-            </div>
-            {categorizedTagGroups.level.length === 0 ? (
-              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
-                No level categories found.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {categorizedTagGroups.level.map((item) => (
-                  <div
-                    key={item.tag}
-                    onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
-                        {item.title}
-                      </h5>
-                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
-                        {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
-                      </p>
-                    </div>
-                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Section 3: Topics */}
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm-minus font-semibold text-ink">3. Topics</h4>
-                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
-                  {categorizedTagGroups.topic.length} topics
-                </span>
-              </div>
-
-              {/* Domain Category Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1.5 bg-canvas p-1 rounded-lg border border-line">
-                {TOPIC_DOMAINS.map((domain) => {
-                  const isActive = selectedTopicDomain === domain.id;
-                  const count =
-                    domain.id === "all"
-                      ? categorizedTagGroups.topic.length
-                      : categorizedTagGroups.topic.filter(
-                          (t) => getTopicDomainId(t.title) === domain.id
-                        ).length;
-
-                  if (domain.id !== "all" && count === 0) return null;
-
-                  return (
-                    <button
-                      key={domain.id}
-                      onClick={() => setSelectedTopicDomain(domain.id)}
-                      className={`px-2.5 py-1 rounded-md text-xs-plus font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isActive
-                          ? "bg-white text-brand shadow-2xs font-semibold"
-                          : "text-ink-secondary hover:text-ink hover:bg-white/60"
-                      }`}
-                    >
-                      <span>{domain.label}</span>
-                      <span
-                        className={`px-1.5 py-0.2 text-2xs font-mono rounded-full ${
-                          isActive
-                            ? "bg-brand-subtle text-brand"
-                            : "bg-slate-200/60 text-ink-secondary"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
-            {categorizedTagGroups.topic.length === 0 ? (
-              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
-                No topic tags found.
-              </p>
-            ) : (() => {
-              const filteredTopics = categorizedTagGroups.topic.filter((item) => {
-                if (selectedTopicDomain === "all") return true;
-                return getTopicDomainId(item.title) === selectedTopicDomain;
-              });
-
-              if (filteredTopics.length === 0) {
+            {/* Folder Repositories Grid matching Reference Image 1 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {categorizedTagGroups.module.map((item) => {
+                const isSelected = selectedFolder === item.tag;
                 return (
-                  <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
-                    No topics found in this category.
-                  </p>
-                );
-              }
+                  <div
+                    key={item.tag}
+                    onClick={() => setSelectedFolder(item.tag)}
+                    className={`bg-white border rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all relative flex flex-col justify-between min-h-[120px] group cursor-pointer ${
+                      isSelected ? "border-2 border-[#2563EB] shadow-md" : "border-[#E2E8F0] hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+                        <Folder size={20} fill="#2563EB" className="text-[#2563EB]" />
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteFolder(item.tag);
+                        }}
+                        className="text-slate-300 hover:text-rose-500 transition-colors p-1"
+                        title="Delete directory"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
 
-              return (
-                <div className="flex flex-wrap gap-2.5 p-5 bg-white border border-line rounded-2xl shadow-2xs">
-                  {filteredTopics.map((item) => (
+                    <div className="pt-3">
+                      <h5 className="font-bold text-sm text-[#0F172A] capitalize group-hover:text-[#2563EB] transition-colors">
+                        {item.title}
+                      </h5>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <p className="text-xs text-slate-400 font-normal">
+                          {item.questions.length} questions
+                        </p>
+                        {isSelected && (
+                          <span className="text-[#2563EB] font-semibold text-xs flex items-center gap-0.5">
+                            Open <ChevronRight size={13} />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Additional Repositories Categories (Levels, Topics, Drives) */}
+            <div className="space-y-6 pt-4 border-t border-slate-200">
+              {/* Experience Levels */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-bold text-[#0F172A]">Experience Levels</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {categorizedTagGroups.level.map((item) => (
+                    <div
+                      key={item.tag}
+                      onClick={() => setSelectedFolder(item.tag)}
+                      className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+                    >
+                      <div>
+                        <h5 className="font-bold text-sm text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                          {item.title}
+                        </h5>
+                        <p className="text-xs text-slate-400 font-normal mt-0.5">
+                          {item.questions.length} questions
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-slate-300 group-hover:text-[#2563EB] transition-colors" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Topics */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-bold text-[#0F172A]">Topics Taxonomy</h4>
+                <div className="flex flex-wrap gap-2 p-5 bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs">
+                  {categorizedTagGroups.topic.slice(0, 24).map((item) => (
                     <button
                       key={item.tag}
                       type="button"
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-canvas hover:bg-brand-subtle hover:text-brand hover:border-brand-border border border-line rounded-full text-xs font-medium text-ink transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
-                      title={`${item.title} (${item.questions.length} questions)`}
+                      className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-50 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-200 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition-all cursor-pointer"
                     >
-                      <span className="group-hover:text-brand transition-colors">{item.title}</span>
-                      <span className="px-2 py-0.5 text-2xs font-mono font-bold rounded-full bg-surface-inset group-hover:bg-brand group-hover:text-white text-ink-secondary transition-colors">
+                      <span>{item.title}</span>
+                      <span className="px-2 py-0.2 text-2xs font-mono font-bold rounded-full bg-slate-200 text-slate-600">
                         {item.questions.length}
                       </span>
                     </button>
                   ))}
                 </div>
-              );
-            })()}
-          </div>
-
-          {/* Section 4: Drives */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm-minus font-semibold text-ink">4. Drives</h4>
-                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
-                  {categorizedTagGroups.drive.length} drive batches
-                </span>
               </div>
             </div>
-            {categorizedTagGroups.drive.length === 0 ? (
-              <div className="text-center py-5 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-xl bg-white">
-                No drive-specific imported questions found. Questions imported during a Drive setup will appear here.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {categorizedTagGroups.drive.map((item) => (
-                  <div
-                    key={item.tag}
-                    onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
-                        {item.title}
-                      </h5>
-                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
-                        {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
-                      </p>
-                    </div>
-                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Creation Modal */}
       {showCreateModal && (

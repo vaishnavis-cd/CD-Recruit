@@ -157,6 +157,7 @@ export class AdminService {
       return {
         sessionId: session.id,
         referenceId: session.referenceId ?? null,
+        driveId: session.driveId || (session.invite as any)?.driveId || null,
         candidateId: session.candidate.id,
         candidateName: session.invite?.candidateName || session.candidate.name,
         candidateEmail: session.candidate.email,
@@ -491,16 +492,19 @@ export class AdminService {
       const qContent = (res.question?.content as any) || {};
       const tags = res.question?.tags || [];
       const promptText = qContent.prompt || qContent.title || qContent.text || qContent.question || "Question";
-      const isDebug = res.question?.moduleType === "DEBUGGING" ||
+      const payloadModType = (res.responsePayload as any)?.moduleType;
+      const rawModuleType = res.question?.moduleType || payloadModType;
+      const isDebug = rawModuleType === "DEBUGGING" ||
+        res.question?.moduleType === "DEBUGGING" ||
         tags.includes("debugging") ||
         (typeof promptText === "string" && promptText.toLowerCase().includes("debugging challenge"));
-      const effectiveModuleType = isDebug ? "DEBUGGING" : res.question?.moduleType;
+      const effectiveModuleType = isDebug ? "DEBUGGING" : rawModuleType;
 
       return {
         id: res.id,
         moduleResponseId: res.id,
         questionId: res.questionId,
-        moduleType: (effectiveModuleType || "MCQ") as ModuleType,
+        moduleType: (effectiveModuleType || "CODING") as ModuleType,
         responsePayload: res.responsePayload as any,
         timeSpentSeconds: res.timeSpentSeconds,
         isDraft: res.isDraft,
