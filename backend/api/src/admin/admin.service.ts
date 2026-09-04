@@ -157,6 +157,7 @@ export class AdminService {
       return {
         sessionId: session.id,
         referenceId: session.referenceId ?? null,
+        driveId: session.driveId || (session.invite as any)?.driveId || null,
         candidateId: session.candidate.id,
         candidateName: session.invite?.candidateName || session.candidate.name,
         candidateEmail: session.candidate.email,
