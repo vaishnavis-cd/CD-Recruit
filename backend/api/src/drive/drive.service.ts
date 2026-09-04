@@ -774,19 +774,25 @@ export class DriveService {
 
       let totalEstimatedDuration = 0;
       const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig };
+      const isCustomRole = Boolean((moduleConfig as any)?.isCustomRole);
 
       for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
         const conf = modConf as any;
         if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
 
-        const reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
-        const dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        let reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
+        let dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-        const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-        if (distSum !== reqCount) {
-          throw new BadRequestException(
-            `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
-          );
+        if (isCustomRole && conf.difficultyDistribution) {
+          dist = conf.difficultyDistribution;
+          reqCount = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+        } else {
+          const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+          if (distSum !== reqCount) {
+            throw new BadRequestException(
+              `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
+            );
+          }
         }
 
         const estDuration = getEstimatedModuleDuration(moduleType, dist);
@@ -796,10 +802,11 @@ export class DriveService {
           ...conf,
           requiredCount: reqCount,
           difficultyDistribution: dist,
+          durationMinutes: estDuration,
         };
       }
 
-      if (totalEstimatedDuration > windowMinutes) {
+      if (isCustomRole && totalEstimatedDuration > windowMinutes) {
         const overflow = (totalEstimatedDuration - windowMinutes).toFixed(1);
         throw new BadRequestException(
           `Estimated assessment time (${totalEstimatedDuration} min) exceeds the configured assessment duration (${windowMinutes} min) by ${overflow} minutes. Please adjust module weights or difficulty distributions.`

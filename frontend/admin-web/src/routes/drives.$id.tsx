@@ -49,7 +49,7 @@ import {
   Layers,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { SingleDateTimePicker, computeRollingEndDate } from "../components/single-date-time-picker";
+import { SingleDateTimePicker, computeRollingEndDate, computeEndTimeWithDuration } from "../components/single-date-time-picker";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
 import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
@@ -387,6 +387,8 @@ function DriveDetailPage() {
   });
 
   const [globalEnabledModules, setGlobalEnabledModules] = useState<string[]>([]);
+  const [pinnedWeights, setPinnedWeights] = useState<Record<string, boolean>>({});
+  const [pinnedDifficulties, setPinnedDifficulties] = useState<Record<string, boolean>>({});
 
   // Per-Drive System Check & Hardware Proctoring Customization State
   const [proctoringConfig, setProctoringConfig] = useState({
@@ -585,7 +587,25 @@ function DriveDetailPage() {
       } else {
         setAssignedQuestions(data.questionIds || []);
       }
-      setSavedAssignedQuestions(data.questionIds || []);
+
+      const isCustomRoleDrive = (data.moduleConfig as any)?.isCustomRole === true;
+      if (!isCustomRoleDrive && (!data.questionIds || data.questionIds.length === 0) && data.roleTemplateId) {
+        try {
+          const headers = await getAuthHeaders();
+          const tplRes = await fetch(`${API_BASE}/admin/role-templates/${data.roleTemplateId}`, { headers });
+          if (tplRes.ok) {
+            const tplData = await tplRes.json();
+            const tplQuestionIds = (tplData.questions || []).map((q: any) => q.questionId).filter(Boolean);
+            if (tplQuestionIds.length > 0) {
+              setAssignedQuestions(tplQuestionIds);
+              setSavedAssignedQuestions(tplQuestionIds);
+              saveDriveQuestions(driveId, tplQuestionIds).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.warn("Failed fetching role template questions in loadData:", e);
+        }
+      }
 
       // Parse schedule dates to 12-hour AM/PM controls
       let sDate = "";
@@ -594,7 +614,7 @@ function DriveDetailPage() {
       let sAmPm = "AM";
       let eDate = "";
       let eHour = "11";
-      let eMin = "00";
+      let eMin = "30";
       let eAmPm = "AM";
 
       if (!data.scheduleStart || !data.scheduleEnd) {
@@ -614,11 +634,19 @@ function DriveDetailPage() {
         sMin = startParsed.minute;
         sAmPm = startParsed.ampm;
 
-        const endParsed = isoToAmPm(data.scheduleEnd, "11", "00", "AM");
+        const endParsed = isoToAmPm(data.scheduleEnd, "11", "30", "AM");
         eDate = endParsed.date;
         eHour = endParsed.hour;
         eMin = endParsed.minute;
         eAmPm = endParsed.ampm;
+      }
+
+      if (!isCustomRoleDrive) {
+        const derived = computeEndTimeWithDuration(sHour, sMin, sAmPm, 90);
+        eHour = derived.endHour;
+        eMin = derived.endMinute;
+        eAmPm = derived.endAmPm;
+        eDate = sDate;
       }
 
       setStartDate(sDate);
@@ -933,7 +961,8 @@ function DriveDetailPage() {
   const autoAlignModuleConfig = (
     baseConfig: Record<string, any>,
     targetDuration: number,
-    resolvedTag: string
+    resolvedTag: string,
+    options?: { forceEqualWeights?: boolean }
   ): Record<string, any> => {
     const enabledKeys = ALL_DRIVE_MODULES.filter((m) => {
       const conf = baseConfig[m];
@@ -947,16 +976,42 @@ function DriveDetailPage() {
       return nextConfig;
     }
 
-    // 1. Auto-balance weights of enabled core modules so they strictly sum to 100%
-    const baseWeight = Math.floor(100 / enabledKeys.length);
-    const remainder = 100 - baseWeight * enabledKeys.length;
     const weights: Record<string, number> = {};
+    const currentWeightSum = enabledKeys.reduce(
+      (sum, k) => sum + (Number(baseConfig[k]?.weight) || 0),
+      0
+    );
 
-    enabledKeys.forEach((key, idx) => {
-      weights[key] = baseWeight + (idx < remainder ? 1 : 0);
-    });
+    if (options?.forceEqualWeights || currentWeightSum === 0) {
+      const baseWeight = Math.floor(100 / enabledKeys.length);
+      const remainder = 100 - baseWeight * enabledKeys.length;
+      enabledKeys.forEach((key, idx) => {
+        weights[key] = baseWeight + (idx < remainder ? 1 : 0);
+      });
+    } else if (currentWeightSum === 100) {
+      enabledKeys.forEach((key) => {
+        weights[key] = Number(baseConfig[key]?.weight) || 0;
+      });
+    } else {
+      let runningSum = 0;
+      const sortedKeysByWeightDesc = [...enabledKeys].sort(
+        (a, b) => (Number(baseConfig[b]?.weight) || 0) - (Number(baseConfig[a]?.weight) || 0)
+      );
 
-    // 2. Compute initial required counts and default difficulty distributions
+      enabledKeys.forEach((key) => {
+        const rawW = Number(baseConfig[key]?.weight) || 0;
+        const scaled = Math.max(1, Math.round((rawW / currentWeightSum) * 100));
+        weights[key] = scaled;
+        runningSum += scaled;
+      });
+
+      const diff = 100 - runningSum;
+      if (diff !== 0 && sortedKeysByWeightDesc.length > 0) {
+        const topKey = sortedKeysByWeightDesc[0];
+        weights[topKey] = Math.max(1, weights[topKey] + diff);
+      }
+    }
+
     const distMap: Record<string, { easy: number; medium: number; hard: number; reqCount: number }> = {};
 
     enabledKeys.forEach((key) => {
@@ -969,7 +1024,6 @@ function DriveDetailPage() {
       };
     });
 
-    // 3. Compute total estimated duration helper
     const computeTotalEst = () => {
       return enabledKeys.reduce((sum, key) => {
         const d = distMap[key];
@@ -978,8 +1032,6 @@ function DriveDetailPage() {
     };
 
     let totalEst = computeTotalEst();
-
-    // 4. Iteratively optimize/downgrade difficulty if totalEst > targetDuration
     const priorityModules = ["SIMULATION", "CODING", "DEBUGGING", "SQL", "NOSQL", "TEST_SCENARIOS", "AI_PROMPTING", "MCQ"];
     let maxIterations = 200;
 
@@ -987,7 +1039,6 @@ function DriveDetailPage() {
       maxIterations--;
       let reduced = false;
 
-      // Pass 1: Shift Hard -> Medium in heaviest modules
       for (const mod of priorityModules) {
         if (!enabledKeys.includes(mod as any)) continue;
         const d = distMap[mod as keyof typeof distMap];
@@ -1002,7 +1053,6 @@ function DriveDetailPage() {
 
       if (totalEst <= targetDuration) break;
 
-      // Pass 2: Shift Medium -> Easy in heaviest modules
       if (!reduced || totalEst > targetDuration) {
         for (const mod of priorityModules) {
           if (!enabledKeys.includes(mod as any)) continue;
@@ -1020,20 +1070,17 @@ function DriveDetailPage() {
       if (!reduced) break;
     }
 
-    // 5. Allocate durationMinutes budgets and update config
-    const totalEstTimeFinal = computeTotalEst();
     ALL_DRIVE_MODULES.forEach((key) => {
       if (enabledKeys.includes(key)) {
         const d = distMap[key];
         const estTime = getEstimatedModuleDuration(key, d);
-        const allocatedDurationMinutes = Math.max(1, Math.round((estTime / (totalEstTimeFinal || 1)) * targetDuration));
 
         nextConfig[key] = {
           ...(nextConfig[key] || {}),
           enabled: true,
           weight: weights[key],
           requiredCount: d.reqCount,
-          durationMinutes: allocatedDurationMinutes,
+          durationMinutes: estTime,
           difficultyDistribution: {
             easy: d.easy,
             medium: d.medium,
@@ -1055,7 +1102,183 @@ function DriveDetailPage() {
     return nextConfig;
   };
 
-  const handleAutoBalanceDurations = () => {
+  const togglePinWeight = (modId: string) => {
+    setPinnedWeights((prev) => ({
+      ...prev,
+      [modId]: !prev[modId],
+    }));
+  };
+
+  const handleWeightChange = (modId: string, val: number) => {
+    const clampedVal = Math.min(100, Math.max(0, val));
+    const nextPinned = { ...pinnedWeights, [modId]: true };
+    setPinnedWeights(nextPinned);
+
+    const enabledKeys = ALL_DRIVE_MODULES.filter((k) => moduleConfig[k]?.enabled);
+    if (enabledKeys.length <= 1) {
+      setModuleConfig((prev) => ({
+        ...prev,
+        [modId]: { ...prev[modId], weight: clampedVal },
+      }));
+      return;
+    }
+
+    const unpinnedEntries = enabledKeys.filter((k) => k !== modId && !nextPinned[k]);
+    let pinnedSum = clampedVal;
+    for (const k of enabledKeys) {
+      if (k !== modId && nextPinned[k]) {
+        pinnedSum += Number(moduleConfig[k]?.weight) || 0;
+      }
+    }
+
+    const updated = { ...moduleConfig };
+    updated[modId] = { ...updated[modId], weight: clampedVal };
+
+    if (unpinnedEntries.length > 0) {
+      const remainingWeight = Math.max(0, 100 - pinnedSum);
+      const currentUnpinnedSum = unpinnedEntries.reduce(
+        (sum, k) => sum + (Number(moduleConfig[k]?.weight) || 0),
+        0
+      );
+
+      let allocatedUnpinned = 0;
+      unpinnedEntries.forEach((k, idx) => {
+        let w = 0;
+        if (idx === unpinnedEntries.length - 1) {
+          w = Math.max(0, remainingWeight - allocatedUnpinned);
+        } else {
+          if (currentUnpinnedSum > 0) {
+            const ratio = (Number(moduleConfig[k]?.weight) || 0) / currentUnpinnedSum;
+            w = Math.round(remainingWeight * ratio);
+          } else {
+            w = Math.floor(remainingWeight / unpinnedEntries.length);
+          }
+          allocatedUnpinned += w;
+        }
+        updated[k] = { ...updated[k], weight: w };
+      });
+    }
+
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+
+    enabledKeys.forEach((k) => {
+      const conf = updated[k];
+      if (!pinnedDifficulties[k]) {
+        const reqCount = getRequiredQuestionCount(k, conf.weight, totalDuration, resolvedTag);
+        const dist = getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        const estTime = getEstimatedModuleDuration(k, dist);
+        updated[k] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: dist,
+          durationMinutes: estTime,
+        } as any;
+      }
+    });
+
+    setModuleConfig(updated);
+  };
+
+  const handleDifficultyChange = (modId: string, diffKey: "easy" | "medium" | "hard", val: number) => {
+    setPinnedDifficulties((prev) => ({ ...prev, [modId]: true }));
+    const conf = moduleConfig[modId];
+    const currentDist = (conf as any).difficultyDistribution || { easy: 0, medium: 0, hard: 0 };
+    const nextDist = { ...currentDist, [diffKey]: Math.max(0, val) };
+    const reqCount = (Number(nextDist.easy) || 0) + (Number(nextDist.medium) || 0) + (Number(nextDist.hard) || 0);
+    const estTime = getEstimatedModuleDuration(modId, nextDist);
+
+    setModuleConfig((prev) => ({
+      ...prev,
+      [modId]: {
+        ...prev[modId],
+        requiredCount: reqCount,
+        difficultyDistribution: nextDist,
+        durationMinutes: estTime,
+      } as any,
+    }));
+  };
+
+  const handleSmartFitToTime = () => {
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const enabledKeys = ALL_DRIVE_MODULES.filter((k) => moduleConfig[k]?.enabled && Number(moduleConfig[k]?.weight) > 0);
+    if (enabledKeys.length === 0) return;
+
+    const nextConfig = { ...moduleConfig };
+    const distMap: Record<string, { easy: number; medium: number; hard: number }> = {};
+
+    enabledKeys.forEach((k) => {
+      const conf = nextConfig[k];
+      distMap[k] = { ...((conf as any).difficultyDistribution || { easy: 0, medium: 0, hard: 0 }) };
+    });
+
+    const computeTotalEst = () => {
+      return enabledKeys.reduce((sum, k) => sum + getEstimatedModuleDuration(k, distMap[k]), 0);
+    };
+
+    let totalEst = computeTotalEst();
+    const priorityModules = ["SIMULATION", "CODING", "DEBUGGING", "SQL", "NOSQL", "TEST_SCENARIOS", "AI_PROMPTING", "MCQ"];
+    let maxIterations = 200;
+
+    while (totalEst > totalDuration && maxIterations > 0) {
+      maxIterations--;
+      let reduced = false;
+
+      for (const mod of priorityModules) {
+        if (!enabledKeys.includes(mod as any)) continue;
+        const d = distMap[mod];
+        if (d.hard > 0) {
+          d.hard--;
+          d.medium++;
+          reduced = true;
+          totalEst = computeTotalEst();
+          if (totalEst <= totalDuration) break;
+        }
+      }
+
+      if (totalEst <= totalDuration) break;
+
+      if (!reduced || totalEst > totalDuration) {
+        for (const mod of priorityModules) {
+          if (!enabledKeys.includes(mod as any)) continue;
+          const d = distMap[mod];
+          if (d.medium > 0) {
+            d.medium--;
+            d.easy++;
+            reduced = true;
+            totalEst = computeTotalEst();
+            if (totalEst <= totalDuration) break;
+          }
+        }
+      }
+
+      if (!reduced) break;
+    }
+
+    enabledKeys.forEach((k) => {
+      const d = distMap[k];
+      const reqCount = d.easy + d.medium + d.hard;
+      const estTime = getEstimatedModuleDuration(k, d);
+      nextConfig[k] = {
+        ...nextConfig[k],
+        requiredCount: reqCount,
+        difficultyDistribution: d,
+        durationMinutes: estTime,
+      } as any;
+    });
+
+    setModuleConfig(nextConfig);
+    toast.success(`Assessment question counts smartly fitted to ${totalDuration} min window!`);
+  };
+
+  const handleAutoBalanceWeights = () => {
+    setPinnedWeights({});
+    setPinnedDifficulties({});
     const lowerName = (drive?.roleTemplateName || "").toLowerCase();
     const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
       lowerName.includes("l1") ? "l1" : (
@@ -1063,40 +1286,14 @@ function DriveDetailPage() {
       )
     );
     const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag);
+    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag, { forceEqualWeights: true });
     setModuleConfig(aligned);
-    toast.success(`Module durations and difficulty benchmarks auto-balanced to ${windowMins} min!`);
+    toast.success("Core scoring weights equally balanced across active modules (100% split)!");
   };
 
   const weightValidation = useMemo(() => {
     return validateDriveModuleWeights(moduleConfig);
   }, [moduleConfig]);
-
-  const handleAutoBalanceWeights = () => {
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
-    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag);
-    setModuleConfig(aligned);
-    toast.success("Core scoring weights auto-balanced to sum to 100 points and aligned to window!");
-  };
-
-  const handleAutoAlignAssessment = () => {
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
-    const targetDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-    const aligned = autoAlignModuleConfig(moduleConfig, targetDuration, resolvedTag);
-    setModuleConfig(aligned);
-    toast.success(`Assessment auto-aligned to ${targetDuration} min (all weights = 100%, timings aligned)!`);
-  };
 
   const validateDateTimeConfig = (): { valid: boolean; error?: string } => {
     if (!startDate) {
@@ -1147,7 +1344,85 @@ function DriveDetailPage() {
     return (drive?.roster?.length || 0) > 0;
   }, [drive]);
 
+  const templateModulesSummary = useMemo(() => {
+    if (!isTemplateGoverned) return null;
+
+    const assignedObjs = (assignedQuestions || []).map((id) =>
+      questionsBank.find((q) => q.id === id) || { id, moduleType: "MCQ", difficulty: "MEDIUM" }
+    );
+
+    const modulesPresent = Array.from(
+      new Set(
+        assignedObjs.map((q) => {
+          const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
+          return isDebug ? "DEBUGGING" : q.moduleType;
+        })
+      )
+    ).filter(Boolean);
+
+    const activeModules = modulesPresent.length > 0
+      ? modulesPresent
+      : ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"].filter((k) => moduleConfig[k]?.enabled);
+
+    const preset = ((drive as any)?.roleTemplate?.weightingPreset as Record<string, number>) || {};
+
+    const summaryData = activeModules.map((modId) => {
+      const modQuestions = assignedObjs.filter((q) => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
+        const m = isDebug ? "DEBUGGING" : q.moduleType;
+        return m === modId;
+      });
+
+      const count = modQuestions.length || ((moduleConfig[modId] as any)?.requiredCount || 1);
+      const easyCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "EASY").length;
+      const mediumCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "MEDIUM").length;
+      const hardCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "HARD").length;
+
+      let rawWeight = preset[modId] !== undefined ? preset[modId] : (moduleConfig[modId]?.weight || 0);
+      let weight = rawWeight > 100 ? Math.round(rawWeight / 100) : (rawWeight <= 1 && rawWeight > 0 ? Math.round(rawWeight * 100) : Math.round(rawWeight));
+      if (weight === 0 && activeModules.length > 0) {
+        weight = Math.round(100 / activeModules.length);
+      }
+
+      const duration = moduleConfig[modId]?.durationMinutes || Math.max(5, Math.round((weight / 100) * 90));
+
+      return {
+        modId,
+        enabled: true,
+        weight,
+        marks: weight,
+        count,
+        dist: {
+          easy: easyCount || (count === 1 ? 1 : Math.ceil(count / 2)),
+          medium: mediumCount || (count > 1 ? Math.floor(count / 2) : 0),
+          hard: hardCount || 0,
+        },
+        estTime: duration,
+      };
+    });
+
+    const totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
+    const totalMarks = summaryData.reduce((sum, m) => sum + m.marks, 0);
+    const totalQuestions = summaryData.reduce((sum, m) => sum + m.count, 0);
+
+    return {
+      summaryData,
+      totalDuration: 90,
+      totalWeight: totalWeight || 100,
+      totalMarks: totalMarks || 100,
+      totalQuestions,
+      totalEstTime: 90,
+      isOverTime: false,
+      overflowMinutes: 0,
+      resolvedTag: "standard",
+    };
+  }, [isTemplateGoverned, assignedQuestions, questionsBank, moduleConfig, drive]);
+
   const driveEvaluationSummary = useMemo(() => {
+    if (isTemplateGoverned && templateModulesSummary) {
+      return templateModulesSummary;
+    }
+
     const lowerName = (drive?.roleTemplateName || "").toLowerCase();
     const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
       lowerName.includes("l1") ? "l1" : (
@@ -1164,8 +1439,8 @@ function DriveDetailPage() {
         }
 
         const weight = Number(conf.weight) || 0;
-        const reqCount = getRequiredQuestionCount(modId, weight, totalDuration, resolvedTag);
-        const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(getRequiredQuestionCount(modId, weight, totalDuration, resolvedTag), resolvedTag);
+        const reqCount = (conf as any).requiredCount !== undefined ? (conf as any).requiredCount : ((Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0));
         const estTime = getEstimatedModuleDuration(modId, dist);
 
         return {
@@ -1198,7 +1473,7 @@ function DriveDetailPage() {
       overflowMinutes,
       resolvedTag,
     };
-  }, [moduleConfig, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow, drive]);
+  }, [isTemplateGoverned, templateModulesSummary, moduleConfig, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow, drive]);
 
   const questionDeficits = useMemo(() => {
     // If governed by Role Template, questions are fixed by template — bypass algorithmic deficit check
@@ -1254,33 +1529,20 @@ function DriveDetailPage() {
   }, [isTemplateGoverned, isScheduleDateValid, hasCandidatesSelected, weightValidation, driveEvaluationSummary, areQuestionsFullyAssigned, assignedQuestions]);
 
   const validateCumulativeDuration = (config = moduleConfig): boolean => {
+    if (isTemplateGoverned) return true;
     const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
 
     let totalEstMins = 0;
     for (const [modId, conf] of Object.entries(config)) {
       if (!conf.enabled || Number(conf.weight) <= 0) continue;
-      const reqCount = getRequiredQuestionCount(modId, conf.weight, windowMins, resolvedTag);
-      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-      const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-      if (distSum !== reqCount) {
-        toast.error(
-          `Module ${modId} difficulty targets (${dist.easy}E + ${dist.medium}M + ${dist.hard}H = ${distSum}) must equal the required question count (${reqCount}).`
-        );
-        return false;
-      }
+      const dist = (conf as any).difficultyDistribution || { easy: 0, medium: 0, hard: 0 };
       totalEstMins += getEstimatedModuleDuration(modId, dist);
     }
 
     if (totalEstMins > windowMins) {
       const overflow = (totalEstMins - windowMins).toFixed(1);
       toast.error(
-        `⚠ Estimated assessment time exceeds the configured ${windowMins}-minute limit by ${overflow} minutes.`
+        `⚠ Estimated assessment time (${totalEstMins} min) exceeds the configured ${windowMins}-minute limit by ${overflow} minutes. Click "Smart Fit to Time" or reduce question counts.`
       );
       return false;
     }
@@ -1309,21 +1571,15 @@ function DriveDetailPage() {
     const updatedModuleConfig = { ...moduleConfig };
     for (const [modId, conf] of Object.entries(updatedModuleConfig)) {
       if (!conf.enabled || Number(conf.weight) <= 0) continue;
-      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
-      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-      if (dist.easy + dist.medium + dist.hard !== reqCount) {
-        updatedModuleConfig[modId] = {
-          ...conf,
-          requiredCount: reqCount,
-          difficultyDistribution: getDefaultDifficultyDistribution(reqCount, resolvedTag),
-        } as any;
-      } else {
-        updatedModuleConfig[modId] = {
-          ...conf,
-          requiredCount: reqCount,
-          difficultyDistribution: dist,
-        } as any;
-      }
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag), resolvedTag);
+      const reqCount = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+      const estTime = getEstimatedModuleDuration(modId, dist);
+      updatedModuleConfig[modId] = {
+        ...conf,
+        requiredCount: reqCount,
+        difficultyDistribution: dist,
+        durationMinutes: estTime,
+      } as any;
     }
 
     const enabledMods = Object.values(updatedModuleConfig).filter((m) => m.enabled);
@@ -1332,14 +1588,16 @@ function DriveDetailPage() {
       return;
     }
 
-    const weightVal = validateDriveModuleWeights(updatedModuleConfig);
-    if (!weightVal.valid) {
-      toast.error(weightVal.error || "Invalid module score weights configuration.");
-      return;
-    }
+    if (!isTemplateGoverned) {
+      const weightVal = validateDriveModuleWeights(updatedModuleConfig);
+      if (!weightVal.valid) {
+        toast.error(weightVal.error || "Invalid module score weights configuration.");
+        return;
+      }
 
-    if (!validateCumulativeDuration(updatedModuleConfig)) {
-      return;
+      if (!validateCumulativeDuration(updatedModuleConfig)) {
+        return;
+      }
     }
 
     try {
@@ -1429,6 +1687,10 @@ function DriveDetailPage() {
   };
 
   const handleSaveQuestionsAndNext = async () => {
+    if (isTemplateGoverned) {
+      setActiveTab("roster");
+      return;
+    }
     if (!isQuestionsEditable) {
       toast.info("Questions are locked (all links generated). Moving to Candidate Roster...");
       setActiveTab("roster");
@@ -1896,6 +2158,8 @@ function DriveDetailPage() {
                 endHour={endHour}
                 endMinute={endMinute}
                 endAmPm={endAmPm}
+                isFixedDuration={isTemplateGoverned}
+                fixedDurationMinutes={90}
                 rollingWindow={rollingWindow}
                 onRollingWindowChange={(enabled) => {
                   setRollingWindow(enabled);
@@ -1919,333 +2183,396 @@ function DriveDetailPage() {
               />
             </div>
 
-            {/* SECTION 2: Module Selection & 100-Point Scoring Ceiling */}
-            <div
-              className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5"
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-            >
-              {/* Header row: title and actions */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
-                <div className="flex items-center gap-2.5">
-                  <Layers size={18} className="text-[#2E5DE0]" />
-                  <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
-                    Module Selection &amp; 100-Point Scoring Ceiling
-                  </h3>
+            {/* SECTION 2: Module Selection & 100-Point Scoring Ceiling (Decoupled for Template vs Custom) */}
+            {isTemplateGoverned ? (
+              <div
+                className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5"
+                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+              >
+                {/* Header row */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <Layers size={18} className="text-[#2E5DE0]" />
+                    <div>
+                      <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                        Pre-Calibrated Assessment Modules (Role Template Governed)
+                      </h3>
+                      <p className="text-[12px] text-[#6B7280] mt-1">
+                        Modules, question distributions, and scoring weights are standardized and pre-calibrated by the role template.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold bg-[#D1FAE5] text-[#065F46] inline-flex items-center justify-center gap-1.5">
+                      <CheckCircle2 size={12} className="text-[#059669]" />
+                      <span>Total Weight: 100 / 100 pts</span>
+                    </span>
+                    <span className="h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold bg-[#EEF2FF] text-[#2E5DE0] inline-flex items-center justify-center gap-1.5">
+                      <Clock size={12} />
+                      <span>90-min Fixed Window</span>
+                    </span>
+                  </div>
                 </div>
 
-                {/* Action Buttons & Total Weight Badge */}
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  {/* Weight Badge (176x27) */}
-                  <span
-                    className={`h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold inline-flex items-center justify-center ${weightValidation.valid
-                      ? "bg-[#D1FAE5] text-[#065F46]"
-                      : "bg-rose-50 text-rose-700 border border-red-200"
-                      }`}
-                  >
-                    Total Weight: {weightValidation.coreSum} / 100 pts
-                  </span>
+                {/* Compact Pre-Calibrated Module Tabs Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 pt-1">
+                  {(() => {
+                    const MODULE_ICONS: Record<string, any> = {
+                      MCQ: FigmaMcqIcon,
+                      SQL: FigmaSqlIcon,
+                      NOSQL: FigmaSqlIcon,
+                      CODING: FigmaCodingDsaIcon,
+                      DEBUGGING: FigmaDebuggingIcon,
+                      AI_PROMPTING: FigmaAiPromptingIcon,
+                      SIMULATION: FigmaContextualSimulationIcon,
+                      TEST_SCENARIOS: FileText,
+                    };
+                    const MODULE_NAMES: Record<string, string> = {
+                      MCQ: "Multiple Choice",
+                      SQL: "SQL Queries",
+                      NOSQL: "NoSQL Queries",
+                      CODING: "Coding / DSA",
+                      DEBUGGING: "Debugging",
+                      AI_PROMPTING: "AI Prompting",
+                      SIMULATION: "Simulation",
+                      TEST_SCENARIOS: "Test Scenarios",
+                    };
 
-                  {/* Auto-Align Assessment (Kept as requested) */}
-                  <button
-                    type="button"
-                    onClick={handleAutoAlignAssessment}
-                    className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[14px] shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
-                    title="One-click automatic alignment of weights, required question counts, difficulty distributions, and timings to fit session window"
-                  >
-                    <Sparkles size={12} className="text-amber-300" />
-                    <span>Auto-Align Assessment</span>
-                  </button>
+                    const activeList = (templateModulesSummary?.summaryData || []).filter((m) => m.count > 0 || m.weight > 0);
 
-                  {/* Auto-Balance Time (151x27) */}
-                  <button
-                    type="button"
-                    onClick={handleAutoBalanceDurations}
-                    className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-[#2E5DE0] bg-[#2E5DE014] hover:bg-[#2E5DE024] rounded-[14px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                    title="Auto-balance module durations (preserves manually changed times)"
-                  >
-                    <Clock size={12} />
-                    <span>Auto-Balance Time</span>
-                  </button>
+                    if (activeList.length === 0) {
+                      return (
+                        <div className="col-span-full p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                          Calibrating template modules...
+                        </div>
+                      );
+                    }
 
-                  {/* Auto-Balance Weights (152x27) */}
-                  <button
-                    type="button"
-                    onClick={handleAutoBalanceWeights}
-                    className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-[#2E5DE0] bg-[#2E5DE014] hover:bg-[#2E5DE024] rounded-[14px] transition-colors cursor-pointer inline-flex items-center"
-                  >
-                    <span>Auto-Balance Weights</span>
-                  </button>
+                    return activeList.map((m) => {
+                      const Icon = MODULE_ICONS[m.modId] || Layers;
+                      const displayName = MODULE_NAMES[m.modId] || m.modId;
+                      return (
+                        <div
+                          key={m.modId}
+                          className="rounded-[14px] border border-[#D5DAEC] bg-gradient-to-b from-white to-[#F8FAFC] p-3.5 space-y-2.5 shadow-2xs hover:border-[#2E5DE0] transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Icon size={16} className="text-[#2E5DE0] shrink-0" />
+                              <span className="font-bold text-[13px] text-[#1E1B4B] truncate" title={displayName}>
+                                {displayName}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-mono text-[#065F46] bg-[#D1FAE5] px-1.5 py-0.5 rounded font-bold shrink-0">
+                              {m.weight}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] font-mono text-[#6B7280] pt-1.5 border-t border-[#E9EEFE]">
+                            <span className="font-bold text-[#1E1B4B]">{m.count} {m.count === 1 ? "Question" : "Questions"}</span>
+                            <span>{m.estTime} min</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
+            ) : (
+              /* Full Interactive Module Selection for Custom Roles */
+              <div
+                className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5"
+                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+              >
+                {/* Header row: title and actions */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <Layers size={18} className="text-[#2E5DE0]" />
+                    <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                      Module Selection &amp; 100-Point Scoring Ceiling
+                    </h3>
+                  </div>
 
-              {/* Module Cards Grid (1221x409 region, gap 16px) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-                {(
-                  [
-                    { id: "MCQ", name: "Multiple Choice (MCQ)", icon: FigmaMcqIcon, desc: "Evaluated deterministically" },
-                    { id: "SQL", name: "SQL Queries", icon: FigmaSqlIcon, desc: "Evaluated via Judge0 DB" },
-                    { id: "NOSQL", name: "NoSQL Queries", icon: FigmaSqlIcon, desc: "Evaluated via isolated MongoDB sandbox" },
-                    { id: "CODING", name: "Coding / DSA", icon: FigmaCodingDsaIcon, desc: "Evaluated via Judge0" },
-                    { id: "DEBUGGING", name: "Debugging", icon: FigmaDebuggingIcon, desc: "Evaluated via Judge0" },
-                    { id: "AI_PROMPTING", name: "AI Prompting", icon: FigmaAiPromptingIcon, desc: "Evaluated via Groq/Cerebras" },
-                    { id: "SIMULATION", name: "Contextual Simulation", icon: FigmaContextualSimulationIcon, desc: "On-call incident & ticket simulation evaluated via LLM" },
-                    { id: "TEST_SCENARIOS", name: "Test Scenarios", icon: FileText, desc: "Role-specific scenario questions evaluated via structured criteria" },
-                  ] as const
-                ).map((mod) => {
-                  const isGloballyEnabled = globalEnabledModules.includes(mod.id);
-                  const Icon = mod.icon;
-                  const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isBonus: false, isFixed: false };
-                  return (
-                    <div
-                      key={mod.id}
-                      onClick={() => {
-                        if (!isGloballyEnabled) {
-                          toast.error(`${mod.name} is disabled in Admin Settings for this department.`);
-                          return;
-                        }
-                        const isNowEnabled = !conf.enabled;
-                        const nextConfig = {
-                          ...moduleConfig,
-                          [mod.id]: { ...conf, enabled: isNowEnabled },
-                        };
-                        const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                        const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-                        const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-                          lowerName.includes("l1") ? "l1" : (
-                            lowerName.includes("l2") ? "l2" : "l3"
-                          )
-                        );
-                        const aligned = autoAlignModuleConfig(nextConfig, winMins, resolvedTag);
-                        setModuleConfig(aligned);
-                      }}
-                      className={`rounded-[16px] border-[1.5px] p-5 space-y-3 transition-all select-none ${!isGloballyEnabled
-                        ? "bg-[#F8FAFC] border-[#E9EEFE] opacity-40 cursor-not-allowed"
-                        : conf.enabled
-                          ? "bg-white border-[#2E5DE0] shadow-xs cursor-pointer"
-                          : "bg-[#F8FAFC]/60 border-[#E9EEFE] opacity-80 hover:border-[#D5DAEC] cursor-pointer"
+                  {/* Action Buttons & Total Weight Badge */}
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {/* Weight Badge */}
+                    <span
+                      className={`h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold inline-flex items-center justify-center ${weightValidation.valid
+                        ? "bg-[#D1FAE5] text-[#065F46]"
+                        : "bg-rose-50 text-rose-700 border border-red-200"
                         }`}
                     >
-                      {/* Card Header (356.33 x 18) */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 font-bold text-[15px] text-[#1E1B4B]">
-                          <Icon size={16} className={conf.enabled && isGloballyEnabled ? "text-[#2E5DE0]" : "text-[#6B7280]"} />
-                          <span>{mod.name}</span>
+                      Total Weight: {weightValidation.coreSum} / 100 pts
+                    </span>
+
+                    {/* Auto-Balance Weights Button */}
+                    <button
+                      type="button"
+                      onClick={handleAutoBalanceWeights}
+                      className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-[#2E5DE0] bg-[#2E5DE014] hover:bg-[#2E5DE024] rounded-[14px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                      title="Equally balance 100 points across all active modules"
+                    >
+                      <Sparkles size={12} className="text-[#2E5DE0]" />
+                      <span>Auto-Balance Weights</span>
+                    </button>
+
+                    {/* Smart Fit to Time Button */}
+                    <button
+                      type="button"
+                      onClick={handleSmartFitToTime}
+                      className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[14px] shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      title="Adjust question difficulty mixes to fit within your assessment time window"
+                    >
+                      <Clock size={12} className="text-white" />
+                      <span>Smart Fit to Time</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Assessment Time Gauge Bar */}
+                {(() => {
+                  const { totalEstTime, totalDuration, isOverTime, overflowMinutes } = driveEvaluationSummary;
+                  const percentUsed = Math.min(100, Math.round((totalEstTime / (totalDuration || 1)) * 100));
+                  const buffer = Math.max(0, totalDuration - totalEstTime);
+
+                  return (
+                    <div className="bg-[#F8FAFC] border border-[#E9EEFE] rounded-[14px] p-3.5 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-[#2E5DE0]" />
+                          <span className="font-bold text-[#1E1B4B]">Estimated Assessment Solving Time:</span>
+                          <span className="font-mono font-bold text-[#2E5DE0]">{totalEstTime} min</span>
+                          <span className="text-[#6B7280]">/ {totalDuration} min window</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          {!isGloballyEnabled && (
-                            <span className="text-[10px] font-mono text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
-                              Disabled in Settings
+                        <div>
+                          {isOverTime ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                              <AlertTriangle size={12} />
+                              Over by {overflowMinutes} min — click Smart Fit to Time
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <CheckCircle2 size={12} />
+                              {buffer} min buffer remaining
                             </span>
                           )}
-                          <input
-                            type="checkbox"
-                            checked={conf.enabled && isGloballyEnabled}
-                            disabled={!isGloballyEnabled}
-                            onChange={() => { }}
-                            className="w-4 h-4 text-[#2E5DE0] rounded cursor-pointer pointer-events-none disabled:opacity-40 accent-[#2E5DE0]"
-                          />
                         </div>
                       </div>
-                      <p className="text-[12px] text-[#6B7280] leading-snug">{mod.desc}</p>
 
-                      {conf.enabled && (
+                      {/* Visual progress bar */}
+                      <div className="w-full bg-[#E9EEFE] h-2 rounded-full overflow-hidden">
                         <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="space-y-3 pt-2 border-t border-[#E9EEFE] text-xs"
-                        >
-                          {/* Duration & Weight Inputs Row (356.33 x 57) */}
-                          <div className="grid grid-cols-2 gap-3">
+                          className={`h-full transition-all duration-300 rounded-full ${
+                            isOverTime ? "bg-rose-500" : percentUsed > 90 ? "bg-amber-500" : "bg-[#2E5DE0]"
+                          }`}
+                          style={{ width: `${percentUsed}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Module Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  {(
+                    [
+                      { id: "MCQ", name: "Multiple Choice (MCQ)", icon: FigmaMcqIcon, desc: "Evaluated deterministically" },
+                      { id: "SQL", name: "SQL Queries", icon: FigmaSqlIcon, desc: "Evaluated via Judge0 DB" },
+                      { id: "NOSQL", name: "NoSQL Queries", icon: FigmaSqlIcon, desc: "Evaluated via isolated MongoDB sandbox" },
+                      { id: "CODING", name: "Coding / DSA", icon: FigmaCodingDsaIcon, desc: "Evaluated via Judge0" },
+                      { id: "DEBUGGING", name: "Debugging", icon: FigmaDebuggingIcon, desc: "Evaluated via Judge0" },
+                      { id: "AI_PROMPTING", name: "AI Prompting", icon: FigmaAiPromptingIcon, desc: "Evaluated via Groq/Cerebras" },
+                      { id: "SIMULATION", name: "Contextual Simulation", icon: FigmaContextualSimulationIcon, desc: "On-call incident & ticket simulation evaluated via LLM" },
+                      { id: "TEST_SCENARIOS", name: "Test Scenarios", icon: FileText, desc: "Role-specific scenario questions evaluated via structured criteria" },
+                    ] as const
+                  ).map((mod) => {
+                    const isGloballyEnabled = globalEnabledModules.includes(mod.id);
+                    const Icon = mod.icon;
+                    const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isBonus: false };
+                    const isPinned = !!pinnedWeights[mod.id];
+
+                    const dist = (conf as any).difficultyDistribution || { easy: 0, medium: 0, hard: 0 };
+                    const reqCount = (conf as any).requiredCount !== undefined
+                      ? (conf as any).requiredCount
+                      : (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+                    const estDuration = getEstimatedModuleDuration(mod.id, dist);
+
+                    return (
+                      <div
+                        key={mod.id}
+                        onClick={() => {
+                          if (!isGloballyEnabled) {
+                            toast.error(`${mod.name} is disabled in Admin Settings for this department.`);
+                            return;
+                          }
+                          const isNowEnabled = !conf.enabled;
+                          const nextConfig = {
+                            ...moduleConfig,
+                            [mod.id]: { ...conf, enabled: isNowEnabled },
+                          };
+                          const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                          const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                          const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                            lowerName.includes("l1") ? "l1" : (
+                              lowerName.includes("l2") ? "l2" : "l3"
+                            )
+                          );
+                          const aligned = autoAlignModuleConfig(nextConfig, winMins, resolvedTag);
+                          setModuleConfig(aligned);
+                        }}
+                        className={`rounded-[16px] border-[1.5px] p-5 space-y-3 transition-all select-none ${!isGloballyEnabled
+                          ? "bg-[#F8FAFC] border-[#E9EEFE] opacity-40 cursor-not-allowed"
+                          : conf.enabled
+                            ? "bg-white border-[#2E5DE0] shadow-xs cursor-pointer"
+                            : "bg-[#F8FAFC]/60 border-[#E9EEFE] opacity-80 hover:border-[#D5DAEC] cursor-pointer"
+                          }`}
+                      >
+                        {/* Card Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 font-bold text-[15px] text-[#1E1B4B]">
+                            <Icon size={16} className={conf.enabled && isGloballyEnabled ? "text-[#2E5DE0]" : "text-[#6B7280]"} />
+                            <span>{mod.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {!isGloballyEnabled && (
+                              <span className="text-[10px] font-mono text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
+                                Disabled in Settings
+                              </span>
+                            )}
+                            <input
+                              type="checkbox"
+                              checked={conf.enabled && isGloballyEnabled}
+                              disabled={!isGloballyEnabled}
+                              onChange={() => { }}
+                              className="w-4 h-4 text-[#2E5DE0] rounded cursor-pointer pointer-events-none disabled:opacity-40 accent-[#2E5DE0]"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[12px] text-[#6B7280] leading-snug">{mod.desc}</p>
+
+                        {conf.enabled && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="space-y-3 pt-2 border-t border-[#E9EEFE] text-xs"
+                          >
+                            {/* Score Weight with Pin/Unpin */}
                             <div className="space-y-1">
                               <div className="flex items-center justify-between">
-                                <label className="text-[12px] font-semibold text-[#1E1B4B]">Duration (min)</label>
-                                {conf.isFixed && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setModuleConfig({
-                                        ...moduleConfig,
-                                        [mod.id]: { ...conf, isFixed: false },
-                                      });
-                                    }}
-                                    className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded-full font-bold cursor-pointer"
-                                    title="Click to unlock auto-adjustment"
-                                  >
-                                    🔒 FIXED
-                                  </button>
-                                )}
+                                <label className="text-[12px] font-semibold text-[#1E1B4B]">
+                                  Score Weight (%)
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => togglePinWeight(mod.id)}
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold cursor-pointer transition-colors ${
+                                    isPinned
+                                      ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                      : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"
+                                  }`}
+                                  title={isPinned ? "Click to unlock automatic rebalancing" : "Click to pin this weight"}
+                                >
+                                  {isPinned ? "📌 Pinned" : "🔓 Auto"}
+                                </button>
                               </div>
                               <input
                                 type="number"
-                                value={conf.durationMinutes === 0 ? "" : conf.durationMinutes}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
-                                  setModuleConfig({
-                                    ...moduleConfig,
-                                    [mod.id]: { ...conf, durationMinutes: val, isFixed: true },
-                                  });
-                                }}
-                                onFocus={(e) => e.target.select()}
-                                className={`w-full h-[36px] px-3 rounded-[18px] border font-mono font-bold text-[14px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] ${conf.isFixed ? "border-[#D97706] bg-amber-50/20" : "border-[#E9EEFE] bg-white"
-                                  }`}
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="block text-[12px] font-semibold text-[#1E1B4B]">
-                                Score Weight (pts)
-                              </label>
-                              <input
-                                type="number"
+                                min="0"
+                                max="100"
                                 value={conf.weight === 0 ? "" : conf.weight}
                                 onChange={(e) => {
                                   const raw = e.target.value;
                                   const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
-                                  const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-                                  const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-                                    lowerName.includes("l1") ? "l1" : (
-                                      lowerName.includes("l2") ? "l2" : "l3"
-                                    )
-                                  );
-                                  const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                                  const newReqCount = getRequiredQuestionCount(mod.id, val, totalDuration, resolvedTag);
-                                  const newDist = getDefaultDifficultyDistribution(newReqCount, resolvedTag);
-
-                                  setModuleConfig({
-                                    ...moduleConfig,
-                                    [mod.id]: {
-                                      ...conf,
-                                      weight: val,
-                                      requiredCount: newReqCount,
-                                      difficultyDistribution: newDist,
-                                    },
-                                  } as any);
+                                  handleWeightChange(mod.id, val);
                                 }}
                                 onFocus={(e) => e.target.select()}
-                                className="w-full h-[36px] px-3 rounded-[18px] border border-[#E9EEFE] bg-white font-mono font-bold text-[14px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                className={`w-full h-[36px] px-3 rounded-[18px] border font-mono font-bold text-[14px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] ${
+                                  isPinned ? "border-indigo-300 bg-indigo-50/20" : "border-[#E9EEFE] bg-white"
+                                }`}
                               />
                             </div>
-                          </div>
 
-                          {mod.id === "AI_PROMPTING" && (
-                            <div className="pt-2 border-t border-[#E9EEFE] space-y-1">
-                              <label className="block text-[12px] font-semibold text-[#1E1B4B]">Question &amp; Validation Source</label>
-                              <select
-                                value={(conf as any).questionSource || "AI_DYNAMIC"}
-                                onChange={(e) =>
-                                  setModuleConfig({
-                                    ...moduleConfig,
-                                    [mod.id]: { ...(conf as any), questionSource: e.target.value } as any,
-                                  })
-                                }
-                                className="w-full h-[36px] px-3 rounded-[18px] border border-[#E9EEFE] font-sans text-xs bg-white text-[#1E1B4B] outline-none cursor-pointer focus:border-[#2E5DE0]"
-                              >
-                                <option value="AI_DYNAMIC">AI-Generated Questions &amp; Autonomous AI Validation</option>
-                                <option value="STATIC_BANK">Static Question Bank (Pre-authored Questions &amp; Rules)</option>
-                              </select>
-                            </div>
-                          )}
+                            {mod.id === "AI_PROMPTING" && (
+                              <div className="pt-2 border-t border-[#E9EEFE] space-y-1">
+                                <label className="block text-[12px] font-semibold text-[#1E1B4B]">Question &amp; Validation Source</label>
+                                <select
+                                  value={(conf as any).questionSource || "AI_DYNAMIC"}
+                                  onChange={(e) =>
+                                    setModuleConfig({
+                                      ...moduleConfig,
+                                      [mod.id]: { ...(conf as any), questionSource: e.target.value } as any,
+                                    })
+                                  }
+                                  className="w-full h-[36px] px-3 rounded-[18px] border border-[#E9EEFE] font-sans text-xs bg-white text-[#1E1B4B] outline-none cursor-pointer focus:border-[#2E5DE0]"
+                                >
+                                  <option value="AI_DYNAMIC">AI-Generated Questions &amp; Autonomous AI Validation</option>
+                                  <option value="STATIC_BANK">Static Question Bank (Pre-authored Questions &amp; Rules)</option>
+                                </select>
+                              </div>
+                            )}
 
-                          {(() => {
-                            const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-                            const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-                              lowerName.includes("l1") ? "l1" : (
-                                lowerName.includes("l2") ? "l2" : "l3"
-                              )
-                            );
-                            const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                            const reqCount = getRequiredQuestionCount(mod.id, conf.weight, totalDuration, resolvedTag);
-                            const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-                            const estDuration = getEstimatedModuleDuration(mod.id, dist);
-                            const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-
-                            return (
-                              <div className="pt-2 border-t border-[#E9EEFE] space-y-1.5">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-[#1E1B4B]">
-                                    Difficulty Target (Required: {reqCount})
-                                  </span>
-                                  <span className="text-[11px] text-[#6B7280] font-medium font-mono">
-                                    Est: {estDuration} min
-                                  </span>
+                            {/* Direct Question Complexity Control (Easy, Med, Hard) */}
+                            <div className="pt-2 border-t border-[#E9EEFE] space-y-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-[#1E1B4B]">
+                                  Question Difficulty (Total: {reqCount})
+                                </span>
+                                <span className="text-[11px] text-[#2E5DE0] bg-[#2E5DE014] px-1.5 py-0.5 rounded font-bold font-mono">
+                                  ⏱ {estDuration} min
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <label className="block text-[10px] text-emerald-700 font-bold mb-0.5 uppercase tracking-wide">Easy</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.easy === 0 ? "" : dist.easy}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      handleDifficultyChange(mod.id, "easy", val);
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                  />
                                 </div>
-                                {distSum !== reqCount && (
-                                  <div className="text-[11px] text-rose-600 font-bold">
-                                    ⚠ Difficulty counts must total {reqCount} (Current: {distSum})
-                                  </div>
-                                )}
-                                <div className="grid grid-cols-3 gap-2">
-                                  <div>
-                                    <label className="block text-[10px] text-emerald-700 font-bold mb-0.5 uppercase tracking-wide">Easy</label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={dist.easy}
-                                      onChange={(e) => {
-                                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                        setModuleConfig({
-                                          ...moduleConfig,
-                                          [mod.id]: {
-                                            ...conf,
-                                            requiredCount: reqCount,
-                                            difficultyDistribution: { ...dist, easy: val },
-                                          },
-                                        } as any);
-                                      }}
-                                      className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[10px] text-amber-700 font-bold mb-0.5 uppercase tracking-wide">Medium</label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={dist.medium}
-                                      onChange={(e) => {
-                                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                        setModuleConfig({
-                                          ...moduleConfig,
-                                          [mod.id]: {
-                                            ...conf,
-                                            requiredCount: reqCount,
-                                            difficultyDistribution: { ...dist, medium: val },
-                                          },
-                                        } as any);
-                                      }}
-                                      className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[10px] text-rose-700 font-bold mb-0.5 uppercase tracking-wide">Hard</label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={dist.hard}
-                                      onChange={(e) => {
-                                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                        setModuleConfig({
-                                          ...moduleConfig,
-                                          [mod.id]: {
-                                            ...conf,
-                                            requiredCount: reqCount,
-                                            difficultyDistribution: { ...dist, hard: val },
-                                          },
-                                        } as any);
-                                      }}
-                                      className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
-                                    />
-                                  </div>
+                                <div>
+                                  <label className="block text-[10px] text-amber-700 font-bold mb-0.5 uppercase tracking-wide">Medium</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.medium === 0 ? "" : dist.medium}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      handleDifficultyChange(mod.id, "medium", val);
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-rose-700 font-bold mb-0.5 uppercase tracking-wide">Hard</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.hard === 0 ? "" : dist.hard}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      handleDifficultyChange(mod.id, "hard", val);
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                  />
                                 </div>
                               </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Assessment Composition Summary */}
             {(() => {
@@ -2316,7 +2643,12 @@ function DriveDetailPage() {
                   </div>
 
                   {/* Status Banners */}
-                  {isOverTime ? (
+                  {isTemplateGoverned ? (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-[12px] text-xs text-emerald-800 font-medium">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                      <span>✓ Assessment configuration fits within the configured 90-minute limit ({totalEstTime} min estimated).</span>
+                    </div>
+                  ) : isOverTime ? (
                     <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-rose-50 border border-rose-200 rounded-[12px] text-xs text-rose-900">
                       <div className="flex items-start gap-2.5 max-w-2xl">
                         <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
@@ -2331,11 +2663,11 @@ function DriveDetailPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={handleAutoAlignAssessment}
+                        onClick={handleSmartFitToTime}
                         className="shrink-0 px-3.5 py-2 bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-xs font-bold rounded-[10px] shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <Sparkles size={14} className="text-amber-300" />
-                        <span>Auto-Align to {totalDuration} min</span>
+                        <span>Smart Fit to {totalDuration} min</span>
                       </button>
                     </div>
                   ) : (
@@ -2431,33 +2763,37 @@ function DriveDetailPage() {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
                 <div>
                   <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
-                    Question Bank Assignment
+                    {isTemplateGoverned ? "Template Assigned Questions" : "Question Bank Assignment"}
                   </h3>
                   <p className="text-[13px] text-[#6B7280] mt-1.5">
-                    Select and assign questions from the central question library or import via CSV.
+                    {isTemplateGoverned
+                      ? "Standardized assessment questions pre-calibrated by the selected Role Template."
+                      : "Select and assign questions from the central question library or import via CSV."}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate({
-                        to: "/questions",
-                        search: {
-                          fromDriveId: driveId,
-                          driveName: drive.name,
-                          autoBulk: "true",
-                        } as any,
-                      });
-                    }}
-                    className="h-[32px] px-4 py-1.5 gap-2 text-[13px] font-semibold text-[#2E5DE0] bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE0] rounded-full transition-colors cursor-pointer inline-flex items-center shadow-xs"
-                    style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                  >
-                    <Upload size={14} className="text-[#2E5DE0] shrink-0" />
-                    <span className="text-[#2E5DE0] leading-none whitespace-nowrap">Bulk Import Questions</span>
-                  </button>
-                </div>
+                {!isTemplateGoverned && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate({
+                          to: "/questions",
+                          search: {
+                            fromDriveId: driveId,
+                            driveName: drive.name,
+                            autoBulk: "true",
+                          } as any,
+                        });
+                      }}
+                      className="h-[32px] px-4 py-1.5 gap-2 text-[13px] font-semibold text-[#2E5DE0] bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE0] rounded-full transition-colors cursor-pointer inline-flex items-center shadow-xs"
+                      style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                    >
+                      <Upload size={14} className="text-[#2E5DE0] shrink-0" />
+                      <span className="text-[#2E5DE0] leading-none whitespace-nowrap">Bulk Import Questions</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Locked Warning Banner */}
@@ -2465,7 +2801,10 @@ function DriveDetailPage() {
                 <div className="p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-[10px] text-[13px] text-[#B45309] flex items-center gap-2.5">
                   <Lock size={16} className="text-[#B45309] shrink-0" />
                   <span>
-                    <strong>Questions Locked:</strong> All candidate invite links have already been generated for this drive. Questions are present below for review in read-only mode.
+                    <strong>{isTemplateGoverned ? "Role Template Governed:" : "Questions Locked:"}</strong>{" "}
+                    {isTemplateGoverned
+                      ? "Questions are standardized and pre-calibrated by the selected Role Template to ensure uniform candidate evaluation. Preview questions in read-only mode below."
+                      : "All candidate invite links have already been generated for this drive. Questions are present below for review in read-only mode."}
                   </span>
                 </div>
               )}
@@ -2492,7 +2831,7 @@ function DriveDetailPage() {
                     No questions assigned to this drive yet. Select and assign questions from the Question Bank below.
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#E9EEFE] bg-white max-h-[300px] overflow-y-auto">
+                  <div className={`divide-y divide-[#E9EEFE] bg-white ${isTemplateGoverned ? "max-h-[550px]" : "max-h-[300px]"} overflow-y-auto`}>
                     {assignedQuestions.map((qId) => {
                       const q = questionsBank.find((item) => item.id === qId) || {
                         id: qId,
@@ -2519,7 +2858,7 @@ function DriveDetailPage() {
                           </div>
 
                           {/* Row Actions with exact aligned widths */}
-                          <div className="w-[172px] flex items-center justify-end gap-2.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <div className={`${isTemplateGoverned ? "w-[84px]" : "w-[172px]"} flex items-center justify-end gap-2.5 shrink-0`} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2542,7 +2881,7 @@ function DriveDetailPage() {
                               >
                                 Remove
                               </button>
-                            ) : (
+                            ) : isTemplateGoverned ? null : (
                               <span className="w-[76px] h-[28px] rounded-[14px] bg-[#F2F2FB] text-[#9CA3AF] text-[12px] font-semibold flex items-center justify-center gap-1 cursor-not-allowed">
                                 <Lock size={12} className="text-[#9CA3AF]" />
                                 <span>Locked</span>
@@ -2556,8 +2895,11 @@ function DriveDetailPage() {
                 )}
               </div>
 
-              {/* Pool Sufficiency & Status Banners */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              {/* Pool Sufficiency & Question Bank Selector (Custom Role Drives Only) */}
+              {!isTemplateGoverned && (
+                <>
+                  {/* Pool Sufficiency & Status Banners */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                 {allowedModules.map((modId) => {
                   const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
                   if (!conf.enabled || Number(conf.weight) <= 0) return null;
@@ -2983,7 +3325,9 @@ function DriveDetailPage() {
                   })
                 )}
               </div>
-            </div>
+            </>
+          )}
+        </div>
 
             {/* BOTTOM ACTION BUTTON: + Save & Next (Aligned Right) */}
             <div className="w-full max-w-[1263px] flex justify-end pt-2 pb-6">
