@@ -180,11 +180,7 @@ Respond ONLY in strict JSON format:
         const cerebrasResult = await this.callCerebrasApi(systemPrompt, userContent);
         if (cerebrasResult) return { ...cerebrasResult, providerUsed: "CEREBRAS" };
       } catch (err: any) {
-<<<<<<< HEAD
         this.logger.warn(`Cerebras API evaluation failed: ${err.message}. Provider unavailable.`);
-=======
-        this.logger.warn(`Cerebras API evaluation failed: ${err.message}. Falling back to Dev Fallback.`);
->>>>>>> ocr
       }
     }
 
@@ -320,11 +316,7 @@ Respond ONLY in strict JSON format:
       const cleanContent = jsonMatch ? jsonMatch[0] : content;
       const parsed = JSON.parse(cleanContent);
       return {
-<<<<<<< HEAD
         score: typeof parsed.score === "number" && !isNaN(parsed.score) ? Math.min(100, Math.max(0, Math.round(parsed.score))) : null,
-=======
-        score: typeof parsed.score === "number" && !isNaN(parsed.score) ? Math.min(100, Math.max(0, Math.round(parsed.score))) : (parsed.score !== undefined ? Number(parsed.score) : 75),
->>>>>>> ocr
         reasoning: parsed.reasoning || "AI Evaluation completed.",
         feedback: parsed.feedback || "Good structure and relevant response.",
       };

@@ -99,15 +99,9 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
               transitionTo({ type: 'too-early', scheduledTimeMs: scheduledMs, inviteToken: token });
               return;
             } else if (nowMs > cutoffMs && !isSessionAlreadyStarted) {
-<<<<<<< HEAD
-              console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.')
-              transitionTo({ type: 'expired', reason: 'grace-expired' as any })
-              return
-=======
               console.log('[InviteResolver] Candidate entered after grace window. Showing expired page.');
               transitionTo({ type: 'expired', reason: 'grace-expired' as any });
               return;
->>>>>>> ocr
             } else {
               // Candidate is in the valid active window — clear any stale far-future scheduled-ms
               localStorage.removeItem('cd-recruit-scheduled-ms');

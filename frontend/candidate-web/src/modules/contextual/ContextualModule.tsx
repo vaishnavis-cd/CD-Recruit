@@ -69,9 +69,6 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
   const [step, setStep] = useState<'LOADING' | 'BRIEFING' | 'WORKSPACE'>('LOADING');
   const [scenario, setScenario] = useState<any>(DEFAULT_SCENARIO);
 
-  useEffect(() => {
-    const savedResponse = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : undefined) as { initialSayText?: string; completed?: boolean } | undefined
-
   // Fetch Scenario Config from backend & restore step
   useEffect(() => {
     const savedResponse = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : undefined) as { initialSayText?: string; completed?: boolean } | undefined;
@@ -121,9 +118,6 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         console.warn('Error saving initial say:', err);
       }
     }
-    const currentResp = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : {}) || {}
-    setQuestionStatus(scenario.id, 'answered')
-    setResponse(scenario.id, { ...currentResp, initialSayText, completed: false })
 
     const questionId = scenario?.id || 'simulation-question';
     const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {};
@@ -146,11 +140,6 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
         console.warn('Simulation submit error:', err);
       }
     }
-    const currentResp = (assessment?.responses && scenario?.id ? assessment.responses[scenario.id] : {}) || {}
-    setQuestionStatus(scenario.id, 'answered')
-    setResponse(scenario.id, { ...currentResp, completed: true })
-    setStep('COMPLETED')
-  }
 
     const questionId = scenario?.id || 'simulation-question';
     const currentResp = (assessment?.responses && questionId ? assessment.responses[questionId] : {}) || {};
@@ -158,7 +147,7 @@ export function ContextualModule({ moduleIndex }: ContextualModuleProps) {
     setResponse(questionId, { ...currentResp, completed: true, ...signoffData });
 
     // Seamless advancement
-    handleNext(() => setCurrentIndex(i => i + 1));
+    handleNext(() => setCurrentIndex((i) => i + 1));
   };
 
   const handleNavigateModule = (idx: number) => {

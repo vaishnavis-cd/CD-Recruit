@@ -102,9 +102,4 @@ dump.rdb
 *.bin
 *.h5
 *.ckpt
-<<<<<<< HEAD
 *.safetensors
-=======
-*.safetensors
-
->>>>>>> ocr

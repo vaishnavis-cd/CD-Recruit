@@ -14,8 +14,10 @@ import * as vm from "vm";
 import * as fs from "fs"; 
 import * as path from "path";
 import * as os from "os";
-import { QA_BUG_REPORT_SCENARIO, ContextSimulationScenarioConfig } from "./scenarios/qa-bug-report.config";
+import { ContextSimulationScenarioConfig } from "./scenarios/scenario-type.interface";
+import { QA_BUG_REPORT_SCENARIO } from "./scenarios/qa-bug-report.config";
 import { EXPERIENCED_PROD_INCIDENT_SCENARIO } from "./scenarios/experienced-prod-incident.config";
+import { getScenarioById, SCENARIO_REGISTRY } from "./scenarios";
 
 export interface SimulationInboxMessage {
   id: number;
@@ -763,7 +765,17 @@ export class SimulationService implements AssessmentModuleEngine {
   async submitSimulation(sessionId: string, submissionPayload?: any): Promise<FullSimulationEvaluationResult> {
     const state = await this.getOrCreateSessionState(sessionId);
     const telemetryEvents = await this.getUnifiedTelemetryEvents(sessionId);
-    const candidateActions = await this.getCandidateActions(sessionId);
+    // Resolve scenario config and questionId consistently across all sources
+    const scenarioConfig = await this.getScenarioConfig(sessionId);
+    const questionId = scenarioConfig?.id || "qa-bug-login-validation";
+
+    // Ensure state captures email reply and say text passed in submissionPayload
+    if (submissionPayload?.emailReplyText && !state.emailReplyText) {
+      state.emailReplyText = submissionPayload.emailReplyText;
+    }
+    if (submissionPayload?.initialSayText && !state.initialSayText) {
+      state.initialSayText = submissionPayload.initialSayText;
+    }
 
     // Extract test results if present in submission payload
     const testResults = submissionPayload?.testResults || null;

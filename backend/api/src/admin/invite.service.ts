@@ -431,7 +431,7 @@ export class InviteService {
     // Enroll with Face Verify service first to ensure a face is detected
     let enrollResult: { embedding: number[]; model: string };
     try {
-      enrollResult = await this.faceVerifyClient.enroll(
+      enrollResult = await this.faceVerifyOnnxService.enroll(
         file.buffer,
         file.originalname,
       );

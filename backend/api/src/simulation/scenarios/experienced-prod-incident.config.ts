@@ -1,4 +1,4 @@
-import { ContextSimulationScenarioConfig } from "./qa-bug-report.config";
+import { ContextSimulationScenarioConfig } from "./scenario-type.interface";
 
 export const EXPERIENCED_PROD_INCIDENT_SCENARIO: ContextSimulationScenarioConfig = {
   id: "experienced-db-connection-leak",

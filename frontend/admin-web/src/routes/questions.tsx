@@ -1072,88 +1072,26 @@ function QuestionBankPage() {
                 {selectedFolder} ({groupedQuestions[selectedFolder]?.length || 0})
               </span>
             </div>
+            <div className="relative w-[280px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
+              <input
+                value={folderQuery}
+                onChange={(e) => setFolderQuery(e.target.value)}
+                placeholder="Filter in this folder…"
+                className="w-full pl-9 pr-8 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
+              />
+              {folderQuery && (
+                <button
+                  onClick={() => setFolderQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
+                  title="Clear filter"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-3">
-            {(groupedQuestions[selectedFolder] || []).map((q) => (
-              <div
-                key={q.id}
-                className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
-              >
-                <div className="space-y-1.5 flex-1 min-w-0 pr-4">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
-                      {q.moduleType}
-                    </span>
-                    <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
-                        q.difficulty === "easy"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : q.difficulty === "medium"
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-rose-50 text-rose-700"
-                      }`}
-                    >
-                      {q.difficulty}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
-                        extractQuestionTier(q) === "TIER_2"
-                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                          : "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                      }`}
-                    >
-                      {extractQuestionTier(q) === "TIER_2" ? "TIER 2" : "TIER 1"}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
-                      Role: {q.role || "General"}
-                    </span>
-                  </div>
-                  <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
-                    {q.content?.prompt || q.content?.title || "Simulation Scenario"}
-                  </h4>
-                  {q.tags && q.tags.length > 0 && (() => {
-                    const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
-                    return (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        {displayTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
-                          >
-                            <Tag size={8} />
-                            {tag}
-                          </span>
-                        ))}
-                        {hiddenDriveCount > 0 && (
-                          <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
-                            +{hiddenDriveCount} more drives
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div className="relative w-[280px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
-                  <input
-                    value={folderQuery}
-                    onChange={(e) => setFolderQuery(e.target.value)}
-                    placeholder="Filter in this folder…"
-                    className="w-full pl-9 pr-8 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
-                  />
-                  {folderQuery && (
-                    <button
-                      onClick={() => setFolderQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
-                      title="Clear filter"
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-3">
                 {currentList.length === 0 ? (
                   <div className="text-center py-10 bg-white border border-[#E6E6EA] rounded-xl p-6 space-y-2">
                     <p className="text-[12px] text-[#8B8B93] font-mono">
@@ -1254,9 +1192,7 @@ function QuestionBankPage() {
                 )}
               </div>
             </div>
-          );
-        })()
-      ) : (
+          ) : (
         /* Categorized Folder Grid directory list */
         <div className="space-y-6">
           {/* Header Bar */}

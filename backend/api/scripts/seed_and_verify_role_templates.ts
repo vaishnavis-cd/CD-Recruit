@@ -175,10 +175,6 @@ async function seedAndVerifyRoleTemplates() {
       where: {
         department: conf.department,
         level: conf.level,
-<<<<<<< HEAD
-=======
-        experiencedLevel: conf.experiencedLevel,
->>>>>>> ocr
         isActive: true,
       },
     });
@@ -192,11 +188,7 @@ async function seedAndVerifyRoleTemplates() {
           weightingPreset: conf.weightingPreset as any,
         },
       });
-<<<<<<< HEAD
       console.log(`  🔄 Updated Active RoleTemplate: [${conf.department} / ${conf.level}] -> ${conf.roleName}`);
-=======
-      console.log(`  🔄 Updated Active RoleTemplate: [${conf.department} / ${conf.level}${conf.experiencedLevel ? ` / ${conf.experiencedLevel}` : ''}] -> ${conf.roleName}`);
->>>>>>> ocr
       updatedCount++;
     } else {
       await prisma.roleTemplate.create({

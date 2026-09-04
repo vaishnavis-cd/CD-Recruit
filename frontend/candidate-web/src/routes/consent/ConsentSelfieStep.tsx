@@ -142,52 +142,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
     }
   }
 
-  async function runIdentityVerification(dataUrl: string) {
-    if (!sessionId) return
-    setVerificationState({ type: 'verifying' })
-
-    try {
-      const res = await fetch(dataUrl)
-      const blob = await res.blob()
-
-      const formData = new FormData()
-      formData.append('file', blob, 'selfie.jpg')
-
-      const response = await apiClient.post(`/sessions/${sessionId}/verify-identity`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-
-      const data = response.data
-      console.log('[ConsentSelfieStep] Identity verification response:', data)
-
-      if (data.status === 'verified') {
-        setVerificationState({ type: 'verified' })
-        setTimeout(() => {
-          onComplete()
-        }, 800)
-      } else if (data.status === 'not_verified') {
-        setVerificationState({
-          type: 'not_verified',
-          distance: data.distance,
-        })
-      } else if (data.status === 'no_id_proof_on_file') {
-        setVerificationState({ type: 'no_id_proof_on_file' })
-      } else {
-        setVerificationState({
-          type: 'error',
-          message: 'Unexpected verification result received from server.',
-        })
-      }
-    } catch (err: any) {
-      console.error('[ConsentSelfieStep] Identity verification network error:', err)
-      const errDetail = err?.response?.data?.message || err?.message || 'Something went wrong, please try again'
-      setVerificationState({
-        type: 'error',
-        message: typeof errDetail === 'string' ? errDetail : 'Something went wrong, please try again',
-      })
-    }
-  }
-
   async function handleCapture() {
     if (!videoRef.current || !isAligned) return;
 
@@ -232,17 +186,10 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   }
 
   function handleRetake() {
-<<<<<<< HEAD
-    setSelfieCaptured(false)
-    setCapturedDataUrl(null)
-    setVerificationState({ type: 'idle' })
-    localStorage.removeItem('cd-recruit-selfie-data')
-=======
     setSelfieCaptured(false);
     setCapturedDataUrl(null);
     setVerificationState({ type: 'idle' });
     localStorage.removeItem('cd-recruit-selfie-data');
->>>>>>> ocr
 
     // Re-attach video stream so element never turns black
     if (streamRef.current && videoRef.current) {
@@ -264,20 +211,6 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       console.error('[ConsentSelfieStep] Flag and continue failed:', err);
       setFlaggingInFlight(false);
       setShowFlagConfirmModal(false);
-    }
-  }
-
-  async function executeFlagAndContinue() {
-    if (!sessionId) return
-    setFlaggingInFlight(true)
-    try {
-      await apiClient.post(`/sessions/${sessionId}/flag-and-continue`)
-      setShowFlagConfirmModal(false)
-      onComplete()
-    } catch (err: any) {
-      console.error('[ConsentSelfieStep] Flag and continue failed:', err)
-      setFlaggingInFlight(false)
-      setShowFlagConfirmModal(false)
     }
   }
 

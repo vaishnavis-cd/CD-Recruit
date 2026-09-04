@@ -1545,10 +1545,7 @@ function DriveDetailPage() {
           }
         }
 
-<<<<<<< HEAD
         // If question belongs to a specific department, it MUST match the Drive's target department
-=======
->>>>>>> ocr
         if (qDept && qDept !== targetDeptNorm) {
           return false;
         }

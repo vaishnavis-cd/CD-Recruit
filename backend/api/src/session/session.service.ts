@@ -354,13 +354,6 @@ export async function buildQuestionList(
   }
 }
 
-import { SessionLifecycleService } from "./session-lifecycle.service";
-import { SessionStateMachine } from "./session-state-machine";
-import { SessionScoringService } from "./session-scoring.service";
-import { FaceVerifyOnnxService } from "../integrations/face-verify-onnx/face-verify-onnx.service";
-
-import { SessionStatusPort } from "@app/common/ports/session-status.port";
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionService
 // ─────────────────────────────────────────────────────────────────────────────
@@ -906,17 +899,7 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
-=======
-    await this.markPendingCapturesClosed(sessionId);
-
-    // Calculate real module scores and composite score upon submission
->>>>>>> onnx
-=======
-    // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
->>>>>>> ocr
     try {
       const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
       if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
@@ -1541,7 +1524,6 @@ export class SessionService implements SessionStatusPort {
 
     return { ok: true, consentRecordId: consentRecord.id };
   }
-<<<<<<< HEAD
 
   async verifyIdentity(
     sessionId: string,
@@ -1769,110 +1751,6 @@ export class SessionService implements SessionStatusPort {
 
     return { status: "received" };
   }
-}
-
-
-=======
-
-  async verifyIdentity(
-    sessionId: string,
-    file: { buffer: Buffer; originalname: string },
-  ): Promise<{
-    status: "no_id_proof_on_file" | "verified" | "not_verified";
-    matched: boolean | null;
-    distance: number | null;
-    threshold: number | null;
-  }> {
-    if (!file || !file.buffer) {
-      throw new BadRequestException("No selfie image provided in request");
-    }
-
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-      include: { candidate: true },
-    });
-
-    if (!session) {
-      throw new NotFoundException(`Session not found with ID ${sessionId}`);
-    }
-
-    const candidate = session.candidate;
-    const storedEmb = candidate?.idProofEmbedding as unknown as number[];
-
-    if (!candidate || !storedEmb) {
-      this.logger.log(
-        `Session ${sessionId} has no ID proof embedding on file for candidate ${candidate?.id}`,
-      );
-      return {
-        status: "no_id_proof_on_file",
-        matched: null,
-        distance: null,
-        threshold: null,
-      };
-    }
-
-    const result = await this.faceVerifyOnnxService.verify(
-      file.buffer,
-      file.originalname,
-      storedEmb,
-    );
-
-    if (result.matched) {
-      await this.prisma.candidate.update({
-        where: { id: candidate.id },
-        data: { idVerifiedAt: new Date() },
-      });
-      return {
-        status: "verified",
-        matched: true,
-        distance: result.distance,
-        threshold: result.threshold,
-      };
-    }
-
-    return {
-      status: "not_verified",
-      matched: false,
-      distance: result.distance,
-      threshold: result.threshold,
-    };
-  }
-
-  async flagAndContinueIdentity(
-    sessionId: string,
-  ): Promise<{ status: string; sessionId: string }> {
-    const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
-    });
-
-    if (!session) {
-      throw new NotFoundException(`Session not found with ID ${sessionId}`);
-    }
-
-    await this.prisma.integrityFlag.create({
-      data: {
-        sessionId: session.id,
-        category: "IDENTITY_MISMATCH",
-        severity: "HIGH",
-        confidence: 1.0,
-        flaggedAt: new Date(),
-      },
-    });
-
-    return { status: "flagged", sessionId };
-  }
-
-  private async createNoIdProofFlag(sessionId: string): Promise<void> {
-    await this.prisma.integrityFlag.create({
-      data: {
-        sessionId,
-        category: "NO_ID_PROOF_ON_FILE",
-        severity: "MEDIUM",
-        confidence: 1.0,
-        flaggedAt: new Date(),
-      },
-    });
-  }
 
   /**
    * Save an in-test identity snapshot capture to MinIO and verify face embeddings against baseline selfie.
@@ -1981,4 +1859,4 @@ export class SessionService implements SessionStatusPort {
     }
   }
 }
->>>>>>> ocr
+

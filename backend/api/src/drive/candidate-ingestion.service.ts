@@ -105,12 +105,8 @@ export class CandidateIngestionService {
         return d;
       })();
 
-    for (const cand of candidates as any[]) {
-      const emailRaw = (cand.candidateEmail || cand.email || "").trim();
-      const emailLower = emailRaw.toLowerCase();
-      const nameRaw = (cand.candidateName || cand.name || emailRaw).trim();
-
-      if (!emailLower) continue;
+    const originChannel = options?.originChannel || OriginChannel.DIRECT;
+    let skippedCount = 0;
 
     for (const cand of candidates as any[]) {
       const emailRaw = (cand.candidateEmail || cand.email || "").trim();
@@ -170,11 +166,7 @@ export class CandidateIngestionService {
             inviteId,
             emailRaw,
             nameRaw,
-<<<<<<< HEAD
-            roleTemplateId,
-=======
             targetTemplateId,
->>>>>>> ocr
           )
         : "draft_" + crypto.randomUUID();
 
@@ -186,7 +178,7 @@ export class CandidateIngestionService {
         id: inviteId,
         candidateEmail: emailRaw,
         candidateName: nameRaw,
-        roleTemplateId,
+        roleTemplateId: targetTemplateId,
         driveId,
         createdById: staffId,
         category,

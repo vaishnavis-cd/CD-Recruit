@@ -28,7 +28,6 @@ import {
   ChevronDown,
   Check,
   Bug,
-  UserCheck,
   Camera,
   FileText,
 } from "lucide-react";
@@ -182,10 +181,7 @@ function IndividualResultPage() {
       { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
       { id: "SIMULATION", label: "Simulation Log", icon: Play },
       { id: "TEST_SCENARIOS", label: "Test Scenarios", icon: FileCheck2 },
-<<<<<<< HEAD
       { id: "NOSQL", label: "NoSQL Execution", icon: Database },
-=======
->>>>>>> ocr
       { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
     ];
 

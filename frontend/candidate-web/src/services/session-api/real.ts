@@ -206,33 +206,19 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     }
 
     // Check if it is a Test Scenario question
-<<<<<<< HEAD
     const isTestScenarioQuestion = questionSummary?.moduleType === 'TEST_SCENARIOS'
     if (isTestScenarioQuestion) {
       const scenarioAnswer = typeof val === 'string' ? val : (val as any)?.answer || (val as any)?.text || ''
-=======
-    const isTestScenarioQuestion = questionSummary?.moduleType === 'TEST_SCENARIOS';
-    if (isTestScenarioQuestion) {
-      const scenarioAnswer = typeof val === 'string' ? val : (val as any)?.answer || (val as any)?.text || '';
->>>>>>> ocr
       await apiClient.post('/test-scenarios/submit', {
         sessionId,
         questionId,
         answer: scenarioAnswer,
         timeSpentSeconds: 0,
-<<<<<<< HEAD
       })
       return
     }
 
     return Promise.resolve()
-=======
-      });
-      return;
-    }
-
-    return Promise.resolve();
->>>>>>> ocr
   },
 
   async runAiPrompt(payload: { sessionId: string; questionId: string; prompt: string }): Promise<string> {

@@ -485,7 +485,6 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
             />
           </div>
 
-<<<<<<< HEAD
           {/* Action controls */}
           <div className="flex items-center gap-3 px-6 py-3 bg-[var(--surface)] shrink-0 border-b border-[var(--border)]">
             <button
@@ -543,14 +542,6 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
               <span>Console Output</span>
               {executionTime !== null && (
                 <span className="text-[10px] lowercase font-normal text-emerald-400">
-=======
-          {/* JSON Output / Error Log Console */}
-          <div className="h-56 bg-background text-foreground font-mono text-xs flex flex-col overflow-hidden border-t border-border shrink-0">
-            <div className="px-4 py-2 bg-surface border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider font-bold flex items-center justify-between">
-              <span>Console Output</span>
-              {executionTime !== null && (
-                <span className="text-[10px] lowercase font-normal text-emerald-500">
->>>>>>> ocr
                   executed in {executionTime}ms
                 </span>
               )}

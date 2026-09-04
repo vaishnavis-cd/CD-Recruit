@@ -89,8 +89,6 @@ function mapBackendSession(session: any): Session {
 
   const roleName = session.roleTemplateName || session.roleName || "Software Developer";
   const confidenceVal = session.score?.aiConfidence ?? session.aiConfidence ?? null;
-
-  const confidenceVal = session.score?.aiConfidence ?? session.aiConfidence ?? null;
   const status = mapBackendStatus(
     session.status || "SUBMITTED",
     session.compositeScore !== null && session.compositeScore !== undefined,

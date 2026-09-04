@@ -83,18 +83,6 @@ export class DriveService {
     const finalRoleTemplateId = template.id;
     const targetDept = template.department || "SOFTWARE_ENGINEERING";
 
-    const preset = (template.weightingPreset as Record<string, number>) || {};
-    const hasPresetKeys = Object.keys(preset).length > 0;
-
-    const defaultModuleConfig = moduleConfig || {
-      MCQ: { enabled: hasPresetKeys ? (Number(preset.MCQ) || 0) > 0 : true, durationMinutes: 15, weight: (Number(preset.MCQ) || 0.2) * 100 },
-      SQL: { enabled: hasPresetKeys ? (Number(preset.SQL) || 0) > 0 : false, durationMinutes: 20, weight: (Number(preset.SQL) || 0) * 100 },
-      CODING: { enabled: hasPresetKeys ? (Number(preset.CODING) || 0) > 0 : false, durationMinutes: 30, weight: (Number(preset.CODING) || 0) * 100 },
-      DEBUGGING: { enabled: hasPresetKeys ? (Number(preset.DEBUGGING) || 0) > 0 : false, durationMinutes: 20, weight: (Number(preset.DEBUGGING) || 0) * 100 },
-      AI_PROMPTING: { enabled: hasPresetKeys ? (Number(preset.AI_PROMPTING) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.AI_PROMPTING) || 0) * 100 },
-      SIMULATION: { enabled: hasPresetKeys ? (Number(preset.SIMULATION) || 0) > 0 : false, durationMinutes: 10, weight: (Number(preset.SIMULATION) || 0) * 100 },
-      TEST_SCENARIOS: { enabled: hasPresetKeys ? (Number(preset.TEST_SCENARIOS) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.TEST_SCENARIOS) || 0) * 100 },
-    };
     const dbSettings = await this.prisma.moduleSetting.findMany({
       where: { department: targetDept },
     });
@@ -166,17 +154,8 @@ export class DriveService {
       .filter(([_, conf]: [string, any]) => conf.enabled)
       .map(([mod, _]) => mod);
 
-<<<<<<< HEAD
-    const targetDept = template.department || template.roleName;
-
     if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
       for (const mod of enabledModules) {
-=======
-    const completenessTargetDept = template.department || template.roleName;
-
-    if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
-      for (const mod of activeEnabledModules) {
->>>>>>> ocr
         if (mod === "AI_PROMPTING") continue;
 
         let qCount = 0;

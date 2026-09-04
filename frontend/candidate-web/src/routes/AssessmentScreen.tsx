@@ -24,11 +24,7 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
   // Derive active modules dynamically from drive's assigned questions
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
-<<<<<<< HEAD
       return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL']
-=======
-      return ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL'];
->>>>>>> ocr
     }
     const types: string[] = [];
     for (const q of assessment.questions) {
