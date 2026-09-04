@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -14,8 +15,8 @@ import {
   UploadedFile,
   BadRequestException,
 } from "@nestjs/common";
-import { FileInterceptor, FileFieldsInterceptor } from "@nestjs/platform-express";
-import { UploadedFiles } from "@nestjs/common";
+import type { Response } from "express";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
 import { Roles } from "../common/decorators/roles.decorator";
@@ -31,6 +32,7 @@ import {
   ListInvitesQueryDto,
   ExtendExpiryDto,
   BulkInviteActionDto,
+  BulkVerifyIdentityDto,
 } from "../common/dto/admin.dto";
 
 @Controller("admin")
@@ -68,6 +70,34 @@ export class AdminController {
     return this.adminService.listSessions(query);
   }
 
+  @Get("results/export")
+  async exportResults(
+    @Query() query: ListSessionsQueryDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.adminService.exportResultsCsv(query);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="candidate_results_export_${new Date().toISOString().slice(0, 10)}.csv"`,
+    );
+    return res.send(csv);
+  }
+
+  @Get("sessions/export")
+  async exportSessions(
+    @Query() query: ListSessionsQueryDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.adminService.exportResultsCsv(query);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="candidate_sessions_export_${new Date().toISOString().slice(0, 10)}.csv"`,
+    );
+    return res.send(csv);
+  }
+
   @Get("sessions/:sessionId")
   async getSessionDetail(
     @Param("sessionId") sessionId: string,
@@ -99,10 +129,6 @@ export class AdminController {
     return this.adminService.getIntegrityFlags(sessionId);
   }
 
-  @Get("role-templates")
-  async listRoleTemplates() {
-    return this.adminService.listRoleTemplates();
-  }
 
   @Post("invites")
   @HttpCode(HttpStatus.CREATED)
@@ -178,6 +204,24 @@ export class AdminController {
       throw new BadRequestException("No image file uploaded in form field 'file'");
     }
     return this.inviteService.uploadIdProof(inviteId, file);
+  }
+
+  @Post("candidates/verify-identity/bulk")
+  @HttpCode(HttpStatus.OK)
+  async bulkVerifyCandidateIdentity(
+    @Body() dto: BulkVerifyIdentityDto,
+    @CurrentUser() staff: any,
+  ) {
+    return this.adminService.bulkVerifyCandidateIdentity(dto.candidateIds, staff.id);
+  }
+
+  @Post("candidates/:candidateId/verify-identity")
+  @HttpCode(HttpStatus.OK)
+  async verifyCandidateIdentity(
+    @Param("candidateId", ParseUUIDPipe) candidateId: string,
+    @CurrentUser() staff: any,
+  ) {
+    return this.adminService.verifyCandidateIdentity(candidateId, staff.id);
   }
 
   @Post("sessions/compare")

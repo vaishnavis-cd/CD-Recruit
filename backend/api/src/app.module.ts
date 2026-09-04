@@ -28,7 +28,6 @@ import { RoleTemplateModule } from "./role-template/role-template.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { PartnerModule } from "./partner/partner.module";
 import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
-
 import { FaceVerifyOnnxModule } from "./integrations/face-verify-onnx/face-verify-onnx.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
@@ -100,6 +99,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     RedisModule,
     PartnerModule,
     TestScenariosModule,
+    FaceVerifyOnnxModule,
   ],
 })
 export class AppModule {}

@@ -275,7 +275,6 @@ export function SingleDateTimePicker({
 
   return (
     <div className="space-y-4">
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Calendar Card */}
         <div className="lg:col-span-7 bg-white border border-[#E6E6EA] rounded-[20px] p-6 shadow-sm">

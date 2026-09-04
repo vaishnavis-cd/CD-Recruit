@@ -21,7 +21,7 @@ export class CandidateService {
   async findOrCreate(email: string, name: string): Promise<Candidate> {
     const candidate = await this.prisma.candidate.upsert({
       where: { email },
-      update: {}, // existing candidates are not mutated on re-entry
+      update: { name: name || undefined },
       create: { email, name },
     });
 

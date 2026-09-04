@@ -37,6 +37,10 @@ export interface DriveCandidateRosterItem {
   compositeScore: number | null;
   submittedAt: string | null;
   isGenerated: boolean;
+  category?: string | null;
+  experienceTier?: string | null;
+  level?: string | null;
+  roleTemplateId?: string | null;
 }
 
 export interface DriveDetail extends Drive {
@@ -48,6 +52,8 @@ export interface Question {
   id: string;
   moduleType: string;
   role: string;
+  targetLevel?: string;
+  folderId?: string;
   content: any;
   scoringConfig: any;
   difficulty: string;
@@ -118,6 +124,13 @@ export interface SessionResultItem {
   aiConfidence?: number | null;
   humanReviewed?: boolean;
   integrityFlagsCount?: number;
+  identityVerificationResult?: {
+    matched: boolean;
+    distance: number;
+    threshold: number;
+    verifiedAt: string;
+    verifiedBy?: string;
+  } | null;
   decision?: {
     outcome: "PASS" | "FAIL";
     decidedAt: string;
@@ -128,6 +141,19 @@ export interface SessionResultItem {
 
 export interface CandidateSessionDetail {
   id: string;
+  candidate: {
+    id: string;
+    name: string;
+    email: string;
+    identityVerificationResult?: any;
+    baselineSelfieRef?: string | null;
+    idProofRef?: string | null;
+    baselineSelfieUrl?: string | null;
+    idProofUrl?: string | null;
+    idProofExtractedName?: string | null;
+    ocrConfidence?: number | null;
+    idProofOcrResult?: any;
+  } | null;
   candidateName: string;
   candidateEmail: string;
   driveName: string;
@@ -195,7 +221,16 @@ export interface Candidate {
 export interface RoleTemplate {
   id: string;
   roleName: string;
-  track: string;
+  track?: string;
+  department?: string;
+  level?: string;
+  category?: string;
+  experienceTier?: string;
+  version?: number;
+  isActive?: boolean;
+  durationMinutes?: number;
+  weightingPreset?: any;
+  questions?: any[];
 }
 
 export type SessionStatus = "submitted" | "ai_scored" | "review" | "reviewed" | "decision";
@@ -238,4 +273,3 @@ export interface Invite {
   idProofRef?: string | null;
   idProofUploadedAt?: string | null;
 }
-

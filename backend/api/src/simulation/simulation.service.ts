@@ -8,6 +8,7 @@ import { ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { SandboxOrchestratorService } from "./sandbox/sandbox-orchestrator.service";
 import { SimulationTelemetryService, TelemetryEventType, TelemetryEvent } from "./simulation-telemetry.service";
 import { ContextSimulationEvaluatorService, FullSimulationEvaluationResult } from "./context-simulation-evaluator.service";
+import { MinioService } from "../integrations/minio/minio.service";
 import { execFile } from "child_process";
 import * as vm from "vm";
 import * as fs from "fs"; 
@@ -52,6 +53,7 @@ export class SimulationService implements AssessmentModuleEngine {
     private sandboxOrchestrator: SandboxOrchestratorService,
     private telemetryService: SimulationTelemetryService,
     private evaluatorService: ContextSimulationEvaluatorService,
+    @Optional() private minioService?: MinioService,
   ) {}
 
   /**
@@ -106,29 +108,46 @@ export class SimulationService implements AssessmentModuleEngine {
 
       if (dbSimQuestion && dbSimQuestion.content) {
         const content = dbSimQuestion.content as any;
-        return {
-          id: dbSimQuestion.id,
-          title: content.title || QA_BUG_REPORT_SCENARIO.title,
-          description: content.description || QA_BUG_REPORT_SCENARIO.description,
-          track: content.track || QA_BUG_REPORT_SCENARIO.track,
-          rubricVersion: content.rubricVersion || QA_BUG_REPORT_SCENARIO.rubricVersion,
-          initialSayPrompt: content.initialSayPrompt || QA_BUG_REPORT_SCENARIO.initialSayPrompt,
-          managerEmail: content.managerEmail || QA_BUG_REPORT_SCENARIO.managerEmail,
-          starterCode: content.starterCode || QA_BUG_REPORT_SCENARIO.starterCode,
-          testCases: content.testCases || QA_BUG_REPORT_SCENARIO.testCases,
-          evaluationCriteria: content.evaluationCriteria || QA_BUG_REPORT_SCENARIO.evaluationCriteria,
-        };
+        const scId = content.id || content.title || "";
+        return getScenarioById(scId);
       }
     } catch (err: any) {
       this.logger.warn(`Could not load simulation question from DB: ${err.message}. Using default scenario.`);
     }
 
-    return QA_BUG_REPORT_SCENARIO;
+    return getScenarioById("qa-bug-login-validation");
   }
 
   /**
-   * Helper to fetch or initialize session state with DB hydration
+   * Return candidate-safe scenario configuration (removes grading schema and hidden tests)
    */
+  async getSanitizedScenarioConfig(sessionId?: string): Promise<any> {
+    const config = await this.getScenarioConfig(sessionId);
+    return {
+      id: config.id,
+      title: config.title,
+      description: config.description,
+      track: config.track,
+      initialSayPrompt: config.initialSayPrompt,
+      managerEmail: config.managerEmail,
+      starterCode: config.starterCode,
+      testCases: (config.testCases || [])
+        .filter((tc) => !tc.isHidden)
+        .map((tc) => ({
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          label: tc.label,
+        })),
+      readonlyFiles: config.readonlyFiles,
+      checklist: config.checklist,
+      slackMessages: config.slackMessages,
+      jiraTicket: config.jiraTicket,
+      prComments: config.prComments,
+      defaultFile: config.defaultFile,
+      terminalInfo: config.terminalInfo,
+    };
+  }
+
   /**
    * Helper to fetch or initialize session state with DB hydration
    */
@@ -157,12 +176,13 @@ export class SimulationService implements AssessmentModuleEngine {
 
     // Ensure inboxMessages has the default Manager Email ONLY if emailTriggered is true
     if (state.emailTriggered && state.inboxMessages.length === 0) {
+      const scenario = await this.getScenarioConfig(sessionId);
       const managerEmailMsg: SimulationInboxMessage = {
         id: 101,
-        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
-        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
-        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
-        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
+        from: `${scenario.managerEmail.fromName}`,
+        role: `${scenario.managerEmail.fromRole}`,
+        subject: scenario.managerEmail.subject,
+        body: scenario.managerEmail.body,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         read: false,
         expectsReply: true,
@@ -221,17 +241,18 @@ export class SimulationService implements AssessmentModuleEngine {
       metadata: { textLength: initialSayText.length },
     });
 
+    const scenario = await this.getScenarioConfig(sessionId);
+
     await this.sessionLogService.logAction(
       sessionId,
-      QA_BUG_REPORT_SCENARIO.id,
+      scenario.id,
       "INITIAL_SAY_SUBMITTED",
       "Candidate submitted Initial SAY response",
       { initialSayText },
     );
 
     // Save ModuleResponse in DB
-    const scenario = await this.getScenarioConfig(sessionId);
-    const questionId = scenario?.id || QA_BUG_REPORT_SCENARIO.id;
+    const questionId = scenario?.id || "qa-bug-login-validation";
 
     try {
       await this.prisma.moduleResponse.upsert({
@@ -297,12 +318,14 @@ export class SimulationService implements AssessmentModuleEngine {
       state.emailTriggered = true;
       justTriggered = true;
 
+      const scenarioConfig = await this.getScenarioConfig(sessionId);
+
       const managerEmailMsg: SimulationInboxMessage = {
         id: 101,
-        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
-        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
-        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
-        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
+        from: `${scenarioConfig.managerEmail.fromName}`,
+        role: `${scenarioConfig.managerEmail.fromRole}`,
+        subject: scenarioConfig.managerEmail.subject,
+        body: scenarioConfig.managerEmail.body,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         read: false,
         expectsReply: true,
@@ -317,7 +340,7 @@ export class SimulationService implements AssessmentModuleEngine {
 
       await this.sessionLogService.logAction(
         sessionId,
-        QA_BUG_REPORT_SCENARIO.id,
+        scenarioConfig.id,
         "MANAGER_EMAIL_TRIGGERED",
         "Manager email automatically generated by backend on first code edit",
         managerEmailMsg,
@@ -622,6 +645,8 @@ export class SimulationService implements AssessmentModuleEngine {
     const state = await this.getOrCreateSessionState(sessionId);
     state.emailReplyText = replyText;
 
+    const scenario = await this.getScenarioConfig(sessionId);
+
     let msg = state.inboxMessages.find((m) => m.id === messageId);
     if (!msg && state.inboxMessages.length > 0) {
       msg = state.inboxMessages[0];
@@ -632,10 +657,10 @@ export class SimulationService implements AssessmentModuleEngine {
     } else {
       state.inboxMessages.push({
         id: messageId || 101,
-        from: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromName}`,
-        role: `${QA_BUG_REPORT_SCENARIO.managerEmail.fromRole}`,
-        subject: QA_BUG_REPORT_SCENARIO.managerEmail.subject,
-        body: QA_BUG_REPORT_SCENARIO.managerEmail.body,
+        from: `${scenario.managerEmail.fromName}`,
+        role: `${scenario.managerEmail.fromRole}`,
+        subject: scenario.managerEmail.subject,
+        body: scenario.managerEmail.body,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         read: true,
         expectsReply: true,
@@ -650,15 +675,14 @@ export class SimulationService implements AssessmentModuleEngine {
 
     await this.sessionLogService.logAction(
       sessionId,
-      QA_BUG_REPORT_SCENARIO.id,
+      scenario.id,
       "EMAIL_REPLY_SUBMITTED",
       "Candidate submitted email reply to manager",
       { messageId, replyText },
     );
 
     // Save ModuleResponse in DB for manager email reply
-    const scenario = await this.getScenarioConfig(sessionId);
-    const questionId = scenario?.id || QA_BUG_REPORT_SCENARIO.id;
+    const questionId = scenario?.id || "qa-bug-login-validation";
 
     try {
       const existingResp = await this.prisma.moduleResponse.findUnique({
@@ -721,10 +745,11 @@ export class SimulationService implements AssessmentModuleEngine {
       metadata: { command },
     });
 
+    const scenario = await this.getScenarioConfig(sessionId);
     const result = await this.sandboxOrchestrator.executeCommand(sessionId, command);
     await this.sessionLogService.logAction(
       sessionId,
-      QA_BUG_REPORT_SCENARIO.id,
+      scenario.id,
       "terminal_command",
       "EXECUTED",
       { command, result },
@@ -751,7 +776,7 @@ export class SimulationService implements AssessmentModuleEngine {
         state.emailReplyText,
         telemetryEvents,
         testResults,
-        QA_BUG_REPORT_SCENARIO,
+        scenarioConfig,
       );
     } catch (evalErr: any) {
       this.logger.warn(`[submitSimulation] Evaluation service failed for session ${sessionId}: ${evalErr.message}. Using deterministic fallback.`);
@@ -759,7 +784,7 @@ export class SimulationService implements AssessmentModuleEngine {
       const baseScore = testResults?.isCorrect ? 75 : testResults?.passedTests && testResults?.totalTests ? Math.round((testResults.passedTests / testResults.totalTests) * 70) : 40;
       evaluation = {
         overallScore: baseScore,
-        rubricVersion: QA_BUG_REPORT_SCENARIO.rubricVersion,
+        rubricVersion: scenarioConfig.rubricVersion,
         initialSay: { score: state.initialSayText ? 60 : 0, reasoning: 'Evaluated offline', strengths: [], weaknesses: [] },
         emailSay: { score: state.emailReplyText ? 60 : 0, reasoning: 'Evaluated offline', strengths: [], weaknesses: [] },
         doEvaluation: {
@@ -786,15 +811,11 @@ export class SimulationService implements AssessmentModuleEngine {
     // Log evaluation completion
     await this.sessionLogService.logAction(
       sessionId,
-      QA_BUG_REPORT_SCENARIO.id,
+      scenarioConfig.id,
       "SIMULATION_SUBMITTED_AND_EVALUATED",
-      "Final Context Simulation Phase 1 MVP evaluation completed",
+      "Final Context Simulation evaluation completed",
       evaluation,
     );
-
-    // Resolve scenario config and questionId consistently across all sources
-    const scenarioConfig = await this.getScenarioConfig(sessionId);
-    const questionId = scenarioConfig?.id || QA_BUG_REPORT_SCENARIO.id;
 
     const payloadWithModule = {
       ...(typeof evaluation === "object" ? evaluation : {}),
@@ -868,6 +889,30 @@ export class SimulationService implements AssessmentModuleEngine {
       this.logger.warn(`[submitSimulation] Score upsert failed: ${scoreErr.message}`);
     }
 
+    // Archive session telemetry & evaluation log bundle to MinIO if object storage is enabled
+    if (this.minioService) {
+      try {
+        const logBundle = {
+          sessionId,
+          evaluatedAt: evaluation.evaluatedAt,
+          initialSayText: state.initialSayText,
+          emailReplyText: state.emailReplyText,
+          evaluation,
+          telemetryEvents,
+          actionTimeline: evaluation.actionTimeline,
+        };
+        const buffer = Buffer.from(JSON.stringify(logBundle, null, 2), "utf8");
+        await this.minioService.putObject(
+          "cd-recruit-general",
+          `logs/simulation/session-log-${sessionId}.json`,
+          buffer,
+          { "Content-Type": "application/json" } as any,
+        );
+        this.logger.log(`[MinIO Log Archive] Successfully stored logs/simulation/session-log-${sessionId}.json`);
+      } catch (minioErr: any) {
+        this.logger.warn(`[MinIO Log Archive] Warning: could not archive session log: ${minioErr.message}`);
+      }
+    }
 
     await this.persistSessionSnapshot(sessionId);
     return evaluation;
@@ -893,23 +938,26 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   async startSimulation(sessionId: string): Promise<any> {
+    const scenario = await this.getScenarioConfig(sessionId);
     return {
       status: "IN_PROGRESS",
-      scenario: QA_BUG_REPORT_SCENARIO,
+      scenario: await this.getSanitizedScenarioConfig(sessionId),
     };
   }
 
   async getCurrentEvent(sessionId: string): Promise<any> {
     const state = await this.getOrCreateSessionState(sessionId);
+    const scenario = await this.getScenarioConfig(sessionId);
+    const sanitizedScenario = await this.getSanitizedScenarioConfig(sessionId);
     return {
       event: {
-        id: QA_BUG_REPORT_SCENARIO.id,
-        title: QA_BUG_REPORT_SCENARIO.title,
-        description: QA_BUG_REPORT_SCENARIO.description,
+        id: scenario.id,
+        title: scenario.title,
+        description: scenario.description,
         workspaceType: "coding",
         timerSeconds: 900,
       },
-      scenario: QA_BUG_REPORT_SCENARIO,
+      scenario: sanitizedScenario,
       initialSayText: state.initialSayText,
       emailReplyText: state.emailReplyText,
       inbox: state.inboxMessages,
@@ -917,7 +965,8 @@ export class SimulationService implements AssessmentModuleEngine {
   }
 
   async logEventState(sessionId: string, state: string, action: string, payload?: any): Promise<void> {
-    await this.sessionLogService.logAction(sessionId, QA_BUG_REPORT_SCENARIO.id, state, action, payload);
+    const scenario = await this.getScenarioConfig(sessionId);
+    await this.sessionLogService.logAction(sessionId, scenario.id, state, action, payload);
   }
 
   async submitEvent(sessionId: string, response: any): Promise<any> {
@@ -930,9 +979,10 @@ export class SimulationService implements AssessmentModuleEngine {
 
   async getSessionSummary(sessionId: string): Promise<any> {
     const state = await this.getOrCreateSessionState(sessionId);
+    const scenario = await this.getScenarioConfig(sessionId);
     return {
       module: "context_simulation",
-      scenarioId: QA_BUG_REPORT_SCENARIO.id,
+      scenarioId: scenario.id,
       hasInitialSay: !!state.initialSayText,
       hasEmailReply: !!state.emailReplyText,
     };
@@ -945,7 +995,8 @@ export class SimulationService implements AssessmentModuleEngine {
     sessionId: string,
     dto: { code: string; language: "python" | "javascript"; testCases?: any[] },
   ) {
-    const cases = dto.testCases || QA_BUG_REPORT_SCENARIO.testCases;
+    const scenario = await this.getScenarioConfig(sessionId);
+    const cases = dto.testCases || scenario.testCases;
     const language = dto.language || "python";
     const sourceCode = dto.code || "";
 
@@ -977,8 +1028,20 @@ test_cases = payload.get('testCases', [])
 try:
     exec_globals = {}
     exec(source_code, exec_globals)
-    fn = exec_globals.get('validate_username') or exec_globals.get('validateUsername')
     
+    # Generic Scenario function resolver
+    fn = None
+    for name in ['validate_username', 'validateUsername', 'get_connection_pool_settings', 'getConnectionPoolSettings', 'should_skip_husky', 'shouldSkipHusky', 'load_credentials', 'loadCredentials', 'prioritize_incident', 'prioritizeIncident', 'LocalCache']:
+        if name in exec_globals:
+            fn = exec_globals[name]
+            break
+            
+    if not fn:
+        for k, v in exec_globals.items():
+            if callable(v) and not k.startswith('__'):
+                fn = v
+                break
+
     results = []
     for tc in test_cases:
         raw_input = tc.get('input', '')
@@ -989,14 +1052,67 @@ try:
             results.append({
                 "label": tc.get("label", "Test Case"),
                 "passed": False,
-                "actual": "Error: Function validate_username not defined",
+                "actual": "Error: Target function/class not defined",
                 "expected": tc.get("expectedOutput", "true")
             })
             continue
 
         try:
-            res = fn(clean_arg)
-            actual = str(bool(res)).lower()
+            # Scenario-specific runner mapping
+            if fn.__name__ in ['validate_username', 'validateUsername']:
+                res = fn(clean_arg)
+                actual = str(bool(res)).lower()
+            elif fn.__name__ in ['get_connection_pool_settings', 'getConnectionPoolSettings']:
+                cfg = fn(clean_arg)
+                if clean_arg == "poolSize":
+                    actual = str(cfg.get("pool_size", 0) >= 15 or cfg.get("poolSize", 0) >= 15).lower()
+                elif clean_arg == "maxOverflow":
+                    actual = str(cfg.get("max_overflow", 0) >= 15 or cfg.get("maxOverflow", 0) >= 15).lower()
+                else:
+                    actual = str(isinstance(cfg, dict)).lower()
+            elif fn.__name__ in ['should_skip_husky', 'shouldSkipHusky']:
+                if clean_arg == "CI":
+                    res = fn({"CI": "true"})
+                elif clean_arg == "headless":
+                    res = fn({"env": "headless"})
+                else:
+                    res = fn({})
+                actual = str(bool(res)).lower()
+            elif fn.__name__ in ['load_credentials', 'loadCredentials']:
+                creds = fn({})
+                if clean_arg == "env":
+                    actual = "true"
+                elif clean_arg == "no_secrets":
+                    actual = str("AKIAIOS" not in str(creds.values()) and "wJalr" not in str(creds.values())).lower()
+                else:
+                    actual = "true"
+            elif fn.__name__ == 'LocalCache':
+                cache = fn
+                if clean_arg == "limitsize":
+                    cache.store = {}
+                    for i in range(10):
+                        cache.set(f"key{i}", i)
+                    count = len(cache.store) if hasattr(cache, 'store') else 0
+                    actual = str(count <= 5).lower()
+                elif clean_arg == "eviction":
+                    cache.store = {}
+                    cache.keys_order = []
+                    for i in range(6):
+                        cache.set(f"key{i}", i)
+                    actual = str(cache.get("key0") is None and cache.get("key5") is not None).lower()
+                else:
+                    actual = "true"
+            elif fn.__name__ in ['prioritize_incident', 'prioritizeIncident']:
+                res = fn(5, 4)
+                if clean_arg == "impact" or clean_arg == "mitigation":
+                    actual = str(isinstance(res, (str, dict)) and res != "no_strategy").lower()
+                else:
+                    actual = "true"
+            else:
+                # Default calling fallback
+                res = fn(clean_arg)
+                actual = str(res).lower()
+                
             passed = (actual == expected_norm)
             results.append({
                 "label": tc.get("label", "Test Case"),
@@ -1029,8 +1145,8 @@ except Exception as global_err:
     }
 
     return new Promise((resolve) => {
-      const pyCmd = process.platform === "win32" ? "py" : "python3";
-      const args = process.platform === "win32" ? ["-3", tempFile] : [tempFile];
+      const pyCmd = process.platform === "win32" ? "python" : "python3";
+      const args = [tempFile];
 
       execFile(pyCmd, args, { timeout: 4000 }, (error, stdout, stderr) => {
         // Clean up temp file
@@ -1074,25 +1190,95 @@ except Exception as global_err:
         const cleanCode = sourceCode.replace(/module\.exports\s*=\s*{[^}]*};?/g, "");
         const context = vm.createContext({});
         vm.runInContext(cleanCode, context);
-        const fn = (context as any).validateUsername || (context as any).validate_username;
+        
+        // Generic JS Scenario resolver
+        let fn = (context as any).validateUsername || (context as any).validate_username ||
+                 (context as any).getConnectionPoolSettings || (context as any).get_connection_pool_settings ||
+                 (context as any).shouldSkipHusky || (context as any).should_skip_husky ||
+                 (context as any).loadCredentials || (context as any).load_credentials ||
+                 (context as any).prioritizeIncident || (context as any).prioritize_incident ||
+                 (context as any).LocalCache;
 
         const results = testCases.map((tc) => {
           const rawInput = tc.input || "";
           const expectedNorm = String(tc.expectedOutput || "").trim().toLowerCase();
           const cleanArg = rawInput.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
 
-          if (typeof fn !== "function") {
+          if (!fn) {
             return {
               label: tc.label || "Test Case",
               passed: false,
-              actual: "Error: function validateUsername not found",
+              actual: "Error: Target function/class not found",
               expected: tc.expectedOutput || "true",
             };
           }
 
           try {
-            const res = fn(cleanArg);
-            const actual = String(Boolean(res)).toLowerCase();
+            let actual = "";
+            
+            // Check matching target function calls
+            if (fn.name === "validateUsername" || fn.name === "validate_username") {
+              const res = fn(cleanArg);
+              actual = String(Boolean(res)).toLowerCase();
+            } else if (fn.name === "getConnectionPoolSettings" || fn.name === "get_connection_pool_settings") {
+              const cfg = fn(cleanArg);
+              if (cleanArg === "poolSize") {
+                actual = String((cfg.poolSize || cfg.pool_size || 0) >= 15).toLowerCase();
+              } else if (cleanArg === "maxOverflow") {
+                actual = String((cfg.maxOverflow || cfg.max_overflow || 0) >= 15).toLowerCase();
+              } else {
+                actual = String(typeof cfg === "object").toLowerCase();
+              }
+            } else if (fn.name === "shouldSkipHusky" || fn.name === "should_skip_husky") {
+              let res = false;
+              if (cleanArg === "CI") {
+                res = fn({ CI: "true" });
+              } else if (cleanArg === "headless") {
+                res = fn({ env: "headless" });
+              } else {
+                res = fn({});
+              }
+              actual = String(Boolean(res)).toLowerCase();
+            } else if (fn.name === "loadCredentials" || fn.name === "load_credentials") {
+              const creds = fn({});
+              if (cleanArg === "env") {
+                actual = "true";
+              } else if (cleanArg === "no_secrets") {
+                const vals = Object.values(creds || {});
+                actual = String(!vals.some(v => String(v).includes("AKIAIOS") || String(v).includes("wJalr"))).toLowerCase();
+              } else {
+                actual = "true";
+              }
+            } else if (fn.name === "prioritizeIncident" || fn.name === "prioritize_incident") {
+              const res = fn(5, 4);
+              if (cleanArg === "impact" || cleanArg === "mitigation") {
+                actual = String(typeof res === "string" && res !== "no_strategy" || typeof res === "object").toLowerCase();
+              } else {
+                actual = "true";
+              }
+            } else if (fn.name === "LocalCache" || typeof fn === "function" && fn.set) {
+              const cache = fn;
+              if (cleanArg === "limitsize") {
+                cache.store = new Map();
+                for (let i = 0; i < 10; i++) {
+                  cache.set(`key${i}`, i);
+                }
+                const count = cache.store.size || cache.store.length || 0;
+                actual = String(count <= 5).toLowerCase();
+              } else if (cleanArg === "eviction") {
+                cache.store = new Map();
+                cache.keys_order = [];
+                for (let i = 0; i < 6; i++) {
+                  cache.set(`key${i}`, i);
+                }
+                actual = String(cache.get("key0") === undefined && cache.get("key5") !== undefined).toLowerCase();
+              } else {
+                actual = "true";
+              }
+            } else {
+              actual = String(fn(cleanArg)).toLowerCase();
+            }
+
             const passed = actual === expectedNorm;
             return {
               label: tc.label || "Test Case",

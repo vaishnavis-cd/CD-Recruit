@@ -81,7 +81,6 @@ export function AppShell({ title, count, actions, search, children }: AppShellPr
   const handleLogout = () => {
     clearStoredToken();
     setShowLogoutModal(false);
-    // Replace current location in history to prevent navigating back to protected route via browser Back button
     window.location.replace("/login");
   };
 

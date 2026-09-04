@@ -86,7 +86,16 @@ export class QuestionService implements OnModuleInit {
   }
 
   async create(dto: CreateQuestionDto) {
-    const { moduleType, content, scoringConfig = {}, difficulty = "medium", tags = [], status = QuestionStatus.PUBLISHED, role = "General" } = dto;
+    const {
+      moduleType,
+      content,
+      scoringConfig = {},
+      difficulty = "medium",
+      targetLevel,
+      tags = [],
+      status = QuestionStatus.PUBLISHED,
+      role = "General",
+    } = dto;
     
     this.validateQuestionContent(moduleType, content, scoringConfig);
 
@@ -102,6 +111,7 @@ export class QuestionService implements OnModuleInit {
         content: content as any,
         scoringConfig: scoringConfig as any,
         difficulty,
+        targetLevel: targetLevel || null,
         tags,
         status: status as any,
         version: 1,
@@ -202,7 +212,7 @@ export class QuestionService implements OnModuleInit {
         where,
         skip,
         take,
-        orderBy: { version: "desc" },
+        orderBy: [{ moduleType: "asc" }, { id: "asc" }],
         include: {
           _count: {
             select: { driveQuestions: true, moduleResponses: true },
@@ -217,6 +227,7 @@ export class QuestionService implements OnModuleInit {
       moduleType: q.moduleType,
       content: q.content,
       difficulty: q.difficulty,
+      targetLevel: q.targetLevel,
       tags: q.tags,
       version: q.version,
       status: q.status,
@@ -259,7 +270,16 @@ export class QuestionService implements OnModuleInit {
       throw new NotFoundException(`Question not found with ID ${id}`);
     }
 
-    const { moduleType = question.moduleType as ModuleType, content = question.content, scoringConfig = question.scoringConfig, difficulty, tags, status, role } = dto;
+    const {
+      moduleType = question.moduleType as ModuleType,
+      content = question.content,
+      scoringConfig = question.scoringConfig,
+      difficulty,
+      targetLevel,
+      tags,
+      status,
+      role,
+    } = dto;
 
     this.validateQuestionContent(moduleType, content, scoringConfig);
 
@@ -282,6 +302,7 @@ export class QuestionService implements OnModuleInit {
           content: content as any,
           scoringConfig: scoringConfig as any,
           difficulty: difficulty ?? question.difficulty,
+          targetLevel: targetLevel !== undefined ? targetLevel : question.targetLevel,
           tags: tags ?? question.tags,
           status: (status as any) ?? question.status,
           version: question.version + 1,
@@ -306,6 +327,7 @@ export class QuestionService implements OnModuleInit {
           content: content as any,
           scoringConfig: scoringConfig as any,
           difficulty: difficulty ?? question.difficulty,
+          targetLevel: targetLevel !== undefined ? targetLevel : question.targetLevel,
           tags: tags ?? question.tags,
           status: (status as any) ?? question.status,
           version: { increment: 1 },
@@ -346,6 +368,7 @@ export class QuestionService implements OnModuleInit {
             content: q.content,
             scoringConfig: q.scoringConfig ?? {},
             difficulty: q.difficulty ?? "medium",
+            targetLevel: q.targetLevel ?? null,
             tags: q.tags ?? [moduleType.toLowerCase()],
             version: 1,
             status: "PUBLISHED",

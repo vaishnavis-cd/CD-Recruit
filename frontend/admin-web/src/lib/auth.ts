@@ -118,6 +118,5 @@ export function isAuthenticated(): boolean {
   if (!token) return false;
   const payload = parseJwtPayload(token);
   if (!payload || !payload.exp) return false;
-  // Check token expiration (exp is in seconds)
   return payload.exp * 1000 > Date.now();
 }

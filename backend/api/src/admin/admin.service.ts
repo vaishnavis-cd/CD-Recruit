@@ -3,6 +3,9 @@ import { PrismaService } from "../prisma/prisma.service";
 import { MinioService } from "../integrations/minio/minio.service";
 import { ConfigService } from "@nestjs/config";
 import { SessionScoringService } from "../session/session-scoring.service";
+import { FaceVerifyOnnxService } from "../integrations/face-verify-onnx/face-verify-onnx.service";
+import { IdOcrService } from "../integrations/ocr/id-ocr.service";
+import { NameMatchService } from "../common/services/name-match.service";
 import {
   SessionListItem,
   SessionListResponse,
@@ -20,6 +23,7 @@ import { HttpStatus } from "@nestjs/common";
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
   private readonly bucketBiometric: string;
 
   constructor(
@@ -27,6 +31,9 @@ export class AdminService {
     private readonly storage: MinioService,
     private readonly configService: ConfigService,
     private readonly scoringService: SessionScoringService,
+    private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
+    private readonly idOcrService: IdOcrService,
+    private readonly nameMatchService: NameMatchService,
   ) {
     this.bucketBiometric = this.configService.get<string>(
       "app.minio.bucketBiometric",
@@ -108,6 +115,7 @@ export class AdminService {
         include: {
           candidate: true,
           roleTemplate: true,
+          invite: true,
           score: true,
           reviewerDecision: {
             include: { staff: true },
@@ -142,6 +150,7 @@ export class AdminService {
         }
       }
     }
+
     const deduplicatedItems = Array.from(sessionMap.values());
 
     // Map to SessionListItem interface
@@ -164,7 +173,8 @@ export class AdminService {
 
       return {
         sessionId: session.id,
-        candidateName: session.candidate.name,
+        candidateId: session.candidate.id,
+        candidateName: session.invite?.candidateName || session.candidate.name,
         candidateEmail: session.candidate.email,
         roleTemplateName: session.roleTemplate.roleName,
         status: session.status as SessionStatus,
@@ -181,6 +191,14 @@ export class AdminService {
         moduleScores,
         humanReviewRequired,
         integrityFlagsCount: flagCount,
+        identityVerificationResult: (session as any).identityVerificationResult ?? null,
+        reviewerDecision: session.reviewerDecision
+          ? (session.reviewerDecision.decision === "ADVANCE"
+              ? "PASS"
+              : session.reviewerDecision.decision === "REJECT"
+              ? "FAIL"
+              : session.reviewerDecision.decision)
+          : null,
         decision: session.reviewerDecision
           ? ({
               outcome: session.reviewerDecision.decision as any,
@@ -200,6 +218,72 @@ export class AdminService {
       page,
       pageSize,
     };
+  }
+
+  async exportResultsCsv(query: ListSessionsQueryDto): Promise<string> {
+    const listResult = await this.listSessions({
+      ...query,
+      page: 1,
+      pageSize: 5000,
+    });
+
+    const headers = [
+      "Candidate Name",
+      "Candidate Email",
+      "Drive Name",
+      "Role Track",
+      "Session Status",
+      "Total Score (%)",
+      "MCQ Score (%)",
+      "Coding Score (%)",
+      "Debugging Score (%)",
+      "SQL Score (%)",
+      "Simulation Score (%)",
+      "Say/Do Consistency (%)",
+      "Integrity Flags",
+      "Decision Status",
+      "Started At",
+      "Submitted At",
+    ];
+
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const val = String(str).replace(/"/g, '""');
+      return `"${val}"`;
+    };
+
+    const formatPercent = (val: any) => {
+      if (val === null || val === undefined) return "N/A";
+      const num = Number(val);
+      if (isNaN(num)) return "N/A";
+      return num <= 1.0 ? `${Math.round(num * 100)}%` : `${Math.round(num)}%`;
+    };
+
+    const rows = listResult.items.map((item: any) => {
+      const modScores = item.moduleScores || {};
+      const dec = item.decision;
+
+      return [
+        escapeCsv(item.candidateName || "N/A"),
+        escapeCsv(item.candidateEmail || "N/A"),
+        escapeCsv(item.driveName || "General Drive"),
+        escapeCsv(item.roleTemplateName || "General"),
+        escapeCsv(item.status),
+        escapeCsv(formatPercent(item.compositeScore)),
+        escapeCsv(formatPercent(modScores.MCQ)),
+        escapeCsv(formatPercent(modScores.CODING)),
+        escapeCsv(formatPercent(modScores.DEBUGGING)),
+        escapeCsv(formatPercent(modScores.SQL)),
+        escapeCsv(formatPercent(modScores.SIMULATION)),
+        escapeCsv(formatPercent(item.sayDoConsistencyScore)),
+        escapeCsv(item.integrityFlagsCount ?? 0),
+        escapeCsv(dec?.outcome || "PENDING"),
+        escapeCsv(item.startedAt || ""),
+        escapeCsv(item.submittedAt || ""),
+      ].join(",");
+    });
+
+    return [headers.join(","), ...rows].join("\r\n");
   }
 
   async getSessionDetail(sessionId: string): Promise<SessionDetail> {
@@ -236,6 +320,9 @@ export class AdminService {
           include: {
             staff: true,
           },
+        },
+        identityCaptures: {
+          orderBy: { windowIndex: "asc" },
         },
       },
     });
@@ -585,13 +672,60 @@ export class AdminService {
       }),
     );
 
+    const baselineSelfieRef =
+      (session.candidate as any)?.baselineSelfieRef ||
+      session.baselineSelfieRef ||
+      null;
+    const idProofRef = session.candidate?.idProofRef || null;
+
+    let baselineSelfieUrl: string | null = null;
+    if (baselineSelfieRef) {
+      try {
+        baselineSelfieUrl = await this.storage.getSignedUrl(
+          this.bucketBiometric,
+          baselineSelfieRef,
+        );
+      } catch (err: any) {
+        this.logger.warn(`Failed to generate signed URL for baseline selfie ${baselineSelfieRef}: ${err.message}`);
+      }
+    }
+
+    let idProofUrl: string | null = null;
+    if (idProofRef) {
+      try {
+        idProofUrl = await this.storage.getSignedUrl(
+          this.bucketBiometric,
+          idProofRef,
+        );
+      } catch (err: any) {
+        this.logger.warn(`Failed to generate signed URL for ID proof ${idProofRef}: ${err.message}`);
+      }
+    }
+
     return {
+      id: session.id,
       sessionId: session.id,
-      candidate: {
-        id: session.candidate.id,
-        name: session.candidate.name,
-        email: session.candidate.email,
-      },
+      candidate: session.candidate
+        ? {
+            id: session.candidate.id,
+            name: session.candidate.name,
+            email: session.candidate.email,
+            identityVerificationResult: (session as any).identityVerificationResult || null,
+            baselineSelfieRef,
+            idProofRef,
+            baselineSelfieUrl: baselineSelfieUrl || baselineSelfieRef,
+            idProofUrl: idProofUrl || idProofRef,
+          }
+        : {
+            id: (session as any).candidateId || "",
+            name: (session as any).candidateName || "",
+            email: (session as any).candidateEmail || "",
+            identityVerificationResult: null,
+            baselineSelfieRef: null,
+            idProofRef: null,
+            baselineSelfieUrl: null,
+            idProofUrl: null,
+          },
       candidateName: session.candidate.name,
       candidateEmail: session.candidate.email,
       driveName: session.drive?.name || "Assessment Drive",
@@ -803,6 +937,391 @@ export class AdminService {
       sayDoConsistencyScore: s.score?.sayDoConsistencyScore ?? null,
       aiConfidence: s.score?.aiConfidence ?? null,
     }));
+  }
+
+  async verifyCandidateIdentity(candidateId: string, staffId: string) {
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { id: candidateId },
+    });
+    
+    if (!candidate) {
+      throw new NotFoundException(`Candidate not found with ID ${candidateId}`);
+    }
+    
+    if (!candidate.idProofEmbedding || !candidate.baselineSelfieEmbedding) {
+      const missing = [];
+      if (!candidate.idProofEmbedding) missing.push("id_proof");
+      if (!candidate.baselineSelfieEmbedding) missing.push("baseline_selfie");
+      
+      return { status: "insufficient_data", missing };
+    }
+    
+    const idProofEmb = candidate.idProofEmbedding as number[];
+    const selfieEmb = candidate.baselineSelfieEmbedding as number[];
+    
+    const verification = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmb, idProofEmb);
+    
+    const identityVerificationResult = {
+      matched: verification.matched,
+      distance: verification.distance,
+      threshold: verification.threshold,
+      verifiedAt: new Date().toISOString(),
+      verifiedBy: staffId,
+    };
+    
+    await this.prisma.candidate.update({
+      where: { id: candidateId },
+      data: { identityVerificationResult },
+    });
+    
+    await this.prisma.auditLog.create({
+      data: {
+        staffId,
+        action: "CANDIDATE_IDENTITY_VERIFIED",
+        entityType: "Candidate",
+        entityId: candidateId,
+        metadata: { matched: verification.matched, distance: verification.distance },
+      },
+    });
+    
+    return { status: verification.matched ? "verified" : "not_verified", result: identityVerificationResult };
+  }
+
+  /**
+   * Bulk identity verification for a list of candidateIds.
+   *
+   * Processes candidates sequentially with per-candidate error isolation —
+   * one failure (missing embeddings, DB error, malformed vector) does NOT abort
+   * the batch; it is recorded per-candidate and processing continues.
+   *
+   * SCALING NOTE: Runs synchronously within the HTTP request. Fine for typical
+   * approved-candidate batch sizes (5–50). For hundreds+, migrate to a
+   * background job / queue.
+   */
+  async bulkVerifyCandidateIdentity(
+    candidateIds: string[],
+    staffId: string,
+  ) {
+    let completed = 0;
+    let matched = 0;
+    let mismatched = 0;
+    let insufficientData = 0;
+    let errors = 0;
+    const results: any[] = [];
+
+    for (const targetId of candidateIds) {
+      try {
+        let candidate: any = null;
+        let session: any = null;
+
+        // Try looking up as Session ID first
+        session = await this.prisma.session.findUnique({
+          where: { id: targetId },
+          include: { candidate: true, invite: true },
+        });
+
+        if (session) {
+          candidate = session.candidate;
+        } else {
+          // Fall back to Candidate ID lookup (fetch sessions ordered by submittedAt and pick session with identityCaptures)
+          candidate = await this.prisma.candidate.findUnique({
+            where: { id: targetId },
+            include: {
+              sessions: {
+                orderBy: { submittedAt: "desc" },
+                include: { identityCaptures: true },
+              },
+            },
+          });
+          if (candidate?.sessions?.length) {
+            session = candidate.sessions.find((s: any) => s.identityCaptures && s.identityCaptures.length > 0) || candidate.sessions[0];
+          }
+        }
+
+        if (!candidate) {
+          errors++;
+          results.push({ candidateId: targetId, status: "error", message: "Candidate not found" });
+          continue;
+        }
+
+        let idProofEmb = (session?.idProofEmbedding || candidate.idProofEmbedding) as unknown as number[];
+        let selfieEmb = (session?.baselineSelfieEmbedding || candidate.baselineSelfieEmbedding) as unknown as number[];
+        const idProofRef = session?.idProofRef || candidate.idProofRef;
+        const selfieRef = session?.baselineSelfieRef || candidate.baselineSelfieRef;
+
+        if (!idProofEmb && idProofRef) {
+          try {
+            const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
+            if (buf) {
+              const res = await this.faceVerifyOnnxService.enroll(buf, idProofRef);
+              idProofEmb = res.embedding;
+              if (session) {
+                await this.prisma.session.update({ where: { id: session.id }, data: { idProofEmbedding: idProofEmb as any } });
+              }
+              await this.prisma.candidate.update({ where: { id: candidate.id }, data: { idProofEmbedding: idProofEmb as any } });
+            }
+          } catch (e: any) {
+            this.logger.warn(`MinIO download failed for idProofRef ${idProofRef}: ${e.message}`);
+          }
+        }
+
+        if (!selfieEmb && selfieRef) {
+          try {
+            const buf = await this.storage.getObject(this.bucketBiometric, selfieRef);
+            if (buf) {
+              const res = await this.faceVerifyOnnxService.enroll(buf, selfieRef);
+              selfieEmb = res.embedding;
+              if (session) {
+                await this.prisma.session.update({ where: { id: session.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
+              }
+              await this.prisma.candidate.update({ where: { id: candidate.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
+            }
+          } catch (e: any) {
+            this.logger.warn(`MinIO download failed for selfieRef ${selfieRef}: ${e.message}`);
+          }
+        }
+
+        // Lazy OCR trigger if candidate.idProofExtractedName is missing but idProofRef exists
+        let extractedName = candidate.idProofExtractedName;
+        let ocrConfidence = candidate.ocrConfidence ?? null;
+        let ocrRaw = candidate.idProofOcrRaw;
+
+        if (!extractedName && idProofRef) {
+          try {
+            const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
+            if (buf) {
+              const ocrRes = await this.idOcrService.extractIdName(buf);
+              if (ocrRes) {
+                let numConfidence = 0.5;
+                if (ocrRes.confidence === "high") numConfidence = 0.95;
+                else if (ocrRes.confidence === "medium") numConfidence = 0.8;
+                else if (ocrRes.confidence === "low-medium") numConfidence = 0.65;
+                else if (ocrRes.confidence === "low") numConfidence = 0.4;
+
+                extractedName = ocrRes.name;
+                ocrConfidence = numConfidence;
+                ocrRaw = JSON.stringify(ocrRes.rawLines || []);
+
+                await this.prisma.candidate.update({
+                  where: { id: candidate.id },
+                  data: {
+                    idProofExtractedName: extractedName,
+                    idProofOcrRaw: ocrRaw,
+                    ocrConfidence,
+                  },
+                });
+              }
+            }
+          } catch (e: any) {
+            this.logger.warn(`MinIO/OCR processing failed for idProofRef ${idProofRef}: ${e.message}`);
+          }
+        }
+
+        const registeredName = session?.invite?.candidateName || candidate.name;
+
+        // Check for insufficient data (only if embeddings are missing)
+        if (!idProofEmb || !selfieEmb) {
+          const missing: string[] = [];
+          if (!idProofEmb) missing.push("id_proof_face");
+          if (!selfieEmb) missing.push("baseline_selfie");
+          if (!extractedName) missing.push("name_ocr");
+
+          insufficientData++;
+          results.push({
+            candidateId: targetId,
+            status: "insufficient_data",
+            missing,
+            registeredName,
+            extractedName: extractedName || null,
+            ocrConfidence: ocrConfidence || 0.0,
+          });
+          continue;
+        }
+
+        // Run Face Verification (0.60 threshold preserved)
+        const faceRes = this.faceVerifyOnnxService.verifyEmbeddings(selfieEmb, idProofEmb);
+
+        // Run Name Verification (if extracted name exists)
+        const nameRes = extractedName
+          ? this.nameMatchService.compareNames(registeredName, extractedName)
+          : { matched: false, similarity: 0, threshold: 0.75, extractedName: "", registeredName };
+
+        const overallMatched = faceRes.matched && (nameRes ? nameRes.matched : true);
+
+        // In-Test Periodic Identity Captures Verification (3 windows)
+        let inTestCapturesResult: any = {
+          total: 0,
+          matched: 0,
+          mismatched: 0,
+          skipped: 0,
+          failed: 0,
+          pending: 0,
+          windows: [],
+        };
+
+        if (session) {
+          try {
+            const captures = await this.prisma.identityCapture.findMany({
+              where: { sessionId: session.id },
+              orderBy: { windowIndex: "asc" },
+            });
+
+            if (captures.length > 0) {
+              const windowsList: any[] = [];
+              for (const cap of captures) {
+                let wMatched = cap.matched;
+                let wDistance = cap.distance;
+                let wThreshold = cap.threshold || 0.60;
+                let verifiedAtIso = cap.verifiedAt?.toISOString() || null;
+
+                // Download image and verify if status is COMPLETED and imageRef is available
+                if (cap.status === "COMPLETED" && cap.imageRef) {
+                  try {
+                    const buf = await this.storage.getObject(this.bucketBiometric, cap.imageRef);
+                    const baselineSelfie = (session.baselineSelfieEmbedding || candidate.baselineSelfieEmbedding) as number[] | null;
+
+                    if (buf && baselineSelfie && Array.isArray(baselineSelfie) && baselineSelfie.length > 0) {
+                      const enrollRes = await this.faceVerifyOnnxService.enroll(buf, cap.imageRef);
+                      if (enrollRes.embedding && enrollRes.embedding.length > 0) {
+                        const vRes = this.faceVerifyOnnxService.verifyEmbeddings(enrollRes.embedding, baselineSelfie);
+                        wMatched = vRes.matched;
+                        wDistance = vRes.distance;
+                        wThreshold = vRes.threshold;
+                        verifiedAtIso = new Date().toISOString();
+
+                        // Update DB record
+                        await this.prisma.identityCapture.update({
+                          where: { id: cap.id },
+                          data: {
+                            matched: wMatched,
+                            distance: wDistance,
+                            threshold: wThreshold,
+                            verifiedAt: new Date(),
+                          },
+                        });
+                      }
+                    }
+                  } catch (vErr: any) {
+                    this.logger.warn(
+                      `[AdminService] In-test capture verification failed for window ${cap.windowIndex} (session ${session.id}): ${vErr.message}`,
+                    );
+                  }
+                }
+
+                windowsList.push({
+                  windowIndex: cap.windowIndex,
+                  status: cap.status,
+                  matched: wMatched,
+                  distance: wDistance,
+                  threshold: wThreshold,
+                  verifiedAt: verifiedAtIso,
+                });
+              }
+
+              const total = captures.length;
+              const matchedCount = windowsList.filter((w) => w.status === "COMPLETED" && w.matched === true).length;
+              const mismatchedCount = windowsList.filter((w) => w.status === "COMPLETED" && w.matched === false).length;
+              const skippedCount = windowsList.filter((w) => w.status === "SKIPPED").length;
+              const failedCount = windowsList.filter((w) => w.status === "FAILED").length;
+              const pendingCount = windowsList.filter((w) => w.status === "PENDING").length;
+
+              inTestCapturesResult = {
+                total,
+                matched: matchedCount,
+                mismatched: mismatchedCount,
+                skipped: skippedCount,
+                failed: failedCount,
+                pending: pendingCount,
+                windows: windowsList,
+              };
+            }
+          } catch (inTestErr: any) {
+            this.logger.warn(`In-test captures bulk verification failed for session ${session.id}: ${inTestErr.message}`);
+          }
+        }
+
+        const identityVerificationResult = {
+          matched: overallMatched,
+          face: {
+            matched: faceRes.matched,
+            distance: faceRes.distance,
+            threshold: faceRes.threshold,
+          },
+          name: {
+            matched: nameRes.matched,
+            similarity: nameRes.similarity,
+            threshold: nameRes.threshold,
+            extractedName: nameRes.extractedName,
+            registeredName: nameRes.registeredName,
+          },
+          inTestCaptures: inTestCapturesResult,
+          ocrConfidence,
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: staffId,
+        };
+
+        if (session) {
+          await this.prisma.session.update({
+            where: { id: session.id },
+            data: {
+              identityVerificationResult,
+              idVerifiedAt: overallMatched ? new Date() : undefined,
+            },
+          });
+        }
+        await this.prisma.candidate.update({
+          where: { id: candidate.id },
+          data: {
+            identityVerificationResult,
+            idVerifiedAt: overallMatched ? new Date() : undefined,
+          },
+        });
+
+        await this.prisma.auditLog.create({
+          data: {
+            staffId,
+            action: "CANDIDATE_IDENTITY_VERIFIED",
+            entityType: "Candidate",
+            entityId: candidate.id,
+            metadata: {
+              matched: overallMatched,
+              face: faceRes as any,
+              name: nameRes as any,
+              bulk: true,
+            },
+          },
+        });
+
+        completed++;
+        if (overallMatched) matched++; else mismatched++;
+        results.push({
+          candidateId: candidate?.id || targetId,
+          sessionId: session?.id || targetId,
+          status: "completed",
+          matched: overallMatched,
+          face: faceRes,
+          name: nameRes,
+          inTestCaptures: inTestCapturesResult,
+          ocrConfidence,
+        });
+      } catch (err: any) {
+        this.logger.error(
+          `Bulk verify: unexpected error for candidate ${targetId}: ${err.message}`,
+        );
+        errors++;
+        results.push({ candidateId: targetId, sessionId: targetId, status: "error", message: err.message });
+      }
+    }
+
+    return {
+      total: candidateIds.length,
+      completed,
+      matched,
+      mismatched,
+      insufficientData,
+      errors,
+      results,
+    };
   }
 
   async bulkExportByDrive(driveId: string) {

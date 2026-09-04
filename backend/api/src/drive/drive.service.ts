@@ -20,6 +20,11 @@ import { InviteStatus, SessionStatus, ModuleType, OriginChannel, Department } fr
 
 import { CandidateIngestionService } from "./candidate-ingestion.service";
 import { CsvIngestionService } from "./csv-ingestion.service";
+import {
+  getRequiredQuestionCount,
+  getDefaultDifficultyDistribution,
+  getEstimatedModuleDuration,
+} from "../session/session.service";
 
 @Injectable()
 export class DriveService {
@@ -76,6 +81,7 @@ export class DriveService {
       });
     }
     const finalRoleTemplateId = template.id;
+    const targetDept = template.department || "SOFTWARE_ENGINEERING";
 
     const preset = (template.weightingPreset as Record<string, number>) || {};
     const hasPresetKeys = Object.keys(preset).length > 0;
@@ -89,6 +95,59 @@ export class DriveService {
       SIMULATION: { enabled: hasPresetKeys ? (Number(preset.SIMULATION) || 0) > 0 : false, durationMinutes: 10, weight: (Number(preset.SIMULATION) || 0) * 100 },
       TEST_SCENARIOS: { enabled: hasPresetKeys ? (Number(preset.TEST_SCENARIOS) || 0) > 0 : false, durationMinutes: 15, weight: (Number(preset.TEST_SCENARIOS) || 0) * 100 },
     };
+    const dbSettings = await this.prisma.moduleSetting.findMany({
+      where: { department: targetDept },
+    });
+    const enabledModules = new Set(
+      dbSettings.filter((s) => s.isEnabled).map((s) => s.moduleType)
+    );
+
+    let defaultModuleConfig: any;
+
+    if (moduleConfig) {
+      defaultModuleConfig = moduleConfig;
+      let totalWeight = 0;
+      for (const [moduleType, modConf] of Object.entries(defaultModuleConfig)) {
+        const conf = modConf as any;
+        if (!conf) continue;
+        const weight = Number(conf.weight) || 0;
+        if (weight < 0) {
+          throw new BadRequestException(`Weight for module ${moduleType} cannot be negative.`);
+        }
+        const isEnabled = conf.enabled === true;
+        if (!enabledModules.has(moduleType as any)) {
+          if (isEnabled || weight > 0) {
+            throw new BadRequestException(`Module ${moduleType} is globally disabled for department ${targetDept} and cannot be enabled or receive weight.`);
+          }
+        }
+        if (isEnabled) {
+          totalWeight += weight;
+        }
+      }
+      if (totalWeight !== 100) {
+        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      }
+    } else {
+      const preset = (template.weightingPreset as Record<string, number>) || {};
+      const allModules = Object.values(ModuleType);
+      const configMap: Record<string, any> = {};
+      let totalWeight = 0;
+      for (const mod of allModules) {
+        const isGloballyEnabled = enabledModules.has(mod);
+        const presetWeightFraction = preset[mod] !== undefined ? Number(preset[mod]) : 0;
+        const weight = isGloballyEnabled ? presetWeightFraction * 100 : 0;
+        const enabled = isGloballyEnabled && weight > 0;
+        configMap[mod] = {
+          enabled,
+          durationMinutes: mod === "CODING" ? 30 : mod === "SQL" || mod === "DEBUGGING" || mod === "NOSQL" ? 20 : mod === "SIMULATION" ? 10 : 15,
+          weight,
+        };
+        if (enabled) {
+          totalWeight += weight;
+        }
+      }
+      defaultModuleConfig = configMap;
+    }
 
     // 2. Validate schedule if status is SCHEDULED or ACTIVE
     if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
@@ -103,14 +162,21 @@ export class DriveService {
     }
 
     // 3. Completeness check
-    const enabledModules = Object.entries(defaultModuleConfig)
+    const activeEnabledModules = Object.entries(defaultModuleConfig)
       .filter(([_, conf]: [string, any]) => conf.enabled)
       .map(([mod, _]) => mod);
 
+<<<<<<< HEAD
     const targetDept = template.department || template.roleName;
 
     if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
       for (const mod of enabledModules) {
+=======
+    const completenessTargetDept = template.department || template.roleName;
+
+    if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
+      for (const mod of activeEnabledModules) {
+>>>>>>> ocr
         if (mod === "AI_PROMPTING") continue;
 
         let qCount = 0;
@@ -170,7 +236,9 @@ export class DriveService {
         },
       });
 
-      // Link explicitly selected questions if provided by admin
+      // Link explicitly selected questions if provided by admin, or copy from RoleTemplate
+      let questionEntriesToLink: Array<{ questionId: string; moduleType: any; version?: number }> = [];
+
       if (dto.questionIds && Array.isArray(dto.questionIds) && dto.questionIds.length > 0) {
         const questionsToLink = await tx.question.findMany({
           where: {
@@ -178,22 +246,39 @@ export class DriveService {
             status: "PUBLISHED",
           },
         });
-
-        if (questionsToLink.length > 0) {
-          await tx.driveQuestion.createMany({
-            data: questionsToLink.map((q) => {
-              const tags = q.tags || [];
-              const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
-              const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-              return {
-                driveId: createdDrive.id,
-                questionId: q.id,
-                moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
-                questionVersionSnapshot: q.version ?? 1,
-              };
-            }),
-          });
+        questionEntriesToLink = questionsToLink.map((q) => {
+          const tags = q.tags || [];
+          const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+          const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+          return {
+            questionId: q.id,
+            moduleType: (isDebug ? "DEBUGGING" : q.moduleType) as any,
+            version: q.version ?? 1,
+          };
+        });
+      } else if (finalRoleTemplateId) {
+        const tplQuestions = await tx.roleTemplateQuestion.findMany({
+          where: { roleTemplateId: finalRoleTemplateId },
+          include: { question: true },
+        });
+        if (tplQuestions.length > 0) {
+          questionEntriesToLink = tplQuestions.map((tq) => ({
+            questionId: tq.questionId,
+            moduleType: tq.moduleType,
+            version: tq.questionVersionSnapshot || tq.question?.version || 1,
+          }));
         }
+      }
+
+      if (questionEntriesToLink.length > 0) {
+        await tx.driveQuestion.createMany({
+          data: questionEntriesToLink.map((entry) => ({
+            driveId: createdDrive.id,
+            questionId: entry.questionId,
+            moduleType: entry.moduleType,
+            questionVersionSnapshot: entry.version ?? 1,
+          })),
+        });
       }
 
       // Generate Invites/Roster
@@ -263,23 +348,41 @@ export class DriveService {
     if (!moduleConfig) {
       const preset = (template.weightingPreset as Record<string, number>) || {};
       moduleConfig = {};
-      const duration = driveMeta.durationMinutes ?? template.durationMinutes ?? 60;
+      const totalDuration = driveMeta.durationMinutes ?? template.durationMinutes ?? 90;
 
-      for (const [mod, weight] of Object.entries(preset)) {
-        moduleConfig[mod] = {
-          enabled: true,
-          durationMinutes: duration,
-          weight: typeof weight === "number" ? weight : 0.2,
-        };
-      }
+      const entries = Object.entries(preset);
+      if (entries.length > 0) {
+        let totalWeight = entries.reduce((sum, [_, w]) => sum + (typeof w === "number" ? w : 0), 0);
+        if (totalWeight <= 1 && totalWeight > 0) {
+          totalWeight = Math.round(totalWeight * 100);
+        }
 
-      if (Object.keys(moduleConfig).length === 0) {
+        let allocatedMinutesSum = 0;
+        entries.forEach(([mod, w], idx) => {
+          let weightNum = typeof w === "number" ? w : 0.2;
+          if (weightNum <= 1 && weightNum > 0) weightNum = Math.round(weightNum * 100);
+
+          let modDuration = Math.max(5, Math.round((weightNum / (totalWeight || 100)) * totalDuration));
+          if (idx === entries.length - 1) {
+            modDuration = Math.max(5, totalDuration - allocatedMinutesSum);
+          } else {
+            allocatedMinutesSum += modDuration;
+          }
+
+          moduleConfig[mod] = {
+            enabled: true,
+            durationMinutes: modDuration,
+            weight: weightNum,
+            questionWeighting: { mode: "equal" },
+          };
+        });
+      } else {
         moduleConfig = {
-          MCQ: { enabled: true, durationMinutes: 15, weight: 0.2 },
-          SQL: { enabled: true, durationMinutes: 20, weight: 0.2 },
-          CODING: { enabled: true, durationMinutes: 30, weight: 0.3 },
-          AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 0.15 },
-          SIMULATION: { enabled: true, durationMinutes: 10, weight: 0.15 },
+          MCQ: { enabled: true, durationMinutes: 15, weight: 20 },
+          SQL: { enabled: true, durationMinutes: 20, weight: 20 },
+          CODING: { enabled: true, durationMinutes: 30, weight: 30 },
+          DEBUGGING: { enabled: true, durationMinutes: 15, weight: 15 },
+          AI_PROMPTING: { enabled: true, durationMinutes: 10, weight: 15 },
         };
       }
     }
@@ -525,6 +628,10 @@ export class DriveService {
         compositeScore: session?.score?.compositeScore ?? null,
         submittedAt: session?.submittedAt ? session.submittedAt.toISOString() : null,
         isGenerated: invite.isGenerated,
+        category: invite.category,
+        experienceTier: invite.experienceTier,
+        level: invite.experienceTier || (invite.category === "EXPERIENCED" ? "2-5" : "0-1"),
+        roleTemplateId: invite.roleTemplateId,
       };
     });
 
@@ -612,7 +719,101 @@ export class DriveService {
       }
       data.roleTemplateId = template.id;
     }
-    if (moduleConfig) data.moduleConfig = moduleConfig;
+    if (moduleConfig) {
+      const templateId = roleTemplateId || drive.roleTemplateId;
+      const template = await this.prisma.roleTemplate.findUnique({
+        where: { id: templateId },
+      });
+      if (!template) {
+        throw new NotFoundException(`Role template not found`);
+      }
+      const targetDept = template.department || "SOFTWARE_ENGINEERING";
+
+      const dbSettings = await this.prisma.moduleSetting.findMany({
+        where: { department: targetDept },
+      });
+      const enabledModules = new Set(
+        dbSettings.filter((s) => s.isEnabled).map((s) => s.moduleType)
+      );
+
+      let totalWeight = 0;
+      for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
+        const conf = modConf as any;
+        if (!conf) continue;
+        const weight = Number(conf.weight) || 0;
+        if (weight < 0) {
+          throw new BadRequestException(`Weight for module ${moduleType} cannot be negative.`);
+        }
+        const isEnabled = conf.enabled === true;
+        if (!enabledModules.has(moduleType as any)) {
+          if (isEnabled || weight > 0) {
+            throw new BadRequestException(`Module ${moduleType} is globally disabled for department ${targetDept} and cannot be enabled or receive weight.`);
+          }
+        }
+        if (isEnabled) {
+          totalWeight += weight;
+        }
+      }
+      if (totalWeight !== 100) {
+        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      }
+
+      const sStart = scheduleStart ? new Date(scheduleStart) : (drive.scheduleStart || new Date());
+      const sEnd = scheduleEnd ? new Date(scheduleEnd) : drive.scheduleEnd;
+      let windowMinutes = template.durationMinutes || 90;
+      if (sStart && sEnd) {
+        const diffMs = new Date(sEnd).getTime() - new Date(sStart).getTime();
+        const diffMins = Math.round(diffMs / (60 * 1000));
+        if (diffMins > 0 && diffMins <= 240 && drive.originChannel !== OriginChannel.PARTNER_API) {
+          windowMinutes = diffMins;
+        }
+      }
+
+      const lowerName = (template.roleName || "").toLowerCase();
+      const resolvedTag = lowerName.includes("fresher")
+        ? "fresher"
+        : lowerName.includes("l1")
+        ? "l1"
+        : lowerName.includes("l2")
+        ? "l2"
+        : "l3";
+
+      let totalEstimatedDuration = 0;
+      const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig };
+
+      for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
+        const conf = modConf as any;
+        if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
+
+        const reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
+        const dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+        const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+        if (distSum !== reqCount) {
+          throw new BadRequestException(
+            `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
+          );
+        }
+
+        const estDuration = getEstimatedModuleDuration(moduleType, dist);
+        totalEstimatedDuration += estDuration;
+
+        sanitizedModuleConfig[moduleType] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: dist,
+        };
+      }
+
+      if (totalEstimatedDuration > windowMinutes) {
+        const overflow = (totalEstimatedDuration - windowMinutes).toFixed(1);
+        throw new BadRequestException(
+          `Estimated assessment time (${totalEstimatedDuration} min) exceeds the configured assessment duration (${windowMinutes} min) by ${overflow} minutes. Please adjust module weights or difficulty distributions.`
+        );
+      }
+
+      data.moduleConfig = sanitizedModuleConfig;
+    }
     if (scheduleStart) data.scheduleStart = new Date(scheduleStart);
     if (scheduleEnd) data.scheduleEnd = new Date(scheduleEnd);
     if (status) data.status = status;
@@ -915,6 +1116,28 @@ export class DriveService {
       where: { id: { in: qIds } },
     });
 
+    if (drive.moduleConfig && typeof drive.moduleConfig === "object") {
+      const modConfig = drive.moduleConfig as Record<string, any>;
+      for (const [modType, conf] of Object.entries(modConfig)) {
+        if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
+        const reqCount = conf.requiredCount;
+        if (typeof reqCount === "number" && reqCount > 0) {
+          const modQuestions = questions.filter((q) => {
+            const tags = q.tags || [];
+            const prompt = typeof (q.content as any)?.prompt === "string" ? (q.content as any).prompt.toLowerCase() : "";
+            const isDebug = q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
+            const effectiveMod = isDebug ? "DEBUGGING" : q.moduleType;
+            return effectiveMod === modType;
+          });
+          if (modQuestions.length > reqCount) {
+            throw new BadRequestException(
+              `Module ${modType} has ${modQuestions.length} questions selected, which exceeds the required limit of ${reqCount}. No additional questions can be added.`
+            );
+          }
+        }
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.driveQuestion.deleteMany({
         where: { driveId },
@@ -1027,9 +1250,38 @@ export class DriveService {
     }
 
     const targetDept = drive.roleTemplate?.department || drive.roleTemplate?.roleName || "UNSPECIFIED";
-    const driveQuestionCount = await this.prisma.driveQuestion.count({
+    const driveQuestions = await this.prisma.driveQuestion.findMany({
       where: { driveId },
+      include: { question: true },
     });
+    const driveQuestionCount = driveQuestions.length;
+
+    if (drive.moduleConfig && typeof drive.moduleConfig === "object") {
+      const modConfig = drive.moduleConfig as Record<string, any>;
+      for (const [modType, conf] of Object.entries(modConfig)) {
+        if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
+        const reqCount = conf.requiredCount;
+        if (typeof reqCount === "number" && reqCount > 0) {
+          const modQuestions = driveQuestions.filter((dq) => dq.moduleType === modType);
+          if (modQuestions.length !== reqCount) {
+            throw new BadRequestException(
+              `Cannot generate links: Module ${modType} requires exactly ${reqCount} questions selected (currently ${modQuestions.length} selected).`
+            );
+          }
+          if (conf.difficultyDistribution) {
+            const dist = conf.difficultyDistribution;
+            const easyCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "EASY").length;
+            const mediumCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+            const hardCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "HARD").length;
+            if (easyCount !== dist.easy || mediumCount !== dist.medium || hardCount !== dist.hard) {
+              throw new BadRequestException(
+                `Cannot generate links: Module ${modType} selected difficulty mix (${easyCount}E / ${mediumCount}M / ${hardCount}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`
+              );
+            }
+          }
+        }
+      }
+    }
 
     if (driveQuestionCount === 0) {
       const deptQuestionCount = await this.prisma.question.count({

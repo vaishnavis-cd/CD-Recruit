@@ -39,6 +39,8 @@ export const configuration = () => ({
   correlationEngineUrl: process.env.CORRELATION_ENGINE_URL ?? "",
   correlationEngineApiKey: process.env.CORRELATION_ENGINE_API_KEY ?? "",
 
+  faceVerifyServiceUrl: process.env.FACE_VERIFY_SERVICE_URL ?? "http://localhost:8001",
+
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   groqApiKey: process.env.GROQ_API_KEY ?? "",
   cerebrasApiKey: process.env.CEREBRAS_API_KEY ?? "",

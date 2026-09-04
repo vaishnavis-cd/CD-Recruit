@@ -74,6 +74,11 @@ export interface SessionDetail {
     id: string;
     name: string;
     email: string;
+    identityVerificationResult?: any;
+    baselineSelfieRef?: string | null;
+    idProofRef?: string | null;
+    baselineSelfieUrl?: string | null;
+    idProofUrl?: string | null;
   };
   roleTemplateName: string;
   status: SessionStatus;

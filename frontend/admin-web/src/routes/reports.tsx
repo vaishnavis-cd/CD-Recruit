@@ -70,11 +70,7 @@ export const Route = createFileRoute("/reports")({
   }),
 });
 
-const RANGES = [
-  { id: "7d", label: "Last 7 days" },
-  { id: "30d", label: "Last 30 days" },
-  { id: "90d", label: "Last 90 days" },
-];function ReportsPage() {
+function ReportsPage() {
   const sessions = useStore((s) => s.sessions) || [];
   const resultsList = useStore((s) => s.resultsList) || [];
   const fetchSessions = useStore((s) => s.fetchSessions);
@@ -83,7 +79,6 @@ const RANGES = [
   const fetchResults = useStore((s) => s.fetchResults);
 
   const [activeTab, setActiveTab] = useState<"PERFORMANCE" | "INTEGRITY" | "EXPORTS">("PERFORMANCE");
-
   const [variant, setVariant] = useState<"internal" | "candidate">("internal");
 
   useEffect(() => {
@@ -452,9 +447,7 @@ const RANGES = [
           </div>
         )}
 
-
-
-        {/* TAB 4: CUSTOM EXPORT CONFIGURATION */}
+        {/* TAB 3: CUSTOM EXPORT CONFIGURATION */}
         {activeTab === "EXPORTS" && (
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* Export Configuration Card */}
@@ -525,8 +518,6 @@ const RANGES = [
     </AppShell>
   );
 }
-
-
 
 const FIELDS = {
   internal: [

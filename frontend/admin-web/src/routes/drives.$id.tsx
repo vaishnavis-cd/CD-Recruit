@@ -78,6 +78,77 @@ export const Route = createFileRoute("/drives/$id")({
   }),
 });
 
+const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
+  fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
+  l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
+  l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
+  l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
+};
+
+export const TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
+  SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  DEBUGGING: { EASY: 5, MEDIUM: 10, HARD: 18 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  AI_PROMPTING: { EASY: 4, MEDIUM: 7, HARD: 12 },
+  SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+};
+
+export function getRequiredQuestionCount(
+  moduleType: string,
+  weight: number,
+  totalDuration: number,
+  seniority: string,
+): number {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const avgTime =
+    ratios.easy * times.EASY +
+    ratios.medium * times.MEDIUM +
+    ratios.hard * times.HARD;
+  const timeBudget = totalDuration * (weight / 100);
+
+  return Math.max(1, Math.round(timeBudget / (avgTime || 1)));
+}
+
+export function getDefaultDifficultyDistribution(
+  requiredCount: number,
+  seniority: string,
+): { easy: number; medium: number; hard: number } {
+  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  let easy = Math.round(requiredCount * ratios.easy);
+  let medium = Math.round(requiredCount * ratios.medium);
+  let hard = requiredCount - easy - medium;
+
+  if (hard < 0) {
+    medium += hard;
+    hard = 0;
+  }
+  if (medium < 0) {
+    easy += medium;
+    medium = 0;
+  }
+  const currentSum = easy + medium + hard;
+  if (currentSum !== requiredCount) {
+    easy += (requiredCount - currentSum);
+  }
+  return { easy: Math.max(0, easy), medium: Math.max(0, medium), hard: Math.max(0, hard) };
+}
+
+export function getEstimatedModuleDuration(
+  moduleType: string,
+  dist: { easy: number; medium: number; hard: number },
+): number {
+  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  return (
+    (dist.easy || 0) * times.EASY +
+    (dist.medium || 0) * times.MEDIUM +
+    (dist.hard || 0) * times.HARD
+  );
+}
+
 // Helper to filter out module subtags and restrict drive tags to last 3
 export function processQuestionTags(tags?: string[], moduleType?: string) {
   if (!tags || !Array.isArray(tags)) return { displayTags: [], hiddenDriveCount: 0 };
@@ -119,7 +190,7 @@ function getTodayIsoDate() {
 
 function getDefaultScheduleWindow() {
   const now = new Date();
-  const ONE_HOUR = 60 *60*1000;
+  const ONE_HOUR = 60 * 60 * 1000;
   // Next rounded hour from now
   const start = new Date(now.getTime() + ONE_HOUR);
   start.setMinutes(0, 0, 0);
@@ -186,12 +257,20 @@ function DriveDetailPage() {
   const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
   const removeCandidateFromDrive = useStore((s) => s.removeCandidateFromDrive);
+  const roleTemplates = useStore((s) => s.roleTemplates);
+  const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
 
   const [drive, setDrive] = useState<DriveDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [isEditingUnlocked, setIsEditingUnlocked] = useState<boolean>(false);
   const [showUnlockConfirmModal, setShowUnlockConfirmModal] = useState<boolean>(false);
+
+  // Select Role Template Modal State
+  const [showSelectTemplateModal, setShowSelectTemplateModal] = useState<boolean>(false);
+  const [selectedTemplateForDrive, setSelectedTemplateForDrive] = useState<string>("");
+  const [templateDeptFilter, setTemplateDeptFilter] = useState<string>("all");
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
 
   // Tab State
   const [activeTab, setActiveTab] = useState<"roster" | "questions" | "configuration">("configuration");
@@ -224,6 +303,8 @@ function DriveDetailPage() {
     NOSQL: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
   });
 
+  const [globalEnabledModules, setGlobalEnabledModules] = useState<string[]>([]);
+
   // Per-Drive System Check & Hardware Proctoring Customization State
   const [proctoringConfig, setProctoringConfig] = useState({
     requireCamera: true,
@@ -248,13 +329,13 @@ function DriveDetailPage() {
       } catch {}
     }
   }, [driveId, assignedQuestions]);
+
   const [pendingTabSwitch, setPendingTabSwitch] = useState<"roster" | "configuration" | null>(null);
   const [questionModuleFilter, setQuestionModuleFilter] = useState<string>("ALL");
   const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState<string>("ALL");
   const [questionTierFilter, setQuestionTierFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
-
 
   // Add Candidate Modal State
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
@@ -298,13 +379,11 @@ function DriveDetailPage() {
         return;
       }
 
-      // Check if email already exists in current drive roster
       if (existingRosterEmails.has(email)) {
         errors.push(`Line ${idx + 1}: Candidate email "${email}" is ALREADY registered in this drive roster.`);
         return;
       }
 
-      // Check if email is duplicated within the input file lines
       if (emailsInInput.has(email)) {
         errors.push(`Line ${idx + 1}: Duplicate candidate email "${email}" found in input lines.`);
         return;
@@ -473,25 +552,83 @@ function DriveDetailPage() {
       const defaultModules: Record<string, DriveModuleConfigEntry> = {
         MCQ: { enabled: true, durationMinutes: 15, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
         SQL: { enabled: true, durationMinutes: 20, weight: 20, isBonus: false, questionWeighting: { mode: "equal" } },
+        NOSQL: { enabled: false, durationMinutes: 20, weight: 0, isBonus: false, questionWeighting: { mode: "equal" } },
         CODING: { enabled: true, durationMinutes: 30, weight: 25, isBonus: false, questionWeighting: { mode: "equal" } },
         DEBUGGING: { enabled: true, durationMinutes: 20, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
         AI_PROMPTING: { enabled: true, durationMinutes: 15, weight: 10, isBonus: false, questionWeighting: { mode: "equal" }, questionSource: "AI_DYNAMIC" } as any,
         SIMULATION: { enabled: true, durationMinutes: 10, weight: 10, isBonus: false, questionWeighting: { mode: "equal" } },
+        TEST_SCENARIOS: { enabled: true, durationMinutes: 15, weight: 15, isBonus: false, questionWeighting: { mode: "equal" } },
       };
+
+      let enabledForDept: string[] = [];
+      try {
+        const headers = await getAuthHeaders();
+        const settingsRes = await fetch(`${API_BASE}/admin/settings/modules`, { headers });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          const dept = (data as any).roleTemplate?.department || "SOFTWARE_ENGINEERING";
+          enabledForDept = settingsData
+            .filter((s: any) => s.department === dept && s.isEnabled)
+            .map((s: any) => s.moduleType);
+          setGlobalEnabledModules(enabledForDept);
+        }
+      } catch (settingsErr) {
+        console.warn("Failed fetching global module settings: ", settingsErr);
+      }
 
       let initialConfig = {
         ...defaultModules,
-        ...(data.moduleConfig || {}),
       };
+
+      const hasConfig = data.moduleConfig && typeof data.moduleConfig === "object" && Object.keys(data.moduleConfig).length > 0;
+      if (hasConfig) {
+        initialConfig = {
+          ...initialConfig,
+          ...(data.moduleConfig || {}),
+        };
+        // Normalize any inflated weights from legacy data (e.g. 1500 -> 15)
+        Object.keys(initialConfig).forEach((mod) => {
+          if (initialConfig[mod] && typeof initialConfig[mod].weight === "number") {
+            let w = initialConfig[mod].weight;
+            if (w > 100) w = Math.round(w / 100);
+            else if (w <= 1 && w > 0) w = Math.round(w * 100);
+            initialConfig[mod].weight = w;
+          }
+        });
+      } else {
+        const preset = ((data as any).roleTemplate?.weightingPreset as Record<string, number>) || {};
+        Object.keys(initialConfig).forEach((mod) => {
+          const isGloballyEnabled = enabledForDept.includes(mod);
+          const rawPreset = preset[mod] !== undefined ? Number(preset[mod]) : 0;
+          let weight = 0;
+          if (rawPreset > 100) weight = Math.round(rawPreset / 100);
+          else if (rawPreset <= 1 && rawPreset > 0) weight = Math.round(rawPreset * 100);
+          else weight = Math.round(rawPreset);
+
+          weight = isGloballyEnabled ? weight : 0;
+          const enabled = isGloballyEnabled && weight > 0;
+          
+          initialConfig[mod] = {
+            ...initialConfig[mod],
+            enabled,
+            weight,
+          };
+        });
+      }
 
       if ((data.moduleConfig as any)?.proctoringConfig) {
         setProctoringConfig((data.moduleConfig as any).proctoringConfig);
       }
       
-      // Auto-fit default module durations to time window on initial load if needed
+      const isPartnerApi = (data as any).originChannel === "PARTNER_API";
+      if (isPartnerApi) {
+        setActiveTab("roster");
+      }
+      
+      const effectiveDuration = isPartnerApi || rollingWindow ? 90 : winMins;
       const confSum = Object.values(initialConfig).filter((m: any) => m.enabled).reduce((sum: number, m: any) => sum + (Number(m.durationMinutes) || 0), 0);
-      if (confSum !== winMins) {
-        initialConfig = autoAllocateModuleDurations(initialConfig, winMins);
+      if (confSum !== effectiveDuration) {
+        initialConfig = autoAllocateModuleDurations(initialConfig, effectiveDuration);
       }
       setModuleConfig(initialConfig);
 
@@ -505,6 +642,7 @@ function DriveDetailPage() {
   useEffect(() => {
     loadData();
     fetchQuestions({ pageSize: 1000 });
+    fetchRoleTemplates();
   }, [driveId]);
 
   const handleUnlockEditing = async () => {
@@ -524,6 +662,63 @@ function DriveDetailPage() {
       await loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to unlock drive editing");
+    }
+  };
+
+  const handleApplyRoleTemplate = async (templateId: string) => {
+    const tpl = (roleTemplates || []).find((r) => r.id === templateId);
+    if (!tpl) {
+      toast.error("Role template not found.");
+      return;
+    }
+
+    try {
+      const headers = await getAuthHeaders();
+
+      const updateRes = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ roleTemplateId: templateId }),
+      });
+
+      if (!updateRes.ok) {
+        throw new Error("Failed to update drive role template.");
+      }
+
+      const tplRes = await fetch(`${API_BASE}/admin/role-templates/${templateId}`, { headers });
+      if (tplRes.ok) {
+        const tplData = await tplRes.json();
+        const tplQuestionIds = (tplData.questions || []).map((q: any) => q.questionId).filter(Boolean);
+
+        if (tplQuestionIds.length > 0) {
+          await saveDriveQuestions(driveId, tplQuestionIds);
+          setAssignedQuestions(tplQuestionIds);
+          setSavedAssignedQuestions(tplQuestionIds);
+        }
+
+        if (tplData.weightingPreset) {
+          const preset = tplData.weightingPreset as Record<string, number>;
+          setModuleConfig((prev) => {
+            const updated = { ...prev };
+            Object.entries(preset).forEach(([mod, w]) => {
+              if (updated[mod]) {
+                updated[mod] = {
+                  ...updated[mod],
+                  enabled: true,
+                  weight: typeof w === "number" ? Math.round(w <= 1 ? w * 100 : w) : updated[mod].weight,
+                };
+              }
+            });
+            return updated;
+          });
+        }
+      }
+
+      toast.success(`Role Template "${tpl.roleName}" applied to drive!`);
+      setShowSelectTemplateModal(false);
+      await loadData();
+    } catch (err: any) {
+      toast.error("Failed applying template: " + (err.message || err));
     }
   };
 
@@ -549,7 +744,6 @@ function DriveDetailPage() {
     }
   };
 
-  // Relative Module Time Complexity ratios for proportional split
   const MODULE_TIME_COMPLEXITY: Record<string, number> = {
     CODING: 3,
     SIMULATION: 3,
@@ -567,8 +761,10 @@ function DriveDetailPage() {
     endMinStr: string,
     endAmPmStr: string
   ): number => {
-    // Rolling window is always exactly 24 hours
-    if (rollingWindow) return 24 * 60;
+    const templateDuration = (drive as any)?.roleTemplate?.durationMinutes || 90;
+    if (rollingWindow || (drive as any)?.originChannel === "PARTNER_API") {
+      return templateDuration;
+    }
 
     let sHour = parseInt(startHourStr, 10) || 10;
     if (startAmPmStr === "PM" && sHour < 12) sHour += 12;
@@ -585,6 +781,7 @@ function DriveDetailPage() {
     let diff = endTotalMins - startTotalMins;
 
     if (diff <= 0) diff += 24 * 60;
+    if (diff > 240) return templateDuration;
     return diff > 0 ? diff : 60;
   };
 
@@ -598,7 +795,6 @@ function DriveDetailPage() {
     const fixedKeys = enabledKeys.filter((k) => config[k]?.isFixed);
     const unfixedKeys = enabledKeys.filter((k) => !config[k]?.isFixed);
 
-    // If ALL enabled modules are fixed by admin, keep them untouched
     if (unfixedKeys.length === 0) return config;
 
     const sumFixedMins = fixedKeys.reduce(
@@ -629,66 +825,176 @@ function DriveDetailPage() {
     return updated;
   };
 
-  const handleAutoBalanceDurations = () => {
-    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
-    const enabledKeys = Object.keys(moduleConfig).filter((k) => moduleConfig[k]?.enabled);
-    if (enabledKeys.length === 0) return;
+  const ALL_DRIVE_MODULES = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"] as const;
 
-    const fixedKeys = enabledKeys.filter((k) => moduleConfig[k]?.isFixed);
-    const unfixedKeys = enabledKeys.filter((k) => !moduleConfig[k]?.isFixed);
+  const autoAlignModuleConfig = (
+    baseConfig: Record<string, any>,
+    targetDuration: number,
+    resolvedTag: string
+  ): Record<string, any> => {
+    const enabledKeys = ALL_DRIVE_MODULES.filter((m) => {
+      const conf = baseConfig[m];
+      if (!conf || !conf.enabled) return false;
+      if (globalEnabledModules.length > 0 && !globalEnabledModules.includes(m)) return false;
+      return true;
+    });
+    const nextConfig: Record<string, any> = { ...baseConfig };
 
-    if (unfixedKeys.length === 0) {
-      const totalFixedMins = fixedKeys.reduce(
-        (sum, k) => sum + (Number(moduleConfig[k]?.durationMinutes) || 0),
-        0
-      );
-
-      if (totalFixedMins === windowMins) {
-        toast.success(`All module durations are manually fixed and match the total scheduled window (${windowMins} mins)!`);
-      } else {
-        toast.error(
-          `All enabled modules are manually fixed, but cumulative time (${totalFixedMins} mins) does not equal the selected time range (${windowMins} mins). Total is ${totalFixedMins} mins vs ${windowMins} mins.`
-        );
-      }
-      return;
+    if (enabledKeys.length === 0) {
+      return nextConfig;
     }
 
-    const reallocated = autoAllocateModuleDurations(moduleConfig, windowMins);
-    setModuleConfig(reallocated);
-    toast.success("Module durations auto-balanced (preserving manually set module times)!");
+    // 1. Auto-balance weights of enabled core modules so they strictly sum to 100%
+    const baseWeight = Math.floor(100 / enabledKeys.length);
+    const remainder = 100 - baseWeight * enabledKeys.length;
+    const weights: Record<string, number> = {};
+
+    enabledKeys.forEach((key, idx) => {
+      weights[key] = baseWeight + (idx < remainder ? 1 : 0);
+    });
+
+    // 2. Compute initial required counts and default difficulty distributions
+    const distMap: Record<string, { easy: number; medium: number; hard: number; reqCount: number }> = {};
+
+    enabledKeys.forEach((key) => {
+      const w = weights[key];
+      const reqCount = getRequiredQuestionCount(key, w, targetDuration, resolvedTag);
+      const defaultDist = getDefaultDifficultyDistribution(reqCount, resolvedTag);
+      distMap[key] = {
+        ...defaultDist,
+        reqCount,
+      };
+    });
+
+    // 3. Compute total estimated duration helper
+    const computeTotalEst = () => {
+      return enabledKeys.reduce((sum, key) => {
+        const d = distMap[key];
+        return sum + getEstimatedModuleDuration(key, d);
+      }, 0);
+    };
+
+    let totalEst = computeTotalEst();
+
+    // 4. Iteratively optimize/downgrade difficulty if totalEst > targetDuration
+    const priorityModules = ["SIMULATION", "CODING", "DEBUGGING", "SQL", "NOSQL", "TEST_SCENARIOS", "AI_PROMPTING", "MCQ"];
+    let maxIterations = 200;
+
+    while (totalEst > targetDuration && maxIterations > 0) {
+      maxIterations--;
+      let reduced = false;
+
+      // Pass 1: Shift Hard -> Medium in heaviest modules
+      for (const mod of priorityModules) {
+        if (!enabledKeys.includes(mod)) continue;
+        const d = distMap[mod];
+        if (d.hard > 0) {
+          d.hard--;
+          d.medium++;
+          reduced = true;
+          totalEst = computeTotalEst();
+          if (totalEst <= targetDuration) break;
+        }
+      }
+
+      if (totalEst <= targetDuration) break;
+
+      // Pass 2: Shift Medium -> Easy in heaviest modules
+      if (!reduced || totalEst > targetDuration) {
+        for (const mod of priorityModules) {
+          if (!enabledKeys.includes(mod)) continue;
+          const d = distMap[mod];
+          if (d.medium > 0) {
+            d.medium--;
+            d.easy++;
+            reduced = true;
+            totalEst = computeTotalEst();
+            if (totalEst <= targetDuration) break;
+          }
+        }
+      }
+
+      if (!reduced) break;
+    }
+
+    // 5. Allocate durationMinutes budgets and update config
+    const totalEstTimeFinal = computeTotalEst();
+    ALL_DRIVE_MODULES.forEach((key) => {
+      if (enabledKeys.includes(key)) {
+        const d = distMap[key];
+        const estTime = getEstimatedModuleDuration(key, d);
+        const allocatedDurationMinutes = Math.max(1, Math.round((estTime / (totalEstTimeFinal || 1)) * targetDuration));
+
+        nextConfig[key] = {
+          ...(nextConfig[key] || {}),
+          enabled: true,
+          weight: weights[key],
+          requiredCount: d.reqCount,
+          durationMinutes: allocatedDurationMinutes,
+          difficultyDistribution: {
+            easy: d.easy,
+            medium: d.medium,
+            hard: d.hard,
+          },
+        };
+      } else {
+        nextConfig[key] = {
+          ...(nextConfig[key] || {}),
+          enabled: false,
+          weight: 0,
+          requiredCount: 0,
+          durationMinutes: 0,
+          difficultyDistribution: { easy: 0, medium: 0, hard: 0 },
+        };
+      }
+    });
+
+    return nextConfig;
   };
 
-  // Total Weight Validation Result
+  const handleAutoBalanceDurations = () => {
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag);
+    setModuleConfig(aligned);
+    toast.success(`Module durations and difficulty benchmarks auto-balanced to ${windowMins} min!`);
+  };
+
   const weightValidation = useMemo(() => {
     return validateDriveModuleWeights(moduleConfig);
   }, [moduleConfig]);
 
-  // Auto-Balance Weights tool ( Ceil: 100 ) - Only balances enabled Core module weights!
   const handleAutoBalanceWeights = () => {
-    const coreKeys = Object.keys(moduleConfig).filter(
-      (k) => moduleConfig[k].enabled && !moduleConfig[k].isBonus
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
     );
-    if (coreKeys.length === 0) {
-      toast.error("No enabled Core modules found to auto-balance.");
-      return;
-    }
-
-    const equalWeight = Math.floor(100 / coreKeys.length);
-    const remainder = 100 - equalWeight * coreKeys.length;
-
-    const updated = { ...moduleConfig };
-    coreKeys.forEach((k, idx) => {
-      updated[k] = {
-        ...updated[k],
-        weight: equalWeight + (idx === 0 ? remainder : 0),
-      };
-    });
-
-    setModuleConfig(updated);
-    toast.success("Core scoring weights auto-balanced to sum to 100 points!");
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag);
+    setModuleConfig(aligned);
+    toast.success("Core scoring weights auto-balanced to sum to 100 points and aligned to window!");
   };
 
-  // Schedule & DateTime Edge Case Validations
+  const handleAutoAlignAssessment = () => {
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const targetDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const aligned = autoAlignModuleConfig(moduleConfig, targetDuration, resolvedTag);
+    setModuleConfig(aligned);
+    toast.success(`Assessment auto-aligned to ${targetDuration} min (all weights = 100%, timings aligned)!`);
+  };
+
   const validateDateTimeConfig = (): { valid: boolean; error?: string } => {
     if (!startDate) {
       return { valid: false, error: "Please select a schedule date on the calendar." };
@@ -709,7 +1015,6 @@ function DriveDetailPage() {
       };
     }
 
-    // In rolling mode, end is always exactly 24h after start — always valid
     if (!rollingWindow) {
       const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
       if (!endIso) {
@@ -731,7 +1036,6 @@ function DriveDetailPage() {
     return validateDateTimeConfig().valid;
   }, [startDate, endDate, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow]);
 
-
   const hasQuestionsSelected = useMemo(() => {
     return assignedQuestions.length > 0;
   }, [assignedQuestions]);
@@ -740,19 +1044,119 @@ function DriveDetailPage() {
     return (drive?.roster?.length || 0) > 0;
   }, [drive]);
 
+  const driveEvaluationSummary = useMemo(() => {
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    const summaryData = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"]
+      .map((modId) => {
+        const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
+        if (!conf.enabled || Number(conf.weight) <= 0) {
+          return { modId, enabled: false, weight: 0, marks: 0, count: 0, dist: { easy: 0, medium: 0, hard: 0 }, estTime: 0 };
+        }
+
+        const weight = Number(conf.weight) || 0;
+        const reqCount = getRequiredQuestionCount(modId, weight, totalDuration, resolvedTag);
+        const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        const estTime = getEstimatedModuleDuration(modId, dist);
+
+        return {
+          modId,
+          enabled: true,
+          weight,
+          marks: weight,
+          count: reqCount,
+          dist,
+          estTime,
+        };
+      })
+      .filter((m) => m.enabled);
+
+    const totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
+    const totalMarks = summaryData.reduce((sum, m) => sum + m.marks, 0);
+    const totalQuestions = summaryData.reduce((sum, m) => sum + m.count, 0);
+    const totalEstTime = summaryData.reduce((sum, m) => sum + m.estTime, 0);
+    const isOverTime = totalEstTime > totalDuration;
+    const overflowMinutes = isOverTime ? Number((totalEstTime - totalDuration).toFixed(1)) : 0;
+
+    return {
+      summaryData,
+      totalDuration,
+      totalWeight,
+      totalMarks,
+      totalQuestions,
+      totalEstTime,
+      isOverTime,
+      overflowMinutes,
+      resolvedTag,
+    };
+  }, [moduleConfig, startHour, startMinute, startAmPm, endHour, endMinute, endAmPm, rollingWindow, drive]);
+
+  const areQuestionsFullyAssigned = useMemo(() => {
+    const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
+    if (hasRoleTemplate && assignedQuestions.length > 0) return true;
+
+    const { summaryData } = driveEvaluationSummary;
+    if (summaryData.length === 0) return false;
+
+    for (const m of summaryData) {
+      const poolQuestions = (questionsBank || []).filter(q => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return assignedQuestions.includes(q.id) && displayMod === m.modId;
+      });
+      if (poolQuestions.length !== m.count) return false;
+      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+      if (easyAvail !== m.dist.easy || mediumAvail !== m.dist.medium || hardAvail !== m.dist.hard) return false;
+    }
+    return true;
+  }, [driveEvaluationSummary, assignedQuestions, questionsBank, drive]);
+
   const isScheduleUnlocked = useMemo(() => {
-    return isScheduleDateValid && hasQuestionsSelected && hasCandidatesSelected;
-  }, [isScheduleDateValid, hasQuestionsSelected, hasCandidatesSelected]);
+    return (
+      isScheduleDateValid &&
+      hasCandidatesSelected &&
+      weightValidation.valid &&
+      !driveEvaluationSummary.isOverTime &&
+      areQuestionsFullyAssigned
+    );
+  }, [isScheduleDateValid, hasCandidatesSelected, weightValidation, driveEvaluationSummary, areQuestionsFullyAssigned]);
 
-  const validateCumulativeDuration = (): boolean => {
-    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
-    const cumulativeMins = Object.values(moduleConfig)
-      .filter((m) => m.enabled)
-      .reduce((sum, m) => sum + (Number(m.durationMinutes) || 0), 0);
+  const validateCumulativeDuration = (config = moduleConfig): boolean => {
+    const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
 
-    if (cumulativeMins > windowMins) {
+    let totalEstMins = 0;
+    for (const [modId, conf] of Object.entries(config)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, windowMins, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+      const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+      if (distSum !== reqCount) {
+        toast.error(
+          `Module ${modId} difficulty targets (${dist.easy}E + ${dist.medium}M + ${dist.hard}H = ${distSum}) must equal the required question count (${reqCount}).`
+        );
+        return false;
+      }
+      totalEstMins += getEstimatedModuleDuration(modId, dist);
+    }
+
+    if (totalEstMins > windowMins) {
+      const overflow = (totalEstMins - windowMins).toFixed(1);
       toast.error(
-        `Total module durations (${cumulativeMins} mins) exceed the scheduled test window (${windowMins} mins). Please adjust module durations or extend the schedule window.`
+        `⚠ Estimated assessment time exceeds the configured ${windowMins}-minute limit by ${overflow} minutes.`
       );
       return false;
     }
@@ -766,30 +1170,55 @@ function DriveDetailPage() {
       return;
     }
 
-    const enabledMods = Object.values(moduleConfig).filter((m) => m.enabled);
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    const updatedModuleConfig = { ...moduleConfig };
+    for (const [modId, conf] of Object.entries(updatedModuleConfig)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+      if (dist.easy + dist.medium + dist.hard !== reqCount) {
+        updatedModuleConfig[modId] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: getDefaultDifficultyDistribution(reqCount, resolvedTag),
+        } as any;
+      } else {
+        updatedModuleConfig[modId] = {
+          ...conf,
+          requiredCount: reqCount,
+          difficultyDistribution: dist,
+        } as any;
+      }
+    }
+
+    const enabledMods = Object.values(updatedModuleConfig).filter((m) => m.enabled);
     if (enabledMods.length === 0) {
       toast.error("At least one assessment module must be enabled.");
       return;
     }
 
-    const weightVal = validateDriveModuleWeights(moduleConfig);
+    const weightVal = validateDriveModuleWeights(updatedModuleConfig);
     if (!weightVal.valid) {
       toast.error(weightVal.error || "Invalid module score weights configuration.");
       return;
     }
 
-    if (!validateCumulativeDuration()) {
+    if (!validateCumulativeDuration(updatedModuleConfig)) {
       return;
     }
 
     try {
-      const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
-      // In rolling window mode, endIso = startIso + exactly 24h
-      const endIso = rollingWindow
-        ? computeRollingEndDate(startDate, startHour, startMinute, startAmPm)
-        : amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
-
       const headers = await getAuthHeaders();
+      const startIso = amPmToIso(startDate, startHour, startMinute, startAmPm);
+      const endIso = amPmToIso(endDate || startDate, endHour, endMinute, endAmPm);
+
       const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
         method: "PATCH",
         headers,
@@ -798,7 +1227,7 @@ function DriveDetailPage() {
           scheduleStart: startIso,
           scheduleEnd: endIso,
           status: editStatus,
-          moduleConfig: { ...moduleConfig, proctoringConfig },
+          moduleConfig: { ...updatedModuleConfig, proctoringConfig },
         }),
       });
 
@@ -826,11 +1255,6 @@ function DriveDetailPage() {
   }, [assignedQuestions, savedAssignedQuestions]);
 
   const handleTabSwitch = (targetTab: "configuration" | "questions" | "roster") => {
-    if (activeTab === "configuration" && targetTab !== "configuration") {
-      if (!validateCumulativeDuration()) {
-        return;
-      }
-    }
     if (activeTab === "questions" && targetTab !== "questions" && isQuestionsDirty) {
       setPendingTabSwitch(targetTab);
       return;
@@ -850,6 +1274,41 @@ function DriveDetailPage() {
       toast.error("Drive questions are locked because all candidate links have already been generated.");
       return;
     }
+
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    for (const [modId, conf] of Object.entries(moduleConfig)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+      const poolQuestions = (questionsBank || []).filter(q => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return assignedQuestions.includes(q.id) && displayMod === modId;
+      });
+
+      if (poolQuestions.length !== reqCount) {
+        toast.error(`Incomplete question selection for ${modId}. Please select exactly ${reqCount} required questions (${poolQuestions.length} currently selected).`);
+        return;
+      }
+
+      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+
+      if (easyAvail !== dist.easy || mediumAvail !== dist.medium || hardAvail !== dist.hard) {
+        toast.error(`Selected difficulty composition for ${modId} (${easyAvail}E / ${mediumAvail}M / ${hardAvail}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`);
+        return;
+      }
+    }
+
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
@@ -866,6 +1325,41 @@ function DriveDetailPage() {
       setActiveTab("roster");
       return;
     }
+
+    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+      lowerName.includes("l1") ? "l1" : (
+        lowerName.includes("l2") ? "l2" : "l3"
+      )
+    );
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    for (const [modId, conf] of Object.entries(moduleConfig)) {
+      if (!conf.enabled || Number(conf.weight) <= 0) continue;
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+      const poolQuestions = (questionsBank || []).filter(q => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return assignedQuestions.includes(q.id) && displayMod === modId;
+      });
+
+      if (poolQuestions.length !== reqCount) {
+        toast.error(`Incomplete question selection for ${modId}. Please select exactly ${reqCount} required questions (${poolQuestions.length} currently selected).`);
+        return;
+      }
+
+      const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+      const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+      const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+
+      if (easyAvail !== dist.easy || mediumAvail !== dist.medium || hardAvail !== dist.hard) {
+        toast.error(`Selected difficulty composition for ${modId} (${easyAvail}E / ${mediumAvail}M / ${hardAvail}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`);
+        return;
+      }
+    }
+
     try {
       await saveDriveQuestions(driveId, assignedQuestions);
       setSavedAssignedQuestions([...assignedQuestions]);
@@ -1051,7 +1545,10 @@ function DriveDetailPage() {
           }
         }
 
+<<<<<<< HEAD
         // If question belongs to a specific department, it MUST match the Drive's target department
+=======
+>>>>>>> ocr
         if (qDept && qDept !== targetDeptNorm) {
           return false;
         }
@@ -1177,13 +1674,24 @@ function DriveDetailPage() {
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="CLOSED">CLOSED</option>
               </select>
-              
             </div>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap text-[12px] text-[#5B5B64]">
-            <span>
-              Role Template: <span className="font-semibold text-[#0B0B0D]">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName}</span> (v{(drive as any).roleTemplate?.version || 1})
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span>
+                Role Template: <span className="font-semibold text-[#0B0B0D]">{(drive as any).roleTemplate?.roleName || drive.roleTemplateName}</span> (v{(drive as any).roleTemplate?.version || 1})
+              </span>
+              <button
+                onClick={() => {
+                  setSelectedTemplateForDrive((drive as any).roleTemplateId || "");
+                  setShowSelectTemplateModal(true);
+                }}
+                className="px-2 py-0.5 text-[11px] font-medium text-[#2F5CFF] bg-[#EAF0FF] hover:bg-[#D9E5FF] rounded transition-colors cursor-pointer border border-[#B3C5FF] flex items-center gap-1"
+                title="Select or apply Role Template to this drive"
+              >
+                <Sparkles size={11} /> Select / Change Template
+              </button>
+            </div>
             <span>•</span>
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
@@ -1194,7 +1702,6 @@ function DriveDetailPage() {
             >
               {(drive as any).originChannel === "PARTNER_API" ? "Partner API Origin" : "Direct Origin"}
             </span>
-            
           </div>
         </div>
 
@@ -1282,7 +1789,6 @@ function DriveDetailPage() {
         <div className="space-y-6">
           {/* SECTION 1: Single Calendar Date & Start/End Time Window Picker */}
           <div className="space-y-3">
-      
             <SingleDateTimePicker
               selectedDate={startDate || endDate || new Date().toISOString().slice(0, 10)}
               startHour={startHour}
@@ -1294,9 +1800,7 @@ function DriveDetailPage() {
               rollingWindow={rollingWindow}
               onRollingWindowChange={(enabled) => {
                 setRollingWindow(enabled);
-                // When switching to rolling mode, ensure hours are 0-23 compatible
                 if (enabled) {
-                  // Convert current 12h start to 24h representation for display
                   let h = parseInt(startHour, 10) || 9;
                   if (startAmPm === "PM" && h < 12) h += 12;
                   if (startAmPm === "AM" && h === 12) h = 0;
@@ -1335,6 +1839,15 @@ function DriveDetailPage() {
                   Total Weight: {weightValidation.coreSum} / 100 pts
                 </span>
                 <button
+                  type="button"
+                  onClick={handleAutoAlignAssessment}
+                  className="px-3.5 py-1 text-[11px] font-bold text-white bg-gradient-to-r from-[#2F5CFF] to-[#1A44D6] hover:from-[#1A44D6] hover:to-[#1233A8] rounded shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  title="One-click automatic alignment of weights, required question counts, difficulty distributions, and timings to fit session window"
+                >
+                  <Sparkles size={13} className="text-amber-300" />
+                  <span>Auto-Align Assessment</span>
+                </button>
+                <button
                   onClick={handleAutoBalanceDurations}
                   className="px-3 py-1 text-[11px] font-semibold text-[#0C6B58] bg-[#E3F9F2] hover:bg-[#D1F4E9] rounded border border-[#A3E6D5] transition-colors cursor-pointer flex items-center gap-1"
                   title="Auto-balance module durations (preserves manually changed times)"
@@ -1364,36 +1877,59 @@ function DriveDetailPage() {
                   { id: "TEST_SCENARIOS", name: "Test Scenarios", icon: FileText, desc: "Role-specific scenario questions evaluated via structured criteria" },
                 ] as const
               ).map((mod) => {
+                const isGloballyEnabled = globalEnabledModules.includes(mod.id);
                 const Icon = mod.icon;
                 const conf = moduleConfig[mod.id] || { enabled: false, durationMinutes: 15, weight: 15, isBonus: false, isFixed: false };
                 return (
                   <div
                     key={mod.id}
                     onClick={() => {
+                      if (!isGloballyEnabled) {
+                        toast.error(`${mod.name} is disabled in Admin Settings for this department.`);
+                        return;
+                      }
                       const isNowEnabled = !conf.enabled;
                       const nextConfig = {
                         ...moduleConfig,
                         [mod.id]: { ...conf, enabled: isNowEnabled },
                       };
-                      const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm);
-                      const reallocated = autoAllocateModuleDurations(nextConfig, winMins);
-                      setModuleConfig(reallocated);
+                      const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                      const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                      const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                        lowerName.includes("l1") ? "l1" : (
+                          lowerName.includes("l2") ? "l2" : "l3"
+                        )
+                      );
+                      const aligned = autoAlignModuleConfig(nextConfig, winMins, resolvedTag);
+                      setModuleConfig(aligned);
                     }}
-                    className={`border rounded-md p-4 space-y-3 transition-colors cursor-pointer select-none ${
-                      conf.enabled ? "bg-white border-[#2F5CFF] shadow-sm" : "bg-[#F7F7F9] border-[#E6E6EA] opacity-60"
+                    className={`border rounded-md p-4 space-y-3 transition-colors select-none ${
+                      !isGloballyEnabled
+                        ? "bg-[#F7F7F9]/80 border-[#E6E6EA] opacity-40 cursor-not-allowed"
+                        : conf.enabled
+                        ? "bg-white border-[#2F5CFF] shadow-sm cursor-pointer"
+                        : "bg-[#F7F7F9] border-[#E6E6EA] opacity-70 cursor-pointer"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-semibold text-[13px] text-[#0B0B0D]">
-                        <Icon size={16} className={conf.enabled ? "text-[#2F5CFF]" : "text-[#8B8B93]"} />
-                        {mod.name}
+                        <Icon size={16} className={conf.enabled && isGloballyEnabled ? "text-[#2F5CFF]" : "text-[#8B8B93]"} />
+                        <span>{mod.name}</span>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={conf.enabled}
-                        onChange={() => {}}
-                        className="w-4 h-4 text-[#2F5CFF] rounded cursor-pointer pointer-events-none"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        {!isGloballyEnabled && (
+                          <span className="text-[10px] font-mono text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                            Disabled in Settings
+                          </span>
+                        )}
+                        <input
+                          type="checkbox"
+                          checked={conf.enabled && isGloballyEnabled}
+                          disabled={!isGloballyEnabled}
+                          onChange={() => {}}
+                          className="w-4 h-4 text-[#2F5CFF] rounded cursor-pointer pointer-events-none disabled:opacity-40"
+                        />
+                      </div>
                     </div>
                     <p className="text-[11px] text-[#8B8B93]">{mod.desc}</p>
 
@@ -1414,10 +1950,10 @@ function DriveDetailPage() {
                                     [mod.id]: { ...conf, isFixed: false },
                                   });
                                 }}
-                                title="Time manually fixed. Click to unfix and auto-balance"
-                                className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 flex items-center gap-0.5 cursor-pointer hover:bg-amber-100"
+                                className="text-[10px] text-amber-600 hover:text-amber-800 font-medium cursor-pointer"
+                                title="Click to unlock auto-adjustment"
                               >
-                                <Lock size={10} /> Fixed
+                                Fixed
                               </button>
                             )}
                           </div>
@@ -1449,9 +1985,24 @@ function DriveDetailPage() {
                             onChange={(e) => {
                               const raw = e.target.value;
                               const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                              const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                              const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                                lowerName.includes("l1") ? "l1" : (
+                                  lowerName.includes("l2") ? "l2" : "l3"
+                                )
+                              );
+                              const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                              const newReqCount = getRequiredQuestionCount(mod.id, val, totalDuration, resolvedTag);
+                              const newDist = getDefaultDifficultyDistribution(newReqCount, resolvedTag);
+
                               setModuleConfig({
                                 ...moduleConfig,
-                                [mod.id]: { ...conf, weight: val },
+                                [mod.id]: {
+                                  ...conf,
+                                  weight: val,
+                                  requiredCount: newReqCount,
+                                  difficultyDistribution: newDist,
+                                },
                               });
                             }}
                             onFocus={(e) => e.target.select()}
@@ -1491,6 +2042,100 @@ function DriveDetailPage() {
                             </Select>
                           </div>
                         )}
+
+                        {(() => {
+                          const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                          const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                            lowerName.includes("l1") ? "l1" : (
+                              lowerName.includes("l2") ? "l2" : "l3"
+                            )
+                          );
+                          const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                          const reqCount = getRequiredQuestionCount(mod.id, conf.weight, totalDuration, resolvedTag);
+                          const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+                          const estDuration = getEstimatedModuleDuration(mod.id, dist);
+                          const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+
+                          return (
+                            <div className="col-span-2 pt-2 border-t border-[#EFF0F3] space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-semibold text-[#0B0B0D]">
+                                  Difficulty Target (Required: {reqCount})
+                                </span>
+                                <span className="text-[10px] text-[#5B5B64] font-medium font-mono">
+                                  Est: {estDuration} min
+                                </span>
+                              </div>
+                              {distSum !== reqCount && (
+                                <div className="text-[10px] text-rose-600 font-bold">
+                                  ⚠ Difficulty counts must total {reqCount} (Current: {distSum})
+                                </div>
+                              )}
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <div>
+                                  <label className="block text-[9px] text-emerald-800 font-medium mb-0.5 uppercase tracking-wide">Easy</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.easy}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: {
+                                          ...conf,
+                                          requiredCount: reqCount,
+                                          difficultyDistribution: { ...dist, easy: val },
+                                        },
+                                      } as any);
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border border-[#E6E6EA] rounded font-mono text-[11px]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-amber-800 font-medium mb-0.5 uppercase tracking-wide">Medium</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.medium}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: {
+                                          ...conf,
+                                          requiredCount: reqCount,
+                                          difficultyDistribution: { ...dist, medium: val },
+                                        },
+                                      } as any);
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border border-[#E6E6EA] rounded font-mono text-[11px]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] text-rose-800 font-medium mb-0.5 uppercase tracking-wide">Hard</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={dist.hard}
+                                    onChange={(e) => {
+                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: {
+                                          ...conf,
+                                          requiredCount: reqCount,
+                                          difficultyDistribution: { ...dist, hard: val },
+                                        },
+                                      } as any);
+                                    }}
+                                    className="w-full px-1.5 py-0.5 border border-[#E6E6EA] rounded font-mono text-[11px]"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1498,6 +2143,104 @@ function DriveDetailPage() {
               })}
             </div>
           </div>
+
+          {/* Assessment Composition Summary */}
+          {(() => {
+            const {
+              summaryData,
+              totalDuration,
+              totalWeight,
+              totalMarks,
+              totalQuestions,
+              totalEstTime,
+              isOverTime,
+              overflowMinutes,
+            } = driveEvaluationSummary;
+
+            return (
+              <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-[#EFF0F3] pb-3">
+                  <Settings size={18} className="text-[#2F5CFF]" />
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Assessment Composition Summary (Time-Aware)</h3>
+                    <p className="text-[12px] text-[#8B8B93]">Estimated question counts, difficulty mix, and expected candidate duration based on module benchmarks.</p>
+                  </div>
+                </div>
+
+                <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#F7F7F9] border-b border-[#E6E6EA] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
+                        <th className="px-4 py-2.5">Module</th>
+                        <th className="px-4 py-2.5 text-center">Weight</th>
+                        <th className="px-4 py-2.5 text-center">Marks</th>
+                        <th className="px-4 py-2.5 text-center">Required Questions</th>
+                        <th className="px-4 py-2.5 text-center">Difficulty Mix</th>
+                        <th className="px-4 py-2.5 text-right">Estimated Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E6EA] font-mono text-[11px]">
+                      {summaryData.map((m) => (
+                        <tr key={m.modId} className="hover:bg-[#F7F7F9]/50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-[#0B0B0D]">{m.modId}</td>
+                          <td className="px-4 py-3 text-center text-[#2F5CFF] font-semibold">{m.weight}%</td>
+                          <td className="px-4 py-3 text-center text-[#0B0B0D]">{m.marks} marks</td>
+                          <td className="px-4 py-3 text-center text-[#0B0B0D] font-bold">{m.count} questions</td>
+                          <td className="px-4 py-3 text-center text-[#5B5B64]">
+                            <span className="text-emerald-700 font-semibold">{m.dist.easy}E</span> / <span className="text-amber-700 font-semibold">{m.dist.medium}M</span> / <span className="text-rose-700 font-semibold">{m.dist.hard}H</span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-[#5B5B64] font-semibold">{m.estTime} min</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-[#F7F7F9]/50 font-bold border-t border-[#E6E6EA]">
+                        <td className="px-4 py-3 text-[#0B0B0D]">Total Summary</td>
+                        <td className="px-4 py-3 text-center text-[#2F5CFF]">{totalWeight}%</td>
+                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{totalMarks} marks</td>
+                        <td className="px-4 py-3 text-center text-[#0B0B0D]">{totalQuestions} questions</td>
+                        <td className="px-4 py-3 text-center text-[#8B8B93]">—</td>
+                        <td className="px-4 py-3 text-right text-[#0B0B0D]">
+                          <span className={isOverTime ? "text-rose-600 font-bold" : "text-[#0B0B0D]"}>
+                            {totalEstTime} min
+                          </span>{" "}
+                          <span className="text-[10px] text-[#8B8B93] font-normal">(out of {totalDuration} min)</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Status Banners */}
+                {isOverTime ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-[12px] text-rose-900">
+                    <div className="flex items-start gap-2.5 max-w-2xl">
+                      <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">
+                          ⚠ Estimated assessment time exceeds the configured {totalDuration}-minute limit by {overflowMinutes} minutes.
+                        </p>
+                        <p className="text-[11px] text-rose-700 mt-0.5">
+                          The configuration cannot be saved or scheduled until the estimated duration fits within the {totalDuration}-minute window. Click Auto-Align to automatically optimize module difficulties and timings.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAutoAlignAssessment}
+                      className="shrink-0 px-3.5 py-2 bg-[#2F5CFF] hover:bg-[#1A44D6] text-white text-[12px] font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles size={14} className="text-amber-300" />
+                      <span>Auto-Align to {totalDuration} min</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-[12px] text-emerald-800 font-medium">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span>✓ Assessment configuration fits within the configured {totalDuration}-minute limit ({totalEstTime} min estimated).</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* SECTION 3: System Checks & Proctoring Customization */}
           <div className="bg-white border border-[#E6E6EA] rounded-[12px] p-6 shadow-sm space-y-4">
@@ -1668,6 +2411,144 @@ function DriveDetailPage() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Pool Sufficiency & Status Banners */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              {allowedModules.map((modId) => {
+                const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
+                if (!conf.enabled || Number(conf.weight) <= 0) return null;
+
+                const lowerName = (drive?.roleTemplateName || "").toLowerCase();
+                const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
+                  lowerName.includes("l1") ? "l1" : (
+                    lowerName.includes("l2") ? "l2" : "l3"
+                  )
+                );
+                const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+                const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+                const poolQuestions = (questionsBank || []).filter(q => {
+                  const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+                  const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+                  return assignedQuestions.includes(q.id) && displayMod === modId;
+                });
+                const poolSize = poolQuestions.length;
+
+                const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
+                const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+                const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
+
+                const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
+                const errors: string[] = [];
+                if (!hasRoleTemplate) {
+                  if (easyAvail < dist.easy) errors.push(`Need ${dist.easy - easyAvail} more Easy question(s) (Target: ${dist.easy}, Selected: ${easyAvail})`);
+                  if (mediumAvail < dist.medium) errors.push(`Need ${dist.medium - mediumAvail} more Medium question(s) (Target: ${dist.medium}, Selected: ${mediumAvail})`);
+                  if (hardAvail < dist.hard) errors.push(`Need ${dist.hard - hardAvail} more Hard question(s) (Target: ${dist.hard}, Selected: ${hardAvail})`);
+                }
+
+                const isCountMatched = poolSize === reqCount;
+                const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
+
+                const renderDiffMetric = (label: string, val: number) => {
+                  const isZero = val === 0;
+                  return (
+                    <span className={`inline-flex items-center gap-1 ${isZero ? "text-[#B8B8C2]" : "text-[#0B0B0D]"}`}>
+                      <span className={isZero ? "text-[#C5C5CE]" : "text-[#5B5B64]"}>{label}:</span>
+                      <span className={isZero ? "text-[#C5C5CE] font-normal" : "font-bold text-[#0B0B0D]"}>{val}</span>
+                    </span>
+                  );
+                };
+
+                return (
+                  <div key={modId} className="bg-white border border-[#E6E6EA] rounded-lg p-3.5 space-y-2.5 text-[12px] shadow-sm">
+                    <div className="flex items-center justify-between font-semibold border-b border-[#EFF0F3] pb-2">
+                      <span className="text-[#0B0B0D] font-bold text-[13px]">
+                        {MODULE_LABEL_MAP[modId] || modId} Module
+                      </span>
+                      <span className="text-[#2F5CFF] text-[11px] font-semibold">
+                        {hasRoleTemplate ? `Attached: ${poolSize}` : `Required: ${reqCount}`}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 font-mono text-[11px]">
+                      {/* Strictly aligned vertical grid */}
+                      <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
+                        <span className="text-[#9C9CA5] font-sans font-medium text-[11px]">Target:</span>
+                        <div>{renderDiffMetric("Easy", dist.easy)}</div>
+                        <div>{renderDiffMetric("Medium", dist.medium)}</div>
+                        <div>{renderDiffMetric("Hard", dist.hard)}</div>
+                      </div>
+
+                      <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
+                        <span className="text-[#9C9CA5] font-sans font-medium text-[11px]">Selected:</span>
+                        <div>{renderDiffMetric("Easy", easyAvail)}</div>
+                        <div>{renderDiffMetric("Medium", mediumAvail)}</div>
+                        <div>{renderDiffMetric("Hard", hardAvail)}</div>
+                      </div>
+
+                      {/* Emphasized Progress Ratio & Bar */}
+                      <div className="flex items-center justify-between font-sans pt-1.5 border-t border-[#EFF0F3]/80">
+                        <span className="text-[#9C9CA5] text-[11px] font-medium">Selected:</span>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-16 h-1.5 bg-[#EFF0F3] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                poolSize === reqCount ? "bg-emerald-500" : "bg-[#2F5CFF]"
+                              }`}
+                              style={{ width: `${Math.min(100, reqCount > 0 ? (poolSize / reqCount) * 100 : 0)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[13px] font-bold font-mono ${poolSize === reqCount ? "text-emerald-700" : "text-[#0B0B0D]"}`}>
+                            {poolSize} / {reqCount}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-[#EFF0F3] text-[11px] space-y-1">
+                      {hasRoleTemplate ? (
+                        poolSize > 0 ? (
+                          <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
+                            ✓ {poolSize} questions curated from Role Template.
+                          </div>
+                        ) : (
+                          <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
+                            ⚠ No questions attached from Role Template for this module.
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          {poolSize < reqCount && (
+                            <div className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
+                              ⚠ {poolSize} / {reqCount} required questions selected.
+                            </div>
+                          )}
+
+                          {isCountMatched && isDifficultyMatched && (
+                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">
+                              ✓ Required question count reached. No additional questions can be added.
+                            </div>
+                          )}
+
+                          {isCountMatched && !isDifficultyMatched && (
+                            <div className="text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded">
+                              ⚠ Selected difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) does not match target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
+                            </div>
+                          )}
+
+                          {!isCountMatched && errors.map((err, idx) => (
+                            <div key={idx} className="text-amber-700 bg-amber-50/50 border border-amber-200 px-2.5 py-0.5 rounded text-[10px]">
+                              ⚠ {err}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Horizontal Module Filter Chips & Search Bar */}
@@ -1866,25 +2747,45 @@ function DriveDetailPage() {
                         <span className="text-[11px] text-[#2F5CFF] opacity-0 group-hover:opacity-100 transition-opacity font-medium flex items-center gap-1">
                           <Eye size={12} /> Preview
                         </span>
-                        {isQuestionsEditable ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isSelected) {
-                                setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
-                              } else {
-                                setAssignedQuestions([...assignedQuestions, q.id]);
-                              }
-                            }}
-                            className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
-                              isSelected
-                                ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                                : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
-                            }`}
-                          >
-                            {isSelected ? "Remove" : "Assign"}
-                          </button>
-                        ) : (
+                        {isQuestionsEditable ? (() => {
+                          const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
+                          const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                          const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
+                          const modAssigned = (questionsBank || []).filter((item) => {
+                            const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
+                            const dMod = isDeb ? "DEBUGGING" : item.moduleType;
+                            return assignedQuestions.includes(item.id) && dMod === displayModule;
+                          });
+                          const isLimitReached = !isSelected && modAssigned.length >= reqCount;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isSelected) {
+                                  setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
+                                } else {
+                                  if (modAssigned.length >= reqCount) {
+                                    toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
+                                    return;
+                                  }
+                                  setAssignedQuestions([...assignedQuestions, q.id]);
+                                }
+                              }}
+                              className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors ${
+                                isSelected
+                                  ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
+                                  : isLimitReached
+                                  ? "bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed"
+                                  : "bg-[#2F5CFF] text-white hover:bg-[#0037FF] cursor-pointer"
+                              }`}
+                              title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
+                            >
+                              {isSelected ? "Remove" : "Assign"}
+                            </button>
+                          );
+                        })() : (
                           <button
                             disabled
                             className="px-3 py-1 rounded text-[11px] font-medium bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed flex items-center gap-1"
@@ -1948,6 +2849,7 @@ function DriveDetailPage() {
                   <tr className="bg-[#F7F7F9] text-[11px] font-mono uppercase text-[#5B5B64] border-b border-[#E6E6EA]">
                     <th className="p-3">Candidate</th>
                     <th className="p-3">Email</th>
+                    <th className="p-3">Target Role</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Invite Link</th>
                     <th className="p-3 text-right">Action</th>
@@ -1956,7 +2858,7 @@ function DriveDetailPage() {
                 <tbody className="divide-y divide-[#EFF0F3]">
                   {drive.roster.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
+                      <td colSpan={6} className="p-8 text-center text-[12px] italic text-[#8B8B93]">
                         No candidates added to roster yet. Click "Add Candidate" above to get started.
                       </td>
                     </tr>
@@ -1965,6 +2867,11 @@ function DriveDetailPage() {
                       <tr key={c.candidateId} className="hover:bg-[#F7F7F9]">
                         <td className="p-3 font-semibold text-[#0B0B0D]">{c.candidateName}</td>
                         <td className="p-3 font-mono text-[12px] text-[#5B5B64]">{c.candidateEmail}</td>
+                        <td className="p-3 font-mono text-[11px]">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-300">
+                            {c.experienceTier ? `${c.experienceTier} yrs` : (c.level || drive.roleTemplateName || "Assigned Role")}
+                          </span>
+                        </td>
                         <td className="p-3 font-mono text-[11px]">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase font-mono ${
@@ -2048,7 +2955,6 @@ function DriveDetailPage() {
       {previewQuestion && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white rounded-[12px] w-full max-w-[640px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between bg-[#F7F7F9]">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase rounded bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
@@ -2074,7 +2980,6 @@ function DriveDetailPage() {
               </button>
             </div>
 
-            {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-4">
               <div>
                 <h3 className="text-[16px] font-semibold text-[#0B0B0D] mb-2">
@@ -2172,32 +3077,49 @@ function DriveDetailPage() {
               })()}
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] flex items-center justify-end">
-              {/* <button
-                onClick={() => setPreviewQuestion(null)}
-                className="px-4 py-2 text-[12px] font-medium border border-[#E6E6EA] rounded-md text-[#5B5B64] hover:bg-[#E6E6EA] transition-colors cursor-pointer"
-              >
-                Close Preview
-              </button> */}
-              <button
-                onClick={() => {
-                  const isAssigned = assignedQuestions.includes(previewQuestion.id);
-                  if (isAssigned) {
-                    setAssignedQuestions(assignedQuestions.filter((id) => id !== previewQuestion.id));
-                  } else {
-                    setAssignedQuestions([...assignedQuestions, previewQuestion.id]);
-                  }
-                  setPreviewQuestion(null);
-                }}
-                className={`px-4 py-2 text-[12px] font-semibold rounded-md shadow-sm transition-colors cursor-pointer ${
-                  assignedQuestions.includes(previewQuestion.id)
-                    ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                    : "bg-[#2F5CFF] text-white hover:bg-[#0037FF]"
-                }`}
-              >
-                {assignedQuestions.includes(previewQuestion.id) ? "Remove Question from Drive" : "Assign Question to Drive"}
-              </button>
+              {(() => {
+                const isAssigned = assignedQuestions.includes(previewQuestion.id);
+                const isDebugging = previewQuestion.moduleType === "DEBUGGING" || (Array.isArray(previewQuestion.tags) && previewQuestion.tags.includes("debugging"));
+                const displayModule = isDebugging ? "DEBUGGING" : previewQuestion.moduleType;
+                const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
+                const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
+                const modAssigned = (questionsBank || []).filter((item) => {
+                  const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
+                  const dMod = isDeb ? "DEBUGGING" : item.moduleType;
+                  return assignedQuestions.includes(item.id) && dMod === displayModule;
+                });
+                const isLimitReached = !isAssigned && modAssigned.length >= reqCount;
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isAssigned) {
+                        setAssignedQuestions(assignedQuestions.filter((id) => id !== previewQuestion.id));
+                        setPreviewQuestion(null);
+                      } else {
+                        if (modAssigned.length >= reqCount) {
+                          toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
+                          return;
+                        }
+                        setAssignedQuestions([...assignedQuestions, previewQuestion.id]);
+                        setPreviewQuestion(null);
+                      }
+                    }}
+                    className={`px-4 py-2 text-[12px] font-semibold rounded-md shadow-sm transition-colors ${
+                      isAssigned
+                        ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
+                        : isLimitReached
+                        ? "bg-gray-100 text-[#8B8B93] border border-gray-200 cursor-not-allowed"
+                        : "bg-[#2F5CFF] text-white hover:bg-[#0037FF] cursor-pointer"
+                    }`}
+                  >
+                    {isAssigned ? "Remove Question from Drive" : "Assign Question to Drive"}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2380,11 +3302,11 @@ function DriveDetailPage() {
           </div>
         </div>
       )}
-      {/* Bulk Import Candidates Modal matching Image 1 & 2 */}
+
+      {/* Bulk Import Candidates Modal */}
       {showBulkImportModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col overflow-hidden">
-            {/* Modal Header matching Image 2 */}
             <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-start justify-between">
               <div>
                 <h2 className="text-[18px] font-bold text-[#0B0B0D]">Bulk Import Candidates</h2>
@@ -2402,9 +3324,7 @@ function DriveDetailPage() {
               </button>
             </div>
 
-            {/* Modal Body matching Image 1 & 2 */}
             <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-              {/* Section 1: Manual Paste Entry */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-[13px] font-semibold text-[#0B0B0D]">
@@ -2434,7 +3354,6 @@ function DriveDetailPage() {
                 />
               </div>
 
-              {/* Section 2: Drag & Drop CSV File Dropzone matching Image 1 */}
               <div className="space-y-1.5 pt-1">
                 <label className="block text-[13px] font-semibold text-[#0B0B0D]">
                   Select CSV File
@@ -2474,7 +3393,6 @@ function DriveDetailPage() {
                 </div>
               </div>
 
-              {/* Error messages list */}
               {bulkCandidateErrors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-32 overflow-y-auto space-y-1">
                   <span className="text-[12px] font-semibold text-red-700 block">Formatting Errors Detected:</span>
@@ -2485,7 +3403,6 @@ function DriveDetailPage() {
               )}
             </div>
 
-            {/* Modal Footer matching Image 1 & 2 */}
             <div className="px-6 py-4 bg-[#FAFBFD] border-t border-[#E6E6EA] flex items-center justify-between">
               <span className="text-[13px] text-[#5B5B64] font-semibold">
                 {parseBulkCandidates(bulkCandidateInput).parsed.length} candidate(s) ready
@@ -2518,6 +3435,133 @@ function DriveDetailPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select / Change Role Template Modal */}
+      {showSelectTemplateModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[12px] w-full max-w-[540px] shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
+              <div>
+                <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Select &amp; Apply Role Template</h3>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                  Link a Role Template to automatically import questions and preset module weights.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSelectTemplateModal(false)}
+                className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Department</label>
+                  <select
+                    value={templateDeptFilter}
+                    onChange={(e) => setTemplateDeptFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                  >
+                    <option value="all">All Departments</option>
+                    <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                    <option value="DATA_ENGINEERING">Data Engineering</option>
+                    <option value="QA_TESTING">QA &amp; Testing</option>
+                    <option value="DEVOPS_SRE">DevOps &amp; SRE</option>
+                    <option value="CYBERSECURITY">Cybersecurity</option>
+                    <option value="PRODUCT_DESIGN">Product &amp; Design</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Category</label>
+                  <select
+                    value={templateCategoryFilter}
+                    onChange={(e) => setTemplateCategoryFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="FRESHER">Fresher (0-1 yrs)</option>
+                    <option value="EXPERIENCED">Experienced (2-15 yrs)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                  Select Role Template <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedTemplateForDrive}
+                  onChange={(e) => setSelectedTemplateForDrive(e.target.value)}
+                  className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+                >
+                  <option value="">-- Choose Role Template --</option>
+                  {(roleTemplates || [])
+                    .filter((rt) => {
+                      if (templateDeptFilter !== "all" && rt.department !== templateDeptFilter) return false;
+                      if (templateCategoryFilter !== "all" && ((rt as any).category || "FRESHER") !== templateCategoryFilter) return false;
+                      return true;
+                    })
+                    .map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.roleName} [{((tpl as any).category || "FRESHER") === "FRESHER" ? "Fresher (0-1 yrs)" : `${(tpl as any).experienceTier || "2-5"} yrs`}] ({tpl.department || "General"})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {selectedTemplateForDrive && (
+                <div className="p-3.5 bg-[#EAF0FF] border border-[#B3C5FF] rounded-lg space-y-2 text-[12px]">
+                  {(() => {
+                    const tpl = (roleTemplates || []).find((r) => r.id === selectedTemplateForDrive);
+                    if (!tpl) return null;
+                    return (
+                      <>
+                        <div className="flex items-center justify-between font-semibold text-[#15308F]">
+                          <span>{tpl.roleName}</span>
+                          <span className="px-2 py-0.5 bg-[#2F5CFF] text-white rounded text-[10px] uppercase font-mono">
+                            {(tpl as any).experienceTier || "0-1"} yrs
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[#5B5B64] text-[11px]">
+                          <span>Department: <strong className="text-[#0B0B0D]">{tpl.department || "General"}</strong></span>
+                          <span>•</span>
+                          <span>Category: <strong className="text-[#0B0B0D]">{(tpl as any).category || "FRESHER"}</strong></span>
+                          <span>•</span>
+                          <span>Duration: <strong className="text-[#0B0B0D]">{tpl.durationMinutes || 60}m</strong></span>
+                        </div>
+                        <p className="text-[11px] text-[#2F5CFF] italic pt-1 border-t border-[#B3C5FF]">
+                          💡 Applying this template will update the drive's template reference, link default questions, and apply module weighting presets.
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSelectTemplateModal(false)}
+                className="px-3.5 py-2 text-[12px] font-medium text-[#5B5B64] hover:bg-[#E6E6EA] rounded-md transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyRoleTemplate(selectedTemplateForDrive)}
+                disabled={!selectedTemplateForDrive}
+                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                <Sparkles size={14} /> Apply Template &amp; Sync Questions
+              </button>
             </div>
           </div>
         </div>

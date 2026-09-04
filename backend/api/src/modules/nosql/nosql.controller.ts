@@ -105,7 +105,7 @@ export class NosqlController {
 
   @Post("run")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(SessionOwnerGuard, ThrottlerGuard)
+  @UseGuards(SessionOwnerGuard)
   async run(@Body() dto: RunNosqlDto) {
     await this.validateActiveSession(dto.sessionId);
 

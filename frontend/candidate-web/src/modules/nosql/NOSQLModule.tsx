@@ -485,6 +485,7 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
             />
           </div>
 
+<<<<<<< HEAD
           {/* Action controls */}
           <div className="flex items-center gap-3 px-6 py-3 bg-[var(--surface)] shrink-0 border-b border-[var(--border)]">
             <button
@@ -542,6 +543,14 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
               <span>Console Output</span>
               {executionTime !== null && (
                 <span className="text-[10px] lowercase font-normal text-emerald-400">
+=======
+          {/* JSON Output / Error Log Console */}
+          <div className="h-56 bg-background text-foreground font-mono text-xs flex flex-col overflow-hidden border-t border-border shrink-0">
+            <div className="px-4 py-2 bg-surface border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider font-bold flex items-center justify-between">
+              <span>Console Output</span>
+              {executionTime !== null && (
+                <span className="text-[10px] lowercase font-normal text-emerald-500">
+>>>>>>> ocr
                   executed in {executionTime}ms
                 </span>
               )}
@@ -562,6 +571,66 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
               )}
             </div>
           </div>
+
+          {/* Standardized Pinned Bottom Navigation Bar */}
+          <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRun}
+                disabled={running || !editorQuery.trim()}
+                className="px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                {running ? 'Running…' : '▶ Run Query'}
+              </button>
+
+              <button
+                onClick={handleReset}
+                className="px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-background text-xs font-bold transition-all cursor-pointer shadow-xs bg-surface"
+              >
+                Reset DB State
+              </button>
+
+              <button
+                onClick={handleSubmitQuery}
+                disabled={submitting || !editorQuery.trim()}
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Save Answer'}
+              </button>
+
+              {evalResult && (
+                <div className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-medium flex items-center gap-1.5 ${
+                  evalResult.passed 
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                }`}>
+                  <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
+                </div>
+              )}
+            </div>
+
+            <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
+              NoSQL Task {currentIndex + 1} of {questions.length}
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+                disabled={currentIndex === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                aria-label="Previous question"
+              >
+                <ChevronLeft size={14} />
+                <span>Previous</span>
+              </button>
+              <button
+                onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+              >
+                <span>{nextButtonLabel}</span>
+              </button>
+            </div>
+          </footer>
         </div>
       </div>
     </ModuleShell>

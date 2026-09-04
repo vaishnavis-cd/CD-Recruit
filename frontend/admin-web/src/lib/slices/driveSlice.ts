@@ -5,7 +5,7 @@ import { getAuthHeaders, API_BASE } from "../store";
 export interface DriveSlice {
   drives: Drive[];
 
-  fetchDrives: (query?: { status?: string; search?: string }) => Promise<void>;
+  fetchDrives: (query?: { status?: string; search?: string }, silent?: boolean) => Promise<Drive[]>;
   fetchDriveDetail: (driveId: string) => Promise<DriveDetail>;
   createDrive: (input: {
     name: string;
@@ -22,7 +22,7 @@ export interface DriveSlice {
   saveDriveQuestions: (driveId: string, questionIds: string[]) => Promise<void>;
   addCandidatesBulk: (
     driveId: string,
-    candidates: Array<{ name: string; candidateEmail: string }>,
+    candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>,
   ) => Promise<void>;
   generateDriveLinks: (driveId: string) => Promise<void>;
   removeCandidateFromDrive: (driveId: string, candidateId: string) => Promise<void>;
@@ -31,8 +31,8 @@ export interface DriveSlice {
 export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get) => ({
   drives: [],
 
-  fetchDrives: async (query) => {
-    set({ loading: true });
+  fetchDrives: async (query, silent = false) => {
+    if (!silent) set({ loading: true });
     try {
       const headers = await getAuthHeaders();
       let url = `${API_BASE}/admin/drives?page=1&pageSize=100`;
@@ -42,9 +42,11 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
       if (!res.ok) throw new Error("Failed to fetch drives");
       const data = await res.json();
       set({ drives: data.items, loading: false });
+      return data.items || [];
     } catch (err: any) {
       console.error(err);
-      set({ error: err.message, loading: false });
+      if (!silent) set({ error: err.message, loading: false });
+      return [];
     }
   },
 
@@ -112,7 +114,7 @@ export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get
     }
   },
 
-  addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string }>) => {
+  addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>) => {
     const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/bulk`, {
       method: "POST",

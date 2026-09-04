@@ -1,7 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Copy, Check, X, Plus, CalendarDays, RefreshCw, XCircle, ChevronDown, Search, Eye, Trash2, Upload, ShieldCheck, AlertCircle, FileText } from "lucide-react";
+import {
+  Copy,
+  Check,
+  X,
+  Plus,
+  CalendarDays,
+  RefreshCw,
+  XCircle,
+  ChevronDown,
+  Search,
+  Eye,
+  Trash2,
+  Upload,
+  ShieldCheck,
+  AlertCircle,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore } from "../lib/store";
 import { type Invite } from "../lib/types";
@@ -95,9 +115,13 @@ function InvitesPage() {
   const [directError, setDirectError] = useState<string | null>(null);
   const [directUploading, setDirectUploading] = useState(false);
 
-  // Filters State
   const [driveFilter, setDriveFilter] = useState<string>("all");
   const [searchFilter, setSearchFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const invitesTotal = useStore((s) => s.invitesTotal);
+  const invitesTotalPages = useStore((s) => s.invitesTotalPages);
 
   // Bulk action state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -110,12 +134,19 @@ function InvitesPage() {
     fetchDrives();
   }, []);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [driveFilter, searchFilter]);
+
   useEffect(() => {
     fetchInvites({
       driveId: driveFilter !== "all" ? driveFilter : undefined,
       search: searchFilter || undefined,
+      page,
+      pageSize,
     });
-  }, [driveFilter, searchFilter]);
+  }, [driveFilter, searchFilter, page, pageSize]);
 
   const copy = async (link: string, id: string) => {
     try {
@@ -339,7 +370,6 @@ function InvitesPage() {
       }
       actions={
         <div className="flex items-center gap-2">
-          {/* Drive Filter */}
           <select
             value={driveFilter}
             onChange={(e) => setDriveFilter(e.target.value)}
@@ -395,7 +425,7 @@ function InvitesPage() {
       )}
 
       <div className="bg-white border border-[#E6E6EA] rounded-[10px] overflow-hidden">
-        <div className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
+        <div className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] text-[10px] font-mono uppercase tracking-[0.14em] text-[#5B5B64] items-center">
           <div>
             <input
               type="checkbox"
@@ -415,7 +445,7 @@ function InvitesPage() {
         {invites.map((inv) => (
           <div
             key={inv.id}
-            className="grid grid-cols-[0.3fr_2fr_1.4fr_1.8fr_1.1fr_1fr_1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
+            className="grid grid-cols-[0.3fr_2.2fr_1.6fr_2fr_1.1fr_1.1fr_1.6fr] gap-3 px-4 py-3 border-b border-[#E6E6EA] last:border-b-0 items-center"
           >
             <div>
               <input
@@ -525,6 +555,80 @@ function InvitesPage() {
         {invites.length === 0 && (
           <div className="p-8 text-center text-[13px] text-[#8B8B93]">No invitations found.</div>
         )}
+
+        {/* Pagination Bar */}
+        <div className="px-4 py-3 bg-[#F7F7F9] border-t border-[#E6E6EA] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5B5B64]">
+          <div className="flex items-center gap-3">
+            <span>
+              Showing{" "}
+              <strong className="text-[#0B0B0D]">
+                {invitesTotal === 0 ? 0 : (page - 1) * pageSize + 1}
+              </strong>{" "}
+              to{" "}
+              <strong className="text-[#0B0B0D]">
+                {Math.min(page * pageSize, invitesTotal)}
+              </strong>{" "}
+              of <strong className="text-[#0B0B0D]">{invitesTotal}</strong> candidates
+            </span>
+
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="text-[11px] text-[#8B8B93]">Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="px-2 py-1 text-xs font-medium border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF] cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="First Page"
+            >
+              <ChevronsLeft size={14} />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Previous Page"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            <span className="px-2 text-xs font-semibold text-[#0B0B0D]">
+              Page {page} of {Math.max(1, invitesTotalPages)}
+            </span>
+
+            <button
+              onClick={() => setPage((p) => Math.min(invitesTotalPages, p + 1))}
+              disabled={page >= invitesTotalPages}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Next Page"
+            >
+              <ChevronRight size={14} />
+            </button>
+            <button
+              onClick={() => setPage(invitesTotalPages)}
+              disabled={page >= invitesTotalPages}
+              className="p-1.5 rounded-md border border-[#E6E6EA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Last Page"
+            >
+              <ChevronsRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Direct ID Proof Upload Modal */}
@@ -557,7 +661,7 @@ function InvitesPage() {
               </button>
             </div>
             <div className="text-[12px] text-[#5B5B64]">
-              Select a clear face photo from the candidate's ID proof (JPG, PNG, WEBP &lt; 5MB). DeepFace will automatically extract the face embedding vector.
+              Select a clear face photo from the candidate's ID proof (JPG, PNG, WEBP &lt; 5MB). ArcFace / RetinaFace will automatically extract the face embedding vector.
             </div>
             <div>
               <input
@@ -579,7 +683,7 @@ function InvitesPage() {
                   setDirectFile(null);
                   setDirectError(null);
                 }}
-                className="px-3 py-2 text-[12px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+                className="px-3 py-2 text-[12px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] cursor-pointer text-[#5B5B64]"
               >
                 Cancel
               </button>
@@ -725,11 +829,11 @@ function InvitesPage() {
                           Processing ArcFace facial embedding...
                         </div>
                       ) : idProofStatus?.success ? (
-                        <div className="p-3 rounded-md bg-[#E1F8EB] border border-[#22C55E]/30 text-[#15803D] text-[12px] flex items-center gap-2">
+                        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-700 text-[12px] flex items-center gap-2">
                           <ShieldCheck size={16} /> ID proof enrolled successfully
                         </div>
                       ) : idProofStatus?.success === false ? (
-                        <div className="p-3.5 rounded-md bg-[#FFF0F0] border border-[#E5484D]/30 text-[#C5282E] text-[12px] space-y-2">
+                        <div className="p-3.5 rounded-md bg-rose-50 border border-[#E5484D]/30 text-[#E5484D] text-[12px] space-y-2">
                           <div className="font-semibold flex items-center gap-1.5">
                             <XCircle size={15} /> ID proof upload failed
                           </div>
@@ -787,7 +891,7 @@ function InvitesPage() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setConfirmRevoke(null)}
-                className="px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9]"
+                className="px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] text-[#5B5B64]"
               >
                 Cancel
               </button>
@@ -826,7 +930,7 @@ function InvitesPage() {
             <div className="flex justify-end gap-2 text-[12px]">
               <button
                 onClick={() => setExtendInviteId(null)}
-                className="px-3 py-1.5 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9]"
+                className="px-3.5 py-1.5 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64]"
               >
                 Cancel
               </button>

@@ -5,6 +5,7 @@ import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Tra
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
+import { getUserProfile } from "../lib/auth";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -21,8 +22,16 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
+  const profile = getUserProfile();
+  const isAdmin = profile?.role === "ADMIN";
+
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+
+  // Assessment Modules Settings state
+  const [moduleSettings, setModuleSettings] = useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [savingModule, setSavingModule] = useState<string | null>(null);
 
   // Admin Profile state
   const [adminName, setAdminName] = useState("Lead Proctor Admin");
@@ -347,6 +356,88 @@ function SettingsPage() {
     }
   };
 
+  const loadModuleSettings = async () => {
+    setLoadingModules(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/modules`, { headers });
+      if (!res.ok) throw new Error("Failed to load module settings");
+      const data = await res.json();
+      setModuleSettings(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load module settings");
+    } finally {
+      setLoadingModules(false);
+    }
+  };
+
+  // Hover highlight state for matrix grid
+  const [hoveredCell, setHoveredCell] = useState<{ dept: string; mod: string } | null>(null);
+
+  const handleToggleModule = async (department: string, moduleType: string, currentVal: boolean) => {
+    const key = `${department}-${moduleType}`;
+    setSavingModule(key);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/modules`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          department,
+          moduleType,
+          isEnabled: !currentVal,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update module configuration");
+      }
+
+      toast.success(`Module ${moduleType} for ${department.replace("_", " ")} updated`);
+      loadModuleSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to toggle module setting");
+    } finally {
+      setSavingModule(null);
+    }
+  };
+
+  const handleBulkDepartmentModules = async (department: string, isEnabled: boolean) => {
+    setSavingModule(`bulk-${department}`);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/modules/bulk-department`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          department,
+          isEnabled,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to bulk update department modules");
+      }
+
+      toast.success(
+        isEnabled
+          ? `All modules enabled for ${department.replace("_", " ")}`
+          : `All modules cleared for ${department.replace("_", " ")}`
+      );
+      loadModuleSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update department modules");
+    } finally {
+      setSavingModule(null);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
     if (activeTab === "scoring") loadScoringConfig();
@@ -354,6 +445,7 @@ function SettingsPage() {
     if (activeTab === "retention") loadRetentionConfig();
     if (activeTab === "audit") loadAuditLogs();
     if (activeTab === "integrations") loadPartnerList();
+    if (activeTab === "modules") loadModuleSettings();
   }, [activeTab, logsQuery]);
 
   const handleUpdateRole = async (staffId: string, newRole: string) => {
@@ -448,12 +540,6 @@ function SettingsPage() {
     }
   };
 
-  const generateDevApiKey = () => {
-    const key = `proc_live_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
-    setApiKeyGenerated(key);
-    toast.success("New Admin API Key generated");
-  };
-
   return (
     <AppShell title="Settings & Administration">
       <div className="flex gap-8">
@@ -535,6 +621,17 @@ function SettingsPage() {
           >
             <Key size={14} />
             Integrations
+          </button>
+          <button
+            onClick={() => setActiveTab("modules")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
+              activeTab === "modules"
+                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
+                : "text-[#5B5B64] hover:text-[#0B0B0D]"
+            }`}
+          >
+            <Sliders size={14} />
+            Assessment Modules
           </button>
         </div>
 
@@ -779,7 +876,7 @@ function SettingsPage() {
             <div className="max-w-[440px] space-y-5">
               <div>
                 <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
-                  AI Proctoring Intensity & Scoring Controls
+                  AI Proctoring Intensity &amp; Scoring Controls
                 </h3>
                 <p className="text-[11px] text-[#8B8B93] mt-0.5">
                   Configure real-time monitoring strictness and score threshold levels:
@@ -859,7 +956,7 @@ function SettingsPage() {
             <div className="max-w-[440px] space-y-5">
               <div>
                 <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
-                  System & Session Integrity Parameters
+                  System &amp; Session Integrity Parameters
                 </h3>
                 <p className="text-[11px] text-[#8B8B93] mt-0.5">
                   Adjust session disconnect tolerances and heartbeat timeout thresholds:
@@ -917,12 +1014,12 @@ function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 3: Retention */}
+          {/* Tab 4: Retention */}
           {activeTab === "retention" && (
             <div className="max-w-[420px] space-y-5">
               <div>
                 <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
-                  Evidence & Proctoring Retention Schedules
+                  Evidence &amp; Proctoring Retention Schedules
                 </h3>
                 <p className="text-[11px] text-[#8B8B93] mt-0.5">
                   Define timelines for purging biometric clips and screenshots:
@@ -954,7 +1051,7 @@ function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 4: Audit */}
+          {/* Tab 5: Audit */}
           {activeTab === "audit" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1025,7 +1122,7 @@ function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 5: Integrations */}
+          {/* Tab 6: Integrations */}
           {activeTab === "integrations" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -1123,6 +1220,164 @@ function SettingsPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 7: Assessment Modules */}
+          {activeTab === "modules" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-[16px] font-bold text-[#0B0B0D]">Assessment Modules</h3>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                  Configure the global availability of assessment modules per department. Enabling a module makes it available for Drive configurations.
+                </p>
+              </div>
+
+              {loadingModules ? (
+                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-8">
+                  Loading assessment module configurations…
+                </p>
+              ) : (
+                <div className="border border-[#E6E6EA] rounded-xl overflow-x-auto shadow-xs bg-white text-[12px]">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wider font-semibold text-[#5B5B64]">
+                        <th className="px-4 py-3 text-left min-w-[200px]">Department</th>
+                        {[
+                          { key: "MCQ", label: "MCQ" },
+                          { key: "SQL", label: "SQL" },
+                          { key: "NOSQL", label: "NoSQL" },
+                          { key: "CODING", label: "Coding" },
+                          { key: "DEBUGGING", label: "Debugging" },
+                          { key: "AI_PROMPTING", label: "AI Prompt" },
+                          { key: "SIMULATION", label: "Simulation" },
+                          { key: "TEST_SCENARIOS", label: "Test Scenarios" },
+                        ].map((m) => (
+                          <th
+                            key={m.key}
+                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
+                              hoveredCell?.mod === m.key ? "bg-[#EAF0FF] text-[#2F5CFF]" : ""
+                            }`}
+                          >
+                            {m.label}
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Bulk Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E6E6EA] text-xs">
+                      {[
+                        { key: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
+                        { key: "DATA_ENGINEERING", label: "Data Engineering" },
+                        { key: "QA", label: "QA & Testing" },
+                        { key: "SRE", label: "Site Reliability (SRE)" },
+                        { key: "SYSOPS", label: "System Operations" },
+                        { key: "ITOPS", label: "IT Operations" },
+                        { key: "SECOPS", label: "Security Operations" },
+                        { key: "PMO", label: "PMO / Management" },
+                      ].map((d) => {
+                        const modulesList = [
+                          "MCQ",
+                          "SQL",
+                          "NOSQL",
+                          "CODING",
+                          "DEBUGGING",
+                          "AI_PROMPTING",
+                          "SIMULATION",
+                          "TEST_SCENARIOS",
+                        ];
+                        const isRowHovered = hoveredCell?.dept === d.key;
+                        const enabledCount = modulesList.filter((mod) => {
+                          const s = moduleSettings.find(
+                            (item) => item.department === d.key && item.moduleType === mod
+                          );
+                          return s ? s.isEnabled : false;
+                        }).length;
+                        const isBulkSaving = savingModule === `bulk-${d.key}`;
+
+                        return (
+                          <tr
+                            key={d.key}
+                            className={`transition-colors ${
+                              isRowHovered ? "bg-[#F0F4FF]/60" : "hover:bg-[#F7F7F9]/70"
+                            }`}
+                          >
+                            <td className="px-4 py-3 font-semibold text-[#0B0B0D]">
+                              <div className="flex items-center gap-2">
+                                <span>{d.label}</span>
+                                <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA]">
+                                  {enabledCount}/{modulesList.length}
+                                </span>
+                              </div>
+                            </td>
+
+                            {modulesList.map((mod) => {
+                              const setting = moduleSettings.find(
+                                (s) => s.department === d.key && s.moduleType === mod
+                              );
+                              const isEnabled = setting ? setting.isEnabled : false;
+                              const cellKey = `${d.key}-${mod}`;
+                              const isSaving = savingModule === cellKey || isBulkSaving;
+                              const isCellHovered =
+                                hoveredCell?.dept === d.key && hoveredCell?.mod === mod;
+                              const isColHovered = hoveredCell?.mod === mod;
+
+                              return (
+                                <td
+                                  key={mod}
+                                  onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
+                                  onMouseLeave={() => setHoveredCell(null)}
+                                  className={`px-3 py-3 text-center transition-colors ${
+                                    isCellHovered
+                                      ? "bg-[#D6E4FF]"
+                                      : isColHovered
+                                        ? "bg-[#EAF0FF]/50"
+                                        : isRowHovered
+                                          ? "bg-[#F0F4FF]/60"
+                                          : ""
+                                  }`}
+                                >
+                                  <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isEnabled}
+                                      disabled={isSaving || !isAdmin}
+                                      onChange={() => handleToggleModule(d.key, mod, isEnabled)}
+                                      className="rounded border-[#C5D7FF] text-[#2F5CFF] focus:ring-[#2F5CFF]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
+                                    />
+                                  </label>
+                                </td>
+                              );
+                            })}
+
+                            <td className="px-4 py-3 text-right font-medium">
+                              <div className="flex items-center justify-end gap-2 text-[11px]">
+                                <button
+                                  onClick={() => handleBulkDepartmentModules(d.key, true)}
+                                  disabled={isBulkSaving || !isAdmin || enabledCount === modulesList.length}
+                                  className="text-[#2F5CFF] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                                  title="Enable all modules for this department"
+                                >
+                                  Select All
+                                </button>
+                                <span className="text-[#D6D7DC]">|</span>
+                                <button
+                                  onClick={() => handleBulkDepartmentModules(d.key, false)}
+                                  disabled={isBulkSaving || !isAdmin || enabledCount === 0}
+                                  className="text-rose-500 hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                                  title="Clear all modules for this department"
+                                >
+                                  Clear All
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

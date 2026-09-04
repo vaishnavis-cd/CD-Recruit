@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -14,6 +14,10 @@ import {
   ArrowRight,
   ArrowLeft,
   Trash2,
+  Sparkles,
+  PenLine,
+  BookOpen,
+  RefreshCw,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -61,6 +65,7 @@ function formatShortDate(dateStr: string | null | undefined): string {
     return "22 Jul 26";
   }
 }
+
 function DrivesPage() {
   const drives = useStore((s) => s.drives);
   const fetchDrives = useStore((s) => s.fetchDrives);
@@ -86,16 +91,58 @@ function DrivesPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
   const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [newDriveIds, setNewDriveIds] = useState<Set<string>>(new Set());
+  const knownDriveIdsRef = useRef<Set<string>>(new Set());
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchDrives(undefined, true);
+      toast.success("Drives list refreshed.");
+    } catch {
+      toast.error("Failed to refresh drives.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Wizard State
   const [step, setStep] = useState(1);
+  const [creationMode, setCreationMode] = useState<"TEMPLATE" | "CUSTOM">("TEMPLATE");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [templateDeptFilter, setTemplateDeptFilter] = useState<string>("all");
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
   const [driveName, setDriveName] = useState("");
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
   const [level, setLevel] = useState("");
+  const [experiencedLevel, setExperiencedLevel] = useState("L1");
   const [activeTemplatePreview, setActiveTemplatePreview] = useState<any | null>(null);
   const [isLoadingTemplatePreview, setIsLoadingTemplatePreview] = useState(false);
   const [templatePreviewError, setTemplatePreviewError] = useState<string | null>(null);
+
+  const filteredTemplates = useMemo(() => {
+    return (roleTemplates || []).filter((rt) => {
+      if (templateDeptFilter !== "all" && (rt.department || "CUSTOM") !== templateDeptFilter) return false;
+      const cat = (rt as any).category || (rt.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
+      if (templateCategoryFilter !== "all" && cat !== templateCategoryFilter) return false;
+      return true;
+    });
+  }, [roleTemplates, templateDeptFilter, templateCategoryFilter]);
+
+  const selectedTemplateObj = useMemo(() => {
+    return (roleTemplates || []).find((rt) => rt.id === selectedTemplateId);
+  }, [roleTemplates, selectedTemplateId]);
+
+  const handleSelectTemplate = (template: any) => {
+    setSelectedTemplateId(template.id);
+    setRole(template.roleName || "");
+    const dateStr = new Date().toLocaleString("en-US", { month: "short", year: "numeric" });
+    if (!driveName || driveName.includes("Drive")) {
+      setDriveName(`${template.roleName} Drive - ${dateStr}`);
+    }
+  };
   
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
@@ -123,13 +170,72 @@ function DrivesPage() {
   const [candidateInput, setCandidateInput] = useState("");
   const [candidateList, setCandidateList] = useState<Array<{ name: string; email: string }>>([]);
   const [candidateErrors, setCandidateErrors] = useState<string[]>([]);
+  const [globalModuleSettings, setGlobalModuleSettings] = useState<any[]>([]);
 
-  // Fetch all questions and drives when modal opens/mounts
+  // Initial fetch and real-time auto-polling for newly created drives (e.g. Partner API)
   useEffect(() => {
+    let isMounted = true;
+
     fetchQuestions();
-    fetchDrives();
     fetchRoleTemplates();
-  }, []);
+    getAuthHeaders().then((headers) => {
+      fetch(`${API_BASE}/admin/settings/modules`, { headers })
+        .then((res) => res.json())
+        .then((data) => setGlobalModuleSettings(Array.isArray(data) ? data : []))
+        .catch((e) => console.error("Failed to load module settings: ", e));
+    });
+
+    const initialFetch = async () => {
+      try {
+        const items = await fetchDrives(undefined, false);
+        if (isMounted && Array.isArray(items)) {
+          knownDriveIdsRef.current = new Set(items.map((d: any) => d.id));
+        }
+      } catch (e) {
+        console.error("Initial fetch error:", e);
+      }
+    };
+    initialFetch();
+
+    // Auto-poll every 3.5 seconds
+    const interval = setInterval(async () => {
+      if (!isExactDrives) return;
+      try {
+        const items = await fetchDrives(undefined, true);
+        if (!isMounted || !Array.isArray(items)) return;
+
+        if (knownDriveIdsRef.current.size > 0) {
+          const freshDrives = items.filter((d: any) => !knownDriveIdsRef.current.has(d.id));
+          if (freshDrives.length > 0) {
+            freshDrives.forEach((d: any) => knownDriveIdsRef.current.add(d.id));
+            setNewDriveIds((prev) => new Set([...prev, ...freshDrives.map((d: any) => d.id)]));
+
+            const latest = freshDrives[0];
+            const isPartner = (latest as any).originChannel === "PARTNER_API";
+            toast.success(
+              `🎉 New Drive Created: "${formatDriveName(latest.name)}" (${isPartner ? "Partner API" : "Direct"})`,
+              {
+                action: {
+                  label: "View Drive",
+                  onClick: () => navigate({ to: "/drives/$id", params: { id: latest.id } }),
+                },
+                duration: 8000,
+              }
+            );
+          }
+        } else {
+          knownDriveIdsRef.current = new Set(items.map((d: any) => d.id));
+        }
+      } catch (e) {
+        console.debug("Silent drives poll error:", e);
+      }
+    }, 3500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isExactDrives]);
 
   // Fetch active RoleTemplate preview when department and level are selected
   useEffect(() => {
@@ -144,7 +250,8 @@ function DrivesPage() {
     setTemplatePreviewError(null);
 
     getAuthHeaders().then((headers) => {
-      fetch(`${API_BASE}/admin/role-templates/active?department=${department}&level=${level}`, { headers })
+      const qExp = level === "EXPERIENCED" ? `&experiencedLevel=${experiencedLevel}` : "";
+      fetch(`${API_BASE}/admin/role-templates/active?department=${department}&level=${level}${qExp}`, { headers })
         .then(async (res) => {
           if (!isMounted) return;
           if (res.ok) {
@@ -155,7 +262,7 @@ function DrivesPage() {
             }
           } else if (res.status === 404) {
             setActiveTemplatePreview(null);
-            setTemplatePreviewError(`No active RoleTemplate found for ${department} / ${level}.`);
+            setTemplatePreviewError(`No active RoleTemplate found for ${department} / ${level}${level === "EXPERIENCED" ? ` (${experiencedLevel})` : ""}.`);
           } else {
             setActiveTemplatePreview(null);
             setTemplatePreviewError("Failed to load active template preview.");
@@ -174,9 +281,7 @@ function DrivesPage() {
     return () => {
       isMounted = false;
     };
-  }, [department, level]);
-
-
+  }, [department, level, experiencedLevel]);
 
   // Concurrency Check calculations
   const durationHours = useMemo(() => {
@@ -360,6 +465,10 @@ function DrivesPage() {
     setStep(1);
     setDriveName("");
     setRole("");
+    setDepartment("");
+    setLevel("");
+    setActiveTemplatePreview(null);
+    setTemplatePreviewError(null);
     setModulesConfig({
       MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
       SQL: { enabled: true, durationMinutes: 20, weight: 0.20 },
@@ -386,7 +495,6 @@ function DrivesPage() {
     }
   };
 
-  // Filtered Questions for Step 3 selector
   const filteredQuestionsList = useMemo(() => {
     const s = questionSearch.toLowerCase().trim();
     return (questions || []).filter(q => {
@@ -429,16 +537,27 @@ function DrivesPage() {
         </div>
       }
       actions={
-        <button
-          onClick={() => {
-            resetWizard();
-            setShowWizard(true);
-          }}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
-        >
-          <Plus size={14} />
-          Create Drive
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#5B5B64] bg-white border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] hover:text-[#0B0B0D] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            title="Refresh Drives list from server"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-[#2F5CFF]" : "text-[#8B8B93]"} />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+          </button>
+          <button
+            onClick={() => {
+              resetWizard();
+              setShowWizard(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus size={14} />
+            Create Drive
+          </button>
+        </div>
       }
     >
       {/* Filter chips */}
@@ -475,6 +594,11 @@ function DrivesPage() {
             </button>
           ))}
         </div>
+
+        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-[11px] font-medium text-emerald-800">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Live Auto-Sync</span>
+        </div>
       </div>
 
       {/* Grid of Drives */}
@@ -484,105 +608,227 @@ function DrivesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
-          {filtered.map((d) => (
-            <div
-              key={d.id}
-              className="bg-white border border-[#E6E6EA] rounded-[16px] p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
-            >
-              <div className="flex items-baseline justify-between gap-3 mb-8">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <h3 className="text-[18px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
-                    {formatDriveName(d.name)}
-                  </h3>
-                  <p className="text-[13px] text-[#8B8B93] font-normal truncate">
-                    {d.roleTemplateName || "Software Developer"}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <span
-                      className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
-                        (d as any).originChannel === "PARTNER_API"
-                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                          : "bg-gray-100 text-gray-600 border border-gray-200"
-                      }`}
-                    >
-                      {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
-                    </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
-                    >
-                      {STATUS_LABEL[d.status]}
-                    </span>
+          {filtered.map((d) => {
+            const isNewlyDetected = newDriveIds.has(d.id);
+            return (
+              <div
+                key={d.id}
+                className={`bg-white border rounded-[16px] p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative ${
+                  isNewlyDetected
+                    ? "border-[#2F5CFF] ring-2 ring-[#2F5CFF]/30 bg-blue-50/10"
+                    : "border-[#E6E6EA]"
+                }`}
+              >
+                {isNewlyDetected && (
+                  <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-[#2F5CFF] to-[#1A44D6] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                    <Sparkles size={11} className="text-amber-300" />
+                    <span>NEW</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
-                    <Calendar size={13} className="text-[#8B8B93] shrink-0" />
-                    <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
+                )}
+                <div className="flex items-baseline justify-between gap-3 mb-8">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <h3 className="text-[18px] font-bold text-[#0B0B0D] tracking-tight truncate leading-snug">
+                      {formatDriveName(d.name)}
+                    </h3>
+                    <p className="text-[13px] text-[#8B8B93] font-normal truncate">
+                      {d.roleTemplateName || "Software Developer"}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`px-2 py-0.5 rounded-[999px] text-[10px] font-mono uppercase tracking-wider font-semibold ${
+                          (d as any).originChannel === "PARTNER_API"
+                            ? "bg-purple-100 text-purple-800 border border-purple-200"
+                            : "bg-gray-100 text-gray-600 border border-gray-200"
+                        }`}
+                      >
+                        {(d as any).originChannel === "PARTNER_API" ? "Partner API" : "Direct"}
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-[999px] text-[11px] font-mono uppercase tracking-wider font-semibold ${STATUS_COLOR[d.status]}`}
+                      >
+                        {STATUS_LABEL[d.status]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8B8B93]">
+                      <Calendar size={13} className="text-[#8B8B93] shrink-0" />
+                      <span>{formatShortDate(d.scheduleStart || d.createdAt)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3.5">
-                <Link
-                  to="/drives/$id"
-                  params={{ id: d.id }}
-                  className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
-                >
-                  View Drive
-                </Link>
-                <button
-                  onClick={() => setConfirmDeleteDrive(d)}
-                  className="p-2 text-[#8B8B93] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] hover:border-[#FFAEA4] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
-                  title="Delete Drive"
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div className="flex items-center gap-3.5">
+                  <Link
+                    to="/drives/$id"
+                    params={{ id: d.id }}
+                    className="flex-1 py-1.5 px-4 text-[13px] font-semibold text-[#2F5CFF] border border-[#2F5CFF] bg-transparent hover:bg-[#2F5CFF] hover:text-white rounded-[12px] transition-all text-center cursor-pointer flex items-center justify-center"
+                  >
+                    View Drive
+                  </Link>
+                  <button
+                    onClick={() => setConfirmDeleteDrive(d)}
+                    className="p-2 text-[#8B8B93] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] hover:border-[#FFAEA4] rounded-[12px] transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    title="Delete Drive"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Streamlined Drive Creation Modal */}
       {showWizard && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[480px] shadow-2xl flex flex-col">
+          <div className="bg-white rounded-[12px] w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
               <div>
                 <h2 className="text-[16px] font-semibold text-[#0B0B0D]">Create New Drive</h2>
-                <p className="text-[12px] text-[#5B5B64] mt-0.5">Enter drive name and target role to begin configuration.</p>
+                <p className="text-[12px] text-[#5B5B64] mt-0.5">Select a Role Template or define custom role settings for direct drive creation.</p>
               </div>
               <button onClick={() => setShowWizard(false)} className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto">
+              {/* Creation Mode Toggle */}
+              <div className="flex bg-[#F7F7F9] p-1 rounded-lg border border-[#E6E6EA]">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("TEMPLATE")}
+                  className={`flex-1 py-1.5 px-3 text-[12px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    creationMode === "TEMPLATE"
+                      ? "bg-white text-[#2F5CFF] shadow-sm"
+                      : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                  }`}
+                >
+                  <Sparkles size={14} /> Use Role Template (Recommended)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreationMode("CUSTOM");
+                    setSelectedTemplateId("");
+                  }}
+                  className={`flex-1 py-1.5 px-3 text-[12px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    creationMode === "CUSTOM"
+                      ? "bg-white text-[#2F5CFF] shadow-sm"
+                      : "text-[#5B5B64] hover:text-[#0B0B0D]"
+                  }`}
+                >
+                  <PenLine size={14} /> Custom Role (No Template)
+                </button>
+              </div>
+
+              {creationMode === "TEMPLATE" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Department</label>
+                      <select
+                        value={templateDeptFilter}
+                        onChange={(e) => setTemplateDeptFilter(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                      >
+                        <option value="all">All Departments</option>
+                        <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                        <option value="DATA_ENGINEERING">Data Engineering</option>
+                        <option value="QA">Quality Assurance</option>
+                        <option value="SRE">Site Reliability Engineering</option>
+                        <option value="SYSOPS">System Operations</option>
+                        <option value="ITOPS">IT Operations</option>
+                        <option value="PMO">Project Management</option>
+                        <option value="SECOPS">Security Operations</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#5B5B64] mb-1">Filter Category</label>
+                      <select
+                        value={templateCategoryFilter}
+                        onChange={(e) => setTemplateCategoryFilter(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D]"
+                      >
+                        <option value="all">All Categories</option>
+                        <option value="FRESHER">Fresher (0-1 yrs)</option>
+                        <option value="EXPERIENCED">Experienced (2-15 yrs)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                      Select Role Template <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => {
+                        const tpl = (roleTemplates || []).find((r) => r.id === e.target.value);
+                        if (tpl) handleSelectTemplate(tpl);
+                        else setSelectedTemplateId("");
+                      }}
+                      className="w-full px-3 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] focus:outline-none focus:border-[#2F5CFF]"
+                    >
+                      <option value="">-- Choose a Role Template --</option>
+                      {filteredTemplates.map((tpl) => (
+                        <option key={tpl.id} value={tpl.id}>
+                          {tpl.roleName} [{((tpl as any).category || "FRESHER") === "FRESHER" ? "Fresher (0-1 yrs)" : `${(tpl as any).experienceTier || "2-5"} yrs`}] ({tpl.department || "General"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedTemplateObj && (
+                    <div className="p-3 bg-[#EAF0FF] border border-[#B3C5FF] rounded-lg space-y-1.5 text-[12px]">
+                      <div className="flex items-center justify-between font-semibold text-[#15308F]">
+                        <span>{selectedTemplateObj.roleName}</span>
+                        <span className="px-2 py-0.5 bg-[#2F5CFF] text-white rounded text-[10px] uppercase font-mono">
+                          {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[#5B5B64] text-[11px]">
+                        <span>Department: <strong className="text-[#0B0B0D]">{selectedTemplateObj.department || "General"}</strong></span>
+                        <span>•</span>
+                        <span>Category: <strong className="text-[#0B0B0D]">{(selectedTemplateObj as any).category || "FRESHER"}</strong></span>
+                        <span>•</span>
+                        <span>Questions: <strong className="text-[#0B0B0D]">{((selectedTemplateObj as any).questions || []).length}</strong></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
-                <label className="block text-[14px] font-medium text-[#5B5B64] mb-1.5">
+                <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
                   Drive Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={driveName}
                   onChange={(e) => setDriveName(e.target.value)}
-                  placeholder="e.g. Software Developer Drive - July 2026"
+                  placeholder="e.g. Senior Software Engineer Drive - August 2026"
                   className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
                 />
               </div>
 
-              <div>
-                <label className="block text-[14px] font-medium text-[#5B5B64] mb-1.5">
-                  Role <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  placeholder="e.g. Software Developer"
-                  className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
-                />
-              </div>
+              {creationMode === "CUSTOM" && (
+                <div>
+                  <label className="block text-[13px] font-medium text-[#5B5B64] mb-1.5">
+                    Role Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    placeholder="e.g. Senior Software Engineer"
+                    className="w-full px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF]"
+                  />
+                  
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] rounded-b-[12px] flex items-center justify-end gap-2">
@@ -598,27 +844,28 @@ function DrivesPage() {
                     toast.error("Please enter a drive name.");
                     return;
                   }
-                  try {
-                    if (!role.trim()) {
-                      toast.error("Please enter a role.");
-                      return;
-                    }
-                    const matchedTemplate = roleTemplates.find(
-                      (rt) =>
-                        (rt.roleName || (rt as any).name || "").toLowerCase() ===
-                        role.trim().toLowerCase()
-                    );
-                    const effectiveRoleTemplateId = matchedTemplate
-                      ? matchedTemplate.id
+                  if (creationMode === "TEMPLATE" && !selectedTemplateId) {
+                    toast.error("Please select a Role Template.");
+                    return;
+                  }
+                  if (creationMode === "CUSTOM" && !role.trim()) {
+                    toast.error("Please enter a role title.");
+                    return;
+                  }
+
+                  const effectiveRoleTemplateId =
+                    creationMode === "TEMPLATE" && selectedTemplateId
+                      ? selectedTemplateId
                       : role.trim();
 
+                  try {
                     const res = await createDrive({
                       name: driveName.trim(),
                       roleTemplateId: effectiveRoleTemplateId,
                       status: "DRAFT",
                     });
                     const targetId = res?.driveId || res?.id;
-                    toast.success("Drive created! Opening configuration screen...");
+                    toast.success("Drive created with selected template! Opening configuration screen...");
                     setShowWizard(false);
                     if (targetId) {
                       navigate({ to: "/drives/$id", params: { id: targetId } });
@@ -629,7 +876,7 @@ function DrivesPage() {
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
               >
-                Create & Configure Drive
+                Create &amp; Configure Drive
                 <ArrowRight size={14} />
               </button>
             </div>

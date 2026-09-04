@@ -71,12 +71,18 @@ async function main() {
         }
 
         const difficulty = (q.difficulty || 'MEDIUM').toLowerCase();
+<<<<<<< HEAD
         const tierTag = (q.tier || 'TIER_1').toLowerCase();
+=======
+>>>>>>> ocr
         const categoryTag = (q.category || '').toLowerCase();
         const tags = [
           q.department.toLowerCase(),
           q.module.toLowerCase(),
+<<<<<<< HEAD
           tierTag,
+=======
+>>>>>>> ocr
           difficulty,
         ];
         if (categoryTag) tags.push(categoryTag);

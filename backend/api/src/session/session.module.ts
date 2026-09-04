@@ -13,7 +13,8 @@ import { SettingsModule } from "../settings/settings.module";
 import { QueueModule } from "../queue/queue.module";
 import { SessionStatusPort } from "@app/common/ports/session-status.port";
 import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
-import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-verify-onnx.module";
+import { FaceVerifyOnnxModule } from "@app/integrations/face-verify-onnx/face-verify-onnx.module";
+import { OcrModule } from "@app/integrations/ocr/ocr.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-veri
     SimulationModule,
     SettingsModule,
     FaceVerifyOnnxModule,
+    OcrModule,
   ],
   controllers: [SessionController],
   providers: [

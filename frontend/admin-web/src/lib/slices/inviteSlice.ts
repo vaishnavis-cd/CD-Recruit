@@ -4,8 +4,18 @@ import { getAuthHeaders, API_BASE } from "../store";
 
 export interface InviteSlice {
   invites: Invite[];
+  invitesTotal: number;
+  invitesPage: number;
+  invitesPageSize: number;
+  invitesTotalPages: number;
 
-  fetchInvites: (query?: { driveId?: string; search?: string; status?: string }) => Promise<void>;
+  fetchInvites: (query?: {
+    driveId?: string;
+    search?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  }) => Promise<void>;
   createInvite: (input: {
     candidateName: string;
     candidateEmail: string;
@@ -49,12 +59,19 @@ function mapBackendInvite(invite: any): Invite {
 
 export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, get) => ({
   invites: [],
+  invitesTotal: 0,
+  invitesPage: 1,
+  invitesPageSize: 20,
+  invitesTotalPages: 1,
 
   fetchInvites: async (query) => {
     set({ loading: true });
     try {
       const headers = await getAuthHeaders();
-      let url = `${API_BASE}/admin/invites?page=1&pageSize=100`;
+      const page = query?.page ?? get().invitesPage ?? 1;
+      const pageSize = query?.pageSize ?? get().invitesPageSize ?? 20;
+
+      let url = `${API_BASE}/admin/invites?page=${page}&pageSize=${pageSize}`;
       if (query?.driveId) {
         url += `&driveId=${query.driveId}`;
       }
@@ -67,8 +84,18 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch invites");
       const data = await res.json();
-      const mapped = data.items.map((i: any) => mapBackendInvite(i));
-      set({ invites: mapped, loading: false });
+      const mapped = Array.isArray(data.items) ? data.items.map((i: any) => mapBackendInvite(i)) : [];
+      const total = data.total ?? mapped.length;
+      const totalPages = data.totalPages ?? Math.max(1, Math.ceil(total / pageSize));
+
+      set({
+        invites: mapped,
+        invitesTotal: total,
+        invitesPage: page,
+        invitesPageSize: pageSize,
+        invitesTotalPages: totalPages,
+        loading: false,
+      });
     } catch (err: any) {
       console.error(err);
       set({ error: err.message, loading: false });
@@ -91,7 +118,10 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
       if (!res.ok) throw new Error("Failed to create invite");
       const data = await res.json();
       const newInvite = mapBackendInvite(data.invite);
-      set((state: any) => ({ invites: [newInvite, ...state.invites] }));
+      set((state: any) => ({
+        invites: [newInvite, ...state.invites],
+        invitesTotal: state.invitesTotal + 1,
+      }));
       return newInvite;
     } catch (err: any) {
       console.error(err);
@@ -161,6 +191,7 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
       await fetch(`${API_BASE}/admin/invites/${id}`, { method: "DELETE", headers });
       set((state: any) => ({
         invites: state.invites.filter((i: any) => i.id !== id),
+        invitesTotal: Math.max(0, state.invitesTotal - 1),
       }));
     } catch (err) {
       console.error(err);
@@ -233,6 +264,7 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
       });
       set((state: any) => ({
         invites: state.invites.filter((i: any) => !ids.includes(i.id)),
+        invitesTotal: Math.max(0, state.invitesTotal - ids.length),
       }));
     } catch (err) {
       console.error(err);

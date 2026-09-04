@@ -2,7 +2,7 @@
 // Kept separate from session.ts so it can be imported by seeding utilities
 // and the admin panel without pulling in session-lifecycle types.
 
-import { Department, ExperienceLevel } from "./enums";
+import { Department, ExperienceLevel } from "./enums.js";
 
 export interface RoleTemplate {
   id: string;

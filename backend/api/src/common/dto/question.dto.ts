@@ -26,6 +26,10 @@ export class CreateQuestionDto {
   difficulty?: string;
 
   @IsOptional()
+  @IsString()
+  targetLevel?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
@@ -55,6 +59,10 @@ export class UpdateQuestionDto {
   difficulty?: string;
 
   @IsOptional()
+  @IsString()
+  targetLevel?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
@@ -78,7 +86,7 @@ export class ListQuestionsQueryDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(1000)
+  @Max(5000)
   @Type(() => Number)
   pageSize: number = 20;
 
@@ -89,6 +97,10 @@ export class ListQuestionsQueryDto {
   @IsOptional()
   @IsString()
   difficulty?: string;
+
+  @IsOptional()
+  @IsString()
+  targetLevel?: string;
 
   @IsOptional()
   @IsString()

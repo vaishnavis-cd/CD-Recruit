@@ -28,12 +28,15 @@ import {
   ChevronDown,
   Check,
   Bug,
+  UserCheck,
+  Camera,
+  FileText,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { CodeEditor } from "../components/common/CodeEditor";
 import { useStore, API_BASE } from "../lib/store";
 import type { CandidateSessionDetail } from "../lib/types";
-import { formatDriveName } from "../lib/utils";
+import { formatDriveName, formatTimestamp, formatDuration } from "../lib/utils";
 
 export const Route = createFileRoute("/results/$id")({
   component: IndividualResultPage,
@@ -174,11 +177,15 @@ function IndividualResultPage() {
       { id: "CODING", label: "Coding / DSA", icon: Code2 },
       { id: "DEBUGGING", label: "Debugging", icon: Bug },
       { id: "SQL", label: "SQL Execution", icon: Database },
+      { id: "NOSQL", label: "NoSQL Execution", icon: Database },
       { id: "MCQ", label: "MCQ Responses", icon: FileCheck2 },
       { id: "AI_PROMPTING", label: "AI Prompting", icon: Bot },
       { id: "SIMULATION", label: "Simulation Log", icon: Play },
       { id: "TEST_SCENARIOS", label: "Test Scenarios", icon: FileCheck2 },
+<<<<<<< HEAD
       { id: "NOSQL", label: "NoSQL Execution", icon: Database },
+=======
+>>>>>>> ocr
       { id: "INTEGRITY", label: `Integrity (${flagCount})`, icon: ShieldAlert },
     ];
 
@@ -226,13 +233,14 @@ function IndividualResultPage() {
     if (!showDecisionModal || !detail) return;
     setSubmittingDecision(true);
     try {
-      await recordCandidateDecision(detail.id, showDecisionModal, decisionNote);
+      const targetSessionId = detail.sessionId || (detail as any).id || id;
+      await recordCandidateDecision(targetSessionId, showDecisionModal, decisionNote);
       toast.success(
         `Candidate decision recorded: ${showDecisionModal === "PASS" ? "Approved (Pass)" : "Rejected (Fail)"}`
       );
       setShowDecisionModal(null);
       setDecisionNote("");
-      loadData();
+      await loadData();
     } catch (err: any) {
       toast.error("Failed to record decision: " + (err.message || err));
     } finally {
@@ -270,6 +278,9 @@ function IndividualResultPage() {
   const score = detail.score;
   const flags = detail.integrityFlags || [];
 
+  const isApproved = decision?.outcome === "PASS" || (decision?.outcome as string) === "ADVANCE";
+  const isRejected = decision?.outcome === "FAIL" || (decision?.outcome as string) === "REJECT";
+
   return (
     <AppShell
       title={`Evaluation: ${detail.candidateName}`}
@@ -288,11 +299,11 @@ function IndividualResultPage() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-[20px] font-semibold text-[#0B0B0D]">{detail.candidateName}</h2>
-              {decision?.outcome === "PASS" ? (
+              {isApproved ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <CheckCircle2 size={14} /> Approved
                 </span>
-              ) : decision?.outcome === "FAIL" ? (
+              ) : isRejected ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                   <XCircle size={14} /> Rejected
                 </span>
@@ -302,8 +313,18 @@ function IndividualResultPage() {
                 </span>
               )}
             </div>
-            <p className="text-[13px] text-[#5B5B64]">
-              {detail.candidateEmail} • Drive: <span className="font-semibold text-[#0B0B0D]">{formatDriveName(detail.driveName)}</span> ({detail.roleTemplateName})
+            <p className="text-[13px] text-[#5B5B64] flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>{detail.candidateEmail}</span>
+              <span>•</span>
+              <span>Drive: <strong className="font-semibold text-[#0B0B0D]">{formatDriveName(detail.driveName)}</strong> ({detail.roleTemplateName})</span>
+              <span>•</span>
+              <span className="font-mono text-[12px] text-[#0B0B0D]">Submitted: <strong>{formatTimestamp(detail.submittedAt)}</strong></span>
+              {detail.startedAt && detail.submittedAt && (
+                <>
+                  <span>•</span>
+                  <span className="font-mono text-[12px] text-[#2F5CFF]">Duration: <strong>{formatDuration(detail.startedAt, detail.submittedAt)}</strong></span>
+                </>
+              )}
             </p>
           </div>
 
@@ -399,27 +420,35 @@ function IndividualResultPage() {
       {/* Module Navigation Tabs */}
       <div className="flex border-b border-[#E6E6EA] mb-6 space-x-6">
         {availableTabs.map((tab: any) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
-                    ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
-                    : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
-                  }`}
-              >
-                <div className="relative inline-flex items-center justify-center shrink-0">
-                  <Icon size={16} />
-                  {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
-                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                  )}
-                </div>
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          const mScore = score?.moduleScores?.[tab.id];
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 pb-3 text-[13px] font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
+                  ? "border-[#2F5CFF] text-[#2F5CFF] font-semibold"
+                  : "border-transparent text-[#5B5B64] hover:text-[#0B0B0D]"
+                }`}
+            >
+              <div className="relative inline-flex items-center justify-center shrink-0">
+                <Icon size={16} />
+                {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
+                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                )}
+              </div>
+              <span>
+                {tab.label}
+                {mScore !== undefined && mScore !== null && (
+                  <span className="ml-1.5 font-mono text-[10px] font-bold text-[#8B8B93]">
+                    ({Math.round(Number(mScore) * 100)}%)
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Contents */}
@@ -573,21 +602,21 @@ function IndividualResultPage() {
           )
           return (
             <div className="space-y-4">
-              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">SQL Query Submissions & Execution Results</h3>
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">SQL Query Submissions &amp; Execution Results</h3>
               {sqlResponses.length === 0 ? (
                 <p className="text-[13px] text-[#8B8B93] italic">No SQL queries recorded for this assessment.</p>
               ) : (
                 sqlResponses.map((resp, idx) => {
-                  const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted"
-                  const execResult = resp.responsePayload?.executionResult
-                  const hasResult = execResult !== undefined
-                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED"
-                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED")
+                  const queryText = resp.responsePayload?.query || resp.responsePayload?.sqlQuery || resp.responsePayload?.code || "-- No query submitted";
+                  const execResult = resp.responsePayload?.executionResult;
+                  const hasResult = execResult !== undefined;
+                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
+                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
                   const badgeColor = hasResult
                     ? (isCorrect
-                        ? "bg-[#E3F9F2] text-[#0C6B58] border-emerald-300"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
                         : "bg-rose-50 text-rose-800 border-rose-300")
-                    : "bg-[#EAF0FF] text-[#15308F] border-blue-200"
+                    : "bg-[#EAF0FF] text-[#15308F] border-[#B3C5FF]";
 
                   return (
                     <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
@@ -607,11 +636,63 @@ function IndividualResultPage() {
                         />
                       </div>
                     </div>
-                  )
+                  );
                 })
               )}
             </div>
-          )
+          );
+        })()}
+
+        {/* NoSQL TAB */}
+        {activeTab === "NOSQL" && (() => {
+          const nosqlResponses = (detail.moduleResponses || []).filter(
+            r => (r.moduleType === 'NOSQL' || r.responsePayload?.moduleType === 'NOSQL') && r.moduleType !== 'SQL' && r.responsePayload?.moduleType !== 'SQL'
+          );
+          return (
+            <div className="space-y-4">
+              <h3 className="text-[15px] font-semibold text-[#0B0B0D]">NoSQL Query Submissions &amp; Execution Results</h3>
+              {nosqlResponses.length === 0 ? (
+                <p className="text-[13px] text-[#8B8B93] italic">No NoSQL queries recorded for this assessment.</p>
+              ) : (
+                nosqlResponses.map((resp, idx) => {
+                  const op = resp.responsePayload?.operation || {};
+                  const rawQuery = resp.responsePayload?.query;
+                  const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2));
+                  const displayLanguage = rawQuery ? "javascript" : "json";
+
+                  const execResult = resp.responsePayload?.executionResult;
+                  const hasResult = execResult !== undefined;
+                  const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED";
+                  const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (resp.responsePayload?.status || "EXECUTED");
+                  const badgeColor = hasResult
+                    ? (isCorrect
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                        : "bg-rose-50 text-rose-800 border-rose-300")
+                    : "bg-[#EAF0FF] text-[#15308F] border-[#B3C5FF]";
+
+                  return (
+                    <div key={resp.id || idx} className="border border-[#E6E6EA] rounded-md p-4 space-y-3 bg-[#F7F7F9]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-mono font-semibold text-[#0B0B0D]">NoSQL Operation #{idx + 1}</span>
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${badgeColor}`}>
+                          {statusText}
+                        </span>
+                      </div>
+
+                      <div className="h-44 border border-[#E6E6EA] rounded-md overflow-hidden">
+                        <CodeEditor
+                          value={displayQuery}
+                          language={displayLanguage}
+                          readOnly={true}
+                          theme="dark"
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          );
         })()}
 
         {/* NoSQL TAB */}
@@ -670,7 +751,7 @@ function IndividualResultPage() {
         {activeTab === "MCQ" && (() => {
           const mcqResponses = (detail.moduleResponses || []).filter(
             r => r.moduleType === 'MCQ' || r.responsePayload?.moduleType === 'MCQ' || r.responsePayload?.selectedOptions !== undefined || r.responsePayload?.selectedOption !== undefined
-          )
+          );
           const correctCount = mcqResponses.filter(r => {
             const qObj = r.question || {};
             const qContent = qObj.content || {};
@@ -697,7 +778,7 @@ function IndividualResultPage() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E6EA] pb-3">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Responses & Accuracy Breakdown</h3>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Multiple Choice Responses &amp; Accuracy Breakdown</h3>
                   <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate option selections, correctness, and correct reference answers.</p>
                 </div>
                 {mcqResponses.length > 0 && (
@@ -805,9 +886,16 @@ function IndividualResultPage() {
                   <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Test Scenarios Submissions &amp; Evaluation</h3>
                   <p className="text-[13px] text-[#8B8B93]">Detailed evaluation of candidate practical &amp; operational scenario solutions against reference guidelines.</p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Total Scenarios: {scenarioResponses.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  {score?.moduleScores?.TEST_SCENARIOS !== undefined && (
+                    <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-[#EAF0FF] text-[#15308F] border border-[#B3C5FF]">
+                      Module Score: {Math.round(score.moduleScores.TEST_SCENARIOS * 100)}%
+                    </span>
+                  )}
+                  <span className="px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Total Scenarios: {scenarioResponses.length}
+                  </span>
+                </div>
               </div>
 
               {scenarioResponses.length === 0 ? (
@@ -833,6 +921,11 @@ function IndividualResultPage() {
                             </span>
                             <h4 className="text-[14px] font-bold text-[#0B0B0D]">{promptText}</h4>
                           </div>
+                          {scoreVal !== null && (
+                            <span className="px-2.5 py-1 rounded text-[11px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
+                              Score: {scoreVal}%
+                            </span>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -848,6 +941,16 @@ function IndividualResultPage() {
                           <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-md text-[12px] text-indigo-950 space-y-1">
                             <span className="font-semibold text-indigo-900 block font-mono uppercase text-[10px]">Expected Criteria / Key Guidelines:</span>
                             <p className="leading-relaxed">{expectedAnswer}</p>
+                          </div>
+                        )}
+
+                        {evaluation?.feedback && (
+                          <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-md text-[12px] text-blue-950 space-y-1">
+                            <span className="font-semibold text-blue-900 block font-mono uppercase text-[10px]">AI Evaluation &amp; Feedback:</span>
+                            <p className="leading-relaxed">{evaluation.feedback}</p>
+                            {evaluation.reasoning && (
+                              <p className="text-[11px] text-blue-800/80 mt-1 font-medium italic">Reasoning: {evaluation.reasoning}</p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -869,7 +972,7 @@ function IndividualResultPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">AI Prompting Evaluation & Conversation Trace</h3>
+                  <h3 className="text-[15px] font-semibold text-[#0B0B0D]">AI Prompting Evaluation &amp; Conversation Trace</h3>
                   <p className="text-[13px] text-[#8B8B93]">Reviews prompt engineering structure, clarity, and anti-cheating guardrail flags.</p>
                 </div>
               </div>
@@ -988,7 +1091,7 @@ function IndividualResultPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Contextual Simulation & Say-Do Consistency</h3>
+                <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Contextual Simulation &amp; Say-Do Consistency</h3>
                 <p className="text-[13px] text-[#8B8B93]">Cross-referenced AI evaluation comparing candidate written statements against code diff actions.</p>
               </div>
               <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF0FF] text-[#15308F] border border-[#C5D7FF]">
@@ -1075,10 +1178,14 @@ function IndividualResultPage() {
                 </span>
                 <div className="p-3 bg-[#F8F9FB] border border-[#E6E6EA] rounded text-[12px] text-[#0B0B0D] whitespace-pre-wrap min-h-[90px]">
                   {(detail as any).simulationSnapshot?.emailReplyText || 
-                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText)?.replyText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply)?.responsePayload?.emailReplyText ||
-                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply)?.responsePayload?.ticketReply ||
-                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText)?.responsePayload?.ticketReply ||
+                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.replyText ||
+                   ((detail as any).simulationSnapshot?.inboxMessages || []).find((m: any) => m.replyText || m.reply)?.reply ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.replyText ||
+                   (detail.moduleResponses || []).find((r: any) => r.responsePayload?.emailReplyText || r.responsePayload?.ticketReply || r.responsePayload?.replyText || r.responsePayload?.emailReply)?.responsePayload?.emailReply ||
+                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.emailReplyText ||
+                   ((detail as any).submissions || []).find((r: any) => r.responsePayload?.ticketReply || r.responsePayload?.emailReplyText || r.responsePayload?.emailReply)?.responsePayload?.ticketReply ||
                    "No manager email reply recorded."}
                 </div>
               </div>
@@ -1233,8 +1340,13 @@ function IndividualResultPage() {
           const videoClips = filteredFlags.filter((f: any) => Boolean(f.evidenceClipUrl || f.clipUrl || f.storageRef));
           const telemetryLogs = filteredFlags.filter((f: any) => !f.evidenceClipUrl && !f.clipUrl && !f.storageRef);
 
+          const idVerifyResult = detail.candidate?.identityVerificationResult || (detail as any).identityVerificationResult;
+          const faceVerify = idVerifyResult?.face;
+          const nameVerify = idVerifyResult?.name;
+
           return (
             <div className="space-y-6">
+
               {/* Custom Styled Dropdown Component with Rounded Corners & Theme Blue (50%) */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-[#E6E6EA] rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-3">
@@ -1358,7 +1470,7 @@ function IndividualResultPage() {
               <div className="space-y-3 pt-4 border-t border-[#E6E6EA]">
                 <h3 className="text-[15px] font-semibold text-[#0B0B0D] flex items-center gap-2">
                   <ShieldAlert size={16} className="text-amber-600" />
-                  Telemetry & Integrity Signal Log ({telemetryLogs.length})
+                  Telemetry &amp; Integrity Signal Log ({telemetryLogs.length})
                 </h3>
                 {telemetryLogs.length === 0 ? (
                   <p className="text-[12px] text-[#8B8B93] italic bg-[#F7F7F9] p-3 rounded border border-[#E6E6EA]">

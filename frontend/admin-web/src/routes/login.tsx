@@ -110,8 +110,6 @@ function LoginPage() {
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? "Signing in..." : "Sign in"}
           </button>
-
-         
         </form>
       </div>
     </div>

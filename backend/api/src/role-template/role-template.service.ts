@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { Department, ExperienceLevel, ModuleType } from "@prisma/client";
+import { CandidateCategory, normalizeCategory, normalizeExperienceTier } from "../common/utils/experience-tier.util";
 
 export interface RoleTemplateQuestionInput {
   questionId: string;
@@ -16,6 +17,8 @@ export interface CreateRoleTemplateDto {
   durationMinutes: number;
   department?: Department;
   level?: ExperienceLevel;
+  category?: CandidateCategory;
+  experienceTier?: string;
   version?: number;
   isActive?: boolean;
   questions?: RoleTemplateQuestionInput[];
@@ -27,6 +30,8 @@ export interface UpdateRoleTemplateDto {
   durationMinutes?: number;
   department?: Department;
   level?: ExperienceLevel;
+  category?: CandidateCategory;
+  experienceTier?: string;
   version?: number;
   isActive?: boolean;
   questions?: RoleTemplateQuestionInput[];
@@ -43,11 +48,21 @@ export class RoleTemplateService {
    * Lookup current active RoleTemplate for a specific Department and ExperienceLevel.
    * Throws NotFoundException if no active row exists. Never auto-creates.
    */
-  async findActiveTemplate(department: Department, level: ExperienceLevel) {
-    const template = await this.prisma.roleTemplate.findFirst({
+  async findActiveTemplate(
+    department: Department,
+    levelOrCategory?: string,
+    experienceTier?: string,
+  ) {
+    const norm = normalizeExperienceTier(experienceTier, levelOrCategory);
+    const category = norm?.category || normalizeCategory(levelOrCategory);
+    const tier = norm?.tier;
+
+    // 1. Try finding by (department, category, experienceTier)
+    let template = await this.prisma.roleTemplate.findFirst({
       where: {
         department,
-        level,
+        category,
+        ...(tier ? { experienceTier: tier } : {}),
         isActive: true,
       },
       include: {
@@ -60,11 +75,56 @@ export class RoleTemplateService {
           },
         },
       },
+      orderBy: { version: "desc" },
     });
+
+    // 2. Fallback to legacy level lookup (FRESHER / EXPERIENCED) if tier-specific template not found
+    if (!template && levelOrCategory) {
+      const legacyLevel = levelOrCategory.toUpperCase() as ExperienceLevel;
+      template = await this.prisma.roleTemplate.findFirst({
+        where: {
+          department,
+          level: legacyLevel,
+          isActive: true,
+        },
+        include: {
+          questions: {
+            include: {
+              question: true,
+            },
+            orderBy: {
+              orderIndex: "asc",
+            },
+          },
+        },
+        orderBy: { version: "desc" },
+      });
+    }
+
+    // 3. Fallback to any active template in department if only 1 exists
+    if (!template) {
+      template = await this.prisma.roleTemplate.findFirst({
+        where: {
+          department,
+          isActive: true,
+        },
+        include: {
+          questions: {
+            include: {
+              question: true,
+            },
+            orderBy: {
+              orderIndex: "asc",
+            },
+          },
+        },
+        orderBy: { version: "desc" },
+      });
+    }
 
     if (!template) {
       throw new NotFoundException(
-        `Active RoleTemplate not found for department '${department}' and level '${level}'`,
+        `Active RoleTemplate not found for department '${department}', category '${category}' and tier '${tier || "default"}'`,
       );
     }
 
@@ -72,10 +132,43 @@ export class RoleTemplateService {
   }
 
   /**
+   * Retrieves all active RoleTemplates for a department (pre-fetches for high-throughput batching).
+   */
+  async findActiveTemplatesForDepartment(department: Department) {
+    return this.prisma.roleTemplate.findMany({
+      where: {
+        department,
+        isActive: true,
+      },
+      include: {
+        questions: {
+          include: { question: true },
+          orderBy: { orderIndex: "asc" },
+        },
+      },
+      orderBy: [{ category: "asc" }, { experienceTier: "asc" }, { version: "desc" }],
+    });
+  }
+
+  /**
    * Standard CRUD: Create a new RoleTemplate with optional initial questions.
    */
   async create(dto: CreateRoleTemplateDto) {
-    const { roleName, weightingPreset, durationMinutes, department, level, version = 1, isActive = true, questions } = dto;
+    const {
+      roleName,
+      weightingPreset,
+      durationMinutes,
+      department,
+      level,
+      category,
+      experienceTier,
+      version = 1,
+      isActive = true,
+      questions,
+    } = dto;
+
+    const normCategory = category || (level ? normalizeCategory(level) : CandidateCategory.FRESHER);
+    const normTier = experienceTier || (normCategory === CandidateCategory.FRESHER ? "0-1" : null);
 
     return this.prisma.roleTemplate.create({
       data: {
@@ -83,7 +176,9 @@ export class RoleTemplateService {
         weightingPreset: weightingPreset as any,
         durationMinutes,
         department,
-        level,
+        level: level || (normCategory === CandidateCategory.FRESHER ? ExperienceLevel.FRESHER : ExperienceLevel.EXPERIENCED),
+        category: normCategory,
+        experienceTier: normTier,
         version,
         isActive,
         questions:
@@ -111,11 +206,19 @@ export class RoleTemplateService {
   /**
    * Standard CRUD: List all RoleTemplates with optional filtering.
    */
-  async findAll(filters?: { department?: Department; level?: ExperienceLevel; isActive?: boolean }) {
+  async findAll(filters?: {
+    department?: Department;
+    level?: ExperienceLevel;
+    category?: CandidateCategory;
+    experienceTier?: string;
+    isActive?: boolean;
+  }) {
     return this.prisma.roleTemplate.findMany({
       where: {
         ...(filters?.department ? { department: filters.department } : {}),
         ...(filters?.level ? { level: filters.level } : {}),
+        ...(filters?.category ? { category: filters.category } : {}),
+        ...(filters?.experienceTier ? { experienceTier: filters.experienceTier } : {}),
         ...(filters?.isActive !== undefined ? { isActive: filters.isActive } : {}),
       },
       include: {
@@ -124,7 +227,7 @@ export class RoleTemplateService {
           orderBy: { orderIndex: "asc" },
         },
       },
-      orderBy: [{ department: "asc" }, { level: "asc" }, { version: "desc" }],
+      orderBy: [{ department: "asc" }, { category: "asc" }, { experienceTier: "asc" }, { version: "desc" }],
     });
   }
 
@@ -156,7 +259,18 @@ export class RoleTemplateService {
     await this.findOne(id);
 
     return this.prisma.$transaction(async (tx) => {
-      const { roleName, weightingPreset, durationMinutes, department, level, version, isActive, questions } = dto;
+      const {
+        roleName,
+        weightingPreset,
+        durationMinutes,
+        department,
+        level,
+        category,
+        experienceTier,
+        version,
+        isActive,
+        questions,
+      } = dto;
 
       if (questions) {
         await tx.roleTemplateQuestion.deleteMany({
@@ -185,6 +299,8 @@ export class RoleTemplateService {
           ...(durationMinutes !== undefined ? { durationMinutes } : {}),
           ...(department !== undefined ? { department } : {}),
           ...(level !== undefined ? { level } : {}),
+          ...(category !== undefined ? { category } : {}),
+          ...(experienceTier !== undefined ? { experienceTier } : {}),
           ...(version !== undefined ? { version } : {}),
           ...(isActive !== undefined ? { isActive } : {}),
         },
@@ -228,11 +344,12 @@ export class RoleTemplateService {
 
       let nextVersion = current.version + 1;
 
-      if (current.department && current.level) {
+      if (current.department) {
         const maxVersionRow = await tx.roleTemplate.findFirst({
           where: {
             department: current.department,
-            level: current.level,
+            category: current.category,
+            experienceTier: current.experienceTier,
           },
           orderBy: { version: "desc" },
         });
@@ -244,7 +361,8 @@ export class RoleTemplateService {
         await tx.roleTemplate.updateMany({
           where: {
             department: current.department,
-            level: current.level,
+            category: current.category,
+            experienceTier: current.experienceTier,
             isActive: true,
           },
           data: { isActive: false },
@@ -263,6 +381,8 @@ export class RoleTemplateService {
           durationMinutes: current.durationMinutes,
           department: current.department,
           level: current.level,
+          category: current.category,
+          experienceTier: current.experienceTier,
           version: nextVersion,
           isActive: true,
         },
@@ -283,6 +403,55 @@ export class RoleTemplateService {
 
       return tx.roleTemplate.findUnique({
         where: { id: newTemplate.id },
+        include: {
+          questions: {
+            include: { question: true },
+            orderBy: { orderIndex: "asc" },
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * Sets a specific RoleTemplate version as the single active version for its role/department/tier,
+   * automatically deactivating all sibling versions in a single transaction.
+   */
+  async activateTemplate(templateId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const target = await tx.roleTemplate.findUnique({
+        where: { id: templateId },
+      });
+
+      if (!target) {
+        throw new NotFoundException(`RoleTemplate not found with ID ${templateId}`);
+      }
+
+      // Deactivate all sibling versions in the same group
+      if (target.department) {
+        await tx.roleTemplate.updateMany({
+          where: {
+            department: target.department,
+            category: target.category,
+            experienceTier: target.experienceTier,
+            id: { not: templateId },
+          },
+          data: { isActive: false },
+        });
+      } else {
+        await tx.roleTemplate.updateMany({
+          where: {
+            roleName: target.roleName,
+            id: { not: templateId },
+          },
+          data: { isActive: false },
+        });
+      }
+
+      // Activate the target version
+      return tx.roleTemplate.update({
+        where: { id: templateId },
+        data: { isActive: true },
         include: {
           questions: {
             include: { question: true },

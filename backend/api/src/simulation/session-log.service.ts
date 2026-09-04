@@ -218,6 +218,10 @@ export class SessionLogService
     if (!sessionState.eventStates) {
       sessionState.eventStates = {};
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> ocr
     if (!sessionState.eventStates[eventId]) {
       // Initialize event log if not present
       sessionState.eventStates[eventId] = {

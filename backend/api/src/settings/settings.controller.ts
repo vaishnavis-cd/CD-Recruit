@@ -17,6 +17,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { StaffRole } from "@cd-recruit/shared-types";
 import { SettingsService } from "./settings.service";
 import { UpdateStaffRoleDto, UpdateScoringConfigDto, UpdateRetentionConfigDto, ListAuditLogQueryDto, UpdateAppealWindowConfigDto } from "../common/dto/settings.dto";
+import { Department, ModuleType } from "@prisma/client";
 
 @Controller("admin/settings")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -125,5 +126,36 @@ export class SettingsController {
   @Get("audit-logs")
   async listAuditLogsAlias(@Query() query: ListAuditLogQueryDto) {
     return this.settingsService.listAuditLogs(query);
+  }
+
+  @Get("modules")
+  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
+  async getModuleSettings() {
+    return this.settingsService.getModuleSettings();
+  }
+
+  @Patch("modules")
+  async updateModuleSetting(
+    @Body() dto: { department: Department; moduleType: ModuleType; isEnabled: boolean },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateModuleSetting(
+      dto.department,
+      dto.moduleType,
+      dto.isEnabled,
+      actor,
+    );
+  }
+
+  @Patch("modules/bulk-department")
+  async bulkUpdateDepartmentModules(
+    @Body() dto: { department: Department; isEnabled: boolean },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.bulkUpdateDepartmentModules(
+      dto.department,
+      dto.isEnabled,
+      actor,
+    );
   }
 }

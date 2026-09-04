@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { NosqlController } from "./nosql.controller";
 import { NosqlValidatorService } from "./nosql-validator.service";
 import { NosqlSandboxService } from "./nosql-sandbox.service";
@@ -11,6 +12,7 @@ import { SqlModule } from "../../sql/sql.module";
   imports: [PrismaModule, MinioModule, SqlModule],
   controllers: [NosqlController],
   providers: [
+    Reflector,
     NosqlValidatorService,
     NosqlSandboxService,
     NosqlExecutionService,
