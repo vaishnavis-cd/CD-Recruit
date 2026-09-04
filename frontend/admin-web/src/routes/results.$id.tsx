@@ -415,103 +415,6 @@ function IndividualResultPage() {
           </div>
         </div>
 
-        {/* Score Overview Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Total Score
-            </span>
-            <div className="flex flex-col">
-              <span className="text-2xl font-mono font-bold text-brand">
-                {(() => {
-                  const raw = (score as any)?.totalScore ?? score?.compositeScore;
-                  if (raw === null || raw === undefined) return "N/A";
-                  const num = Number(raw);
-                  if (isNaN(num)) return "N/A";
-                  const scoreVal = num <= 1.0 && num > 0 ? Math.round(num * 100) : Math.round(num);
-                  return `${scoreVal}%`;
-                })()}
-              </span>
-              <span className="text-2xs text-ink-tertiary">Weighted candidate performance</span>
-            </div>
-          </div>
-
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Proctoring Integrity
-            </span>
-            <div className="flex flex-col">
-              {flags.length > 0 ? (
-                <span className="text-2xl font-mono font-bold text-ink flex items-center gap-1">
-                  <ShieldAlert size={20} className="text-rose-600" /> {flags.length} Flags
-                </span>
-              ) : (
-                <span className="text-2xl font-mono font-bold text-ink flex items-center gap-1">
-                  <ShieldCheck size={20} className="text-emerald-600" /> Clean
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-canvas border border-line rounded-md p-3.5">
-            <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block mb-1">
-              Say/Do Alignment
-            </span>
-            <span className="text-2xl font-mono font-bold text-ink">
-              {score && score.sayDoConsistencyScore !== null && score.sayDoConsistencyScore !== undefined && score.sayDoConsistencyScore >= 0
-                ? `${score.sayDoConsistencyScore <= 1.0 ? Math.round(score.sayDoConsistencyScore * 100) : Math.round(score.sayDoConsistencyScore)}%`
-                : "Pending"}
-            </span>
-          </div>
-
-          <div
-            className="bg-canvas border border-line rounded-md p-3.5 relative group cursor-help"
-            title="AI Confidence reflects the automated grading certainty based on response completion ratio, deterministic test executions, and evaluation signal quality."
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-2xs font-mono uppercase tracking-wider text-ink-tertiary block">
-                AI Confidence
-              </span>
-              <Info size={13} className="text-ink-tertiary opacity-70 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <span className="text-2xl font-mono font-bold text-ink">
-              {score && score.aiConfidence !== null && score.aiConfidence !== undefined && score.aiConfidence >= 0
-                ? `${score.aiConfidence <= 1.0 ? Math.round(score.aiConfidence * 100) : Math.round(score.aiConfidence)}%`
-                : "Pending"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Module Navigation Tabs */}
-      <div className="flex border-b border-line mb-6 space-x-6">
-        {availableTabs.map((tab: any) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          const mScore = score?.moduleScores?.[tab.id];
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 pb-3 text-sm-minus font-medium transition-colors border-b-2 cursor-pointer relative ${isActive
-                  ? "border-brand text-brand font-semibold"
-                  : "border-transparent text-ink-secondary hover:text-ink"
-                }`}
-            >
-              <div className="relative inline-flex items-center justify-center shrink-0">
-                <Icon size={16} />
-                {tab.id === "INTEGRITY" && flags.length > 0 && activeTab !== "INTEGRITY" && (
-                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                )}
-              </div>
-              <span>
-                {tab.label}
-                {mScore !== undefined && mScore !== null && (
-                  <span className="ml-1.5 font-mono text-2xs font-bold text-ink-tertiary">
-                    ({(() => {
-                      const n = Number(mScore);
-                      return isNaN(n) ? "0%" : `${n <= 1.0 && n > 0 ? Math.round(n * 100) : Math.round(n)}%`;
-                    })()})
         {/* Header Hero Banner Card */}
         <div className="bg-white border border-[#E2E8F0] rounded-[15.5px] p-6 md:p-8 shadow-xs">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-[#F1F5F9] pb-6">
@@ -532,8 +435,8 @@ function IndividualResultPage() {
                   </span>
                 )}
                 {detail.roleTemplateName && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide border border-[#10B981] text-[#059669] bg-[#ECFDF5]">
-                    APPROVED
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide border border-[#E2E8F0] text-[#475569] bg-[#F8FAFC]">
+                    {detail.roleTemplateName}
                   </span>
                 )}
               </div>

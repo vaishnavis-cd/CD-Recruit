@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Users,
@@ -29,11 +29,129 @@ import {
   GitFork,
 } from "lucide-react";
 
-
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
 import { getUserProfile } from "../lib/auth";
+
+const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+  ADMIN: [
+    "DRIVE_CREATE",
+    "CANDIDATE_INGEST_CSV",
+    "DRIVE_MANAGE",
+    "CANDIDATE_VIEW",
+    "DECISION_SUBMIT",
+    "MANUAL_SCORING_REVIEW",
+    "IDENTITY_VERIFICATION_APPROVE",
+    "PROCTORING_TRIAGE",
+    "ROLE_TEMPLATE_EDIT",
+    "QUESTION_BANK_MANAGE",
+    "PARTNER_API_MANAGE",
+    "SETTINGS_MANAGE",
+    "AUDIT_LOG_VIEW",
+  ],
+  HR_LEAD: [
+    "CANDIDATE_VIEW",
+    "DECISION_SUBMIT",
+    "MANUAL_SCORING_REVIEW",
+    "IDENTITY_VERIFICATION_APPROVE",
+    "PROCTORING_TRIAGE",
+    "ROLE_TEMPLATE_EDIT",
+    "AUDIT_LOG_VIEW",
+  ],
+  HR_ASSOCIATE: [
+    "DRIVE_CREATE",
+    "CANDIDATE_INGEST_CSV",
+    "DRIVE_MANAGE",
+    "CANDIDATE_VIEW",
+    "PROCTORING_TRIAGE",
+  ],
+  REVIEWER: [
+    "CANDIDATE_VIEW",
+    "MANUAL_SCORING_REVIEW",
+  ],
+};
+
+const DEFAULT_PERMISSION_DESCRIPTORS = [
+  {
+    key: "DRIVE_CREATE",
+    name: "Create Drives",
+    description: "Create assessment drives and configure candidate parameters",
+    category: "Drive Logistics",
+  },
+  {
+    key: "CANDIDATE_INGEST_CSV",
+    name: "Upload Candidate CSV",
+    description: "Upload candidate spreadsheets and generate batch invite links",
+    category: "Drive Logistics",
+  },
+  {
+    key: "DRIVE_MANAGE",
+    name: "Manage Drives & Links",
+    description: "Archive/cancel drives, resend assessment links, and extend deadlines",
+    category: "Drive Logistics",
+  },
+  {
+    key: "CANDIDATE_VIEW",
+    name: "View Candidate Submissions",
+    description: "View candidate scores, module responses, test executions, and code",
+    category: "Candidate Evaluation",
+  },
+  {
+    key: "DECISION_SUBMIT",
+    name: "Submit Advance / Reject Decisions",
+    description: "Make final hiring decisions (ADVANCE / REJECT) and record reviewer notes",
+    category: "Candidate Evaluation",
+  },
+  {
+    key: "MANUAL_SCORING_REVIEW",
+    name: "Manual Code & Rubric Grading",
+    description: "Submit technical evaluation scores, say-do remarks, and module rubrics",
+    category: "Candidate Evaluation",
+  },
+  {
+    key: "IDENTITY_VERIFICATION_APPROVE",
+    name: "Approve Identity Verification",
+    description: "Review facial/ID comparisons and manually verify candidate identity",
+    category: "Identity & Integrity",
+  },
+  {
+    key: "PROCTORING_TRIAGE",
+    name: "Proctoring Flag & Appeal Triage",
+    description: "Review webcam/screen evidence clips, triage integrity flags, and resolve appeals",
+    category: "Identity & Integrity",
+  },
+  {
+    key: "ROLE_TEMPLATE_EDIT",
+    name: "Calibrate & Edit Role Templates",
+    description: "Create and update role templates, module allocations, and passing cutoffs",
+    category: "Templates & Question Bank",
+  },
+  {
+    key: "QUESTION_BANK_MANAGE",
+    name: "Manage Question Bank",
+    description: "Create, edit, and delete questions across all assessment modules",
+    category: "Templates & Question Bank",
+  },
+  {
+    key: "PARTNER_API_MANAGE",
+    name: "Manage Partner ATS Integrations",
+    description: "Register external ATS partners and generate/rotate API keys",
+    category: "Administration",
+  },
+  {
+    key: "SETTINGS_MANAGE",
+    name: "System Settings & Staff",
+    description: "Configure scoring rules, biometric retention, and staff role assignments",
+    category: "Administration",
+  },
+  {
+    key: "AUDIT_LOG_VIEW",
+    name: "View Platform Audit Logs",
+    description: "Inspect compliance audit trails and security event logs",
+    category: "Administration",
+  },
+];
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -54,8 +172,18 @@ function SettingsPage() {
   const isAdmin = profile?.role === "ADMIN";
 
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "users" | "permissions" | "modules" | "scoring" | "system" | "retention" | "audit" | "integrations"
+  >("profile");
 
+  // Dynamic Role Permissions Matrix state
+  const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, string[]>>(DEFAULT_ROLE_PERMISSIONS);
+  const [permissionDescriptors, setPermissionDescriptors] = useState<Array<{ key: string; name: string; description: string; category: string }>>(DEFAULT_PERMISSION_DESCRIPTORS);
+  const [permissionRoles, setPermissionRoles] = useState<string[]>(["ADMIN", "HR_LEAD", "HR_ASSOCIATE", "REVIEWER"]);
+  const [loadingPermissions, setLoadingPermissions] = useState(false);
+  const [savingPermission, setSavingPermission] = useState<string | null>(null);
+  const [showResetPermissionsModal, setShowResetPermissionsModal] = useState(false);
+  const [resettingPermissions, setResettingPermissions] = useState(false);
 
   // Assessment Modules Settings state
   const [moduleSettings, setModuleSettings] = useState<any[]>([]);
@@ -447,6 +575,118 @@ function SettingsPage() {
     }
   };
 
+  const loadPermissionsMatrix = async () => {
+    setLoadingPermissions(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions`, { headers });
+      if (!res.ok) throw new Error("Failed to load permissions matrix");
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+      }
+      if (Array.isArray(data?.descriptors) && data.descriptors.length > 0) {
+        setPermissionDescriptors(data.descriptors);
+      } else {
+        setPermissionDescriptors(DEFAULT_PERMISSION_DESCRIPTORS);
+      }
+      if (Array.isArray(data?.roles) && data.roles.length > 0) {
+        setPermissionRoles(data.roles);
+      }
+    } catch (err: any) {
+      console.error("Failed to load permissions matrix:", err);
+      // Fallback
+      if (Object.keys(permissionsMatrix).length === 0) {
+        setPermissionsMatrix(DEFAULT_ROLE_PERMISSIONS);
+      }
+      if (permissionDescriptors.length === 0) {
+        setPermissionDescriptors(DEFAULT_PERMISSION_DESCRIPTORS);
+      }
+    } finally {
+      setLoadingPermissions(false);
+    }
+  };
+
+  const handleTogglePermission = async (role: string, permission: string, currentVal: boolean) => {
+    if (role === "ADMIN") {
+      toast.info("Superadmin role has full privileges across all capabilities and cannot be modified.");
+      return;
+    }
+    const key = `${role}-${permission}`;
+    setSavingPermission(key);
+
+    const nextVal = !currentVal;
+    // Optimistic UI update
+    setPermissionsMatrix((prev) => {
+      const currentList = prev[role] || DEFAULT_ROLE_PERMISSIONS[role] || [];
+      const updatedList = nextVal
+        ? Array.from(new Set([...currentList, permission]))
+        : currentList.filter((p) => p !== permission);
+      return { ...prev, [role]: updatedList };
+    });
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role,
+          permission,
+          isEnabled: nextVal,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to update permission");
+      }
+
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+      }
+      toast.success(`${permission.replace(/_/g, " ")} for ${role.replace(/_/g, " ")} ${nextVal ? "enabled" : "disabled"}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to toggle permission");
+      loadPermissionsMatrix();
+    } finally {
+      setSavingPermission(null);
+    }
+  };
+
+  const handleResetPermissions = async () => {
+    setResettingPermissions(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions/reset`, {
+        method: "POST",
+        headers,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to reset permissions");
+      }
+
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+      } else {
+        setPermissionsMatrix(DEFAULT_ROLE_PERMISSIONS);
+      }
+      setShowResetPermissionsModal(false);
+      toast.success("All role permissions reset to default matrix");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset permissions");
+    } finally {
+      setResettingPermissions(false);
+    }
+  };
+
   const loadModuleSettings = async () => {
     setLoadingModules(true);
     try {
@@ -531,13 +771,25 @@ function SettingsPage() {
 
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
+    if (activeTab === "permissions") loadPermissionsMatrix();
+    if (activeTab === "modules") loadModuleSettings();
     if (activeTab === "scoring") loadScoringConfig();
     if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
     if (activeTab === "audit") loadAuditLogs();
     if (activeTab === "integrations") loadPartnerList();
-    if (activeTab === "modules") loadModuleSettings();
   }, [activeTab, logsQuery]);
+
+  const groupedDescriptors = useMemo(() => {
+    const list = permissionDescriptors.length > 0 ? permissionDescriptors : DEFAULT_PERMISSION_DESCRIPTORS;
+    const groups: Record<string, typeof list> = {};
+    for (const item of list) {
+      const cat = item.category || "General Platform Capabilities";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    }
+    return groups;
+  }, [permissionDescriptors]);
 
   const handleUpdateRole = async (staffId: string, newRole: string) => {
     setStaff((prev) => prev.map((s) => (s.id === staffId ? { ...s, role: newRole } : s)));
@@ -647,6 +899,26 @@ function StaffRolesIcon({ size = 16, className = "" }: { size?: number; classNam
   );
 }
 
+function RolesPermissionsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
 function AIScoringIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="282 239 16 16" fill="none" className={className}>
@@ -700,6 +972,8 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
     { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
+    { id: "permissions", label: "Roles & Permissions", icon: RolesPermissionsIcon },
+    { id: "modules", label: "Assessment Modules", icon: AssessmentModulesIcon },
     { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
     { id: "system", label: "System Timing", icon: SystemTimingIcon },
     { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
@@ -737,312 +1011,11 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
               );
             })}
           </div>
-
-              {/* Roles Breakdown Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-rose-700 uppercase">ADMIN</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Full access to settings, system timing, staff roles & audit logs.</p>
-                </div>
-                <div className="p-3 bg-brand-subtle border border-brand-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-brand-ink uppercase">RECRUITER</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Drive creation, candidate invitations, and hiring decision log.</p>
-                </div>
-                <div className="p-3 bg-warning-subtle border border-warning-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-amber-800 uppercase">PROCTOR</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Real-time session monitoring, integrity flag review & video evidence.</p>
-                </div>
-                <div className="p-3 bg-success-subtle border border-success-border rounded-lg">
-                  <div className="text-xs-plus font-mono font-bold text-emerald-800 uppercase">EVALUATOR</div>
-                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Technical evaluation of code, SQL queries, and AI prompt traces.</p>
-                </div>
-              </div>
-
-              {loadingStaff ? (
-                <p className="text-center font-mono text-xs text-ink-tertiary py-6">
-                  Loading staff roster…
-                </p>
-              ) : (
-                <div className="border border-line rounded-lg divide-y divide-surface-inset overflow-hidden bg-white shadow-sm">
-                  {staff.map((s) => (
-                    <div key={s.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-canvas">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-subtle border border-brand-border text-brand font-bold text-xs flex items-center justify-center font-mono shrink-0">
-                          {s.name ? s.name.charAt(0).toUpperCase() : "S"}
-                        </div>
-                        <div>
-                          <div className="text-sm-minus font-semibold text-ink flex items-center gap-2">
-                            <span>{s.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${s.role === "ADMIN"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : s.role === "HR_LEAD"
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : s.role === "HR_ASSOCIATE"
-                                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                                    : s.role === "REVIEWER"
-                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                      : "bg-slate-50 text-slate-700 border-slate-200"
-                              }`}>
-                              {s.role}
-                            </span>
-                            {s.keycloakUserId && !s.keycloakUserId.startsWith("keycloak_") ? (
-                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Keycloak user synced">
-                                Keycloak
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-slate-50 text-slate-500 border border-slate-200" title="Local / Dev unlinked">
-                                Local
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs-plus text-ink-secondary font-mono">{s.email}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2.5">
-                        <select
-                          value={s.role}
-                          onChange={(e) => handleUpdateRole(s.id, e.target.value)}
-                          className="px-2.5 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink outline-none shadow-sm cursor-pointer"
-                        >
-                          <option value="ADMIN">Admin (Superadmin)</option>
-                          <option value="HR_LEAD">HR Lead / Manager</option>
-                          <option value="HR_ASSOCIATE">HR Associate / Recruiter</option>
-                          <option value="REVIEWER">Technical Evaluator</option>
-                          <option value="RECRUITER">Recruiter (Legacy)</option>
-                        </select>
-
-                        <button
-                          onClick={() => {
-                            setSelectedStaffForReset(s);
-                            setResetPwValue(generateRandomPassword());
-                            setResetPwTemporary(true);
-                            setShowResetPwModal(true);
-                          }}
-                          title="Reset temporary password"
-                          className="p-1.5 text-ink-tertiary hover:text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
-                        >
-                          <Key size={15} />
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteStaff(s.id, s.name)}
-                          title="Remove staff member"
-                          className="p-1.5 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {staff.length === 0 && (
-                    <div className="p-6 text-center text-ink-tertiary text-xs">
-                      No staff members registered. Click "Add Staff Member" to grant access.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Add Staff Modal */}
-              {showAddStaffModal && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[440px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
-                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
-                      <div className="flex items-center gap-2">
-                        <UserPlus size={16} className="text-brand" />
-                        <h3 className="text-md font-semibold text-ink">Add New Staff Member</h3>
-                      </div>
-                      <button
-                        onClick={() => setShowAddStaffModal(false)}
-                        className="text-ink-tertiary hover:text-ink cursor-pointer"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleCreateStaff} className="space-y-4 text-sm-minus">
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Full Name</label>
-                        <input
-                          type="text"
-                          required
-                          value={newStaffName}
-                          onChange={(e) => setNewStaffName(e.target.value)}
-                          placeholder="e.g. Sarah Connor"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          required
-                          value={newStaffEmail}
-                          onChange={(e) => setNewStaffEmail(e.target.value)}
-                          placeholder="e.g. sarah@company.com"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink-secondary mb-1">Assigned Role</label>
-                        <select
-                          value={newStaffRole}
-                          onChange={(e) => setNewStaffRole(e.target.value)}
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
-                        >
-                          <option value="HR_LEAD">HR Lead / Manager (Decisions, Evaluations &amp; Governance)</option>
-                          <option value="HR_ASSOCIATE">HR Associate (Drives &amp; Candidate Ingestion)</option>
-                          <option value="ADMIN">Admin (Superadmin — Full Platform Access)</option>
-                          <option value="REVIEWER">Technical Evaluator (Submission Scoring)</option>
-                          <option value="RECRUITER">Recruiter (Legacy Full Access)</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-medium text-ink-secondary">Initial / Temp Password</label>
-                          <button
-                            type="button"
-                            onClick={() => setNewStaffTempPassword(generateRandomPassword())}
-                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
-                          >
-                            Generate Strong Password
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          value={newStaffTempPassword}
-                          onChange={(e) => setNewStaffTempPassword(e.target.value)}
-                          placeholder="Leave blank to auto-generate (Password@123)"
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="checkbox"
-                          id="requirePwChangeCheck"
-                          checked={newStaffRequirePwChange}
-                          onChange={(e) => setNewStaffRequirePwChange(e.target.checked)}
-                          className="rounded border-line text-brand focus:ring-brand"
-                        />
-                        <label htmlFor="requirePwChangeCheck" className="text-xs text-ink-secondary cursor-pointer">
-                          Require password update upon first login in Keycloak
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
-                        <button
-                          type="button"
-                          onClick={() => setShowAddStaffModal(false)}
-                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={creatingStaff}
-                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
-                        >
-                          {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {/* Reset Password Modal */}
-              {showResetPwModal && selectedStaffForReset && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-line rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
-                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
-                      <div className="flex items-center gap-2">
-                        <Key size={16} className="text-brand" />
-                        <h3 className="text-md font-semibold text-ink">Reset Staff Password</h3>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowResetPwModal(false);
-                          setSelectedStaffForReset(null);
-                        }}
-                        className="text-ink-tertiary hover:text-ink cursor-pointer"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleResetPasswordSubmit} className="space-y-4 text-sm-minus">
-                      <div className="p-3 bg-surface rounded-lg border border-line space-y-1">
-                        <div className="text-xs font-semibold text-ink">{selectedStaffForReset.name}</div>
-                        <div className="text-2xs font-mono text-ink-secondary">{selectedStaffForReset.email}</div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-medium text-ink-secondary">New Temporary Password</label>
-                          <button
-                            type="button"
-                            onClick={() => setResetPwValue(generateRandomPassword())}
-                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
-                          >
-                            Generate
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={resetPwValue}
-                          onChange={(e) => setResetPwValue(e.target.value)}
-                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="checkbox"
-                          id="temporaryResetCheck"
-                          checked={resetPwTemporary}
-                          onChange={(e) => setResetPwTemporary(e.target.checked)}
-                          className="rounded border-line text-brand focus:ring-brand"
-                        />
-                        <label htmlFor="temporaryResetCheck" className="text-xs text-ink-secondary cursor-pointer">
-                          Mark as temporary (requires user to set new password on login)
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowResetPwModal(false);
-                            setSelectedStaffForReset(null);
-                          }}
-                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={resettingPw}
-                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
-                        >
-                          {resettingPw ? "Resetting…" : "Confirm Reset"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Dynamic Roles & Permissions Matrix */}
-          {activeTab === "permissions" && (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between border-b border-line pb-4">
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0 bg-white border border-[#E2E8F0] rounded-[16px] p-6 lg:p-8 shadow-xs">
+            {/* Tab 1: Admin Profile */}
+            {activeTab === "profile" && (
+              <div className="max-w-[499px] space-y-6">
                 <div>
                   <h2 className="text-[16px] font-bold text-[#0F172A]">Admin Account Details</h2>
                   <p className="text-[12px] text-[#64748B] mt-1">
@@ -1284,6 +1257,158 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                         </div>
                       </form>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Roles & Permissions Dynamic Matrix */}
+            {activeTab === "permissions" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Roles &amp; Permissions Dynamic Matrix</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Configure dynamic role capabilities and access control policies across all candidate evaluation, drive logistics, and administrative workflows.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowResetPermissionsModal(true)}
+                    disabled={!isAdmin || loadingPermissions}
+                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-[#DC2626] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={resettingPermissions ? "animate-spin" : ""} />
+                    <span>Reset to Defaults</span>
+                  </button>
+                </div>
+
+                {/* Roles Overview Breakdown Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div className="p-4 bg-[#FEF2F2] rounded-[10px] border border-[#FECACA]/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#DC2626] tracking-wider uppercase">ADMIN</span>
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#DC2626] border border-[#FECACA]">
+                        SUPERADMIN
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-2">
+                      Full access to settings, system timing, staff roles &amp; compliance audit logs.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-[#EFF6FF] rounded-[10px] border border-[#BFDBFE]/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#2563EB] tracking-wider uppercase">HR_LEAD</span>
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#2563EB] border border-[#BFDBFE]">
+                        LEAD RECRUITER
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-2">
+                      Final decisions, candidate evaluation, proctoring triage, templates &amp; audit review.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-[#FFFBEB] rounded-[10px] border border-[#FDE68A]/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#D97706] tracking-wider uppercase">HR_ASSOCIATE</span>
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#D97706] border border-[#FDE68A]">
+                        RECRUITMENT OPS
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-2">
+                      Drive creation, CSV candidate ingestion, assessment links &amp; live triage.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-[#ECFDF5] rounded-[10px] border border-[#A7F3D0]/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#059669] tracking-wider uppercase">REVIEWER</span>
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#059669] border border-[#A7F3D0]">
+                        EVALUATOR
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#475569] leading-snug mt-2">
+                      Candidate code submission review, SQL query inspection &amp; manual scoring rubrics.
+                    </p>
+                  </div>
+                </div>
+
+                {loadingPermissions ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Loading role permissions matrix…
+                  </p>
+                ) : (
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs divide-y divide-[#E2E8F0]">
+                    {Object.entries(groupedDescriptors).map(([category, items]) => (
+                      <div key={category} className="space-y-0">
+                        {/* Category Header */}
+                        <div className="bg-[#F8FAFC] px-6 py-3 border-b border-[#E2E8F0] flex items-center justify-between">
+                          <span className="text-[12px] font-bold uppercase tracking-wider text-[#475569]">
+                            {category}
+                          </span>
+                          <span className="text-[11px] font-mono text-[#94A3B8]">
+                            {items.length} {items.length === 1 ? "Capability" : "Capabilities"}
+                          </span>
+                        </div>
+
+                        {/* Matrix Table */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b border-[#F1F5F9] bg-[#FAFCFF] text-[10px] uppercase font-bold text-[#64748B]">
+                                <th className="px-6 py-2.5 text-left min-w-[280px]">Capability &amp; Description</th>
+                                <th className="px-4 py-2.5 text-center w-[110px]">ADMIN</th>
+                                <th className="px-4 py-2.5 text-center w-[110px]">HR_LEAD</th>
+                                <th className="px-4 py-2.5 text-center w-[120px]">HR_ASSOCIATE</th>
+                                <th className="px-4 py-2.5 text-center w-[110px]">REVIEWER</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#F1F5F9] text-xs">
+                              {items.map((item) => {
+                                const matrixState = permissionsMatrix || DEFAULT_ROLE_PERMISSIONS;
+                                return (
+                                  <tr key={item.key} className="hover:bg-[#F8FAFC]/70 transition-colors">
+                                    <td className="px-6 py-3">
+                                      <div className="font-semibold text-[#0F172A] text-[13px]">{item.name}</div>
+                                      <div className="text-[11px] text-[#64748B] mt-0.5">{item.description}</div>
+                                    </td>
+
+                                    {/* ADMIN (Locked Full) */}
+                                    <td className="px-4 py-3 text-center">
+                                      <div className="inline-flex items-center justify-center p-1 rounded-md bg-[#FEF2F2] text-[#DC2626]" title="Superadmin has unconditional full privileges">
+                                        <Lock size={14} />
+                                      </div>
+                                    </td>
+
+                                    {/* HR_LEAD, HR_ASSOCIATE, REVIEWER */}
+                                    {["HR_LEAD", "HR_ASSOCIATE", "REVIEWER"].map((roleKey) => {
+                                      const rolePerms = matrixState[roleKey] || DEFAULT_ROLE_PERMISSIONS[roleKey] || [];
+                                      const isEnabled = rolePerms.includes(item.key);
+                                      const cellKey = `${roleKey}-${item.key}`;
+                                      const isSaving = savingPermission === cellKey;
+
+                                      return (
+                                        <td key={roleKey} className="px-4 py-3 text-center">
+                                          <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={isEnabled}
+                                              disabled={isSaving || !isAdmin}
+                                              onChange={() => handleTogglePermission(roleKey, item.key, isEnabled)}
+                                              className="rounded border-[#CBD5E1] text-[#2563EB] focus:ring-[#2563EB]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
+                                            />
+                                          </label>
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1686,13 +1811,13 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
               </div>
             )}
 
-            {/* Tab 8: Assessment Modules */}
+            {/* Tab: Assessment Modules */}
             {activeTab === "modules" && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-sm font-bold text-[#0d1424]">Assessment Modules</h2>
-                  <p className="text-xs text-[#8c9ba5] mt-1">
-                    Configure the global availability of assessment modules per department. Enabling a module makes it available for Drive configurations.
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">Assessment Modules Selection Matrix</h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Configure global module availability per department. Enabling a module makes it selectable during drive and role template calibrations.
                   </p>
                 </div>
 
@@ -1701,11 +1826,11 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                     Loading assessment module configurations…
                   </p>
                 ) : (
-                  <div className="border border-[#e2e8f0] rounded-xl overflow-x-auto shadow-xs bg-white text-xs">
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-x-auto shadow-xs bg-white text-xs">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="border-b border-[#e2e8f0] bg-white font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748b]">
-                          <th className="px-4 py-3 text-left min-w-[200px]">Department</th>
+                        <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                          <th className="px-5 py-3.5 text-left min-w-[200px]">Department</th>
                           {[
                             { key: "MCQ", label: "MCQ" },
                             { key: "SQL", label: "SQL" },
@@ -1718,17 +1843,17 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                           ].map((m) => (
                             <th
                               key={m.key}
-                              className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
-                                hoveredCell?.mod === m.key ? "bg-blue-50/60 text-[#2f68ff]" : ""
+                              className={`px-3 py-3.5 text-center transition-colors whitespace-nowrap min-w-[85px] ${
+                                hoveredCell?.mod === m.key ? "bg-[#EFF6FF] text-[#2563EB]" : ""
                               }`}
                             >
                               {m.label}
                             </th>
                           ))}
-                          <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Bulk Actions</th>
+                          <th className="px-5 py-3.5 text-right whitespace-nowrap min-w-[140px]">Bulk Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#f1f5f9] text-xs">
+                      <tbody className="divide-y divide-[#F1F5F9] text-xs">
                         {[
                           { key: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
                           { key: "DATA_ENGINEERING", label: "Data Engineering" },
@@ -1762,13 +1887,13 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                             <tr
                               key={d.key}
                               className={`transition-colors ${
-                                isRowHovered ? "bg-blue-50/40" : "hover:bg-[#fbfcfd]"
+                                isRowHovered ? "bg-[#EFF6FF]/40" : "hover:bg-[#F8FAFC]/60"
                               }`}
                             >
-                              <td className="px-4 py-3 font-bold text-[#0d1424]">
+                              <td className="px-5 py-3.5 font-bold text-[#0F172A]">
                                 <div className="flex items-center gap-2">
                                   <span>{d.label}</span>
-                                  <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0]">
+                                  <span className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]">
                                     {enabledCount}/{modulesList.length}
                                   </span>
                                 </div>
@@ -1790,13 +1915,13 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                                     key={mod}
                                     onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
                                     onMouseLeave={() => setHoveredCell(null)}
-                                    className={`px-3 py-3 text-center transition-colors ${
+                                    className={`px-3 py-3.5 text-center transition-colors ${
                                       isCellHovered
-                                        ? "bg-blue-50"
+                                        ? "bg-[#EFF6FF]"
                                         : isColHovered
-                                          ? "bg-blue-50/50"
+                                          ? "bg-[#EFF6FF]/50"
                                           : isRowHovered
-                                            ? "bg-blue-50/30"
+                                            ? "bg-[#EFF6FF]/30"
                                             : ""
                                     }`}
                                   >
@@ -1806,28 +1931,28 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                                         checked={isEnabled}
                                         disabled={isSaving || !isAdmin}
                                         onChange={() => handleToggleModule(d.key, mod, isEnabled)}
-                                        className="rounded border-[#cbd5e1] text-[#2f68ff] focus:ring-[#2f68ff]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
+                                        className="rounded border-[#CBD5E1] text-[#2563EB] focus:ring-[#2563EB]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
                                       />
                                     </label>
                                   </td>
                                 );
                               })}
 
-                              <td className="px-4 py-3 text-right font-medium">
+                              <td className="px-5 py-3.5 text-right font-medium">
                                 <div className="flex items-center justify-end gap-2 text-xs">
                                   <button
                                     onClick={() => handleBulkDepartmentModules(d.key, true)}
                                     disabled={isBulkSaving || !isAdmin || enabledCount === modulesList.length}
-                                    className="text-[#2f68ff] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer font-semibold"
+                                    className="text-[#2563EB] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer font-semibold"
                                     title="Enable all modules for this department"
                                   >
                                     Select All
                                   </button>
-                                  <span className="text-[#cbd5e1]">|</span>
+                                  <span className="text-[#CBD5E1]">|</span>
                                   <button
                                     onClick={() => handleBulkDepartmentModules(d.key, false)}
                                     disabled={isBulkSaving || !isAdmin || enabledCount === 0}
-                                    className="text-rose-500 hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer font-semibold"
+                                    className="text-[#EF4444] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer font-semibold"
                                     title="Clear all modules for this department"
                                   >
                                     Clear All
@@ -2063,6 +2188,38 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirm Reset Permissions */}
+      {showResetPermissionsModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#E2E8F0] space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <RefreshCw className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-[#0F172A]">Reset Role Permissions to Default?</h3>
+            </div>
+            <p className="text-xs text-[#64748B] leading-relaxed">
+              This action will revert custom permissions for <strong>HR_LEAD</strong>, <strong>HR_ASSOCIATE</strong>, and <strong>REVIEWER</strong> to the system default matrix. This action is irreversible and will be logged in the compliance audit log.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F1F5F9]">
+              <button
+                type="button"
+                onClick={() => setShowResetPermissionsModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] rounded-full hover:bg-[#F1F5F9] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={resettingPermissions}
+                onClick={handleResetPermissions}
+                className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-full shadow-xs cursor-pointer"
+              >
+                {resettingPermissions ? "Resetting…" : "Confirm Reset"}
+              </button>
+            </div>
           </div>
         </div>
       )}
