@@ -5,12 +5,19 @@ import { getAuthHeaders, API_BASE } from "../store";
 
 export interface CommonSlice {
   actionQueue: ActionQueue | null;
+  dashboardStats: any | null;
   loading: boolean;
   error: string | null;
   roleTemplates: RoleTemplate[];
 
   fetchRoleTemplates: () => Promise<void>;
   fetchActionQueue: () => Promise<void>;
+  fetchDashboardStats: (query?: {
+    driveId?: string;
+    roleTemplateId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => Promise<any>;
   fetchAuditLogs: (query?: {
     page?: number;
     pageSize?: number;
@@ -20,6 +27,7 @@ export interface CommonSlice {
 
 export const createCommonSlice: StateCreator<any, [], [], CommonSlice> = (set, get) => ({
   actionQueue: null,
+  dashboardStats: null,
   loading: false,
   error: null,
   roleTemplates: [],
@@ -46,6 +54,29 @@ export const createCommonSlice: StateCreator<any, [], [], CommonSlice> = (set, g
       set({ actionQueue: data });
     } catch (err: any) {
       console.error(err);
+    }
+  },
+
+  fetchDashboardStats: async (query) => {
+    try {
+      const headers = await getAuthHeaders();
+      let url = `${API_BASE}/admin/dashboard/stats`;
+      const params = new URLSearchParams();
+      if (query?.driveId && query.driveId !== "all") params.append("driveId", query.driveId);
+      if (query?.roleTemplateId && query.roleTemplateId !== "all") params.append("roleTemplateId", query.roleTemplateId);
+      if (query?.startDate) params.append("startDate", query.startDate);
+      if (query?.endDate) params.append("endDate", query.endDate);
+      const qs = params.toString();
+      if (qs) url += `?${qs}`;
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Failed to fetch dashboard stats");
+      const data = await res.json();
+      set({ dashboardStats: data });
+      return data;
+    } catch (err: any) {
+      console.error(err);
+      return null;
     }
   },
 

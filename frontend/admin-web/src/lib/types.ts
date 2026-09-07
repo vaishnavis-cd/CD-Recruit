@@ -241,9 +241,14 @@ export type SessionStatus = "submitted" | "ai_scored" | "review" | "reviewed" | 
 export interface Session {
   id: string;
   driveId?: string;
+  driveName?: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  roleName?: string;
   candidate: Candidate;
   roleTemplate: RoleTemplate;
   status: SessionStatus;
+  startedAt?: string | null;
   compositeScore: number | null;
   sayDoScore: number | null;
   sayDoTrace: { t: number; said: number; did: number }[];
@@ -251,15 +256,16 @@ export interface Session {
   mismatches: { said: string; did: string; impact: string }[];
   integrityFlags: {
     category: string;
-    severity: "low" | "critical";
-    timestamp: string;
-    hasEvidence: boolean;
+    severity: "low" | "critical" | string;
+    timestamp?: string;
+    hasEvidence?: boolean;
   }[];
-  submittedAt: string;
+  integrityFlagsCount?: number;
+  submittedAt?: string | null;
   reviewer?: { initials: string; name: string };
-  decision?: { outcome: "advance" | "reject"; decidedAt: string; decidedBy: string; note?: string };
+  decision?: { outcome: "advance" | "reject" | "PASS" | "FAIL" | string; decidedAt?: string; decidedBy?: string; note?: string } | null;
   sayDoRationale?: string | null;
-  gradingSource?: "placeholder" | "deterministic" | "ai_graded" | "correlation_engine";
+  gradingSource?: "placeholder" | "deterministic" | "ai_graded" | "correlation_engine" | string;
 }
 
 export interface Invite {

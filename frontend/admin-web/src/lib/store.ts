@@ -51,7 +51,6 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
         }
       } catch (err) {}
     }
-    token = await inflightTokenPromise;
   }
   return {
     Authorization: token ? `Bearer ${token}` : "",

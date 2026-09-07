@@ -121,6 +121,7 @@ export class AdminService {
         include: {
           candidate: true,
           roleTemplate: true,
+          drive: true,
           invite: true,
           score: true,
           reviewerDecision: {
@@ -158,6 +159,7 @@ export class AdminService {
         sessionId: session.id,
         referenceId: session.referenceId ?? null,
         driveId: session.driveId || (session.invite as any)?.driveId || null,
+        driveName: session.drive?.name || (session.invite as any)?.drive?.name || "Campus Drive 2026",
         candidateId: session.candidate.id,
         candidateName: session.invite?.candidateName || session.candidate.name,
         candidateEmail: session.candidate.email,
