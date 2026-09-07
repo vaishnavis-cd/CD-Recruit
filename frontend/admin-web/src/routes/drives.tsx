@@ -155,6 +155,42 @@ function DrivesPage() {
     if (!driveName || driveName.includes("Drive")) {
       setDriveName(`${template.roleName} Drive - ${dateStr}`);
     }
+
+    if (template.weightingPreset && typeof template.weightingPreset === "object") {
+      const preset = template.weightingPreset as Record<string, number>;
+      const entries = Object.entries(preset);
+      if (entries.length > 0) {
+        let total = entries.reduce((s, [_, v]) => s + (typeof v === "number" ? (v <= 1 && v > 0 ? Math.round(v * 100) : Math.round(v)) : 0), 0);
+        const normalizedWeights: Record<string, number> = {};
+        let running = 0;
+        entries.forEach(([mod, v], idx) => {
+          let w = typeof v === "number" ? (v <= 1 && v > 0 ? Math.round(v * 100) : Math.round(v)) : 0;
+          if (total !== 100 && total > 0) {
+            if (idx === entries.length - 1) {
+              w = Math.max(1, 100 - running);
+            } else {
+              w = Math.max(1, Math.round((w / total) * 100));
+              running += w;
+            }
+          }
+          normalizedWeights[mod] = w;
+        });
+
+        setModulesConfig((prev) => {
+          const next = { ...prev };
+          Object.entries(normalizedWeights).forEach(([mod, w]) => {
+            if (next[mod]) {
+              next[mod] = {
+                ...next[mod],
+                enabled: w > 0,
+                weight: w > 1 ? Number((w / 100).toFixed(2)) : w,
+              };
+            }
+          });
+          return next;
+        });
+      }
+    }
   };
   
   // Step 2: Modules config

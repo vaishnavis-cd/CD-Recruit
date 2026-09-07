@@ -167,6 +167,24 @@ function ResultsPage() {
 
           <div className="flex items-center gap-2.5">
             <button
+              onClick={handleVerifyAll}
+              disabled={verifying}
+              className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-white bg-brand hover:bg-brand-hover rounded-[8px] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+              title="Verify identity for all candidates in the list"
+            >
+              {verifying ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Verifying All...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={14} />
+                  <span>Verify All Candidates</span>
+                </>
+              )}
+            </button>
+            <button
               onClick={handleExportCsv}
               className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
               title="Download full candidate evaluation CSV dataset from server"
@@ -366,16 +384,16 @@ function ResultsPage() {
                       </td>
 
                       {/* Integrity Risk */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         {flagsCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold">
-                            <ShieldAlert size={12} />
-                            {flagsCount} Flags
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold whitespace-nowrap">
+                            <ShieldAlert size={12} className="shrink-0" />
+                            <span>{flagsCount} {flagsCount === 1 ? "Flag" : "Flags"}</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold">
-                            <ShieldCheck size={12} />
-                            Low
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold whitespace-nowrap">
+                            <ShieldCheck size={12} className="shrink-0" />
+                            <span>Low</span>
                           </span>
                         )}
                       </td>
@@ -462,7 +480,10 @@ function VerificationSidePanel({
   onClose: () => void;
 }) {
   const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
+  const bulkVerifyIdentity = useStore((s) => s.bulkVerifyIdentity);
+  const fetchResults = useStore((s) => s.fetchResults);
   const [loading, setLoading] = useState(true);
+  const [verifyingCandidate, setVerifyingCandidate] = useState(false);
   const [detail, setDetail] = useState<any>(null);
 
   // Accordion state (open / collapsed)
@@ -499,6 +520,26 @@ function VerificationSidePanel({
       isMounted = false;
     };
   }, [item, fetchSessionDetail]);
+
+  const handleVerifyThisCandidate = async () => {
+    const targetId = item.sessionId || item.id || detail?.sessionId || candidateData?.id;
+    if (!targetId) return;
+    setVerifyingCandidate(true);
+    try {
+      await bulkVerifyIdentity([targetId]);
+      toast.success(`Identity successfully verified for ${item.candidateName || candidateData?.name || "candidate"}!`);
+      const sessionId = item.sessionId || item.id;
+      if (sessionId) {
+        const res = await fetchSessionDetail(sessionId);
+        setDetail(res);
+      }
+      await fetchResults();
+    } catch (err: any) {
+      toast.error("Verification failed: " + (err.message || err));
+    } finally {
+      setVerifyingCandidate(false);
+    }
+  };
 
   const candidateData = detail?.candidate || item;
   const idVerifyResult =
@@ -798,13 +839,29 @@ function VerificationSidePanel({
 
         {/* Panel Footer */}
         <div className="p-4 border-t border-line bg-canvas">
-          <Link
-            to="/results/$id"
-            params={{ id: item.sessionId || item.id }}
-            className="w-full py-2.5 px-4 bg-brand-subtle hover:bg-brand-subtle text-brand font-semibold text-sm-minus rounded-lg border border-brand-border flex items-center justify-center gap-2 transition-colors"
+          <button
+            type="button"
+            onClick={handleVerifyThisCandidate}
+            disabled={verifyingCandidate}
+            className="w-full py-2.5 px-4 bg-brand hover:bg-brand-hover text-white font-semibold text-sm-minus rounded-lg border border-brand flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
-            View Full Evaluation <ExternalLink size={14} />
-          </Link>
+            {verifyingCandidate ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Verifying Candidate...</span>
+              </>
+            ) : isMatched ? (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Verified (Click to Re-Verify)</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={15} />
+                <span>Verify Candidate</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </>

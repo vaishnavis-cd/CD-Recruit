@@ -746,9 +746,35 @@ function DriveDetailPage() {
             initialConfig[mod].weight = w;
           }
         });
+
+        const activeEnabled = Object.keys(initialConfig).filter(
+          (m) => initialConfig[m]?.enabled && (enabledForDept.length === 0 || enabledForDept.includes(m))
+        );
+        const totalW = activeEnabled.reduce(
+          (sum, m) => sum + (Number(initialConfig[m]?.weight) || 0),
+          0
+        );
+        if (activeEnabled.length > 0 && totalW !== 100) {
+          let running = 0;
+          activeEnabled.forEach((m, idx) => {
+            const rawW = Number(initialConfig[m]?.weight) || 0;
+            let newW = 0;
+            if (idx === activeEnabled.length - 1) {
+              newW = Math.max(1, 100 - running);
+            } else {
+              newW = totalW > 0 ? Math.max(1, Math.round((rawW / totalW) * 100)) : Math.floor(100 / activeEnabled.length);
+              running += newW;
+            }
+            initialConfig[m].weight = newW;
+          });
+        }
       } else {
         const preset = ((data as any).roleTemplate?.weightingPreset as Record<string, number>) || {};
-        Object.keys(initialConfig).forEach((mod) => {
+        const allMods = Object.keys(initialConfig);
+        const rawWeights: Record<string, number> = {};
+        let enabledSum = 0;
+
+        allMods.forEach((mod) => {
           const isGloballyEnabled = enabledForDept.includes(mod);
           const rawPreset = preset[mod] !== undefined ? Number(preset[mod]) : 0;
           let weight = 0;
@@ -757,6 +783,28 @@ function DriveDetailPage() {
           else weight = Math.round(rawPreset);
 
           weight = isGloballyEnabled ? weight : 0;
+          rawWeights[mod] = weight;
+          if (weight > 0) enabledSum += weight;
+        });
+
+        // Ensure active modules strictly calibrate to 100 marks standard
+        const activeModList = allMods.filter((m) => enabledForDept.includes(m) && rawWeights[m] > 0);
+        if (activeModList.length > 0 && enabledSum !== 100) {
+          let running = 0;
+          activeModList.forEach((m, idx) => {
+            if (idx === activeModList.length - 1) {
+              rawWeights[m] = Math.max(1, 100 - running);
+            } else {
+              const scaled = Math.max(1, Math.round((rawWeights[m] / enabledSum) * 100));
+              rawWeights[m] = scaled;
+              running += scaled;
+            }
+          });
+        }
+
+        allMods.forEach((mod) => {
+          const isGloballyEnabled = enabledForDept.includes(mod);
+          const weight = rawWeights[mod] || 0;
           const enabled = isGloballyEnabled && weight > 0;
 
           initialConfig[mod] = {
@@ -856,14 +904,32 @@ function DriveDetailPage() {
 
         if (tplData.weightingPreset) {
           const preset = tplData.weightingPreset as Record<string, number>;
+          const entries = Object.entries(preset);
+          let sum = entries.reduce((s, [_, w]) => s + (typeof w === "number" ? (w <= 1 && w > 0 ? Math.round(w * 100) : Math.round(w)) : 0), 0);
+          const normalizedWeights: Record<string, number> = {};
+          let running = 0;
+
+          entries.forEach(([mod, w], idx) => {
+            let weightNum = typeof w === "number" ? (w <= 1 && w > 0 ? Math.round(w * 100) : Math.round(w)) : 0;
+            if (sum !== 100 && sum > 0) {
+              if (idx === entries.length - 1) {
+                weightNum = Math.max(1, 100 - running);
+              } else {
+                weightNum = Math.max(1, Math.round((weightNum / sum) * 100));
+                running += weightNum;
+              }
+            }
+            normalizedWeights[mod] = weightNum;
+          });
+
           setModuleConfig((prev) => {
             const updated = { ...prev };
-            Object.entries(preset).forEach(([mod, w]) => {
+            Object.entries(normalizedWeights).forEach(([mod, w]) => {
               if (updated[mod]) {
                 updated[mod] = {
                   ...updated[mod],
-                  enabled: true,
-                  weight: typeof w === "number" ? Math.round(w <= 1 ? w * 100 : w) : updated[mod].weight,
+                  enabled: w > 0,
+                  weight: w,
                 };
               }
             });
@@ -1443,15 +1509,38 @@ function DriveDetailPage() {
       };
     });
 
-    const totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
-    const totalMarks = summaryData.reduce((sum, m) => sum + m.marks, 0);
+    let totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
+    if (summaryData.length > 0 && totalWeight !== 100) {
+      if (totalWeight === 0) {
+        const base = Math.floor(100 / summaryData.length);
+        const rem = 100 - base * summaryData.length;
+        summaryData.forEach((m, idx) => {
+          m.weight = base + (idx < rem ? 1 : 0);
+          m.marks = m.weight;
+        });
+      } else {
+        let running = 0;
+        summaryData.forEach((m, idx) => {
+          if (idx === summaryData.length - 1) {
+            m.weight = Math.max(1, 100 - running);
+          } else {
+            m.weight = Math.max(1, Math.round((m.weight / totalWeight) * 100));
+            running += m.weight;
+          }
+          m.marks = m.weight;
+        });
+      }
+      totalWeight = 100;
+    }
+
+    const totalMarks = 100;
     const totalQuestions = summaryData.reduce((sum, m) => sum + m.count, 0);
 
     return {
       summaryData,
       totalDuration: 90,
-      totalWeight: totalWeight || 100,
-      totalMarks: totalMarks || 100,
+      totalWeight: 100,
+      totalMarks: 100,
       totalQuestions,
       totalEstTime: 90,
       isOverTime: false,
@@ -1624,10 +1713,32 @@ function DriveDetailPage() {
       } as any;
     }
 
-    const enabledMods = Object.values(updatedModuleConfig).filter((m) => m.enabled);
-    if (enabledMods.length === 0) {
+    const enabledEntries = Object.entries(updatedModuleConfig).filter(
+      ([m, conf]) => conf && conf.enabled && (globalEnabledModules.length === 0 || globalEnabledModules.includes(m))
+    );
+    if (enabledEntries.length === 0) {
       toast.error("At least one assessment module must be enabled.");
       return;
+    }
+
+    // Automatically rebalance active enabled modules to strictly sum to 100%
+    const currentWeightSum = enabledEntries.reduce((s, [_, c]) => s + (Number(c.weight) || 0), 0);
+    if (currentWeightSum !== 100) {
+      let running = 0;
+      enabledEntries.forEach(([modId, conf], idx) => {
+        const rawW = Number(conf.weight) || 0;
+        let scaled = 0;
+        if (idx === enabledEntries.length - 1) {
+          scaled = Math.max(1, 100 - running);
+        } else {
+          scaled = currentWeightSum > 0 ? Math.max(1, Math.round((rawW / currentWeightSum) * 100)) : Math.floor(100 / enabledEntries.length);
+          running += scaled;
+        }
+        updatedModuleConfig[modId] = {
+          ...conf,
+          weight: scaled,
+        };
+      });
     }
 
     if (!isTemplateGoverned) {
