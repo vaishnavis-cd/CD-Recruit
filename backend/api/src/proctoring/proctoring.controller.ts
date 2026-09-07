@@ -186,10 +186,26 @@ export class ProctoringController {
       res.setHeader("Content-Type", "video/webm");
       res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Cache-Control", "public, max-age=3600");
+
+      stream.on("error", (streamErr: any) => {
+        this.logger.error(`[ProctoringController] Stream pipe error: ${streamErr.message}`);
+        if (!res.headersSent) {
+          res.status(HttpStatus.INTERNAL_SERVER_ERROR).send("Stream read error");
+        }
+      });
+
+      res.on("close", () => {
+        if (typeof stream.destroy === "function") {
+          stream.destroy();
+        }
+      });
+
       stream.pipe(res);
     } catch (err: any) {
       this.logger.error(`[ProctoringController] STREAM_ERROR: ${err.message}`);
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(err.message);
+      if (!res.headersSent) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(err.message);
+      }
     }
   }
 }

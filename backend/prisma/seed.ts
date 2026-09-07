@@ -32,14 +32,14 @@ const prisma = new PrismaClient();
 
 const DURATION_MINUTES = 90;
 
-const DEFAULT_WEIGHTING_PRESET: Record<ModuleType, number> = {
-  MCQ: 0.10,
-  SQL: 0.15,
-  NOSQL: 0.15,
-  CODING: 0.25,
-  DEBUGGING: 0.10,
-  AI_PROMPTING: 0.10,
-  SIMULATION: 0.15,
+const DEFAULT_WEIGHTING_PRESET: Record<string, number> = {
+  MCQ: 15,
+  SQL: 15,
+  NOSQL: 15,
+  CODING: 20,
+  DEBUGGING: 10,
+  AI_PROMPTING: 10,
+  SIMULATION: 15,
 };
 
 const TIERS = [
@@ -49,14 +49,26 @@ const TIERS = [
   { category: "EXPERIENCED" as const, level: "EXPERIENCED" as const, experienceTier: "11-15", suffix: "Level 3 (11-15 yrs)", seniorityTag: "l3" },
 ];
 
-const DEFAULT_WEIGHTING_PRESET: Record<string, number> = {
-  MCQ: 15,
-  SQL: 15,
-  NOSQL: 15,
-  CODING: 20,
-  DEBUGGING: 10,
-  AI_PROMPTING: 10,
-  SIMULATION: 15,
+const DEPARTMENTS: Department[] = [
+  "SOFTWARE_ENGINEERING",
+  "DATA_ENGINEERING",
+  "QA",
+  "SRE",
+  "SYSOPS",
+  "ITOPS",
+  "PMO",
+  "SECOPS",
+];
+
+const DEPT_NAMES: Record<Department, string> = {
+  SOFTWARE_ENGINEERING: "Software Engineering",
+  DATA_ENGINEERING: "Data Engineering",
+  QA: "Quality Assurance",
+  SRE: "Site Reliability Engineering",
+  SYSOPS: "Systems Operations",
+  ITOPS: "IT Operations",
+  PMO: "Project Management",
+  SECOPS: "Security Operations",
 };
 
 // Department mapping helper
@@ -95,16 +107,10 @@ function determineSeniorityTags(difficulty?: string, explicitSeniority?: string[
   if (explicitSeniority && explicitSeniority.length > 0) {
     return explicitSeniority.map(s => s.toLowerCase());
   }
-
-  questions.push(
-    ...nosqlQuestions.map((q) => ({
-      moduleType: q.moduleType as ModuleType,
-      difficulty: q.difficulty,
-      content: q.content,
-    })),
-  );
-
-  return questions;
+  const diff = (difficulty || "medium").toLowerCase();
+  if (diff === "easy") return ["fresher", "l1"];
+  if (diff === "hard") return ["l2", "l3"];
+  return ["fresher", "l1", "l2"];
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +251,14 @@ async function main(): Promise<void> {
         scoringConfig?: any;
       }> = [];
 
+      // Helper to compute canonical target level
+      const getTargetLevelFromSeniority = (seniority: string[]): string => {
+        if (seniority.includes("l3")) return "11-15";
+        if (seniority.includes("l2")) return "6-10";
+        if (seniority.includes("l1")) return "2-5";
+        return "0-1";
+      };
+
       // Source A: proctora_question_bank.json (500 questions)
       const bankPath = path.join(__dirname, "data/proctora_question_bank.json");
       if (fs.existsSync(bankPath)) {
@@ -252,41 +266,43 @@ async function main(): Promise<void> {
         if (Array.isArray(bankData.questions)) {
           for (const q of bankData.questions) {
             const dept = normalizeDepartment(q.department || q.dept);
-            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
-            const rawMod = (q.module || q.moduleType || "").toUpperCase();
-
-            let modType: ModuleType = "MCQ";
-            if (!hasOptions || rawMod.includes("SCENARIO") || rawMod.includes("TEST")) {
-              modType = "TEST_SCENARIOS";
-            } else if (rawMod.includes("PROMPT") || rawMod.includes("AI")) {
-              modType = "AI_PROMPTING";
-            } else if (rawMod.includes("SIMULATION") || rawMod.includes("CONTEXT")) {
-              modType = "SIMULATION";
-            } else {
-              modType = "MCQ";
-            }
-
+            const rawMod = q.module || q.moduleType || "";
+            const modType: ModuleType = normalizeModuleType(rawMod);
             const diff = (q.difficulty || "medium").toLowerCase();
             const seniority = determineSeniorityTags(diff);
-            const tags = Array.from(new Set([
-              dept.toLowerCase(),
-              modType.toLowerCase(),
-              ...seniority,
-              ...(q.tags || []),
-              ...(q.category ? [q.category.toLowerCase().replace(/\s+/g, "-")] : []),
-            ]));
+            const targetLevel = getTargetLevelFromSeniority(seniority);
 
+            const cleanCategory = (q.category || q.topic || "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "");
+
+            const tags = Array.from(
+              new Set([
+                dept.toLowerCase(),
+                modType.toLowerCase(),
+                ...seniority,
+                ...(cleanCategory ? [cleanCategory] : []),
+              ])
+            );
+
+            // Only ingest MCQ from legacy proctora_question_bank to ensure CODING/DEBUGGING
+            // remain 100% authentic, executable problems with real Judge0 test cases.
+            if (modType !== "MCQ") {
+              continue;
+            }
+
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
             const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
-            const content = {
+            content = {
               prompt: q.question || q.prompt || "",
               options: q.options || [],
               correctAnswer: correctAns,
               explanation: q.explanation || "",
               category: q.category || "",
             };
-
-            const scoringConfig = q.scoringConfig || {
-              correctIndex: hasOptions ? q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0 : 0,
+            scoringConfig = {
+              correctIndex: hasOptions && q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0,
               correctAnswer: correctAns,
               points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
             };
@@ -296,7 +312,7 @@ async function main(): Promise<void> {
               department: dept,
               difficulty: diff,
               tags,
-              targetLevel: seniority.includes("l3") ? "L3" : seniority.includes("l2") ? "L2" : seniority.includes("l1") ? "L1" : "FRESHER",
+              targetLevel,
               content,
               scoringConfig,
             });
@@ -311,45 +327,44 @@ async function main(): Promise<void> {
         if (Array.isArray(batchData)) {
           for (const q of batchData) {
             const dept = normalizeDepartment(q.department);
-            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
-            const rawMod = (q.moduleType || q.module || "").toUpperCase();
-
-            let modType: ModuleType = "MCQ";
-            if (!hasOptions || rawMod.includes("SCENARIO") || rawMod.includes("TEST")) {
-              modType = "TEST_SCENARIOS";
-            } else if (rawMod.includes("PROMPT") || rawMod.includes("AI")) {
-              modType = "AI_PROMPTING";
-            } else if (rawMod.includes("SIMULATION") || rawMod.includes("CONTEXT")) {
-              modType = "SIMULATION";
-            } else {
-              modType = "MCQ";
-            }
-
+            const rawMod = q.moduleType || q.module || "";
+            const modType: ModuleType = normalizeModuleType(rawMod);
             const diff = (q.difficulty || "hard").toLowerCase();
             const seniority = determineSeniorityTags(diff, q.seniority);
-            const tags = Array.from(new Set([
-              dept.toLowerCase(),
-              modType.toLowerCase(),
-              ...seniority,
-              ...(q.tags || []),
-              ...(q.topic ? [q.topic.toLowerCase().replace(/\s+/g, "-")] : []),
-            ]));
+            const targetLevel = getTargetLevelFromSeniority(seniority);
 
+            const cleanTopic = (q.topic || q.category || "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "");
+
+            const tags = Array.from(
+              new Set([
+                dept.toLowerCase(),
+                modType.toLowerCase(),
+                ...seniority,
+                ...(cleanTopic ? [cleanTopic] : []),
+              ])
+            );
+
+            const hasOptions = Array.isArray(q.options) && q.options.length > 0;
             const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
+
             allQuestionItems.push({
               moduleType: modType,
               department: dept,
               difficulty: diff,
               tags,
-              targetLevel: seniority.includes("l3") ? "L3" : "L2",
+              targetLevel,
               content: q.content || {
                 prompt: q.question || "",
                 options: q.options || [],
                 correctAnswer: correctAns,
                 explanation: q.explanation || "",
+                category: q.topic || "",
               },
               scoringConfig: q.scoringConfig || {
-                correctIndex: hasOptions ? q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0 : 0,
+                correctIndex: hasOptions && q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0,
                 correctAnswer: correctAns,
                 points: 3,
               },
@@ -377,19 +392,53 @@ async function main(): Promise<void> {
               const modType = item.moduleType ? normalizeModuleType(item.moduleType) : mf.defaultMod;
               const diff = (item.difficulty || item.content?.difficulty || "medium").toLowerCase();
               const seniority = determineSeniorityTags(diff);
-              const deptTags = mf.depts.map(d => d.toLowerCase());
-              const tags = Array.from(new Set([
-                ...deptTags,
-                modType.toLowerCase(),
-                ...seniority,
-                ...(item.tags || []),
-              ]));
+              const targetLevel = getTargetLevelFromSeniority(seniority);
+              const deptTags = mf.depts.map((d) => d.toLowerCase());
+
+              const cleanTopic = (item.category || item.topic || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "");
+
+              const tags = Array.from(
+                new Set([
+                  ...deptTags,
+                  modType.toLowerCase(),
+                  ...seniority,
+                  ...(cleanTopic ? [cleanTopic] : []),
+                ])
+              );
 
               const content = item.content || item;
               if (modType === "MCQ" && content.options && content.options.length > 0) {
                 if (!content.correctAnswer && content.correctIndex !== undefined) {
                   content.correctAnswer = content.options[content.correctIndex];
                 }
+              } else if (modType === "CODING" || modType === "DEBUGGING") {
+                if (!content.visibleTestCases && content.testCases) {
+                  content.visibleTestCases = content.testCases.filter((tc: any) => !tc.isHidden);
+                }
+                if (!content.hiddenTestCases && content.testCases) {
+                  content.hiddenTestCases = content.testCases.filter((tc: any) => tc.isHidden);
+                }
+                if (!content.testCases && (content.visibleTestCases || content.hiddenTestCases)) {
+                  content.testCases = [
+                    ...(content.visibleTestCases || []).map((tc: any) => ({ ...tc, isHidden: false })),
+                    ...(content.hiddenTestCases || []).map((tc: any) => ({ ...tc, isHidden: true })),
+                  ];
+                }
+
+                // Ensure starter code exists for all 4 languages with valid syntax
+                const fnName = content.functionName || "solution";
+                const pName = (content.prompt || "").replace(/\n/g, " ");
+                const existingStarters = content.starterCode || {};
+
+                content.starterCode = {
+                  javascript: existingStarters.javascript || `const fs = require('fs');\n\nfunction ${fnName}(input) {\n  // TODO: Implement solution\n  return input;\n}\n\nconst raw = fs.readFileSync(0, 'utf-8').trim();\nif (raw) {\n  console.log(${fnName}(raw));\n}\n`,
+                  python: existingStarters.python || `import sys\n\ndef ${fnName}(data):\n    # TODO: Implement solution\n    return data\n\nif __name__ == '__main__':\n    for line in sys.stdin:\n        if line.strip():\n            print(${fnName}(line.strip()))\n`,
+                  java: existingStarters.java || `import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static String ${fnName}(String input) {\n        // TODO: Implement solution\n        return input;\n    }\n\n    public static void main(String[] args) throws Exception {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String line;\n        while ((line = br.readLine()) != null) {\n            if (line.trim().isEmpty()) continue;\n            System.out.println(${fnName}(line.trim()));\n        }\n    }\n}\n`,
+                  cpp: existingStarters.cpp || `#include <iostream>\n#include <string>\nusing namespace std;\n\nstring ${fnName}(const string& input) {\n    // TODO: Implement solution\n    return input;\n}\n\nint main() {\n    string line;\n    while (getline(cin, line)) {\n        if (line.empty()) continue;\n        cout << ${fnName}(line) << endl;\n    }\n    return 0;\n}\n`,
+                };
               }
 
               allQuestionItems.push({
@@ -397,10 +446,13 @@ async function main(): Promise<void> {
                 department: mf.depts[0],
                 difficulty: diff,
                 tags,
-                targetLevel: seniority.includes("l3") ? "L3" : seniority.includes("l2") ? "L2" : seniority.includes("l1") ? "L1" : "FRESHER",
+                targetLevel,
                 content,
                 scoringConfig: item.scoringConfig || {
-                  correctIndex: content.options && content.correctAnswer ? content.options.indexOf(content.correctAnswer) : (content.correctIndex || 0),
+                  correctIndex:
+                    content.options && content.correctAnswer
+                      ? content.options.indexOf(content.correctAnswer)
+                      : content.correctIndex || 0,
                   points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
                 },
               });
@@ -417,8 +469,8 @@ async function main(): Promise<void> {
           moduleType: "NOSQL",
           department: "SOFTWARE_ENGINEERING",
           difficulty: diff,
-          tags: Array.from(new Set(["software_engineering", "data_engineering", "nosql", ...seniority])),
-          targetLevel: seniority.includes("l2") ? "L2" : "L1",
+          tags: Array.from(new Set(["software_engineering", "data_engineering", "nosql", ...seniority, "mongodb"])),
+          targetLevel: seniority.includes("l2") ? "6-10" : "2-5",
           content: nq.content,
           scoringConfig: { points: 2 },
         });
@@ -621,9 +673,9 @@ async function main(): Promise<void> {
           update: {},
           create: {
             driveId: drive.id,
-            questionId: q.id,
-            moduleType: q.moduleType,
-            questionVersionSnapshot: (q as any).version ?? 1,
+            questionId: rtq.questionId,
+            moduleType: rtq.moduleType,
+            questionVersionSnapshot: (rtq.question as any)?.version ?? 1,
           },
         });
       }

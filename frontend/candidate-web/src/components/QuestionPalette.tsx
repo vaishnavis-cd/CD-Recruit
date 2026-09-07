@@ -30,7 +30,7 @@ export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, 
         {(Object.entries(STATUS_STYLES) as [QuestionStatus, typeof STATUS_STYLES[QuestionStatus]][]).map(([status, style]) => (
           <div key={status} className="flex items-center gap-1.5">
             <div className={`w-3 h-3 rounded border ${style.bg} ${style.border} flex-shrink-0`} />
-            <span className="text-[11px]">{style.label}</span>
+            <span className="text-2xs">{style.label}</span>
           </div>
         ))}
       </div>
@@ -66,7 +66,7 @@ export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, 
 
       {/* Flag toggle helper */}
       <div className="mt-6 pt-4 border-t border-[var(--border)] text-xs text-[var(--muted-foreground)] flex items-center gap-1.5 font-mono-data">
-        <kbd className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]">F</kbd>
+        <kbd className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-2xs font-mono">F</kbd>
         <span>to flag question</span>
       </div>
     </nav>

@@ -66,6 +66,8 @@ export class FaceVerifyOnnxService implements OnModuleInit {
         path.join(process.cwd(), "models"),
         path.join(process.cwd(), "backend", "api", "models"),
         path.join(__dirname, "..", "..", "..", "models"),
+        path.join(__dirname, "..", "..", "..", "..", "models"),
+        path.join(__dirname, "..", "..", "..", "..", "backend", "api", "models"),
         path.join(__dirname, "models"),
       ];
 
@@ -129,7 +131,7 @@ export class FaceVerifyOnnxService implements OnModuleInit {
   ): Promise<{ embedding: number[]; model: string }> {
     try {
       this.logger.log(`[ONNX] Enrolling face ID proof image: ${filename}`);
-      this.ensureModelsLoaded();
+      await this.ensureModelsLoaded();
 
       const detection = await this.detectFace(imageBuffer, filename);
       const alignedBuffer = await this.alignFace(imageBuffer, detection.landmarks);
@@ -166,7 +168,7 @@ export class FaceVerifyOnnxService implements OnModuleInit {
       this.logger.log(
         `[ONNX] Verifying live selfie ${filename} against stored face embedding`,
       );
-      this.ensureModelsLoaded();
+      await this.ensureModelsLoaded();
 
       const enrollment = await this.enroll(imageBuffer, filename);
       const selfieEmb = new Float32Array(enrollment.embedding);
@@ -214,15 +216,17 @@ export class FaceVerifyOnnxService implements OnModuleInit {
   verifyEmbeddings(
     embA: number[],
     embB: number[],
+    customThreshold?: number,
   ): { matched: boolean; distance: number; threshold: number } {
+    const threshold = customThreshold ?? ONNX_ARCFACE_THRESHOLD;
     const vecA = new Float32Array(embA);
     const vecB = new Float32Array(embB);
     const distance = this.cosineDistance(vecA, vecB);
-    const matched = distance <= ONNX_ARCFACE_THRESHOLD;
+    const matched = distance <= threshold;
     return {
       matched,
       distance: Number(distance.toFixed(4)),
-      threshold: ONNX_ARCFACE_THRESHOLD,
+      threshold,
     };
   }
 
@@ -230,7 +234,10 @@ export class FaceVerifyOnnxService implements OnModuleInit {
   // INTERNAL PIPELINE HELPER METHODS
   // ============================================================================
 
-  private ensureModelsLoaded(): void {
+  private async ensureModelsLoaded(): Promise<void> {
+    if (!this.retinafaceSession || !this.arcfaceSession) {
+      await this.onModuleInit();
+    }
     if (!this.retinafaceSession || !this.arcfaceSession) {
       throw new InternalServerErrorException(
         "ONNX models are not loaded. Please ensure retinaface.onnx and arcface.onnx exist in models/ directory.",

@@ -40,7 +40,7 @@ export function ExpiredScreen({ reason }: ExpiredScreenProps) {
         </div>
 
         <div>
-          <h1 id="expired-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)] mb-2">
+          <h1 id="expired-heading" className="text-3xl-plus font-semibold tracking-tight text-[var(--foreground)] mb-2">
             {title}
           </h1>
 
@@ -76,7 +76,7 @@ export function ExpiredScreen({ reason }: ExpiredScreenProps) {
             <span>Contact Support</span>
           </a>
 
-          <p className="text-[11px] text-[var(--muted-foreground)] font-mono-data">support@proctora.com</p>
+          <p className="text-xs-plus text-[var(--muted-foreground)] font-mono-data">support@proctora.com</p>
         </div>
       </div>
     </div>

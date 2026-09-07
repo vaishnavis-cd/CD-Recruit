@@ -494,15 +494,15 @@ export function ContextSimulationWorkspace({
       <div className="flex-1 flex overflow-hidden">
         {/* ─── LEFT COLUMN: FILE EXPLORER ─── */}
         <aside className="w-60 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col shrink-0 select-none">
-          <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] border-b border-[var(--border)] flex items-center justify-between">
+          <div className="px-3 py-2 text-xs-plus font-bold uppercase tracking-wider text-[var(--muted-foreground)] border-b border-[var(--border)] flex items-center justify-between">
             <span>Explorer</span>
-            <span className="text-[10px] text-[var(--accent)] font-mono">{Object.keys(fileContents).length} files</span>
+            <span className="text-2xs text-[var(--accent)] font-mono">{Object.keys(fileContents).length} files</span>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2 px-1 text-xs">
             {/* Target Fixable Workspace File */}
             <div className="mb-2">
-              <div className="px-2 py-1 text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider flex items-center gap-1">
+              <div className="px-2 py-1 text-2xs font-bold text-[var(--muted-foreground)] uppercase tracking-wider flex items-center gap-1">
                 <FolderOpen className="w-3 h-3 text-[var(--accent)]" />
                 <span>Editable Target</span>
               </div>
@@ -520,7 +520,7 @@ export function ContextSimulationWorkspace({
                 </div>
                 <div className="flex items-center gap-1">
                   {isModified && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />}
-                  <span className="text-[9px] px-1 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-mono">
+                  <span className="text-2xs px-1 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-mono">
                     FIX
                   </span>
                 </div>
@@ -529,7 +529,7 @@ export function ContextSimulationWorkspace({
 
             {/* Readonly Project Repository Files */}
             <div>
-              <div className="px-2 py-1 text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider flex items-center gap-1">
+              <div className="px-2 py-1 text-2xs font-bold text-[var(--muted-foreground)] uppercase tracking-wider flex items-center gap-1">
                 <Folder className="w-3 h-3 text-[var(--muted-foreground)]" />
                 <span>Repository Files</span>
               </div>
@@ -548,7 +548,7 @@ export function ContextSimulationWorkspace({
                       <FileText className="w-3.5 h-3.5 text-[var(--muted-foreground)] shrink-0" />
                       <span className="truncate font-mono">{filepath}</span>
                     </div>
-                    <span className="text-[9px] px-1 rounded bg-[var(--surface)] text-[var(--muted-foreground)] border border-[var(--border)] font-mono">
+                    <span className="text-2xs px-1 rounded bg-[var(--surface)] text-[var(--muted-foreground)] border border-[var(--border)] font-mono">
                       LOCK
                     </span>
                   </button>
@@ -596,7 +596,7 @@ export function ContextSimulationWorkspace({
           {/* Monaco Code Editor Area */}
           <div className="flex-1 relative overflow-hidden bg-[var(--background)]">
             {!isCurrentFileEditable && (
-              <div className="absolute top-2 right-4 z-10 bg-[var(--surface)]/90 backdrop-blur px-2.5 py-1 rounded text-[11px] font-mono text-[var(--muted-foreground)] border border-[var(--border)] flex items-center gap-1.5 shadow-xs">
+              <div className="absolute top-2 right-4 z-10 bg-[var(--surface)]/90 backdrop-blur px-2.5 py-1 rounded text-xs-plus font-mono text-[var(--muted-foreground)] border border-[var(--border)] flex items-center gap-1.5 shadow-xs">
                 <Eye className="w-3.5 h-3.5" />
                 <span>Read-only reference file</span>
               </div>
@@ -641,7 +641,7 @@ export function ContextSimulationWorkspace({
                   <Terminal className="w-3.5 h-3.5" />
                   <span>Diagnostics</span>
                   {testResults && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--background)] text-[var(--foreground)]">
+                    <span className="text-2xs px-1.5 py-0.2 rounded-full bg-[var(--background)] text-[var(--foreground)]">
                       {testResults.filter(r => r.passed).length}/{testResults.length}
                     </span>
                   )}
@@ -660,7 +660,7 @@ export function ContextSimulationWorkspace({
                 </button>
               </div>
 
-              <span className="text-[11px] text-[var(--muted-foreground)] font-mono hidden sm:inline">
+              <span className="text-xs-plus text-[var(--muted-foreground)] font-mono hidden sm:inline">
                 Run Tests to verify your fix
               </span>
             </div>
@@ -695,7 +695,7 @@ export function ContextSimulationWorkspace({
                             {tr.passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                             <span className="font-bold">{tr.label}</span>
                           </div>
-                          <span className="text-[11px]">
+                          <span className="text-xs-plus">
                             {tr.passed ? 'PASSED' : `Expected: ${tr.expected} | Got: ${tr.actual}`}
                           </span>
                         </div>
@@ -758,10 +758,10 @@ export function ContextSimulationWorkspace({
                 <div className="space-y-4">
                   <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30">
+                      <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30">
                         {scenario.jiraTicket?.ticketId || 'INCIDENT-101'}
                       </span>
-                      <span className="text-[10px] font-bold text-amber-500 uppercase">High Priority</span>
+                      <span className="text-2xs font-bold text-amber-500 uppercase">High Priority</span>
                     </div>
                     <h3 className="font-bold text-sm text-[var(--foreground)]">{scenario.title}</h3>
                     <p className="text-[var(--muted-foreground)] leading-relaxed">{scenario.description}</p>
@@ -769,8 +769,8 @@ export function ContextSimulationWorkspace({
 
                   {incidentSayText && (
                     <div className="p-3 rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/20 space-y-1.5">
-                      <div className="text-[11px] font-bold text-[var(--accent)] uppercase font-mono">Your Initial Plan</div>
-                      <p className="text-[var(--foreground)] font-mono text-[11px] leading-relaxed">{incidentSayText}</p>
+                      <div className="text-xs-plus font-bold text-[var(--accent)] uppercase font-mono">Your Initial Plan</div>
+                      <p className="text-[var(--foreground)] font-mono text-xs-plus leading-relaxed">{incidentSayText}</p>
                     </div>
                   )}
                 </div>
@@ -783,7 +783,7 @@ export function ContextSimulationWorkspace({
                       <MessageSquare className="w-4 h-4 text-[var(--accent)]" />
                       <span>#war-room-incident-response</span>
                     </div>
-                    <div className="space-y-2 text-[11px] pt-1 text-[var(--muted-foreground)]">
+                    <div className="space-y-2 text-xs-plus pt-1 text-[var(--muted-foreground)]">
                       <div><strong className="text-[var(--foreground)]">Sarah Jenkins (QA):</strong> "Regression failure: username with leading space ' user' was accepted by validator."</div>
                       <div><strong className="text-[var(--foreground)]">Alex Rivera (Lead):</strong> "Please check <code className="font-mono text-[var(--accent)]">{defaultFile}</code> and verify boundary validation."</div>
                     </div>
@@ -797,9 +797,9 @@ export function ContextSimulationWorkspace({
                     <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
                       <div>
                         <div className="font-bold text-[var(--foreground)]">{scenario.managerEmail?.fromName || 'Rahul Sharma'}</div>
-                        <div className="text-[10px] text-[var(--muted-foreground)]">{scenario.managerEmail?.fromRole || 'Engineering Manager'}</div>
+                        <div className="text-2xs text-[var(--muted-foreground)]">{scenario.managerEmail?.fromRole || 'Engineering Manager'}</div>
                       </div>
-                      <span className="text-[10px] font-mono text-[var(--muted-foreground)]">High Priority</span>
+                      <span className="text-2xs font-mono text-[var(--muted-foreground)]">High Priority</span>
                     </div>
                     <div className="text-xs font-bold text-[var(--foreground)]">{scenario.managerEmail?.subject || 'Status update needed for stakeholders'}</div>
                     <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
@@ -852,7 +852,7 @@ export function ContextSimulationWorkspace({
                 ×
               </button>
             </div>
-            <p className="text-[11px] text-[var(--muted-foreground)] line-clamp-2">
+            <p className="text-xs-plus text-[var(--muted-foreground)] line-clamp-2">
               {scenario.managerEmail?.subject || 'Status update needed for stakeholders'}
             </p>
             <button
@@ -861,7 +861,7 @@ export function ContextSimulationWorkspace({
                 setContextTab('email');
                 setShowEmailToast(false);
               }}
-              className="text-[11px] font-bold text-[var(--accent)] hover:underline pt-1 inline-block cursor-pointer"
+              className="text-xs-plus font-bold text-[var(--accent)] hover:underline pt-1 inline-block cursor-pointer"
             >
               Open Email &amp; Reply →
             </button>
@@ -929,7 +929,7 @@ export function ContextSimulationWorkspace({
                     <Users className="w-4 h-4 text-[var(--accent)]" />
                     <span>Peer Review &amp; Staging</span>
                   </div>
-                  <p className="text-[10px] text-[var(--muted-foreground)] leading-snug">
+                  <p className="text-2xs text-[var(--muted-foreground)] leading-snug">
                     Request Tech Lead review before production rollout. (Prudent)
                   </p>
                 </button>
@@ -947,7 +947,7 @@ export function ContextSimulationWorkspace({
                     <Rocket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Direct Hotfix to Prod</span>
                   </div>
-                  <p className="text-[10px] text-[var(--muted-foreground)] leading-snug">
+                  <p className="text-2xs text-[var(--muted-foreground)] leading-snug">
                     Deploy patch directly to production immediately. (High Confidence)
                   </p>
                 </button>

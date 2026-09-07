@@ -1,17 +1,55 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SubmitTestScenarioDto } from "./dto/test-scenarios.dto";
-import { SessionStatus, ModuleType } from "@cd-recruit/shared-types";
+import { SessionStatus, ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { AiEvaluationService } from "../integrations/ai/ai-evaluation.service";
+import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
 
 @Injectable()
-export class TestScenariosService {
+export class TestScenariosService implements AssessmentModuleEngine, OnModuleInit {
+  readonly moduleType = ModuleType.TEST_SCENARIOS;
   private readonly logger = new Logger(TestScenariosService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiEvaluation: AiEvaluationService,
+    @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
   ) {}
+
+  onModuleInit() {
+    this.engineRegistry?.registerEngine(this);
+  }
+
+  async validateSubmission(submission: any): Promise<boolean> {
+    return !!(submission && (submission.answer || submission.text || submission.response));
+  }
+
+  async evaluateSubmission(
+    sessionId: string,
+    questionId: string,
+    submission: any,
+  ): Promise<ModuleEvaluationResult> {
+    const answer = submission.answer || submission.text || submission.response || "";
+    const result = await this.submit({
+      sessionId,
+      questionId,
+      answer,
+      timeSpentSeconds: submission.timeSpentSeconds,
+    });
+
+    const score =
+      result.evaluation?.overallScore !== undefined && result.evaluation?.overallScore !== null
+        ? Math.max(0.0, Math.min(1.0, result.evaluation.overallScore / 100))
+        : 0.0;
+
+    return {
+      status: ExecutionStatus.COMPLETED,
+      score,
+      scoreDetail: result.evaluation || {},
+      evaluatedAt: new Date(),
+    };
+  }
 
   async submit(dto: SubmitTestScenarioDto) {
     const { sessionId, questionId, answer, timeSpentSeconds } = dto;

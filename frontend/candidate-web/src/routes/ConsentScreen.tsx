@@ -6,6 +6,7 @@ import { ConsentIdProofStep } from './consent/ConsentIdProofStep';
 import { ConsentLivenessStep } from './consent/ConsentLivenessStep';
 import { ConsentSelfieStep } from './consent/ConsentSelfieStep';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { FaceDetectionService } from '../proctoring/face-detection.service';
 
 const CONSENT_VERSION = '1.0.0';
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
@@ -46,6 +47,11 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
   const session = useSessionStore(s => s.session);
   const sessionId = session?.id ?? null;
   const [complianceHalt] = useState(false);
+
+  React.useEffect(() => {
+    // Preload FaceDetectionService model in background during consent flow
+    FaceDetectionService.getInstance().loadModel().catch(() => {});
+  }, []);
 
   const currentStepIndex = STEPS.findIndex(s => s.key === step);
   const currentStepMeta = STEPS[currentStepIndex] || STEPS[0];
@@ -155,7 +161,7 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
         </div>
 
         {/* Title & Subtitle */}
-        <h1 id="consent-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">
+        <h1 id="consent-heading" className="text-3xl-plus font-semibold tracking-tight text-[var(--foreground)]">
           {currentStepMeta.title}
         </h1>
         {currentStepMeta.subtitle && (

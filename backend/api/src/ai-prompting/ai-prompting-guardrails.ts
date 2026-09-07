@@ -303,8 +303,7 @@ export function validatePromptGuardrails(
       for (const kwWord of kwWords) {
         const isMatch = promptCleanWords.some(pWord => 
           pWord === kwWord ||
-          (kwWord.length >= 4 && pWord.startsWith(kwWord.substring(0, kwWord.length - 2))) ||
-          (pWord.length >= 4 && kwWord.startsWith(pWord.substring(0, pWord.length - 2)))
+          (kwWord.length >= 5 && pWord.length >= 5 && pWord.slice(0, 4) === kwWord.slice(0, 4))
         );
         if (isMatch) {
           keywordMatches++;

@@ -39,13 +39,15 @@ export class CandidateController {
     @Body() dto: RecordConsentDto,
     @Req() req: Request,
   ): Promise<{ ok: boolean; id: string; consentedAt: string }> {
-    const ipAddress =
+    const rawIp =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
       req.socket.remoteAddress ||
       "unknown";
+    const ipAddress = rawIp.replace(/[^a-zA-Z0-9.:]/g, "").slice(0, 45) || "unknown";
 
+    const targetSessionId = sessionId || dto.sessionId;
     const result = await this.candidateService.recordConsent(
-      sessionId,
+      targetSessionId,
       dto.consentType,
       dto.version,
       ipAddress,

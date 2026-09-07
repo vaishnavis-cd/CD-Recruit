@@ -19,9 +19,11 @@ import type { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../common/guards/roles.guard";
+import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { Roles } from "../common/decorators/roles.decorator";
+import { RequirePermission } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
-import { StaffRole } from "@cd-recruit/shared-types";
+import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { AdminService } from "./admin.service";
 import { InviteService } from "./invite.service";
 import { DashboardService } from "./dashboard.service";
@@ -36,8 +38,14 @@ import {
 } from "../common/dto/admin.dto";
 
 @Controller("admin")
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(StaffRole.RECRUITER, StaffRole.ADMIN)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles(
+  StaffRole.ADMIN,
+  StaffRole.HR_LEAD,
+  StaffRole.HR_ASSOCIATE,
+  StaffRole.REVIEWER,
+  StaffRole.RECRUITER,
+)
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
@@ -107,6 +115,7 @@ export class AdminController {
 
   @Post("sessions/:sessionId/decision")
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission(Permission.DECISION_SUBMIT)
   async recordDecision(
     @Param("sessionId") sessionId: string,
     @Body() dto: RecordDecisionDto,
@@ -208,6 +217,7 @@ export class AdminController {
 
   @Post("candidates/verify-identity/bulk")
   @HttpCode(HttpStatus.OK)
+  @RequirePermission(Permission.IDENTITY_VERIFICATION_APPROVE)
   async bulkVerifyCandidateIdentity(
     @Body() dto: BulkVerifyIdentityDto,
     @CurrentUser() staff: any,
@@ -217,6 +227,7 @@ export class AdminController {
 
   @Post("candidates/:candidateId/verify-identity")
   @HttpCode(HttpStatus.OK)
+  @RequirePermission(Permission.IDENTITY_VERIFICATION_APPROVE)
   async verifyCandidateIdentity(
     @Param("candidateId", ParseUUIDPipe) candidateId: string,
     @CurrentUser() staff: any,

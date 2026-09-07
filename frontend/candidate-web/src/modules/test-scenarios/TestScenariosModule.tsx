@@ -257,19 +257,17 @@ export function TestScenariosModule({ moduleIndex }: TestScenariosModuleProps) {
               )}
             </div>
 
-            {/* Right Column: Candidate Structured Workspace */}
+            {/* Right Column: Candidate Solution Input */}
             <div className="lg:col-span-7 bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-sm flex flex-col justify-between">
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-indigo-600" />
                     <span>Your Proposed Solution &amp; Action Plan</span>
-                    <span className="text-xs font-normal text-slate-400 font-mono">({wordCount} words)</span>
-                  </label>
-                  {saveSuccess && (
-                    <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                      <CheckCircle className="w-3.5 h-3.5" /> Draft Saved
-                    </span>
-                  )}
+                  </h2>
+                  <span className="text-xs text-slate-500 font-mono">
+                    {responseText.trim().split(/\s+/).filter(Boolean).length} words
+                  </span>
                 </div>
 
                 <textarea

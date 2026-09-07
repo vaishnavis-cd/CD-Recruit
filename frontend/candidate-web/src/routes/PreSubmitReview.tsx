@@ -64,32 +64,28 @@ export function PreSubmitReview() {
   const { sessionId } = screen;
   const activeModules = deriveModules(assessment.questions);
 
-  function isAnswered(id: string, modType?: string): boolean {
+  function isAnswered(id: string): boolean {
     const status = assessment!.questionStatus[id];
     if (status === 'answered') return true;
     const resp = assessment!.responses[id];
     if (resp !== undefined && resp !== null && resp !== '' && JSON.stringify(resp) !== '{}') {
       return true;
     }
-    if (modType === 'SIMULATION' || modType === 'CONTEXTUAL') {
-      const simKeys = Object.keys(assessment!.responses);
-      if (simKeys.length > 0 || (status as string) === 'answered') return true;
-    }
     return false;
   }
 
   function countStatus(mod: DynamicModuleSummary, status: QuestionStatus): number {
     if (status === 'answered') {
-      return mod.questionIds.filter(id => isAnswered(id, mod.moduleType)).length;
+      return mod.questionIds.filter(id => isAnswered(id)).length;
     }
     if (status === 'flagged') {
-      return mod.questionIds.filter(id => !isAnswered(id, mod.moduleType) && assessment!.questionStatus[id] === 'flagged').length;
+      return mod.questionIds.filter(id => !isAnswered(id) && assessment!.questionStatus[id] === 'flagged').length;
     }
     return mod.questionIds.filter(id => (assessment!.questionStatus[id] ?? 'unvisited') === status).length;
   }
 
   function countUnanswered(mod: DynamicModuleSummary): number {
-    return mod.questionIds.filter(id => !isAnswered(id, mod.moduleType) && assessment!.questionStatus[id] !== 'flagged').length;
+    return mod.questionIds.filter(id => !isAnswered(id) && assessment!.questionStatus[id] !== 'flagged').length;
   }
 
   function handleSubmit() {
@@ -109,7 +105,7 @@ export function PreSubmitReview() {
       <div className="w-full max-w-2xl animate-cd-fade-in">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 id="review-heading" className="text-[32px] font-semibold tracking-tight text-[var(--foreground)]">
+            <h1 id="review-heading" className="text-4xl font-semibold tracking-tight text-[var(--foreground)]">
               Review assessment
             </h1>
             <p className="text-sm mt-1 text-[var(--muted-foreground)]">

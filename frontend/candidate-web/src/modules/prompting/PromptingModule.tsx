@@ -222,7 +222,7 @@ export function PromptingModule({ moduleIndex }: PromptingModuleProps) {
                 <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
                 <span>Iterate freely on your prompt. <strong>Only your final active prompt &amp; generated output submission</strong> will be evaluated by the grading engine.</span>
               </div>
-              <span className="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-[10px] font-mono font-semibold">
+              <span className="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-2xs font-mono font-semibold">
                 Task Scoped AI Sandbox
               </span>
             </div>

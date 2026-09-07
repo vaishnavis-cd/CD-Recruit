@@ -13,7 +13,7 @@ export interface UserProfile {
   email: string;
   name: string;
   username: string;
-  role: "ADMIN" | "RECRUITER";
+  role: "ADMIN" | "HR_LEAD" | "HR_ASSOCIATE" | "REVIEWER" | "RECRUITER";
 }
 
 const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:8080";
@@ -38,22 +38,12 @@ export async function loginWithKeycloak(email: string, pw: string): Promise<Keyc
   });
 
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    let errorMessage = errorData.error_description || errorData.error || "Authentication failed. Check your credentials.";
-    if (errorMessage.toLowerCase().includes("invalid user credentials")) {
-      errorMessage = "Invalid credentials for cd-recruit realm. Please use admin@cdrecruit.local and password.";
-    }
-    throw new Error(errorMessage);
+    const errText = await res.text();
+    throw new Error(`Login failed: ${res.status} ${errText}`);
   }
 
   const data: KeycloakTokenResponse = await res.json();
-  if (data.access_token) {
-    localStorage.setItem("admin_token", data.access_token);
-    if (data.refresh_token) {
-      localStorage.setItem("admin_refresh_token", data.refresh_token);
-    }
-  }
-
+  setStoredToken(data.access_token);
   return data;
 }
 
@@ -64,11 +54,14 @@ export function getStoredToken(): string | null {
   const payload = parseJwtPayload(token);
   if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
     console.warn("[Auth] Stored admin_token has expired. Clearing token.");
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_refresh_token");
+    clearStoredToken();
     return null;
   }
   return token;
+}
+
+function setStoredToken(token: string) {
+  localStorage.setItem("admin_token", token);
 }
 
 export function clearStoredToken(): void {

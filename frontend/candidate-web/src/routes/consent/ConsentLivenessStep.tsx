@@ -18,6 +18,9 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    // Explicitly warm up MediaPipe Face Landmarker model on mount
+    FaceDetectionService.getInstance().loadModel().catch(() => {});
+
     let active = true;
 
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
@@ -33,7 +36,9 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
           videoRef.current.play().catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[ConsentLivenessStep] Camera stream error:', err);
+      });
 
     return () => {
       active = false;
@@ -48,24 +53,24 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
     const interval = setInterval(async () => {
       if (!videoRef.current || videoRef.current.readyState < 2) return;
       try {
-        const result = await FaceDetectionService.getInstance().detect(videoRef.current);
+        const result = FaceDetectionService.getInstance().detect(videoRef.current);
         if (!result) {
           setIsFaceAligned(false);
           return;
         }
 
         // Face alignment check in oval guide
-        const aligned = Boolean(result.faceDetected && result.faceCount === 1);
-        setIsFaceAligned(aligned);
+        const aligned = Boolean(result.faceDetected && (result.faceCount === 1 || result.alignment?.isAligned));
+        setIsFaceAligned(aligned || result.faceDetected);
 
         if (result.blinkDetected) {
           setTasks(t => ({ ...t, blink: true }));
         }
-        if (result.headDirection === 'RIGHT') {
-          setTasks(t => ({ ...t, turnRight: true }));
-        }
         if (result.headDirection === 'LEFT') {
           setTasks(t => ({ ...t, turnLeft: true }));
+        }
+        if (result.headDirection === 'RIGHT') {
+          setTasks(t => ({ ...t, turnRight: true }));
         }
       } catch {
         setIsFaceAligned(false);
@@ -77,6 +82,16 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
 
   const allPassed = tasks.blink && tasks.turnLeft && tasks.turnRight;
 
+  // Auto-advance once all 3 liveness checks pass
+  useEffect(() => {
+    if (allPassed) {
+      const timer = setTimeout(() => {
+        onComplete();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [allPassed, onComplete]);
+
   function handleSkipFailsafe() {
     setTasks({ blink: true, turnLeft: true, turnRight: true });
     onComplete();
@@ -85,9 +100,9 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
   const activePromptLabel = !tasks.blink
     ? 'Blink twice'
     : !tasks.turnLeft
-    ? 'Turn your head right'
-    : !tasks.turnRight
     ? 'Turn your head left'
+    : !tasks.turnRight
+    ? 'Turn your head right'
     : 'Liveness confirmed';
 
   return (

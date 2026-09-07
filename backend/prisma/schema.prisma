@@ -39,7 +39,6 @@ enum ModuleType {
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
-  NOSQL
 }
 
 enum SessionStatus {
@@ -58,8 +57,11 @@ enum CvMode {
 }
 
 enum StaffRole {
-  RECRUITER
   ADMIN
+  HR_LEAD
+  HR_ASSOCIATE
+  REVIEWER
+  RECRUITER
 }
 
 enum DecisionType {
@@ -122,6 +124,11 @@ enum ConsentType {
   BIOMETRIC
   SELFIE
   AUDIO
+}
+
+enum CandidateCategory {
+  FRESHER
+  EXPERIENCED
 }
 
 model RoleTemplate {
@@ -304,6 +311,7 @@ model Session {
   workspaceStatus   String?   @default("provisioning") @map("workspace_status")
   simulationSnapshot Json?    @map("simulation_snapshot")
   originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
+  referenceId       String?   @unique @map("reference_id")
 
   organization Organization? @relation(fields: [organizationId], references: [id])
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
@@ -321,32 +329,16 @@ model Session {
   sqlExecutions     SQLExecution[]
   identityCaptures  IdentityCapture[]
 
+  @@index([referenceId])
   @@index([candidateId])
+  @@index([driveId])
   @@index([status])
+  @@index([startedAt])
+  @@index([submittedAt])
   @@index([deadlineAt])
   @@index([lastHeartbeatAt])
   @@map("session")
 }
-
-model IdentityCapture {
-  id          String    @id @default(uuid())
-  sessionId   String    @map("session_id")
-  windowIndex Int       @map("window_index")      // 0, 1, 2 — which of the 3 windows this belongs to
-  scheduledAt DateTime  @map("scheduled_at")
-  capturedAt  DateTime? @map("captured_at")
-  status      String    @default("PENDING")        // PENDING, CAPTURED, MISSED, SESSION_CLOSED
-  imageRef    String?   @map("image_ref")           // MinIO object key
-  matched     Boolean?
-  distance    Float?
-  threshold   Float?
-
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@index([status])
-  @@map("identity_capture")
-}
-
 
 model ModuleResponse {
   id                String   @id @default(uuid())
@@ -364,6 +356,8 @@ model ModuleResponse {
   question Question @relation(fields: [questionId], references: [id])
 
   @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
   @@map("module_response")
 }
 
@@ -380,6 +374,8 @@ model EventLog {
 
   session Session @relation(fields: [sessionId], references: [id])
 
+  @@index([sessionId])
+  @@index([eventType])
   @@map("event_log")
 }
 
@@ -398,6 +394,9 @@ model IntegrityFlag {
   session      Session       @relation(fields: [sessionId], references: [id])
   evidenceClip EvidenceClip?
 
+  @@index([sessionId])
+  @@index([category])
+  @@index([severity])
   @@map("integrity_flag")
 }
 
@@ -429,6 +428,9 @@ model Score {
 
   session Session @relation(fields: [sessionId], references: [id])
 
+  @@index([sessionId])
+  @@index([compositeScore])
+  @@index([aiConfidence])
   @@map("score")
 }
 
@@ -486,9 +488,9 @@ model Invite {
   originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
   idProofRef        String?      @map("id_proof_ref")
   idProofEmbedding  Json?        @map("id_proof_embedding")
-  idProofUploadedAt DateTime?    @map("id_proof_uploaded_at")
-  category          String?      @map("category")
-  experienceTier    String?      @map("experience_tier")
+  idProofUploadedAt DateTime?          @map("id_proof_uploaded_at")
+  category          CandidateCategory? @map("category")
+  experienceTier    String?            @map("experience_tier")
 
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   createdBy    Staff        @relation(fields: [createdById], references: [id])

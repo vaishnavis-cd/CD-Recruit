@@ -6,10 +6,11 @@
     "frontend/candidate-web",
     "frontend/admin-web",
     "backend/api",
-    "packages/shared-types"
+    "packages/shared-types",
+    "packages/design-tokens"
   ],
   "scripts": {
-    "build:shared": "npm --workspace=packages/shared-types run build",
+    "build:shared": "npm --workspace=packages/shared-types run build && npm --workspace=packages/design-tokens run build",
     "prepare": "npm run build:shared",
     "postinstall": "npm run build:shared",
     "infra:up": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml up -d",
@@ -21,9 +22,8 @@
     "dev:api": "npm run build:shared && npm --workspace=backend/api run start:dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
-    "test:unit": "jest",
-    "test:api": "mocha ./tests/api/**/*.test.js",
-    "test:load": "k6 run ./tests/load/judge0_load_test.js",
+    "test:unit": "npm --workspace=backend/api run test",
+    "test:load": "k6 run ./k6/scripts/judge0_load_test.js",
     "test:all": "npm-run-all --parallel test:unit test:api test:load",
     "db:generate": "npm --workspace=backend/api run prisma:generate",
     "db:migrate": "npm --workspace=backend/api run prisma:migrate",

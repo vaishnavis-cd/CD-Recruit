@@ -27,8 +27,9 @@ const LEGAL_TRANSITIONS: Set<TransitionKey> = new Set([
   'resolving->too-early',
   'resolving->expired',
   'resolving->system-check',
-  'resolving->waiting-room',
+  'resolving->consent',
   'resolving->tutorial',
+  'resolving->waiting-room',
   'resolving->session-conflict',
   'resolving->assessment', // resuming existing session
   'resolving->pre-submit-review', // resuming at review stage
@@ -133,6 +134,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!LEGAL_TRANSITIONS.has(key)) {
       console.warn(`[SessionMachine] Illegal transition: ${key}. Ignoring.`);
       return;
+    }
+    if (next.type === 'consent' || next.type === 'tutorial' || next.type === 'waiting-room' || next.type === 'system-check') {
+      try {
+        localStorage.setItem('cd-recruit-onboarding-step', JSON.stringify(next));
+      } catch {}
+    } else if (next.type === 'assessment' || next.type === 'done' || next.type === 'expired') {
+      localStorage.removeItem('cd-recruit-onboarding-step');
     }
     set({ screen: next });
   },

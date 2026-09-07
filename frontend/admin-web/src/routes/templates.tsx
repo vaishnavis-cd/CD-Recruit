@@ -69,7 +69,7 @@ const TIERS = [
   { value: "0-1", label: "0-1 yrs (Fresher)", category: "FRESHER" },
   { value: "2-5", label: "2-5 yrs (Level 1)", category: "EXPERIENCED" },
   { value: "6-10", label: "6-10 yrs (Level 2)", category: "EXPERIENCED" },
-  { value: "11-15", label: "11-15 yrs (Level 3)", category: "EXPERIENCED" },
+  { value: "11-15", label: "11+ yrs (Level 3)", category: "EXPERIENCED" },
 ] as const;
 
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -106,7 +106,7 @@ export function RoleTemplatesPage() {
   const [department, setDepartment] = useState<string>("SOFTWARE_ENGINEERING");
   const [category, setCategory] = useState<string>("EXPERIENCED");
   const [experienceTier, setExperienceTier] = useState<string>("2-5");
-  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [durationMinutes, setDurationMinutes] = useState(90);
   const [isActive, setIsActive] = useState(true);
   const [weightingPreset, setWeightingPreset] = useState({
     MCQ: 20,
@@ -274,7 +274,7 @@ export function RoleTemplatesPage() {
     setDepartment("SOFTWARE_ENGINEERING");
     setCategory("EXPERIENCED");
     setExperienceTier("2-5");
-    setDurationMinutes(60);
+    setDurationMinutes(90);
     setIsActive(true);
     setWeightingPreset({
       MCQ: 20,
@@ -300,7 +300,7 @@ export function RoleTemplatesPage() {
     const tCategory = tpl.category || (tpl.level === "FRESHER" ? "FRESHER" : "EXPERIENCED");
     setCategory(tCategory);
     setExperienceTier(tpl.experienceTier || (tCategory === "FRESHER" ? "0-1" : "2-5"));
-    setDurationMinutes(tpl.durationMinutes || 60);
+    setDurationMinutes(Math.max(90, tpl.durationMinutes || 90));
     setIsActive(tpl.isActive ?? true);
 
     const preset =
@@ -342,6 +342,11 @@ export function RoleTemplatesPage() {
       return;
     }
 
+    if (Number(durationMinutes) < 90) {
+      toast.error("Assessment duration must be at least 90 minutes for standardized evaluation.");
+      return;
+    }
+
     setSaving(true);
     const questionPayload = Object.entries(selectedQuestionsMap).map(([qId, val], idx) => {
       const foundQ = questionsBank.find((q) => q.id === qId);
@@ -363,7 +368,7 @@ export function RoleTemplatesPage() {
         const base = Math.floor(100 / presetEntries.length);
         const rem = 100 - base * presetEntries.length;
         presetEntries.forEach(([k], idx) => {
-          cleanPreset[k] = base + (idx === 0 ? rem : 0);
+          (cleanPreset as Record<string, number>)[k] = base + (idx === 0 ? rem : 0);
         });
       }
     }
@@ -374,7 +379,7 @@ export function RoleTemplatesPage() {
       category,
       experienceTier: category === "FRESHER" ? "0-1" : experienceTier,
       level: category === "FRESHER" ? "FRESHER" : "EXPERIENCED",
-      durationMinutes: Number(durationMinutes) || 90,
+      durationMinutes: Math.max(90, Number(durationMinutes) || 90),
       isActive,
       weightingPreset: cleanPreset,
       questions: questionPayload,
@@ -613,7 +618,7 @@ export function RoleTemplatesPage() {
       actions={
         <button
           onClick={handleOpenCreate}
-          className="px-3.5 py-2 bg-[#2F5CFF] hover:bg-[#254EDB] text-white text-[12px] font-medium rounded-md flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
+          className="px-3.5 py-2 bg-brand hover:bg-brand-hover text-white text-xs font-medium rounded-md flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
         >
           <Plus size={14} />
           <span>New Role Template</span>
@@ -622,25 +627,25 @@ export function RoleTemplatesPage() {
     >
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Controls / Filter Bar */}
-        <div className="bg-white p-4 rounded-xl border border-[#E6E6EA] shadow-xs space-y-3">
+        <div className="bg-white p-4 rounded-xl border border-line shadow-xs space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Search Input */}
             <div className="relative min-w-[260px] flex-1 max-w-md">
               <Search
                 size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B8B93]"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary"
               />
               <input
                 type="text"
                 placeholder="Search templates by role name or department..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-[#F7F7F9] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] transition-all placeholder:text-[#8B8B93] text-[#0B0B0D]"
+                className="w-full pl-9 pr-8 py-2 text-xs border border-line rounded-lg bg-canvas focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all placeholder:text-ink-tertiary text-ink"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B8B93] hover:text-[#0B0B0D]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink"
                 >
                   <X size={14} />
                 </button>
@@ -651,13 +656,13 @@ export function RoleTemplatesPage() {
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Version Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] uppercase tracking-wider">
+                <span className="text-xs-plus font-semibold text-ink-secondary uppercase tracking-wider">
                   Version:
                 </span>
                 <select
                   value={versionFilter}
                   onChange={(e) => setVersionFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-[#E6E6EA] rounded-lg bg-white text-[#0B0B0D] focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] cursor-pointer"
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
                 >
                   <option value="latest">Latest Versions</option>
                   <option value="all">All Versions</option>
@@ -672,13 +677,13 @@ export function RoleTemplatesPage() {
 
               {/* Department Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] tracking-wider">
+                <span className="text-xs-plus font-semibold text-ink-secondary tracking-wider">
                   Department:
                 </span>
                 <select
                   value={deptFilter}
                   onChange={(e) => setDeptFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-[#E6E6EA] rounded-lg bg-white text-[#0B0B0D] focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] cursor-pointer"
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
                 >
                   <option value="all">All Departments</option>
                   {DEPARTMENTS.map((d) => (
@@ -692,13 +697,13 @@ export function RoleTemplatesPage() {
 
               {/* Category Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] tracking-wider">
+                <span className="text-xs-plus font-semibold text-ink-secondary tracking-wider">
                   Category:
                 </span>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-[#E6E6EA] rounded-lg bg-white text-[#0B0B0D] focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] cursor-pointer"
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
                 >
                   <option value="all">All Categories</option>
                   {CATEGORIES.map((c) => (
@@ -711,13 +716,13 @@ export function RoleTemplatesPage() {
 
               {/* Tier Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#5B5B64] tracking-wider">
+                <span className="text-xs-plus font-semibold text-ink-secondary tracking-wider">
                   Tier:
                 </span>
                 <select
                   value={tierFilter}
                   onChange={(e) => setTierFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-[#E6E6EA] rounded-lg bg-white text-[#0B0B0D] focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] cursor-pointer"
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
                 >
                   <option value="all">All Tiers</option>
                   {TIERS.map((tier) => (
@@ -729,12 +734,12 @@ export function RoleTemplatesPage() {
               </div>
 
               {/* Active Toggle */}
-              <label className="flex items-center gap-2 text-xs font-semibold text-[#5B5B64] cursor-pointer select-none bg-[#F7F7F9] px-3 py-1.5 rounded-lg border border-[#E6E6EA] hover:bg-slate-100 transition-colors">
+              <label className="flex items-center gap-2 text-xs font-semibold text-ink-secondary cursor-pointer select-none bg-canvas px-3 py-1.5 rounded-lg border border-line hover:bg-slate-100 transition-colors">
                 <input
                   type="checkbox"
                   checked={activeOnlyFilter}
                   onChange={(e) => setActiveOnlyFilter(e.target.checked)}
-                  className="rounded text-[#2F5CFF] focus:ring-0 cursor-pointer h-3.5 w-3.5"
+                  className="rounded text-brand focus:ring-0 cursor-pointer h-3.5 w-3.5"
                 />
                 <span>Active only</span>
               </label>
@@ -743,7 +748,7 @@ export function RoleTemplatesPage() {
               {hasActiveFilters && (
                 <button
                   onClick={resetFilters}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-[#F7F7F9] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 text-xs font-semibold text-ink-secondary hover:text-ink hover:bg-canvas rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
                   title="Reset all filters"
                 >
                   <RotateCcw size={12} />
@@ -756,17 +761,17 @@ export function RoleTemplatesPage() {
 
         {/* Templates Grid */}
         {loading ? (
-          <div className="p-16 text-center text-[#8B8B93] text-sm flex flex-col items-center gap-3">
-            <div className="w-7 h-7 border-2 border-[#2F5CFF] border-t-transparent rounded-full animate-spin"></div>
+          <div className="p-16 text-center text-ink-tertiary text-sm flex flex-col items-center gap-3">
+            <div className="w-7 h-7 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
             <span>Loading role templates...</span>
           </div>
         ) : filteredTemplates.length === 0 ? (
-          <div className="p-16 bg-white rounded-xl border border-[#E6E6EA] text-center space-y-3 shadow-xs">
-            <div className="w-12 h-12 rounded-xl bg-[#F0F4FF] text-[#2F5CFF] flex items-center justify-center mx-auto">
+          <div className="p-16 bg-white rounded-xl border border-line text-center space-y-3 shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-brand-subtle text-brand flex items-center justify-center mx-auto">
               <Layers size={24} />
             </div>
-            <h3 className="text-base font-semibold text-[#0B0B0D]">No Role Templates Found</h3>
-            <p className="text-xs text-[#5B5B64] max-w-sm mx-auto">
+            <h3 className="text-base font-semibold text-ink">No Role Templates Found</h3>
+            <p className="text-xs text-ink-secondary max-w-sm mx-auto">
               {hasActiveFilters
                 ? "No templates match your active filter criteria. Click 'Reset' to view all calibrated templates."
                 : "Create your first role template with department, category, experience tier, duration, and question presets."}
@@ -774,7 +779,7 @@ export function RoleTemplatesPage() {
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="px-4 py-2 bg-[#F7F7F9] hover:bg-[#EFF0F3] text-[#0B0B0D] text-xs font-semibold rounded-lg cursor-pointer"
+                className="px-4 py-2 bg-canvas hover:bg-surface-inset text-ink text-xs font-semibold rounded-lg cursor-pointer transition-colors"
               >
                 Reset Filters
               </button>
@@ -800,24 +805,38 @@ export function RoleTemplatesPage() {
                 <div
                   key={tpl.id}
                   onClick={() => handleOpenEdit(tpl)}
-                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:border-[#2F5CFF] hover:shadow-md ${
+                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:border-brand hover:shadow-md ${
                     tpl.isActive
-                      ? "border-[#C5D7FF] shadow-xs ring-1 ring-[#2F5CFF]/10"
-                      : "border-[#E6E6EA] opacity-90"
+                      ? "border-brand-border shadow-xs ring-1 ring-brand/10"
+                      : "border-line opacity-90"
                   }`}
                 >
-                  <div className="space-y-3.5">
-                    {/* Header: Title, Version, Active Badge, 3-dot Menu */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-[15px] text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={tpl.roleName}>
-                            {tpl.roleName}
-                          </h3>
-                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-[#EAF0FF] text-[#2F5CFF] rounded shrink-0">
-                            v{tpl.version}
-                          </span>
-                        </div>
+                  <div className="space-y-3">
+                    {/* Top Row: Tier Pill & Version Badge + Active Toggle & Menu */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`px-2.5 py-0.5 text-xs-plus font-semibold rounded-full border ${
+                            tpl.experienceTier === "0-1" || tpl.level === "FRESHER"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : tpl.experienceTier === "2-5"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : tpl.experienceTier === "6-10"
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          {tpl.experienceTier === "0-1" || tpl.level === "FRESHER"
+                            ? "Fresher (0–1 yrs)"
+                            : tpl.experienceTier === "2-5"
+                            ? "Level 1 (2–5 yrs)"
+                            : tpl.experienceTier === "6-10"
+                            ? "Level 2 (6–10 yrs)"
+                            : "Level 3 (11+ yrs)"}
+                        </span>
+                        <span className="px-2 py-0.5 text-2xs font-mono font-bold bg-canvas text-ink-secondary rounded-full border border-line">
+                          v{tpl.version || 1}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -830,10 +849,10 @@ export function RoleTemplatesPage() {
                             }
                           }}
                           disabled={tpl.isActive || activatingId === tpl.id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs-plus font-semibold rounded-full transition-all ${
                             tpl.isActive
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                              : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-[#2F5CFF] hover:text-white hover:border-[#2F5CFF] cursor-pointer"
+                              : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-brand hover:text-white hover:border-brand cursor-pointer"
                           }`}
                           title={tpl.isActive ? "This is the active version" : "Click to make this version active"}
                         >
@@ -853,7 +872,7 @@ export function RoleTemplatesPage() {
                               e.stopPropagation();
                               setOpenMenuTemplateId(isMenuOpen ? null : tpl.id);
                             }}
-                            className="p-1 text-[#8B8B93] hover:text-[#0B0B0D] rounded-md hover:bg-[#F7F7F9] transition-colors cursor-pointer"
+                            className="p-1 text-ink-tertiary hover:text-ink rounded-md hover:bg-canvas transition-colors cursor-pointer"
                             title="Template options"
                           >
                             <MoreVertical size={16} />
@@ -862,7 +881,7 @@ export function RoleTemplatesPage() {
                           {isMenuOpen && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E6E6EA] rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
+                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-line rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
                             >
                               {!tpl.isActive && (
                                 <button
@@ -887,9 +906,9 @@ export function RoleTemplatesPage() {
                                   setOpenMenuTemplateId(null);
                                   handleOpenEdit(tpl);
                                 }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-[#0B0B0D] hover:bg-[#F7F7F9] flex items-center gap-2 cursor-pointer font-medium"
+                                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-canvas flex items-center gap-2 cursor-pointer font-medium"
                               >
-                                <Edit3 size={13} className="text-[#2F5CFF]" />
+                                <Edit3 size={13} className="text-brand" />
                                 <span>Edit details & questions</span>
                               </button>
 
@@ -901,15 +920,15 @@ export function RoleTemplatesPage() {
                                   setOpenMenuTemplateId(null);
                                   handlePublishNewVersion(tpl.id);
                                 }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-[#0B0B0D] hover:bg-[#F7F7F9] flex items-center gap-2 cursor-pointer font-medium disabled:opacity-50"
+                                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-canvas flex items-center gap-2 cursor-pointer font-medium disabled:opacity-50"
                               >
-                                <GitFork size={13} className="text-[#2F5CFF]" />
+                                <GitFork size={13} className="text-brand" />
                                 <span>
                                   {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
                                 </span>
                               </button>
 
-                              <div className="my-1 border-t border-[#E6E6EA]" />
+                              <div className="my-1 border-t border-line" />
 
                               <button
                                 type="button"
@@ -929,18 +948,31 @@ export function RoleTemplatesPage() {
                       </div>
                     </div>
 
+                    {/* Middle Row: Full Width Role Title & Department */}
+                    <div className="space-y-1 py-1">
+                      <h3
+                        className="font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2"
+                        title={tpl.roleName}
+                      >
+                        {tpl.roleName}
+                      </h3>
+                      <p className="text-xs text-ink-tertiary font-medium">
+                        {DEPARTMENT_LABELS[tpl.department] || tpl.department || "General"}
+                      </p>
+                    </div>
+
                     {/* Metadata Strip */}
-                    <div className="flex items-center gap-4 text-xs text-[#5B5B64] bg-[#F7F7F9] p-2.5 rounded-xl border border-[#E6E6EA]">
+                    <div className="flex items-center gap-4 text-xs text-ink-secondary bg-canvas p-2.5 rounded-xl border border-line">
                       <div className="flex items-center gap-1.5">
-                        <Clock size={14} className="text-[#8B8B93]" />
-                        <span className="font-semibold text-[#0B0B0D]">
+                        <Clock size={14} className="text-ink-tertiary" />
+                        <span className="font-semibold text-ink">
                           {tpl.durationMinutes || 60} mins
                         </span>
                       </div>
                       <div className="w-1 h-1 rounded-full bg-slate-300"></div>
                       <div className="flex items-center gap-1.5">
-                        <HelpCircle size={14} className="text-[#8B8B93]" />
-                        <span className="font-semibold text-[#0B0B0D]">
+                        <HelpCircle size={14} className="text-ink-tertiary" />
+                        <span className="font-semibold text-ink">
                           {tpl.questions?.length || 0} attached question(s)
                         </span>
                       </div>
@@ -948,9 +980,9 @@ export function RoleTemplatesPage() {
 
                     {/* Simplified Question Module Summary Text */}
                     {distinctMods.length > 0 && (
-                      <div className="text-xs text-[#5B5B64] flex items-center gap-1.5 pt-0.5">
-                        <span className="font-medium text-[#8B8B93]">Modules:</span>
-                        <span className="font-semibold text-[#0B0B0D] truncate">
+                      <div className="text-xs text-ink-secondary flex items-center gap-1.5 pt-0.5">
+                        <span className="font-medium text-ink-tertiary">Modules:</span>
+                        <span className="font-semibold text-ink truncate">
                           {moduleSummary}
                         </span>
                       </div>
@@ -966,22 +998,22 @@ export function RoleTemplatesPage() {
       {/* Authoring & Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-[#E6E6EA] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-line animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between bg-[#F7F7F9]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-canvas">
               <div>
-                <h2 className="text-base font-bold text-[#0B0B0D]">
+                <h2 className="text-base font-bold text-ink">
                   {editingTemplate
                     ? `Edit Role Template (${editingTemplate.roleName})`
                     : "Create New Role Template"}
                 </h2>
-                <p className="text-xs text-[#5B5B64] mt-0.5">
+                <p className="text-xs text-ink-secondary mt-0.5">
                   Configure department specifications, test duration, and attach questions from the Question Bank.
                 </p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-[#8B8B93] hover:text-[#0B0B0D] p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
+                className="text-ink-tertiary hover:text-ink p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -990,13 +1022,13 @@ export function RoleTemplatesPage() {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {/* Form Grid in Distinct Gray Container */}
-              <div className="bg-[#F7F7F9] p-5 rounded-xl border border-[#E6E6EA] shadow-2xs space-y-4">
-                <div className="text-xs font-bold text-[#0B0B0D] uppercase tracking-wider font-mono">
+              <div className="bg-canvas p-5 rounded-xl border border-line shadow-2xs space-y-4">
+                <div className="text-xs font-bold text-ink uppercase tracking-wider font-mono">
                   1. Template Configuration
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                    <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Role Template Name <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -1004,26 +1036,27 @@ export function RoleTemplatesPage() {
                       placeholder="e.g. Software Engineering - Experienced (2-5 yrs)"
                       value={roleName}
                       onChange={(e) => setRoleName(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] bg-white shadow-2xs"
+                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand bg-white shadow-2xs"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
-                      Assessment Duration (Minutes) <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
+                      Assessment Duration (Minutes — Minimum 90 mins) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="number"
-                      min={15}
+                      min={90}
                       max={240}
                       value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] bg-white shadow-2xs"
+                      onChange={(e) => setDurationMinutes(Math.max(90, Number(e.target.value) || 90))}
+                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand bg-white shadow-2xs font-mono"
                     />
+                    <p className="text-2xs text-ink-tertiary mt-1">Standard role templates require a minimum 90-minute evaluation window.</p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                    <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Target Department
                     </label>
                     <select
@@ -1033,7 +1066,7 @@ export function RoleTemplatesPage() {
                         setDepartment(val);
                         autoSelectQuestionsFor(val === "CUSTOM" ? "SOFTWARE_ENGINEERING" : val, category, experienceTier);
                       }}
-                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#2F5CFF]/20 focus:border-[#2F5CFF] shadow-2xs"
+                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand shadow-2xs"
                     >
                       {DEPARTMENTS.map((d) => (
                         <option key={d} value={d}>
@@ -1045,7 +1078,7 @@ export function RoleTemplatesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                    <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Candidate Category
                     </label>
                     <select
@@ -1059,7 +1092,7 @@ export function RoleTemplatesPage() {
                           setExperienceTier("2-5");
                         }
                       }}
-                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white shadow-2xs"
+                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white shadow-2xs"
                     >
                       {CATEGORIES.map((c) => (
                         <option key={c} value={c}>
@@ -1070,14 +1103,14 @@ export function RoleTemplatesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#5B5B64] mb-1.5">
+                    <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Experience Tier
                     </label>
                     <select
                       value={experienceTier}
                       onChange={(e) => setExperienceTier(e.target.value)}
                       disabled={category === "FRESHER"}
-                      className="w-full px-3.5 py-2 text-xs border border-[#E6E6EA] rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400 shadow-2xs"
+                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400 shadow-2xs"
                     >
                       {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
                         <option key={tier.value} value={tier.value}>
@@ -1091,85 +1124,178 @@ export function RoleTemplatesPage() {
 
               {/* Question Bank Selection Section */}
               <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-2">
-                  <h4 className="text-[14px] font-semibold text-[#0B0B0D]">
-                    Attach Questions from Question Bank ({department})
-                  </h4>
-                  <span className="text-[12px] font-medium text-[#2F5CFF]">
-                    {Object.keys(selectedQuestionsMap).length} question(s) selected
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-ink flex items-center gap-2">
+                      <span>2. Attach Questions from Question Bank</span>
+                      <span className="px-2 py-0.5 bg-brand-subtle text-brand text-xs-plus font-mono font-bold rounded-md border border-brand-border">
+                        {DEPARTMENT_LABELS[department] || department}
+                      </span>
+                    </h4>
+                    <p className="text-xs-plus text-ink-secondary mt-0.5">
+                      Allowed Modules for {DEPARTMENT_LABELS[department] || department}:{" "}
+                      <span className="font-semibold text-ink">
+                        {getDepartmentAllowedModules(department).join(", ")}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        showSelectedOnly
+                          ? "bg-brand text-white border-brand shadow-xs"
+                          : "bg-white text-ink-secondary border-line hover:border-brand hover:text-brand"
+                      }`}
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>Show Selected Only</span>
+                    </button>
+
+                    <div className="px-3 py-1.5 bg-brand-subtle text-brand-ink border border-brand-border rounded-lg text-xs font-bold shadow-2xs">
+                      {Object.keys(selectedQuestionsMap).length} question(s) selected
+                    </div>
+                  </div>
                 </div>
 
-                {(() => {
-                  const allowedMods = getDepartmentAllowedModules(department);
-                  const eligibleQuestions = questionsBank.filter((q) => allowedMods.includes(q.moduleType));
+                {/* Filter bar for questions inside modal */}
+                <div className="flex flex-wrap items-center gap-3 bg-canvas p-2.5 rounded-xl border border-line">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+                    <input
+                      type="text"
+                      placeholder="Search question prompts or tags..."
+                      value={modalQuestionSearch}
+                      onChange={(e) => setModalQuestionSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-line rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-brand"
+                    />
+                  </div>
 
-                  if (eligibleQuestions.length === 0) {
-                    return (
-                      <div className="p-4 bg-[#F7F7F9] rounded text-[12px] text-[#8B8B93] text-center">
-                        No eligible questions available for department {department}.
-                      </div>
-                    );
-                  }
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs-plus font-medium text-ink-secondary">Module:</span>
+                    <select
+                      value={modalModuleFilter}
+                      onChange={(e) => setModalModuleFilter(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs border border-line rounded-lg bg-white text-ink"
+                    >
+                      <option value="all">Allowed Modules</option>
+                      {getDepartmentAllowedModules(department).map((mod) => (
+                        <option key={mod} value={mod}>
+                          {MODULE_LABEL_MAP[mod] || mod}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  return (
-                    <div className="max-h-60 overflow-y-auto space-y-2 border border-[#E6E6EA] rounded-md p-3">
-                      {eligibleQuestions.map((q) => {
-                        const isSelected = !!selectedQuestionsMap[q.id];
-                        const qTier = extractQuestionTier(q);
-                        return (
-                          <div
-                            key={q.id}
-                            onClick={() => toggleQuestionSelection(q)}
-                            className={`p-2.5 rounded border text-[12px] flex items-center justify-between cursor-pointer transition-colors ${
-                              isSelected
-                                ? "bg-[#F0F4FF] border-[#2F5CFF]"
-                                : "bg-white border-[#E6E6EA] hover:border-[#C6D4FF]"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs-plus font-medium text-ink-secondary">Difficulty:</span>
+                    <select
+                      value={modalDifficultyFilter}
+                      onChange={(e) => setModalDifficultyFilter(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs border border-line rounded-lg bg-white text-ink"
+                    >
+                      <option value="all">All Difficulties</option>
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Questions List */}
+                {modalEligibleQuestions.length === 0 ? (
+                  <div className="p-8 bg-canvas/70 rounded-xl text-xs text-ink-secondary text-center border border-dashed border-line space-y-1">
+                    <AlertCircle size={20} className="mx-auto text-ink-tertiary" />
+                    <p className="font-semibold text-ink">No questions found matching your filter</p>
+                    <p className="text-xs-plus text-ink-tertiary">
+                      {showSelectedOnly
+                        ? "No questions are currently selected. Turn off 'Show Selected Only' to view and attach questions."
+                        : `Try adjusting the search query or module filter above. Total bank contains ${questionsBank.length} questions.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-h-72 overflow-y-auto space-y-2 border border-line rounded-xl p-3 bg-canvas/30">
+                    {modalEligibleQuestions.map((q) => {
+                      const isSelected = Boolean(selectedQuestionsMap[q.id]);
+                      const modStyle =
+                        MODULE_COLORS[q.moduleType] || {
+                          bg: "bg-slate-100",
+                          text: "text-ink-secondary",
+                          border: "border-line",
+                        };
+                      const prompt =
+                        q.content?.prompt ||
+                        q.content?.title ||
+                        q.content?.text ||
+                        "Untitled Question";
+
+                      return (
+                        <div
+                          key={q.id}
+                          onClick={() => toggleQuestionSelection(q)}
+                          className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-brand-subtle border-brand shadow-xs"
+                              : "bg-white border-line hover:border-slate-300 hover:bg-canvas/80"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="pt-0.5">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => {}}
-                                className="rounded text-[#2F5CFF]"
+                                className="rounded border-brand-border text-brand cursor-pointer h-4 w-4"
                               />
-                              <div>
-                                <div className="font-medium text-[#0B0B0D]">
-                                  {q.content?.prompt || q.content?.title || "Untitled Question"}
-                                </div>
-                                <div className="text-[11px] text-[#8B8B93] flex items-center gap-2 mt-0.5">
-                                  <span className="font-mono text-[#2F5CFF] font-semibold">
-                                    [{MODULE_LABEL_MAP[q.moduleType] || q.moduleType}]
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-ink line-clamp-2">
+                                {prompt}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-2xs font-mono font-bold border ${modStyle.bg} ${modStyle.text} ${modStyle.border}`}
+                                >
+                                  {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
+                                </span>
+                                {q.difficulty && (
+                                  <span className="uppercase text-2xs font-semibold bg-slate-100 text-ink-secondary px-1.5 py-0.5 rounded border border-line">
+                                    {q.difficulty}
                                   </span>
-                                  {q.difficulty && (
-                                    <span className="uppercase text-[10px] bg-gray-100 px-1 py-0.2 rounded">{q.difficulty}</span>
-                                  )}
-                                  <span className={`text-[10px] font-mono font-bold uppercase px-1 py-0.2 rounded ${qTier === "TIER_2" ? "bg-purple-100 text-purple-800" : "bg-indigo-100 text-indigo-800"}`}>
-                                    {qTier === "TIER_2" ? "TIER 2" : "TIER 1"}
-                                  </span>
-                                  <span>v{q.version || 1}</span>
-                                </div>
+                                )}
+                                <span className="text-2xs text-ink-tertiary font-mono">
+                                  v{q.version || 1}
+                                </span>
                               </div>
                             </div>
-                            {isSelected && (
-                              <span className="text-[11px] text-[#2F5CFF] font-semibold">
+                          </div>
+
+                          <div className="shrink-0">
+                            {isSelected ? (
+                              <span className="px-2.5 py-1 bg-brand text-white text-xs-plus font-bold rounded-md flex items-center gap-1 shadow-xs">
+                                <Check size={12} />
                                 Attached
+                              </span>
+                            ) : (
+                              <span className="text-ink-tertiary text-xs font-medium hover:text-ink-secondary">
+                                Click to attach
                               </span>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-[#E6E6EA] bg-[#F7F7F9] flex items-center justify-between">
-              <div className="text-xs text-[#5B5B64]">
-                <span className="font-semibold text-[#0B0B0D]">
+            <div className="px-6 py-4 border-t border-line bg-canvas flex items-center justify-between">
+              <div className="text-xs text-ink-secondary">
+                <span className="font-semibold text-ink">
                   {Object.keys(selectedQuestionsMap).length}
                 </span>{" "}
                 question(s) will be linked to this template.
@@ -1179,7 +1305,7 @@ export function RoleTemplatesPage() {
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={saving}
-                  className="px-4 py-2 text-xs font-semibold text-[#5B5B64] hover:bg-slate-200/70 rounded-lg transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-ink-secondary hover:bg-slate-200/70 rounded-lg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1187,7 +1313,7 @@ export function RoleTemplatesPage() {
                   type="button"
                   onClick={handleSaveTemplate}
                   disabled={saving}
-                  className="px-5 py-2 text-xs font-semibold bg-[#2F5CFF] hover:bg-[#254EDB] text-white rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 text-xs font-semibold bg-brand hover:bg-brand-hover text-white rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {saving ? (
                     <>

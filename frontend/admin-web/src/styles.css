@@ -1,30 +1,94 @@
-@import "tailwindcss" source(none);
+@import "tailwindcss";
 @source "../src";
 @import "tw-animate-css";
+@import "../../../packages/design-tokens/src/tokens.css";
 
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
+  /* Brand Palette */
   --color-brand: #2f5cff;
+  --color-brand-hover: #0037ff;
   --color-brand-ink: #15308f;
-  --color-signal-green: #17c964;
-  --color-amber: #f5a623;
-  --color-danger: #e5484d;
+  --color-brand-subtle: #eaf0ff;
+  --color-brand-border: #b3c5ff;
 
+  /* Ink / Typography */
   --color-ink: #0b0b0d;
   --color-ink-2: #5b5b64;
-  --color-ink-3: #9c9ca5;
+  --color-ink-3: #8b8b93;
+  --color-ink-muted: #9c9ca5;
+  --color-ink-secondary: #5b5b64;
+  --color-ink-tertiary: #8b8b93;
+
+  /* Borders & Dividers */
   --color-line: #e6e6ea;
   --color-line-strong: #d6d7dc;
+
+  /* Surfaces & Backgrounds */
+  --color-canvas: #f7f7f9;
   --color-bg-soft: #f7f7f9;
   --color-bg-inset: #eff0f3;
+  --color-surface-inset: #eff0f3;
 
+  /* Step 3: Resolved Canonical Feedback Colors */
+  --color-danger: #e5484d;
+  --color-danger-subtle: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-danger-hover: #dc2626;
+
+  --color-success: #10b981;
+  --color-success-subtle: #ecfdf5;
+  --color-success-border: #a7f3d0;
+
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  --color-purple: #8b5cf6;
+  --color-purple-subtle: #f5f3ff;
+  --color-purple-border: #ddd6fe;
+
+  /* Sidebar Dark Surface */
   --color-sbg: #0b0b0d;
   --color-sbg-hover: #18181c;
-  --color-sline: #232327;
-  --color-stext: #ededef;
-  --color-stext-2: #8b8b93;
+
+  /* Typography Scale preserving exact historical pixel sizes */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+  --text-xs-plus: 11px;
+  --text-xs-plus--line-height: 15px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm-minus: 13px;
+  --text-sm-minus--line-height: 18px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-md: 15px;
+  --text-md--line-height: 22px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  --text-3xl-plus: 28px;
+  --text-3xl-plus--line-height: 36px;
+  --text-3xl: 30px;
+  --text-3xl--line-height: 36px;
+
+  /* Radius Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-full: 9999px;
 }
 
 /* shadcn tokens still used by existing ui components */
@@ -32,7 +96,8 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
-  --radius-xl: 14px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

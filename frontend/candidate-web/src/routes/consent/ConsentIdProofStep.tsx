@@ -236,7 +236,7 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
 
             <div className="pt-2 flex items-center justify-center gap-4">
               <div className="h-px bg-[var(--border)] flex-1" />
-              <span className="text-[11px] text-[var(--muted-foreground)] uppercase tracking-wider font-mono">OR</span>
+              <span className="text-xs-plus text-[var(--muted-foreground)] uppercase tracking-wider font-mono">OR</span>
               <div className="h-px bg-[var(--border)] flex-1" />
             </div>
 

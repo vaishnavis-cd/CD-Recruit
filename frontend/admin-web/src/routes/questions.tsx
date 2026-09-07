@@ -33,6 +33,309 @@ import {
   getDepartmentAllowedModules,
 } from "../lib/roleModules";
 
+export type TagSectionType = "module" | "level" | "topic" | "drive";
+
+export const CANONICAL_MODULES: Array<{ key: string; label: string; aliases: string[] }> = [
+  { key: "AI_PROMPTING", label: "AI Prompting", aliases: ["ai_prompting", "ai-prompting", "aiprompting", "prompting", "ai"] },
+  { key: "CODING", label: "Coding", aliases: ["coding", "code", "dsa"] },
+  { key: "DEBUGGING", label: "Debugging", aliases: ["debugging", "debug"] },
+  { key: "MCQ", label: "MCQ", aliases: ["mcq", "multiplechoice", "multiple_choice"] },
+  { key: "NOSQL", label: "NoSQL", aliases: ["nosql", "mongodb"] },
+  { key: "SIMULATION", label: "Context Simulation", aliases: ["simulation", "contextsimulation", "contextualsimulation"] },
+  { key: "SQL", label: "SQL", aliases: ["sql"] },
+  { key: "TEST_SCENARIOS", label: "Test Scenarios", aliases: ["test_scenarios", "test-scenarios", "testscenarios", "scenarios", "testscenario"] },
+];
+
+export const CANONICAL_LEVELS: Array<{ key: string; label: string; tier: string; aliases: string[] }> = [
+  { key: "0-1", label: "Fresher (0-1 yrs)", tier: "0-1", aliases: ["fresher", "freshers", "intern", "0-1", "0-1 yrs", "entry", "01"] },
+  { key: "2-5", label: "Level 1 (2-5 yrs)", tier: "2-5", aliases: ["l1", "level1", "level 1", "2-5", "2-5 yrs", "junior", "25"] },
+  { key: "6-10", label: "Level 2 (6-10 yrs)", tier: "6-10", aliases: ["l2", "level2", "level 2", "6-10", "6-10 yrs", "mid", "senior", "610"] },
+  { key: "11-15", label: "Level 3 (11+ yrs)", tier: "11-15", aliases: ["l3", "level3", "level 3", "11-15", "11-15 yrs", "11+", "11+ yrs", "lead", "staff", "principal", "1115"] },
+];
+
+export const TOPIC_TAXONOMY_MAP: Record<string, string> = {
+  // Algorithms & DSA
+  "algorithm": "Algorithms",
+  "algorithms": "Algorithms",
+  "data-structure": "Data Structures",
+  "data-structures": "Data Structures",
+  "data_structures": "Data Structures",
+  "array": "Arrays",
+  "arrays": "Arrays",
+  "string": "Strings",
+  "strings": "Strings",
+  "tree": "Trees",
+  "trees": "Trees",
+  "binary-tree": "Binary Trees",
+  "binary-search": "Binary Search",
+  "stack": "Stacks",
+  "stacks": "Stacks",
+  "queue": "Queues",
+  "queues": "Queues",
+  "graph": "Graphs",
+  "graphs": "Graphs",
+  "hash-map": "Hash Maps",
+  "hash-maps": "Hash Maps",
+  "hash-tables": "Hash Tables",
+  "linked-list": "Linked Lists",
+  "linked-lists": "Linked Lists",
+  "dynamic-programming": "Dynamic Programming",
+  "dp": "Dynamic Programming",
+  "recursion": "Recursion",
+  "backtracking": "Backtracking",
+  "two-pointers": "Two Pointers",
+  "sliding-window": "Sliding Window",
+  "sorting": "Sorting Algorithms",
+  "time-complexity": "Time Complexity & Big-O",
+
+  // Operating Systems & Infrastructure
+  "os": "Operating Systems",
+  "operating-systems": "Operating Systems",
+  "operating-system": "Operating Systems",
+  "linux": "Linux",
+  "windows": "Windows Administration",
+  "active-directory": "Active Directory",
+  "active_directory": "Active Directory",
+  "bitlocker": "BitLocker & Key Mgmt",
+  "bitlocker/key-management": "BitLocker & Key Mgmt",
+  "mdm-rollout": "MDM Rollout",
+  "automated-patching": "Automated Patching",
+  "patch-management": "Patch Management",
+  "hardware": "Hardware Lifecycle",
+  "hardware-lifecycle": "Hardware Lifecycle",
+  "endpoint": "Endpoint Management",
+  "endpoint-management": "Endpoint Management",
+
+  // Software Engineering & Languages
+  "software_engineering": "Software Engineering",
+  "software-engineering": "Software Engineering",
+  "software engineering": "Software Engineering",
+  "sde": "Software Engineering",
+  "java": "Java",
+  "java-oop": "Java & OOP",
+  "core-java-&-oop": "Java & OOP",
+  "python": "Python",
+  "javascript": "JavaScript",
+  "typescript": "TypeScript",
+  "oop": "OOP Concepts",
+  "concurrency": "Concurrency & Multithreading",
+  "thread-safety": "Thread Safety",
+  "code-quality": "Code Quality",
+  "code-review": "Code Review",
+  "refactoring": "Refactoring",
+  "design-patterns": "Design Patterns",
+  "system-design": "System Design",
+  "microservices": "Microservices",
+  "docker": "Docker",
+  "kubernetes": "Kubernetes",
+  "terraform": "Terraform",
+  "ci/cd": "CI/CD Pipelines",
+  "pipeline": "CI/CD Pipelines",
+
+  // Database & SQL
+  "sql-basics": "SQL Fundamentals",
+  "sql basics": "SQL Fundamentals",
+  "sql-debugging": "SQL Debugging",
+  "sql-assistance": "SQL Optimization",
+  "joins": "SQL Joins",
+  "subqueries": "SQL Subqueries",
+  "subquery": "SQL Subqueries",
+  "group-by": "SQL Aggregation & Grouping",
+  "group-by/having": "SQL Aggregation & Grouping",
+  "having": "SQL Aggregation & Grouping",
+  "aggregation": "SQL Aggregation & Grouping",
+  "cte": "Common Table Expressions (CTE)",
+  "window-functions": "Window Functions",
+  "indexes": "Database Indexing",
+  "indexing": "Database Indexing",
+  "normalization": "Database Normalization",
+  "transactions": "Database Transactions",
+  "nulls": "Null Handling",
+  "null-handling": "Null Handling",
+
+  // SRE & DevOps
+  "sre": "SRE & System Reliability",
+  "reliability-engineering": "SRE & System Reliability",
+  "system-reliability": "SRE & System Reliability",
+  "observability": "Observability & Telemetry",
+  "monitoring": "Monitoring & Alerting",
+  "alert-triage": "Alert Triage",
+  "slo": "SLO & SLA Management",
+  "slo/sla-management": "SLO & SLA Management",
+  "incident": "Incident Response",
+  "incident-response": "Incident Response",
+  "incident-command": "Incident Command",
+  "incident-post-mortems": "Post-Mortems & RCA",
+  "postmortem": "Post-Mortems & RCA",
+  "rca": "Post-Mortems & RCA",
+  "root-cause": "Root Cause Analysis",
+  "dr": "Disaster Recovery",
+  "disaster-recovery": "Disaster Recovery",
+  "disaster-recovery-drill": "Disaster Recovery",
+  "disaster-recovery-&-outage": "Disaster Recovery",
+  "capacity": "Capacity Planning",
+  "capacity-planning": "Capacity Planning",
+  "high-load-traffic-estimation": "Traffic Estimation & Load",
+  "caching": "Caching Architectures",
+  "caching-architectures": "Caching Architectures",
+  "circuit-breakers": "Circuit Breakers & Resilience",
+
+  // Security & Compliance
+  "security": "Cybersecurity Fundamentals",
+  "cybersecurity-fundamentals": "Cybersecurity Fundamentals",
+  "security-testing": "Security Testing",
+  "security-tools": "Security Tools",
+  "security-logging": "Security Logging & Audit",
+  "security-monitoring": "Security Monitoring",
+  "application-security": "Application Security",
+  "cloud-security": "Cloud Security",
+  "network-security": "Network Security",
+  "iam": "IAM & Access Control",
+  "iam-hardening": "IAM Hardening",
+  "iam-privilege-audit": "IAM Privilege Audit",
+  "cloud-iam-policies": "Cloud IAM Policies",
+  "authentication": "Authentication",
+  "authorization": "Authorization",
+  "threat-hunting": "Threat Hunting",
+  "vulnerability": "Vulnerability Management",
+  "malware": "Malware & Ransomware",
+  "ransomware": "Malware & Ransomware",
+  "ransomware-containment": "Ransomware Containment",
+  "phishing": "Phishing & Email Security",
+  "email-security": "Email Security",
+  "siem": "SIEM & SOC Operations",
+  "soc": "SIEM & SOC Operations",
+  "defense-in-depth": "Defense-in-Depth",
+
+  // Networking
+  "network": "Networking",
+  "networking": "Networking",
+  "protocols": "Network Protocols & Ports",
+  "ports": "Network Protocols & Ports",
+  "osi": "OSI Model & Routing",
+  "firewall": "Firewalls & VPNs",
+  "vpn": "Firewalls & VPNs",
+
+  // QA & Testing
+  "qa": "QA Methodologies",
+  "testing": "Testing Concepts",
+  "testing-concepts": "Testing Concepts",
+  "acceptance": "Acceptance Criteria & Testing",
+  "acceptance-criteria": "Acceptance Criteria & Testing",
+  "boundary": "Boundary Value Analysis",
+  "boundary-testing": "Boundary Value Analysis",
+  "regression": "Regression Testing",
+  "negative-testing": "Negative Testing",
+  "flaky-tests": "Flaky Tests Triage",
+  "scenario-testing": "Scenario Testing",
+  "automation": "Test Automation",
+  "automation-design": "Test Automation Design",
+  "automation-scenario": "Automation Scenarios",
+  "playwright": "Playwright Automation",
+  "selenium": "Selenium WebDriver",
+  "gherkin": "Gherkin & BDD Scenarios",
+  "api-testing": "API Testing",
+  "api-contract": "API Contracts",
+
+  // PMO, Agile & Management
+  "pmo": "Project Management",
+  "agile": "Agile & Scrum",
+  "agile-velocity-fluctuations": "Velocity & Sprint Health",
+  "meeting": "Meetings & Ceremonies",
+  "meetings": "Meetings & Ceremonies",
+  "stakeholder": "Stakeholder Management",
+  "stakeholders": "Stakeholder Management",
+  "stakeholder-communication": "Stakeholder Communication",
+  "stakeholder-conflicts": "Stakeholder Alignment",
+  "change": "Change Management",
+  "change-control": "Change Management",
+  "change-management": "Change Management",
+  "scope": "Scope & Scope Creep",
+  "scope-creep": "Scope & Scope Creep",
+  "risk": "Risk Management",
+  "risk-management": "Risk Management",
+  "milestone-delays": "Milestone & Schedule Mgmt",
+  "schedule": "Milestone & Schedule Mgmt",
+  "vendor": "Vendor Management",
+  "vendor-sla-management": "Vendor Management",
+  "sow": "SOW & Contracts",
+  "say-do": "Say-Do Consistency",
+  "say-do-consistency": "Say-Do Consistency",
+  "decision-making": "Decision Making",
+  "communication": "Technical Communication",
+  "technical-communication": "Technical Communication",
+};
+
+export function classifyTag(rawTag: string): TagSectionType {
+  const tag = rawTag.trim().toLowerCase();
+
+  if (tag.startsWith("module:")) return "module";
+  if (tag.startsWith("level:")) return "level";
+  if (tag.startsWith("topic:")) return "topic";
+  if (tag.startsWith("drive:") || tag.startsWith("#drive:") || tag.startsWith("[drive]")) return "drive";
+
+  // Check aliases
+  if (CANONICAL_MODULES.some((m) => m.aliases.includes(tag.replace(/[-_\s]+/g, "")))) return "module";
+  if (CANONICAL_LEVELS.some((l) => l.aliases.includes(tag.replace(/[-_\s]+/g, "")))) return "level";
+  if (tag.includes("drive:") || tag.includes("drive-") || tag.includes("drive_")) return "drive";
+
+  return "topic";
+}
+
+export function formatTagDisplayName(tag: string, section?: TagSectionType): { title: string; subtitle: string } {
+  const sec = section || classifyTag(tag);
+  const raw = tag.replace(/^(module:|level:|topic:|drive:)/i, "").trim();
+
+  if (sec === "module") {
+    const cleanNorm = raw.toLowerCase().replace(/[-_\s]+/g, "");
+    const matched = CANONICAL_MODULES.find(
+      (m) => m.key.toLowerCase() === raw.toLowerCase() || m.aliases.includes(cleanNorm),
+    );
+    if (matched) return { title: matched.label, subtitle: "Assessment Module" };
+    if (MODULE_LABEL_MAP[raw.toUpperCase()]) return { title: MODULE_LABEL_MAP[raw.toUpperCase()], subtitle: "Assessment Module" };
+    const clean = raw.replace(/[_-]/g, " ");
+    return {
+      title: clean.charAt(0).toUpperCase() + clean.slice(1),
+      subtitle: "Assessment Module",
+    };
+  }
+
+  if (sec === "level") {
+    const cleanNorm = raw.toLowerCase().replace(/[-_\s]+/g, "");
+    const matched = CANONICAL_LEVELS.find(
+      (l) => l.key.toLowerCase() === raw.toLowerCase() || l.aliases.includes(cleanNorm),
+    );
+    if (matched) return { title: matched.label, subtitle: "Seniority Tier" };
+    return { title: raw.toUpperCase(), subtitle: "Seniority Tier" };
+  }
+
+  if (sec === "drive") {
+    const cleaned = raw.replace(/^(#?drive\s*:\s*|#?drive\s*-\s*|\[drive\]\s*)/i, "").trim();
+    return {
+      title: cleaned || raw,
+      subtitle: "Drive Import",
+    };
+  }
+
+  // Topic
+  const cleanLower = raw.toLowerCase().trim();
+  if (cleanLower === "untagged") {
+    return { title: "Untagged Questions", subtitle: "General" };
+  }
+  if (TOPIC_TAXONOMY_MAP[cleanLower]) {
+    return { title: TOPIC_TAXONOMY_MAP[cleanLower], subtitle: "Topic" };
+  }
+  const cleanTitle = cleanLower
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+  return {
+    title: cleanTitle,
+    subtitle: "Topic",
+  };
+}
+
 export const Route = createFileRoute("/questions")({
   component: QuestionBankPage,
   head: () => ({
@@ -170,7 +473,7 @@ function QuestionBankPage() {
   const [folderQuery, setFolderQuery] = useState("");
   const [modFilter, setModFilter] = useState<string>("all");
   const [diffFilter, setDiffFilter] = useState<string>("all");
-  const [tierFilter, setTierFilter] = useState<string>("all");
+  const [targetLevelFilter, setTargetLevelFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedTopicDomain, setSelectedTopicDomain] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -216,8 +519,26 @@ function QuestionBankPage() {
   const [nosqlExpectedOp, setNosqlExpectedOp] = useState("");
   const [nosqlDatasetRef, setNosqlDatasetRef] = useState("");
 
-  // Coding specific (Create)
+  // Coding & Debugging specific (Create)
+  const [codingLanguage, setCodingLanguage] = useState<string>("javascript");
+  const [codingFunctionName, setCodingFunctionName] = useState("");
+  const [codingParameters, setCodingParameters] = useState("");
+  const [codingReturnType, setCodingReturnType] = useState("");
   const [starterCode, setStarterCode] = useState("");
+  const [starterCodeMap, setStarterCodeMap] = useState<Record<string, string>>({
+    javascript: "",
+    python: "",
+    java: "",
+    cpp: "",
+  });
+  const [codingSampleTestCases, setCodingSampleTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string; explanation?: string }>>([
+    { input: "", expectedOutput: "", label: "Example 1" },
+  ]);
+  const [codingHiddenTestCases, setCodingHiddenTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string }>>([
+    { input: "", expectedOutput: "", label: "Hidden 1" },
+  ]);
+  const [codingConstraints, setCodingConstraints] = useState("");
+  const [codingExplanation, setCodingExplanation] = useState("");
   const [testCasesInput, setTestCasesInput] = useState("");
 
   // Simulation specific (Create)
@@ -246,8 +567,24 @@ function QuestionBankPage() {
   const [editNosqlExpectedOp, setEditNosqlExpectedOp] = useState("");
   const [editNosqlDatasetRef, setEditNosqlDatasetRef] = useState("");
 
+  // Edit Coding & Debugging state
+  const [editCodingLanguage, setEditCodingLanguage] = useState<string>("javascript");
+  const [editCodingFunctionName, setEditCodingFunctionName] = useState("");
+  const [editCodingParameters, setEditCodingParameters] = useState("");
+  const [editCodingReturnType, setEditCodingReturnType] = useState("");
   const [editStarterCode, setEditStarterCode] = useState("");
+  const [editStarterCodeMap, setEditStarterCodeMap] = useState<Record<string, string>>({
+    javascript: "",
+    python: "",
+    java: "",
+    cpp: "",
+  });
+  const [editCodingSampleTestCases, setEditCodingSampleTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string; explanation?: string }>>([]);
+  const [editCodingHiddenTestCases, setEditCodingHiddenTestCases] = useState<Array<{ input: string; expectedOutput: string; label: string }>>([]);
+  const [editCodingConstraints, setEditCodingConstraints] = useState("");
+  const [editCodingExplanation, setEditCodingExplanation] = useState("");
   const [editTestCasesInput, setEditTestCasesInput] = useState("");
+
   const [editSimTriggers, setEditSimTriggers] = useState("");
   const [editSimRubric, setEditSimRubric] = useState("");
   const [editAiSystemContext, setEditAiSystemContext] = useState("");
@@ -255,7 +592,7 @@ function QuestionBankPage() {
   const [editAiIdealResponse, setEditAiIdealResponse] = useState("");
 
   // Bulk Import State
-  const [importModuleType, setImportModuleType] = useState<string>("MCQ");
+  const [importModuleType, setImportModuleType] = useState<string>("ALL");
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
   // Confirmation Modal State
@@ -290,14 +627,12 @@ function QuestionBankPage() {
       drive: [],
     };
 
-    // 1. Group Module Types by canonical key
+    // 1. Group Module Types by canonical key (strict moduleType matching)
     CANONICAL_MODULES.forEach((mod) => {
       const folderKey = `module:${mod.key}`;
       const matchingQuestions = questions.filter((q) => {
         const qMod = (q.moduleType || "").toUpperCase();
-        if (qMod === mod.key) return true;
-        const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
-        return mod.aliases.some((alias) => qTags.includes(alias));
+        return qMod === mod.key;
       });
 
       if (matchingQuestions.length > 0) {
@@ -316,7 +651,8 @@ function QuestionBankPage() {
     CANONICAL_LEVELS.forEach((lvl) => {
       const folderKey = `level:${lvl.key}`;
       const matchingQuestions = questions.filter((q) => {
-        if (q.targetLevel === lvl.tier) return true;
+        const targetLvl = (q.targetLevel || "").toLowerCase();
+        if (targetLvl === lvl.tier.toLowerCase() || targetLvl === lvl.key.toLowerCase()) return true;
         const qTags = (q.tags || []).map((t) => t.toLowerCase().replace(/[-_\s]+/g, ""));
         return lvl.aliases.some((alias) => qTags.includes(alias));
       });
@@ -336,6 +672,18 @@ function QuestionBankPage() {
     // 3. Group Topics & Drives
     const driveTagMap = new Map<string, typeof questions>();
     const topicTagMap = new Map<string, { title: string; questions: typeof questions }>();
+
+    const DEPT_TAG_ALIASES = [
+      "sde", "software_engineering", "software-engineering", "softwareengineering",
+      "qa", "quality_assurance", "quality-assurance", "testing",
+      "data_engineering", "data-engineering", "dataengineering",
+      "sre", "site_reliability", "site-reliability",
+      "secops", "cybersecurity", "security_operations", "security",
+      "sysops", "system_operations", "system-operations",
+      "itops", "it_operations", "it-operations",
+      "pmo", "project_management", "project-management",
+      "general", "fresher", "freshers", "intern", "l1", "l2", "l3",
+    ];
 
     questions.forEach((q) => {
       const rawTags = q.tags && q.tags.length > 0 ? q.tags : ["untagged"];
@@ -363,10 +711,11 @@ function QuestionBankPage() {
           return;
         }
 
-        // Skip module & level tags from topics cloud
+        // Skip module, level, & department metadata tags from topics cloud
         const cleanNormalized = cleanTag.replace(/[-_\s]+/g, "");
-        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized))) return;
-        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized))) return;
+        if (CANONICAL_MODULES.some((m) => m.aliases.includes(cleanNormalized) || m.key.toLowerCase().replace(/[-_\s]+/g, "") === cleanNormalized)) return;
+        if (CANONICAL_LEVELS.some((l) => l.aliases.includes(cleanNormalized) || l.key.toLowerCase().replace(/[-_\s]+/g, "") === cleanNormalized)) return;
+        if (DEPT_TAG_ALIASES.some((d) => d.replace(/[-_\s]+/g, "") === cleanNormalized)) return;
 
         // Canonical topic mapping
         const canonicalTitle = formatTagDisplayName(cleanTag, "topic").title;
@@ -442,13 +791,27 @@ function QuestionBankPage() {
       );
       setEditNosqlDatasetRef(q.content?.datasetRef || "");
     } else if (q.moduleType === "CODING" || q.moduleType === "DEBUGGING") {
-      const code = typeof q.content?.starterCode === "object"
-        ? (q.content.starterCode.javascript || q.content.starterCode.python || JSON.stringify(q.content.starterCode, null, 2))
-        : (q.content?.starterCode || "");
-      setEditStarterCode(code);
-      setEditTestCasesInput(
-        q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : ""
-      );
+      const sCode = q.content?.starterCode;
+      const sMap: Record<string, string> = {
+        javascript: typeof sCode === "object" ? sCode.javascript || "" : typeof sCode === "string" ? sCode : "",
+        python: typeof sCode === "object" ? sCode.python || "" : "",
+        java: typeof sCode === "object" ? sCode.java || "" : "",
+        cpp: typeof sCode === "object" ? sCode.cpp || "" : "",
+      };
+      setEditStarterCodeMap(sMap);
+      setEditStarterCode(sMap.javascript || sMap.python || (typeof sCode === "string" ? sCode : ""));
+      setEditCodingLanguage("javascript");
+      setEditCodingFunctionName(q.content?.functionName || "");
+      setEditCodingParameters(q.content?.parameters || "");
+      setEditCodingReturnType(q.content?.returnType || "");
+      setEditCodingConstraints(Array.isArray(q.content?.constraints) ? q.content.constraints.join("\n") : q.content?.constraints || "");
+      setEditCodingExplanation(q.content?.explanation || "");
+
+      const sampleTc = q.content?.visibleTestCases || (q.content?.testCases || []).filter((tc: any) => !tc.isHidden);
+      const hiddenTc = q.content?.hiddenTestCases || (q.content?.testCases || []).filter((tc: any) => tc.isHidden);
+      setEditCodingSampleTestCases(sampleTc.length > 0 ? sampleTc : [{ input: "", expectedOutput: "", label: "Example 1" }]);
+      setEditCodingHiddenTestCases(hiddenTc.length > 0 ? hiddenTc : [{ input: "", expectedOutput: "", label: "Hidden 1" }]);
+      setEditTestCasesInput(q.content?.testCases ? JSON.stringify(q.content.testCases, null, 2) : "");
     } else if (q.moduleType === "AI_PROMPTING") {
       setEditAiSystemContext(q.content?.context || q.content?.systemContext || "");
       setEditAiTechStack(q.content?.techStack || "React/TypeScript");
@@ -476,6 +839,7 @@ function QuestionBankPage() {
           return;
         }
         scoringConfig.correctIndex = editCorrectIndex;
+        scoringConfig.correctAnswer = content.options[editCorrectIndex] || content.options[0];
       } else if (editingQuestion.moduleType === "SQL") {
         content.schema = editSqlSchema;
         content.seedData = editSqlSeed;
@@ -494,15 +858,27 @@ function QuestionBankPage() {
         }
         content.datasetRef = editNosqlDatasetRef;
       } else if (editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") {
-        content.starterCode = editStarterCode;
-        if (editTestCasesInput.trim()) {
-          try {
-            content.testCases = JSON.parse(editTestCasesInput);
-          } catch {
-            toast.error("Invalid Test Cases JSON format");
-            return;
-          }
-        }
+        content.functionName = editCodingFunctionName;
+        content.parameters = editCodingParameters;
+        content.returnType = editCodingReturnType;
+        content.constraints = editCodingConstraints.split("\n").map((c) => c.trim()).filter(Boolean);
+        content.explanation = editCodingExplanation;
+
+        const updatedCodeMap = {
+          ...editStarterCodeMap,
+          [editCodingLanguage]: editStarterCode,
+        };
+        content.starterCode = Object.values(updatedCodeMap).some(Boolean) ? updatedCodeMap : editStarterCode;
+
+        const visibleCases = editCodingSampleTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+        const hiddenCases = editCodingHiddenTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+
+        content.visibleTestCases = visibleCases;
+        content.hiddenTestCases = hiddenCases;
+        content.testCases = [
+          ...visibleCases.map((tc) => ({ ...tc, isHidden: false })),
+          ...hiddenCases.map((tc) => ({ ...tc, isHidden: true })),
+        ];
       } else if (editingQuestion.moduleType === "AI_PROMPTING") {
         content.context = editAiSystemContext;
         content.techStack = editAiTechStack;
@@ -530,7 +906,7 @@ function QuestionBankPage() {
 
   const handleCreate = async () => {
     const content: any = { prompt: promptText };
-    const scoringConfig: any = {};
+    const scoringConfig: any = { points: difficulty === "hard" ? 3 : difficulty === "medium" ? 2 : 1 };
 
     try {
       if (moduleType === "MCQ") {
@@ -540,6 +916,7 @@ function QuestionBankPage() {
           return;
         }
         scoringConfig.correctIndex = correctIndex;
+        scoringConfig.correctAnswer = content.options[correctIndex] || content.options[0];
       } else if (moduleType === "SQL") {
         content.schema = sqlSchema;
         content.seedData = sqlSeed;
@@ -558,8 +935,27 @@ function QuestionBankPage() {
         }
         content.datasetRef = nosqlDatasetRef;
       } else if (moduleType === "CODING" || moduleType === "DEBUGGING") {
-        content.starterCode = starterCode;
-        content.testCases = testCasesInput ? JSON.parse(testCasesInput) : [];
+        content.functionName = codingFunctionName;
+        content.parameters = codingParameters;
+        content.returnType = codingReturnType;
+        content.constraints = codingConstraints.split("\n").map((c) => c.trim()).filter(Boolean);
+        content.explanation = codingExplanation;
+
+        const updatedCodeMap = {
+          ...starterCodeMap,
+          [codingLanguage]: starterCode,
+        };
+        content.starterCode = Object.values(updatedCodeMap).some(Boolean) ? updatedCodeMap : starterCode;
+
+        const visibleCases = codingSampleTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+        const hiddenCases = codingHiddenTestCases.filter((tc) => tc.input.trim() || tc.expectedOutput.trim());
+
+        content.visibleTestCases = visibleCases;
+        content.hiddenTestCases = hiddenCases;
+        content.testCases = [
+          ...visibleCases.map((tc) => ({ ...tc, isHidden: false })),
+          ...hiddenCases.map((tc) => ({ ...tc, isHidden: true })),
+        ];
       } else if (moduleType === "AI_PROMPTING") {
         content.context = aiSystemContext;
         content.techStack = aiTechStack;
@@ -651,40 +1047,193 @@ function QuestionBankPage() {
     return lines;
   }
 
-  // Dynamic CSV Template Download
-  const handleDownloadSample = (mod: string) => {
-    let headers = "";
-    let sampleRow = "";
-    if (mod === "MCQ") {
-      headers = "prompt,difficulty,tags,role,targetLevel,option1,option2,option3,option4,correctIndex";
-      sampleRow =
-        '"What is the time complexity of binary search?",easy,"algorithms,binary search","Backend Engineer","0-1",O(n),O(log n),O(n log n),O(1),1';
-    } else if (mod === "SQL") {
-      headers = "prompt,difficulty,tags,role,targetLevel,schema,seedData";
-      sampleRow =
-        '"Select all employees from sales department",medium,"sql,databases","Data Engineer","2-5","CREATE TABLE employees (id SERIAL, name TEXT, department TEXT);","INSERT INTO employees (name, department) VALUES (\'John\', \'sales\');"';
-    } else if (mod === "NOSQL") {
-      headers = "prompt,difficulty,tags,role,targetLevel,collections,allowedOperations";
-      sampleRow =
-        '"Find all employees with salary over 50k",medium,"nosql,mongodb","Data Engineer","2-5","employees","find,aggregate"';
-    } else if (mod === "CODING") {
-      headers = "prompt,difficulty,tags,role,targetLevel,starterCode,testCasesJSON";
-      sampleRow =
-        '"Write a function to sum two numbers",easy,"basics,math","Backend Engineer","0-1","function sum(a, b) {\n  return a + b;\n}","[{\"input\": \"[1, 2]\", \"expected\": \"3\"}]"';
-    } else if (mod === "AI_PROMPTING") {
-      headers = "prompt,difficulty,tags,role,targetLevel,rubricJSON";
-      sampleRow =
-        '"Draft a prompt for an assistant to write professional emails",medium,"ai,prompting","AI Engineer","2-5","[{\\"criteria\\": \\"Tone\\", \\"maxScore\\": 5}]"';
-    } else if (mod === "SIMULATION") {
-      headers = "title,difficulty,tags,role,targetLevel,triggersJSON,rubricJSON";
-      sampleRow =
-        '"Handle a production outage call with client",hard,"communication,outage","Full-stack Engineer","6-10","[{\\"timeSeconds\\": 15, \\"message\\": \\"Client is asking for ETA.\\"}]","[{\\"criteria\\": \\"Transparency\\", \\"maxScore\\": 10}]"';
-    }
-    const csvContent =
-      "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + sampleRow);
+  // Single Unified Multi-Module Sample CSV Template Download
+  const handleDownloadUnifiedSampleCSV = () => {
+    const headers = [
+      "moduleType",
+      "prompt",
+      "difficulty",
+      "tags",
+      "role",
+      "targetLevel",
+      "options",
+      "correctAnswer",
+      "language",
+      "parameters",
+      "starterCode",
+      "sampleTestCases",
+      "hiddenTestCases",
+      "schema",
+      "seedData",
+      "explanation",
+    ].join(",");
+
+    const rows = [
+      // 1. MCQ
+      [
+        "MCQ",
+        '"What is the time complexity of searching in a balanced Binary Search Tree?"',
+        "easy",
+        '"algorithms,binary-search-tree,data-structures"',
+        '"Backend Engineer"',
+        '"0-1"',
+        '"[\\"O(1)\\", \\"O(log n)\\", \\"O(n)\\", \\"O(n log n)\\"]"',
+        '"O(log n)"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"A balanced BST halves the search space at each comparison level, leading to logarithmic O(log n) time complexity."',
+      ].join(","),
+
+      // 2. SQL
+      [
+        "SQL",
+        '"Calculate total revenue and order count for each product category having at least 5 orders."',
+        "medium",
+        '"sql,postgresql,aggregations"',
+        '"Data Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"CREATE TABLE categories (id INT PRIMARY KEY, name TEXT); CREATE TABLE products (id INT PRIMARY KEY, category_id INT, price NUMERIC); CREATE TABLE orders (id INT PRIMARY KEY, product_id INT, quantity INT);"',
+        '"INSERT INTO categories VALUES (1, \'Electronics\'), (2, \'Books\'); INSERT INTO products VALUES (101, 1, 99.99), (102, 2, 19.99); INSERT INTO orders VALUES (1, 101, 5), (2, 102, 2);"',
+        '"SELECT c.name, SUM(p.price * o.quantity) AS total_revenue, COUNT(o.id) AS order_count FROM categories c JOIN products p ON c.id = p.category_id JOIN orders o ON p.id = o.product_id GROUP BY c.name HAVING COUNT(o.id) >= 5;"',
+      ].join(","),
+
+      // 3. CODING
+      [
+        "CODING",
+        '"Given an integer array nums and an integer target, return indices of the two numbers such that they add up to target."',
+        "medium",
+        '"algorithms,arrays,hash-table"',
+        '"Backend Engineer"',
+        '"0-1"',
+        "",
+        "",
+        "javascript",
+        '"nums: number[], target: number"',
+        '"function twoSum(nums, target) {\\n  const map = new Map();\\n  for (let i = 0; i < nums.length; i++) {\\n    const diff = target - nums[i];\\n    if (map.has(diff)) return [map.get(diff), i];\\n    map.set(nums[i], i);\\n  }\\n  return [];\\n}"',
+        '"[{\\"input\\": \\"[2, 7, 11, 15], 9\\", \\"expectedOutput\\": \\"[0, 1]\\", \\"label\\": \\"Example 1: Basic case\\"}, {\\"input\\": \\"[3, 2, 4], 6\\", \\"expectedOutput\\": \\"[1, 2]\\", \\"label\\": \\"Example 2: Mixed indices\\"}]"',
+        '"[{\\"input\\": \\"[3, 3], 6\\", \\"expectedOutput\\": \\"[0, 1]\\", \\"label\\": \\"Hidden 1: Duplicate elements\\"}, {\\"input\\": \\"[-1, -2, -3, -4, -5], -8\\", \\"expectedOutput\\": \\"[2, 4]\\", \\"label\\": \\"Hidden 2: Negative numbers\\"}]"',
+        "",
+        "",
+        '"Use a Map to track visited number indices in O(n) single-pass lookup time."',
+      ].join(","),
+
+      // 4. DEBUGGING
+      [
+        "DEBUGGING",
+        '"Fix off-by-one index error in binary search loop condition."',
+        "medium",
+        '"debugging,algorithms,search"',
+        '"Software Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "javascript",
+        '"arr: number[], target: number"',
+        '"function binarySearch(arr, target) {\\n  let left = 0;\\n  let right = arr.length; // BUG: should be arr.length - 1\\n  while (left <= right) {\\n    let mid = Math.floor((left + right) / 2);\\n    if (arr[mid] === target) return mid;\\n    if (arr[mid] < target) left = mid + 1;\\n    else right = mid - 1;\\n  }\\n  return -1;\\n}"',
+        '"[{\\"input\\": \\"[1, 3, 5, 7, 9], 9\\", \\"expectedOutput\\": \\"4\\", \\"label\\": \\"Example 1: Target at end\\"}]"',
+        '"[{\\"input\\": \\"[1, 3, 5], 2\\", \\"expectedOutput\\": \\"-1\\", \\"label\\": \\"Hidden 1: Target not present\\"}]"',
+        "",
+        "",
+        '"Ensure upper bound right is initialized to arr.length - 1 to prevent out of bounds inspection."',
+      ].join(","),
+
+      // 5. NOSQL
+      [
+        "NOSQL",
+        '"Find all active customer accounts with a balance greater than 1000 and return name and balance."',
+        "medium",
+        '"nosql,mongodb,query"',
+        '"Data Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"customers"',
+        '"[{\\"filter\\": {\\"status\\": \\"ACTIVE\\", \\"balance\\": {\\"$gt\\": 1000}}, \\"projection\\": {\\"name\\": 1, \\"balance\\": 1, \\"_id\\": 0}}]"',
+        '"Execute db.customers.find({ status: \'ACTIVE\', balance: { $gt: 1000 } }, { name: 1, balance: 1, _id: 0 })."',
+      ].join(","),
+
+      // 6. AI_PROMPTING
+      [
+        "AI_PROMPTING",
+        '"Design a system prompt for a customer service assistant handling strict refund validations."',
+        "medium",
+        '"ai,prompt-engineering,system-instructions"',
+        '"AI Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"[{\\"criteria\\": \\"Policy Adherence\\", \\"maxScore\\": 5}, {\\"criteria\\": \\"Tone & Empathy\\", \\"maxScore\\": 5}, {\\"criteria\\": \\"Anti-Jailbreak Guardrails\\", \\"maxScore\\": 5}]"',
+        "",
+        "",
+        "",
+        '"Provide unambiguous role definition, order verification steps, and refusal rules for out-of-window requests."',
+      ].join(","),
+
+      // 7. SIMULATION
+      [
+        "SIMULATION",
+        '"Live Incident: Production PostgreSQL replica lag spikes to 45 minutes during high-traffic campaign."',
+        "hard",
+        '"sre,incident-management,database"',
+        '"SRE / DevOps"',
+        '"6-10"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"[{\\"timeSeconds\\": 30, \\"message\\": \\"Alert: Replica replication lag exceeded 45m.\\"}]"',
+        '"[{\\"criteria\\": \\"Root Cause Triage\\", \\"maxScore\\": 10}, {\\"criteria\\": \\"Incident Mitigation\\", \\"maxScore\\": 10}]"',
+        "",
+        "",
+        '"Identify long-running vacuums, connection starvation, or WAL sender saturation."',
+      ].join(","),
+
+      // 8. TEST_SCENARIOS
+      [
+        "TEST_SCENARIOS",
+        '"Design comprehensive integration test scenarios for an OAuth2 / OpenID Connect authorization code flow."',
+        "medium",
+        '"qa,testing,security,oauth2"',
+        '"QA Engineer"',
+        '"2-5"',
+        "",
+        "",
+        "",
+        "",
+        "",
+        '"[{\\"scenario\\": \\"Happy Path Token Exchange\\", \\"expected\\": \\"200 OK with ID and Refresh Tokens\\"}, {\\"scenario\\": \\"Expired Auth Code\\", \\"expected\\": \\"400 Bad Request invalid_grant\\"}, {\\"scenario\\": \\"CSRF State Mismatch\\", \\"expected\\": \\"403 Forbidden state parameter rejected\\"}]"',
+        "",
+        "",
+        "",
+        '"Validate authorization grants, token refresh, expired authorization codes, invalid client secrets, and PKCE verification."',
+      ].join(","),
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + rows.join("\n"));
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
-    link.setAttribute("download", `sample_${mod.toLowerCase()}.csv`);
+    link.setAttribute("download", "cd_recruit_all_modules_sample_template.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -720,13 +1269,19 @@ function QuestionBankPage() {
             return idx !== -1 ? row[idx] : "";
           };
 
-          const difficulty = getVal("difficulty") || "medium";
+          const rawModule = getVal("moduletype") || getVal("module") || (importModuleType !== "ALL" ? importModuleType : "MCQ");
+          const targetModuleType = rawModule.toUpperCase();
+          const difficulty = (getVal("difficulty") || "medium").toLowerCase();
           const targetLvl = getVal("targetlevel") || "0-1";
           const roleVal = getVal("role") || "General";
           const tags = (getVal("tags") || "")
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean);
+
+          if (!tags.includes(targetModuleType.toLowerCase())) {
+            tags.push(targetModuleType.toLowerCase());
+          }
 
           if (driveNameParam) {
             const driveTag = `Drive: ${driveNameParam}`;
@@ -736,44 +1291,111 @@ function QuestionBankPage() {
           }
 
           const content: any = {};
-          const scoringConfig: any = {};
+          const scoringConfig: any = { points: difficulty === "hard" ? 3 : difficulty === "medium" ? 2 : 1 };
 
-          if (importModuleType === "MCQ") {
-            content.prompt = getVal("prompt");
-            const opt1 = getVal("option1");
-            const opt2 = getVal("option2");
-            const opt3 = getVal("option3");
-            const opt4 = getVal("option4");
-            content.options = [opt1, opt2, opt3, opt4].filter(Boolean);
-            scoringConfig.correctIndex = parseInt(getVal("correctIndex")) || 0;
-          } else if (importModuleType === "SQL") {
-            content.prompt = getVal("prompt");
-            content.schema = getVal("schema");
-            content.seedData = getVal("seedData");
-          } else if (importModuleType === "NOSQL") {
-            content.prompt = getVal("prompt");
-            content.collections = (getVal("collections") || "").split(",").map((c) => c.trim()).filter(Boolean);
-            content.allowedOperations = (getVal("allowedoperations") || "").split(",").map((c) => c.trim()).filter(Boolean);
-          } else if (importModuleType === "CODING") {
-            content.prompt = getVal("prompt");
-            content.starterCode = getVal("starterCode");
-            const tcVal = getVal("testCasesJSON");
-            const tcParsed = tcVal ? JSON.parse(tcVal) : [];
-            content.testCases = tcParsed;
-            content.visibleTestCases = tcParsed;
-          } else if (importModuleType === "AI_PROMPTING") {
-            content.prompt = getVal("prompt");
-            const rub = getVal("rubricJSON");
-            content.rubric = rub ? JSON.parse(rub) : [];
-          } else if (importModuleType === "SIMULATION") {
-            content.title = getVal("title") || getVal("prompt");
-            const trig = getVal("triggersJSON");
-            const rubricVal = getVal("rubricJSON");
-            content.triggers = trig ? JSON.parse(trig) : [];
-            content.rubric = rubricVal ? JSON.parse(rubricVal) : [];
+          const prompt = getVal("prompt") || getVal("title") || getVal("question") || "Assessment Question";
+          content.prompt = prompt;
+          content.explanation = getVal("explanation") || "";
+
+          if (targetModuleType === "MCQ") {
+            let options: string[] = [];
+            const rawOptions = getVal("options");
+            if (rawOptions && rawOptions.startsWith("[")) {
+              try {
+                options = JSON.parse(rawOptions);
+              } catch {
+                options = rawOptions.split(",").map((o) => o.trim());
+              }
+            } else {
+              const opt1 = getVal("option1") || getVal("optiona");
+              const opt2 = getVal("option2") || getVal("optionb");
+              const opt3 = getVal("option3") || getVal("optionc");
+              const opt4 = getVal("option4") || getVal("optiond");
+              options = [opt1, opt2, opt3, opt4].filter(Boolean);
+            }
+            if (options.length === 0) {
+              options = ["Option A", "Option B", "Option C", "Option D"];
+            }
+            content.options = options;
+            const correctAns = getVal("correctanswer") || getVal("correctanswertext");
+            const rawIdx = getVal("correctindex");
+            let cIndex = rawIdx !== "" ? parseInt(rawIdx, 10) : 0;
+            if (correctAns && options.indexOf(correctAns) >= 0) {
+              cIndex = options.indexOf(correctAns);
+            }
+            content.correctAnswer = options[cIndex] || options[0];
+            scoringConfig.correctIndex = cIndex;
+            scoringConfig.correctAnswer = content.correctAnswer;
+          } else if (targetModuleType === "SQL") {
+            content.schema = getVal("schema") || "CREATE TABLE records (id SERIAL PRIMARY KEY, title TEXT);";
+            content.seedData = getVal("seeddata") || "INSERT INTO records (title) VALUES ('Sample Record');";
+            content.expectedQuery = getVal("expectedquery") || getVal("correctanswer") || "SELECT * FROM records;";
+          } else if (targetModuleType === "NOSQL") {
+            content.collections = (getVal("collections") || "documents").split(",").map((c) => c.trim()).filter(Boolean);
+            content.allowedOperations = (getVal("allowedoperations") || "find,aggregate").split(",").map((c) => c.trim()).filter(Boolean);
+            content.validatorType = getVal("validatortype") || "OUTPUT_COMPARISON";
+            const expOp = getVal("expectedoperation") || getVal("seeddata");
+            if (expOp) {
+              try {
+                content.expectedOperation = JSON.parse(expOp);
+              } catch {
+                content.expectedOperation = expOp;
+              }
+            }
+          } else if (targetModuleType === "CODING" || targetModuleType === "DEBUGGING") {
+            content.functionName = getVal("functionname") || "solution";
+            content.parameters = getVal("parameters") || "";
+            content.returnType = getVal("returntype") || "";
+            content.language = getVal("language") || "javascript";
+            content.starterCode = getVal("startercode") || "function solution() {\n  // Write your code here\n}";
+            content.constraints = getVal("constraints") ? getVal("constraints").split("\n").filter(Boolean) : [];
+
+            const sampleTcVal = getVal("sampletestcases") || getVal("visibletestcases") || getVal("testcasesjson");
+            const hiddenTcVal = getVal("hiddentestcases");
+
+            let visibleTestCases = [];
+            let hiddenTestCases = [];
+
+            if (sampleTcVal) {
+              try {
+                visibleTestCases = JSON.parse(sampleTcVal);
+              } catch {
+                visibleTestCases = [{ input: sampleTcVal, expectedOutput: getVal("correctanswer") || "", label: "Example 1" }];
+              }
+            }
+            if (hiddenTcVal) {
+              try {
+                hiddenTestCases = JSON.parse(hiddenTcVal);
+              } catch {
+                hiddenTestCases = [];
+              }
+            }
+
+            content.visibleTestCases = visibleTestCases;
+            content.hiddenTestCases = hiddenTestCases;
+            content.testCases = [
+              ...visibleTestCases.map((tc: any) => ({ ...tc, isHidden: false })),
+              ...hiddenTestCases.map((tc: any) => ({ ...tc, isHidden: true })),
+            ];
+          } else if (targetModuleType === "AI_PROMPTING") {
+            const rub = getVal("rubric") || getVal("rubricjson") || getVal("sampletestcases");
+            content.rubric = rub ? (typeof rub === "string" && rub.startsWith("[") ? JSON.parse(rub) : rub) : [];
+            content.systemContext = getVal("systemcontext") || getVal("context") || "";
+            content.techStack = getVal("techstack") || "React/TypeScript";
+          } else if (targetModuleType === "SIMULATION") {
+            content.title = prompt;
+            const trig = getVal("triggers") || getVal("triggersjson");
+            const rub = getVal("rubric") || getVal("rubricjson");
+            content.triggers = trig ? (typeof trig === "string" && trig.startsWith("[") ? JSON.parse(trig) : trig) : [];
+            content.rubric = rub ? (typeof rub === "string" && rub.startsWith("[") ? JSON.parse(rub) : rub) : [];
+          } else if (targetModuleType === "TEST_SCENARIOS") {
+            const scVal = getVal("sampletestcases") || getVal("testcases") || getVal("rubric");
+            content.testScenarios = scVal ? (typeof scVal === "string" && scVal.startsWith("[") ? JSON.parse(scVal) : scVal) : [];
+            content.expectedAnswer = getVal("correctanswer") || getVal("expectedanswer") || "";
           }
 
           parsedQuestions.push({
+            moduleType: targetModuleType,
             difficulty,
             targetLevel: targetLvl,
             tags,
@@ -783,8 +1405,8 @@ function QuestionBankPage() {
           });
         }
 
-        const created = await bulkUploadQuestions(importModuleType, parsedQuestions);
-        toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
+        const created = await bulkUploadQuestions("ALL", parsedQuestions);
+        toast.success(`Successfully imported ${parsedQuestions.length} questions across all modules!`);
         setCsvFile(null);
         setShowImportModal(false);
 
@@ -817,7 +1439,7 @@ function QuestionBankPage() {
           <select
             value={modFilter}
             onChange={(e) => setModFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Modules</option>
             <option value="MCQ">MCQ</option>
@@ -834,7 +1456,7 @@ function QuestionBankPage() {
           <select
             value={diffFilter}
             onChange={(e) => setDiffFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Difficulties</option>
             <option value="easy">Easy</option>
@@ -844,20 +1466,22 @@ function QuestionBankPage() {
 
           {/* Tier Filter */}
           <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            value={targetLevelFilter}
+            onChange={(e) => setTargetLevelFilter(e.target.value)}
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
-            <option value="all">All Tiers</option>
-            <option value="TIER_1">Tier 1</option>
-            <option value="TIER_2">Tier 2</option>
+            <option value="all">All Levels</option>
+            <option value="0-1">0-1 yrs (Fresher)</option>
+            <option value="2-5">2-5 yrs (Level 1)</option>
+            <option value="6-10">6-10 yrs (Level 2)</option>
+            <option value="11-15">11+ yrs (Level 3)</option>
           </select>
 
           {/* Department / Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-[#E6E6EA] rounded-md bg-white text-[12px] text-[#5B5B64] font-medium focus:outline-none focus:border-[#2F5CFF]"
+            className="px-2.5 py-1.5 border border-line rounded-md bg-white text-xs text-ink-secondary font-medium focus:outline-none focus:border-brand"
           >
             <option value="all">All Roles / Depts</option>
             <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
@@ -873,21 +1497,21 @@ function QuestionBankPage() {
 
           <div className="relative group">
             <button
-              className="flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-white bg-[#2F5CFF] hover:bg-[#0037FF] cursor-pointer shadow-sm transition-colors rounded-md"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm-minus font-medium text-white bg-brand hover:bg-brand-hover cursor-pointer shadow-sm transition-colors rounded-md"
             >
               <Plus size={14} /> Add Question
             </button>
             <div className="absolute right-0 top-full w-44 pt-1.5 z-50 hidden group-hover:block hover:block">
-              <div className="bg-white border border-[#E6E6EA] rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="bg-white border border-line rounded-lg shadow-lg py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs text-ink hover:bg-canvas hover:text-brand font-medium transition-colors cursor-pointer"
                 >
                   Create Manually
                 </button>
                 <button
                   onClick={() => setShowImportModal(true)}
-                  className="w-full text-left px-4 py-2 text-[12px] text-[#0B0B0D] hover:bg-[#F7F7F9] hover:text-[#2F5CFF] font-medium transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-xs text-ink hover:bg-canvas hover:text-brand font-medium transition-colors cursor-pointer"
                 >
                   Bulk Import CSV
                 </button>
@@ -904,16 +1528,16 @@ function QuestionBankPage() {
         const driveId = params.get("driveId") || params.get("fromDrive");
         if (!driveId) return null;
         return (
-          <div className="mb-4 p-3 bg-[#EAF0FF] border border-[#2F5CFF]/30 rounded-xl flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2.5 text-[#15308F] text-[13px] font-medium">
-              <Sparkles size={16} className="text-[#2F5CFF]" />
+          <div className="mb-4 p-3 bg-brand-subtle border border-brand/30 rounded-xl flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2.5 text-brand-ink text-sm-minus font-medium">
+              <Sparkles size={16} className="text-brand" />
               <span>You are currently managing questions for an active Drive.</span>
             </div>
             <Link
               to="/drives/$id"
               params={{ id: driveId }}
               search={{ tab: "questions" } as any}
-              className="px-3.5 py-1.5 bg-[#2F5CFF] hover:bg-[#0037FF] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 bg-brand hover:bg-brand-hover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft size={14} />
               <span>Return to Drive Questions</span>
@@ -926,23 +1550,23 @@ function QuestionBankPage() {
       {query.trim() !== "" ? (
         /* Search results list */
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
-            <h3 className="text-[13px] font-semibold text-[#0B0B0D]">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <h3 className="text-sm-minus font-semibold text-ink">
               Search Results for "{query}" ({questions.length})
             </h3>
             <div className="flex items-center gap-3">
               <div className="relative w-[280px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search questions or tags…"
-                  className="w-full pl-9 pr-8 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
+                  className="w-full pl-9 pr-8 py-1.5 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
                 />
                 {query && (
                   <button
                     onClick={() => setQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
                     title="Clear search"
                   >
                     <X size={13} />
@@ -951,7 +1575,7 @@ function QuestionBankPage() {
               </div>
               <button
                 onClick={() => setQuery("")}
-                className="text-[11px] text-[#2F5CFF] hover:underline cursor-pointer whitespace-nowrap"
+                className="text-xs-plus text-brand hover:underline cursor-pointer whitespace-nowrap"
               >
                 Clear search
               </button>
@@ -959,13 +1583,13 @@ function QuestionBankPage() {
           </div>
           <div className="space-y-3">
             {questions.length === 0 ? (
-              <div className="text-center py-12 bg-white border border-[#E6E6EA] rounded-xl p-8 space-y-3">
-                <p className="text-[13px] text-[#8B8B93] font-mono">
-                  No questions found matching "<strong className="text-[#0B0B0D]">{query}</strong>".
+              <div className="text-center py-12 bg-white border border-line rounded-xl p-8 space-y-3">
+                <p className="text-sm-minus text-ink-tertiary font-mono">
+                  No questions found matching "<strong className="text-ink">{query}</strong>".
                 </p>
                 <button
                   onClick={() => setQuery("")}
-                  className="px-3.5 py-1.5 bg-[#F7F7F9] hover:bg-[#EFF0F3] text-[#0B0B0D] text-[12px] font-medium rounded-lg border border-[#E6E6EA] cursor-pointer transition-colors"
+                  className="px-3.5 py-1.5 bg-canvas hover:bg-surface-inset text-ink text-xs font-medium rounded-lg border border-line cursor-pointer transition-colors"
                 >
                   Clear Search Filter
                 </button>
@@ -974,16 +1598,16 @@ function QuestionBankPage() {
               questions.map((q) => (
                 <div
                   key={q.id}
-                  className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+                  className="bg-white border border-line rounded-lg p-4 shadow-sm hover:border-line-strong transition-colors flex items-start justify-between"
                 >
                   <div className="space-y-1.5 flex-1 min-w-0 pr-4">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
+                      <span className="px-2 py-0.5 rounded bg-surface-inset text-ink-secondary font-mono text-2xs uppercase font-semibold">
                         {q.moduleType}
                       </span>
-                      <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
+                      <span className="text-2xs text-ink-tertiary font-mono">v{q.version}</span>
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
+                        className={`px-2 py-0.5 rounded text-2xs font-mono capitalize ${
                           q.difficulty === "easy"
                             ? "bg-emerald-50 text-emerald-700"
                             : q.difficulty === "medium"
@@ -993,11 +1617,11 @@ function QuestionBankPage() {
                       >
                         {q.difficulty}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
+                      <span className="px-2 py-0.5 rounded bg-brand-subtle text-brand-ink text-2xs font-medium">
                         Role: {q.role || "General"}
                       </span>
                     </div>
-                    <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
+                    <h4 className="text-sm-minus font-medium text-ink line-clamp-2">
                       {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                     </h4>
                     {q.tags && q.tags.length > 0 && (() => {
@@ -1007,14 +1631,14 @@ function QuestionBankPage() {
                           {displayTags.map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-2xs text-ink-secondary font-mono"
                             >
                               <Tag size={8} />
                               {tag}
                             </span>
                           ))}
                           {hiddenDriveCount > 0 && (
-                            <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                            <span className="text-2xs text-brand bg-brand-subtle px-2 py-0.5 rounded-full font-semibold">
                               +{hiddenDriveCount} more drives
                             </span>
                           )}
@@ -1024,26 +1648,26 @@ function QuestionBankPage() {
                   </div>
                   <div className="flex items-center gap-6 shrink-0">
                     <div className="text-center font-mono">
-                      <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
-                      <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
+                      <div className="text-sm-minus font-semibold text-ink">{q.usageCount}</div>
+                      <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Drives</div>
                     </div>
                     <div className="text-center font-mono">
-                      <div className="text-[13px] font-semibold text-[#0B0B0D]">
+                      <div className="text-sm-minus font-semibold text-ink">
                         {q.avgScore !== null ? `${q.avgScore}%` : "—"}
                       </div>
-                      <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
+                      <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Avg Score</div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEdit(q)}
-                        className="p-2 text-[#2F5CFF] hover:bg-[#EFF4FF] rounded transition-colors cursor-pointer"
+                        className="p-2 text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
                         title="Preview & Edit"
                       >
                         <Edit3 size={14} />
                       </button>
                       <button
                         onClick={() => setConfirmArchiveQuestion(q)}
-                        className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                        className="p-2 text-danger hover:bg-danger-subtle rounded transition-colors cursor-pointer"
                         title="Archive"
                       >
                         <Trash2 size={14} />
@@ -1057,49 +1681,69 @@ function QuestionBankPage() {
         </div>
       ) : selectedFolder !== null ? (
         /* Inside a folder */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedFolder(null)}
-                className="flex items-center gap-1 text-[12px] font-medium text-[#2F5CFF] hover:underline cursor-pointer"
-              >
-                <ArrowLeft size={13} /> Back to Folders
-              </button>
-              <span className="text-[#8B8B93]">/</span>
-              <span className="text-[13px] font-semibold text-[#0B0B0D] capitalize flex items-center gap-1.5">
-                <Folder size={14} className="text-[#2F5CFF]" />
-                {selectedFolder} ({groupedQuestions[selectedFolder]?.length || 0})
-              </span>
-            </div>
-            <div className="relative w-[280px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
-              <input
-                value={folderQuery}
-                onChange={(e) => setFolderQuery(e.target.value)}
-                placeholder="Filter in this folder…"
-                className="w-full pl-9 pr-8 py-1.5 text-[13px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
-              />
-              {folderQuery && (
-                <button
-                  onClick={() => setFolderQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
-                  title="Clear filter"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="space-y-3">
+        (() => {
+          const currentSection = classifyTag(selectedFolder);
+          const { title: displayTitle } = formatTagDisplayName(selectedFolder, currentSection);
+          const allFolderQuestions = groupedQuestions[selectedFolder] || [];
+          const currentList = folderQuery.trim()
+            ? allFolderQuestions.filter((q) => {
+                const fq = folderQuery.toLowerCase().trim();
+                const prompt = (q.content?.prompt || q.content?.title || "").toLowerCase();
+                const tags = (q.tags || []).join(" ").toLowerCase();
+                const role = (q.role || "").toLowerCase();
+                const diff = (q.difficulty || "").toLowerCase();
+                const mod = (q.moduleType || "").toLowerCase();
+                return prompt.includes(fq) || tags.includes(fq) || role.includes(fq) || diff.includes(fq) || mod.includes(fq);
+              })
+            : allFolderQuestions;
+
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      setSelectedFolder(null);
+                      setFolderQuery("");
+                    }}
+                    className="flex items-center gap-1 text-xs font-medium text-brand hover:underline cursor-pointer"
+                  >
+                    <ArrowLeft size={13} /> Back to Repositories
+                  </button>
+                  <span className="text-ink-tertiary">/</span>
+                  <span className="text-sm-minus font-semibold text-ink capitalize flex items-center gap-1.5">
+                    <Folder size={14} className="text-brand" />
+                    {displayTitle} ({allFolderQuestions.length})
+                  </span>
+                </div>
+                <div className="relative w-[280px]">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                  <input
+                    value={folderQuery}
+                    onChange={(e) => setFolderQuery(e.target.value)}
+                    placeholder="Filter in this folder…"
+                    className="w-full pl-9 pr-8 py-1.5 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
+                  />
+                  {folderQuery && (
+                    <button
+                      onClick={() => setFolderQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
+                      title="Clear filter"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-3">
                 {currentList.length === 0 ? (
-                  <div className="text-center py-10 bg-white border border-[#E6E6EA] rounded-xl p-6 space-y-2">
-                    <p className="text-[12px] text-[#8B8B93] font-mono">
+                  <div className="text-center py-10 bg-white border border-line rounded-xl p-6 space-y-2">
+                    <p className="text-xs text-ink-tertiary font-mono">
                       No questions in this folder match "{folderQuery}".
                     </p>
                     <button
                       onClick={() => setFolderQuery("")}
-                      className="text-[12px] text-[#2F5CFF] hover:underline cursor-pointer font-medium"
+                      className="text-xs text-brand hover:underline cursor-pointer font-medium"
                     >
                       Clear Filter
                     </button>
@@ -1108,16 +1752,16 @@ function QuestionBankPage() {
                   currentList.map((q) => (
                     <div
                       key={q.id}
-                      className="bg-white border border-[#E6E6EA] rounded-[10px] p-4 shadow-sm hover:border-[#D6D7DC] transition-colors flex items-start justify-between"
+                      className="bg-white border border-line rounded-lg p-4 shadow-sm hover:border-line-strong transition-colors flex items-start justify-between"
                     >
                       <div className="space-y-1.5 flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded bg-[#EFF0F3] text-[#5B5B64] font-mono text-[10px] uppercase font-semibold">
+                          <span className="px-2 py-0.5 rounded bg-surface-inset text-ink-secondary font-mono text-2xs uppercase font-semibold">
                             {q.moduleType}
                           </span>
-                          <span className="text-[10px] text-[#8B8B93] font-mono">v{q.version}</span>
+                          <span className="text-2xs text-ink-tertiary font-mono">v{q.version}</span>
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-mono capitalize ${
+                            className={`px-2 py-0.5 rounded text-2xs font-mono capitalize ${
                               q.difficulty === "easy"
                                 ? "bg-emerald-50 text-emerald-700"
                                 : q.difficulty === "medium"
@@ -1127,14 +1771,14 @@ function QuestionBankPage() {
                           >
                             {q.difficulty}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-medium">
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 text-2xs font-medium">
                             Level: {q.targetLevel || "All"}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-[#EAF0FF] text-[#15308F] text-[10px] font-medium">
+                          <span className="px-2 py-0.5 rounded bg-brand-subtle text-brand-ink text-2xs font-medium">
                             Role: {q.role || "General"}
                           </span>
                         </div>
-                        <h4 className="text-[13px] font-medium text-[#0B0B0D] line-clamp-2">
+                        <h4 className="text-sm-minus font-medium text-ink line-clamp-2">
                           {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                         </h4>
                         {q.tags && q.tags.length > 0 && (() => {
@@ -1144,14 +1788,14 @@ function QuestionBankPage() {
                               {displayTags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#E6E6EA] text-[10px] text-[#5B5B64] font-mono"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-2xs text-ink-secondary font-mono"
                                 >
                                   <Tag size={8} />
                                   {tag}
                                 </span>
                               ))}
                               {hiddenDriveCount > 0 && (
-                                <span className="text-[10px] text-[#2F5CFF] bg-[#EAF0FF] px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-2xs text-brand bg-brand-subtle px-2 py-0.5 rounded-full font-semibold">
                                   +{hiddenDriveCount} more drives
                                 </span>
                               )}
@@ -1161,26 +1805,26 @@ function QuestionBankPage() {
                       </div>
                       <div className="flex items-center gap-6 shrink-0">
                         <div className="text-center font-mono">
-                          <div className="text-[13px] font-semibold text-[#0B0B0D]">{q.usageCount}</div>
-                          <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Drives</div>
+                          <div className="text-sm-minus font-semibold text-ink">{q.usageCount}</div>
+                          <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Drives</div>
                         </div>
                         <div className="text-center font-mono">
-                          <div className="text-[13px] font-semibold text-[#0B0B0D]">
+                          <div className="text-sm-minus font-semibold text-ink">
                             {q.avgScore !== null ? `${q.avgScore}%` : "—"}
                           </div>
-                          <div className="text-[9px] uppercase tracking-wider text-[#8B8B93]">Avg Score</div>
+                          <div className="text-2xs uppercase tracking-wider text-ink-tertiary">Avg Score</div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleOpenEdit(q)}
-                            className="p-2 text-[#2F5CFF] hover:bg-[#EFF4FF] rounded transition-colors cursor-pointer"
+                            className="p-2 text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
                             title="Preview & Edit"
                           >
                             <Edit3 size={14} />
                           </button>
                           <button
                             onClick={() => setConfirmArchiveQuestion(q)}
-                            className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded transition-colors cursor-pointer"
+                            className="p-2 text-danger hover:bg-danger-subtle rounded transition-colors cursor-pointer"
                             title="Archive"
                           >
                             <Trash2 size={14} />
@@ -1192,33 +1836,35 @@ function QuestionBankPage() {
                 )}
               </div>
             </div>
-          ) : (
+          );
+        })()
+      ) : (
         /* Categorized Folder Grid directory list */
         <div className="space-y-6">
           {/* Header Bar */}
-          <div className="flex items-center justify-between border-b border-[#E6E6EA] pb-3">
+          <div className="flex items-center justify-between border-b border-line pb-3">
             <div>
-              <h3 className="text-[14px] font-semibold text-[#0B0B0D]">Question Repositories</h3>
-              <p className="text-[12px] text-[#5B5B64] mt-0.5">
+              <h3 className="text-sm font-semibold text-ink">Question Repositories</h3>
+              <p className="text-xs text-ink-secondary mt-0.5">
                 Browse questions organized by module format, seniority level, topic domains, and drive batches.
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-[#8B8B93] font-mono whitespace-nowrap bg-[#F7F7F9] px-2.5 py-1 rounded-md border border-[#E6E6EA]">
+              <span className="text-xs-plus text-ink-tertiary font-mono whitespace-nowrap bg-canvas px-2.5 py-1 rounded-md border border-line">
                 {Object.keys(groupedQuestions).length} total tags
               </span>
               <div className="relative w-[260px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA5] pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search questions or tags…"
-                  className="w-full pl-9 pr-8 py-1.5 text-[12px] border border-[#E6E6EA] rounded-md bg-white focus:outline-none focus:border-[#2F5CFF] shadow-2xs"
+                  className="w-full pl-9 pr-8 py-1.5 text-xs border border-line rounded-md bg-white focus:outline-none focus:border-brand shadow-2xs"
                 />
                 {query && (
                   <button
                     onClick={() => setQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5] hover:text-[#0B0B0D] cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
                     title="Clear search"
                   >
                     <X size={12} />
@@ -1232,14 +1878,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">1. Module Types</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">1. Module Types</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.module.length} formats
                 </span>
               </div>
             </div>
             {categorizedTagGroups.module.length === 0 ? (
-              <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                 No module categories found.
               </p>
             ) : (
@@ -1248,17 +1894,17 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="min-w-0 pr-2">
-                      <h5 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={item.title}>
+                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
                         {item.title}
                       </h5>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0" />
+                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1269,14 +1915,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">2. Experience Levels</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">2. Experience Levels</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.level.length} levels
                 </span>
               </div>
             </div>
             {categorizedTagGroups.level.length === 0 ? (
-              <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                 No level categories found.
               </p>
             ) : (
@@ -1285,17 +1931,17 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="min-w-0 pr-2">
-                      <h5 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={item.title}>
+                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
                         {item.title}
                       </h5>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0" />
+                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1306,14 +1952,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">3. Topics</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">3. Topics</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.topic.length} topics
                 </span>
               </div>
 
               {/* Domain Category Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1.5 bg-[#F7F7F9] p-1 rounded-lg border border-[#E6E6EA]">
+              <div className="flex flex-wrap items-center gap-1.5 bg-canvas p-1 rounded-lg border border-line">
                 {TOPIC_DOMAINS.map((domain) => {
                   const isActive = selectedTopicDomain === domain.id;
                   const count =
@@ -1329,18 +1975,18 @@ function QuestionBankPage() {
                     <button
                       key={domain.id}
                       onClick={() => setSelectedTopicDomain(domain.id)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded-md text-xs-plus font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                         isActive
-                          ? "bg-white text-[#2F5CFF] shadow-2xs font-semibold"
-                          : "text-[#5B5B64] hover:text-[#0B0B0D] hover:bg-white/60"
+                          ? "bg-white text-brand shadow-2xs font-semibold"
+                          : "text-ink-secondary hover:text-ink hover:bg-white/60"
                       }`}
                     >
                       <span>{domain.label}</span>
                       <span
-                        className={`px-1.5 py-0.2 text-[9px] font-mono rounded-full ${
+                        className={`px-1.5 py-0.2 text-2xs font-mono rounded-full ${
                           isActive
-                            ? "bg-[#EAF0FF] text-[#2F5CFF]"
-                            : "bg-slate-200/60 text-[#5B5B64]"
+                            ? "bg-brand-subtle text-brand"
+                            : "bg-slate-200/60 text-ink-secondary"
                         }`}
                       >
                         {count}
@@ -1352,7 +1998,7 @@ function QuestionBankPage() {
             </div>
 
             {categorizedTagGroups.topic.length === 0 ? (
-              <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+              <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                 No topic tags found.
               </p>
             ) : (() => {
@@ -1363,36 +2009,27 @@ function QuestionBankPage() {
 
               if (filteredTopics.length === 0) {
                 return (
-                  <p className="text-center py-4 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-lg bg-white">
+                  <p className="text-center py-4 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-lg bg-white">
                     No topics found in this category.
                   </p>
                 );
               }
 
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="flex flex-wrap gap-2.5 p-5 bg-white border border-line rounded-2xl shadow-2xs">
                   {filteredTopics.map((item) => (
-                    <div
+                    <button
                       key={item.tag}
+                      type="button"
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-canvas hover:bg-brand-subtle hover:text-brand hover:border-brand-border border border-line rounded-full text-xs font-medium text-ink transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
+                      title={`${item.title} (${item.questions.length} questions)`}
                     >
-                      <div className="min-w-0 pr-2">
-                        <h5
-                          className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate"
-                          title={item.title}
-                        >
-                          {item.title}
-                        </h5>
-                        <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
-                          {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
-                        </p>
-                      </div>
-                      <ChevronRight
-                        size={14}
-                        className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0"
-                      />
-                    </div>
+                      <span className="group-hover:text-brand transition-colors">{item.title}</span>
+                      <span className="px-2 py-0.5 text-2xs font-mono font-bold rounded-full bg-surface-inset group-hover:bg-brand group-hover:text-white text-ink-secondary transition-colors">
+                        {item.questions.length}
+                      </span>
+                    </button>
                   ))}
                 </div>
               );
@@ -1403,14 +2040,14 @@ function QuestionBankPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h4 className="text-[13px] font-semibold text-[#0B0B0D]">4. Drives</h4>
-                <span className="text-[11px] text-[#8B8B93] font-mono bg-[#F7F7F9] px-2 py-0.5 rounded-full border border-[#E6E6EA]">
+                <h4 className="text-sm-minus font-semibold text-ink">4. Drives</h4>
+                <span className="text-xs-plus text-ink-tertiary font-mono bg-canvas px-2 py-0.5 rounded-full border border-line">
                   {categorizedTagGroups.drive.length} drive batches
                 </span>
               </div>
             </div>
             {categorizedTagGroups.drive.length === 0 ? (
-              <div className="text-center py-5 text-[12px] text-[#8B8B93] font-mono border border-dashed border-[#E6E6EA] rounded-xl bg-white">
+              <div className="text-center py-5 text-xs text-ink-tertiary font-mono border border-dashed border-line rounded-xl bg-white">
                 No drive-specific imported questions found. Questions imported during a Drive setup will appear here.
               </div>
             ) : (
@@ -1419,17 +2056,17 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className="p-3.5 bg-white border border-[#E6E6EA] rounded-xl shadow-2xs hover:border-[#2F5CFF] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 bg-white border border-line rounded-xl shadow-2xs hover:border-brand hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="min-w-0 pr-2">
-                      <h5 className="text-[13px] font-semibold text-[#0B0B0D] group-hover:text-[#2F5CFF] transition-colors truncate" title={item.title}>
+                      <h5 className="text-sm-minus font-semibold text-ink group-hover:text-brand transition-colors truncate" title={item.title}>
                         {item.title}
                       </h5>
-                      <p className="text-[11px] text-[#8B8B93] font-mono mt-0.5">
+                      <p className="text-xs-plus text-ink-tertiary font-mono mt-0.5">
                         {item.questions.length} {item.questions.length === 1 ? "question" : "questions"}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#8B8B93] group-hover:text-[#2F5CFF] transition-colors shrink-0" />
+                    <ChevronRight size={14} className="text-ink-tertiary group-hover:text-brand transition-colors shrink-0" />
                   </div>
                 ))}
               </div>
@@ -1441,14 +2078,14 @@ function QuestionBankPage() {
       {/* Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+          <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-md font-semibold text-ink">
                 Create Assessment Question
               </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="text-ink-tertiary hover:text-ink"
               >
                 <X size={16} />
               </button>
@@ -1457,13 +2094,13 @@ function QuestionBankPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Module Type
                   </label>
                   <select
                     value={moduleType}
                     onChange={(e) => setModuleType(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="MCQ">MCQ</option>
                     <option value="SQL">SQL</option>
@@ -1475,13 +2112,13 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Difficulty
                   </label>
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
@@ -1489,28 +2126,28 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Level
                   </label>
                   <select
                     value={targetLevel}
                     onChange={(e) => setTargetLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="0-1">0-1 yrs (Fresher)</option>
                     <option value="2-5">2-5 yrs (Level 1)</option>
                     <option value="6-10">6-10 yrs (Level 2)</option>
-                    <option value="11-15">11-15 yrs (Level 3)</option>
+                    <option value="11-15">11+ yrs (Level 3)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Role
                   </label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="General">General</option>
                     <option value="Backend Engineer">Backend Engineer</option>
@@ -1522,19 +2159,19 @@ function QuestionBankPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   Tags (comma separated)
                 </label>
                 <input
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                   placeholder="e.g. recursion, arrays, medium"
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   {moduleType === "SIMULATION" ? "Scenario Description" : "Question Prompt"}
                 </label>
                 <textarea
@@ -1546,14 +2183,14 @@ function QuestionBankPage() {
                       ? "Describe the simulation roleplay scenario context..."
                       : "Enter the question prompt here..."
                   }
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus focus:outline-none focus:border-brand"
                 />
               </div>
 
               {/* MCQ Fields */}
               {moduleType === "MCQ" && (
                 <div className="space-y-2">
-                  <label className="block text-[12px] font-medium text-[#5B5B64]">
+                  <label className="block text-xs font-medium text-ink-secondary">
                     MCQ Options
                   </label>
                   {mcqOptions.map((opt, i) => (
@@ -1562,7 +2199,7 @@ function QuestionBankPage() {
                         type="radio"
                         checked={correctIndex === i}
                         onChange={() => setCorrectIndex(i)}
-                        className="w-4 h-4 text-[#2F5CFF]"
+                        className="w-4 h-4 text-brand"
                       />
                       <input
                         value={opt}
@@ -1572,7 +2209,7 @@ function QuestionBankPage() {
                           setMcqOptions(list);
                         }}
                         placeholder={`Option ${i + 1}`}
-                        className="flex-1 px-3 py-1.5 border border-[#E6E6EA] rounded text-[13px]"
+                        className="flex-1 px-3 py-1.5 border border-line rounded text-sm-minus"
                       />
                     </div>
                   ))}
@@ -1583,7 +2220,7 @@ function QuestionBankPage() {
               {moduleType === "SQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Schema Definition SQL
                     </label>
                     <textarea
@@ -1591,11 +2228,11 @@ function QuestionBankPage() {
                       onChange={(e) => setSqlSchema(e.target.value)}
                       rows={3}
                       placeholder="CREATE TABLE users (id SERIAL, name VARCHAR(100));"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Seed Data SQL
                     </label>
                     <textarea
@@ -1603,11 +2240,11 @@ function QuestionBankPage() {
                       onChange={(e) => setSqlSeed(e.target.value)}
                       rows={3}
                       placeholder="INSERT INTO users (name) VALUES ('Alice');"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Query SQL (Used for validation)
                     </label>
                     <textarea
@@ -1615,7 +2252,7 @@ function QuestionBankPage() {
                       onChange={(e) => setSqlExpectedQuery(e.target.value)}
                       rows={3}
                       placeholder="SELECT * FROM users ORDER BY name;"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -1625,7 +2262,7 @@ function QuestionBankPage() {
               {moduleType === "NOSQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Collections (comma-separated, e.g. employees, departments)
                     </label>
                     <input
@@ -1633,16 +2270,16 @@ function QuestionBankPage() {
                       value={nosqlCollections}
                       onChange={(e) => setNosqlCollections(e.target.value)}
                       placeholder="employees, departments"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Allowed Operations
                     </label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-[#E6E6EA] rounded-md bg-white">
+                    <div className="flex flex-wrap gap-2 p-2 border border-line rounded-md bg-white">
                       {["find", "aggregate", "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany", "countDocuments"].map((op) => (
-                        <label key={op} className="flex items-center gap-1 text-[11px] font-mono cursor-pointer select-none">
+                        <label key={op} className="flex items-center gap-1 text-xs-plus font-mono cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={nosqlAllowedOps.includes(op)}
@@ -1660,20 +2297,20 @@ function QuestionBankPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Validator Type
                     </label>
                     <select
                       value={nosqlValidatorType}
                       onChange={(e) => setNosqlValidatorType(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     >
                       <option value="OUTPUT_COMPARISON">OUTPUT_COMPARISON</option>
                       <option value="STATE_COMPARISON">STATE_COMPARISON</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Dataset Reference Path (MinIO object key)
                     </label>
                     <input
@@ -1681,11 +2318,11 @@ function QuestionBankPage() {
                       value={nosqlDatasetRef}
                       onChange={(e) => setNosqlDatasetRef(e.target.value)}
                       placeholder="datasets/employees-seed.json"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Operation (JSON format)
                     </label>
                     <textarea
@@ -1693,7 +2330,7 @@ function QuestionBankPage() {
                       onChange={(e) => setNosqlExpectedOp(e.target.value)}
                       rows={4}
                       placeholder={JSON.stringify({ collection: "employees", operator: "find", payload: { filter: { salary: { $gt: 50000 } } } }, null, 2)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -1779,31 +2416,231 @@ function QuestionBankPage() {
 
               {/* Coding & Debugging Fields */}
               {(moduleType === "CODING" || moduleType === "DEBUGGING") && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Starter Code
-                    </label>
-                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
-                      <CodeEditor
-                        value={starterCode}
-                        onChange={(val) => setStarterCode(val)}
-                        language="javascript"
-                        theme="light"
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Function Name
+                      </label>
+                      <input
+                        value={codingFunctionName}
+                        onChange={(e) => setCodingFunctionName(e.target.value)}
+                        placeholder="e.g. twoSum, binarySearch"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Parameters Signature
+                      </label>
+                      <input
+                        value={codingParameters}
+                        onChange={(e) => setCodingParameters(e.target.value)}
+                        placeholder="e.g. nums: number[], target: number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Return Type
+                      </label>
+                      <input
+                        value={codingReturnType}
+                        onChange={(e) => setCodingReturnType(e.target.value)}
+                        placeholder="e.g. number[], boolean, number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Test Cases JSON (Array of input/expected)
-                    </label>
-                    <textarea
-                      value={testCasesInput}
-                      onChange={(e) => setTestCasesInput(e.target.value)}
-                      rows={3}
-                      placeholder='[{"input": "[1, 2]", "expected": "3"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Starter Code &amp; Docstrings
+                      </label>
+                      <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-line">
+                        {["javascript", "python", "java", "cpp"].map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => {
+                              setStarterCodeMap((prev) => ({ ...prev, [codingLanguage]: starterCode }));
+                              setCodingLanguage(lang);
+                              setStarterCode(starterCodeMap[lang] || "");
+                            }}
+                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${
+                              codingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
+                            }`}
+                          >
+                            {lang.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="h-44 border border-line rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={starterCode}
+                        onChange={(val) => {
+                          setStarterCode(val);
+                          setStarterCodeMap((prev) => ({ ...prev, [codingLanguage]: val }));
+                        }}
+                        language={codingLanguage}
+                        theme="cd-recruit-light"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sample / Visible Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Sample (Visible) Test Cases ({codingSampleTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCodingSampleTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Example ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Sample Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {codingSampleTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Case #{idx + 1}</span>
+                            {codingSampleTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setCodingSampleTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <input
+                                value={tc.input}
+                                onChange={(e) => {
+                                  const list = [...codingSampleTestCases];
+                                  list[idx] = { ...list[idx], input: e.target.value };
+                                  setCodingSampleTestCases(list);
+                                }}
+                                placeholder="Input (e.g. [2, 7, 11, 15], 9)"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                value={tc.expectedOutput}
+                                onChange={(e) => {
+                                  const list = [...codingSampleTestCases];
+                                  list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                  setCodingSampleTestCases(list);
+                                }}
+                                placeholder="Expected Output (e.g. [0, 1])"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hidden Evaluation Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Hidden Evaluation Test Cases ({codingHiddenTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCodingHiddenTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Hidden ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Hidden Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {codingHiddenTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Hidden Case #{idx + 1}</span>
+                            {codingHiddenTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setCodingHiddenTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              value={tc.input}
+                              onChange={(e) => {
+                                const list = [...codingHiddenTestCases];
+                                list[idx] = { ...list[idx], input: e.target.value };
+                                setCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Hidden Input (e.g. [3, 3], 6)"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                            <input
+                              value={tc.expectedOutput}
+                              onChange={(e) => {
+                                const list = [...codingHiddenTestCases];
+                                list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                setCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Expected Output (e.g. [0, 1])"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Constraints (One per line)
+                      </label>
+                      <textarea
+                        value={codingConstraints}
+                        onChange={(e) => setCodingConstraints(e.target.value)}
+                        rows={2}
+                        placeholder="2 <= nums.length <= 10^4&#10;-10^9 <= nums[i] <= 10^9"
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Solution Explanation / Strategy
+                      </label>
+                      <textarea
+                        value={codingExplanation}
+                        onChange={(e) => setCodingExplanation(e.target.value)}
+                        rows={2}
+                        placeholder="Explain optimal time & space complexity approach..."
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -1812,13 +2649,13 @@ function QuestionBankPage() {
               {moduleType === "AI_PROMPTING" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Primary Technology / Stack Selection
                     </label>
                     <select
                       value={aiTechStack}
                       onChange={(e) => setAiTechStack(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     >
                       <option value="React/TypeScript">React / TypeScript</option>
                       <option value="Node.js/Express">Node.js / Express</option>
@@ -1829,7 +2666,7 @@ function QuestionBankPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       AI System Context / Role Guidelines
                     </label>
                     <textarea
@@ -1837,11 +2674,11 @@ function QuestionBankPage() {
                       onChange={(e) => setAiSystemContext(e.target.value)}
                       rows={3}
                       placeholder="Specify system instructions for the LLM assistant (e.g. You are an expert code reviewer evaluating Express middleware request signatures...)"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Response Criteria / Ideal Summary
                     </label>
                     <textarea
@@ -1849,7 +2686,7 @@ function QuestionBankPage() {
                       onChange={(e) => setAiIdealResponse(e.target.value)}
                       rows={3}
                       placeholder="Outline key elements that the student's prompt should instruct the LLM to cover (e.g., must include error handling, TypeScript types, edge cases)..."
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs"
                     />
                   </div>
                 </div>
@@ -1859,7 +2696,7 @@ function QuestionBankPage() {
               {moduleType === "SIMULATION" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Triggers JSON Array
                     </label>
                     <textarea
@@ -1867,11 +2704,11 @@ function QuestionBankPage() {
                       onChange={(e) => setSimTriggers(e.target.value)}
                       rows={3}
                       placeholder='[{"timeSeconds": 10, "message": "Can you refactor this?"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Rubric Criteria JSON Array
                     </label>
                     <textarea
@@ -1879,23 +2716,23 @@ function QuestionBankPage() {
                       onChange={(e) => setSimRubric(e.target.value)}
                       rows={3}
                       placeholder='[{"criterion": "Code Quality", "maxPoints": 5}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded hover:bg-white transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded hover:bg-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-sm-minus text-white bg-brand rounded hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
               >
                 Create Question
               </button>
@@ -1907,9 +2744,9 @@ function QuestionBankPage() {
       {/* Bulk Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+          <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-md font-semibold text-ink">
                 Bulk Upload Questions
               </h2>
               <button
@@ -1917,47 +2754,29 @@ function QuestionBankPage() {
                   setCsvFile(null);
                   setShowImportModal(false);
                 }}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="text-ink-tertiary hover:text-ink"
               >
                 <X size={16} />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <p className="text-[12px] text-[#5B5B64]">
-                Select a module category and download the matched template layout to begin importing questions.
+              <p className="text-xs text-ink-secondary">
+                Upload a CSV file containing questions across any module type (MCQ, SQL, Coding, Debugging, NoSQL, AI Prompting, Simulation, Test Scenarios).
               </p>
 
-              <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1.5">
-                  Module Category
-                </label>
-                <select
-                  value={importModuleType}
-                  onChange={(e) => setImportModuleType(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none"
-                >
-                  <option value="MCQ">Multiple Choice (MCQ)</option>
-                  <option value="SQL">SQL Database Evaluation</option>
-                  <option value="NOSQL">NoSQL Database Evaluation</option>
-                  <option value="CODING">Coding & Algorithms</option>
-                  <option value="DEBUGGING">Debugging</option>
-                  <option value="AI_PROMPTING">AI Prompting</option>
-                  <option value="SIMULATION">Contextual Simulation</option>
-                </select>
-              </div>
-
-              {/* Template Downloader section */}
-              <div className="p-4 bg-[#F7F7F9] rounded-lg border border-[#E6E6EA] flex items-center justify-between">
+              {/* Unified Multi-Module Template Downloader section */}
+              <div className="p-4 bg-canvas rounded-lg border border-line flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <div className="text-[12px] font-semibold text-[#0B0B0D]">CSV Template Ready</div>
-                  <div className="text-[11px] text-[#8B8B93]">
-                    Matches layout header schema precisely for {importModuleType}
+                  <div className="text-xs font-semibold text-ink">Unified Multi-Module CSV Template</div>
+                  <div className="text-xs-plus text-ink-tertiary">
+                    Comprises ready-to-use sample rows for all 8 assessment module formats in one file.
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDownloadSample(importModuleType)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2F5CFF] text-[#2F5CFF] bg-white rounded hover:bg-[#2F5CFF] hover:text-white transition-all text-[12px] font-medium cursor-pointer shadow-sm"
+                  type="button"
+                  onClick={handleDownloadUnifiedSampleCSV}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-brand text-brand bg-white rounded hover:bg-brand hover:text-white transition-all text-xs font-medium cursor-pointer shadow-sm shrink-0"
                 >
                   <Download size={13} />
                   Download template
@@ -1966,8 +2785,8 @@ function QuestionBankPage() {
 
               {/* Upload Area */}
               <div className="space-y-2">
-                <label className="block text-[12px] font-medium text-[#5B5B64]">Select CSV File</label>
-                <div className="border-2 border-dashed border-[#E6E6EA] rounded-lg p-6 flex flex-col items-center justify-center bg-[#FDFDFD] hover:bg-[#F9FBFD] transition-colors relative cursor-pointer">
+                <label className="block text-xs font-medium text-ink-secondary">Select CSV File</label>
+                <div className="border-2 border-dashed border-line rounded-lg p-6 flex flex-col items-center justify-center bg-canvas/50 hover:bg-canvas transition-colors relative cursor-pointer">
                   <input
                     type="file"
                     accept=".csv"
@@ -1977,29 +2796,29 @@ function QuestionBankPage() {
                     }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                  <UploadCloud size={32} className="text-[#8B8B93] mb-2" />
-                  <span className="text-[12px] text-[#5B5B64] font-medium text-center px-4">
+                  <UploadCloud size={32} className="text-ink-tertiary mb-2" />
+                  <span className="text-xs text-ink-secondary font-medium text-center px-4">
                     {csvFile ? csvFile.name : "Drag & drop your CSV file here, or click to browse"}
                   </span>
-                  <span className="text-[10px] text-[#8B8B93] mt-1">Accepts .csv format</span>
+                  <span className="text-2xs text-ink-tertiary mt-1">Accepts .csv format (mixed modules supported)</span>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => {
                   setCsvFile(null);
                   setShowImportModal(false);
                 }}
-                className="px-3.5 py-2 text-[12px] border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs border border-line rounded hover:bg-canvas transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleImport}
                 disabled={!csvFile}
-                className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#EFF0F3] disabled:text-[#8B8B93] disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand rounded hover:bg-brand-hover disabled:bg-surface-inset disabled:text-ink-tertiary disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
               >
                 <Check size={14} />
                 Import Questions
@@ -2012,14 +2831,14 @@ function QuestionBankPage() {
       {/* Preview & Edit Modal */}
       {editingQuestion && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-[#E6E6EA] flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-[#0B0B0D]">
+          <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="text-md font-semibold text-ink">
                 Preview &amp; Edit Question (v{editingQuestion.version})
               </h2>
               <button
                 onClick={() => setEditingQuestion(null)}
-                className="text-[#8B8B93] hover:text-[#0B0B0D]"
+                className="text-ink-tertiary hover:text-ink"
               >
                 <X size={16} />
               </button>
@@ -2028,23 +2847,23 @@ function QuestionBankPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Module Type (Read-Only)
                   </label>
                   <input
                     value={editingQuestion.moduleType}
                     disabled
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-[#EFF0F3] text-[13px] text-[#5B5B64] cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-surface-inset text-sm-minus text-ink-secondary cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Difficulty
                   </label>
                   <select
                     value={editDifficulty}
                     onChange={(e) => setEditDifficulty(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
@@ -2052,28 +2871,28 @@ function QuestionBankPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Level
                   </label>
                   <select
                     value={editTargetLevel}
                     onChange={(e) => setEditTargetLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="0-1">0-1 yrs (Fresher)</option>
                     <option value="2-5">2-5 yrs (Level 1)</option>
                     <option value="6-10">6-10 yrs (Level 2)</option>
-                    <option value="11-15">11-15 yrs (Level 3)</option>
+                    <option value="11-15">11+ yrs (Level 3)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Target Role
                   </label>
                   <select
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                    className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                   >
                     <option value="General">General</option>
                     <option value="Backend Engineer">Backend Engineer</option>
@@ -2085,19 +2904,19 @@ function QuestionBankPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   Tags (comma separated)
                 </label>
                 <input
                   value={editTagsInput}
                   onChange={(e) => setEditTagsInput(e.target.value)}
                   placeholder="e.g. recursion, arrays, medium"
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                 />
               </div>
 
               <div>
-                <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
                   {editingQuestion.moduleType === "SIMULATION" ? "Scenario Description" : "Question Prompt"}
                 </label>
                 <textarea
@@ -2109,14 +2928,14 @@ function QuestionBankPage() {
                       ? "Describe the simulation roleplay scenario context..."
                       : "Enter the question prompt here..."
                   }
-                  className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px] focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus focus:outline-none focus:border-brand"
                 />
               </div>
 
               {/* MCQ Fields */}
               {editingQuestion.moduleType === "MCQ" && (
                 <div className="space-y-2">
-                  <label className="block text-[12px] font-medium text-[#5B5B64]">
+                  <label className="block text-xs font-medium text-ink-secondary">
                     MCQ Options
                   </label>
                   {editMcqOptions.map((opt, i) => (
@@ -2125,7 +2944,7 @@ function QuestionBankPage() {
                         type="radio"
                         checked={editCorrectIndex === i}
                         onChange={() => setEditCorrectIndex(i)}
-                        className="w-4 h-4 text-[#2F5CFF]"
+                        className="w-4 h-4 text-brand"
                       />
                       <input
                         value={opt}
@@ -2135,7 +2954,7 @@ function QuestionBankPage() {
                           setEditMcqOptions(list);
                         }}
                         placeholder={`Option ${i + 1}`}
-                        className="flex-1 px-3 py-1.5 border border-[#E6E6EA] rounded text-[13px]"
+                        className="flex-1 px-3 py-1.5 border border-line rounded text-sm-minus"
                       />
                     </div>
                   ))}
@@ -2146,7 +2965,7 @@ function QuestionBankPage() {
               {editingQuestion.moduleType === "SQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Schema Definition SQL
                     </label>
                     <textarea
@@ -2154,11 +2973,11 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSqlSchema(e.target.value)}
                       rows={3}
                       placeholder="CREATE TABLE users (id SERIAL, name VARCHAR(100));"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Seed Data SQL
                     </label>
                     <textarea
@@ -2166,11 +2985,11 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSqlSeed(e.target.value)}
                       rows={3}
                       placeholder="INSERT INTO users (name) VALUES ('Alice');"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Query SQL (Used for validation)
                     </label>
                     <textarea
@@ -2178,7 +2997,7 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSqlExpectedQuery(e.target.value)}
                       rows={3}
                       placeholder="SELECT * FROM users ORDER BY name;"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2188,7 +3007,7 @@ function QuestionBankPage() {
               {editingQuestion.moduleType === "NOSQL" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Collections (comma-separated, e.g. employees, departments)
                     </label>
                     <input
@@ -2196,16 +3015,16 @@ function QuestionBankPage() {
                       value={editNosqlCollections}
                       onChange={(e) => setEditNosqlCollections(e.target.value)}
                       placeholder="employees, departments"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Allowed Operations
                     </label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-[#E6E6EA] rounded-md bg-white">
+                    <div className="flex flex-wrap gap-2 p-2 border border-line rounded-md bg-white">
                       {["find", "aggregate", "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany", "countDocuments"].map((op) => (
-                        <label key={op} className="flex items-center gap-1 text-[11px] font-mono cursor-pointer select-none">
+                        <label key={op} className="flex items-center gap-1 text-xs-plus font-mono cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={editNosqlAllowedOps.includes(op)}
@@ -2223,20 +3042,20 @@ function QuestionBankPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Validator Type
                     </label>
                     <select
                       value={editNosqlValidatorType}
                       onChange={(e) => setEditNosqlValidatorType(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     >
                       <option value="OUTPUT_COMPARISON">OUTPUT_COMPARISON</option>
                       <option value="STATE_COMPARISON">STATE_COMPARISON</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Dataset Reference Path (MinIO object key)
                     </label>
                     <input
@@ -2244,11 +3063,11 @@ function QuestionBankPage() {
                       value={editNosqlDatasetRef}
                       onChange={(e) => setEditNosqlDatasetRef(e.target.value)}
                       placeholder="datasets/employees-seed.json"
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[13px]"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-sm-minus"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Expected Operation (JSON format)
                     </label>
                     <textarea
@@ -2256,7 +3075,7 @@ function QuestionBankPage() {
                       onChange={(e) => setEditNosqlExpectedOp(e.target.value)}
                       rows={4}
                       placeholder={JSON.stringify({ collection: "employees", operator: "find", payload: { filter: { salary: { $gt: 50000 } } } }, null, 2)}
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -2342,31 +3161,231 @@ function QuestionBankPage() {
 
               {/* Coding & Debugging Fields */}
               {(editingQuestion.moduleType === "CODING" || editingQuestion.moduleType === "DEBUGGING") && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Starter Code
-                    </label>
-                    <div className="h-40 border border-[#E6E6EA] rounded-md overflow-hidden">
-                      <CodeEditor
-                        value={editStarterCode}
-                        onChange={(val) => setEditStarterCode(val)}
-                        language="javascript"
-                        theme="light"
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Function Name
+                      </label>
+                      <input
+                        value={editCodingFunctionName}
+                        onChange={(e) => setEditCodingFunctionName(e.target.value)}
+                        placeholder="e.g. twoSum, binarySearch"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Parameters Signature
+                      </label>
+                      <input
+                        value={editCodingParameters}
+                        onChange={(e) => setEditCodingParameters(e.target.value)}
+                        placeholder="e.g. nums: number[], target: number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Return Type
+                      </label>
+                      <input
+                        value={editCodingReturnType}
+                        onChange={(e) => setEditCodingReturnType(e.target.value)}
+                        placeholder="e.g. number[], boolean, number"
+                        className="w-full px-3 py-1.5 border border-line rounded text-sm-minus font-mono"
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
-                      Test Cases JSON (Array of input/expected)
-                    </label>
-                    <textarea
-                      value={editTestCasesInput}
-                      onChange={(e) => setEditTestCasesInput(e.target.value)}
-                      rows={3}
-                      placeholder='[{"input": "[1, 2]", "expected": "3"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
-                    />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Starter Code &amp; Docstrings
+                      </label>
+                      <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-line">
+                        {["javascript", "python", "java", "cpp"].map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => {
+                              setEditStarterCodeMap((prev) => ({ ...prev, [editCodingLanguage]: editStarterCode }));
+                              setEditCodingLanguage(lang);
+                              setEditStarterCode(editStarterCodeMap[lang] || "");
+                            }}
+                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${
+                              editCodingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
+                            }`}
+                          >
+                            {lang.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="h-44 border border-line rounded-md overflow-hidden">
+                      <CodeEditor
+                        value={editStarterCode}
+                        onChange={(val) => {
+                          setEditStarterCode(val);
+                          setEditStarterCodeMap((prev) => ({ ...prev, [editCodingLanguage]: val }));
+                        }}
+                        language={editCodingLanguage}
+                        theme="cd-recruit-light"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sample / Visible Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Sample (Visible) Test Cases ({editCodingSampleTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditCodingSampleTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Example ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Sample Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {editCodingSampleTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Case #{idx + 1}</span>
+                            {editCodingSampleTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setEditCodingSampleTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <input
+                                value={tc.input}
+                                onChange={(e) => {
+                                  const list = [...editCodingSampleTestCases];
+                                  list[idx] = { ...list[idx], input: e.target.value };
+                                  setEditCodingSampleTestCases(list);
+                                }}
+                                placeholder="Input (e.g. [2, 7, 11, 15], 9)"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                value={tc.expectedOutput}
+                                onChange={(e) => {
+                                  const list = [...editCodingSampleTestCases];
+                                  list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                  setEditCodingSampleTestCases(list);
+                                }}
+                                placeholder="Expected Output (e.g. [0, 1])"
+                                className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hidden Evaluation Test Cases */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-medium text-ink-secondary">
+                        Hidden Evaluation Test Cases ({editCodingHiddenTestCases.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditCodingHiddenTestCases((prev) => [
+                            ...prev,
+                            { input: "", expectedOutput: "", label: `Hidden ${prev.length + 1}` },
+                          ])
+                        }
+                        className="text-2xs font-semibold text-brand hover:underline cursor-pointer"
+                      >
+                        + Add Hidden Case
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {editCodingHiddenTestCases.map((tc, idx) => (
+                        <div key={idx} className="p-2.5 bg-canvas border border-line rounded-md space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-semibold text-ink-secondary">Hidden Case #{idx + 1}</span>
+                            {editCodingHiddenTestCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setEditCodingHiddenTestCases((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-2xs text-red-500 hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              value={tc.input}
+                              onChange={(e) => {
+                                const list = [...editCodingHiddenTestCases];
+                                list[idx] = { ...list[idx], input: e.target.value };
+                                setEditCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Hidden Input (e.g. [3, 3], 6)"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                            <input
+                              value={tc.expectedOutput}
+                              onChange={(e) => {
+                                const list = [...editCodingHiddenTestCases];
+                                list[idx] = { ...list[idx], expectedOutput: e.target.value };
+                                setEditCodingHiddenTestCases(list);
+                              }}
+                              placeholder="Expected Output (e.g. [0, 1])"
+                              className="w-full px-2.5 py-1 text-xs font-mono border border-line rounded bg-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Constraints (One per line)
+                      </label>
+                      <textarea
+                        value={editCodingConstraints}
+                        onChange={(e) => setEditCodingConstraints(e.target.value)}
+                        rows={2}
+                        placeholder="2 <= nums.length <= 10^4&#10;-10^9 <= nums[i] <= 10^9"
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1">
+                        Solution Explanation / Strategy
+                      </label>
+                      <textarea
+                        value={editCodingExplanation}
+                        onChange={(e) => setEditCodingExplanation(e.target.value)}
+                        rows={2}
+                        placeholder="Explain optimal time & space complexity approach..."
+                        className="w-full px-3 py-1.5 border border-line rounded text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -2375,7 +3394,7 @@ function QuestionBankPage() {
               {editingQuestion.moduleType === "SIMULATION" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Triggers JSON Array
                     </label>
                     <textarea
@@ -2383,11 +3402,11 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSimTriggers(e.target.value)}
                       rows={3}
                       placeholder='[{"timeSeconds": 10, "message": "Can you refactor this?"}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
                       Rubric Criteria JSON Array
                     </label>
                     <textarea
@@ -2395,23 +3414,23 @@ function QuestionBankPage() {
                       onChange={(e) => setEditSimRubric(e.target.value)}
                       rows={3}
                       placeholder='[{"criterion": "Code Quality", "maxPoints": 5}]'
-                      className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[12px] font-mono"
+                      className="w-full px-3 py-2 border border-line rounded-md bg-white text-xs font-mono"
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-[#E6E6EA] flex justify-end gap-2 bg-[#F7F7F9] rounded-b-[12px]">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => setEditingQuestion(null)}
-                className="px-3.5 py-2 text-[13px] border border-[#E6E6EA] rounded hover:bg-white transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded hover:bg-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdate}
-                className="px-4 py-2 text-[13px] text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-sm-minus text-white bg-brand rounded hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
               >
                 Save Changes
               </button>
@@ -2423,22 +3442,22 @@ function QuestionBankPage() {
       {/* Archive Question Confirmation Modal */}
       {confirmArchiveQuestion && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <Trash2 size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Archive Question?</h3>
+              <h3 className="text-base font-semibold text-ink">Archive Question?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
+            <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to archive this question? The question will be removed from active use and won't appear in new drive assignments.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+            <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmArchiveQuestion(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -2459,23 +3478,23 @@ function QuestionBankPage() {
       {/* Delete Folder Confirmation Modal */}
       {confirmDeleteFolder && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[12px] w-full max-w-[440px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3 border-b border-[#E6E6EA] pb-3">
+          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <Trash2 size={18} />
               </div>
-              <h3 className="text-[16px] font-semibold text-[#0B0B0D]">Delete Question Folder?</h3>
+              <h3 className="text-base font-semibold text-ink">Delete Question Folder?</h3>
             </div>
             
-            <p className="text-[13px] text-[#5B5B64] leading-relaxed">
-              Are you sure you want to delete the folder <strong className="text-[#0B0B0D]">"{confirmDeleteFolder}"</strong> containing{" "}
-              <strong className="text-[#0B0B0D]">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.
+            <p className="text-sm-minus text-ink-secondary leading-relaxed">
+              Are you sure you want to delete the folder <strong className="text-ink">"{confirmDeleteFolder}"</strong> containing{" "}
+              <strong className="text-ink">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 text-[13px]">
+            <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteFolder(null)}
-                className="px-3.5 py-2 border border-[#E6E6EA] rounded hover:bg-[#F7F7F9] text-[#5B5B64] transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>

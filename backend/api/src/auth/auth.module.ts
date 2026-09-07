@@ -3,6 +3,7 @@ import { PassportModule } from "@nestjs/passport";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AuthService } from "./auth.service";
+import { KeycloakAdminService } from "./keycloak-admin.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { AuthController } from "./auth.controller";
 
@@ -20,7 +21,7 @@ import { AuthController } from "./auth.controller";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, PassportModule],
+  providers: [AuthService, JwtStrategy, KeycloakAdminService],
+  exports: [AuthService, KeycloakAdminService, PassportModule],
 })
 export class AuthModule {}

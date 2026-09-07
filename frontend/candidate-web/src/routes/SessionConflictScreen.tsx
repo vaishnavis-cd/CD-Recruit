@@ -37,7 +37,7 @@ export function SessionConflictScreen() {
         </div>
 
         <div>
-          <h1 id="conflict-heading" className="text-[28px] font-semibold tracking-tight text-[var(--foreground)] mb-2">
+          <h1 id="conflict-heading" className="text-3xl-plus font-semibold tracking-tight text-[var(--foreground)] mb-2">
             Session Active Elsewhere
           </h1>
 
@@ -50,7 +50,7 @@ export function SessionConflictScreen() {
           <div className="font-semibold text-[var(--foreground)] mb-1">Options to proceed:</div>
           <p>• Claim and continue session in this tab below</p>
           <p>• Return to your original tab and close this window</p>
-          <p className="text-[11px] pt-2 border-t border-[var(--border)] leading-relaxed font-mono-data">
+          <p className="text-xs-plus pt-2 border-t border-[var(--border)] leading-relaxed font-mono-data">
             Your progress is continuously autosaved. Claiming session control in this tab will resume your state safely.
           </p>
         </div>

@@ -16,6 +16,7 @@ export class CodingController {
 
   @Get("execution/:id")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionOwnerGuard)
   async getExecution(@Param("id", ParseUUIDPipe) id: string) {
     return this.codingService.getExecution(id);
   }

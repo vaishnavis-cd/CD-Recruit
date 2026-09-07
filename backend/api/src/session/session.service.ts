@@ -205,6 +205,18 @@ export async function buildQuestionList(
       }
     }
 
+    const driveObj = driveId
+      ? await prisma.drive.findUnique({ where: { id: driveId } })
+      : null;
+
+    const effectiveRoleTemplateId =
+      session.roleTemplateId || driveObj?.roleTemplateId;
+
+    const driveModuleConfig = (driveObj?.moduleConfig as Record<
+      string,
+      { enabled?: boolean; weight?: number; durationMinutes?: number }
+    >) || {};
+
     // 1. Check Drive Questions first (exact questions curated/configured for this Drive)
     if (driveId) {
       const driveQuestions = await prisma.driveQuestion.findMany({
@@ -217,9 +229,6 @@ export async function buildQuestionList(
       });
 
       if (driveQuestions && driveQuestions.length > 0) {
-        const driveObj = await prisma.drive.findUnique({ where: { id: driveId } });
-        const mc = (driveObj?.moduleConfig as Record<string, { enabled?: boolean }>) || {};
-
         // Only include questions for enabled modules
         const activeDriveQuestions = driveQuestions.filter((dq) => {
           const isDebug =
@@ -227,127 +236,197 @@ export async function buildQuestionList(
             dq.question?.moduleType === "DEBUGGING" ||
             (Array.isArray(dq.question?.tags) && dq.question.tags.includes("debugging"));
           const modType = isDebug ? "DEBUGGING" : dq.moduleType;
-          return mc[modType] ? mc[modType].enabled : true;
+          return driveModuleConfig[modType] !== undefined
+            ? driveModuleConfig[modType].enabled
+            : true;
         });
 
-        const shuffled = driveShuffler.shuffleQuestionsForCandidate(
-          activeDriveQuestions as any,
-          session.candidateId,
-          driveId
-        );
-        const resultList = shuffled.map((q: any) => {
-          const matchingDq = activeDriveQuestions.find((dq) => dq.questionId === q.questionId);
-          const rawQ = matchingDq?.question || q;
-          const tags = rawQ.tags || [];
-          const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
-          const isDebug = rawQ.moduleType === "DEBUGGING" || q.moduleType === "DEBUGGING" || tags.includes("debugging") || prompt.includes("debugging challenge");
-          const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
-          return {
-            ...q,
-            moduleType: effectiveModuleType,
-            content: rawQ.content || q.content || {},
-            difficulty: rawQ.difficulty || q.difficulty || "medium",
-          };
-        });
+        if (activeDriveQuestions.length > 0) {
+          const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+            activeDriveQuestions as any,
+            session.candidateId,
+            driveId,
+          );
+          const resultList = shuffled.map((q: any) => {
+            const matchingDq = activeDriveQuestions.find((dq) => dq.questionId === q.questionId);
+            const rawQ = matchingDq?.question || q;
+            const tags = rawQ.tags || [];
+            const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+            const isDebug =
+              rawQ.moduleType === "DEBUGGING" ||
+              q.moduleType === "DEBUGGING" ||
+              tags.includes("debugging") ||
+              prompt.includes("debugging challenge");
+            const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+            return {
+              ...q,
+              questionId: q.questionId || rawQ.id,
+              moduleType: effectiveModuleType,
+              content: rawQ.content || q.content || {},
+              difficulty: rawQ.difficulty || q.difficulty || "medium",
+            };
+          });
 
-        if (mc.AI_PROMPTING?.enabled) {
-          const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
-          if (!hasAiPromptingQuestion) {
-            resultList.push({
-              questionId: "ai-prompting-dynamic",
-              moduleType: "AI_PROMPTING",
-              moduleIndex: 0,
-              content: {
-                title: "AI Prompting Challenge",
-                prompt: "Engage in conversational problem solving with the AI assistant.",
-              },
-              difficulty: "medium",
-            });
+          if (driveModuleConfig.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
           }
-        }
-        return resultList;
-      }
-
-      // If drive questions not explicitly linked, try resolving via Drive's RoleTemplate or Department
-      const drive = await prisma.drive.findUnique({
-        where: { id: driveId },
-        include: {
-          roleTemplate: {
-            include: {
-              questions: {
-                include: { question: true },
-                orderBy: { orderIndex: "asc" },
-              },
-            },
-          },
-        },
-      });
-
-      const deptName = drive?.roleTemplate?.department || drive?.roleTemplate?.roleName || "UNSPECIFIED";
-
-      // 1. Check template questions from RoleTemplate
-      if (drive?.roleTemplate?.questions && drive.roleTemplate.questions.length > 0) {
-        const tQuestions = drive.roleTemplate.questions.map((tq, idx) => ({
-          questionId: tq.questionId,
-          moduleType: tq.moduleType,
-          moduleIndex: idx,
-          content: tq.question?.content || {},
-          difficulty: tq.question?.difficulty || "medium",
-        }));
-        return tQuestions;
-      }
-
-      // 2. Check department-scoped questions
-      if (deptName && deptName !== "UNSPECIFIED") {
-        const deptUpper = deptName.toUpperCase();
-        const isSde = deptUpper.includes("SOFTWARE") || deptUpper.includes("SDE") || deptUpper.includes("DEVELOPER");
-        const primaryDept = isSde ? "SOFTWARE_ENGINEERING" : deptUpper;
-        const altDept = isSde ? "SDE" : deptUpper;
-
-        const preset = (drive?.roleTemplate?.weightingPreset as Record<string, number>) || {};
-        const enabledMods = Object.entries(preset)
-          .filter(([_, w]) => Number(w) > 0)
-          .map(([mod]) => mod);
-
-        const whereClause: any = {
-          status: "PUBLISHED",
-          OR: [
-            { role: { equals: primaryDept, mode: "insensitive" } },
-            { role: { equals: altDept, mode: "insensitive" } },
-            { content: { path: ["department"], equals: primaryDept } },
-            { content: { path: ["department"], equals: altDept } },
-          ],
-        };
-
-        if (enabledMods.length > 0) {
-          whereClause.moduleType = { in: enabledMods };
-        }
-
-        const deptQuestions = await prisma.question.findMany({
-          where: whereClause,
-          orderBy: { moduleType: "asc" },
-        });
-
-        if (deptQuestions && deptQuestions.length > 0) {
-          return deptQuestions.map((q, idx) => ({
-            questionId: q.id,
-            moduleType: q.moduleType,
-            moduleIndex: idx,
-            content: q.content,
-            difficulty: q.difficulty || "medium",
-          }));
+          return resultList;
         }
       }
-
-      // If department question pool is empty, FAIL with a clear, explicit error (NEVER cross-role leak)
-      throw new UnprocessableEntityException(
-        `No questions available for department ${deptName} — question bank not yet populated`
-      );
     }
 
-    throw new UnprocessableEntityException(
-      "No valid assessment drive associated with this session"
-    );
+    // 2. Check candidate's calibrated RoleTemplate questions (tier-specific fairness fallback)
+    if (effectiveRoleTemplateId) {
+      const templateQuestions = await prisma.roleTemplateQuestion.findMany({
+        where: { roleTemplateId: effectiveRoleTemplateId },
+        include: { question: true },
+        orderBy: [{ orderIndex: "asc" }, { moduleType: "asc" }],
+      });
+
+      if (templateQuestions && templateQuestions.length > 0) {
+        // Filter by driveModuleConfig if present
+        const activeTemplateQuestions = templateQuestions.filter((tq) => {
+          const isDebug =
+            tq.moduleType === "DEBUGGING" ||
+            tq.question?.moduleType === "DEBUGGING" ||
+            (Array.isArray(tq.question?.tags) && tq.question.tags.includes("debugging"));
+          const modType = isDebug ? "DEBUGGING" : tq.moduleType;
+          return driveModuleConfig[modType] !== undefined
+            ? driveModuleConfig[modType].enabled
+            : true;
+        });
+
+        if (activeTemplateQuestions.length > 0) {
+          const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+            activeTemplateQuestions as any,
+            session.candidateId,
+            effectiveRoleTemplateId,
+          );
+          const resultList = shuffled.map((q: any) => {
+            const matchingTq = activeTemplateQuestions.find((tq) => tq.questionId === q.questionId);
+            const rawQ = matchingTq?.question || q;
+            const tags = rawQ.tags || [];
+            const prompt = typeof rawQ.content?.prompt === "string" ? rawQ.content.prompt.toLowerCase() : "";
+            const isDebug =
+              rawQ.moduleType === "DEBUGGING" ||
+              q.moduleType === "DEBUGGING" ||
+              tags.includes("debugging") ||
+              prompt.includes("debugging challenge");
+            const effectiveModuleType = isDebug ? "DEBUGGING" : (q.moduleType || rawQ.moduleType);
+            return {
+              ...q,
+              questionId: q.questionId || rawQ.id,
+              moduleType: effectiveModuleType,
+              content: rawQ.content || q.content || {},
+              difficulty: rawQ.difficulty || q.difficulty || "medium",
+            };
+          });
+
+          if (driveModuleConfig.AI_PROMPTING?.enabled) {
+            const hasAiPromptingQuestion = resultList.some((q: any) => q.moduleType === "AI_PROMPTING");
+            if (!hasAiPromptingQuestion) {
+              resultList.push({
+                questionId: "ai-prompting-dynamic",
+                moduleType: "AI_PROMPTING",
+                moduleIndex: 0,
+                content: {
+                  title: "AI Prompting Challenge",
+                  prompt: "Engage in conversational problem solving with the AI assistant.",
+                },
+                difficulty: "medium",
+              });
+            }
+          }
+          return resultList;
+        }
+      }
+    }
+
+    // 3. Dynamic Department & Seniority Allocation from Question Bank for the target RoleTemplate
+    if (effectiveRoleTemplateId) {
+      const template = await prisma.roleTemplate.findUnique({
+        where: { id: effectiveRoleTemplateId },
+      });
+
+      if (template) {
+        const dept = template.department || "SOFTWARE_ENGINEERING";
+        const tier = template.experienceTier || (template.category === "FRESHER" ? "0-1" : "2-5");
+        const seniorityTag = tier === "0-1" ? "fresher" : tier === "2-5" ? "l1" : tier === "6-10" ? "l2" : "l3";
+        const durationMinutes = template.durationMinutes || 60;
+
+        const preset = (template.weightingPreset as Record<string, number>) || {
+          MCQ: 15,
+          SQL: 15,
+          CODING: 20,
+          AI_PROMPTING: 20,
+          SIMULATION: 15,
+        };
+
+        const configMap: Record<
+          string,
+          { enabled: boolean; weight: number }
+        > = {};
+        for (const [mod, wt] of Object.entries(preset)) {
+          const driveConf = driveModuleConfig[mod];
+          const enabled =
+            driveConf !== undefined ? !!driveConf.enabled : Number(wt) > 0;
+          const weight =
+            driveConf?.weight !== undefined
+              ? Number(driveConf.weight)
+              : Number(wt) || 0;
+          configMap[mod] = { enabled, weight };
+        }
+
+        const questionPool = await prisma.question.findMany({
+          where: {
+            status: "PUBLISHED",
+            OR: [
+              { role: { equals: dept, mode: "insensitive" } },
+              { tags: { has: seniorityTag } },
+              { tags: { hasSome: [dept.toLowerCase(), seniorityTag] } },
+              { role: "General" },
+            ],
+          },
+        });
+
+        if (questionPool.length > 0) {
+          const allocated = allocateQuestions(
+            questionPool,
+            configMap,
+            durationMinutes,
+            seniorityTag,
+          );
+          if (allocated.length > 0) {
+            const shuffled = driveShuffler.shuffleQuestionsForCandidate(
+              allocated as any,
+              session.candidateId,
+              effectiveRoleTemplateId,
+            );
+            return shuffled.map((q: any) => ({
+              questionId: q.id || q.questionId,
+              moduleType: q.moduleType,
+              content: q.content || {},
+              difficulty: q.difficulty || "medium",
+            }));
+          }
+        }
+      }
+    }
+
+    // If no questions are mapped or could be allocated, return empty array instead of random unmapped fallback
+    return [];
   } catch (err) {
     console.error("[buildQuestionList] Error building questions:", err);
     throw err;
@@ -478,6 +557,11 @@ export class SessionService implements SessionStatusPort {
     // 5. Create a new session dedicated to this invite
     const now = new Date();
 
+    const shortId = (payload.inviteId || candidateRecord.id).replace(/-/g, "").slice(0, 6).toUpperCase();
+    const driveCode = invite?.driveId ? invite.driveId.replace(/-/g, "").slice(0, 4).toUpperCase() : "DRV";
+    const tsCode = Date.now().toString(36).slice(-4).toUpperCase();
+    const referenceId = `REF-${driveCode}-${shortId}-${tsCode}`;
+
     const session = await this.prisma.session.create({
       data: {
         candidateId: candidateRecord.id,
@@ -490,6 +574,7 @@ export class SessionService implements SessionStatusPort {
         lastHeartbeatAt: null,
         lastActivityAt: now,
         disconnectCount: 0,
+        referenceId,
       },
       include: { roleTemplate: true },
     });
@@ -890,23 +975,27 @@ export class SessionService implements SessionStatusPort {
       });
     }
 
+    let referenceId = session.referenceId;
+    if (!referenceId) {
+      const shortId = session.id.replace(/-/g, "").slice(0, 6).toUpperCase();
+      const driveCode = session.driveId ? session.driveId.replace(/-/g, "").slice(0, 4).toUpperCase() : "DRV";
+      const tsCode = Date.now().toString(36).slice(-4).toUpperCase();
+      referenceId = `REF-${driveCode}-${shortId}-${tsCode}`;
+    }
+
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
         status: SessionStatus.SUBMITTED,
         submittedAt: now,
         lastActivityAt: now,
+        referenceId,
       },
     });
 
-    // Calculate real module scores and composite score upon submission if not already scored by simulation evaluator
+    // Calculate real module scores and composite score across all modules upon submission
     try {
-      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
-      if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
-        await this.scoringService.computeSessionScores(sessionId);
-      } else {
-        this.logger.log(`[closeSession] Skipping computeSessionScores for ${sessionId} — existing simulation score preserved (gradingSource: ${existingScore.gradingSource})`);
-      }
+      await this.scoringService.computeSessionScores(sessionId);
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores for session ${sessionId}: ${err.message}`);
     }
@@ -944,15 +1033,17 @@ export class SessionService implements SessionStatusPort {
           routing: "HUMAN_REVIEW_QUEUE",
           humanReviewed: false,
           reason: "TRACK_B_FAILSAFE_DEFAULT",
+          referenceId,
         },
         occurredAt: now,
       },
     });
 
-    this.logger.log(`Session closed (submitted): ${sessionId} (Routed to Human Review Queue)`);
+    this.logger.log(`Session closed (submitted): ${sessionId} (Ref: ${referenceId})`);
 
     return {
       sessionId: updated.id,
+      referenceId,
       status:
         updated.status as unknown as import("@cd-recruit/shared-types").SessionStatus,
       submittedAt: now.toISOString(),
@@ -1087,12 +1178,7 @@ export class SessionService implements SessionStatusPort {
     });
 
     try {
-      const existingScore = await this.prisma.score.findUnique({ where: { sessionId } });
-      if (!existingScore || existingScore.gradingSource === "no_data" || existingScore.gradingSource === "placeholder" || existingScore.gradingSource === "AUTOMATED_EVALUATION_ENGINE") {
-        await this.scoringService.computeSessionScores(sessionId);
-      } else {
-        this.logger.log(`[autoSubmitSession] Skipping computeSessionScores for ${sessionId} — existing simulation score preserved (gradingSource: ${existingScore.gradingSource})`);
-      }
+      await this.scoringService.computeSessionScores(sessionId);
     } catch (err: any) {
       this.logger.error(`Failed to evaluate scores on autoSubmit for session ${sessionId}: ${err.message}`);
     }
@@ -1150,6 +1236,7 @@ export class SessionService implements SessionStatusPort {
 
     return {
       sessionId: session.id,
+      referenceId: session.referenceId || null,
       candidateId,
       roleTemplateId: session.roleTemplateId,
       roleTemplateName: session.roleTemplate.roleName,
@@ -1857,6 +1944,64 @@ export class SessionService implements SessionStatusPort {
         `Failed to save identity capture: ${err.message}`,
       );
     }
+  }
+
+  /**
+   * Saves / mirrors candidate draft answers and cursor to cloud for cross-device recovery.
+   */
+  async saveDraftResponses(
+    sessionId: string,
+    payload: { draftResponses?: Record<string, any>; cursor?: { moduleIndex: number; questionIndex: number }; sentinel?: any },
+  ) {
+    const existing = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { simulationSnapshot: true },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Session ${sessionId} not found.`);
+    }
+
+    const currentSnapshot = (existing.simulationSnapshot as Record<string, any>) || {};
+    const updatedSnapshot = {
+      ...currentSnapshot,
+      draftResponses: payload.draftResponses || currentSnapshot.draftResponses || {},
+      cursor: payload.cursor || currentSnapshot.cursor || { moduleIndex: 0, questionIndex: 0 },
+      sentinel: payload.sentinel || currentSnapshot.sentinel,
+      lastSyncedAt: new Date().toISOString(),
+    };
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        simulationSnapshot: updatedSnapshot,
+        lastActivityAt: new Date(),
+      },
+    });
+
+    return { ok: true, syncedAt: updatedSnapshot.lastSyncedAt };
+  }
+
+  /**
+   * Retrieves candidate draft responses and cursor for cross-device hydration.
+   */
+  async getDraftResponses(sessionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { simulationSnapshot: true, startedAt: true, status: true },
+    });
+    if (!session) {
+      throw new NotFoundException(`Session ${sessionId} not found.`);
+    }
+
+    const snapshot = (session.simulationSnapshot as Record<string, any>) || {};
+    return {
+      ok: true,
+      draftResponses: snapshot.draftResponses || {},
+      cursor: snapshot.cursor || { moduleIndex: 0, questionIndex: 0 },
+      lastSyncedAt: snapshot.lastSyncedAt || null,
+      startedAt: session.startedAt,
+      status: session.status,
+    };
   }
 }
 

@@ -153,6 +153,7 @@ export class SessionScoringService {
 
     // Track question-level evaluation results: mod -> array of { questionId, accuracy (0-1), pointShare }
     const moduleQuestionScores: Record<string, QuestionScoreItem[]> = {};
+    const questionConfidences: number[] = [];
 
     for (const resp of responses) {
       const q = questionMap.get(resp.questionId);
@@ -169,21 +170,32 @@ export class SessionScoringService {
       const qContent = (q.content as QuestionContent) || {};
 
       let accuracy = 0.0;
+      let qConfidence = 0.85;
 
       if (mod === "MCQ") {
-        accuracy = this.evaluateMCQ(payload, qContent);
+        accuracy = this.evaluateMCQ(payload, qContent, q.scoringConfig);
+        qConfidence = 1.0;
       } else if (mod === "SQL") {
         accuracy = this.evaluateSQL(payload);
+        const execPassed = payload?.executionResult?.passed || payload?.executionResult?.matched || payload?.executionResult?.status === "SUCCESS";
+        qConfidence = execPassed ? 1.0 : (payload?.query || payload?.code ? 0.70 : 0.0);
       } else if (mod === "NOSQL") {
         accuracy = this.evaluateNoSQL(payload);
+        const execPassed = payload?.executionResult?.passed || payload?.executionResult?.status === "SUCCESS";
+        qConfidence = execPassed ? 1.0 : 0.50;
       } else if (mod === "CODING" || (mod as string) === "DEBUGGING") {
-        accuracy = this.evaluateCoding(payload, codingExecutionsMap.get(q.id) || []);
+        const executions = codingExecutionsMap.get(q.id) || [];
+        accuracy = this.evaluateCoding(payload, executions);
+        qConfidence = executions.length > 0 ? 0.95 : (payload?.code ? 0.60 : 0.0);
       } else if (mod === "AI_PROMPTING") {
         accuracy = this.evaluateAIPrompting(payload);
+        qConfidence = (payload?.evaluation?.overallScore !== undefined || (payload as any)?.promptStructureScore !== undefined) ? 0.90 : 0.70;
       } else if (mod === "SIMULATION") {
         accuracy = this.evaluateSimulation(payload);
+        qConfidence = (payload?.overallScore !== undefined || (payload as any)?.compositeDoScore !== undefined) ? 0.90 : 0.70;
       } else if (mod === "TEST_SCENARIOS") {
         accuracy = this.evaluateTestScenarios(payload, q);
+        qConfidence = (payload?.evaluation?.overallScore !== undefined || payload?.score !== undefined) ? 0.90 : 0.85;
       }
 
       moduleQuestionScores[mod].push({
@@ -191,6 +203,7 @@ export class SessionScoringService {
         accuracy: Math.max(0.0, Math.min(1.0, accuracy)),
         pointShare,
       });
+      questionConfidences.push(qConfidence);
     }
 
     const moduleScores = this.calculateModuleScores(moduleQuestionScores, driveModuleConfig);
@@ -205,7 +218,7 @@ export class SessionScoringService {
     );
 
     const hasExecutions = codingExecutions.length > 0 || sqlExecutions.length > 0;
-    const aiConfidence = this.calculateAIConfidence(responses.length, questionIds.length, hasExecutions);
+    const aiConfidence = this.calculateAIConfidence(responses.length, questionIds.length, questionConfidences, hasExecutions);
 
     const hasNoData = responses.length === 0;
     const gradingSource = !hasNoData ? MODULE_SCORING : NO_DATA;
@@ -298,24 +311,50 @@ export class SessionScoringService {
   /**
    * Evaluate MCQ module accuracy (0.0 to 1.0).
    */
-  private evaluateMCQ(payload: ResponsePayload | null, qContent: QuestionContent): number {
+  private evaluateMCQ(payload: ResponsePayload | null, qContent: QuestionContent, scoringConfig?: any): number {
     const selectedList = this.extractSelectedOptions(payload);
     if (selectedList.length === 0) return 0.0;
 
-    const correctTarget = qContent.correctOption ?? qContent.correctAnswer ?? qContent.correctIndex ?? qContent.answerIndex ?? 0;
+    const correctTarget =
+      qContent.correctOption ??
+      qContent.correctAnswer ??
+      qContent.correctIndex ??
+      qContent.answerIndex ??
+      scoringConfig?.correctAnswer ??
+      scoringConfig?.correctIndex ??
+      0;
     const options = Array.isArray(qContent.options) ? qContent.options : [];
 
     const isCorrect = selectedList.some((sel) => {
+      const cleanSel = sel.trim().toLowerCase();
+      // Direct string comparison
+      if (typeof correctTarget === "string" && cleanSel === correctTarget.trim().toLowerCase()) return true;
       if (sel === String(correctTarget)) return true;
+
+      // opt_X comparison
       if (/^opt_\d+$/i.test(sel)) {
         const idx = parseInt(sel.replace(/opt_/i, ""), 10);
-        if (idx === Number(correctTarget)) return true;
+        if (typeof correctTarget === "number" && idx === Number(correctTarget)) return true;
+        if (scoringConfig && typeof scoringConfig.correctIndex === "number" && idx === scoringConfig.correctIndex) return true;
+        if (options[idx]) {
+          const optVal = typeof options[idx] === "string" ? options[idx] : (options[idx] as any).text || (options[idx] as any).label;
+          if (typeof correctTarget === "string" && optVal && optVal.trim().toLowerCase() === correctTarget.trim().toLowerCase()) return true;
+          if (scoringConfig?.correctAnswer && typeof scoringConfig.correctAnswer === "string" && optVal && optVal.trim().toLowerCase() === scoringConfig.correctAnswer.trim().toLowerCase()) return true;
+        }
       }
+
+      // Check numeric index match to options array
       if (typeof correctTarget === "number" && options[correctTarget]) {
         const targetOpt = options[correctTarget];
-        const optText = typeof targetOpt === "string" ? targetOpt : targetOpt.text || targetOpt.label;
-        if (optText && optText.trim().toLowerCase() === sel.trim().toLowerCase()) return true;
+        const optText = typeof targetOpt === "string" ? targetOpt : (targetOpt as any).text || (targetOpt as any).label;
+        if (optText && optText.trim().toLowerCase() === cleanSel) return true;
       }
+
+      // Check scoringConfig text match
+      if (scoringConfig?.correctAnswer && typeof scoringConfig.correctAnswer === "string") {
+        if (cleanSel === scoringConfig.correctAnswer.trim().toLowerCase()) return true;
+      }
+
       return false;
     });
 
@@ -365,12 +404,17 @@ export class SessionScoringService {
    * Evaluate AI_PROMPTING module accuracy (0.0 to 1.0).
    */
   private evaluateAIPrompting(payload: ResponsePayload | null): number {
-    const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+    const evalScore =
+      (payload as any)?.promptStructureScore ??
+      (payload as any)?.aiValidationScore ??
+      payload?.evaluation?.overallScore ??
+      payload?.score ??
+      payload?.overallScore;
     if (typeof evalScore === "number") {
       return evalScore > 1 ? evalScore / 100 : evalScore;
     }
     if (payload?.prompt || payload?.messages || payload?.response) {
-      return AI_PROMPTING_FALLBACK_SCORE;
+      return 0.75;
     }
     return 0.0;
   }
@@ -379,7 +423,12 @@ export class SessionScoringService {
    * Evaluate SIMULATION module accuracy (0.0 to 1.0).
    */
   private evaluateSimulation(payload: ResponsePayload | null): number {
-    const evalScore = payload?.evaluation?.overallScore ?? payload?.score ?? payload?.overallScore;
+    const evalScore =
+      payload?.overallScore ??
+      (payload as any)?.compositeDoScore ??
+      (payload as any)?.evaluation?.overallScore ??
+      payload?.evaluation?.overallScore ??
+      payload?.score;
     if (typeof evalScore === "number") {
       return evalScore > 1 ? evalScore / 100 : evalScore;
     }
@@ -425,23 +474,18 @@ export class SessionScoringService {
       if (mode === "difficulty" && hasCustomShares) {
         const totalShareSum = qScores.reduce((sum, qs) => sum + (qs.pointShare || 0), 0);
         const earnedShareSum = qScores.reduce((sum, qs) => sum + qs.accuracy * (qs.pointShare || 0), 0);
-        moduleScores[mod] = totalShareSum > 0 ? this.roundToTwoDecimals(earnedShareSum / totalShareSum) : DEFAULT_MCQ_FALLBACK_SCORE;
+        moduleScores[mod] = totalShareSum > 0 ? this.roundToTwoDecimals(earnedShareSum / totalShareSum) : 0.0;
       } else {
         const totalAcc = qScores.reduce((sum, qs) => sum + qs.accuracy, 0);
         moduleScores[mod] = this.roundToTwoDecimals(totalAcc / qScores.length);
       }
     }
 
-    if (Object.keys(moduleScores).length === 0) {
-      moduleScores["MCQ"] = DEFAULT_MCQ_FALLBACK_SCORE;
-      moduleScores["CODING"] = DEFAULT_CODING_FALLBACK_SCORE;
-    }
-
     return moduleScores;
   }
 
   /**
-   * Compute core, bonus, total, and composite scores.
+   * Compute core, bonus, total, and composite scores (out of 100%).
    */
   private calculateCompositeScores(
     moduleScores: Record<string, number>,
@@ -449,15 +493,33 @@ export class SessionScoringService {
   ) {
     let coreScore = 0;
     let bonusScore = 0;
+    let totalWeightApplied = 0;
 
-    for (const [modKey, normalizedScore] of Object.entries(moduleScores)) {
-      const conf = driveModuleConfig[modKey];
-      if (!conf || !conf.enabled) continue;
-      if (conf.isBonus) {
-        bonusScore += normalizedScore * (conf.maxBonusPoints ?? 0);
-      } else {
-        coreScore += normalizedScore * (conf.weight ?? 0);
+    const presentMods = Object.keys(moduleScores);
+    const enabledConfigs = Object.entries(driveModuleConfig).filter(
+      ([_, c]) => c && c.enabled && typeof c.weight === "number" && c.weight > 0,
+    );
+
+    if (enabledConfigs.length > 0) {
+      for (const [modKey, normalizedScore] of Object.entries(moduleScores)) {
+        const conf = driveModuleConfig[modKey];
+        if (!conf || !conf.enabled) continue;
+        if (conf.isBonus) {
+          bonusScore += normalizedScore * (conf.maxBonusPoints ?? 0);
+        } else {
+          coreScore += normalizedScore * (conf.weight ?? 0);
+          totalWeightApplied += (conf.weight ?? 0);
+        }
       }
+
+      // If weights were fractional (sum <= 1.0, e.g. 0.20, 0.30, 0.50), normalize to 100
+      if (totalWeightApplied <= 1.0 && totalWeightApplied > 0) {
+        coreScore = (coreScore / totalWeightApplied) * 100;
+      }
+    } else if (presentMods.length > 0) {
+      // Default fallback: Equal weighting across all attempted/present modules
+      const sum = presentMods.reduce((acc, m) => acc + (moduleScores[m] || 0), 0);
+      coreScore = (sum / presentMods.length) * 100;
     }
 
     coreScore = this.roundToTwoDecimals(coreScore);
@@ -507,6 +569,13 @@ export class SessionScoringService {
         } else if (q.moduleType === "NOSQL") {
           const execResult = payload?.executionResult;
           doValue = execResult?.passed ? 1.0 : 0.0;
+        } else if (q.moduleType === "SIMULATION") {
+          const simScore = (payload as any)?.sayDoScore ?? (payload as any)?.sayDoCorrelationScore ?? (payload as any)?.evaluation?.sayDoCorrelation?.score;
+          if (typeof simScore === "number") {
+            doValue = simScore > 1 ? simScore / 100 : simScore;
+          } else {
+            doValue = payload?.executionResult?.passed ? 1.0 : 0.0;
+          }
         } else {
           doValue = 0.0;
         }
@@ -531,24 +600,39 @@ export class SessionScoringService {
       sayDoConsistencyScore = Math.max(0.0, this.roundToTwoDecimals(1.0 - stdDev));
       sayDoRationale = `Computed from cross-module domain performance stability (standard deviation: ${this.roundToTwoDecimals(stdDev)}).`;
     } else {
-      sayDoConsistencyScore = null;
-      sayDoRationale = null;
+      sayDoConsistencyScore = 0.0;
+      sayDoRationale = "Single module assessment or insufficient Say-Do variance data.";
     }
 
     return { sayDoConsistencyScore: sayDoConsistencyScore as any, sayDoRationale: sayDoRationale as any };
   }
 
   /**
-   * Compute dynamic AI Confidence score based on evaluation completeness and test executions.
+   * Compute dynamic AI Confidence score based on evaluation completeness, signal certainty, and test executions.
    */
-  private calculateAIConfidence(responsesCount: number, questionIdsCount: number, hasExecutions: boolean): number | null {
-    if (responsesCount === 0) return null;
+  calculateAIConfidence(
+    responsesCount: number,
+    questionIdsCount: number,
+    questionConfidences: number[] = [],
+    hasExecutions = false,
+  ): number | null {
+    if (responsesCount === 0 || questionIdsCount === 0) return 0.0;
 
     const completionRatio = Math.min(1.0, responsesCount / Math.max(1, questionIdsCount));
-    const executionBonus = hasExecutions ? AI_CONFIDENCE_EXECUTION_BONUS : 0.0;
-    const rawConfidence = AI_CONFIDENCE_COMPLETION_RATIO_WEIGHT * completionRatio + executionBonus;
 
-    return Math.min(1.0, this.roundToTwoDecimals(rawConfidence));
+    // Average signal quality across evaluated questions
+    const avgSignalQuality =
+      questionConfidences.length > 0
+        ? questionConfidences.reduce((a, b) => a + b, 0) / questionConfidences.length
+        : 0.90;
+
+    // Execution bonus when code/query test execution harness ran
+    const executionBonus = hasExecutions ? 0.05 : 0.0;
+
+    // Weighted confidence: 60% completion ratio, 35% signal certainty, 5% execution verification
+    const rawConfidence = completionRatio * 0.60 + avgSignalQuality * 0.35 + executionBonus;
+
+    return Math.min(1.0, Math.max(0.0, this.roundToTwoDecimals(rawConfidence)));
   }
 
   /**
@@ -566,12 +650,12 @@ export class SessionScoringService {
     const isAutoPublished = (scoreData.aiConfidence ?? 0) >= threshold;
 
     const data = {
-      compositeScore: scoreData.compositeScore,
-      coreScore: scoreData.coreScore,
-      bonusScore: scoreData.bonusScore,
-      totalScore: scoreData.totalScore,
-      sayDoConsistencyScore: scoreData.sayDoConsistencyScore,
-      aiConfidence: scoreData.aiConfidence,
+      compositeScore: scoreData.compositeScore ?? 0.0,
+      coreScore: scoreData.coreScore ?? 0.0,
+      bonusScore: scoreData.bonusScore ?? 0.0,
+      totalScore: scoreData.totalScore ?? 0.0,
+      sayDoConsistencyScore: scoreData.sayDoConsistencyScore ?? 0.0,
+      aiConfidence: scoreData.aiConfidence ?? 0.0,
       humanReviewed: isAutoPublished,
       gradingSource: scoreData.gradingSource,
       sayDoRationale: scoreData.sayDoRationale,

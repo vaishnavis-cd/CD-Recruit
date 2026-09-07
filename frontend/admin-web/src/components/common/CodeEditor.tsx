@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from "react";
 import Editor, { Monaco, OnMount, BeforeMount } from "@monaco-editor/react";
-import type { editor } from "monaco-editor";
 import { cdRecruitLightTheme, cdRecruitDarkTheme } from "./monacoTheme";
 import { Loader2 } from "lucide-react";
 
@@ -8,12 +7,12 @@ export interface CodeEditorProps {
   value: string;
   onChange?: (value: string) => void;
   language?: string;
-  theme?: "dark" | "light";
+  theme?: "dark" | "light" | "cd-recruit-dark" | "cd-recruit-light";
   readOnly?: boolean;
   height?: string | number;
   minHeight?: string | number;
-  options?: editor.IStandaloneEditorConstructionOptions;
-  onMount?: (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => void;
+  options?: any;
+  onMount?: (editor: any, monaco: Monaco) => void;
   className?: string;
 }
 
@@ -21,7 +20,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   value,
   onChange,
   language = "javascript",
-  theme = "dark",
+  theme = "cd-recruit-dark",
   readOnly = false,
   height = "100%",
   minHeight,
@@ -29,21 +28,26 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onMount,
   className = "",
 }) => {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const isInternalChangeRef = useRef<boolean>(false);
   const lastSyncedValueRef = useRef<string>(value);
 
+  const getResolvedTheme = (t: string) => {
+    if (t === "dark" || t === "cd-recruit-dark") return "cd-recruit-dark";
+    return "cd-recruit-light";
+  };
+
   const handleBeforeMount: BeforeMount = (monaco) => {
-    monaco.editor.defineTheme("cd-recruit-light", cdRecruitLightTheme);
-    monaco.editor.defineTheme("cd-recruit-dark", cdRecruitDarkTheme);
+    monaco.editor.defineTheme("cd-recruit-light", cdRecruitLightTheme as any);
+    monaco.editor.defineTheme("cd-recruit-dark", cdRecruitDarkTheme as any);
   };
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    const themeName = theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light";
+    const themeName = getResolvedTheme(theme);
     monaco.editor.setTheme(themeName);
 
     if (onMount) {
@@ -53,7 +57,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   useEffect(() => {
     if (monacoRef.current) {
-      const themeName = theme === "dark" ? "cd-recruit-dark" : "cd-recruit-light";
+      const themeName = getResolvedTheme(theme);
       monacoRef.current.editor.setTheme(themeName);
     }
   }, [theme]);
@@ -96,7 +100,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     lastSyncedValueRef.current = value;
   }, [value]);
 
-  const defaultOptions: editor.IStandaloneEditorConstructionOptions = {
+  const defaultOptions: any = {
     minimap: { enabled: false },
     fontSize: 13,
     fontFamily: "'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace",

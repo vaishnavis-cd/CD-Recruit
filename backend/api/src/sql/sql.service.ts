@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SqlSandboxService } from "./sql-sandbox.service";
 import { ResultComparatorService } from "./result-comparator.service";
@@ -7,9 +7,10 @@ import { RunSqlDto, SubmitSqlDto, DraftSqlDto } from "./dto/sql.dto";
 import { SqlQuestionContentJson } from "./sql.types";
 import { SubmissionType, SqlExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
 
 @Injectable()
-export class SqlService implements AssessmentModuleEngine {
+export class SqlService implements AssessmentModuleEngine, OnModuleInit {
   readonly moduleType = ModuleType.SQL;
   private readonly logger = new Logger(SqlService.name);
 
@@ -18,7 +19,12 @@ export class SqlService implements AssessmentModuleEngine {
     private readonly sandboxService: SqlSandboxService,
     private readonly comparatorService: ResultComparatorService,
     private readonly validatorService: SqlValidatorService,
+    @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
   ) {}
+
+  onModuleInit() {
+    this.engineRegistry?.registerEngine(this);
+  }
 
   async validateSubmission(submission: any): Promise<boolean> {
     return !!(submission && submission.sql);

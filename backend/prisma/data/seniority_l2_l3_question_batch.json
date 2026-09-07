@@ -1,0 +1,3489 @@
+[
+  {
+    "question": "SRE L2/L3 MCQ Challenge 1: Focus on SLO/SLA management in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in SLO/SLA management under large-scale cloud operations.",
+    "topic": "SLO/SLA management",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "slo/sla-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 1: Focus on SLO/SLA management in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in SLO/SLA management under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 2: Focus on Capacity planning in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Capacity planning under large-scale cloud operations.",
+    "topic": "Capacity planning",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "capacity-planning"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 2: Focus on Capacity planning in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Capacity planning under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 3: Focus on Circuit breakers in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Circuit breakers under large-scale cloud operations.",
+    "topic": "Circuit breakers",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "circuit-breakers"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 3: Focus on Circuit breakers in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Circuit breakers under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 4: Focus on Caching architectures in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Caching architectures under large-scale cloud operations.",
+    "topic": "Caching architectures",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "caching-architectures"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 4: Focus on Caching architectures in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Caching architectures under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 5: Focus on High-load traffic estimation in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in High-load traffic estimation under large-scale cloud operations.",
+    "topic": "High-load traffic estimation",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "high-load-traffic-estimation"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 5: Focus on High-load traffic estimation in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in High-load traffic estimation under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 6: Focus on Reliability engineering in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Reliability engineering under large-scale cloud operations.",
+    "topic": "Reliability engineering",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "reliability-engineering"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 6: Focus on Reliability engineering in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Reliability engineering under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 7: Focus on Failure isolation in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Failure isolation bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Failure isolation bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Failure isolation under large-scale cloud operations.",
+    "topic": "Failure isolation",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "failure-isolation"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 7: Focus on Failure isolation in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Failure isolation bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Failure isolation bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Failure isolation under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 8: Focus on Disaster recovery in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Disaster recovery bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Disaster recovery bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Disaster recovery under large-scale cloud operations.",
+    "topic": "Disaster recovery",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "disaster-recovery"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 8: Focus on Disaster recovery in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Disaster recovery bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Disaster recovery bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Disaster recovery under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 9: Focus on Incident post-mortems in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Incident post-mortems bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Incident post-mortems bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Incident post-mortems under large-scale cloud operations.",
+    "topic": "Incident post-mortems",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "incident-post-mortems"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 9: Focus on Incident post-mortems in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Incident post-mortems bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Incident post-mortems bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Incident post-mortems under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 10: Focus on SLO/SLA management in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in SLO/SLA management under large-scale cloud operations.",
+    "topic": "SLO/SLA management",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "slo/sla-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 10: Focus on SLO/SLA management in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize SLO/SLA management bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in SLO/SLA management under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 11: Focus on Capacity planning in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Capacity planning under large-scale cloud operations.",
+    "topic": "Capacity planning",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "capacity-planning"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 11: Focus on Capacity planning in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Capacity planning bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Capacity planning under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 12: Focus on Circuit breakers in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Circuit breakers under large-scale cloud operations.",
+    "topic": "Circuit breakers",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "circuit-breakers"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 12: Focus on Circuit breakers in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Circuit breakers bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Circuit breakers under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 13: Focus on Caching architectures in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Caching architectures under large-scale cloud operations.",
+    "topic": "Caching architectures",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "caching-architectures"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 13: Focus on Caching architectures in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Caching architectures bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Caching architectures under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 14: Focus on High-load traffic estimation in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in High-load traffic estimation under large-scale cloud operations.",
+    "topic": "High-load traffic estimation",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "high-load-traffic-estimation"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 14: Focus on High-load traffic estimation in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize High-load traffic estimation bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in High-load traffic estimation under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SRE L2/L3 MCQ Challenge 15: Focus on Reliability engineering in modern cloud infrastructure.",
+    "moduleType": "MCQ",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+      "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+      "C) Reduce network timeouts across external service connections.",
+      "D) Implement fail-open circuit breaker configurations."
+    ],
+    "correctAnswer": "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+    "explanation": "This scenario focuses on evaluating best practices in Reliability engineering under large-scale cloud operations.",
+    "topic": "Reliability engineering",
+    "tags": [
+      "sre",
+      "mcq",
+      "l2",
+      "l3",
+      "reliability-engineering"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SRE L2/L3 MCQ Challenge 15: Focus on Reliability engineering in modern cloud infrastructure.",
+      "options": [
+        "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+        "B) Trigger horizontal auto-scaling nodes based on CPU thresholds.",
+        "C) Reduce network timeouts across external service connections.",
+        "D) Implement fail-open circuit breaker configurations."
+      ],
+      "correctAnswer": "A) Optimize Reliability engineering bounds and evaluate telemetry patterns.",
+      "explanation": "This scenario focuses on evaluating best practices in Reliability engineering under large-scale cloud operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 1: Troubleshooting and managing Cloud IAM policies.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Cloud IAM policies parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Cloud IAM policies parameters.",
+    "explanation": "Best practices dictate that managing Cloud IAM policies should be automated to minimize operational overhead.",
+    "topic": "Cloud IAM policies",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "cloud-iam-policies"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 1: Troubleshooting and managing Cloud IAM policies.",
+      "options": [
+        "A) Enforce automated checks for Cloud IAM policies parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Cloud IAM policies parameters.",
+      "explanation": "Best practices dictate that managing Cloud IAM policies should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 2: Troubleshooting and managing Backup/recovery validation.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Backup/recovery validation parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Backup/recovery validation parameters.",
+    "explanation": "Best practices dictate that managing Backup/recovery validation should be automated to minimize operational overhead.",
+    "topic": "Backup/recovery validation",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "backup/recovery-validation"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 2: Troubleshooting and managing Backup/recovery validation.",
+      "options": [
+        "A) Enforce automated checks for Backup/recovery validation parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Backup/recovery validation parameters.",
+      "explanation": "Best practices dictate that managing Backup/recovery validation should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 3: Troubleshooting and managing Automated patching.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Automated patching parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Automated patching parameters.",
+    "explanation": "Best practices dictate that managing Automated patching should be automated to minimize operational overhead.",
+    "topic": "Automated patching",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "automated-patching"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 3: Troubleshooting and managing Automated patching.",
+      "options": [
+        "A) Enforce automated checks for Automated patching parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Automated patching parameters.",
+      "explanation": "Best practices dictate that managing Automated patching should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 4: Troubleshooting and managing Performance bottlenecks.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Performance bottlenecks parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Performance bottlenecks parameters.",
+    "explanation": "Best practices dictate that managing Performance bottlenecks should be automated to minimize operational overhead.",
+    "topic": "Performance bottlenecks",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "performance-bottlenecks"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 4: Troubleshooting and managing Performance bottlenecks.",
+      "options": [
+        "A) Enforce automated checks for Performance bottlenecks parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Performance bottlenecks parameters.",
+      "explanation": "Best practices dictate that managing Performance bottlenecks should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 5: Troubleshooting and managing Storage tiering.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Storage tiering parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Storage tiering parameters.",
+    "explanation": "Best practices dictate that managing Storage tiering should be automated to minimize operational overhead.",
+    "topic": "Storage tiering",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "storage-tiering"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 5: Troubleshooting and managing Storage tiering.",
+      "options": [
+        "A) Enforce automated checks for Storage tiering parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Storage tiering parameters.",
+      "explanation": "Best practices dictate that managing Storage tiering should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 6: Troubleshooting and managing System reliability.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for System reliability parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for System reliability parameters.",
+    "explanation": "Best practices dictate that managing System reliability should be automated to minimize operational overhead.",
+    "topic": "System reliability",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "system-reliability"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 6: Troubleshooting and managing System reliability.",
+      "options": [
+        "A) Enforce automated checks for System reliability parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for System reliability parameters.",
+      "explanation": "Best practices dictate that managing System reliability should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 7: Troubleshooting and managing Infrastructure troubleshooting.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+    "explanation": "Best practices dictate that managing Infrastructure troubleshooting should be automated to minimize operational overhead.",
+    "topic": "Infrastructure troubleshooting",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "infrastructure-troubleshooting"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 7: Troubleshooting and managing Infrastructure troubleshooting.",
+      "options": [
+        "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+      "explanation": "Best practices dictate that managing Infrastructure troubleshooting should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 8: Troubleshooting and managing Cloud IAM policies.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Cloud IAM policies parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Cloud IAM policies parameters.",
+    "explanation": "Best practices dictate that managing Cloud IAM policies should be automated to minimize operational overhead.",
+    "topic": "Cloud IAM policies",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "cloud-iam-policies"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 8: Troubleshooting and managing Cloud IAM policies.",
+      "options": [
+        "A) Enforce automated checks for Cloud IAM policies parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Cloud IAM policies parameters.",
+      "explanation": "Best practices dictate that managing Cloud IAM policies should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 9: Troubleshooting and managing Backup/recovery validation.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Backup/recovery validation parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Backup/recovery validation parameters.",
+    "explanation": "Best practices dictate that managing Backup/recovery validation should be automated to minimize operational overhead.",
+    "topic": "Backup/recovery validation",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "backup/recovery-validation"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 9: Troubleshooting and managing Backup/recovery validation.",
+      "options": [
+        "A) Enforce automated checks for Backup/recovery validation parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Backup/recovery validation parameters.",
+      "explanation": "Best practices dictate that managing Backup/recovery validation should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 10: Troubleshooting and managing Automated patching.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Automated patching parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Automated patching parameters.",
+    "explanation": "Best practices dictate that managing Automated patching should be automated to minimize operational overhead.",
+    "topic": "Automated patching",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "automated-patching"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 10: Troubleshooting and managing Automated patching.",
+      "options": [
+        "A) Enforce automated checks for Automated patching parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Automated patching parameters.",
+      "explanation": "Best practices dictate that managing Automated patching should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 11: Troubleshooting and managing Performance bottlenecks.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Performance bottlenecks parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Performance bottlenecks parameters.",
+    "explanation": "Best practices dictate that managing Performance bottlenecks should be automated to minimize operational overhead.",
+    "topic": "Performance bottlenecks",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "performance-bottlenecks"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 11: Troubleshooting and managing Performance bottlenecks.",
+      "options": [
+        "A) Enforce automated checks for Performance bottlenecks parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Performance bottlenecks parameters.",
+      "explanation": "Best practices dictate that managing Performance bottlenecks should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 12: Troubleshooting and managing Storage tiering.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Storage tiering parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Storage tiering parameters.",
+    "explanation": "Best practices dictate that managing Storage tiering should be automated to minimize operational overhead.",
+    "topic": "Storage tiering",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "storage-tiering"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 12: Troubleshooting and managing Storage tiering.",
+      "options": [
+        "A) Enforce automated checks for Storage tiering parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Storage tiering parameters.",
+      "explanation": "Best practices dictate that managing Storage tiering should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 13: Troubleshooting and managing System reliability.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for System reliability parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for System reliability parameters.",
+    "explanation": "Best practices dictate that managing System reliability should be automated to minimize operational overhead.",
+    "topic": "System reliability",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "system-reliability"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 13: Troubleshooting and managing System reliability.",
+      "options": [
+        "A) Enforce automated checks for System reliability parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for System reliability parameters.",
+      "explanation": "Best practices dictate that managing System reliability should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 14: Troubleshooting and managing Infrastructure troubleshooting.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+    "explanation": "Best practices dictate that managing Infrastructure troubleshooting should be automated to minimize operational overhead.",
+    "topic": "Infrastructure troubleshooting",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "infrastructure-troubleshooting"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 14: Troubleshooting and managing Infrastructure troubleshooting.",
+      "options": [
+        "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Infrastructure troubleshooting parameters.",
+      "explanation": "Best practices dictate that managing Infrastructure troubleshooting should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SysOps L2/L3 MCQ Challenge 15: Troubleshooting and managing Cloud IAM policies.",
+    "moduleType": "MCQ",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce automated checks for Cloud IAM policies parameters.",
+      "B) Manually scale resources when thresholds are breached.",
+      "C) Check logs and audit histories on local systems.",
+      "D) Route traffic through alternate configurations."
+    ],
+    "correctAnswer": "A) Enforce automated checks for Cloud IAM policies parameters.",
+    "explanation": "Best practices dictate that managing Cloud IAM policies should be automated to minimize operational overhead.",
+    "topic": "Cloud IAM policies",
+    "tags": [
+      "sysops",
+      "mcq",
+      "l2",
+      "l3",
+      "cloud-iam-policies"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SysOps L2/L3 MCQ Challenge 15: Troubleshooting and managing Cloud IAM policies.",
+      "options": [
+        "A) Enforce automated checks for Cloud IAM policies parameters.",
+        "B) Manually scale resources when thresholds are breached.",
+        "C) Check logs and audit histories on local systems.",
+        "D) Route traffic through alternate configurations."
+      ],
+      "correctAnswer": "A) Enforce automated checks for Cloud IAM policies parameters.",
+      "explanation": "Best practices dictate that managing Cloud IAM policies should be automated to minimize operational overhead."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 1: Strategy and governance for Asset management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Asset management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Asset management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Asset management.",
+    "topic": "Asset management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "asset-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 1: Strategy and governance for Asset management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Asset management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Asset management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Asset management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 2: Strategy and governance for Endpoint management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Endpoint management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Endpoint management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Endpoint management.",
+    "topic": "Endpoint management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "endpoint-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 2: Strategy and governance for Endpoint management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Endpoint management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Endpoint management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Endpoint management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 3: Strategy and governance for BitLocker/key management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for BitLocker/key management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for BitLocker/key management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of BitLocker/key management.",
+    "topic": "BitLocker/key management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "bitlocker/key-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 3: Strategy and governance for BitLocker/key management.",
+      "options": [
+        "A) Establish a centralized compliance registry for BitLocker/key management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for BitLocker/key management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of BitLocker/key management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 4: Strategy and governance for MDM rollout.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for MDM rollout.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for MDM rollout.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of MDM rollout.",
+    "topic": "MDM rollout",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "mdm-rollout"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 4: Strategy and governance for MDM rollout.",
+      "options": [
+        "A) Establish a centralized compliance registry for MDM rollout.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for MDM rollout.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of MDM rollout."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 5: Strategy and governance for Vendor SLA management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Vendor SLA management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Vendor SLA management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Vendor SLA management.",
+    "topic": "Vendor SLA management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "vendor-sla-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 5: Strategy and governance for Vendor SLA management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Vendor SLA management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Vendor SLA management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Vendor SLA management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 6: Strategy and governance for Enterprise IT operations.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Enterprise IT operations.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Enterprise IT operations.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Enterprise IT operations.",
+    "topic": "Enterprise IT operations",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "enterprise-it-operations"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 6: Strategy and governance for Enterprise IT operations.",
+      "options": [
+        "A) Establish a centralized compliance registry for Enterprise IT operations.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Enterprise IT operations.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Enterprise IT operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 7: Strategy and governance for Hardware lifecycle.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Hardware lifecycle.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Hardware lifecycle.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Hardware lifecycle.",
+    "topic": "Hardware lifecycle",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "hardware-lifecycle"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 7: Strategy and governance for Hardware lifecycle.",
+      "options": [
+        "A) Establish a centralized compliance registry for Hardware lifecycle.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Hardware lifecycle.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Hardware lifecycle."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 8: Strategy and governance for Asset management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Asset management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Asset management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Asset management.",
+    "topic": "Asset management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "asset-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 8: Strategy and governance for Asset management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Asset management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Asset management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Asset management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 9: Strategy and governance for Endpoint management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Endpoint management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Endpoint management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Endpoint management.",
+    "topic": "Endpoint management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "endpoint-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 9: Strategy and governance for Endpoint management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Endpoint management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Endpoint management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Endpoint management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 10: Strategy and governance for BitLocker/key management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for BitLocker/key management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for BitLocker/key management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of BitLocker/key management.",
+    "topic": "BitLocker/key management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "bitlocker/key-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 10: Strategy and governance for BitLocker/key management.",
+      "options": [
+        "A) Establish a centralized compliance registry for BitLocker/key management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for BitLocker/key management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of BitLocker/key management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 11: Strategy and governance for MDM rollout.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for MDM rollout.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for MDM rollout.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of MDM rollout.",
+    "topic": "MDM rollout",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "mdm-rollout"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 11: Strategy and governance for MDM rollout.",
+      "options": [
+        "A) Establish a centralized compliance registry for MDM rollout.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for MDM rollout.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of MDM rollout."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 12: Strategy and governance for Vendor SLA management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Vendor SLA management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Vendor SLA management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Vendor SLA management.",
+    "topic": "Vendor SLA management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "vendor-sla-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 12: Strategy and governance for Vendor SLA management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Vendor SLA management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Vendor SLA management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Vendor SLA management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 13: Strategy and governance for Enterprise IT operations.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Enterprise IT operations.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Enterprise IT operations.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Enterprise IT operations.",
+    "topic": "Enterprise IT operations",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "enterprise-it-operations"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 13: Strategy and governance for Enterprise IT operations.",
+      "options": [
+        "A) Establish a centralized compliance registry for Enterprise IT operations.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Enterprise IT operations.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Enterprise IT operations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 14: Strategy and governance for Hardware lifecycle.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Hardware lifecycle.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Hardware lifecycle.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Hardware lifecycle.",
+    "topic": "Hardware lifecycle",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "hardware-lifecycle"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 14: Strategy and governance for Hardware lifecycle.",
+      "options": [
+        "A) Establish a centralized compliance registry for Hardware lifecycle.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Hardware lifecycle.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Hardware lifecycle."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "ITOps L2/L3 MCQ Challenge 15: Strategy and governance for Asset management.",
+    "moduleType": "MCQ",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Establish a centralized compliance registry for Asset management.",
+      "B) Roll out client-side configurations on demand.",
+      "C) Implement periodic audits of end-of-life systems.",
+      "D) Scale hardware resources dynamically based on headcount."
+    ],
+    "correctAnswer": "A) Establish a centralized compliance registry for Asset management.",
+    "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Asset management.",
+    "topic": "Asset management",
+    "tags": [
+      "itops",
+      "mcq",
+      "l2",
+      "l3",
+      "asset-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "ITOps L2/L3 MCQ Challenge 15: Strategy and governance for Asset management.",
+      "options": [
+        "A) Establish a centralized compliance registry for Asset management.",
+        "B) Roll out client-side configurations on demand.",
+        "C) Implement periodic audits of end-of-life systems.",
+        "D) Scale hardware resources dynamically based on headcount."
+      ],
+      "correctAnswer": "A) Establish a centralized compliance registry for Asset management.",
+      "explanation": "Establishing centralized registries and checks is key to enterprise-scale governance of Asset management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 1: Resolving issues in Agile velocity fluctuations.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Agile velocity fluctuations.",
+    "topic": "Agile velocity fluctuations",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "agile-velocity-fluctuations"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 1: Resolving issues in Agile velocity fluctuations.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Agile velocity fluctuations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 2: Resolving issues in Scope creep.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Scope creep.",
+    "topic": "Scope creep",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "scope-creep"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 2: Resolving issues in Scope creep.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Scope creep."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 3: Resolving issues in Milestone delays.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Milestone delays.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Milestone delays.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Milestone delays.",
+    "topic": "Milestone delays",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "milestone-delays"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 3: Resolving issues in Milestone delays.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Milestone delays.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Milestone delays.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Milestone delays."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 4: Resolving issues in Critical-path management.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Critical-path management.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Critical-path management.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Critical-path management.",
+    "topic": "Critical-path management",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "critical-path-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 4: Resolving issues in Critical-path management.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Critical-path management.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Critical-path management.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Critical-path management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 5: Resolving issues in Stakeholder conflicts.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Stakeholder conflicts.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Stakeholder conflicts.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Stakeholder conflicts.",
+    "topic": "Stakeholder conflicts",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "stakeholder-conflicts"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 5: Resolving issues in Stakeholder conflicts.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Stakeholder conflicts.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Stakeholder conflicts.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Stakeholder conflicts."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 6: Resolving issues in Cross-team dependencies.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Cross-team dependencies.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Cross-team dependencies.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Cross-team dependencies.",
+    "topic": "Cross-team dependencies",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "cross-team-dependencies"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 6: Resolving issues in Cross-team dependencies.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Cross-team dependencies.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Cross-team dependencies.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Cross-team dependencies."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 7: Resolving issues in Budget variance.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Budget variance.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Budget variance.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Budget variance.",
+    "topic": "Budget variance",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "budget-variance"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 7: Resolving issues in Budget variance.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Budget variance.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Budget variance.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Budget variance."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 8: Resolving issues in Risk management.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Risk management.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Risk management.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Risk management.",
+    "topic": "Risk management",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "risk-management"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 8: Resolving issues in Risk management.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Risk management.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Risk management.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Risk management."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 9: Resolving issues in Agile velocity fluctuations.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Agile velocity fluctuations.",
+    "topic": "Agile velocity fluctuations",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "agile-velocity-fluctuations"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 9: Resolving issues in Agile velocity fluctuations.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Agile velocity fluctuations.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Agile velocity fluctuations."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "PMO L2/L3 MCQ Challenge 10: Resolving issues in Scope creep.",
+    "moduleType": "MCQ",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+      "B) Add more team members to the sprint backlog immediately.",
+      "C) Reject any change requests that exceed 10% variance.",
+      "D) Deprecate low-priority milestones without consultation."
+    ],
+    "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+    "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Scope creep.",
+    "topic": "Scope creep",
+    "tags": [
+      "pmo",
+      "mcq",
+      "l2",
+      "l3",
+      "scope-creep"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "PMO L2/L3 MCQ Challenge 10: Resolving issues in Scope creep.",
+      "options": [
+        "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+        "B) Add more team members to the sprint backlog immediately.",
+        "C) Reject any change requests that exceed 10% variance.",
+        "D) Deprecate low-priority milestones without consultation."
+      ],
+      "correctAnswer": "A) Conduct stakeholder renegotiation and align on critical-path dependencies for Scope creep.",
+      "explanation": "Stakeholder renegotiation and dependency alignment are the standard ways to resolve issues in Scope creep."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 1: Advanced handling of Incident response.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Incident response incident to contain impact.",
+    "topic": "Incident response",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "incident-response"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 1: Advanced handling of Incident response.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Incident response incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 2: Advanced handling of Ransomware containment.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Ransomware containment incident to contain impact.",
+    "topic": "Ransomware containment",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "ransomware-containment"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 2: Advanced handling of Ransomware containment.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Ransomware containment incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 3: Advanced handling of Threat hunting.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Threat hunting.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Threat hunting.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Threat hunting incident to contain impact.",
+    "topic": "Threat hunting",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "threat-hunting"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 3: Advanced handling of Threat hunting.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Threat hunting.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Threat hunting.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Threat hunting incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 4: Advanced handling of IAM hardening.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in IAM hardening.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in IAM hardening.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected IAM hardening incident to contain impact.",
+    "topic": "IAM hardening",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "iam-hardening"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 4: Advanced handling of IAM hardening.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in IAM hardening.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in IAM hardening.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected IAM hardening incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 5: Advanced handling of Security logging.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Security logging.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Security logging.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Security logging incident to contain impact.",
+    "topic": "Security logging",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "security-logging"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 5: Advanced handling of Security logging.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Security logging.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Security logging.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Security logging incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 6: Advanced handling of Credential compromise.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Credential compromise.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Credential compromise.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Credential compromise incident to contain impact.",
+    "topic": "Credential compromise",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "credential-compromise"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 6: Advanced handling of Credential compromise.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Credential compromise.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Credential compromise.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Credential compromise incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 7: Advanced handling of Defense in depth.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Defense in depth.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Defense in depth.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Defense in depth incident to contain impact.",
+    "topic": "Defense in depth",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "defense-in-depth"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 7: Advanced handling of Defense in depth.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Defense in depth.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Defense in depth.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Defense in depth incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 8: Advanced handling of Security monitoring.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Security monitoring.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Security monitoring.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Security monitoring incident to contain impact.",
+    "topic": "Security monitoring",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "security-monitoring"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 8: Advanced handling of Security monitoring.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Security monitoring.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Security monitoring.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Security monitoring incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 9: Advanced handling of Incident response.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Incident response incident to contain impact.",
+    "topic": "Incident response",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "incident-response"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 9: Advanced handling of Incident response.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Incident response.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Incident response incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SecOps L2/L3 MCQ Challenge 10: Advanced handling of Ransomware containment.",
+    "moduleType": "MCQ",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "options": [
+      "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+      "B) Update antivirus software across endpoints.",
+      "C) Force reset passwords for all domain users.",
+      "D) Configure firewall rules to drop all outbound UDP traffic."
+    ],
+    "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+    "explanation": "Isolating affected assets is the immediate priority during a suspected Ransomware containment incident to contain impact.",
+    "topic": "Ransomware containment",
+    "tags": [
+      "secops",
+      "mcq",
+      "l2",
+      "l3",
+      "ransomware-containment"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "SecOps L2/L3 MCQ Challenge 10: Advanced handling of Ransomware containment.",
+      "options": [
+        "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+        "B) Update antivirus software across endpoints.",
+        "C) Force reset passwords for all domain users.",
+        "D) Configure firewall rules to drop all outbound UDP traffic."
+      ],
+      "correctAnswer": "A) Enforce centralized monitoring and isolate assets involved in Ransomware containment.",
+      "explanation": "Isolating affected assets is the immediate priority during a suspected Ransomware containment incident to contain impact."
+    },
+    "scoringConfig": {
+      "correctIndex": 0,
+      "points": 1
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 1: Write a program to solve a complex Thread safety problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Thread safety",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "thread-safety"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Thread safety challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Thread safety\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Thread safety\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 2: Write a program to solve a complex Concurrency problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Concurrency",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "concurrency"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Concurrency challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Concurrency\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Concurrency\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 3: Write a program to solve a complex Memory leaks problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Memory leaks",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "memory-leaks"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Memory leaks challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Memory leaks\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Memory leaks\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 4: Write a program to solve a complex Performance optimization problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Performance optimization",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "performance-optimization"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Performance optimization challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Performance optimization\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Performance optimization\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 5: Write a program to solve a complex Database query optimization problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Database query optimization",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "database-query-optimization"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Database query optimization challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Database query optimization\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Database query optimization\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 6: Write a program to solve a complex Distributed systems problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Distributed systems",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "distributed-systems"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Distributed systems challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Distributed systems\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Distributed systems\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 7: Write a program to solve a complex Scalability problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Scalability",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "scalability"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Scalability challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Scalability\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Scalability\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SDE L3 Coding Challenge 8: Write a program to solve a complex Production-grade engineering problem under high-throughput conditions.",
+    "moduleType": "CODING",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L3"
+    ],
+    "topic": "Production-grade engineering",
+    "tags": [
+      "sde",
+      "coding",
+      "l3",
+      "production-grade-engineering"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Write a program that resolves a custom Production-grade engineering challenge. Complete the code inside the starter template.",
+      "starterCode": {
+        "python": "def solve_challenge(data: list) -> dict:\n    # Optimize logic for Production-grade engineering\n    return {}\n",
+        "javascript": "function solveChallenge(data) {\n  // Optimize logic for Production-grade engineering\n  return {};\n}\nmodule.exports = { solveChallenge };\n"
+      },
+      "visibleTestCases": [
+        {
+          "input": "[]",
+          "expectedOutput": "{}",
+          "label": "Empty input check"
+        }
+      ]
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "Simulation Scenario: Disaster Recovery Drill (SRE/SysOps)",
+    "moduleType": "SIMULATION",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Disaster Recovery & Outage",
+    "tags": [
+      "simulation",
+      "disaster-recovery-drill",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "id": "disaster-recovery-drill",
+      "title": "Disaster Recovery Drill (SRE/SysOps)",
+      "description": "Resolve an active operational crisis involving: Disaster Recovery Drill (SRE/SysOps).",
+      "expectedAnswer": "Remediate and restore client-facing indicators to normal values."
+    },
+    "scoringConfig": {
+      "points": 20
+    }
+  },
+  {
+    "question": "Simulation Scenario: Third-Party API Outage (SDE/QA)",
+    "moduleType": "SIMULATION",
+    "department": "SOFTWARE_ENGINEERING",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Disaster Recovery & Outage",
+    "tags": [
+      "simulation",
+      "api-gateway-outage",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "id": "api-gateway-outage",
+      "title": "Third-Party API Outage (SDE/QA)",
+      "description": "Resolve an active operational crisis involving: Third-Party API Outage (SDE/QA).",
+      "expectedAnswer": "Remediate and restore client-facing indicators to normal values."
+    },
+    "scoringConfig": {
+      "points": 20
+    }
+  },
+  {
+    "question": "Simulation Scenario: Cloud Security Audit Remediation (SecOps/SysOps)",
+    "moduleType": "SIMULATION",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Disaster Recovery & Outage",
+    "tags": [
+      "simulation",
+      "iam-privilege-audit",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "id": "iam-privilege-audit",
+      "title": "Cloud Security Audit Remediation (SecOps/SysOps)",
+      "description": "Resolve an active operational crisis involving: Cloud Security Audit Remediation (SecOps/SysOps).",
+      "expectedAnswer": "Remediate and restore client-facing indicators to normal values."
+    },
+    "scoringConfig": {
+      "points": 20
+    }
+  },
+  {
+    "question": "PMO Test Scenario Challenge 1: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "pmo",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in PMO: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "PMO Test Scenario Challenge 2: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "pmo",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in PMO: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "PMO Test Scenario Challenge 3: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "pmo",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in PMO: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "PMO Test Scenario Challenge 4: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "pmo",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in PMO: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "PMO Test Scenario Challenge 5: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "PMO",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "pmo",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in PMO: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SRE Test Scenario Challenge 6: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sre",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SRE: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SRE Test Scenario Challenge 7: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sre",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SRE: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SRE Test Scenario Challenge 8: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sre",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SRE: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SRE Test Scenario Challenge 9: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SRE",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sre",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SRE: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SYSOPS Test Scenario Challenge 10: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sysops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SYSOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SYSOPS Test Scenario Challenge 11: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sysops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SYSOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SYSOPS Test Scenario Challenge 12: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SYSOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "sysops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SYSOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "ITOPS Test Scenario Challenge 13: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "itops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in ITOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "ITOPS Test Scenario Challenge 14: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "itops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in ITOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "ITOPS Test Scenario Challenge 15: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "itops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in ITOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "ITOPS Test Scenario Challenge 16: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "itops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in ITOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "ITOPS Test Scenario Challenge 17: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "ITOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "itops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in ITOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SECOPS Test Scenario Challenge 18: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "secops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SECOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SECOPS Test Scenario Challenge 19: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "secops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SECOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  },
+  {
+    "question": "SECOPS Test Scenario Challenge 20: Technical decision-making scenario involving critical incident resolution.",
+    "moduleType": "TEST_SCENARIOS",
+    "department": "SECOPS",
+    "seniority": [
+      "L2",
+      "L3"
+    ],
+    "topic": "Incident Response",
+    "tags": [
+      "secops",
+      "test-scenarios",
+      "l2",
+      "l3"
+    ],
+    "difficulty": "hard",
+    "content": {
+      "prompt": "Explain how you would handle this incident in SECOPS: A high-impact outage occurs, requiring quick mitigation and stakeholder reporting.",
+      "expectedAnswer": "Coordinate isolation, announce outage internally, execute rollback/remediation procedures, perform post-mortem analysis."
+    },
+    "scoringConfig": {
+      "points": 10
+    }
+  }
+]

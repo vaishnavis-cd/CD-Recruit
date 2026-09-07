@@ -61,7 +61,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
           <div>
             <div className="font-bold text-sm text-[var(--text-primary)] flex items-center gap-2">
               <span>Hotfix Sign-Off Authorized &amp; Saved Successfully</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 uppercase">
+              <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 uppercase">
                 100% SAVED
               </span>
             </div>
@@ -89,7 +89,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold font-mono uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
                 PASSED — HIGH CONFIDENCE
               </span>
               <span className="text-xs font-mono text-[var(--text-secondary)]">Incident ID: INC-2026-0891</span>
@@ -104,7 +104,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
         </div>
 
         <div className="text-right font-mono">
-          <span className="text-[10px] uppercase text-[var(--text-secondary)] block font-bold">Overall Rating</span>
+          <span className="text-2xs uppercase text-[var(--text-secondary)] block font-bold">Overall Rating</span>
           <span className="text-2xl font-extrabold text-emerald-500">EXCEEDS</span>
         </div>
       </div>
@@ -149,7 +149,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
                     <Icon className={`w-3.5 h-3.5 ${evt.color}`} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono font-bold text-[var(--text-secondary)]">{evt.time}</span>
+                    <span className="text-xs-plus font-mono font-bold text-[var(--text-secondary)]">{evt.time}</span>
                     <span className="text-xs font-semibold text-[var(--text-primary)]">{evt.event}</span>
                   </div>
                 </div>
@@ -212,10 +212,10 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
           <table className="w-full text-xs font-mono text-left">
             <thead>
               <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
-                <th className="py-2 px-3 font-semibold uppercase text-[10px]">Metric</th>
-                <th className="py-2 px-3 font-semibold uppercase text-[10px]">Expert Benchmark</th>
-                <th className="py-2 px-3 font-semibold uppercase text-[10px]">Candidate Metric</th>
-                <th className="py-2 px-3 font-semibold uppercase text-[10px]">Evaluation</th>
+                <th className="py-2 px-3 font-semibold uppercase text-2xs">Metric</th>
+                <th className="py-2 px-3 font-semibold uppercase text-2xs">Expert Benchmark</th>
+                <th className="py-2 px-3 font-semibold uppercase text-2xs">Candidate Metric</th>
+                <th className="py-2 px-3 font-semibold uppercase text-2xs">Evaluation</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)] text-[var(--text-primary)]">
@@ -225,7 +225,7 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
                   <td className="py-2.5 px-3 text-[var(--text-secondary)]">{m.expert}</td>
                   <td className="py-2.5 px-3 font-bold text-[var(--accent)]">{m.candidate}</td>
                   <td className="py-2.5 px-3">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    <span className={`px-2 py-0.5 rounded text-2xs font-bold ${
                       m.status === 'BETTER'
                         ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
                         : 'bg-blue-500/15 text-blue-500 border border-blue-500/30'

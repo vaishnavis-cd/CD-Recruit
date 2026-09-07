@@ -1,22 +1,27 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Optional } from "@nestjs/common";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { Judge0Service } from "../integrations/judge0/judge0.service";
 import { QaAutomationSandboxService } from "../execution/qa-automation-sandbox.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { CodingQuestionContentJson } from "./coding.types";
 import { SubmissionType, ExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
-
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
+import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
 
 @Injectable()
-export class CodingService implements AssessmentModuleEngine {
+export class CodingService implements AssessmentModuleEngine, OnModuleInit {
   readonly moduleType = ModuleType.CODING;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly judge0Service: Judge0Service,
     private readonly qaAutomationSandboxService: QaAutomationSandboxService,
+    @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
   ) {}
+
+  onModuleInit() {
+    this.engineRegistry?.registerEngine(this);
+  }
 
   async validateSubmission(submission: any): Promise<boolean> {
     return !!(submission && submission.code && submission.language);
@@ -109,7 +114,15 @@ export class CodingService implements AssessmentModuleEngine {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
-    if (session.status === SessionStatus.NOT_STARTED || session.status === SessionStatus.AUTO_SUBMITTED) {
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.CLOSED ||
+      session.status === SessionStatus.ABANDONED
+    ) {
+      throw new BadRequestException(`Session is already ${session.status.toLowerCase()} and cannot accept new code runs.`);
+    }
+    if (session.status === SessionStatus.NOT_STARTED) {
       const now = new Date();
       await this.prisma.session.update({
         where: { id: dto.sessionId },
@@ -150,39 +163,51 @@ export class CodingService implements AssessmentModuleEngine {
 
     // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
     let result: any;
-    if (isAutomation) {
-      const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
-        content?.framework || "SELENIUM",
-        dto.language || content?.language || "python",
-        dto.sourceCode
-      );
-      result = {
-        status: sandboxRes.status,
-        passedTests: sandboxRes.passedTests,
-        totalTests: sandboxRes.totalTests,
-        stdout: sandboxRes.stdout,
-        stderr: sandboxRes.stderr,
-        compileOutput: sandboxRes.compileOutput || "",
-        executionTime: sandboxRes.executionTime,
-        memoryUsage: sandboxRes.memoryUsage,
-        results: [
-          {
-            passed: sandboxRes.status === ExecutionStatus.COMPLETED,
-            status: sandboxRes.status,
-            executionTime: sandboxRes.executionTime,
-            memoryUsage: sandboxRes.memoryUsage,
-            stdout: sandboxRes.stdout,
-            stderr: sandboxRes.stderr,
-          },
-        ],
-      };
-    } else {
-      result = await this.judge0Service.runTests(
-        dto.sourceCode,
-        languageId,
-        dto.questionId,
-        visibleTests,
-      );
+    try {
+      if (isAutomation) {
+        const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
+          content?.framework || "SELENIUM",
+          dto.language || content?.language || "python",
+          dto.sourceCode,
+        );
+        result = {
+          status: sandboxRes.status,
+          passedTests: sandboxRes.passedTests,
+          totalTests: sandboxRes.totalTests,
+          stdout: sandboxRes.stdout,
+          stderr: sandboxRes.stderr,
+          compileOutput: sandboxRes.compileOutput || "",
+          executionTime: sandboxRes.executionTime,
+          memoryUsage: sandboxRes.memoryUsage,
+          results: [
+            {
+              passed: sandboxRes.status === ExecutionStatus.COMPLETED,
+              status: sandboxRes.status,
+              executionTime: sandboxRes.executionTime,
+              memoryUsage: sandboxRes.memoryUsage,
+              stdout: sandboxRes.stdout,
+              stderr: sandboxRes.stderr,
+            },
+          ],
+        };
+      } else {
+        result = await this.judge0Service.runTests(
+          dto.sourceCode,
+          languageId,
+          dto.questionId,
+          visibleTests,
+        );
+      }
+    } catch (err: any) {
+      await this.prisma.codingExecution.update({
+        where: { id: execution.id },
+        data: {
+          status: ExecutionStatus.FAILED,
+          stderr: err.message || "Execution runner failed",
+          completedAt: new Date(),
+        },
+      });
+      throw err;
     }
 
     // 5. Update database record with final results
@@ -210,7 +235,7 @@ export class CodingService implements AssessmentModuleEngine {
       executionTime: updatedExecution.executionTime,
       memoryUsage: updatedExecution.memoryUsage,
       stdout: updatedExecution.stdout || updatedExecution.stderr || updatedExecution.compileOutput || "",
-      results: result.results.map((r, idx) => ({
+      results: result.results.map((r: any, idx: number) => ({
         passed: r.passed,
         status: r.status,
         executionTime: r.executionTime,
@@ -238,12 +263,6 @@ export class CodingService implements AssessmentModuleEngine {
       throw new NotFoundException("Execution not found");
     }
 
-    const content = execution.question.content as any;
-    const allTests = this.getQuestionTestCases(content, execution.submissionType as SubmissionType);
-    const targetTests = execution.submissionType === SubmissionType.RUN
-      ? allTests.filter((t) => !t.isHidden)
-      : allTests;
-
     return {
       executionId: execution.id,
       status: execution.status,
@@ -252,7 +271,7 @@ export class CodingService implements AssessmentModuleEngine {
       executionTime: execution.executionTime,
       memoryUsage: execution.memoryUsage,
       stdout: execution.stdout || execution.stderr || execution.compileOutput || "",
-      results: [], // Polling client relies on RUN/SUBMIT endpoint return value mostly
+      results: [],
     };
   }
 
@@ -268,6 +287,14 @@ export class CodingService implements AssessmentModuleEngine {
     });
     if (!session) {
       throw new NotFoundException("Session not found");
+    }
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.CLOSED ||
+      session.status === SessionStatus.ABANDONED
+    ) {
+      throw new BadRequestException(`Session is already ${session.status.toLowerCase()} and cannot accept new submissions.`);
     }
     if (session.status === SessionStatus.NOT_STARTED) {
       const now = new Date();
@@ -310,29 +337,41 @@ export class CodingService implements AssessmentModuleEngine {
 
     // 4. Run execution tests (Route to QA Automation Sandbox for AUTOMATION, Judge0 for ALGORITHM)
     let result: any;
-    if (isAutomation) {
-      const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
-        content?.framework || "SELENIUM",
-        dto.language || content?.language || "python",
-        dto.sourceCode
-      );
-      result = {
-        status: sandboxRes.status,
-        passedTests: sandboxRes.passedTests,
-        totalTests: sandboxRes.totalTests,
-        stdout: sandboxRes.stdout,
-        stderr: sandboxRes.stderr,
-        compileOutput: sandboxRes.compileOutput || "",
-        executionTime: sandboxRes.executionTime,
-        memoryUsage: sandboxRes.memoryUsage,
-      };
-    } else {
-      result = await this.judge0Service.runTests(
-        dto.sourceCode,
-        languageId,
-        dto.questionId,
-        allTests,
-      );
+    try {
+      if (isAutomation) {
+        const sandboxRes = await this.qaAutomationSandboxService.runAutomationScript(
+          content?.framework || "SELENIUM",
+          dto.language || content?.language || "python",
+          dto.sourceCode,
+        );
+        result = {
+          status: sandboxRes.status,
+          passedTests: sandboxRes.passedTests,
+          totalTests: sandboxRes.totalTests,
+          stdout: sandboxRes.stdout,
+          stderr: sandboxRes.stderr,
+          compileOutput: sandboxRes.compileOutput || "",
+          executionTime: sandboxRes.executionTime,
+          memoryUsage: sandboxRes.memoryUsage,
+        };
+      } else {
+        result = await this.judge0Service.runTests(
+          dto.sourceCode,
+          languageId,
+          dto.questionId,
+          allTests,
+        );
+      }
+    } catch (err: any) {
+      await this.prisma.codingExecution.update({
+        where: { id: execution.id },
+        data: {
+          status: ExecutionStatus.FAILED,
+          stderr: err.message || "Execution runner failed",
+          completedAt: new Date(),
+        },
+      });
+      throw err;
     }
 
     // 5. Update database record with final results
@@ -394,7 +433,7 @@ export class CodingService implements AssessmentModuleEngine {
       totalTests: updatedExecution.totalTests,
       executionTime: updatedExecution.executionTime,
       memoryUsage: updatedExecution.memoryUsage,
-      results: result.results.map((r, idx) => {
+      results: result.results.map((r: any, idx: number) => {
         const tc = allTests[idx];
         if (tc?.isHidden) {
           return {
@@ -431,6 +470,14 @@ export class CodingService implements AssessmentModuleEngine {
     });
     if (!session) {
       throw new NotFoundException("Session not found");
+    }
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.CLOSED ||
+      session.status === SessionStatus.ABANDONED
+    ) {
+      throw new BadRequestException(`Session is already ${session.status.toLowerCase()} and cannot accept drafts.`);
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException("Session is not in progress");
@@ -476,7 +523,7 @@ export class CodingService implements AssessmentModuleEngine {
   /**
    * Security Guardrails: Validate candidate source code length and scan for blacklisted exfiltration patterns.
    */
-  private validateSourceCodePayload(sourceCode: string): void {
+  private validateSourceCodePayload(sourceCode?: string): void {
     if (!sourceCode) return;
 
     // 1. Max Payload Length (64 KB)
@@ -484,8 +531,14 @@ export class CodingService implements AssessmentModuleEngine {
       throw new BadRequestException("Source code payload exceeds maximum allowable length of 64 KB.");
     }
 
+    // Strip single-line (//, #) and multi-line (/* */) comments to avoid false-positives in candidate explanations
+    const sanitized = sourceCode
+      .replace(/\/\*[\s\S]*?\*\//g, "") // C/JS/Java multi-line comments
+      .replace(/\/\/.*$/gm, "")         // C/JS/Java single-line comments
+      .replace(/#.*$/gm, "")            // Python single-line comments
+      .toLowerCase();
+
     // 2. Scan for malicious system exfiltration attempts
-    const lower = sourceCode.toLowerCase();
     const blacklisted = [
       "process.env",
       "os.environ",
@@ -496,7 +549,7 @@ export class CodingService implements AssessmentModuleEngine {
     ];
 
     for (const token of blacklisted) {
-      if (lower.includes(token)) {
+      if (sanitized.includes(token)) {
         throw new BadRequestException(
           `Submission rejected: Usage of forbidden system inspection keyword ("${token}") is restricted for platform security.`,
         );

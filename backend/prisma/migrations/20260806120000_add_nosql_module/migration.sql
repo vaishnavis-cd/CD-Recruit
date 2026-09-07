@@ -1,8 +1,8 @@
 -- AlterEnum
-ALTER TYPE "ModuleType" ADD VALUE 'DEBUGGING';
-ALTER TYPE "ModuleType" ADD VALUE 'NOSQL';
+ALTER TYPE "ModuleType" ADD VALUE IF NOT EXISTS 'DEBUGGING';
+ALTER TYPE "ModuleType" ADD VALUE IF NOT EXISTS 'NOSQL';
 
 -- AlterTable
-ALTER TABLE "module_response" ADD COLUMN     "execution_count" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "last_operation" JSONB,
-ADD COLUMN     "sandbox_db_name" TEXT;
+ALTER TABLE "module_response" ADD COLUMN IF NOT EXISTS "execution_count" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "last_operation" JSONB,
+ADD COLUMN IF NOT EXISTS "sandbox_db_name" TEXT;

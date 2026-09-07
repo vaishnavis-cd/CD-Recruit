@@ -1,7 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Users, Sliders, Shield, FileText, Check, AlertCircle, Search, Plus, Trash2, UserPlus, X, Key, RefreshCw, Copy, Edit3, Lock, Unlock, Globe } from "lucide-react";
+import {
+  Users,
+  Sliders,
+  Shield,
+  ShieldCheck,
+  FileText,
+  Check,
+  AlertCircle,
+  Search,
+  Plus,
+  Trash2,
+  UserPlus,
+  X,
+  Key,
+  RefreshCw,
+  Copy,
+  Edit3,
+  Lock,
+  Unlock,
+  Globe,
+  RotateCcw,
+} from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
@@ -26,7 +47,16 @@ function SettingsPage() {
   const isAdmin = profile?.role === "ADMIN";
 
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "permissions" | "scoring" | "system" | "retention" | "audit" | "integrations" | "modules">("profile");
+
+  // Dynamic Role Permissions state
+  const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, string[]>>({});
+  const [permissionDescriptors, setPermissionDescriptors] = useState<any[]>([]);
+  const [matrixRoles, setMatrixRoles] = useState<string[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(false);
+  const [savingPermissionKey, setSavingPermissionKey] = useState<string | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resettingPermissions, setResettingPermissions] = useState(false);
 
   // Assessment Modules Settings state
   const [moduleSettings, setModuleSettings] = useState<any[]>([]);
@@ -194,7 +224,25 @@ function SettingsPage() {
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("RECRUITER");
+  const [newStaffTempPassword, setNewStaffTempPassword] = useState("");
+  const [newStaffRequirePwChange, setNewStaffRequirePwChange] = useState(true);
   const [creatingStaff, setCreatingStaff] = useState(false);
+
+  // Reset Password Modal state
+  const [showResetPwModal, setShowResetPwModal] = useState(false);
+  const [selectedStaffForReset, setSelectedStaffForReset] = useState<any | null>(null);
+  const [resetPwValue, setResetPwValue] = useState("");
+  const [resetPwTemporary, setResetPwTemporary] = useState(true);
+  const [resettingPw, setResettingPw] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+    let pwd = "";
+    for (let i = 0; i < 12; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pwd;
+  };
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,22 +263,65 @@ function SettingsPage() {
           name: newStaffName.trim(),
           email: newStaffEmail.trim(),
           role: newStaffRole,
+          tempPassword: newStaffTempPassword || undefined,
+          temporary: newStaffRequirePwChange,
+          requirePasswordChange: newStaffRequirePwChange,
         }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message || "Failed to add staff member");
       }
-      toast.success(`Staff member "${newStaffName}" added successfully`);
+      const data = await res.json();
+      toast.success(
+        data.keycloakSynced
+          ? `Staff member "${newStaffName}" created & synced to Keycloak!`
+          : `Staff member "${newStaffName}" added successfully`
+      );
       setShowAddStaffModal(false);
       setNewStaffName("");
       setNewStaffEmail("");
       setNewStaffRole("RECRUITER");
+      setNewStaffTempPassword("");
+      setNewStaffRequirePwChange(true);
       loadStaffList();
     } catch (err: any) {
       toast.error(err.message || "Failed to create staff member");
     } finally {
       setCreatingStaff(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaffForReset) return;
+    setResettingPw(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/staff/${selectedStaffForReset.id}/reset-password`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          newPassword: resetPwValue || undefined,
+          temporary: resetPwTemporary,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to reset password");
+      }
+      const data = await res.json();
+      toast.success(`Temporary password set to: ${data.newPassword}`);
+      setShowResetPwModal(false);
+      setSelectedStaffForReset(null);
+      setResetPwValue("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset password");
+    } finally {
+      setResettingPw(false);
     }
   };
 
@@ -438,8 +529,106 @@ function SettingsPage() {
     }
   };
 
+  const loadPermissions = async () => {
+    setLoadingPermissions(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions`, { headers });
+      if (!res.ok) throw new Error("Failed to load permissions matrix");
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+        setPermissionDescriptors(data.descriptors || []);
+        setMatrixRoles(data.roles || []);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load permissions");
+    } finally {
+      setLoadingPermissions(false);
+    }
+  };
+
+  const handleTogglePermission = async (role: string, permissionKey: string, currentVal: boolean) => {
+    if (role === "ADMIN") {
+      toast.error("Superadmin permissions cannot be modified");
+      return;
+    }
+
+    const cellKey = `${role}-${permissionKey}`;
+    setSavingPermissionKey(cellKey);
+
+    // Optimistic UI update
+    setPermissionsMatrix((prev) => {
+      const perms = new Set(prev[role] || []);
+      if (!currentVal) {
+        perms.add(permissionKey);
+      } else {
+        perms.delete(permissionKey);
+      }
+      return {
+        ...prev,
+        [role]: Array.from(perms),
+      };
+    });
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions`, {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role,
+          permission: permissionKey,
+          isEnabled: !currentVal,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update role permission");
+      }
+
+      toast.success(
+        !currentVal
+          ? `Granted ${permissionKey} to ${role.replace("_", " ")}`
+          : `Revoked ${permissionKey} from ${role.replace("_", " ")}`
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update permission");
+      loadPermissions(); // rollback
+    } finally {
+      setSavingPermissionKey(null);
+    }
+  };
+
+  const handleResetPermissions = async () => {
+    setResettingPermissions(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/permissions/reset`, {
+        method: "POST",
+        headers,
+      });
+
+      if (!res.ok) throw new Error("Failed to reset permissions");
+      const data = await res.json();
+      if (data?.matrix) {
+        setPermissionsMatrix(data.matrix);
+      }
+      toast.success("Role permissions restored to system defaults");
+      setShowResetModal(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset permissions");
+    } finally {
+      setResettingPermissions(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "users") loadStaffList();
+    if (activeTab === "permissions") loadPermissions();
     if (activeTab === "scoring") loadScoringConfig();
     if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
@@ -544,91 +733,93 @@ function SettingsPage() {
     <AppShell title="Settings & Administration">
       <div className="flex gap-8">
         {/* Navigation Tabs Side */}
-        <div className="w-[180px] shrink-0 flex flex-col gap-1 text-[13px]">
+        <div className="w-[180px] shrink-0 flex flex-col gap-1 text-sm-minus">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "profile"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "profile"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Users size={14} />
             Admin Profile
           </button>
           <button
             onClick={() => setActiveTab("users")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "users"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "users"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Users size={14} />
             Staff & Roles
           </button>
           <button
+            onClick={() => setActiveTab("permissions")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "permissions"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
+          >
+            <ShieldCheck size={14} />
+            Roles &amp; Permissions
+          </button>
+          <button
             onClick={() => setActiveTab("scoring")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "scoring"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "scoring"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Sliders size={14} />
             AI & Scoring
           </button>
           <button
             onClick={() => setActiveTab("system")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "system"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "system"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Sliders size={14} />
             System Timing
           </button>
           <button
             onClick={() => setActiveTab("retention")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "retention"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "retention"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Shield size={14} />
             Data Retention
           </button>
           <button
             onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "audit"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "audit"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <FileText size={14} />
             Audit Logs
           </button>
           <button
             onClick={() => setActiveTab("integrations")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "integrations"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "integrations"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Key size={14} />
             Integrations
           </button>
           <button
             onClick={() => setActiveTab("modules")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${
-              activeTab === "modules"
-                ? "bg-white border border-[#E6E6EA] text-[#2F5CFF] shadow-sm"
-                : "text-[#5B5B64] hover:text-[#0B0B0D]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md font-medium text-left cursor-pointer ${activeTab === "modules"
+                ? "bg-white border border-line text-brand shadow-sm"
+                : "text-ink-secondary hover:text-ink"
+              }`}
           >
             <Sliders size={14} />
             Assessment Modules
@@ -636,47 +827,47 @@ function SettingsPage() {
         </div>
 
         {/* Tab Body */}
-        <div className="flex-1 min-w-0 bg-white border border-[#E6E6EA] rounded-[10px] p-6">
+        <div className="flex-1 min-w-0 bg-white border border-line rounded-lg p-6">
           {/* Tab 0: Admin Profile */}
           {activeTab === "profile" && (
             <div className="max-w-[480px] space-y-5">
               <div>
-                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                <h3 className="text-sm font-semibold text-ink">
                   Admin Account Details
                 </h3>
-                <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                <p className="text-xs-plus text-ink-tertiary mt-0.5">
                   Manage your administrator display name and email address.
                 </p>
               </div>
 
-              <div className="space-y-4 text-[13px]">
+              <div className="space-y-4 text-sm-minus">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Display Name
                   </label>
                   <input
                     value={adminName}
                     onChange={(e) => setAdminName(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Admin Email
                   </label>
                   <input
                     value={adminEmail}
                     onChange={(e) => setAdminEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     System Role
                   </label>
-                  <div className="px-3 py-2 border border-[#E6E6EA] rounded bg-[#F7F7F9] text-[#5B5B64] font-mono text-[12px]">
+                  <div className="px-3 py-2 border border-line rounded bg-canvas text-ink-secondary font-mono text-xs">
                     ADMIN (Full Privileges & Governance)
                   </div>
                 </div>
@@ -684,7 +875,7 @@ function SettingsPage() {
 
               <button
                 onClick={() => toast.success("Admin Profile details updated successfully")}
-                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover shadow-sm transition-colors cursor-pointer"
               >
                 Save Profile
               </button>
@@ -696,16 +887,16 @@ function SettingsPage() {
             <div className="space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                  <h3 className="text-sm font-semibold text-ink">
                     Manage Staff &amp; Team Permissions
                   </h3>
-                  <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                  <p className="text-xs-plus text-ink-tertiary mt-0.5">
                     Add team members, assign operational roles, and manage system privileges:
                   </p>
                 </div>
                 <button
                   onClick={() => setShowAddStaffModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-md transition-colors cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
                 >
                   <UserPlus size={14} /> Add Staff Member
                 </button>
@@ -713,71 +904,95 @@ function SettingsPage() {
 
               {/* Roles Breakdown Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-3 bg-[#FFF5F5] border border-[#FFE3E3] rounded-lg">
-                  <div className="text-[11px] font-mono font-bold text-rose-700 uppercase">ADMIN</div>
-                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Full access to settings, system timing, staff roles & audit logs.</p>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                  <div className="text-xs-plus font-mono font-bold text-rose-700 uppercase">ADMIN</div>
+                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Full access to settings, system timing, staff roles & audit logs.</p>
                 </div>
-                <div className="p-3 bg-[#F0F4FF] border border-[#D0E0FF] rounded-lg">
-                  <div className="text-[11px] font-mono font-bold text-[#15308F] uppercase">RECRUITER</div>
-                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Drive creation, candidate invitations, and hiring decision log.</p>
+                <div className="p-3 bg-brand-subtle border border-brand-border rounded-lg">
+                  <div className="text-xs-plus font-mono font-bold text-brand-ink uppercase">RECRUITER</div>
+                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Drive creation, candidate invitations, and hiring decision log.</p>
                 </div>
-                <div className="p-3 bg-[#FFFBEB] border border-[#FDE68A] rounded-lg">
-                  <div className="text-[11px] font-mono font-bold text-amber-800 uppercase">PROCTOR</div>
-                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Real-time session monitoring, integrity flag review & video evidence.</p>
+                <div className="p-3 bg-warning-subtle border border-warning-border rounded-lg">
+                  <div className="text-xs-plus font-mono font-bold text-amber-800 uppercase">PROCTOR</div>
+                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Real-time session monitoring, integrity flag review & video evidence.</p>
                 </div>
-                <div className="p-3 bg-[#ECFDF5] border border-[#A7F3D0] rounded-lg">
-                  <div className="text-[11px] font-mono font-bold text-emerald-800 uppercase">EVALUATOR</div>
-                  <p className="text-[11px] text-[#5B5B64] mt-1 leading-snug">Technical evaluation of code, SQL queries, and AI prompt traces.</p>
+                <div className="p-3 bg-success-subtle border border-success-border rounded-lg">
+                  <div className="text-xs-plus font-mono font-bold text-emerald-800 uppercase">EVALUATOR</div>
+                  <p className="text-xs-plus text-ink-secondary mt-1 leading-snug">Technical evaluation of code, SQL queries, and AI prompt traces.</p>
                 </div>
               </div>
 
               {loadingStaff ? (
-                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-6">
+                <p className="text-center font-mono text-xs text-ink-tertiary py-6">
                   Loading staff roster…
                 </p>
               ) : (
-                <div className="border border-[#E6E6EA] rounded-lg divide-y divide-[#EFF0F3] overflow-hidden bg-white shadow-sm">
+                <div className="border border-line rounded-lg divide-y divide-surface-inset overflow-hidden bg-white shadow-sm">
                   {staff.map((s) => (
-                    <div key={s.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-[#F9FAFB]">
+                    <div key={s.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-canvas">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#EAF0FF] border border-[#C5D7FF] text-[#2F5CFF] font-bold text-[12px] flex items-center justify-center font-mono shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-brand-subtle border border-brand-border text-brand font-bold text-xs flex items-center justify-center font-mono shrink-0">
                           {s.name ? s.name.charAt(0).toUpperCase() : "S"}
                         </div>
                         <div>
-                          <div className="text-[13px] font-semibold text-[#0B0B0D] flex items-center gap-2">
+                          <div className="text-sm-minus font-semibold text-ink flex items-center gap-2">
                             <span>{s.name}</span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border uppercase ${
-                              s.role === "ADMIN"
+                            <span className={`px-2 py-0.5 rounded text-2xs font-mono font-bold border uppercase ${s.role === "ADMIN"
                                 ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : s.role === "PROCTOR"
-                                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                                  : s.role === "EVALUATOR"
-                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                    : "bg-blue-50 text-blue-700 border-blue-200"
-                            }`}>
+                                : s.role === "HR_LEAD"
+                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                  : s.role === "HR_ASSOCIATE"
+                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                    : s.role === "REVIEWER"
+                                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                      : "bg-slate-50 text-slate-700 border-slate-200"
+                              }`}>
                               {s.role}
                             </span>
+                            {s.keycloakUserId && !s.keycloakUserId.startsWith("keycloak_") ? (
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Keycloak user synced">
+                                Keycloak
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-slate-50 text-slate-500 border border-slate-200" title="Local / Dev unlinked">
+                                Local
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[11px] text-[#5B5B64] font-mono">{s.email}</div>
+                          <div className="text-xs-plus text-ink-secondary font-mono">{s.email}</div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <select
                           value={s.role}
                           onChange={(e) => handleUpdateRole(s.id, e.target.value)}
-                          className="px-2.5 py-1 text-[12px] font-medium border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] outline-none shadow-sm cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink outline-none shadow-sm cursor-pointer"
                         >
-                          <option value="RECRUITER">Recruiter</option>
-                          <option value="ADMIN">Admin</option>
-                          <option value="PROCTOR">Proctor</option>
-                          <option value="EVALUATOR">Evaluator</option>
+                          <option value="ADMIN">Admin (Superadmin)</option>
+                          <option value="HR_LEAD">HR Lead / Manager</option>
+                          <option value="HR_ASSOCIATE">HR Associate / Recruiter</option>
+                          <option value="REVIEWER">Technical Evaluator</option>
+                          <option value="RECRUITER">Recruiter (Legacy)</option>
                         </select>
+
+                        <button
+                          onClick={() => {
+                            setSelectedStaffForReset(s);
+                            setResetPwValue(generateRandomPassword());
+                            setResetPwTemporary(true);
+                            setShowResetPwModal(true);
+                          }}
+                          title="Reset temporary password"
+                          className="p-1.5 text-ink-tertiary hover:text-brand hover:bg-brand-subtle rounded transition-colors cursor-pointer"
+                        >
+                          <Key size={15} />
+                        </button>
 
                         <button
                           onClick={() => handleDeleteStaff(s.id, s.name)}
                           title="Remove staff member"
-                          className="p-1.5 text-[#8B8B93] hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                          className="p-1.5 text-ink-tertiary hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                         >
                           <Trash2 size={15} />
                         </button>
@@ -785,7 +1000,7 @@ function SettingsPage() {
                     </div>
                   ))}
                   {staff.length === 0 && (
-                    <div className="p-6 text-center text-[#8B8B93] text-[12px]">
+                    <div className="p-6 text-center text-ink-tertiary text-xs">
                       No staff members registered. Click "Add Staff Member" to grant access.
                     </div>
                   )}
@@ -795,76 +1010,361 @@ function SettingsPage() {
               {/* Add Staff Modal */}
               {showAddStaffModal && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white border border-[#E6E6EA] rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
-                    <div className="flex items-center justify-between border-b border-[#EFF0F3] pb-3">
+                  <div className="bg-white border border-line rounded-xl max-w-[440px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
                       <div className="flex items-center gap-2">
-                        <UserPlus size={16} className="text-[#2F5CFF]" />
-                        <h3 className="text-[15px] font-semibold text-[#0B0B0D]">Add New Staff Member</h3>
+                        <UserPlus size={16} className="text-brand" />
+                        <h3 className="text-md font-semibold text-ink">Add New Staff Member</h3>
                       </div>
                       <button
                         onClick={() => setShowAddStaffModal(false)}
-                        className="text-[#8B8B93] hover:text-[#0B0B0D] cursor-pointer"
+                        className="text-ink-tertiary hover:text-ink cursor-pointer"
                       >
                         <X size={16} />
                       </button>
                     </div>
 
-                    <form onSubmit={handleCreateStaff} className="space-y-4 text-[13px]">
+                    <form onSubmit={handleCreateStaff} className="space-y-4 text-sm-minus">
                       <div>
-                        <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Full Name</label>
+                        <label className="block text-xs font-medium text-ink-secondary mb-1">Full Name</label>
                         <input
                           type="text"
                           required
                           value={newStaffName}
                           onChange={(e) => setNewStaffName(e.target.value)}
                           placeholder="e.g. Sarah Connor"
-                          className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] text-[13px] outline-none focus:border-[#2F5CFF]"
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Email Address</label>
+                        <label className="block text-xs font-medium text-ink-secondary mb-1">Email Address</label>
                         <input
                           type="email"
                           required
                           value={newStaffEmail}
                           onChange={(e) => setNewStaffEmail(e.target.value)}
                           placeholder="e.g. sarah@company.com"
-                          className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] text-[13px] outline-none focus:border-[#2F5CFF]"
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">Assigned Role</label>
+                        <label className="block text-xs font-medium text-ink-secondary mb-1">Assigned Role</label>
                         <select
                           value={newStaffRole}
                           onChange={(e) => setNewStaffRole(e.target.value)}
-                          className="w-full px-3 py-2 border border-[#E6E6EA] rounded-md bg-white text-[#0B0B0D] text-[13px] outline-none focus:border-[#2F5CFF]"
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus outline-none focus:border-brand"
                         >
-                          <option value="RECRUITER">Recruiter (Drives, Invites &amp; Hiring Decisions)</option>
-                          <option value="ADMIN">Admin (Full System Governance &amp; Configuration)</option>
-                          <option value="PROCTOR">Proctor (Live Monitoring &amp; Integrity Review)</option>
-                          <option value="EVALUATOR">Evaluator (Technical Code &amp; Submission Grading)</option>
+                          <option value="HR_LEAD">HR Lead / Manager (Decisions, Evaluations &amp; Governance)</option>
+                          <option value="HR_ASSOCIATE">HR Associate (Drives &amp; Candidate Ingestion)</option>
+                          <option value="ADMIN">Admin (Superadmin — Full Platform Access)</option>
+                          <option value="REVIEWER">Technical Evaluator (Submission Scoring)</option>
+                          <option value="RECRUITER">Recruiter (Legacy Full Access)</option>
                         </select>
                       </div>
 
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#EFF0F3]">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-medium text-ink-secondary">Initial / Temp Password</label>
+                          <button
+                            type="button"
+                            onClick={() => setNewStaffTempPassword(generateRandomPassword())}
+                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
+                          >
+                            Generate Strong Password
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={newStaffTempPassword}
+                          onChange={(e) => setNewStaffTempPassword(e.target.value)}
+                          placeholder="Leave blank to auto-generate (Password@123)"
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="checkbox"
+                          id="requirePwChangeCheck"
+                          checked={newStaffRequirePwChange}
+                          onChange={(e) => setNewStaffRequirePwChange(e.target.checked)}
+                          className="rounded border-line text-brand focus:ring-brand"
+                        />
+                        <label htmlFor="requirePwChangeCheck" className="text-xs text-ink-secondary cursor-pointer">
+                          Require password update upon first login in Keycloak
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
                         <button
                           type="button"
                           onClick={() => setShowAddStaffModal(false)}
-                          className="px-3.5 py-1.5 text-[12px] font-medium text-[#5B5B64] hover:text-[#0B0B0D] border border-[#E6E6EA] rounded-md hover:bg-[#F7F7F9] cursor-pointer"
+                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
                           disabled={creatingStaff}
-                          className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
+                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
                         >
                           {creatingStaff ? "Adding Staff…" : "Add Staff Member"}
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Reset Password Modal */}
+              {showResetPwModal && selectedStaffForReset && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white border border-line rounded-xl max-w-[420px] w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-surface-inset pb-3">
+                      <div className="flex items-center gap-2">
+                        <Key size={16} className="text-brand" />
+                        <h3 className="text-md font-semibold text-ink">Reset Staff Password</h3>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowResetPwModal(false);
+                          setSelectedStaffForReset(null);
+                        }}
+                        className="text-ink-tertiary hover:text-ink cursor-pointer"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleResetPasswordSubmit} className="space-y-4 text-sm-minus">
+                      <div className="p-3 bg-surface rounded-lg border border-line space-y-1">
+                        <div className="text-xs font-semibold text-ink">{selectedStaffForReset.name}</div>
+                        <div className="text-2xs font-mono text-ink-secondary">{selectedStaffForReset.email}</div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-medium text-ink-secondary">New Temporary Password</label>
+                          <button
+                            type="button"
+                            onClick={() => setResetPwValue(generateRandomPassword())}
+                            className="text-2xs font-mono font-medium text-brand hover:underline cursor-pointer"
+                          >
+                            Generate
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={resetPwValue}
+                          onChange={(e) => setResetPwValue(e.target.value)}
+                          className="w-full px-3 py-2 border border-line rounded-md bg-white text-ink text-sm-minus font-mono outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="checkbox"
+                          id="temporaryResetCheck"
+                          checked={resetPwTemporary}
+                          onChange={(e) => setResetPwTemporary(e.target.checked)}
+                          className="rounded border-line text-brand focus:ring-brand"
+                        />
+                        <label htmlFor="temporaryResetCheck" className="text-xs text-ink-secondary cursor-pointer">
+                          Mark as temporary (requires user to set new password on login)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowResetPwModal(false);
+                            setSelectedStaffForReset(null);
+                          }}
+                          className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={resettingPw}
+                          className="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
+                        >
+                          {resettingPw ? "Resetting…" : "Confirm Reset"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab: Dynamic Roles & Permissions Matrix */}
+          {activeTab === "permissions" && (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between border-b border-line pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={18} className="text-brand" />
+                    <h3 className="text-md font-semibold text-ink">
+                      Dynamic Role-Based Access Control (RBAC)
+                    </h3>
+                  </div>
+                  <p className="text-xs-plus text-ink-tertiary mt-1 max-w-2xl">
+                    Configure platform action permissions for each role dynamically.
+                    Toggle capabilities ON or OFF to grant or restrict access instantly without code changes.
+                  </p>
+                </div>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowResetModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas transition-colors cursor-pointer shadow-sm"
+                  >
+                    <RotateCcw size={13} />
+                    Reset to Defaults
+                  </button>
+                )}
+              </div>
+
+              {loadingPermissions ? (
+                <div className="py-12 text-center text-ink-tertiary text-xs">
+                  Loading role permissions matrix…
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Iterate by Category */}
+                  {Array.from(new Set(permissionDescriptors.map((d) => d.category))).map((category) => {
+                    const descriptorsInCategory = permissionDescriptors.filter((d) => d.category === category);
+                    return (
+                      <div key={category} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
+                            {category}
+                          </h4>
+                          <div className="h-px flex-1 bg-surface-inset" />
+                        </div>
+
+                        <div className="border border-line rounded-lg overflow-hidden bg-white shadow-xs">
+                          <table className="w-full text-left text-xs-plus border-collapse">
+                            <thead>
+                              <tr className="bg-canvas border-b border-line text-xs font-semibold text-ink-secondary">
+                                <th className="py-3 px-4 w-2/5">Capability / Action</th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    <Lock size={10} /> ADMIN
+                                  </div>
+                                </th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    HR LEAD
+                                  </div>
+                                </th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    HR ASSOCIATE
+                                  </div>
+                                </th>
+                                <th className="py-3 px-3 text-center w-[15%]">
+                                  <div className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-2xs font-bold tracking-wide">
+                                    REVIEWER
+                                  </div>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-line">
+                              {descriptorsInCategory.map((desc) => {
+                                return (
+                                  <tr key={desc.key} className="hover:bg-canvas/50 transition-colors">
+                                    <td className="py-3 px-4">
+                                      <div className="font-medium text-ink">{desc.name}</div>
+                                      <div className="text-2xs text-ink-tertiary mt-0.5">{desc.description}</div>
+                                      <div className="text-3xs font-mono text-ink-quaternary mt-0.5">{desc.key}</div>
+                                    </td>
+
+                                    {/* ADMIN Column (Always ON, locked) */}
+                                    <td className="py-3 px-3 text-center">
+                                      <div className="inline-flex items-center justify-center">
+                                        <div className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full bg-brand/80 border-2 border-transparent transition-colors duration-200 ease-in-out opacity-75">
+                                          <span className="translate-x-4 pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out" />
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Configurable Roles Columns */}
+                                    {["HR_LEAD", "HR_ASSOCIATE", "REVIEWER"].map((roleKey) => {
+                                      const isEnabled = (permissionsMatrix[roleKey] || []).includes(desc.key);
+                                      const isSaving = savingPermissionKey === `${roleKey}-${desc.key}`;
+
+                                      return (
+                                        <td key={roleKey} className="py-3 px-3 text-center">
+                                          <div className="inline-flex items-center justify-center">
+                                            <button
+                                              type="button"
+                                              disabled={!isAdmin || isSaving}
+                                              onClick={() => handleTogglePermission(roleKey, desc.key, isEnabled)}
+                                              title={
+                                                !isAdmin
+                                                  ? "Only Admins can change role permissions"
+                                                  : `Toggle ${desc.name} for ${roleKey}`
+                                              }
+                                              className={`relative inline-flex h-5 w-9 shrink-0 ${!isAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                                                } rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isEnabled ? "bg-brand" : "bg-line hover:bg-line-strong"
+                                                }`}
+                                            >
+                                              <span
+                                                className={`${isEnabled ? "translate-x-4" : "translate-x-0"
+                                                  } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out`}
+                                              />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Reset to Defaults Confirmation Modal */}
+              {showResetModal && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white border border-line rounded-xl max-w-[400px] w-full p-6 shadow-xl space-y-4">
+                    <div className="flex items-center gap-2 text-amber-600">
+                      <AlertCircle size={20} />
+                      <h3 className="text-md font-semibold text-ink">Reset Role Permissions?</h3>
+                    </div>
+                    <p className="text-xs text-ink-secondary">
+                      This will restore all capabilities for <strong>HR Lead</strong>, <strong>HR Associate</strong>, and <strong>Reviewer</strong> back to their factory default settings.
+                    </p>
+                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-inset">
+                      <button
+                        type="button"
+                        onClick={() => setShowResetModal(false)}
+                        className="px-3.5 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink border border-line rounded-md hover:bg-canvas cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={resettingPermissions}
+                        onClick={handleResetPermissions}
+                        className="px-4 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-md transition-colors cursor-pointer shadow-sm"
+                      >
+                        {resettingPermissions ? "Resetting…" : "Confirm Reset"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -875,23 +1375,23 @@ function SettingsPage() {
           {activeTab === "scoring" && (
             <div className="max-w-[440px] space-y-5">
               <div>
-                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                <h3 className="text-sm font-semibold text-ink">
                   AI Proctoring Intensity &amp; Scoring Controls
                 </h3>
-                <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                <p className="text-xs-plus text-ink-tertiary mt-0.5">
                   Configure real-time monitoring strictness and score threshold levels:
                 </p>
               </div>
 
-              <div className="space-y-4 text-[13px]">
+              <div className="space-y-4 text-sm-minus">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     AI Proctoring Intensity Level
                   </label>
                   <select
                     value={aiIntensity}
                     onChange={(e) => setAiIntensity(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D] text-[13px] outline-none"
+                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink text-sm-minus outline-none"
                   >
                     <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
                     <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
@@ -901,7 +1401,7 @@ function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[12px] text-[#5B5B64] mb-1">
+                  <label className="block text-xs text-ink-secondary mb-1">
                     AI Confidence Audit Level
                   </label>
                   <div className="flex items-center gap-3">
@@ -914,14 +1414,14 @@ function SettingsPage() {
                       onChange={(e) => setAiThreshold(parseFloat(e.target.value))}
                       className="flex-1"
                     />
-                    <span className="font-mono font-semibold text-[#0B0B0D] w-12 text-right">
+                    <span className="font-mono font-semibold text-ink w-12 text-right">
                       {Math.round(aiThreshold * 100)}%
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[12px] text-[#5B5B64] mb-1">
+                  <label className="block text-xs text-ink-secondary mb-1">
                     Module Passing Score Threshold
                   </label>
                   <div className="flex items-center gap-3">
@@ -934,7 +1434,7 @@ function SettingsPage() {
                       onChange={(e) => setPassThreshold(parseFloat(e.target.value))}
                       className="flex-1"
                     />
-                    <span className="font-mono font-semibold text-[#0B0B0D] w-12 text-right">
+                    <span className="font-mono font-semibold text-ink w-12 text-right">
                       {Math.round(passThreshold * 100)}%
                     </span>
                   </div>
@@ -944,7 +1444,7 @@ function SettingsPage() {
               <button
                 onClick={handleSaveScoring}
                 disabled={savingScoring}
-                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover disabled:bg-brand-border shadow-sm transition-colors cursor-pointer"
               >
                 {savingScoring ? "Saving Config…" : "Save Scoring & AI Config"}
               </button>
@@ -955,59 +1455,59 @@ function SettingsPage() {
           {activeTab === "system" && (
             <div className="max-w-[440px] space-y-5">
               <div>
-                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                <h3 className="text-sm font-semibold text-ink">
                   System &amp; Session Integrity Parameters
                 </h3>
-                <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                <p className="text-xs-plus text-ink-tertiary mt-0.5">
                   Adjust session disconnect tolerances and heartbeat timeout thresholds:
                 </p>
               </div>
 
-              <div className="space-y-4 text-[13px]">
+              <div className="space-y-4 text-sm-minus">
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Heartbeat Stale Threshold (Seconds)
                   </label>
                   <input
                     type="number"
                     value={staleHeartbeat}
                     onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
                   />
-                  <p className="text-[10px] text-[#8B8B93] mt-1">Time without heartbeat before session is marked connection degraded.</p>
+                  <p className="text-2xs text-ink-tertiary mt-1">Time without heartbeat before session is marked connection degraded.</p>
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Reconnection Grace Window (Seconds)
                   </label>
                   <input
                     type="number"
                     value={graceWindow}
                     onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
                   />
-                  <p className="text-[10px] text-[#8B8B93] mt-1">Allowed window for candidate to re-establish connection without termination.</p>
+                  <p className="text-2xs text-ink-tertiary mt-1">Allowed window for candidate to re-establish connection without termination.</p>
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-[#5B5B64] mb-1">
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
                     Maximum Disconnect Count Allowance
                   </label>
                   <input
                     type="number"
                     value={maxDisconnects}
                     onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
-                    className="w-full px-3 py-2 border border-[#E6E6EA] rounded bg-white text-[#0B0B0D]"
+                    className="w-full px-3 py-2 border border-line rounded bg-white text-ink"
                   />
-                  <p className="text-[10px] text-[#8B8B93] mt-1">Max disconnects before requiring proctor manual review.</p>
+                  <p className="text-2xs text-ink-tertiary mt-1">Max disconnects before requiring proctor manual review.</p>
                 </div>
               </div>
 
               <button
                 onClick={handleSaveSystem}
                 disabled={savingSystem}
-                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover disabled:bg-brand-border shadow-sm transition-colors cursor-pointer"
               >
                 {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
               </button>
@@ -1018,16 +1518,16 @@ function SettingsPage() {
           {activeTab === "retention" && (
             <div className="max-w-[420px] space-y-5">
               <div>
-                <h3 className="text-[14px] font-semibold text-[#0B0B0D]">
+                <h3 className="text-sm font-semibold text-ink">
                   Evidence &amp; Proctoring Retention Schedules
                 </h3>
-                <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                <p className="text-xs-plus text-ink-tertiary mt-0.5">
                   Define timelines for purging biometric clips and screenshots:
                 </p>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[12px] text-[#5B5B64] mb-1">Purge files after</label>
+                <label className="block text-xs text-ink-secondary mb-1">Purge files after</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -1035,16 +1535,16 @@ function SettingsPage() {
                     max="365"
                     value={retentionDays}
                     onChange={(e) => setRetentionDays(parseInt(e.target.value) || 1)}
-                    className="w-20 px-2 py-1.5 border border-[#E6E6EA] rounded text-[13px]"
+                    className="w-20 px-2 py-1.5 border border-line rounded text-sm-minus"
                   />
-                  <span className="text-[13px] text-[#5B5B64]">days</span>
+                  <span className="text-sm-minus text-ink-secondary">days</span>
                 </div>
               </div>
 
               <button
                 onClick={handleSaveRetention}
                 disabled={savingRetention}
-                className="px-4 py-2 text-[12px] font-medium text-white bg-[#2F5CFF] rounded hover:bg-[#0037FF] disabled:bg-[#B3C5FF] shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-white bg-brand rounded hover:bg-brand-hover disabled:bg-brand-border shadow-sm transition-colors cursor-pointer"
               >
                 {savingRetention ? "Saving schedule…" : "Save Configurations"}
               </button>
@@ -1056,32 +1556,32 @@ function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#0B0B0D]">System Audit Logs</h3>
-                  <p className="text-[11px] text-[#8B8B93] mt-0.5">
+                  <h3 className="text-sm font-semibold text-ink">System Audit Logs</h3>
+                  <p className="text-xs-plus text-ink-tertiary mt-0.5">
                     Chronological record of all administrative operations:
                   </p>
                 </div>
                 <div className="relative w-[200px]">
                   <Search
                     size={12}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9C9CA5]"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted"
                   />
                   <input
                     value={logsQuery}
                     onChange={(e) => setLogsQuery(e.target.value)}
                     placeholder="Search logs…"
-                    className="w-full pl-8 pr-2.5 py-1 text-[12px] border border-[#E6E6EA] rounded bg-white"
+                    className="w-full pl-8 pr-2.5 py-1 text-xs border border-line rounded bg-white"
                   />
                 </div>
               </div>
 
               {loadingLogs ? (
-                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-4">
+                <p className="text-center font-mono text-xs text-ink-tertiary py-4">
                   Querying logs…
                 </p>
               ) : (
-                <div className="border border-[#E6E6EA] rounded-md overflow-hidden text-[12px]">
-                  <div className="grid grid-cols-[1.5fr_1.8fr_1fr_2.5fr_1.5fr] gap-3 px-3 py-2 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide text-[#5B5B64]">
+                <div className="border border-line rounded-md overflow-hidden text-xs">
+                  <div className="grid grid-cols-[1.5fr_1.8fr_1fr_2.5fr_1.5fr] gap-3 px-3 py-2 border-b border-line bg-canvas font-mono text-2xs uppercase tracking-wide text-ink-secondary">
                     <div>User</div>
                     <div>Action</div>
                     <div>Entity</div>
@@ -1089,30 +1589,30 @@ function SettingsPage() {
                     <div>Timestamp</div>
                   </div>
 
-                  <div className="divide-y divide-[#EFF0F3] max-h-[360px] overflow-y-auto">
+                  <div className="divide-y divide-surface-inset max-h-[360px] overflow-y-auto">
                     {auditLogs.map((log) => (
                       <div
                         key={log.id}
                         className="grid grid-cols-[1.5fr_1.8fr_1fr_2.5fr_1.5fr] gap-3 p-3 items-center"
                       >
                         <div className="truncate font-medium">{log.staff.name}</div>
-                        <div className="font-mono text-[11px] text-[#15308F] truncate">
+                        <div className="font-mono text-xs-plus text-brand-ink truncate">
                           {log.action}
                         </div>
-                        <div className="font-mono text-[11px] text-[#5B5B64]">{log.entityType}</div>
+                        <div className="font-mono text-xs-plus text-ink-secondary">{log.entityType}</div>
                         <div
-                          className="font-mono text-[10px] text-[#5B5B64] truncate"
+                          className="font-mono text-2xs text-ink-secondary truncate"
                           title={JSON.stringify(log.metadata)}
                         >
                           {JSON.stringify(log.metadata)}
                         </div>
-                        <div className="font-mono text-[11px] text-[#8B8B93]">
+                        <div className="font-mono text-xs-plus text-ink-tertiary">
                           {log.occurredAt.slice(0, 16).replace("T", " ")}
                         </div>
                       </div>
                     ))}
                     {auditLogs.length === 0 && (
-                      <p className="text-center py-6 text-[12px] text-[#8B8B93]">
+                      <p className="text-center py-6 text-xs text-ink-tertiary">
                         No logs found matching search query.
                       </p>
                     )}
@@ -1127,32 +1627,32 @@ function SettingsPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#0B0B0D]">Partner API Integrations</h3>
-                  <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                  <h3 className="text-base font-bold text-ink">Partner API Integrations</h3>
+                  <p className="text-xs text-ink-secondary mt-0.5">
                     Manage external ATS partner API credentials, rate limits, and callback configurations.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowCreatePartnerModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-white bg-[#2F5CFF] rounded-md hover:bg-[#0037FF] shadow-sm transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-brand rounded-md hover:bg-brand-hover shadow-sm transition-colors cursor-pointer"
                 >
                   <Plus size={14} /> Register Partner
                 </button>
               </div>
 
               {loadingPartners ? (
-                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-8">
+                <p className="text-center font-mono text-xs text-ink-tertiary py-8">
                   Loading partner integration records…
                 </p>
               ) : partners.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-[#E6E6EA] rounded-xl space-y-2">
-                  <Key className="w-8 h-8 text-[#8B8B93] mx-auto" />
-                  <p className="text-sm font-semibold text-[#0B0B0D]">No Partner API Keys Configured</p>
-                  <p className="text-xs text-[#5B5B64]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                <div className="p-8 text-center border border-dashed border-line rounded-xl space-y-2">
+                  <Key className="w-8 h-8 text-ink-tertiary mx-auto" />
+                  <p className="text-sm font-semibold text-ink">No Partner API Keys Configured</p>
+                  <p className="text-xs text-ink-secondary">Register an external ATS partner to issue X-API-Key credentials.</p>
                 </div>
               ) : (
-                <div className="border border-[#E6E6EA] rounded-xl overflow-hidden shadow-xs bg-white text-[12px]">
-                  <div className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-2.5 border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wide font-semibold text-[#5B5B64]">
+                <div className="border border-line rounded-xl overflow-hidden shadow-xs bg-white text-xs">
+                  <div className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-2.5 border-b border-line bg-canvas font-mono text-2xs uppercase tracking-wide font-semibold text-ink-secondary">
                     <div>Partner Name</div>
                     <div>Rate Limit</div>
                     <div>API Hits</div>
@@ -1162,47 +1662,46 @@ function SettingsPage() {
                     <div className="text-right">Actions</div>
                   </div>
 
-                  <div className="divide-y divide-[#EFF0F3]">
+                  <div className="divide-y divide-surface-inset">
                     {partners.map((p) => (
-                      <div key={p.id} className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-3.5 items-center hover:bg-[#F9FAFB] transition-colors">
+                      <div key={p.id} className="grid grid-cols-[1.6fr_1fr_1fr_1.6fr_1fr_1fr_1.2fr] gap-3 px-4 py-3.5 items-center hover:bg-canvas transition-colors">
                         <div>
-                          <p className="font-bold text-[#0B0B0D]">{p.name}</p>
-                          <p className="text-[10px] font-mono text-[#8B8B93] truncate">{p.id}</p>
+                          <p className="font-bold text-ink">{p.name}</p>
+                          <p className="text-2xs font-mono text-ink-tertiary truncate">{p.id}</p>
                         </div>
-                        <div className="font-mono text-xs text-[#5B5B64]">{p.rateLimit} req/min</div>
-                        <div className="font-mono text-xs font-semibold text-[#2F5CFF]">{(p as any).apiHitCount ?? 0} hits</div>
-                        <div className="font-mono text-xs text-[#5B5B64] truncate" title={p.callbackUrl || "Not configured"}>
+                        <div className="font-mono text-xs text-ink-secondary">{p.rateLimit} req/min</div>
+                        <div className="font-mono text-xs font-semibold text-brand">{(p as any).apiHitCount ?? 0} hits</div>
+                        <div className="font-mono text-xs text-ink-secondary truncate" title={p.callbackUrl || "Not configured"}>
                           {p.callbackUrl ? (
-                            <span className="flex items-center gap-1 text-[#2F5CFF]">
+                            <span className="flex items-center gap-1 text-brand">
                               <Globe size={12} /> {p.callbackUrl}
                             </span>
                           ) : (
-                            <span className="text-[#8B8B93] italic">None</span>
+                            <span className="text-ink-tertiary italic">None</span>
                           )}
                         </div>
                         <div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
-                              p.isRevoked ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                            }`}
+                            className={`px-2 py-0.5 rounded-full text-2xs font-mono font-bold uppercase ${p.isRevoked ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              }`}
                           >
                             {p.isRevoked ? "Revoked" : "Active"}
                           </span>
                         </div>
-                        <div className="font-mono text-xs text-[#8B8B93]">
+                        <div className="font-mono text-xs text-ink-tertiary">
                           {p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }) : "—"}
                         </div>
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => setConfirmRotatePartner(p)}
-                            className="p-1.5 text-[#5B5B64] hover:text-[#2F5CFF] hover:bg-[#EAF0FF] border border-[#E6E6EA] rounded-md transition-all cursor-pointer"
+                            className="p-1.5 text-ink-secondary hover:text-brand hover:bg-brand-subtle border border-line rounded-md transition-all cursor-pointer"
                             title="Rotate API Key"
                           >
                             <RefreshCw size={13} />
                           </button>
                           <button
                             onClick={() => setEditingPartner({ ...p })}
-                            className="p-1.5 text-[#5B5B64] hover:text-[#2F5CFF] hover:bg-[#EAF0FF] border border-[#E6E6EA] rounded-md transition-all cursor-pointer"
+                            className="p-1.5 text-ink-secondary hover:text-brand hover:bg-brand-subtle border border-line rounded-md transition-all cursor-pointer"
                             title="Edit Partner Config"
                           >
                             <Edit3 size={13} />
@@ -1210,7 +1709,7 @@ function SettingsPage() {
                           {!p.isRevoked && (
                             <button
                               onClick={() => setConfirmRevokePartner(p)}
-                              className="p-1.5 text-[#5B5B64] hover:text-[#C0392B] hover:bg-[#FFE8E6] border border-[#E6E6EA] rounded-md transition-all cursor-pointer"
+                              className="p-1.5 text-ink-secondary hover:text-rose-700 hover:bg-rose-50 border border-line rounded-md transition-all cursor-pointer"
                               title="Revoke Partner Key"
                             >
                               <Lock size={13} />
@@ -1229,21 +1728,21 @@ function SettingsPage() {
           {activeTab === "modules" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[16px] font-bold text-[#0B0B0D]">Assessment Modules</h3>
-                <p className="text-[12px] text-[#5B5B64] mt-0.5">
+                <h3 className="text-base font-bold text-ink">Assessment Modules</h3>
+                <p className="text-xs text-ink-secondary mt-0.5">
                   Configure the global availability of assessment modules per department. Enabling a module makes it available for Drive configurations.
                 </p>
               </div>
 
               {loadingModules ? (
-                <p className="text-center font-mono text-[12px] text-[#8B8B93] py-8">
+                <p className="text-center font-mono text-xs text-ink-tertiary py-8">
                   Loading assessment module configurations…
                 </p>
               ) : (
-                <div className="border border-[#E6E6EA] rounded-xl overflow-x-auto shadow-xs bg-white text-[12px]">
+                <div className="border border-line rounded-xl overflow-x-auto shadow-xs bg-white text-xs">
                   <table className="w-full border-collapse">
                     <thead>
-                      <tr className="border-b border-[#E6E6EA] bg-[#F7F7F9] font-mono text-[10px] uppercase tracking-wider font-semibold text-[#5B5B64]">
+                      <tr className="border-b border-line bg-canvas font-mono text-2xs uppercase tracking-wider font-semibold text-ink-secondary">
                         <th className="px-4 py-3 text-left min-w-[200px]">Department</th>
                         {[
                           { key: "MCQ", label: "MCQ" },
@@ -1257,9 +1756,8 @@ function SettingsPage() {
                         ].map((m) => (
                           <th
                             key={m.key}
-                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${
-                              hoveredCell?.mod === m.key ? "bg-[#EAF0FF] text-[#2F5CFF]" : ""
-                            }`}
+                            className={`px-3 py-3 text-center transition-colors whitespace-nowrap min-w-[85px] ${hoveredCell?.mod === m.key ? "bg-brand-subtle text-brand" : ""
+                              }`}
                           >
                             {m.label}
                           </th>
@@ -1267,7 +1765,7 @@ function SettingsPage() {
                         <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Bulk Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#E6E6EA] text-xs">
+                    <tbody className="divide-y divide-line text-xs">
                       {[
                         { key: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
                         { key: "DATA_ENGINEERING", label: "Data Engineering" },
@@ -1300,14 +1798,13 @@ function SettingsPage() {
                         return (
                           <tr
                             key={d.key}
-                            className={`transition-colors ${
-                              isRowHovered ? "bg-[#F0F4FF]/60" : "hover:bg-[#F7F7F9]/70"
-                            }`}
+                            className={`transition-colors ${isRowHovered ? "bg-brand-subtle/60" : "hover:bg-canvas/70"
+                              }`}
                           >
-                            <td className="px-4 py-3 font-semibold text-[#0B0B0D]">
+                            <td className="px-4 py-3 font-semibold text-ink">
                               <div className="flex items-center gap-2">
                                 <span>{d.label}</span>
-                                <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-[#F7F7F9] text-[#5B5B64] border border-[#E6E6EA]">
+                                <span className="px-1.5 py-0.5 text-2xs font-mono font-medium rounded-full bg-canvas text-ink-secondary border border-line">
                                   {enabledCount}/{modulesList.length}
                                 </span>
                               </div>
@@ -1329,15 +1826,14 @@ function SettingsPage() {
                                   key={mod}
                                   onMouseEnter={() => setHoveredCell({ dept: d.key, mod })}
                                   onMouseLeave={() => setHoveredCell(null)}
-                                  className={`px-3 py-3 text-center transition-colors ${
-                                    isCellHovered
-                                      ? "bg-[#D6E4FF]"
+                                  className={`px-3 py-3 text-center transition-colors ${isCellHovered
+                                      ? "bg-brand-subtle"
                                       : isColHovered
-                                        ? "bg-[#EAF0FF]/50"
+                                        ? "bg-brand-subtle/50"
                                         : isRowHovered
-                                          ? "bg-[#F0F4FF]/60"
+                                          ? "bg-brand-subtle/60"
                                           : ""
-                                  }`}
+                                    }`}
                                 >
                                   <label className="inline-flex items-center justify-center p-1 rounded-md hover:bg-black/5 cursor-pointer">
                                     <input
@@ -1345,7 +1841,7 @@ function SettingsPage() {
                                       checked={isEnabled}
                                       disabled={isSaving || !isAdmin}
                                       onChange={() => handleToggleModule(d.key, mod, isEnabled)}
-                                      className="rounded border-[#C5D7FF] text-[#2F5CFF] focus:ring-[#2F5CFF]/30 w-4 h-4 cursor-pointer disabled:opacity-50"
+                                      className="rounded border-brand-border text-brand focus:ring-brand/30 w-4 h-4 cursor-pointer disabled:opacity-50"
                                     />
                                   </label>
                                 </td>
@@ -1353,16 +1849,16 @@ function SettingsPage() {
                             })}
 
                             <td className="px-4 py-3 text-right font-medium">
-                              <div className="flex items-center justify-end gap-2 text-[11px]">
+                              <div className="flex items-center justify-end gap-2 text-xs-plus">
                                 <button
                                   onClick={() => handleBulkDepartmentModules(d.key, true)}
                                   disabled={isBulkSaving || !isAdmin || enabledCount === modulesList.length}
-                                  className="text-[#2F5CFF] hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                                  className="text-brand hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
                                   title="Enable all modules for this department"
                                 >
                                   Select All
                                 </button>
-                                <span className="text-[#D6D7DC]">|</span>
+                                <span className="text-ink-tertiary">|</span>
                                 <button
                                   onClick={() => handleBulkDepartmentModules(d.key, false)}
                                   disabled={isBulkSaving || !isAdmin || enabledCount === 0}
@@ -1404,7 +1900,7 @@ function SettingsPage() {
                   placeholder="e.g. Greenhouse ATS"
                   value={newPartnerName}
                   onChange={(e) => setNewPartnerName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                 />
               </div>
               <div>
@@ -1414,7 +1910,7 @@ function SettingsPage() {
                   min={1}
                   value={newPartnerRateLimit}
                   onChange={(e) => setNewPartnerRateLimit(parseInt(e.target.value) || 100)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                 />
               </div>
               <div>
@@ -1424,7 +1920,7 @@ function SettingsPage() {
                   placeholder="https://ats.partner.com/webhooks/cd-recruit"
                   value={newPartnerCallbackUrl}
                   onChange={(e) => setNewPartnerCallbackUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                 />
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -1438,7 +1934,7 @@ function SettingsPage() {
                 <button
                   type="submit"
                   disabled={creatingPartner}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg shadow-sm cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-sm cursor-pointer"
                 >
                   {creatingPartner ? "Generating Key…" : "Generate API Key"}
                 </button>
@@ -1466,7 +1962,7 @@ function SettingsPage() {
                   await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
                   toast.success("API key copied to clipboard!");
                 }}
-                className="px-2.5 py-1 text-[11px] font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded cursor-pointer shrink-0"
+                className="px-2.5 py-1 text-xs-plus font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded cursor-pointer shrink-0"
               >
                 Copy
               </button>
@@ -1474,7 +1970,7 @@ function SettingsPage() {
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setNewlyCreatedKey(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg cursor-pointer"
               >
                 Done
               </button>
@@ -1559,7 +2055,7 @@ function SettingsPage() {
                   required
                   value={editingPartner.name}
                   onChange={(e) => setEditingPartner({ ...editingPartner, name: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                 />
               </div>
               <div>
@@ -1569,7 +2065,7 @@ function SettingsPage() {
                   min={1}
                   value={editingPartner.rateLimit}
                   onChange={(e) => setEditingPartner({ ...editingPartner, rateLimit: parseInt(e.target.value) || 100 })}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                 />
               </div>
               <div>
@@ -1579,7 +2075,7 @@ function SettingsPage() {
                   placeholder="https://ats.partner.com/webhooks/cd-recruit"
                   value={editingPartner.callbackUrl || ""}
                   onChange={(e) => setEditingPartner({ ...editingPartner, callbackUrl: e.target.value })}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#2F5CFF]"
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                 />
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -1592,7 +2088,7 @@ function SettingsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg shadow-sm cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-sm cursor-pointer"
                 >
                   Save Changes
                 </button>

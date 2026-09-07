@@ -1,0 +1,12 @@
+moduleType,title,description,difficulty,preferredLanguage,options,correctAnswer
+MCQ,Python Lists,Which method adds an element to the end of a Python list?,EASY,python,append()|add()|push()|insertEnd(),append()
+MCQ,JavaScript Equality,Which operator checks strict equality?,EASY,javascript,==|===|!=|=,===
+MCQ,Git Branch,Which command creates and switches to a new branch?,MEDIUM,git,git branch|git checkout -b|git switch|git merge,git checkout -b
+MCQ,HTTP Status,What does HTTP 404 indicate?,EASY,general,Server Error|Unauthorized|Not Found|Success,Not Found
+MCQ,SQL COUNT,Which function counts rows?,EASY,sql,SUM()|COUNT()|AVG()|TOTAL(),COUNT()
+MCQ,React Hook,Which hook manages component state?,MEDIUM,react,useMemo|useState|useRef|useEffect,useState
+MCQ,Node.js Runtime,Node.js is primarily built on which JS engine?,MEDIUM,javascript,SpiderMonkey|V8|JavaScriptCore|Chakra,V8
+MCQ,CSS Flexbox,Which property aligns items on the main axis?,MEDIUM,css,align-items|justify-content|align-content|place-items,justify-content
+MCQ,REST API,Which HTTP method is typically used to create a resource?,EASY,api,GET|POST|PUT|DELETE,POST
+MCQ,PostgreSQL JSON,Which PostgreSQL type stores JSON efficiently?,MEDIUM,postgresql,TEXT|JSONB|VARCHAR|XML,JSONB
+MCQ,Docker,Which file defines Docker image build steps?,EASY,docker,docker.yml|Dockerfile|compose.yml|Containerfile,Dockerfile

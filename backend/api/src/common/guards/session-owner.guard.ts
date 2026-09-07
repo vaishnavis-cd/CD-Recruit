@@ -29,43 +29,60 @@ export class SessionOwnerGuard implements CanActivate {
     }
 
     if (!session) {
-      try {
-        let roleTemplate = await this.prisma.roleTemplate.findFirst();
-        if (!roleTemplate) {
-          roleTemplate = await this.prisma.roleTemplate.create({
-            data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
+      const execution = await this.prisma.codingExecution.findUnique({
+        where: { id: sessionId },
+        include: { session: { include: { drive: true } } },
+      });
+      if (execution?.session) {
+        session = execution.session as any;
+      }
+    }
+
+    if (!session) {
+      const isDemoOrDev =
+        sessionId === "demo-session" ||
+        sessionId.startsWith("demo-") ||
+        process.env.ALLOW_SYNTHETIC_SESSIONS === "true";
+
+      if (isDemoOrDev) {
+        try {
+          let roleTemplate = await this.prisma.roleTemplate.findFirst();
+          if (!roleTemplate) {
+            roleTemplate = await this.prisma.roleTemplate.create({
+              data: { roleName: "Software Engineer", durationMinutes: 60, weightingPreset: {} },
+            });
+          }
+          let candidate = await this.prisma.candidate.findFirst({
+            where: { email: `${sessionId}@example.com` },
           });
-        }
-        let candidate = await this.prisma.candidate.findFirst({
-          where: { email: `${sessionId}@example.com` },
-        });
-        if (!candidate) {
-          candidate = await this.prisma.candidate.create({
-            data: {
-              email: `${sessionId}@example.com`,
-              name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}`,
+          if (!candidate) {
+            candidate = await this.prisma.candidate.create({
+              data: {
+                email: `${sessionId}@example.com`,
+                name: sessionId === "demo-session" ? "Demo Candidate" : `Candidate-${sessionId.slice(0, 8)}`,
+              },
+            });
+          }
+          let drive = await this.prisma.drive.findFirst();
+          session = (await this.prisma.session.upsert({
+            where: { id: sessionId },
+            update: {},
+            create: {
+              id: sessionId,
+              candidate: { connect: { id: candidate.id } },
+              roleTemplate: { connect: { id: roleTemplate.id } },
+              drive: drive?.id ? { connect: { id: drive.id } } : undefined,
+              cvMode: "FACE_ONLY" as any,
+              status: "IN_PROGRESS" as any,
             },
-          });
+            include: { drive: true },
+          })) as any;
+        } catch {
+          session = (await this.prisma.session.findUnique({
+            where: { id: sessionId },
+            include: { drive: true },
+          })) as any;
         }
-        let drive = await this.prisma.drive.findFirst();
-        session = (await this.prisma.session.upsert({
-          where: { id: sessionId },
-          update: {},
-          create: {
-            id: sessionId,
-            candidate: { connect: { id: candidate.id } },
-            roleTemplate: { connect: { id: roleTemplate.id } },
-            drive: drive?.id ? { connect: { id: drive.id } } : undefined,
-            cvMode: "FACE_ONLY" as any,
-            status: "IN_PROGRESS" as any,
-          },
-          include: { drive: true },
-        })) as any;
-      } catch {
-        session = (await this.prisma.session.findUnique({
-          where: { id: sessionId },
-          include: { drive: true },
-        })) as any;
       }
     }
 

@@ -492,7 +492,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                 <div key={tbl.name} className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--background)] shadow-sm space-y-0">
                   <div className="px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] font-mono text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
                     <span>Table: {tbl.name}</span>
-                    <span className="text-[10px] text-[var(--text-secondary)] font-normal">{tbl.columns.length} columns</span>
+                    <span className="text-2xs text-[var(--text-secondary)] font-normal">{tbl.columns.length} columns</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs font-mono">
@@ -581,7 +581,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
                   </div>
                 ) : results ? (
                   <div>
-                    <div className="px-4 py-2 bg-[var(--background)] border-b border-[var(--border)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)] flex justify-between">
+                    <div className="px-4 py-2 bg-[var(--background)] border-b border-[var(--border)] text-2xs font-mono uppercase tracking-wider text-[var(--text-secondary)] flex justify-between">
                       <span>Query Output Results</span>
                       <span>{results.rows.length} rows</span>
                     </div>
@@ -633,13 +633,13 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
               </button>
 
               {evalResult && (
-                <div className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-medium flex items-center gap-1.5 ${
+                <div className={`px-2.5 py-1 rounded-full text-xs-plus font-mono font-medium flex items-center gap-1.5 ${
                   evalResult.passed 
                     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
                     : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
                 }`}>
                   <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
-                  <span className="text-[10px] opacity-75">({evalResult.executionTime}ms)</span>
+                  <span className="text-2xs opacity-75">({evalResult.executionTime}ms)</span>
                 </div>
               )}
             </div>

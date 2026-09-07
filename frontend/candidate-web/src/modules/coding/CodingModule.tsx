@@ -233,10 +233,10 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
           <div className="px-6 py-5 space-y-5">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
+                <span className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
                   CHALLENGE {currentIndex + 1} OF {codingQuestions.length || 1}
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent)]/10 text-[var(--accent)] uppercase tracking-wider font-mono">
+                <span className="px-2 py-0.5 rounded text-2xs font-bold bg-[var(--accent)]/10 text-[var(--accent)] uppercase tracking-wider font-mono">
                   {workspaceQuestion.content.difficulty}
                 </span>
               </div>
@@ -252,7 +252,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
             {/* Constraints */}
             {workspaceQuestion.content.constraints && workspaceQuestion.content.constraints.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-                <h4 className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
+                <h4 className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
                   Constraints
                 </h4>
                 <ul className="list-disc list-inside text-xs text-[var(--muted-foreground)] space-y-1 font-mono">
@@ -266,7 +266,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
             {/* Sample Test Cases (DB-backed - strictly 2 visible) */}
             {testCasesList.length > 0 && (
               <div className="pt-4 border-t border-[var(--border)] space-y-3">
-                <h4 className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
+                <h4 className="text-xs-plus font-bold text-[var(--muted-foreground)] uppercase tracking-wider font-mono">
                   Sample Test Cases (2 Visible)
                 </h4>
                 <div className="space-y-3">
@@ -275,7 +275,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
                       key={i}
                       className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--background)] font-mono text-xs space-y-2 shadow-sm"
                     >
-                      <div className="text-[11px] font-bold text-[var(--accent)] uppercase">
+                      <div className="text-xs-plus font-bold text-[var(--accent)] uppercase">
                         {tc.label || `Example ${i + 1}`}
                       </div>
                       <div>

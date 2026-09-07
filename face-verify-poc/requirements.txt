@@ -1,4 +1,0 @@
-deepface>=0.0.79
-tf-keras>=2.15.0
-opencv-python>=4.8.0
-pillow>=10.0.0

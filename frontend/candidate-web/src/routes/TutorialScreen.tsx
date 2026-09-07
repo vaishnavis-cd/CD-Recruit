@@ -202,12 +202,12 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
               ].map(({ status, tone, note }) => (
                 <div key={status} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--background)] flex items-center gap-3">
                   <StatusChip tone={tone} label={status.toUpperCase()} size="sm" />
-                  <span className="text-[var(--muted-foreground)] text-[11px]">{note}</span>
+                  <span className="text-[var(--muted-foreground)] text-xs-plus">{note}</span>
                 </div>
               ))}
             </div>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--background)] font-mono text-[11px]">F</kbd> on any question to flag or unflag it for review.
+              Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--background)] font-mono text-xs-plus">F</kbd> on any question to flag or unflag it for review.
             </p>
           </div>
         );
@@ -339,7 +339,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
             <div className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
               Tutorial
             </div>
-            <h1 id="tutorial-heading" className="text-[28px] font-semibold tracking-tight mt-1 text-[var(--foreground)]">
+            <h1 id="tutorial-heading" className="text-3xl-plus font-semibold tracking-tight mt-1 text-[var(--foreground)]">
               {mode === 'full' ? 'Before you start' : 'Quick Orientation'}
             </h1>
           </div>

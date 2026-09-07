@@ -169,7 +169,7 @@ export function InFictionInbox({ sessionId, scenarioId }: InFictionInboxProps) {
                 <Loader2 size={20} className="animate-spin" />
               </div>
               <div className="text-xs font-semibold text-[var(--text-primary)]">Waiting for incoming messages…</div>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-xs-plus text-[var(--text-secondary)] leading-relaxed">
                 Scenario events and team communications will arrive here dynamically.
               </p>
             </div>

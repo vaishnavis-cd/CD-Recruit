@@ -26,6 +26,8 @@ if (typeof window !== "undefined") {
   };
 }
 
+let inflightTokenPromise: Promise<string | null> | null = null;
+
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   if (typeof window === "undefined") {
     return {
@@ -35,18 +37,26 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   }
   let token = getStoredToken();
   if (!token) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/dev-token?role=ADMIN`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.token) {
-          token = data.token;
-          localStorage.setItem("admin_token", token || "");
+    if (!inflightTokenPromise) {
+      inflightTokenPromise = (async () => {
+        try {
+          const res = await fetch(`${API_BASE}/auth/dev-token?role=ADMIN`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.token) {
+              localStorage.setItem("admin_token", data.token);
+              return data.token;
+            }
+          }
+        } catch {
+          // Dev token fetch failed, proceed with empty token
+        } finally {
+          inflightTokenPromise = null;
         }
-      }
-    } catch (err) {
-      // Dev token fetch failed, proceed with empty token
+        return null;
+      })();
     }
+    token = await inflightTokenPromise;
   }
   return {
     Authorization: token ? `Bearer ${token}` : "",

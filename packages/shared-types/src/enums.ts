@@ -140,8 +140,36 @@ export enum SqlExecutionStatus {
 // ---------------------------------------------------------------------------
 
 export enum StaffRole {
-  RECRUITER = "RECRUITER",
   ADMIN = "ADMIN",
+  HR_LEAD = "HR_LEAD",
+  HR_ASSOCIATE = "HR_ASSOCIATE",
+  REVIEWER = "REVIEWER",
+  RECRUITER = "RECRUITER", // Legacy alias
+}
+
+export enum Permission {
+  // Drive Logistics
+  DRIVE_CREATE = "DRIVE_CREATE",
+  CANDIDATE_INGEST_CSV = "CANDIDATE_INGEST_CSV",
+  DRIVE_MANAGE = "DRIVE_MANAGE",
+
+  // Evaluation & Decision
+  CANDIDATE_VIEW = "CANDIDATE_VIEW",
+  DECISION_SUBMIT = "DECISION_SUBMIT",
+  MANUAL_SCORING_REVIEW = "MANUAL_SCORING_REVIEW",
+
+  // Identity & Flags
+  IDENTITY_VERIFICATION_APPROVE = "IDENTITY_VERIFICATION_APPROVE",
+  PROCTORING_TRIAGE = "PROCTORING_TRIAGE",
+
+  // Templates & Bank
+  ROLE_TEMPLATE_EDIT = "ROLE_TEMPLATE_EDIT",
+  QUESTION_BANK_MANAGE = "QUESTION_BANK_MANAGE",
+
+  // Administration
+  PARTNER_API_MANAGE = "PARTNER_API_MANAGE",
+  SETTINGS_MANAGE = "SETTINGS_MANAGE",
+  AUDIT_LOG_VIEW = "AUDIT_LOG_VIEW",
 }
 
 // ---------------------------------------------------------------------------
@@ -196,10 +224,10 @@ export const EXPERIENCE_TIER_CONFIG = {
   "11-15": {
     code: ExperienceLevelCode.LEVEL_3,
     tier: "11-15",
-    label: "11-15 yrs (Level 3)",
-    shortLabel: "11-15 yrs",
+    label: "11+ yrs (Level 3)",
+    shortLabel: "11+ yrs",
     category: CandidateCategory.EXPERIENCED,
-    years: "11-15",
+    years: "11+",
   },
 } as const;
 
@@ -317,7 +345,7 @@ export function normalizeExperienceTier(
       tier: "11-15",
       code: ExperienceLevelCode.LEVEL_3,
       category: CandidateCategory.EXPERIENCED,
-      label: "11-15 yrs (Level 3)",
+      label: "11+ yrs (Level 3)",
     };
   }
 
@@ -377,7 +405,7 @@ function resolveTierFromNumericYears(years: number) {
     tier: "11-15",
     code: ExperienceLevelCode.LEVEL_3,
     category: CandidateCategory.EXPERIENCED,
-    label: "11-15 yrs (Level 3)",
+    label: "11+ yrs (Level 3)",
   };
 }
 

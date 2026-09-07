@@ -21,7 +21,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@cd-recruit/design-tokens": ["../../packages/design-tokens/src/index.ts"],
+      "@cd-recruit/design-tokens/*": ["../../packages/design-tokens/src/*"]
     }
   }
 }

@@ -66,10 +66,10 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
             <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent)]">
               Assessment Completed
             </div>
-            <h1 id="done-heading" className="text-[32px] sm:text-[36px] font-bold tracking-tight mt-1 text-[var(--foreground)]">
+            <h1 id="done-heading" className="text-4xl sm:text-4xl font-bold tracking-tight mt-1 text-[var(--foreground)]">
               {auto ? 'Assessment Submitted' : 'The assessment ended for you'}
             </h1>
-            <p className="mt-3 text-[15px] text-[var(--muted-foreground)] leading-relaxed">
+            <p className="mt-3 text-md text-[var(--muted-foreground)] leading-relaxed">
               {auto
                 ? 'Time limit reached — your last-saved answers were submitted automatically.'
                 : 'Your responses have been securely submitted and recorded for review. You cannot re-take or re-enter this assessment.'
@@ -78,11 +78,11 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
 
             <div className="mt-6 p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] inline-flex items-center gap-5 shadow-sm">
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--muted-foreground)]">
+                <div className="text-2xs uppercase tracking-wider font-semibold text-[var(--muted-foreground)]">
                   Reference ID
                 </div>
                 <div
-                  className="font-mono text-[36px] font-bold leading-tight text-[var(--accent)]"
+                  className="font-mono text-4xl font-bold leading-tight text-[var(--accent)]"
                   aria-label={`Session reference ID: ${referenceId}`}
                 >
                   {referenceId}
@@ -161,7 +161,7 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
                   className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] transition-colors hover:border-[var(--foreground)]"
                 >
                   <span className="text-sm text-[var(--foreground)]">{l.label}</span>
-                  <span className="text-[10px] font-mono text-[var(--muted-foreground)]">Preview</span>
+                  <span className="text-2xs font-mono text-[var(--muted-foreground)]">Preview</span>
                 </a>
               ))}
             </div>

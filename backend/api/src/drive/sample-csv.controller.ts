@@ -10,7 +10,7 @@ import { StaffRole } from "@cd-recruit/shared-types";
 @Roles(StaffRole.RECRUITER, StaffRole.ADMIN)
 export class SampleCsvController {
   @Get("questions")
-  getSampleQuestionsCsv(@Res() res: Response) {
+  getSampleQuestionsCsv(@Res({ passthrough: true }) res: Response) {
     const csvContent = `moduleType,title,description,difficulty,targetLevel,preferredLanguage,options,correctAnswer
 MCQ,Array Complexity,What is the worst case time complexity of accessing an array element by index?,EASY,0-1,javascript,"O(1)|O(n)|O(log n)|O(n^2)",O(1)
 MCQ,SQL Joins,Which join returns all matching rows from both tables?,MEDIUM,2-5,sql,"INNER JOIN|LEFT JOIN|FULL OUTER JOIN|CROSS JOIN",FULL OUTER JOIN
@@ -19,11 +19,11 @@ CODING,Binary Search Implementation,Implement binary search for a sorted array,H
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", 'attachment; filename="sample_questions.csv"');
-    return res.send(csvContent);
+    return csvContent;
   }
 
   @Get("simulation-json")
-  getSampleSimulationJson(@Res() res: Response) {
+  getSampleSimulationJson(@Res({ passthrough: true }) res: Response) {
     const sampleSimulation = {
       moduleType: "SIMULATION",
       role: "SOFTWARE_ENGINEERING",
@@ -69,11 +69,11 @@ CODING,Binary Search Implementation,Implement binary search for a sorted array,H
 
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", 'attachment; filename="sample_simulation_question.json"');
-    return res.send(JSON.stringify(sampleSimulation, null, 2));
+    return sampleSimulation;
   }
 
   @Get("questions-json")
-  getSampleQuestionsJson(@Res() res: Response) {
+  getSampleQuestionsJson(@Res({ passthrough: true }) res: Response) {
     const sampleQuestions = [
       {
         moduleType: "MCQ",
@@ -121,11 +121,11 @@ CODING,Binary Search Implementation,Implement binary search for a sorted array,H
 
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", 'attachment; filename="sample_questions.json"');
-    return res.send(JSON.stringify(sampleQuestions, null, 2));
+    return sampleQuestions;
   }
 
   @Get("candidates")
-  getSampleCandidatesCsv(@Res() res: Response) {
+  getSampleCandidatesCsv(@Res({ passthrough: true }) res: Response) {
     const csvContent = `name,email
 Alice Johnson,alice.johnson@example.com
 Bob Smith,bob.smith@example.com
@@ -134,6 +134,6 @@ David Miller,david.miller@example.com`;
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", 'attachment; filename="sample_candidates.csv"');
-    return res.send(csvContent);
+    return csvContent;
   }
 }

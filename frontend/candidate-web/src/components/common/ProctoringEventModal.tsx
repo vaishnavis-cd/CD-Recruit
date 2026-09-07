@@ -195,13 +195,13 @@ export function ProctoringEventModal() {
         <div className="flex items-center justify-between px-7 py-3.5 bg-[var(--background)] border-b border-[var(--border)] shrink-0">
           <div className="flex items-center gap-2">
             <ShieldAlert className={`w-3.5 h-3.5 ${details.isCritical ? 'text-rose-500' : 'text-amber-500'}`} />
-            <span className="text-[11px] font-mono text-[var(--text-secondary)] tracking-wider uppercase font-medium">
+            <span className="text-xs-plus font-mono text-[var(--text-secondary)] tracking-wider uppercase font-medium">
               Assessment Integrity Notice
             </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--surface)] px-2.5 py-0.5 rounded-full border border-[var(--border)] font-medium">
+            <span className="text-xs-plus font-mono text-[var(--text-secondary)] bg-[var(--surface)] px-2.5 py-0.5 rounded-full border border-[var(--border)] font-medium">
               Closes in <strong className="text-[var(--text-primary)] font-bold">{secondsLeft}s</strong>
             </span>
             <button
@@ -222,11 +222,11 @@ export function ProctoringEventModal() {
               {details.icon}
             </div>
             <div className="space-y-1.5 flex-1 min-w-0">
-              <h2 className="text-[24px] md:text-[28px] font-extrabold text-[var(--text-primary)] tracking-tight leading-none">
+              <h2 className="text-2xl md:text-3xl-plus font-extrabold text-[var(--text-primary)] tracking-tight leading-none">
                 {details.title}
               </h2>
               <div>
-                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-mono font-semibold tracking-wider uppercase ${details.badgeColor}`}>
+                <span className={`inline-block px-2 py-0.5 rounded text-2xs font-mono font-semibold tracking-wider uppercase ${details.badgeColor}`}>
                   {details.subtitle}
                 </span>
               </div>
@@ -239,12 +239,12 @@ export function ProctoringEventModal() {
           </p>
 
           {/* Footer Alignment Row */}
-          <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] font-mono pt-3 border-t border-[var(--border)]/60">
+          <div className="flex items-center justify-between text-xs-plus text-[var(--text-secondary)] font-mono pt-3 border-t border-[var(--border)]/60">
             <div className="flex items-center gap-1.5">
               <span>Timestamp:</span>
               <span className="text-[var(--text-primary)] font-semibold">{new Date(activeEvent.timestamp).toLocaleTimeString()}</span>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--background)] border border-[var(--border)] text-[var(--text-secondary)] font-medium">
+            <span className="px-2 py-0.5 rounded text-2xs font-mono bg-[var(--background)] border border-[var(--border)] text-[var(--text-secondary)] font-medium">
               [{activeEvent.eventType}]
             </span>
           </div>
