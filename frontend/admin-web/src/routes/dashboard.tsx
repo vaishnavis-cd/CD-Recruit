@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, useEffect, Fragment } from "react";
+import { useMemo, useState, useEffect, useRef, Fragment } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -10,7 +10,8 @@ import {
   Sparkles,
   Calendar,
   Activity,
-  Search
+  Search,
+  ChevronDown
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
@@ -130,6 +131,65 @@ function buildDashboardStats(sessions: any[] = [], drives: any[] = []) {
     integrityHeatmap,
     reviewerAgreement,
   };
+}
+
+function DateRangeDropdown({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const options = [
+    { label: "Last 7 Days", value: "7" },
+    { label: "Last 30 Days", value: "30" },
+    { label: "All Time", value: "all" },
+  ];
+
+  const currentLabel = options.find((o) => o.value === value)?.label || "All Time";
+
+  return (
+    <div className="relative inline-block text-left" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs font-semibold text-[#0d1424] bg-white border border-[#e8ecf4] rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:border-[#cbd5e1] hover:bg-[#f8fafc] focus:outline-none cursor-pointer transition-all"
+      >
+        <span>{currentLabel}</span>
+        <ChevronDown size={14} className={`text-[#64748b] stroke-[2] transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-1.5 w-36 rounded-xl bg-white border border-[#e8ecf4] shadow-xl z-50 p-1 animate-in fade-in zoom-in-95 duration-150">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+              }}
+              className={`flex items-center justify-between w-full px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer text-left ${
+                value === opt.value
+                  ? "text-[#2f68ff] bg-blue-50/70 font-semibold"
+                  : "text-[#0d1424] hover:bg-[#f8fafc]"
+              }`}
+            >
+              <span>{opt.label}</span>
+              {value === opt.value && <span className="text-[#2f68ff] text-xs font-bold">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export const Route = createFileRoute("/dashboard")({
@@ -341,22 +401,7 @@ function DashboardPage() {
             </button>
 
             {/* Date Range Dropdown */}
-            <div className="relative">
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="appearance-none pl-3.5 pr-8 py-2 text-xs font-semibold text-[#0d1424] bg-white border border-[#e8ecf4] rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:border-[#cbd5e1] focus:outline-none cursor-pointer transition-all"
-              >
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-                <option value="all">All Time</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#64748b]">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+            <DateRangeDropdown value={dateRange} onChange={setDateRange} />
 
             {/* Export Dropdown */}
             <ExportDropdown

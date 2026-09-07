@@ -29,9 +29,16 @@ export function Timer() {
 
   if (!assessment || assessment.timerStartMs === null) {
     return (
-      <div className="timer-shell font-mono-data text-sm font-bold px-4 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] shadow-xs">
-        <span className="sr-only">Assessment timer not started</span>
+      <div
+        className="font-mono text-sm font-bold px-3 py-1.5 rounded-lg bg-[#FFEBEB] border border-[#EF4444]/40 text-[#991B1B] tabular-nums flex items-center gap-1.5 shadow-2xs select-none"
+        role="timer"
+      >
+        <svg className="w-3.5 h-3.5 text-[#EF4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
         <span aria-hidden>--:--</span>
+        <span className="sr-only">Assessment timer not started</span>
       </div>
     )
   }
@@ -39,12 +46,6 @@ export function Timer() {
   const elapsedMs = nowMs - assessment.timerStartMs
   const totalMs = assessment.totalSeconds * 1000
   const remainingSeconds = Math.max(0, Math.floor((totalMs - elapsedMs) / 1000))
-
-  // Color thresholds: amber at 10/5/1 min
-  let colorClass = 'text-[var(--text-primary)] border-[var(--border)]'
-  if (remainingSeconds <= 60) colorClass = 'text-[var(--warning)] font-bold border-[var(--warning)] bg-[var(--warning)]/10 animate-pulse'
-  else if (remainingSeconds <= 300) colorClass = 'text-[var(--warning)] font-bold border-[var(--warning)]/40 bg-[var(--warning)]/5'
-  else if (remainingSeconds <= 600) colorClass = 'text-[var(--text-primary)] font-bold border-[var(--accent)]/30'
 
   const label = remainingSeconds <= 60
     ? 'Less than 1 minute remaining'
@@ -54,11 +55,15 @@ export function Timer() {
 
   return (
     <div
-      className={`timer-shell font-mono-data text-base font-bold px-4 py-1.5 rounded-xl bg-[var(--surface)] border-2 ${colorClass} tabular-nums flex items-center gap-2 shadow-xs transition-all`}
+      className="font-mono text-sm font-bold px-3 py-1.5 rounded-lg bg-[#FFEBEB] border border-[#EF4444]/40 text-[#991B1B] tabular-nums flex items-center gap-1.5 shadow-2xs transition-all select-none"
       role="timer"
       aria-label={label}
       aria-live="off"
     >
+      <svg className="w-3.5 h-3.5 text-[#EF4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
       <span aria-hidden className="tracking-tight">{formatTime(remainingSeconds)}</span>
       <span className="sr-only">{label}</span>
     </div>

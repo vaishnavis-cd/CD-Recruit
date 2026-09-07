@@ -773,6 +773,7 @@ function DriveDetailPage() {
         const tplQuestionIds = (tplData.questions || []).map((q: any) => q.questionId).filter(Boolean);
 
         if (tplQuestionIds.length > 0) {
+          sessionStorage.removeItem(`drive_draft_questions_${driveId}`);
           await saveDriveQuestions(driveId, tplQuestionIds);
           setAssignedQuestions(tplQuestionIds);
           setSavedAssignedQuestions(tplQuestionIds);
@@ -1520,6 +1521,99 @@ function DriveDetailPage() {
     const deptAllowed = getDepartmentAllowedModules(driveTargetDept);
     return Array.from(new Set([...enabled, ...deptAllowed]));
   }, [moduleConfig, driveTargetDept]);
+
+  const handleAutoAssignQuestions = (targetModId?: string) => {
+    const modulesToProcess = targetModId
+      ? [targetModId]
+      : allowedModules.filter((m) => {
+          const conf = moduleConfig[m];
+          return conf && conf.enabled && Number(conf.weight) > 0;
+        });
+
+    let newAssigned = [...assignedQuestions];
+    let newlyAddedCount = 0;
+    const resolvedTag = driveEvaluationSummary.resolvedTag || "fresher";
+    const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+
+    modulesToProcess.forEach((modId) => {
+      const conf = moduleConfig[modId];
+      if (!conf || !conf.enabled || Number(conf.weight) <= 0) return;
+
+      const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
+      const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+
+      // Current attached questions for this module
+      const currentModQuestions = (questionsBank || []).filter((q) => {
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return newAssigned.includes(q.id) && displayMod === modId;
+      });
+
+      const missingCount = reqCount - currentModQuestions.length;
+      if (missingCount <= 0) return;
+
+      // Available unassigned questions for this module
+      const availableUnassigned = (questionsBank || []).filter((q) => {
+        if (q.status === "ARCHIVED") return false;
+        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+        const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
+        return !newAssigned.includes(q.id) && displayMod === modId;
+      });
+
+      const easyNeed = Math.max(0, dist.easy - currentModQuestions.filter((q) => (q.difficulty || "medium").toUpperCase() === "EASY").length);
+      const mediumNeed = Math.max(0, dist.medium - currentModQuestions.filter((q) => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length);
+      const hardNeed = Math.max(0, dist.hard - currentModQuestions.filter((q) => (q.difficulty || "medium").toUpperCase() === "HARD").length);
+
+      const deptKey = (driveTargetDept || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      const sortQuestions = (list: typeof availableUnassigned) => {
+        return [...list].sort((a, b) => {
+          const aDeptMatch = (a.role || "").toLowerCase().includes(deptKey) || (a.tags || []).some((t: string) => t.toLowerCase().includes(deptKey));
+          const bDeptMatch = (b.role || "").toLowerCase().includes(deptKey) || (b.tags || []).some((t: string) => t.toLowerCase().includes(deptKey));
+          if (aDeptMatch && !bDeptMatch) return -1;
+          if (!aDeptMatch && bDeptMatch) return 1;
+          const aTagMatch = (a.tags || []).some((t: string) => t.toLowerCase().includes(resolvedTag));
+          const bTagMatch = (b.tags || []).some((t: string) => t.toLowerCase().includes(resolvedTag));
+          if (aTagMatch && !bTagMatch) return -1;
+          if (!aTagMatch && bTagMatch) return 1;
+          return 0;
+        });
+      };
+
+      const selectedForMod: string[] = [];
+
+      // Pass 1: Try satisfying difficulty distribution
+      const easyPool = sortQuestions(availableUnassigned.filter((q) => (q.difficulty || "medium").toUpperCase() === "EASY"));
+      const mediumPool = sortQuestions(availableUnassigned.filter((q) => (q.difficulty || "medium").toUpperCase() === "MEDIUM"));
+      const hardPool = sortQuestions(availableUnassigned.filter((q) => (q.difficulty || "medium").toUpperCase() === "HARD"));
+
+      easyPool.slice(0, easyNeed).forEach((q) => selectedForMod.push(q.id));
+      mediumPool.slice(0, mediumNeed).forEach((q) => selectedForMod.push(q.id));
+      hardPool.slice(0, hardNeed).forEach((q) => selectedForMod.push(q.id));
+
+      // Pass 2: Fill remainder from any available questions in this module
+      if (selectedForMod.length < missingCount) {
+        const remainingPool = sortQuestions(availableUnassigned.filter((q) => !selectedForMod.includes(q.id)));
+        remainingPool.slice(0, missingCount - selectedForMod.length).forEach((q) => selectedForMod.push(q.id));
+      }
+
+      selectedForMod.forEach((id) => {
+        newAssigned.push(id);
+        newlyAddedCount++;
+      });
+    });
+
+    if (newlyAddedCount > 0) {
+      setAssignedQuestions(newAssigned);
+      toast.success(
+        targetModId
+          ? `Auto-assigned ${newlyAddedCount} question(s) for ${MODULE_LABEL_MAP[targetModId] || targetModId} from Question Bank!`
+          : `Auto-assigned ${newlyAddedCount} missing question(s) across modules from Question Bank!`
+      );
+    } else {
+      toast.info("No matching questions available to auto-assign.");
+    }
+  };
 
   const filteredQuestionsList = useMemo(() => {
     return questionsBank.filter((q) => {
@@ -2424,18 +2518,31 @@ function DriveDetailPage() {
               {/* QuestionsListContainer: Assigned Questions Section */}
               <div className="w-full border border-[#E9EEFE] rounded-[12px] overflow-hidden">
                 {/* ListHeader */}
-                <div className="h-[42px] px-5 py-3 bg-[#F2F2FB] border-b border-[#E9EEFE] flex items-center justify-between">
+                <div className="h-auto min-h-[42px] px-5 py-2.5 bg-[#F2F2FB] border-b border-[#E9EEFE] flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#2E5DE0]" />
                     <h4 className="text-[14px] font-bold text-[#1E1B4B]">
                       Assigned Questions for this Drive ({assignedQuestions.length})
                     </h4>
                   </div>
-                  {!isQuestionsEditable && (
-                    <span className="h-[18px] px-2 py-0.5 rounded-[9px] bg-[#FFFBEB] border border-[#FDE68A] text-[#B45309] text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
-                      <Lock size={10} /> Read-Only
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isQuestionsEditable && questionDeficits.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleAutoAssignQuestions()}
+                        className="h-[26px] px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[13px] flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+                        title="Automatically assign missing questions from Question Bank to satisfy all module requirements"
+                      >
+                        <Sparkles size={11} className="text-amber-300" />
+                        <span>Auto-Assign All Missing ({questionDeficits.reduce((sum, d) => sum + d.missing, 0)})</span>
+                      </button>
+                    )}
+                    {!isQuestionsEditable && (
+                      <span className="h-[18px] px-2 py-0.5 rounded-[9px] bg-[#FFFBEB] border border-[#FDE68A] text-[#B45309] text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
+                        <Lock size={10} /> Read-Only
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {assignedQuestions.length === 0 ? (
@@ -2623,6 +2730,27 @@ function DriveDetailPage() {
                               <span>0 questions attached. Please select or import {reqCount} {MODULE_LABEL_MAP[modId] || modId} question(s).</span>
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {isQuestionsEditable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAutoAssignQuestions(modId)}
+                                  className="px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[6px] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                                  title={`Automatically select and assign ${reqCount} question(s) for ${MODULE_LABEL_MAP[modId] || modId} from Question Bank`}
+                                >
+                                  <Sparkles size={10} className="text-amber-300" /> Auto-Assign ({reqCount})
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQuestionModuleFilter(modId);
+                                  const el = document.getElementById("question-bank-selector-section");
+                                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                                }}
+                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <BookOpen size={10} /> Question Bank
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2641,21 +2769,6 @@ function DriveDetailPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  navigate({
-                                    to: "/questions",
-                                    search: {
-                                      fromDriveId: driveId,
-                                      driveName: drive.name,
-                                    } as any,
-                                  });
-                                }}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <BookOpen size={10} /> Question Bank
-                              </button>
-                              <button
-                                type="button"
                                 onClick={() => setActiveTab("configuration")}
                                 className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
                               >
@@ -2670,6 +2783,27 @@ function DriveDetailPage() {
                               <span>Incomplete: {poolSize} / {reqCount} questions attached ({reqCount - poolSize} more required)</span>
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {isQuestionsEditable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAutoAssignQuestions(modId)}
+                                  className="px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[6px] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                                  title={`Automatically select and assign ${reqCount - poolSize} question(s) for ${MODULE_LABEL_MAP[modId] || modId} from Question Bank`}
+                                >
+                                  <Sparkles size={10} className="text-amber-300" /> Auto-Assign ({reqCount - poolSize})
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQuestionModuleFilter(modId);
+                                  const el = document.getElementById("question-bank-selector-section");
+                                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                                }}
+                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <BookOpen size={10} /> Question Bank
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2688,21 +2822,6 @@ function DriveDetailPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  navigate({
-                                    to: "/questions",
-                                    search: {
-                                      fromDriveId: driveId,
-                                      driveName: drive.name,
-                                    } as any,
-                                  });
-                                }}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <BookOpen size={10} /> Question Bank
-                              </button>
-                              <button
-                                type="button"
                                 onClick={() => setActiveTab("configuration")}
                                 className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
                               >
@@ -2718,7 +2837,7 @@ function DriveDetailPage() {
               </div>
 
               {/* FilterBar (Module tabs + Complexity filters) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+              <div id="question-bank-selector-section" className="flex flex-wrap items-center justify-between gap-3 pt-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"

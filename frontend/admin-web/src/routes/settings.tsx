@@ -636,6 +636,17 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
   );
 }
 
+function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={className}>
+      <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
     { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
@@ -644,6 +655,7 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
     { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
     { id: "audit", label: "Audit Logs", icon: AuditLogsIcon },
     { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
+    { id: "modules", label: "Assessment Modules", icon: AssessmentModulesIcon },
   ] as const;
 
   return (
