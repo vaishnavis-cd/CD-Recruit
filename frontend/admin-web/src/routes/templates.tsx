@@ -28,6 +28,7 @@ import {
   getDepartmentAllowedModules,
   MODULE_LABEL_MAP,
 } from "../lib/roleModules";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/templates")({
   component: RoleTemplatesPage,
@@ -614,9 +615,6 @@ export function RoleTemplatesPage() {
         <div className="flex items-center justify-between gap-4 pt-2">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Role Templates</h1>
-            <span className="w-5 h-5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-2xs inline-flex items-center justify-center border border-blue-100 shadow-2xs">
-              {filteredTemplates.length}
-            </span>
           </div>
 
           <button
@@ -654,39 +652,39 @@ export function RoleTemplatesPage() {
           </div>
 
           {/* Department Filter */}
-          <div className="relative">
-            <select
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer min-w-[220px]"
-            >
-              <option value="all">All Departments</option>
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {DEPARTMENT_LABELS[d] || d}
-                </option>
-              ))}
-              <option value="CUSTOM">Custom / Other Roles</option>
-            </select>
-            <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            value={deptFilter}
+            onChange={setDeptFilter}
+            rounded="full"
+            size="sm"
+            className="min-w-[200px]"
+            buttonClassName="h-[34px] text-xs font-normal text-slate-600 border-[#E2E8F0]"
+            options={[
+              { value: "all", label: "All Departments" },
+              ...DEPARTMENTS.map((d) => ({
+                value: d,
+                label: DEPARTMENT_LABELS[d] || d,
+              })),
+              { value: "CUSTOM", label: "Custom / Other Roles" },
+            ]}
+          />
 
           {/* Level Filter */}
-          <div className="relative">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer min-w-[220px]"
-            >
-              <option value="all">All Levels</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced"}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            rounded="full"
+            size="sm"
+            className="min-w-[180px]"
+            buttonClassName="h-[34px] text-xs font-normal text-slate-600 border-[#E2E8F0]"
+            options={[
+              { value: "all", label: "All Levels" },
+              ...CATEGORIES.map((c) => ({
+                value: c,
+                label: c === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced",
+              })),
+            ]}
+          />
 
           {hasActiveFilters && (
             <button
@@ -905,32 +903,32 @@ export function RoleTemplatesPage() {
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Target Department
                     </label>
-                    <select
+                    <CustomDropdown
                       value={department}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      onChange={(val) => {
                         setDepartment(val);
                         autoSelectQuestionsFor(val === "CUSTOM" ? "SOFTWARE_ENGINEERING" : val, category, experienceTier);
                       }}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand shadow-2xs"
-                    >
-                      {DEPARTMENTS.map((d) => (
-                        <option key={d} value={d}>
-                          {DEPARTMENT_LABELS[d] || d}
-                        </option>
-                      ))}
-                      <option value="CUSTOM">Custom / Other Roles</option>
-                    </select>
+                      className="w-full"
+                      rounded="16px"
+                      size="md"
+                      options={[
+                        ...DEPARTMENTS.map((d) => ({
+                          value: d,
+                          label: DEPARTMENT_LABELS[d] || d,
+                        })),
+                        { value: "CUSTOM", label: "Custom / Other Roles" },
+                      ]}
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Candidate Category
                     </label>
-                    <select
+                    <CustomDropdown
                       value={category}
-                      onChange={(e) => {
-                        const newCat = e.target.value;
+                      onChange={(newCat) => {
                         setCategory(newCat);
                         if (newCat === "FRESHER") {
                           setExperienceTier("0-1");
@@ -938,32 +936,32 @@ export function RoleTemplatesPage() {
                           setExperienceTier("2-5");
                         }
                       }}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white shadow-2xs"
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      rounded="16px"
+                      size="md"
+                      options={CATEGORIES.map((c) => ({
+                        value: c,
+                        label: c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)",
+                      }))}
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Experience Tier
                     </label>
-                    <select
+                    <CustomDropdown
                       value={experienceTier}
-                      onChange={(e) => setExperienceTier(e.target.value)}
+                      onChange={setExperienceTier}
                       disabled={category === "FRESHER"}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400 shadow-2xs"
-                    >
-                      {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
-                        <option key={tier.value} value={tier.value}>
-                          {tier.label}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      rounded="16px"
+                      size="md"
+                      options={TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => ({
+                        value: tier.value,
+                        label: tier.label,
+                      }))}
+                    />
                   </div>
                 </div>
               </div>
@@ -1021,32 +1019,37 @@ export function RoleTemplatesPage() {
 
                   <div className="flex items-center gap-2">
                     <span className="text-xs-plus font-medium text-ink-secondary">Module:</span>
-                    <select
+                    <CustomDropdown
                       value={modalModuleFilter}
-                      onChange={(e) => setModalModuleFilter(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs border border-line rounded-lg bg-white text-ink"
-                    >
-                      <option value="all">Allowed Modules</option>
-                      {getDepartmentAllowedModules(department).map((mod) => (
-                        <option key={mod} value={mod}>
-                          {MODULE_LABEL_MAP[mod] || mod}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setModalModuleFilter}
+                      rounded="16px"
+                      size="sm"
+                      className="min-w-[160px]"
+                      options={[
+                        { value: "all", label: "Allowed Modules" },
+                        ...getDepartmentAllowedModules(department).map((mod) => ({
+                          value: mod,
+                          label: MODULE_LABEL_MAP[mod] || mod,
+                        })),
+                      ]}
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span className="text-xs-plus font-medium text-ink-secondary">Difficulty:</span>
-                    <select
+                    <CustomDropdown
                       value={modalDifficultyFilter}
-                      onChange={(e) => setModalDifficultyFilter(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs border border-line rounded-lg bg-white text-ink"
-                    >
-                      <option value="all">All Difficulties</option>
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </select>
+                      onChange={setModalDifficultyFilter}
+                      rounded="16px"
+                      size="sm"
+                      className="min-w-[140px]"
+                      options={[
+                        { value: "all", label: "All Difficulties" },
+                        { value: "easy", label: "Easy" },
+                        { value: "medium", label: "Medium" },
+                        { value: "hard", label: "Hard" },
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -1065,68 +1068,101 @@ export function RoleTemplatesPage() {
                   <div className="max-h-72 overflow-y-auto space-y-2 border border-line rounded-xl p-3 bg-canvas/30">
                     {modalEligibleQuestions.map((q) => {
                       const isSelected = Boolean(selectedQuestionsMap[q.id]);
-                      const modStyle =
-                        MODULE_COLORS[q.moduleType] || {
-                          bg: "bg-slate-100",
-                          text: "text-ink-secondary",
-                          border: "border-line",
-                        };
                       const prompt =
                         q.content?.prompt ||
                         q.content?.title ||
                         q.content?.text ||
                         "Untitled Question";
 
+                      const getModClass = (mod: string) => {
+                        switch (mod) {
+                          case "MCQ": return "bg-[#EEF2FF] text-[#4F46E5]";
+                          case "SQL": return "bg-[#F3E8FF] text-[#7E22CE]";
+                          case "CODING": return "bg-[#ECFDF5] text-[#047857]";
+                          case "DEBUGGING": return "bg-[#FEF3C7] text-[#B45309]";
+                          case "AI_PROMPTING": return "bg-[#FFE4E6] text-[#BE123C]";
+                          case "SIMULATION": return "bg-[#ECFEFF] text-[#0E7490]";
+                          case "TEST_SCENARIOS": return "bg-[#EEF2FF] text-[#4338CA]";
+                          default: return "bg-[#EEF2FF] text-[#4F46E5]";
+                        }
+                      };
+
+                      const getDiffClass = (diff?: string) => {
+                        const d = (diff || "medium").toLowerCase();
+                        if (d === "easy") return "border border-[#34D399]/70 bg-[#ECFDF5] text-[#059669]";
+                        if (d === "hard") return "border border-[#F87171]/70 bg-[#FEF2F2] text-[#DC2626]";
+                        return "border border-[#FBBF24]/80 bg-[#FFFBEB] text-[#D97706]";
+                      };
+
                       return (
                         <div
                           key={q.id}
                           onClick={() => toggleQuestionSelection(q)}
-                          className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                          className={`p-3.5 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${
                             isSelected
-                              ? "bg-brand-subtle border-brand shadow-xs"
-                              : "bg-white border-line hover:border-slate-300 hover:bg-canvas/80"
+                              ? "bg-[#EFF6FF] border-[#2563EB] shadow-xs"
+                              : "bg-white border-[#E2E8F0] hover:border-slate-300 hover:bg-slate-50/50"
                           }`}
                         >
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="pt-0.5">
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="shrink-0">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => {}}
-                                className="rounded border-brand-border text-brand cursor-pointer h-4 w-4"
+                                className="rounded border-slate-300 text-[#2563EB] focus:ring-0 cursor-pointer h-4 w-4"
                               />
                             </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-ink line-clamp-2">
+
+                            {/* Module Badge */}
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${getModClass(
+                                q.moduleType
+                              )}`}
+                            >
+                              {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
+                            </span>
+
+                            {/* Title & Badges */}
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="font-semibold text-[#0F172A] line-clamp-1">
                                 {prompt}
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-2xs font-mono font-bold border ${modStyle.bg} ${modStyle.text} ${modStyle.border}`}
-                                >
-                                  {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
-                                </span>
+                              <div className="flex flex-wrap items-center gap-2">
                                 {q.difficulty && (
-                                  <span className="uppercase text-2xs font-semibold bg-slate-100 text-ink-secondary px-1.5 py-0.5 rounded border border-line">
+                                  <span
+                                    className={`uppercase text-[11px] font-bold rounded-[6px] px-2 py-0.5 tracking-wider ${getDiffClass(
+                                      q.difficulty
+                                    )}`}
+                                  >
                                     {q.difficulty}
                                   </span>
                                 )}
-                                <span className="text-2xs text-ink-tertiary font-mono">
-                                  v{q.version || 1}
-                                </span>
+                                {(q.tags || []).slice(0, 3).map((tag: string) => (
+                                  <span
+                                    key={tag}
+                                    className="text-[11px] font-mono text-[#64748B] bg-[#F1F5F9] px-2 py-0.5 rounded-[4px]"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                                {q.version && (
+                                  <span className="text-[11px] text-slate-400 font-mono">
+                                    v{q.version}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="shrink-0">
+                          <div className="shrink-0 pl-2">
                             {isSelected ? (
-                              <span className="px-2.5 py-1 bg-brand text-white text-xs-plus font-bold rounded-md flex items-center gap-1 shadow-xs">
-                                <Check size={12} />
+                              <span className="px-3.5 py-1 bg-[#2563EB] text-white text-xs font-semibold rounded-md shadow-xs select-none inline-block">
                                 Attached
                               </span>
                             ) : (
-                              <span className="text-ink-tertiary text-xs font-medium hover:text-ink-secondary">
-                                Click to attach
+                              <span className="px-3.5 py-1 bg-white border border-[#D5DAEC] text-[#475569] hover:text-[#2563EB] hover:border-[#2563EB] hover:bg-[#EFF6FF] text-xs font-semibold rounded-md transition-all shadow-2xs select-none inline-block">
+                                Attach
                               </span>
                             )}
                           </div>
