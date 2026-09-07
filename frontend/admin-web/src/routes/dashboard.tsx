@@ -361,8 +361,7 @@ function DashboardPage() {
     (s) =>
       s?.status === "submitted" ||
       s?.status === "ai_scored" ||
-      s?.status === "review" ||
-      s?.status === "IN_PROGRESS",
+      s?.status === "review",
   ).length;
 
   const passRate =
