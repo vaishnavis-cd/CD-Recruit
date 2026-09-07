@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE } from "../lib/store";
-import { formatTimestamp } from "../lib/utils";
+import { formatTimestamp, formatDriveName } from "../lib/utils";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
 
@@ -348,7 +348,7 @@ function ResultsPage() {
                       {/* Drive & Track */}
                       <td className="py-3 px-4">
                         <div className="text-ink font-medium truncate max-w-[180px]">
-                          {item.driveName || "General Drive"}
+                          {formatDriveName(item.driveName) || "General Drive"}
                         </div>
                         <div className="text-xs text-ink-secondary">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>

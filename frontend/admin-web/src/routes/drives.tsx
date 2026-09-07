@@ -858,25 +858,7 @@ function DrivesPage() {
               opacity: 1,
             }}
           >
-            {/* SOURCE: Label (49x10) */}
-            <span
-              className="w-[49px] h-[10px] uppercase shrink-0 opacity-100 rotate-0 inline-flex items-center whitespace-nowrap"
-              style={{
-                width: "49px",
-                height: "10px",
-                fontFamily: "Instrument Sans, sans-serif",
-                fontWeight: 700,
-                fontSize: "11px",
-                lineHeight: "100%",
-                letterSpacing: "0.08em",
-                color: "#9CA3AF",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              SOURCE:
-            </span>
+            
 
             {/* All Sources Custom Dropdown (160x32) */}
             <div
@@ -1088,10 +1070,10 @@ function DrivesPage() {
                               lineHeight: "100%",
                               letterSpacing: "0%",
                               color: isPartner ? "#8B5CF6" : "#6B7280",
-                              textTransform: "uppercase",
+                              textTransform: "",
                             }}
                           >
-                            {isPartner ? "PARTNER API" : "DIRECT"}
+                            {isPartner ? "PARTNER" : "DIRECT"}
                           </span>
                         </div>
 
@@ -1133,7 +1115,7 @@ function DrivesPage() {
                                   : d.status === "CLOSED"
                                   ? "#D97706"
                                   : "#6B7280",
-                              textTransform: "uppercase",
+                              textTransform: "",
                             }}
                           >
                             {d.status}
@@ -1387,7 +1369,7 @@ function DrivesPage() {
                           <span className="px-2 py-0.5 bg-brand/10 text-brand font-mono font-bold rounded text-2xs">
                             {Math.max(90, selectedTemplateObj.durationMinutes || 90)} mins
                           </span>
-                          <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs uppercase font-mono font-bold">
+                          <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs  font-mono font-bold">
                             {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
                           </span>
                         </div>
@@ -1554,13 +1536,13 @@ function DrivesPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteDrive(null)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-2xl hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteDrive}
-                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded-3xl"
               >
                 Delete Drive
               </button>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Download, ChevronDown, FileText, FileSpreadsheet, FileCode } from "lucide-react";
+import { formatDriveName } from "../lib/utils";
 
 interface ExportDropdownProps {
   data: any[];
@@ -32,7 +33,7 @@ export function ExportDropdown({ data = [], filenamePrefix = "proctora-export", 
       `"${(s.candidate?.name || s.candidateName || "Candidate").replace(/"/g, '""')}"`,
       `"${(s.candidate?.email || s.candidateEmail || "").replace(/"/g, '""')}"`,
       `"${(s.roleTemplate?.roleName || s.roleTemplateName || "").replace(/"/g, '""')}"`,
-      `"${(s.driveName || "").replace(/"/g, '""')}"`,
+      `"${(formatDriveName(s.driveName) || "").replace(/"/g, '""')}"`,
       s.status || "",
       s.compositeScore !== null && s.compositeScore !== undefined ? s.compositeScore : "",
       s.sayDoScore !== null && s.sayDoScore !== undefined ? s.sayDoScore : "",
