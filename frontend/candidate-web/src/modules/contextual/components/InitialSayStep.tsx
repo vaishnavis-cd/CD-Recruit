@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
-  Send,
-  AlertCircle,
   HelpCircle,
-  GitBranch,
+  GitFork,
   ArrowRight,
   ArrowLeft,
   Sun,
   Moon,
   Clock,
-  Sparkles,
   Info,
+  AlertCircle,
 } from 'lucide-react';
 import { useTheme } from '../../../theme/ThemeProvider';
 
@@ -31,8 +29,8 @@ export function InitialSayStep({
   scenarioTitle,
   scenarioDescription,
   prompt,
-  moduleIndex = 0,
-  activeModules = ['SIMULATION'],
+  moduleIndex = 5,
+  activeModules = ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS'],
   onNavigateModule,
   onSubmit,
 }: InitialSayStepProps) {
@@ -42,13 +40,16 @@ export function InitialSayStep({
   const [error, setError] = useState<string | null>(null);
 
   const title = scenario?.title || scenarioTitle || 'QA Bug Report: Login Validation Error';
-  const description = scenario?.description || scenarioDescription || 'Investigate the issue, implement a fix, and verify that existing functionality is not affected.';
+  const description =
+    scenario?.description ||
+    scenarioDescription ||
+    'During regression testing, QA discovered that login validation incorrectly accepts usernames with leading or trailing spaces. The issue has been reproduced consistently and marked as High Priority. Investigate the issue, implement a fix and verify that existing functionality is not affected.';
   const sayPrompt = scenario?.initialSayPrompt || prompt || 'What would you do to solve this issue?';
-  const repoName = scenario?.terminalInfo?.repository || 'cdrecruit/service';
-  const ticketId = scenario?.jiraTicket?.ticketId || 'INCIDENT-101';
+  const repoName = scenario?.terminalInfo?.repository || 'cdrecruit/auth-service';
+  const ticketId = scenario?.jiraTicket?.ticketId || 'BUG-3124';
 
   // Countdown timer
-  const [countdown, setCountdown] = useState(6192);
+  const [countdown, setCountdown] = useState(6177);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -82,26 +83,26 @@ export function InitialSayStep({
   const isNextAvailable = moduleIndex < activeModules.length - 1;
 
   return (
-    <div className="h-full w-full bg-[var(--background)] text-[var(--foreground)] flex flex-col font-sans transition-colors duration-200 overflow-hidden">
+    <div className="h-full w-full bg-[#F8FAFC] dark:bg-[#0B0F17] text-[#0F172A] dark:text-[#F8FAFC] flex flex-col font-sans overflow-hidden">
       {/* ────────────────── TOP NAVIGATION HEADER ────────────────── */}
-      <header className="h-14 border-b border-[var(--border)] bg-[var(--surface)] px-6 flex items-center justify-between shrink-0 shadow-xs">
+      <header className="h-[60px] border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] px-6 sm:px-8 flex items-center justify-between shrink-0 shadow-2xs">
         {/* Left: Section Indicator & Nav Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3.5">
           {isPrevAvailable && onNavigateModule && (
             <button
               onClick={() => onNavigateModule(moduleIndex - 1)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Previous Section</span>
             </button>
           )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20 font-mono">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold px-3 py-1 rounded-md bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] dark:text-[#60A5FA] border border-[#BFDBFE] dark:border-[#1E3A8A] font-mono">
               Section {moduleIndex + 1} of {activeModules.length}
             </span>
-            <span className="text-xs font-bold text-[var(--foreground)]">
+            <span className="text-[13px] font-bold text-[#0F172A] dark:text-white">
               Contextual Engineering Simulation
             </span>
           </div>
@@ -109,23 +110,23 @@ export function InitialSayStep({
 
         {/* Right: Theme Toggle, Countdown & Next Section */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs text-[var(--muted-foreground)] bg-[var(--background)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
-            <Clock className="w-3.5 h-3.5 text-[var(--accent)]" />
+          {/* Red/Pink Countdown Timer Pill */}
+          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#DC2626] bg-[#FEF2F2] dark:bg-[#7F1D1D]/30 px-3 py-1 rounded-md border border-[#FCA5A5] dark:border-[#991B1B]/50 shadow-2xs">
             <span>{formatTimer(countdown)}</span>
           </div>
 
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-[#475569] dark:text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
             title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
           >
-            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-warning" />}
+            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-amber-400" />}
           </button>
 
           {isNextAvailable && onNavigateModule && (
             <button
               onClick={() => onNavigateModule(moduleIndex + 1)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
             >
               <span>Next Section</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -136,76 +137,81 @@ export function InitialSayStep({
 
       {/* ────────────────── MAIN BRIEFING & STRATEGY CONTAINER ────────────────── */}
       <main className="flex-1 overflow-y-auto py-8 px-4 sm:px-6">
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-[960px] mx-auto space-y-6">
           {/* Card 1: Incident Scenario Overview */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                  <ShieldAlert className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-2xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase">
-                      P1 INCIDENT BRIEFING
-                    </span>
-                    <span className="text-xs font-mono text-[var(--muted-foreground)]">
-                      {ticketId}
-                    </span>
-                  </div>
-                  <h1 className="text-base sm:text-lg font-bold text-[var(--foreground)] mt-1">
-                    {title}
-                  </h1>
-                </div>
+          <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-[16px] p-7 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-[#FEF2F2] dark:bg-[#7F1D1D]/30 text-[#DC2626] dark:text-[#F87171] border border-[#FECACA] dark:border-[#991B1B]/40 uppercase tracking-wide">
+                  <ShieldAlert className="w-3.5 h-3.5 text-[#DC2626]" />
+                  <span>P1 INCIDENT BRIEFING</span>
+                </span>
+                <span className="text-xs font-mono font-bold text-[#64748B] dark:text-[#94A3B8] ml-1">
+                  {ticketId}
+                </span>
               </div>
 
               {/* Repo Tag */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-mono text-[var(--accent)]">
-                <GitBranch className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#EFF6FF] dark:bg-[#1E3A8A]/20 border border-[#BFDBFE] dark:border-[#1E3A8A]/40 text-xs font-mono font-semibold text-[#2563EB] dark:text-[#60A5FA]">
+                <GitFork className="w-3.5 h-3.5 text-[#2563EB]" />
                 <span>{repoName}</span>
               </div>
             </div>
 
+            {/* Scenario Title */}
+            <h1 className="text-[20px] font-bold text-[#0F172A] dark:text-white tracking-tight">
+              {title}
+            </h1>
+
             {/* Scenario Description */}
-            <p className="text-xs sm:text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap">
+            <p className="text-[13px] text-[#475569] dark:text-[#94A3B8] leading-relaxed">
               {description}
             </p>
           </div>
 
           {/* Card 2: How Context Simulation Works (3-Step Guide) */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
-            <h2 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider flex items-center gap-2">
-              <Info className="w-4 h-4 text-[var(--accent)]" />
-              <span>How This Simulation Works</span>
+          <div className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-[16px] p-7 shadow-xs space-y-4">
+            <h2 className="text-[11px] font-bold text-[#0F172A] dark:text-white uppercase tracking-wider flex items-center gap-2 font-mono">
+              <Info className="w-4 h-4 text-[#2563EB]" />
+              <span>HOW THIS SIMULATION WORKS</span>
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-1.5">
-                <div className="flex items-center gap-2 font-bold text-[var(--accent)]">
-                  <span className="w-5 h-5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center text-xs-plus font-mono">1</span>
-                  <span>1. Formulate Strategy</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+              {/* Step 1: Active Formulate Strategy */}
+              <div className="p-4 rounded-[12px] bg-[#F8FAFC] dark:bg-[#1E293B]/40 border-2 border-[#2563EB] space-y-2">
+                <div className="flex items-center gap-2 font-bold text-[#2563EB] dark:text-[#60A5FA]">
+                  <span className="w-5 h-5 rounded-full bg-[#EFF6FF] dark:bg-[#1E3A8A] text-[#2563EB] dark:text-[#93C5FD] flex items-center justify-center text-xs font-mono font-bold">
+                    1
+                  </span>
+                  <span className="text-[12px]">1. Formulate Strategy</span>
                 </div>
-                <p className="text-[var(--muted-foreground)] text-xs-plus leading-relaxed">
+                <p className="text-[#64748B] dark:text-[#94A3B8] text-[11px] leading-relaxed">
                   Read the scenario and answer the investigation question below (evaluated for your SAY score).
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-1.5">
-                <div className="flex items-center gap-2 font-bold text-[var(--accent)]">
-                  <span className="w-5 h-5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center text-xs-plus font-mono">2</span>
-                  <span>2. Live Workstation</span>
+              {/* Step 2: Live Workstation */}
+              <div className="p-4 rounded-[12px] bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] space-y-2">
+                <div className="flex items-center gap-2 font-bold text-[#0F172A] dark:text-white">
+                  <span className="w-5 h-5 rounded-full bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] flex items-center justify-center text-xs font-mono font-bold">
+                    2
+                  </span>
+                  <span className="text-[12px]">2. Live Workstation</span>
                 </div>
-                <p className="text-[var(--muted-foreground)] text-xs-plus leading-relaxed">
+                <p className="text-[#64748B] dark:text-[#94A3B8] text-[11px] leading-relaxed">
                   Enter an interactive IDE. Inspect repository files, check Slack/Jira/Email, and edit code.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[var(--background)] border border-[var(--border)] space-y-1.5">
-                <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs-plus font-mono">3</span>
-                  <span>3. Test &amp; Sign Off</span>
+              {/* Step 3: Test & Sign Off */}
+              <div className="p-4 rounded-[12px] bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] space-y-2">
+                <div className="flex items-center gap-2 font-bold text-[#0F172A] dark:text-white">
+                  <span className="w-5 h-5 rounded-full bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] flex items-center justify-center text-xs font-mono font-bold">
+                    3
+                  </span>
+                  <span className="text-[12px]">3. Test &amp; Sign Off</span>
                 </div>
-                <p className="text-[var(--muted-foreground)] text-xs-plus leading-relaxed">
+                <p className="text-[#64748B] dark:text-[#94A3B8] text-[11px] leading-relaxed">
                   Run automated diagnostics against your patch, select deployment strategy, and submit hotfix.
                 </p>
               </div>
@@ -213,18 +219,18 @@ export function InitialSayStep({
           </div>
 
           {/* Card 3: The SAY Strategy Form */}
-          <form onSubmit={handleSubmit} className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-bold text-[var(--foreground)]">
-                <HelpCircle className="w-4 h-4 text-[var(--accent)]" />
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] rounded-[16px] p-7 shadow-xs space-y-4">
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 text-[13px] font-bold text-[#0F172A] dark:text-white">
+                <HelpCircle className="w-4 h-4 text-[#2563EB]" />
                 <span>Initial Investigation Strategy (SAY)</span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/20">
-                <p className="text-xs font-semibold text-[var(--accent)] leading-relaxed">
+              <div className="p-4 rounded-[12px] bg-[#EFF6FF] dark:bg-[#1E3A8A]/20 border border-[#BFDBFE] dark:border-[#1E3A8A]/40 space-y-1">
+                <p className="text-[13px] font-bold text-[#2563EB] dark:text-[#60A5FA] leading-snug">
                   "{sayPrompt}"
                 </p>
-                <p className="text-xs-plus text-[var(--muted-foreground)] mt-1">
+                <p className="text-[12px] text-[#475569] dark:text-[#94A3B8]">
                   Describe your initial thought process, likely root cause, and how you intend to verify the fix in the workstation.
                 </p>
               </div>
@@ -235,7 +241,7 @@ export function InitialSayStep({
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="e.g. 1. I will inspect the validation logic in the target file to see how input characters are sanitized.&#10;2. Check for missing boundary validation for whitespace.&#10;3. Run the automated diagnostic test cases to ensure no regressions..."
-              className="w-full p-3.5 rounded-xl bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] focus:border-[var(--accent)] focus:outline-none text-xs font-mono placeholder:text-[var(--muted-foreground)] resize-y leading-relaxed shadow-xs"
+              className="w-full p-4 rounded-[10px] bg-white dark:bg-[#0B0F17] text-[#0F172A] dark:text-[#F8FAFC] border border-[#CBD5E1] dark:border-[#334155] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 outline-none text-[12px] font-mono placeholder:text-[#94A3B8] resize-y leading-relaxed shadow-2xs"
               required
             />
 
@@ -246,15 +252,15 @@ export function InitialSayStep({
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs font-mono text-[var(--muted-foreground)]">
-                {text.trim().length} characters entered
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[12px] font-sans text-[#64748B] dark:text-[#94A3B8]">
+                {text.length} characters entered
               </span>
 
               <button
                 type="submit"
                 disabled={!text.trim() || isSubmitting}
-                className="flex items-center gap-2 bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[12px] font-semibold px-6 h-[40px] rounded-lg shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
                 <span>Submit Strategy &amp; Launch Workstation</span>
                 <ArrowRight className="w-4 h-4" />
@@ -266,3 +272,4 @@ export function InitialSayStep({
     </div>
   );
 }
+
