@@ -47,6 +47,7 @@ import {
   Smartphone,
   Link2,
   Layers,
+  Pin,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker, computeRollingEndDate, computeEndTimeWithDuration } from "../components/single-date-time-picker";
@@ -2598,21 +2599,32 @@ function DriveDetailPage() {
                                 <button
                                   type="button"
                                   onClick={() => togglePinWeight(mod.id)}
-                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold cursor-pointer transition-colors ${
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all flex items-center gap-1 ${
                                     isPinned
-                                      ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                      : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"
+                                      ? "bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE] hover:bg-[#E0E7FF]"
+                                      : "bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] hover:bg-[#E2E8F0] hover:text-[#334155]"
                                   }`}
-                                  title={isPinned ? "Click to unlock automatic rebalancing" : "Click to pin this weight"}
+                                  title={isPinned ? "Click to unlock automatic weight rebalancing" : "Click to pin this weight"}
                                 >
-                                  {isPinned ? "📌 Pinned" : "🔓 Auto"}
+                                  {isPinned ? (
+                                    <>
+                                      <Pin size={10} className="text-[#4F46E5] fill-[#4F46E5]" />
+                                      <span>Pinned</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles size={10} className="text-[#64748B]" />
+                                      <span>Auto</span>
+                                    </>
+                                  )}
                                 </button>
                               </div>
                               <input
                                 type="number"
                                 min="0"
                                 max="100"
-                                value={conf.weight === 0 ? "" : conf.weight}
+                                placeholder="0"
+                                value={conf.weight !== undefined && conf.weight !== null ? conf.weight : 0}
                                 onChange={(e) => {
                                   const raw = e.target.value;
                                   const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
@@ -2626,21 +2638,55 @@ function DriveDetailPage() {
                             </div>
 
                             {mod.id === "AI_PROMPTING" && (
-                              <div className="pt-2 border-t border-[#E9EEFE] space-y-1">
-                                <label className="block text-[12px] font-semibold text-[#1E1B4B]">Question &amp; Validation Source</label>
-                                <select
-                                  value={(conf as any).questionSource || "AI_DYNAMIC"}
-                                  onChange={(e) =>
-                                    setModuleConfig({
-                                      ...moduleConfig,
-                                      [mod.id]: { ...(conf as any), questionSource: e.target.value } as any,
-                                    })
-                                  }
-                                  className="w-full h-[36px] px-3 rounded-[18px] border border-[#E9EEFE] font-sans text-xs bg-white text-[#1E1B4B] outline-none cursor-pointer focus:border-[#2E5DE0]"
-                                >
-                                  <option value="AI_DYNAMIC">AI-Generated Questions &amp; Autonomous AI Validation</option>
-                                  <option value="STATIC_BANK">Static Question Bank (Pre-authored Questions &amp; Rules)</option>
-                                </select>
+                              <div className="pt-2 border-t border-[#E9EEFE] space-y-1.5">
+                                <label className="block text-[11px] font-semibold text-[#1E1B4B]">Question &amp; Validation Source</label>
+                                <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#F8FAFC] border border-[#E9EEFE] rounded-[10px]">
+                                  <label
+                                    onClick={() =>
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: { ...(conf as any), questionSource: "AI_DYNAMIC" } as any,
+                                      })
+                                    }
+                                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${
+                                      ((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"
+                                        ? "bg-white text-[#2E5DE0] shadow-2xs border border-[#2E5DE0]/20 font-bold"
+                                        : "text-[#6B7280] hover:text-[#1E1B4B]"
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="aiPromptingSource"
+                                      checked={((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"}
+                                      onChange={() => {}}
+                                      className="w-3 h-3 text-[#2E5DE0] accent-[#2E5DE0] cursor-pointer"
+                                    />
+                                    <span>AI Generated</span>
+                                  </label>
+
+                                  <label
+                                    onClick={() =>
+                                      setModuleConfig({
+                                        ...moduleConfig,
+                                        [mod.id]: { ...(conf as any), questionSource: "STATIC_BANK" } as any,
+                                      })
+                                    }
+                                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${
+                                      (conf as any).questionSource === "STATIC_BANK"
+                                        ? "bg-white text-[#2E5DE0] shadow-2xs border border-[#2E5DE0]/20 font-bold"
+                                        : "text-[#6B7280] hover:text-[#1E1B4B]"
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="aiPromptingSource"
+                                      checked={(conf as any).questionSource === "STATIC_BANK"}
+                                      onChange={() => {}}
+                                      className="w-3 h-3 text-[#2E5DE0] accent-[#2E5DE0] cursor-pointer"
+                                    />
+                                    <span>Question Bank</span>
+                                  </label>
+                                </div>
                               </div>
                             )}
 
@@ -2660,9 +2706,11 @@ function DriveDetailPage() {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={dist.easy === 0 ? "" : dist.easy}
+                                    placeholder="0"
+                                    value={dist.easy !== undefined && dist.easy !== null ? dist.easy : 0}
                                     onChange={(e) => {
-                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      const raw = e.target.value;
+                                      const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                                       handleDifficultyChange(mod.id, "easy", val);
                                     }}
                                     onFocus={(e) => e.target.select()}
@@ -2674,9 +2722,11 @@ function DriveDetailPage() {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={dist.medium === 0 ? "" : dist.medium}
+                                    placeholder="0"
+                                    value={dist.medium !== undefined && dist.medium !== null ? dist.medium : 0}
                                     onChange={(e) => {
-                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      const raw = e.target.value;
+                                      const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                                       handleDifficultyChange(mod.id, "medium", val);
                                     }}
                                     onFocus={(e) => e.target.select()}
@@ -2688,9 +2738,11 @@ function DriveDetailPage() {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={dist.hard === 0 ? "" : dist.hard}
+                                    placeholder="0"
+                                    value={dist.hard !== undefined && dist.hard !== null ? dist.hard : 0}
                                     onChange={(e) => {
-                                      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      const raw = e.target.value;
+                                      const val = raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
                                       handleDifficultyChange(mod.id, "hard", val);
                                     }}
                                     onFocus={(e) => e.target.select()}
