@@ -71,7 +71,7 @@ export class DashboardService {
       }),
       this.prisma.session.findMany({
         where: sessionsWhere,
-        include: { roleTemplate: true, score: true },
+        include: { roleTemplate: true, score: true, reviewerDecision: true },
       }),
       this.prisma.score.findMany({
         where: scoresWhere,
@@ -135,6 +135,23 @@ export class DashboardService {
         SessionStatus.AUTO_SUBMITTED,
       ].includes(s.status as SessionStatus),
     ).length;
+    const reviewedSessionsCount = sessions.filter(
+      (s) =>
+        s.score?.humanReviewed ||
+        Boolean(s.reviewerDecision) ||
+        decisions.some((d) => d.sessionId === s.id),
+    ).length;
+    const decidedSessionsCount = sessions.filter(
+      (s) => Boolean(s.reviewerDecision) || decisions.some((d) => d.sessionId === s.id),
+    ).length;
+
+    const stages = [
+      { stage: "Invited", count: totalInvites },
+      { stage: "Started", count: startedSessionsCount },
+      { stage: "Completed", count: completedSessionsCount },
+      { stage: "Reviewed", count: reviewedSessionsCount },
+      { stage: "Decided", count: decidedSessionsCount },
+    ];
 
     const conversionRates = {
       invitedToStarted:
@@ -144,6 +161,14 @@ export class DashboardService {
       startedToCompleted:
         startedSessionsCount > 0
           ? Math.round((completedSessionsCount / startedSessionsCount) * 100)
+          : 0,
+      completedToReviewed:
+        completedSessionsCount > 0
+          ? Math.round((reviewedSessionsCount / completedSessionsCount) * 100)
+          : 0,
+      reviewedToDecided:
+        reviewedSessionsCount > 0
+          ? Math.round((decidedSessionsCount / reviewedSessionsCount) * 100)
           : 0,
       overall:
         totalInvites > 0
@@ -530,6 +555,7 @@ export class DashboardService {
 
     return {
       funnel: {
+        stages,
         invitesByStatus,
         conversionRates,
         completionByRole,

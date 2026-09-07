@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef, Fragment } from "react";
 import {
   AlertTriangle,
+  AlertCircle,
   Clock,
   ArrowRight,
   FileDown,
@@ -18,26 +19,51 @@ import { ScopePanel } from "../components/scope-panel";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
 import { useStore } from "../lib/store";
+import { getUserProfile } from "../lib/auth";
 import { type RoleTemplate } from "../lib/types";
 
-function buildDashboardStats(sessions: any[] = [], drives: any[] = []) {
+function buildDashboardStats(sessions: any[] = [], drives: any[] = [], backendStats?: any) {
   const safeDrives = Array.isArray(drives) ? drives : [];
   const safeSessions = Array.isArray(sessions) ? sessions : [];
 
-  const invitedCount = safeDrives.reduce((sum, d) => sum + (d?.invitedCount || 0), 0);
-  const startedCount = safeDrives.reduce((sum, d) => sum + (d?.startedCount || 0), 0);
-  const completedCount = safeDrives.reduce((sum, d) => sum + (d?.completedCount || 0), 0);
+  let funnel: Array<{ stage: string; count: number }>;
+  if (backendStats?.funnel?.stages && Array.isArray(backendStats.funnel.stages) && backendStats.funnel.stages.length > 0) {
+    funnel = backendStats.funnel.stages;
+  } else {
+    const invitedFromDrives = safeDrives.reduce((sum, d) => sum + (d?.invitedCount || d?.candidateCount || 0), 0);
+    const startedFromDrives = safeDrives.reduce((sum, d) => sum + (d?.startedCount || 0), 0);
+    const completedFromDrives = safeDrives.reduce((sum, d) => sum + (d?.completedCount || 0), 0);
 
-  const funnel = [
-    { stage: "Invited", count: invitedCount },
-    { stage: "Started", count: startedCount },
-    { stage: "Completed", count: completedCount },
-    {
-      stage: "Reviewed",
-      count: safeSessions.filter((s) => s?.status === "reviewed" || s?.status === "decision").length,
-    },
-    { stage: "Decided", count: safeSessions.filter((s) => s?.status === "decision").length },
-  ];
+    const invitedCount = Math.max(invitedFromDrives, safeSessions.length);
+    const startedCount = Math.max(
+      startedFromDrives,
+      safeSessions.filter((s) => s?.status !== "NOT_STARTED").length,
+    );
+    const completedCount = Math.max(
+      completedFromDrives,
+      safeSessions.filter(
+        (s) =>
+          s?.status === "submitted" ||
+          s?.status === "reviewed" ||
+          s?.status === "decision" ||
+          s?.status === "ai_scored",
+      ).length,
+    );
+    const reviewedCount = safeSessions.filter(
+      (s) => s?.status === "reviewed" || s?.status === "decision" || Boolean(s?.decision) || s?.reviewer,
+    ).length;
+    const decidedCount = safeSessions.filter(
+      (s) => s?.status === "decision" || Boolean(s?.decision),
+    ).length;
+
+    funnel = [
+      { stage: "Invited", count: invitedCount },
+      { stage: "Started", count: Math.min(startedCount, invitedCount) },
+      { stage: "Completed", count: Math.min(completedCount, startedCount) },
+      { stage: "Reviewed", count: Math.min(reviewedCount, completedCount) },
+      { stage: "Decided", count: Math.min(decidedCount, reviewedCount) },
+    ];
+  }
 
   const buckets = ["0-40", "40-55", "55-70", "70-85", "85-100"];
   const scoreDistribution = buckets.map((b) => {
@@ -210,10 +236,12 @@ function DashboardPage() {
   const drives = useStore((s) => s.drives) || [];
   const actionQueue = useStore((s) => s.actionQueue) || [];
   const roleTemplates = useStore((s) => s.roleTemplates) || [];
+  const dashboardStats = useStore((s) => s.dashboardStats);
   const fetchRoleTemplates = useStore((s) => s.fetchRoleTemplates);
   const fetchActionQueue = useStore((s) => s.fetchActionQueue);
   const fetchSessions = useStore((s) => s.fetchSessions);
   const fetchDrives = useStore((s) => s.fetchDrives);
+  const fetchDashboardStats = useStore((s) => s.fetchDashboardStats);
   const exportResultsCsv = useStore((s) => s.exportResultsCsv);
 
   const [selectedDrive, setSelectedDrive] = useState<string>("all");
@@ -224,12 +252,47 @@ function DashboardPage() {
   const [rosterQuery, setRosterQuery] = useState("");
   const [rosterStatus, setRosterStatus] = useState<string>("all");
 
+  // Dynamic user name from auth profile / localStorage settings
+  const [currentUserName, setCurrentUserName] = useState<string>("Admin");
+
+  useEffect(() => {
+    const updateName = () => {
+      let customName = "";
+      try {
+        const saved = localStorage.getItem("proctora_admin_profile");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.name) customName = parsed.name;
+        }
+      } catch {}
+
+      const user = getUserProfile();
+      const name = customName || user?.name || user?.username || (user?.email ? user.email.split("@")[0] : "Admin");
+      setCurrentUserName(name);
+    };
+
+    updateName();
+    window.addEventListener("storage", updateName);
+    window.addEventListener("admin_profile_updated", updateName);
+    return () => {
+      window.removeEventListener("storage", updateName);
+      window.removeEventListener("admin_profile_updated", updateName);
+    };
+  }, []);
+
   useEffect(() => {
     fetchActionQueue();
     fetchDrives();
     fetchSessions();
     fetchRoleTemplates();
   }, []);
+
+  useEffect(() => {
+    fetchDashboardStats({
+      driveId: selectedDrive !== "all" ? selectedDrive : undefined,
+      roleTemplateId: selectedRole !== "all" ? selectedRole : undefined,
+    });
+  }, [selectedDrive, selectedRole, dateRange]);
 
   const filteredSessions = useMemo(() => {
     return (sessions || []).filter((s) => {
@@ -243,13 +306,16 @@ function DashboardPage() {
       if (selectedDrive !== "all" && s.driveId !== selectedDrive) return false;
       if (dateRange !== "all") {
         const days = parseInt(dateRange, 10);
-        if (!isNaN(days) && s.submittedAt) {
-          try {
-            const subDate = new Date(s.submittedAt);
-            const now = new Date();
-            const diffDays = (now.getTime() - subDate.getTime()) / (1000 * 3600 * 24);
-            if (diffDays > days) return false;
-          } catch (err) {}
+        if (!isNaN(days)) {
+          const dateToTest = s.submittedAt || s.startedAt;
+          if (dateToTest) {
+            try {
+              const subDate = new Date(dateToTest);
+              const now = new Date();
+              const diffDays = (now.getTime() - subDate.getTime()) / (1000 * 3600 * 24);
+              if (diffDays > days) return false;
+            } catch (err) {}
+          }
         }
       }
       return true;
@@ -258,7 +324,7 @@ function DashboardPage() {
 
   // Roster specific filter
   const rosterSessions = useMemo(() => {
-    return filteredSessions.filter((s: any) => {
+    return (filteredSessions || []).filter((s: any) => {
       if (!s) return false;
       const cName = s.candidate?.name || s.candidateName || "";
       const cEmail = s.candidate?.email || s.candidateEmail || "";
@@ -272,90 +338,126 @@ function DashboardPage() {
         return (
           s.status === "ai_scored" ||
           s.status === "submitted" ||
-          (s.integrityFlags || []).some((f: any) => f.severity === "critical")
+          s.status === "review" ||
+          (s.integrityFlags || []).some((f: any) => f.severity === "critical") ||
+          (s.integrityFlagsCount || 0) > 0
         );
       }
       if (rosterStatus === "ai_scored") return s.status === "ai_scored";
-      if (rosterStatus === "reviewed") return s.status === "reviewed" || s.status === "decision";
-      if (rosterStatus === "decided") return s.status === "decision";
+      if (rosterStatus === "reviewed") return s.status === "reviewed" || s.status === "decision" || Boolean(s.decision);
+      if (rosterStatus === "decided") return s.status === "decision" || Boolean(s.decision);
 
       return true;
     });
   }, [filteredSessions, rosterQuery, rosterStatus]);
 
-  const stats = useMemo(() => buildDashboardStats(filteredSessions, drives), [filteredSessions, drives]);
+  const stats = useMemo(
+    () => buildDashboardStats(filteredSessions, drives, dashboardStats),
+    [filteredSessions, drives, dashboardStats],
+  );
 
-  const totalCandidates = filteredSessions.length || 7;
+  const totalCandidates = filteredSessions.length;
   const activePipeline = filteredSessions.filter(
-    (s) => s?.status === "submitted" || s?.status === "ai_scored" || s?.status === "review",
-  ).length || 2;
+    (s) =>
+      s?.status === "submitted" ||
+      s?.status === "ai_scored" ||
+      s?.status === "review" ||
+      s?.status === "IN_PROGRESS",
+  ).length;
 
-  const passRate = filteredSessions.length > 0 
-    ? Math.round((filteredSessions.filter(s => s?.status === 'reviewed' || (s?.compositeScore || 0) >= 70).length / Math.max(filteredSessions.length, 1)) * 100)
-    : 100;
+  const passRate =
+    filteredSessions.length > 0
+      ? Math.round(
+          (filteredSessions.filter((s) => s?.status === "reviewed" || s?.status === "decision" || (s?.compositeScore || 0) >= 70).length /
+            filteredSessions.length) *
+            100,
+        )
+      : 0;
 
-  const flagRate = filteredSessions.length > 0
-    ? Math.round(
-        (filteredSessions.filter((s) => (s?.integrityFlags || []).some((f: any) => f?.severity === "critical"))
-          .length /
-          Math.max(filteredSessions.length, 1)) *
-          100,
-      )
-    : 0;
+  const flagRate =
+    filteredSessions.length > 0
+      ? Math.round(
+          (filteredSessions.filter((s) => (s?.integrityFlags || []).some((f: any) => f?.severity === "critical") || (s?.integrityFlagsCount || 0) > 0)
+            .length /
+            filteredSessions.length) *
+            100,
+        )
+      : 0;
 
-  // Live session mock/real stream data matching Figma
+  // Funnel data dynamically calculated from stats / backend
+  const funnelData = useMemo(() => {
+    const raw = stats.funnel || [];
+    const maxInvited = Math.max(raw[0]?.count || 0, 1);
+
+    return raw.map((item, idx) => {
+      // Percentage for progress bar width fill
+      const pct =
+        maxInvited > 0 && item.count > 0
+          ? Math.min(100, Math.max(0, Math.round((item.count / maxInvited) * 100)))
+          : 0;
+
+      if (idx === 0) {
+        return {
+          ...item,
+          pct: item.count > 0 ? 100 : 0,
+          change: "—",
+          tone: "neutral" as const,
+        };
+      }
+
+      const prevCount = raw[idx - 1]?.count || 0;
+      // Conversion rate from previous stage (dynamic, never static/hardcoded)
+      const conversionRate = prevCount > 0 ? Math.round((item.count / prevCount) * 100) : 0;
+      const tone =
+        conversionRate >= 70
+          ? ("success" as const)
+          : conversionRate >= 40
+          ? ("warning" as const)
+          : ("danger" as const);
+
+      return {
+        ...item,
+        pct,
+        change: `${conversionRate}%`,
+        tone,
+      };
+    });
+  }, [stats.funnel]);
+
+  // Live session stream data matching real sessions
   const liveStreamData = useMemo(() => {
-    if (filteredSessions.length >= 3) {
-      return filteredSessions.slice(0, 3).map((s: any, idx: number) => {
-        const initials = (s.candidate?.name || s.candidateName || "Candidate")
+    const sourceList = (filteredSessions || []).slice(0, 3);
+    const bgPalette = ["bg-[#06b6d4]", "bg-[#0284c7]", "bg-[#0891b2]"];
+
+    return sourceList.map((s: any, idx: number) => {
+      const name = s.candidate?.name || s.candidateName || "Candidate";
+      const initials =
+        s.candidate?.initials ||
+        name
           .split(" ")
           .map((n: string) => n[0])
           .join("")
           .slice(0, 2)
-          .toUpperCase();
-        return {
-          id: s.id || idx,
-          initials: initials || "CD",
-          name: s.candidate?.name || s.candidateName || "Candidate",
-          role: s.roleTemplate?.roleName || "Software Engineer",
-          score: s.compositeScore !== null && s.compositeScore !== undefined
-            ? `${Math.round(s.compositeScore <= 1 ? s.compositeScore * 100 : Math.min(100, s.compositeScore))}%`
-            : "70%",
-          time: s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "18:07",
-          bg: idx === 0 ? "bg-[#06b6d4]" : idx === 1 ? "bg-[#0284c7]" : "bg-[#0891b2]",
-        };
-      });
-    }
+          .toUpperCase() ||
+        "CN";
 
-    return [
-      {
-        id: "1",
-        initials: "JD",
-        name: "Jane Doe",
-        role: "Software Engineering – Senior",
-        score: "70%",
-        time: "18:07",
-        bg: "bg-[#06b6d4]",
-      },
-      {
-        id: "2",
-        initials: "RA",
-        name: "Ragul Arumugam",
-        role: "Fullstack SDE",
-        score: "85%",
-        time: "13:20",
-        bg: "bg-[#0284c7]",
-      },
-      {
-        id: "3",
-        initials: "EW",
-        name: "Emma Watson",
-        role: "Software Developer",
-        score: "92%",
-        time: "15:04",
-        bg: "bg-[#0891b2]",
-      },
-    ];
+      const rawScore = s.compositeScore ?? s.score?.compositeScore ?? 0;
+      const normalizedScore =
+        rawScore <= 1.0 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore);
+      const formattedScore = `${Math.min(100, Math.max(0, normalizedScore))}%`;
+
+      return {
+        id: s.id || `stream-${idx}`,
+        initials,
+        name,
+        role: s.roleTemplate?.roleName || s.roleName || "Software Developer",
+        score: formattedScore,
+        time: s.submittedAt
+          ? new Date(s.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : "Recently",
+        bg: bgPalette[idx % bgPalette.length],
+      };
+    });
   }, [filteredSessions]);
 
   const queue = actionQueue as any;
@@ -371,7 +473,7 @@ function DashboardPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-[#0d1424] tracking-tight">
-              Welcome back, <span className="text-[#2f68ff]">Demo Admin!</span>
+              Welcome back, <span className="text-[#2f68ff]">{currentUserName}!</span>
             </h1>
             <p className="text-xs md:text-sm text-[#8c9ba5] font-normal mt-1">
               Track and manage your candidate assessment platform
@@ -380,28 +482,7 @@ function DashboardPage() {
 
           {/* Top-right Actions */}
           <div className="flex items-center gap-3">
-            {/* Bell Notification Icon */}
-            <button
-              title="Notifications"
-              className="relative w-9 h-9 rounded-full bg-white border border-[#e8ecf4] shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-center text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all cursor-pointer"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-              </svg>
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#ff4d4f] ring-2 ring-white" />
-            </button>
-
-            {/* Chat Bubble Icon */}
-            <button
-              title="Messages"
-              className="w-9 h-9 rounded-full bg-white border border-[#e8ecf4] shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center justify-center text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all cursor-pointer"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </button>
-
+            
             {/* Date Range Dropdown */}
             <DateRangeDropdown value={dateRange} onChange={setDateRange} />
 
@@ -441,7 +522,7 @@ function DashboardPage() {
                 </div>
               </div>
               <div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#dcfce7] text-[#15803d]">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]">
                   <span>▲</span> +12.05%
                 </span>
               </div>
@@ -466,7 +547,7 @@ function DashboardPage() {
                 </div>
               </div>
               <div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#fee2e2] text-[#dc2626]">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#fef3f2] text-[#f04438] border border-[#fecdca]">
                   <span>▼</span> -8.25%
                 </span>
               </div>
@@ -491,7 +572,7 @@ function DashboardPage() {
                 </div>
               </div>
               <div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#dcfce7] text-[#15803d]">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]">
                   <span>▲</span> +25.21%
                 </span>
               </div>
@@ -518,7 +599,7 @@ function DashboardPage() {
                 </div>
               </div>
               <div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#dcfce7] text-[#15803d]">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]">
                   <span>▲</span> 0.00%
                 </span>
               </div>
@@ -526,116 +607,110 @@ function DashboardPage() {
 
           </div>
 
-          {/* Right: Action Queue / Alerts Card (Matching Figma) */}
-          <div className="lg:col-span-6 bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
-            <div className="space-y-4">
+          {/* Right: Action Queue / Alerts Card (Matching Image 2) */}
+          <div className="lg:col-span-6 bg-white rounded-2xl p-6 md:p-7 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+            <div className="divide-y divide-[#f1f5f9] flex flex-col justify-between h-full">
               
               {/* Row 1: Audit Required */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </div>
-                  <div>
+              <div className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shrink-0">
+                      <AlertCircle size={17} strokeWidth={2} />
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#0d1424]">Audit Required</span>
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#eff6ff] text-[#2f68ff]">
+                      <span className="text-sm font-bold text-[#0d1424]">Audit Required</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#eff6ff] text-[#2f68ff]">
                         {pendingReviews.length}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#94a3b8] mt-0.5">Low AI confidence requiring recruiter review</p>
+                  </div>
+                  <div>
+                    {pendingReviews.length === 0 ? (
+                      <span className="inline-block px-5 py-2 rounded-full bg-[#f1f3f9] text-xs font-normal text-[#94a3b8] italic">
+                        No pending manual audits.
+                      </span>
+                    ) : (
+                      <Link
+                        to="/results"
+                        className="inline-block px-4 py-1.5 rounded-full bg-[#eff6ff] text-[#2f68ff] text-xs font-semibold hover:bg-blue-100 transition-colors"
+                      >
+                        View {pendingReviews.length} Audits →
+                      </Link>
+                    )}
                   </div>
                 </div>
-                <div className="text-right">
-                  {pendingReviews.length === 0 ? (
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-[#f8fafc] border border-[#f1f5f9] text-[11px] font-normal text-[#94a3b8] italic">
-                      No pending manual audits.
-                    </span>
-                  ) : (
-                    <Link
-                      to="/results"
-                      className="inline-block px-3 py-1 rounded-full bg-[#eff6ff] text-[#2f68ff] text-xs font-semibold hover:bg-blue-100 transition-colors"
-                    >
-                      View {pendingReviews.length} Audits →
-                    </Link>
-                  )}
-                </div>
+                <p className="text-xs text-[#8c9ba5] font-normal mt-2.5">
+                  Low AI confidence requiring recruiter review
+                </p>
               </div>
 
               {/* Row 2: Expiring Soon */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#f8fafc]">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </div>
-                  <div>
+              <div className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shrink-0">
+                      <Clock size={17} strokeWidth={2} />
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#0d1424]">Expiring Soon</span>
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#eff6ff] text-[#2f68ff]">
+                      <span className="text-sm font-bold text-[#0d1424]">Expiring Soon</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#eff6ff] text-[#2f68ff]">
                         {expiringInvites.length}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#94a3b8] mt-0.5">Assessment invitations expiring in 24h</p>
+                  </div>
+                  <div>
+                    {expiringInvites.length === 0 ? (
+                      <span className="inline-block px-5 py-2 rounded-full bg-[#f1f3f9] text-xs font-normal text-[#94a3b8] italic">
+                        No invites expiring soon.
+                      </span>
+                    ) : (
+                      <Link
+                        to="/invites"
+                        className="inline-block px-4 py-1.5 rounded-full bg-[#eff6ff] text-[#2f68ff] text-xs font-semibold hover:bg-blue-100 transition-colors"
+                      >
+                        View {expiringInvites.length} Invites →
+                      </Link>
+                    )}
                   </div>
                 </div>
-                <div className="text-right">
-                  {expiringInvites.length === 0 ? (
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-[#f8fafc] border border-[#f1f5f9] text-[11px] font-normal text-[#94a3b8] italic">
-                      No invites expiring soon.
-                    </span>
-                  ) : (
-                    <Link
-                      to="/invites"
-                      className="inline-block px-3 py-1 rounded-full bg-[#eff6ff] text-[#2f68ff] text-xs font-semibold hover:bg-blue-100 transition-colors"
-                    >
-                      View {expiringInvites.length} Invites →
-                    </Link>
-                  )}
-                </div>
+                <p className="text-xs text-[#8c9ba5] font-normal mt-2.5">
+                  Assessment invitations expiring in 24h
+                </p>
               </div>
 
               {/* Row 3: Closing Drives */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#f8fafc]">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                  </div>
-                  <div>
+              <div className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shrink-0">
+                      <Calendar size={17} strokeWidth={2} />
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#0d1424]">Closing Drives</span>
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#eff6ff] text-[#2f68ff]">
+                      <span className="text-sm font-bold text-[#0d1424]">Closing Drives</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#eff6ff] text-[#2f68ff]">
                         {closingDrives.length}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#94a3b8] mt-0.5">Active drives ending in the next 24 hours</p>
+                  </div>
+                  <div>
+                    {closingDrives.length === 0 ? (
+                      <span className="inline-block px-5 py-2 rounded-full bg-[#f1f3f9] text-xs font-normal text-[#94a3b8] italic">
+                        No drives closing soon.
+                      </span>
+                    ) : (
+                      <Link
+                        to="/drives"
+                        className="inline-block px-4 py-1.5 rounded-full bg-[#eff6ff] text-[#2f68ff] text-xs font-semibold hover:bg-blue-100 transition-colors"
+                      >
+                        View {closingDrives.length} Drives →
+                      </Link>
+                    )}
                   </div>
                 </div>
-                <div className="text-right">
-                  {closingDrives.length === 0 ? (
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-[#f8fafc] border border-[#f1f5f9] text-[11px] font-normal text-[#94a3b8] italic">
-                      No drives closing soon.
-                    </span>
-                  ) : (
-                    <Link
-                      to="/drives"
-                      className="inline-block px-3 py-1 rounded-full bg-[#eff6ff] text-[#2f68ff] text-xs font-semibold hover:bg-blue-100 transition-colors"
-                    >
-                      View {closingDrives.length} Drives →
-                    </Link>
-                  )}
-                </div>
+                <p className="text-xs text-[#8c9ba5] font-normal mt-2.5">
+                  Active drives ending in the next 24 hours
+                </p>
               </div>
 
             </div>
@@ -646,31 +721,28 @@ function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left: Pipeline Funnel */}
           <div className="lg:col-span-8 bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-4">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-4 font-mono">
               PIPELINE FUNNEL
             </div>
 
             <div className="space-y-3.5">
-              {[
-                { stage: "Invited", count: 7, pct: 100, change: "—", tone: "neutral" },
-                { stage: "Started", count: 6, pct: 86, change: "-14%", tone: "danger" },
-                { stage: "Completed", count: 5, pct: 71, change: "-17%", tone: "danger" },
-                { stage: "Reviewed", count: 5, pct: 71, change: "-0%", tone: "success" },
-                { stage: "Decided", count: 0, pct: 0, change: "-100%", tone: "danger" },
-              ].map((item) => (
+              {funnelData.map((item) => (
                 <div key={item.stage} className="flex items-center gap-4">
                   {/* Stage Label */}
                   <div className="w-20 text-xs font-medium text-[#64748b]">{item.stage}</div>
 
                   {/* Funnel Progress Track */}
-                  <div className="flex-1 h-9 bg-[#f8fafc] rounded-xl relative overflow-hidden flex items-center px-4">
+                  <div className="flex-1 h-9 bg-[#f8fafc] rounded-full relative overflow-hidden flex items-center px-4 border border-[#f1f5f9]">
                     {item.pct > 0 && (
                       <div
-                        className="absolute inset-y-0 left-0 bg-[#eef2ff] transition-all duration-500 rounded-l-xl flex items-center justify-end"
-                        style={{ width: `${item.pct}%` }}
+                        className="absolute inset-y-0 left-0 transition-all duration-500 rounded-full flex items-center justify-end"
+                        style={{
+                          width: `${Math.max(item.pct, 4)}%`,
+                          background: "linear-gradient(90deg, rgba(46, 93, 224, 0.2) 0%, rgba(169, 218, 255, 0.2) 100%)",
+                        }}
                       >
                         {/* Vertical blue marker indicator */}
-                        <div className="w-[2.5px] h-5 bg-[#2f68ff] rounded-full mr-0.5" />
+                        <div className="w-[2.5px] h-5 bg-[#2f68ff] rounded-full mr-1.5" />
                       </div>
                     )}
                     <span className="relative z-10 text-xs font-bold text-[#0d1424]">
@@ -678,16 +750,22 @@ function DashboardPage() {
                     </span>
                   </div>
 
-                  {/* Change Badge */}
-                  <div className="w-14 flex justify-end">
-                    {item.change === "—" ? (
-                      <span className="text-xs font-normal text-[#94a3b8]">—</span>
+                  {/* Change / Conversion Badge */}
+                  <div className="w-16 flex items-center justify-center shrink-0">
+                    {item.change === "—" || item.change === "-" ? (
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-6 text-xs font-semibold text-[#94a3b8]">
+                        —
+                      </span>
                     ) : item.tone === "success" ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#dcfce7] text-[#15803d]">
+                      <span className="inline-flex items-center justify-center min-w-[48px] px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]">
+                        {item.change}
+                      </span>
+                    ) : item.tone === "warning" ? (
+                      <span className="inline-flex items-center justify-center min-w-[48px] px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#eff6ff] text-[#2563eb] border border-[#dbeafe]">
                         {item.change}
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#fee2e2] text-[#dc2626]">
+                      <span className="inline-flex items-center justify-center min-w-[48px] px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#fef3f2] text-[#f04438] border border-[#fecdca]">
                         {item.change}
                       </span>
                     )}
@@ -710,8 +788,8 @@ function DashboardPage() {
                   </div>
                   <h3 className="text-xs font-bold text-[#0d1424]">Live Session Stream</h3>
                 </div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#dcfce7] text-[#15803d] text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16a34a] animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ecfdf3] text-[#12b76a] text-[10px] font-bold border border-[#a6f4c5]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#12b76a] animate-pulse" />
                   Live
                 </div>
               </div>
@@ -795,17 +873,17 @@ function DashboardPage() {
           </div>
 
           {/* Roster Table */}
-          <div className="overflow-x-auto border border-[#f1f5f9] rounded-xl">
+          <div className="overflow-x-auto border border-[#f1f5f9] rounded-2xl bg-white shadow-2xs">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#f8fafc] text-[#94a3b8] font-bold text-[10px] uppercase tracking-wider border-b border-[#f1f5f9]">
                 <tr>
-                  <th className="py-3 px-4">Candidate</th>
+                  <th className="py-3 px-5">Candidate</th>
                   <th className="py-3 px-4">Role / Drive</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Composite Score</th>
                   <th className="py-3 px-4">Say-Do Sync</th>
                   <th className="py-3 px-4">Risk Flags</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f8fafc]">
@@ -821,53 +899,76 @@ function DashboardPage() {
                     const isCritical = flags.some((f: any) => f.severity === "critical");
                     const isMedium = flags.some((f: any) => f.severity === "medium");
 
+                    const rawComposite = s.compositeScore ?? s.score?.compositeScore;
+                    const compositeScore = rawComposite !== null && rawComposite !== undefined
+                      ? (rawComposite <= 1.0 && rawComposite > 0 ? Math.round(rawComposite * 100) : Math.round(rawComposite))
+                      : null;
+
+                    const rawSayDo = s.sayDoScore ?? s.score?.sayDoConsistencyScore;
+                    const sayDoScore = rawSayDo !== null && rawSayDo !== undefined
+                      ? (rawSayDo <= 1.0 && rawSayDo > 0 ? Math.round(rawSayDo * 100) : Math.round(rawSayDo))
+                      : null;
+
+                    const isNeedsAudit = s.status === "review" || s.status === "ai_scored" || s.status === "submitted" || isCritical;
+                    const isDecided = s.status === "decision";
+
+                    const rawFlagCount =
+                      s.integrityFlagsCount ??
+                      (Array.isArray(s.integrityFlags) ? s.integrityFlags.length : 0);
+                    const flagCount = typeof rawFlagCount === "number" ? rawFlagCount : 0;
+
                     return (
                       <tr key={s.id} className="hover:bg-[#f8fafc]/80 transition-colors">
-                        <td className="py-3.5 px-4 font-semibold text-[#0d1424]">
+                        <td className="py-3.5 px-5 font-semibold text-[#0d1424]">
                           <div>{s.candidate?.name || s.candidateName || "Candidate"}</div>
                           <div className="text-[11px] text-[#94a3b8] font-normal">{s.candidate?.email || s.candidateEmail || "No email"}</div>
                         </td>
                         <td className="py-3.5 px-4 text-[#64748b]">
-                          <div className="font-semibold text-[#0d1424]">{s.roleTemplate?.roleName || "Software Engineer"}</div>
+                          <div className="font-semibold text-[#0d1424]">{s.roleTemplate?.roleName || s.roleName || "Software Engineer"}</div>
                           <div className="text-[11px] text-[#94a3b8]">{s.driveName || "Drive Session"}</div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <StatusBadge
-                            variant={s.status === "decision" ? "success" : s.status === "reviewed" ? "scheduled" : "warning"}
-                            size="xs"
-                            dot
-                          >
-                            {s.status === "decision" ? "Decided" : s.status === "reviewed" ? "Reviewed" : "Needs Audit"}
-                          </StatusBadge>
-                        </td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#0d1424]">
-                          {s.compositeScore !== null ? `${s.compositeScore}%` : "—"}
-                        </td>
-                        <td className="py-3.5 px-4 font-mono text-[#64748b]">
-                          {s.sayDoScore !== null ? `${s.sayDoScore}%` : "—"}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {isCritical ? (
-                            <span className="text-xs font-semibold text-[#dc2626] flex items-center gap-1">
-                              <ShieldAlert size={14} /> Critical Risk
+                          {isDecided ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] inline-block">
+                              Decided
                             </span>
-                          ) : isMedium ? (
-                            <span className="text-xs font-semibold text-[#d97706] flex items-center gap-1">
-                              <AlertTriangle size={14} /> Medium Risk
+                          ) : isNeedsAudit ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#fef9c3] text-[#ca8a04] border border-[#fef08a] inline-block">
+                              Needs Audit
                             </span>
                           ) : (
-                            <span className="text-xs text-[#16a34a] flex items-center gap-1 font-medium">
-                              <CheckCircle size={14} /> Clean
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#eff6ff] text-[#2563eb] border border-[#dbeafe] inline-block">
+                              Reviewed
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-right">
+                        <td className="py-3.5 px-4 font-mono font-bold text-[#0d1424]">
+                          <div className="flex items-center gap-2.5">
+                            <span className="min-w-[32px]">{compositeScore !== null ? `${compositeScore}%` : "—"}</span>
+                            {compositeScore !== null && (
+                              <div className="w-16 h-1.5 bg-[#e2e8f0] rounded-full overflow-hidden shrink-0">
+                                <div
+                                  className="h-full bg-[#2563eb] rounded-full transition-all"
+                                  style={{ width: `${Math.min(100, Math.max(0, compositeScore))}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-[#475569] font-medium">
+                          {sayDoScore !== null ? `${sayDoScore}%` : "—"}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-[#dc2626]">
+                          {flagCount}
+                        </td>
+                        <td className="py-3.5 px-5 text-right">
                           <Link
                             to="/results/$id"
                             params={{ id: s.id }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2f68ff] hover:bg-[#1e54ea] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+                            className="inline-flex items-center justify-center gap-1 px-4 py-1 rounded-full border border-[#2563eb] text-[#2563eb] hover:bg-[#eff6ff] text-xs font-semibold transition-colors cursor-pointer"
                           >
-                            Evaluate <ArrowRight size={12} />
+                            <span>Evaluate</span>
+                            <ArrowRight size={12} />
                           </Link>
                         </td>
                       </tr>

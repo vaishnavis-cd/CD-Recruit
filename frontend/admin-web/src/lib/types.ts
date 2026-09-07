@@ -255,6 +255,7 @@ export interface Session {
     timestamp: string;
     hasEvidence: boolean;
   }[];
+  integrityFlagsCount?: number;
   submittedAt: string;
   reviewer?: { initials: string; name: string };
   decision?: { outcome: "advance" | "reject"; decidedAt: string; decidedBy: string; note?: string };

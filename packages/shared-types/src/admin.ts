@@ -16,6 +16,9 @@ import { Score } from "./score.js";
 export interface SessionListItem {
   sessionId: string;
   referenceId?: string | null;
+  driveId?: string | null;
+  driveName?: string | null;
+  candidateId?: string;
   candidateName: string;
   candidateEmail: string;
   roleTemplateName: string;
@@ -30,6 +33,15 @@ export interface SessionListItem {
   sayDoConsistencyScore: number | null;
   moduleScores?: Record<string, number> | null;
   humanReviewRequired: boolean;
+  integrityFlagsCount?: number;
+  reviewerDecision?: string | null;
+  decision?: {
+    outcome: string;
+    decidedAt?: string;
+    decidedBy?: string;
+    note?: string;
+  } | null;
+  identityVerificationResult?: any;
 }
 
 export interface SessionListResponse {
@@ -165,10 +177,13 @@ export interface CreateInviteResponse {
 
 export interface DashboardStats {
   funnel: {
+    stages?: Array<{ stage: string; count: number }>;
     invitesByStatus: Record<InviteStatus, number>;
     conversionRates: {
       invitedToStarted: number;
       startedToCompleted: number;
+      completedToReviewed?: number;
+      reviewedToDecided?: number;
       overall: number;
     };
     completionByRole: Array<{

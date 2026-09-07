@@ -82,48 +82,63 @@ function mapBackendSession(session: any): Session {
       : null;
 
 
-  const initials = session.candidateName
-    ? session.candidateName
+  const candidateName = session.candidateName || session.candidate?.name || "Candidate";
+  const candidateEmail = session.candidateEmail || session.candidate?.email || "candidate@example.com";
+
+  const initials = candidateName
+    ? candidateName
       .split(" ")
       .map((n: string) => n[0])
       .join("")
       .toUpperCase()
     : "CN";
 
-  const roleName = session.roleTemplateName || session.roleName || "Software Developer";
+  const roleName = session.roleTemplateName || session.roleTemplate?.roleName || session.roleName || "Software Developer";
+  const driveName = session.driveName || session.drive?.name || "Assessment Drive";
   const confidenceVal = session.score?.aiConfidence ?? session.aiConfidence ?? null;
+
+  const decOutcome = typeof session.reviewerDecision === "string"
+    ? session.reviewerDecision
+    : session.reviewerDecision?.decision || session.decision?.outcome || session.decisionOutcome;
+  const hasDecision = Boolean(decOutcome);
 
   const status = mapBackendStatus(
     session.status || "SUBMITTED",
     session.compositeScore !== null && session.compositeScore !== undefined,
     !session.humanReviewRequired,
     confidenceVal ?? 0.85,
-    false,
+    hasDecision,
   );
 
   return {
     id: session.sessionId || session.id || "sess",
     driveId: session.driveId || "",
+    driveName,
     candidate: {
-      id: session.candidateEmail || "cand",
-      name: session.candidateName || "Candidate",
-      email: session.candidateEmail || "candidate@example.com",
+      id: session.candidateId || session.candidate?.id || candidateEmail || "cand",
+      name: candidateName,
+      email: candidateEmail,
       initials,
     },
+    candidateName,
+    candidateEmail,
+    roleName,
     roleTemplate: {
-      id: roleName.toLowerCase().replace(/\s+/g, "-"),
+      id: session.roleTemplateId || roleName.toLowerCase().replace(/\s+/g, "-"),
       roleName: roleName,
       track: "Mid",
     },
     status,
+    decision: decOutcome ? { outcome: decOutcome } : null,
     compositeScore,
     sayDoScore,
     sayDoTrace: [],
-    moduleScores: session.moduleScores || {},
+    moduleScores: session.moduleScores || session.score?.moduleScores || {},
     mismatches: [],
     integrityFlags: session.integrityFlags || [],
-    submittedAt: session.submittedAt ? session.submittedAt : new Date().toISOString(),
-    gradingSource: session.score?.gradingSource || "placeholder",
+    integrityFlagsCount: session.integrityFlagsCount ?? (Array.isArray(session.integrityFlags) ? session.integrityFlags.length : 0),
+    submittedAt: session.submittedAt ? session.submittedAt : (session.startedAt || new Date().toISOString()),
+    gradingSource: session.score?.gradingSource || "ai",
     sayDoRationale: session.score?.sayDoRationale || null,
   };
 }
