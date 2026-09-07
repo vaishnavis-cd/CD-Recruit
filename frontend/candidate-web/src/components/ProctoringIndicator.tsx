@@ -61,42 +61,40 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
       <div
         aria-label={`Integrity monitoring ${active ? 'active' : 'standby'}`}
         title="Live Camera & Proctoring Status"
-        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] shadow-xs"
+        className="flex items-center gap-3 px-2 py-1 select-none"
       >
-        <div className="relative group cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="relative group cursor-pointer w-12 h-12 rounded-lg bg-black border border-[#E2E8F0] overflow-hidden shadow-2xs flex-shrink-0" onClick={() => setIsExpanded(!isExpanded)}>
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-14 h-10 rounded-md bg-black object-cover transform -scale-x-100 border border-[var(--border)] shadow-xs transition-transform group-hover:scale-105"
+            className="w-full h-full object-cover transform -scale-x-100"
           />
           {!hasStream && (
-            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center rounded-md text-2xs text-slate-400">
+            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-2xs text-slate-400">
               <Camera size={12} className="mb-0.5 text-slate-500" />
               Off
             </div>
           )}
           <div className="absolute bottom-0.5 right-0.5 bg-black/60 backdrop-blur-xs p-0.5 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity">
-            {isExpanded ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
+            {isExpanded ? <Minimize2 size={9} /> : <Maximize2 size={9} />}
           </div>
         </div>
 
-        <div className="flex flex-col text-xs-plus leading-tight select-none">
-          <div className="flex items-center gap-1.5 font-medium text-[var(--foreground)]">
+        <div className="flex flex-col text-xs leading-tight">
+          <div className="flex items-center gap-1.5 font-semibold text-[#15803D] dark:text-emerald-400">
             <span
-              className={`w-2 h-2 rounded-full ${hasStream ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--neutral-chip)]'}`}
+              className={`w-2 h-2 rounded-full ${hasStream ? 'bg-[#10B981] animate-pulse' : 'bg-[#94A3B8]'}`}
               aria-hidden
             />
             <span>{hasStream ? 'Camera Live' : 'Camera Off'}</span>
           </div>
-          <span className="text-2xs text-[var(--muted-foreground)] mt-0.5 flex items-center gap-1 font-mono-data">
-            <span>{cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}</span>
-            {lastEventType && (
-              <span className="text-[var(--warning)] font-semibold truncate max-w-[90px]">
-                • {lastEventType}
-              </span>
-            )}
+          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider uppercase mt-0.5">
+            {cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}
+          </span>
+          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider uppercase">
+            Active Session
           </span>
         </div>
       </div>

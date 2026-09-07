@@ -21,6 +21,8 @@ import questionsDefault from "../assets/Property 1=Default-2.svg";
 import questionsVariant2 from "../assets/Property 1=Variant2-2.svg";
 import settingsDefault from "../assets/Property 1=Default-3.svg";
 import settingsVariant2 from "../assets/Property 1=Variant2-3.svg";
+import icoSupport from "../assets/IcoSupport.svg";
+import vectorStroke from "../assets/Vector (Stroke).svg";
 
 interface IconProps {
   size?: number;
@@ -107,6 +109,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
   });
 
   const [hasUnreadResults, setHasUnreadResults] = useState(false);
+  const [isSupportActive, setIsSupportActive] = useState(false);
 
   useEffect(() => {
     try {
@@ -162,32 +165,32 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
       <LightGradientBackground />
 
       {/* Left Sidebar: Fixed end-to-end */}
-      <aside className="w-[230px] shrink-0 bg-transparent text-ink flex flex-col h-screen z-20 overflow-y-auto no-scrollbar">
-        {/* Top Floating White Card */}
-        <div className="bg-white rounded-b-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-3.5 pt-5 pb-3 space-y-2 shrink-0">
+      <aside className="w-[248px] shrink-0 bg-transparent text-ink flex flex-col h-screen z-20 overflow-y-auto no-scrollbar">
+        {/* Top Floating White Card (bend along right side only, straight on left) */}
+        <div className="bg-white rounded-br-[24px] rounded-bl-none rounded-t-none shadow-[0_4px_20px_rgba(0,0,0,0.03)] px-4.5 pt-6 pb-3.5 space-y-3 shrink-0">
           {/* Brand Header */}
-          <div className="px-2">
-            <div className="text-base font-bold tracking-tight text-[#0d1424]">Proctora</div>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#2f68ff] leading-none mt-0.5">
+          <div className="px-3">
+            <div className="text-[17px] font-bold tracking-tight text-[#0d1424]">Proctora</div>
+            <div className="text-[10.5px] font-bold uppercase tracking-wider text-[#2f68ff] leading-none mt-1">
               ADMIN
             </div>
           </div>
 
           {/* Primary Nav Links before active */}
           {topItems.length > 0 && (
-            <nav className="space-y-0.5 pt-1">
+            <nav className="space-y-1 pt-1.5">
               {topItems.map((item) => {
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
-                    className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                    className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
                   >
-                    <div className="relative inline-flex items-center justify-center shrink-0 w-[18px] h-[18px]">
+                    <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
                       <img
                         src={item.defaultIcon}
                         alt={item.label}
-                        className="w-[18px] h-[18px] object-contain shrink-0"
+                        className="w-[19px] h-[19px] object-contain shrink-0"
                         draggable={false}
                       />
                       {item.to === "/results" && hasUnreadResults && (
@@ -207,17 +210,17 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
         {/* Active Item Cutout Slot (showing gradient backdrop) */}
         {activeItem && (
-          <div className="relative px-2 py-1 shrink-0">
+          <div className="relative px-3 py-1.5 shrink-0 my-0.5">
             <Link
               to={activeItem.to}
-              className="relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#2f68ff] transition-all"
+              className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#2f68ff] transition-all"
             >
-              <span className="w-[4.5px] h-[18px] bg-[#2f68ff] rounded-full shrink-0" />
-              <div className="relative inline-flex items-center justify-center shrink-0 w-[18px] h-[18px] text-[#2f68ff]">
+              <span className="w-[4.5px] h-[20px] bg-[#2f68ff] rounded-full shrink-0" />
+              <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px] text-[#2f68ff]">
                 <img
                   src={activeItem.variant2Icon}
                   alt={activeItem.label}
-                  className="w-[18px] h-[18px] object-contain shrink-0"
+                  className="w-[19px] h-[19px] object-contain shrink-0"
                   draggable={false}
                 />
                 {activeItem.to === "/results" && hasUnreadResults && (
@@ -232,24 +235,24 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
           </div>
         )}
 
-        {/* Bottom Card: Remaining Nav Items + HELP & Promo + User Profile extending to bottom */}
-        <div className="bg-white rounded-t-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
-          <div className="space-y-2.5">
+        {/* Bottom Card: Remaining Nav Items + HELP & Promo + User Profile extending to bottom (bend along right side only, straight on left) */}
+        <div className="bg-white rounded-tr-[24px] rounded-tl-none rounded-b-none shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4.5 space-y-3 flex-1 flex flex-col justify-between">
+          <div className="space-y-3">
             {/* Bottom Nav items before HELP */}
             {bottomItems.length > 0 && (
-              <nav className="space-y-0.5 pb-1">
+              <nav className="space-y-1 pb-1">
                 {bottomItems.map((item) => {
                   return (
                     <Link
                       key={item.to}
                       to={item.to}
-                      className="relative flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                      className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
                     >
-                      <div className="relative inline-flex items-center justify-center shrink-0 w-[18px] h-[18px]">
+                      <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
                         <img
                           src={item.defaultIcon}
                           alt={item.label}
-                          className="w-[18px] h-[18px] object-contain shrink-0"
+                          className="w-[19px] h-[19px] object-contain shrink-0"
                           draggable={false}
                         />
                         {item.to === "/results" && hasUnreadResults && (
@@ -267,28 +270,44 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
             )}
 
             {/* HELP header */}
-            <div className="px-2 text-[9.5px] font-bold text-[#94a3b8] tracking-wider uppercase pt-0.5">
+            <div className="px-3 text-[10px] font-bold text-[#94a3b8] tracking-wider uppercase pt-1">
               HELP
             </div>
 
-            {/* Support with Headset icon */}
+            {/* Support with IcoSupport (default) and Vector (Stroke) (active/clicked) */}
             <button
-              onClick={() => window.open("mailto:support@proctora.com", "_blank")}
-              className="w-full flex items-center gap-2.5 px-2 py-1 rounded-lg text-xs font-medium text-[#64748b] hover:text-[#0d1424] transition-all cursor-pointer text-left"
+              onClick={() => {
+                setIsSupportActive(true);
+                window.open("mailto:support@proctora.com", "_blank");
+              }}
+              onMouseEnter={() => setIsSupportActive(true)}
+              onMouseLeave={() => setIsSupportActive(false)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all cursor-pointer text-left ${
+                isSupportActive
+                  ? "text-[#2f68ff] bg-blue-50/60 font-semibold"
+                  : "text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc]"
+              }`}
             >
-              <SupportHeadsetIcon size={15} className="text-[#2f68ff]" />
+              <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
+                <img
+                  src={isSupportActive ? vectorStroke : icoSupport}
+                  alt="Support"
+                  className="w-[19px] h-[19px] object-contain shrink-0"
+                  draggable={false}
+                />
+              </div>
               <span>Support</span>
             </button>
 
             {/* New Assessment Drive Promo Card */}
-            <div className="p-3 bg-gradient-to-br from-[#2f68ff] to-[#1e54ea] rounded-xl text-white shadow-md shadow-blue-500/10 space-y-1.5">
-              <div className="text-xs font-bold leading-tight">New Assessment Drive</div>
-              <p className="text-[9.5px] text-blue-100/90 leading-snug">
+            <div className="p-3.5 bg-gradient-to-br from-[#2f68ff] to-[#1e54ea] rounded-2xl text-white shadow-md shadow-blue-500/10 space-y-2 mt-1">
+              <div className="text-[13px] font-bold leading-tight">New Assessment Drive</div>
+              <p className="text-[10px] text-blue-100/90 leading-snug">
                 Launch Q3 hiring drive and invite candidates instantly.
               </p>
               <Link
                 to="/drives"
-                className="block w-full text-center py-1.5 px-2.5 bg-white text-[#2f68ff] hover:bg-blue-50 font-bold text-[10.5px] rounded-full transition-all shadow-xs"
+                className="block w-full text-center py-2 px-3 bg-white text-[#2f68ff] hover:bg-blue-50 font-bold text-[11px] rounded-full transition-all shadow-xs"
               >
                 Create Drive
               </Link>
@@ -296,24 +315,24 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
           </div>
 
           {/* User Profile Footer inside bottom card */}
-          <div className="pt-2 border-t border-[#f1f5f9] flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
+          <div className="pt-2.5 border-t border-[#f1f5f9] flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
               {userInfo.initials}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs truncate text-[#0d1424] font-bold leading-tight">
+              <div className="text-[12.5px] truncate text-[#0d1424] font-bold leading-tight">
                 {userInfo.userName}
               </div>
-              <div className="text-[9px] font-semibold text-[#8c9ba5] uppercase tracking-wider mt-0.5">
+              <div className="text-[9.5px] font-semibold text-[#8c9ba5] uppercase tracking-wider mt-0.5">
                 {userInfo.userRole}
               </div>
             </div>
             <button
               onClick={() => setShowLogoutModal(true)}
               title="Log out"
-              className="p-1 text-[#8c9ba5] hover:text-danger-hover hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-[#8c9ba5] hover:text-danger-hover hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
             >
-              <LogOut size={14} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
