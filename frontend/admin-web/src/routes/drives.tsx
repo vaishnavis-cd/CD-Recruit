@@ -98,6 +98,16 @@ function DrivesPage() {
   const [newDriveIds, setNewDriveIds] = useState<Set<string>>(new Set());
   const knownDriveIdsRef = useRef<Set<string>>(new Set());
 
+  // Auto-open Create Drive wizard when navigated with ?create=true
+  useEffect(() => {
+    if (!isExactDrives) return;
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("create") === "true" || searchParams.get("new") === "true") {
+      setShowWizard(true);
+      setStep(1);
+    }
+  }, [isExactDrives, location.search]);
+
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
     try {

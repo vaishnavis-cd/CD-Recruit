@@ -190,9 +190,73 @@ function SettingsPage() {
   const [loadingModules, setLoadingModules] = useState(false);
   const [savingModule, setSavingModule] = useState<string | null>(null);
 
-  // Admin Profile state
-  const [adminName, setAdminName] = useState("Lead Proctor Admin");
-  const [adminEmail, setAdminEmail] = useState("admin@proctora.com");
+  // Admin Profile state - dynamic from local storage or authenticated user profile
+  const [adminName, setAdminName] = useState(() => {
+    try {
+      const saved = localStorage.getItem("proctora_admin_profile");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.name) return parsed.name;
+      }
+    } catch {}
+    const p = getUserProfile();
+    return p?.name || "Lead Proctor Admin";
+  });
+  const [adminEmail, setAdminEmail] = useState(() => {
+    try {
+      const saved = localStorage.getItem("proctora_admin_profile");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.email) return parsed.email;
+      }
+    } catch {}
+    const p = getUserProfile();
+    return p?.email || "admin@proctora.com";
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const startEditProfile = () => {
+    setEditName(adminName);
+    setEditEmail(adminEmail);
+    setIsEditingProfile(true);
+  };
+
+  const cancelEditProfile = () => {
+    setIsEditingProfile(false);
+  };
+
+  const handleSaveProfile = () => {
+    if (!editName.trim()) {
+      toast.error("Display Name cannot be empty");
+      return;
+    }
+    if (!editEmail.trim() || !editEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const trimmedName = editName.trim();
+      const trimmedEmail = editEmail.trim();
+      setAdminName(trimmedName);
+      setAdminEmail(trimmedEmail);
+      localStorage.setItem(
+        "proctora_admin_profile",
+        JSON.stringify({ name: trimmedName, email: trimmedEmail })
+      );
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("admin_profile_updated"));
+      setIsEditingProfile(false);
+      toast.success("Admin Profile details updated successfully");
+    } catch (e) {
+      toast.error("Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
   const [apiKeyGenerated, setApiKeyGenerated] = useState<string | null>(null);
 
 
@@ -1092,17 +1156,6 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
   );
 }
 
-function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className={className}>
-      <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
     { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
@@ -1115,7 +1168,6 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
     { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
     { id: "audit", label: "Audit Logs", icon: AuditLogsIcon },
     { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
-    { id: "modules", label: "Assessment Modules", icon: AssessmentModulesIcon },
   ] as const;
 
   return (
@@ -1127,8 +1179,8 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
         </h1>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Navigation Tabs Side */}
-          <div className="w-full lg:w-[200px] shrink-0 flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
+          {/* Navigation Tabs Side (Sticky on desktop) */}
+          <div className="w-full lg:w-[200px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -1142,8 +1194,8 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
                       : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
                   }`}
                 >
-                  <Icon size={15} className={active ? "text-[#2E5DE0]" : "text-[#64748B]"} />
-                  <span>{tab.label}</span>
+                  <Icon size={15} className={`shrink-0 ${active ? "text-[#2E5DE0]" : "text-[#64748B]"}`} />
+                  <span className="truncate">{tab.label}</span>
                 </button>
               );
             })}
@@ -1152,59 +1204,119 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
           <div className="flex-1 min-w-0 bg-white border border-[#E2E8F0] rounded-[16px] p-6 lg:p-8 shadow-xs">
             {/* Tab 1: Admin Profile */}
             {activeTab === "profile" && (
-              <div className="max-w-[499px] space-y-6">
-                <div>
-                  <h2 className="text-[16px] font-bold text-[#0F172A]">Admin Account Details</h2>
-                  <p className="text-[12px] text-[#64748B] mt-1">
-                    Manage your administrator display name and email address.
-                  </p>
+              <div className="max-w-[560px] space-y-6">
+                <div className="flex items-center justify-between pb-2 border-b border-[#F1F5F9]">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Admin Account Details</h2>
+                    <p className="text-[12px] text-[#64748B] mt-0.5">
+                      Manage your administrator display identity, email address, and permissions.
+                    </p>
+                  </div>
+                  {!isEditingProfile && (
+                    <button
+                      onClick={startEditProfile}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold text-[#2563EB] hover:text-white bg-[#EFF6FF] hover:bg-[#2563EB] border border-[#BFDBFE] hover:border-[#2563EB] rounded-[8px] transition-all cursor-pointer shadow-xs"
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit Profile</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
-                      Display Name
-                    </label>
-                    <input
-                      value={adminName}
-                      onChange={(e) => setAdminName(e.target.value)}
-                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 outline-none transition-all"
-                      placeholder="Lead Proctor Admin"
-                    />
+                {/* Profile Visual Badge & Summary */}
+                <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[12px]">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white flex items-center justify-center text-sm font-bold shadow-xs shrink-0">
+                    {adminName
+                      .split(" ")
+                      .map((w) => w[0])
+                      .join("")
+                      .substring(0, 2)
+                      .toUpperCase() || "AD"}
                   </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
-                      Admin Email
-                    </label>
-                    <input
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 outline-none transition-all"
-                      placeholder="admin@proctora.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
-                      System Role
-                    </label>
-                    <input
-                      disabled
-                      value="ADMIN (Full Privileges & Governance)"
-                      className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[6px] text-[13px] text-[#64748B] bg-[#F8FAFC] cursor-not-allowed select-none"
-                    />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-bold text-[#0F172A] truncate">{adminName}</span>
+                      <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] rounded-full">
+                        VERIFIED ADMIN
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[#64748B] truncate mt-0.5">{adminEmail}</p>
                   </div>
                 </div>
 
-                <div className="pt-3">
-                  <button
-                    onClick={() => toast.success("Admin Profile details updated successfully")}
-                    className="px-6 h-[36px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full shadow-xs transition-all cursor-pointer"
-                  >
-                    Save Profile
-                  </button>
-                </div>
+                {/* Edit Mode Form vs View Mode */}
+                {isEditingProfile ? (
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                        Display Name
+                      </label>
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full h-[39px] px-3.5 border border-[#2563EB] ring-2 ring-[#2563EB]/10 rounded-[8px] text-[13px] text-[#0F172A] bg-white outline-none transition-all"
+                        placeholder="e.g. Lead Proctor Admin"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                        Admin Email
+                      </label>
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full h-[39px] px-3.5 border border-[#2563EB] ring-2 ring-[#2563EB]/10 rounded-[8px] text-[13px] text-[#0F172A] bg-white outline-none transition-all"
+                        placeholder="e.g. admin@proctora.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                        System Governance Role
+                      </label>
+                      <input
+                        disabled
+                        value="ADMIN (Full Privileges & Governance)"
+                        className="w-full h-[39px] px-3.5 border border-[#E2E8F0] rounded-[8px] text-[13px] text-[#64748B] bg-[#F8FAFC] cursor-not-allowed select-none"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-3">
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile}
+                        className="flex items-center gap-1.5 px-5 h-[36px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <Check size={14} strokeWidth={2.5} />
+                        <span>{savingProfile ? "Saving…" : "Save Changes"}</span>
+                      </button>
+                      <button
+                        onClick={cancelEditProfile}
+                        className="px-4 h-[36px] text-[12px] font-medium text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <div className="p-3.5 border border-[#E2E8F0] rounded-[8px] bg-white">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Display Name</div>
+                      <div className="text-[13px] font-semibold text-[#0F172A] mt-1">{adminName}</div>
+                    </div>
+                    <div className="p-3.5 border border-[#E2E8F0] rounded-[8px] bg-white">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Email Address</div>
+                      <div className="text-[13px] font-mono text-[#0F172A] mt-1">{adminEmail}</div>
+                    </div>
+                    <div className="p-3.5 border border-[#E2E8F0] rounded-[8px] bg-[#F8FAFC]">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">System Role &amp; Privileges</div>
+                      <div className="text-[13px] font-semibold text-[#2563EB] mt-1">ADMIN (Full Privileges &amp; Governance)</div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2000,7 +2112,14 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
                             faceThreshold: parseFloat(e.target.value),
                           }))
                         }
-                        className="w-full figma-slider"
+                        className="w-full figma-slider h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#2563EB]"
+                        style={{
+                          background: `linear-gradient(to right, #2563EB ${Math.round(
+                            (((proctoringThresholds.faceThreshold ?? 0.68) - 0.4) / (0.95 - 0.4)) * 100
+                          )}%, #E2E8F0 ${Math.round(
+                            (((proctoringThresholds.faceThreshold ?? 0.68) - 0.4) / (0.95 - 0.4)) * 100
+                          )}%)`,
+                        }}
                       />
                       <p className="text-[11px] text-[#64748B] mt-1">
                         Minimum cosine similarity required between webcam feed and ID card photo.
@@ -2028,7 +2147,14 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
                             nameThreshold: parseFloat(e.target.value),
                           }))
                         }
-                        className="w-full figma-slider"
+                        className="w-full figma-slider h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#2563EB]"
+                        style={{
+                          background: `linear-gradient(to right, #2563EB ${Math.round(
+                            (((proctoringThresholds.nameThreshold ?? 0.75) - 0.5) / (0.95 - 0.5)) * 100
+                          )}%, #E2E8F0 ${Math.round(
+                            (((proctoringThresholds.nameThreshold ?? 0.75) - 0.5) / (0.95 - 0.5)) * 100
+                          )}%)`,
+                        }}
                       />
                       <p className="text-[11px] text-[#64748B] mt-1">
                         Levenshtein ratio required when matching candidate ID document OCR name against registered profile name.
@@ -2486,14 +2612,8 @@ function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; c
                       <div>CALLBACK URL</div>
                       <div>STATUS</div>
                       <div>CREATED</div>
-                      <div className="flex flex-col items-center justify-center text-[8px] leading-[9px] font-bold text-[#64748B]">
-                        <span>A</span>
-                        <span>C</span>
-                        <span>T</span>
-                        <span>I</span>
-                        <span>O</span>
-                        <span>N</span>
-                        <span>S</span>
+                      <div className="text-center font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B]">
+                        ACTIONS
                       </div>
                     </div>
 

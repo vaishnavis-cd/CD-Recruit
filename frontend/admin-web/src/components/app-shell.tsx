@@ -124,10 +124,19 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
   }, [pathname]);
 
   useEffect(() => {
-    const user = getUserProfile();
-    if (user) {
-      const name = user.name || "Demo Admin";
-      const role = (user.role ? user.role : "ADMIN").toUpperCase();
+    const updateUserInfo = () => {
+      let customName = "";
+      try {
+        const saved = localStorage.getItem("proctora_admin_profile");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.name) customName = parsed.name;
+        }
+      } catch {}
+
+      const user = getUserProfile();
+      const name = customName || user?.name || "Lead Proctor Admin";
+      const role = (user?.role ? user.role : "ADMIN").toUpperCase();
       const inits = name
         .split(" ")
         .map((n) => n[0])
@@ -137,9 +146,17 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
       setUserInfo({
         userName: name,
         userRole: role,
-        initials: inits || "DA",
+        initials: inits || "AD",
       });
-    }
+    };
+
+    updateUserInfo();
+    window.addEventListener("storage", updateUserInfo);
+    window.addEventListener("admin_profile_updated", updateUserInfo);
+    return () => {
+      window.removeEventListener("storage", updateUserInfo);
+      window.removeEventListener("admin_profile_updated", updateUserInfo);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -307,7 +324,8 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
               </p>
               <Link
                 to="/drives"
-                className="block w-full text-center py-2 px-3 bg-white text-[#2f68ff] hover:bg-blue-50 font-bold text-[11px] rounded-full transition-all shadow-xs"
+                search={{ create: "true" } as any}
+                className="block w-full text-center py-2 px-3 bg-white text-[#2f68ff] hover:bg-blue-50 font-bold text-[11px] rounded-full transition-all shadow-xs cursor-pointer"
               >
                 Create Drive
               </Link>
