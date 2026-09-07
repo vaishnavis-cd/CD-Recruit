@@ -84,13 +84,16 @@ export function getRequiredQuestionCount(
   weight: number,
   totalDuration: number,
   seniority: string,
+  customTimeMatrix?: Record<string, Record<string, number>>,
+  customSeniorityRatios?: Record<string, { easy: number; medium: number; hard: number }>,
 ): number {
-  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
-  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const ratios = customSeniorityRatios?.[seniority] || SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const matrix = customTimeMatrix || TIME_MATRIX;
+  const times = matrix[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
   const avgTime =
-    ratios.easy * times.EASY +
-    ratios.medium * times.MEDIUM +
-    ratios.hard * times.HARD;
+    ratios.easy * (times.EASY ?? 5) +
+    ratios.medium * (times.MEDIUM ?? 5) +
+    ratios.hard * (times.HARD ?? 5);
   const timeBudget = totalDuration * (weight / 100);
 
   return Math.max(1, Math.round(timeBudget / (avgTime || 1)));
@@ -99,20 +102,23 @@ export function getRequiredQuestionCount(
 export function getEstimatedModuleDuration(
   moduleType: string,
   dist: { easy: number; medium: number; hard: number },
+  customTimeMatrix?: Record<string, Record<string, number>>,
 ): number {
-  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const matrix = customTimeMatrix || TIME_MATRIX;
+  const times = matrix[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
   return (
-    (dist.easy || 0) * times.EASY +
-    (dist.medium || 0) * times.MEDIUM +
-    (dist.hard || 0) * times.HARD
+    (dist.easy || 0) * (times.EASY ?? 5) +
+    (dist.medium || 0) * (times.MEDIUM ?? 5) +
+    (dist.hard || 0) * (times.HARD ?? 5)
   );
 }
 
 export function getDefaultDifficultyDistribution(
   requiredCount: number,
   seniority: string,
+  customSeniorityRatios?: Record<string, { easy: number; medium: number; hard: number }>,
 ): { easy: number; medium: number; hard: number } {
-  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const ratios = customSeniorityRatios?.[seniority] || SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
   let easy = Math.round(requiredCount * ratios.easy);
   let medium = Math.round(requiredCount * ratios.medium);
   let hard = requiredCount - easy - medium;

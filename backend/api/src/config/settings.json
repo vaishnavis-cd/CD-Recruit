@@ -6,6 +6,55 @@
   "heartbeatStaleThresholdSeconds": 60,
   "graceWindowSeconds": 400,
   "maxDisconnectCount": 5,
+  "timeMatrix": {
+    "MCQ": { "EASY": 1, "MEDIUM": 2, "HARD": 3 },
+    "SQL": { "EASY": 3, "MEDIUM": 6, "HARD": 12 },
+    "NOSQL": { "EASY": 3, "MEDIUM": 6, "HARD": 12 },
+    "CODING": { "EASY": 6, "MEDIUM": 12, "HARD": 22 },
+    "DEBUGGING": { "EASY": 5, "MEDIUM": 10, "HARD": 18 },
+    "AI_PROMPTING": { "EASY": 4, "MEDIUM": 7, "HARD": 12 },
+    "SIMULATION": { "EASY": 6, "MEDIUM": 12, "HARD": 22 },
+    "TEST_SCENARIOS": { "EASY": 3, "MEDIUM": 6, "HARD": 12 }
+  },
+  "seniorityRatios": {
+    "fresher": { "easy": 0.50, "medium": 0.40, "hard": 0.10 },
+    "l1": { "easy": 0.30, "medium": 0.50, "hard": 0.20 },
+    "l2": { "easy": 0.15, "medium": 0.50, "hard": 0.35 },
+    "l3": { "easy": 0.10, "medium": 0.45, "hard": 0.45 }
+  },
+  "proctoring": {
+    "faceThreshold": 0.68,
+    "nameThreshold": 0.75,
+    "lookingAwayThresholdMs": 800,
+    "voiceSensitivityThreshold": 40,
+    "voiceSustainedMs": 3500,
+    "cooldowns": {
+      "PHONE_DETECTED": 15000,
+      "HEADPHONES_DETECTED": 15000,
+      "BOOK_DETECTED": 15000,
+      "FACE_MISSING": 10000,
+      "LOOKING_AWAY": 10000,
+      "EXCESSIVE_MOVEMENT": 10000,
+      "MULTIPLE_FACES": 1000,
+      "SEAT_EXIT": 0,
+      "TAB_SWITCH": 5000,
+      "PASTE": 5000,
+      "FULLSCREEN_EXIT": 10000,
+      "SPEECH_DETECTED": 10000,
+      "SECOND_VOICE_SUSPECTED": 15000,
+      "IDENTITY_MISMATCH": 15000
+    }
+  },
+  "defaultModuleDurations": {
+    "CODING": 30,
+    "SQL": 20,
+    "DEBUGGING": 20,
+    "NOSQL": 20,
+    "SIMULATION": 10,
+    "MCQ": 15,
+    "AI_PROMPTING": 15,
+    "TEST_SCENARIOS": 15
+  },
   "rolePermissions": {
     "ADMIN": [
       "DRIVE_CREATE",

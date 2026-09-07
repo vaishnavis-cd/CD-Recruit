@@ -120,3 +120,40 @@ export class ResetStaffPasswordDto {
   @IsBoolean()
   temporary?: boolean;
 }
+
+export class UpdateTimeMatrixDto {
+  timeMatrix: Record<string, { EASY: number; MEDIUM: number; HARD: number }>;
+}
+
+export class UpdateSeniorityRatiosDto {
+  seniorityRatios: Record<string, { easy: number; medium: number; hard: number }>;
+}
+
+export class UpdateProctoringThresholdsDto {
+  @IsOptional()
+  @IsNumber()
+  faceThreshold?: number;
+
+  @IsOptional()
+  @IsNumber()
+  nameThreshold?: number;
+
+  @IsOptional()
+  @IsInt()
+  lookingAwayThresholdMs?: number;
+
+  @IsOptional()
+  @IsNumber()
+  voiceSensitivityThreshold?: number;
+
+  @IsOptional()
+  @IsInt()
+  voiceSustainedMs?: number;
+
+  @IsOptional()
+  cooldowns?: Record<string, number>;
+}
+
+export class UpdateDefaultModuleDurationsDto {
+  durations: Record<string, number>;
+}

@@ -137,6 +137,59 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 };
 
+export const DEFAULT_TIME_MATRIX: Record<string, { EASY: number; MEDIUM: number; HARD: number }> = {
+  MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
+  SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  DEBUGGING: { EASY: 5, MEDIUM: 10, HARD: 18 },
+  AI_PROMPTING: { EASY: 4, MEDIUM: 7, HARD: 12 },
+  SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 6, HARD: 12 },
+};
+
+export const DEFAULT_SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
+  fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
+  l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
+  l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
+  l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
+};
+
+export const DEFAULT_PROCTORING_THRESHOLDS = {
+  faceThreshold: 0.68,
+  nameThreshold: 0.75,
+  lookingAwayThresholdMs: 800,
+  voiceSensitivityThreshold: 40,
+  voiceSustainedMs: 3500,
+  cooldowns: {
+    PHONE_DETECTED: 15000,
+    HEADPHONES_DETECTED: 15000,
+    BOOK_DETECTED: 15000,
+    FACE_MISSING: 10000,
+    LOOKING_AWAY: 10000,
+    EXCESSIVE_MOVEMENT: 10000,
+    MULTIPLE_FACES: 1000,
+    SEAT_EXIT: 0,
+    TAB_SWITCH: 5000,
+    PASTE: 5000,
+    FULLSCREEN_EXIT: 10000,
+    SPEECH_DETECTED: 10000,
+    SECOND_VOICE_SUSPECTED: 15000,
+    IDENTITY_MISMATCH: 15000,
+  },
+};
+
+export const DEFAULT_MODULE_DURATIONS: Record<string, number> = {
+  CODING: 30,
+  SQL: 20,
+  DEBUGGING: 20,
+  NOSQL: 20,
+  SIMULATION: 10,
+  MCQ: 15,
+  AI_PROMPTING: 15,
+  TEST_SCENARIOS: 15,
+};
+
 import { KeycloakAdminService } from "../auth/keycloak-admin.service";
 
 @Injectable()
@@ -175,13 +228,17 @@ export class SettingsService implements OnModuleInit {
     }
     if (!fs.existsSync(this.configPath)) {
       const defaultConfig = {
-        aiConfidenceThreshold: 0.8,
-        passRateThreshold: 0.7,
-        biometricRetentionDays: 30,
-        appealWindowDays: 14,
+        aiConfidenceThreshold: 0.85,
+        passRateThreshold: 0.75,
+        biometricRetentionDays: 45,
+        appealWindowDays: 21,
         heartbeatStaleThresholdSeconds: 45,
         graceWindowSeconds: 300,
         maxDisconnectCount: 3,
+        timeMatrix: DEFAULT_TIME_MATRIX,
+        seniorityRatios: DEFAULT_SENIORITY_RATIOS,
+        proctoring: DEFAULT_PROCTORING_THRESHOLDS,
+        defaultModuleDurations: DEFAULT_MODULE_DURATIONS,
         rolePermissions: DEFAULT_ROLE_PERMISSIONS,
       };
       fs.writeFileSync(this.configPath, JSON.stringify(defaultConfig, null, 2), "utf8");
@@ -191,7 +248,7 @@ export class SettingsService implements OnModuleInit {
         const json = JSON.parse(data);
         let updated = false;
         if (json.appealWindowDays === undefined) {
-          json.appealWindowDays = 14;
+          json.appealWindowDays = 21;
           updated = true;
         }
         if (json.heartbeatStaleThresholdSeconds === undefined) {
@@ -204,6 +261,22 @@ export class SettingsService implements OnModuleInit {
         }
         if (json.maxDisconnectCount === undefined) {
           json.maxDisconnectCount = 3;
+          updated = true;
+        }
+        if (json.timeMatrix === undefined) {
+          json.timeMatrix = DEFAULT_TIME_MATRIX;
+          updated = true;
+        }
+        if (json.seniorityRatios === undefined) {
+          json.seniorityRatios = DEFAULT_SENIORITY_RATIOS;
+          updated = true;
+        }
+        if (json.proctoring === undefined) {
+          json.proctoring = DEFAULT_PROCTORING_THRESHOLDS;
+          updated = true;
+        }
+        if (json.defaultModuleDurations === undefined) {
+          json.defaultModuleDurations = DEFAULT_MODULE_DURATIONS;
           updated = true;
         }
         if (json.rolePermissions === undefined) {
@@ -897,5 +970,140 @@ export class SettingsService implements OnModuleInit {
       const permsForRole = DEFAULT_ROLE_PERMISSIONS[role] ?? [];
       return permsForRole.includes(permission as string);
     }
+  }
+
+  // ── Time Matrix Calibration ───────────────────────────────────────────────
+
+  async getTimeMatrixConfig(): Promise<Record<string, { EASY: number; MEDIUM: number; HARD: number }>> {
+    const config = this.readConfig();
+    return config.timeMatrix || DEFAULT_TIME_MATRIX;
+  }
+
+  async updateTimeMatrixConfig(
+    timeMatrix: Record<string, { EASY: number; MEDIUM: number; HARD: number }>,
+    actor: any,
+  ) {
+    const actorId = await this.resolveStaffId(actor);
+    const config = this.readConfig();
+    config.timeMatrix = { ...DEFAULT_TIME_MATRIX, ...timeMatrix };
+    this.writeConfig(config);
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "TIME_MATRIX_UPDATED",
+        entityType: "Config",
+        entityId: "timeMatrix",
+        metadata: { timeMatrix: config.timeMatrix },
+      },
+    });
+
+    return config.timeMatrix;
+  }
+
+  // ── Seniority Difficulty Distribution ─────────────────────────────────────
+
+  async getSeniorityRatiosConfig(): Promise<Record<string, { easy: number; medium: number; hard: number }>> {
+    const config = this.readConfig();
+    return config.seniorityRatios || DEFAULT_SENIORITY_RATIOS;
+  }
+
+  async updateSeniorityRatiosConfig(
+    seniorityRatios: Record<string, { easy: number; medium: number; hard: number }>,
+    actor: any,
+  ) {
+    const actorId = await this.resolveStaffId(actor);
+    const config = this.readConfig();
+    config.seniorityRatios = { ...DEFAULT_SENIORITY_RATIOS, ...seniorityRatios };
+    this.writeConfig(config);
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "SENIORITY_RATIOS_UPDATED",
+        entityType: "Config",
+        entityId: "seniorityRatios",
+        metadata: { seniorityRatios: config.seniorityRatios },
+      },
+    });
+
+    return config.seniorityRatios;
+  }
+
+  // ── Proctoring & Biometrics Thresholds ────────────────────────────────────
+
+  async getProctoringThresholds() {
+    const config = this.readConfig();
+    return {
+      faceThreshold: config.proctoring?.faceThreshold ?? DEFAULT_PROCTORING_THRESHOLDS.faceThreshold,
+      nameThreshold: config.proctoring?.nameThreshold ?? DEFAULT_PROCTORING_THRESHOLDS.nameThreshold,
+      lookingAwayThresholdMs: config.proctoring?.lookingAwayThresholdMs ?? DEFAULT_PROCTORING_THRESHOLDS.lookingAwayThresholdMs,
+      voiceSensitivityThreshold: config.proctoring?.voiceSensitivityThreshold ?? DEFAULT_PROCTORING_THRESHOLDS.voiceSensitivityThreshold,
+      voiceSustainedMs: config.proctoring?.voiceSustainedMs ?? DEFAULT_PROCTORING_THRESHOLDS.voiceSustainedMs,
+      cooldowns: config.proctoring?.cooldowns ?? DEFAULT_PROCTORING_THRESHOLDS.cooldowns,
+    };
+  }
+
+  async updateProctoringThresholds(
+    dto: Partial<typeof DEFAULT_PROCTORING_THRESHOLDS>,
+    actor: any,
+  ) {
+    const actorId = await this.resolveStaffId(actor);
+    const config = this.readConfig();
+    config.proctoring = {
+      ...(config.proctoring || DEFAULT_PROCTORING_THRESHOLDS),
+      ...dto,
+      cooldowns: {
+        ...(config.proctoring?.cooldowns || DEFAULT_PROCTORING_THRESHOLDS.cooldowns),
+        ...(dto.cooldowns || {}),
+      },
+    };
+    this.writeConfig(config);
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "PROCTORING_THRESHOLDS_UPDATED",
+        entityType: "Config",
+        entityId: "proctoring",
+        metadata: { proctoring: config.proctoring },
+      },
+    });
+
+    return config.proctoring;
+  }
+
+  async getPublicProctoringConfig() {
+    const thresholds = await this.getProctoringThresholds();
+    return {
+      lookingAwayThresholdMs: thresholds.lookingAwayThresholdMs,
+      cooldowns: thresholds.cooldowns,
+    };
+  }
+
+  // ── Default Module Durations ──────────────────────────────────────────────
+
+  async getDefaultModuleDurations(): Promise<Record<string, number>> {
+    const config = this.readConfig();
+    return config.defaultModuleDurations || DEFAULT_MODULE_DURATIONS;
+  }
+
+  async updateDefaultModuleDurations(durations: Record<string, number>, actor: any) {
+    const actorId = await this.resolveStaffId(actor);
+    const config = this.readConfig();
+    config.defaultModuleDurations = { ...DEFAULT_MODULE_DURATIONS, ...durations };
+    this.writeConfig(config);
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorId,
+        action: "DEFAULT_MODULE_DURATIONS_UPDATED",
+        entityType: "Config",
+        entityId: "defaultModuleDurations",
+        metadata: { durations: config.defaultModuleDurations },
+      },
+    });
+
+    return config.defaultModuleDurations;
   }
 }

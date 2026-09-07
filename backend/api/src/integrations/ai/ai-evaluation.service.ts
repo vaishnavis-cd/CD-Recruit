@@ -439,18 +439,11 @@ Respond strictly in JSON format:
   }
 
   private devFallbackEvaluation(rawText: string): AiEvaluationResult {
-    const length = (rawText || "").trim().length;
-    let score = 75;
-    if (length > 200) score = 88;
-    else if (length > 80) score = 78;
-    else if (length > 20) score = 65;
-    else score = 45;
-
     return {
-      score,
-      reasoning: "Rule-based dev fallback evaluation (length & structure check).",
-      feedback: "Candidate answer provided sufficient technical structure.",
-      providerUsed: "DEV_FALLBACK",
+      score: null,
+      reasoning: "Automated AI evaluation is offline (API keys unavailable or provider unreachable). Queued for reviewer grading.",
+      feedback: "Submission recorded successfully. A human evaluator will review your response.",
+      providerUsed: "UNAVAILABLE",
     };
   }
 }

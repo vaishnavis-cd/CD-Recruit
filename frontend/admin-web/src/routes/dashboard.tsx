@@ -258,8 +258,10 @@ function DashboardPage() {
           initials: initials || "CD",
           name: s.candidate?.name || s.candidateName || "Candidate",
           role: s.roleTemplate?.roleName || "Software Engineer",
-          score: s.compositeScore !== null && s.compositeScore !== undefined ? `${s.compositeScore}%` : "70%",
-          time: s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "18.07",
+          score: s.compositeScore !== null && s.compositeScore !== undefined
+            ? `${Math.round(s.compositeScore <= 1 ? s.compositeScore * 100 : Math.min(100, s.compositeScore))}%`
+            : "70%",
+          time: s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "18:07",
           bg: idx === 0 ? "bg-[#06b6d4]" : idx === 1 ? "bg-[#0284c7]" : "bg-[#0891b2]",
         };
       });
@@ -272,16 +274,16 @@ function DashboardPage() {
         name: "Jane Doe",
         role: "Software Engineering – Senior",
         score: "70%",
-        time: "18.07",
+        time: "18:07",
         bg: "bg-[#06b6d4]",
       },
       {
         id: "2",
-        initials: "R",
-        name: "ragul",
-        role: "SDE",
-        score: "4625%",
-        time: "13.20",
+        initials: "RA",
+        name: "Ragul Arumugam",
+        role: "Fullstack SDE",
+        score: "85%",
+        time: "13:20",
         bg: "bg-[#0284c7]",
       },
       {
@@ -289,8 +291,8 @@ function DashboardPage() {
         initials: "EW",
         name: "Emma Watson",
         role: "Software Developer",
-        score: "9200%",
-        time: "15.04",
+        score: "92%",
+        time: "15:04",
         bg: "bg-[#0891b2]",
       },
     ];

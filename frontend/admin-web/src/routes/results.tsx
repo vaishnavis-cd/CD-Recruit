@@ -22,7 +22,7 @@ import {
   Info,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE } from "../lib/store";
 import { formatTimestamp } from "../lib/utils";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
@@ -109,9 +109,8 @@ function ResultsPage() {
   }, [safeResultsList]);
 
   const handleExportCsv = () => {
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1";
     const driveParam = driveFilter !== "all" ? `?driveId=${encodeURIComponent(driveFilter)}` : "";
-    window.open(`${apiBase}/admin/reports/export/csv${driveParam}`, "_blank");
+    window.open(`${API_BASE}/admin/reports/export/csv${driveParam}`, "_blank");
   };
 
   const handleVerifyAll = async () => {

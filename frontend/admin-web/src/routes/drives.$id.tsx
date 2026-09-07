@@ -80,14 +80,14 @@ export const Route = createFileRoute("/drives/$id")({
   }),
 });
 
-const SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
+export const DEFAULT_SENIORITY_RATIOS: Record<string, { easy: number; medium: number; hard: number }> = {
   fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
   l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
   l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
   l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
 };
 
-export const TIME_MATRIX: Record<string, Record<string, number>> = {
+export const DEFAULT_TIME_MATRIX: Record<string, Record<string, number>> = {
   MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
   SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
   CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
@@ -98,18 +98,36 @@ export const TIME_MATRIX: Record<string, Record<string, number>> = {
   NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
 };
 
+export const SENIORITY_RATIOS = DEFAULT_SENIORITY_RATIOS;
+export const TIME_MATRIX = DEFAULT_TIME_MATRIX;
+
+let dynamicSeniorityRatios: Record<string, { easy: number; medium: number; hard: number }> | null = null;
+let dynamicTimeMatrix: Record<string, Record<string, number>> | null = null;
+
+export function setDynamicCalibrationConfig(
+  matrix?: Record<string, Record<string, number>> | null,
+  ratios?: Record<string, { easy: number; medium: number; hard: number }> | null
+) {
+  if (matrix) dynamicTimeMatrix = matrix;
+  if (ratios) dynamicSeniorityRatios = ratios;
+}
+
 export function getRequiredQuestionCount(
   moduleType: string,
   weight: number,
   totalDuration: number,
   seniority: string,
+  customRatios?: Record<string, { easy: number; medium: number; hard: number }>,
+  customMatrix?: Record<string, Record<string, number>>,
 ): number {
-  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
-  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const activeRatios = customRatios || dynamicSeniorityRatios || DEFAULT_SENIORITY_RATIOS;
+  const activeMatrix = customMatrix || dynamicTimeMatrix || DEFAULT_TIME_MATRIX;
+  const ratios = activeRatios[seniority] || activeRatios.fresher || DEFAULT_SENIORITY_RATIOS.fresher;
+  const times = activeMatrix[moduleType] || DEFAULT_TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
   const avgTime =
-    ratios.easy * times.EASY +
-    ratios.medium * times.MEDIUM +
-    ratios.hard * times.HARD;
+    ratios.easy * (times.EASY ?? 1) +
+    ratios.medium * (times.MEDIUM ?? 2) +
+    ratios.hard * (times.HARD ?? 3);
   const timeBudget = totalDuration * (weight / 100);
 
   return Math.max(1, Math.round(timeBudget / (avgTime || 1)));
@@ -118,8 +136,10 @@ export function getRequiredQuestionCount(
 export function getDefaultDifficultyDistribution(
   requiredCount: number,
   seniority: string,
+  customRatios?: Record<string, { easy: number; medium: number; hard: number }>,
 ): { easy: number; medium: number; hard: number } {
-  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const activeRatios = customRatios || dynamicSeniorityRatios || DEFAULT_SENIORITY_RATIOS;
+  const ratios = activeRatios[seniority] || activeRatios.fresher || DEFAULT_SENIORITY_RATIOS.fresher;
   let easy = Math.round(requiredCount * ratios.easy);
   let medium = Math.round(requiredCount * ratios.medium);
   let hard = requiredCount - easy - medium;
@@ -142,12 +162,14 @@ export function getDefaultDifficultyDistribution(
 export function getEstimatedModuleDuration(
   moduleType: string,
   dist: { easy: number; medium: number; hard: number },
+  customMatrix?: Record<string, Record<string, number>>,
 ): number {
-  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const activeMatrix = customMatrix || dynamicTimeMatrix || DEFAULT_TIME_MATRIX;
+  const times = activeMatrix[moduleType] || DEFAULT_TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
   return (
-    (dist.easy || 0) * times.EASY +
-    (dist.medium || 0) * times.MEDIUM +
-    (dist.hard || 0) * times.HARD
+    (dist.easy || 0) * (times.EASY ?? 1) +
+    (dist.medium || 0) * (times.MEDIUM ?? 2) +
+    (dist.hard || 0) * (times.HARD ?? 3)
   );
 }
 
@@ -568,6 +590,24 @@ function DriveDetailPage() {
 
   const loadData = async () => {
     try {
+      // Sync dynamic calibration matrix and difficulty ratios from Admin Settings
+      try {
+        const [tmRes, srRes] = await Promise.all([
+          fetch(`${API_BASE}/settings/time-matrix`).catch(() => null),
+          fetch(`${API_BASE}/settings/seniority-ratios`).catch(() => null),
+        ]);
+        if (tmRes && tmRes.ok) {
+          const tmData = await tmRes.json();
+          if (tmData) setDynamicCalibrationConfig(tmData, null);
+        }
+        if (srRes && srRes.ok) {
+          const srData = await srRes.json();
+          if (srData) setDynamicCalibrationConfig(null, srData);
+        }
+      } catch (err) {
+        console.warn("Using default calibration settings:", err);
+      }
+
       const data = await fetchDriveDetail(driveId);
       setDrive(data);
       setEditName(data.name);

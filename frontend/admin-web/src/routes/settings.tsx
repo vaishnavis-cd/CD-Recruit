@@ -213,8 +213,53 @@ function SettingsPage() {
   const [savingSystem, setSavingSystem] = useState(false);
 
   // Retention configuration state
-  const [retentionDays, setRetentionDays] = useState(30);
+  const [retentionDays, setRetentionDays] = useState(45);
   const [savingRetention, setSavingRetention] = useState(false);
+
+  // Calibration & Time Matrix state
+  const [timeMatrix, setTimeMatrix] = useState<Record<string, { EASY: number; MEDIUM: number; HARD: number }>>({
+    MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
+    SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+    NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+    CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
+    DEBUGGING: { EASY: 5, MEDIUM: 10, HARD: 18 },
+    AI_PROMPTING: { EASY: 4, MEDIUM: 7, HARD: 12 },
+    SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
+    TEST_SCENARIOS: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  });
+  const [seniorityRatios, setSeniorityRatios] = useState<Record<string, { easy: number; medium: number; hard: number }>>({
+    fresher: { easy: 0.50, medium: 0.40, hard: 0.10 },
+    l1: { easy: 0.30, medium: 0.50, hard: 0.20 },
+    l2: { easy: 0.15, medium: 0.50, hard: 0.35 },
+    l3: { easy: 0.10, medium: 0.45, hard: 0.45 },
+  });
+  const [savingCalibration, setSavingCalibration] = useState(false);
+
+  // Proctoring & Biometric Thresholds state
+  const [proctoringThresholds, setProctoringThresholds] = useState({
+    faceThreshold: 0.68,
+    nameThreshold: 0.75,
+    lookingAwayThresholdMs: 800,
+    voiceSensitivityThreshold: 40,
+    voiceSustainedMs: 3500,
+    cooldowns: {
+      PHONE_DETECTED: 15000,
+      HEADPHONES_DETECTED: 15000,
+      BOOK_DETECTED: 15000,
+      FACE_MISSING: 10000,
+      LOOKING_AWAY: 10000,
+      EXCESSIVE_MOVEMENT: 10000,
+      MULTIPLE_FACES: 1000,
+      SEAT_EXIT: 0,
+      TAB_SWITCH: 5000,
+      PASTE: 5000,
+      FULLSCREEN_EXIT: 10000,
+      SPEECH_DETECTED: 10000,
+      SECOND_VOICE_SUSPECTED: 15000,
+      IDENTITY_MISMATCH: 15000,
+    } as Record<string, number>,
+  });
+  const [savingProctoring, setSavingProctoring] = useState(false);
 
   // Audit log state
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -547,6 +592,82 @@ function SettingsPage() {
     }
   };
 
+  const loadCalibrationConfig = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const [matrixRes, ratiosRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/settings/time-matrix`, { headers }),
+        fetch(`${API_BASE}/admin/settings/seniority-ratios`, { headers }),
+      ]);
+      if (matrixRes.ok) {
+        const matrixData = await matrixRes.json();
+        if (matrixData) setTimeMatrix(matrixData);
+      }
+      if (ratiosRes.ok) {
+        const ratiosData = await ratiosRes.json();
+        if (ratiosData) setSeniorityRatios(ratiosData);
+      }
+    } catch (err) {
+      console.error("Failed to load calibration config:", err);
+    }
+  };
+
+  const handleSaveCalibration = async () => {
+    setSavingCalibration(true);
+    try {
+      const headers = await getAuthHeaders();
+      const [matrixRes, ratiosRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/settings/time-matrix`, {
+          method: "PATCH",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ timeMatrix }),
+        }),
+        fetch(`${API_BASE}/admin/settings/seniority-ratios`, {
+          method: "PATCH",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ seniorityRatios }),
+        }),
+      ]);
+      if (!matrixRes.ok || !ratiosRes.ok) throw new Error("Failed to save calibration settings");
+      toast.success("Time matrix and difficulty curves saved successfully.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save calibration settings");
+    } finally {
+      setSavingCalibration(false);
+    }
+  };
+
+  const loadProctoringThresholds = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/proctoring`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data) setProctoringThresholds(data);
+      }
+    } catch (err) {
+      console.error("Failed to load proctoring thresholds:", err);
+    }
+  };
+
+  const handleSaveProctoringThresholds = async () => {
+    setSavingProctoring(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/settings/proctoring`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(proctoringThresholds),
+      });
+      if (!res.ok) throw new Error("Failed to save proctoring thresholds");
+      toast.success("Proctoring & biometric thresholds saved successfully.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save proctoring thresholds");
+    } finally {
+      setSavingProctoring(false);
+    }
+  };
+
   const loadAuditLogs = async () => {
     setLoadingLogs(true);
     try {
@@ -773,6 +894,8 @@ function SettingsPage() {
     if (activeTab === "users") loadStaffList();
     if (activeTab === "permissions") loadPermissionsMatrix();
     if (activeTab === "modules") loadModuleSettings();
+    if (activeTab === "calibration") loadCalibrationConfig();
+    if (activeTab === "proctoring") loadProctoringThresholds();
     if (activeTab === "scoring") loadScoringConfig();
     if (activeTab === "system") loadSystemConfig();
     if (activeTab === "retention") loadRetentionConfig();
@@ -974,6 +1097,8 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
     { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
     { id: "permissions", label: "Roles & Permissions", icon: RolesPermissionsIcon },
     { id: "modules", label: "Assessment Modules", icon: AssessmentModulesIcon },
+    { id: "calibration", label: "Time & Difficulty", icon: Cpu },
+    { id: "proctoring", label: "Proctoring & Biometrics", icon: ShieldCheck },
     { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
     { id: "system", label: "System Timing", icon: SystemTimingIcon },
     { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
@@ -1414,408 +1539,11 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
               </div>
             )}
 
-            {/* Tab 3: Scoring & AI Intensity */}
-            {activeTab === "scoring" && (
-              <div className="max-w-[499px] space-y-6">
-                <div>
-                  <h2 className="text-[16px] font-bold text-[#0F172A]">
-                    AI Proctoring Intensity &amp; Scoring Controls
-                  </h2>
-                  <p className="text-[12px] text-[#64748B] mt-1">
-                    Configure real-time monitoring strictness and score threshold levels.
-                  </p>
-                </div>
-
-                <div className="space-y-5 pt-2">
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
-                      AI Proctoring Intensity Level
-                    </label>
-                    <select
-                      value={aiIntensity}
-                      onChange={(e) => setAiIntensity(e.target.value)}
-                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
-                    >
-                      <option value="HIGH">High (Strict — Flag multi-face &amp; tab switches quickly)</option>
-                      <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
-                      <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
-                      <option value="STRICT">Strict (Maximum Enforcement — Instant alert triggers)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
-                      AI Confidence Audit Level
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.05"
-                        value={aiThreshold}
-                        onChange={(e) => setAiThreshold(parseFloat(e.target.value))}
-                        className="flex-1 figma-slider"
-                        style={{
-                          background: `linear-gradient(to right, #2563EB ${aiThreshold * 100}%, #E2E8F0 ${aiThreshold * 100}%)`,
-                        }}
-                      />
-                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
-                        {Math.round(aiThreshold * 100)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
-                      Module Passing Score Threshold
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.05"
-                        value={passThreshold}
-                        onChange={(e) => setPassThreshold(parseFloat(e.target.value))}
-                        className="flex-1 figma-slider"
-                        style={{
-                          background: `linear-gradient(to right, #2563EB ${passThreshold * 100}%, #E2E8F0 ${passThreshold * 100}%)`,
-                        }}
-                      />
-                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
-                        {Math.round(passThreshold * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3">
-                  <button
-                    onClick={handleSaveScoring}
-                    disabled={savingScoring}
-                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
-                  >
-                    {savingScoring ? "Saving Scoring & AI Config…" : "Save Scoring & AI Config"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 4: System Timing & Session Parameters */}
-            {activeTab === "system" && (
-              <div className="max-w-[499px] space-y-6">
-                <div>
-                  <h2 className="text-[16px] font-bold text-[#0F172A]">
-                    System &amp; Session Integrity Parameters
-                  </h2>
-                  <p className="text-[12px] text-[#64748B] mt-1">
-                    Adjust session disconnect tolerances and heartbeat timeout thresholds.
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
-                      Heartbeat Stale Threshold (Seconds)
-                    </label>
-                    <input
-                      type="number"
-                      value={staleHeartbeat}
-                      onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
-                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
-                    />
-                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
-                      Time without heartbeat before session is marked connection degraded.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
-                      Reconnection Grace Window (Seconds)
-                    </label>
-                    <input
-                      type="number"
-                      value={graceWindow}
-                      onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
-                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
-                    />
-                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
-                      Allowed window for candidate to re-establish connection without termination.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
-                      Maximum Disconnect Count Allowance
-                    </label>
-                    <input
-                      type="number"
-                      value={maxDisconnects}
-                      onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
-                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
-                    />
-                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
-                      Max disconnects before requiring proctor manual review.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-3">
-                  <button
-                    onClick={handleSaveSystem}
-                    disabled={savingSystem}
-                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
-                  >
-                    {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 5: Retention */}
-            {activeTab === "retention" && (
-              <div className="max-w-[499px] space-y-6">
-                <div>
-                  <h2 className="text-[16px] font-bold text-[#0F172A]">
-                    Evidence &amp; Proctoring Retention Schedules
-                  </h2>
-                  <p className="text-[12px] text-[#64748B] mt-1">
-                    Define timelines for purging biometric clips and screenshots.
-                  </p>
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <label className="block text-[12px] font-semibold text-[#475569]">
-                    Purge files after
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={retentionDays}
-                      onChange={(e) => setRetentionDays(parseInt(e.target.value) || 1)}
-                      className="w-[99px] h-[39px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] font-bold text-center text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
-                    />
-                    <span className="text-[13px] font-medium text-[#64748B]">days</span>
-                  </div>
-                </div>
-
-                <div className="pt-4">
-                  <button
-                    onClick={handleSaveRetention}
-                    disabled={savingRetention}
-                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
-                  >
-                    {savingRetention ? "Saving Configurations…" : "Save Configurations"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 6: Audit Logs */}
-            {activeTab === "audit" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-[16px] font-bold text-[#0F172A]">System Audit Logs</h2>
-                    <p className="text-[12px] text-[#64748B] mt-1">
-                      Chronological record of all administrative operations.
-                    </p>
-                  </div>
-                  <div className="relative w-[259px]">
-                    <Search
-                      size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                    />
-                    <input
-                      value={logsQuery}
-                      onChange={(e) => setLogsQuery(e.target.value)}
-                      placeholder="Search logs..."
-                      className="w-full h-[31px] pl-9 pr-3 text-[12px] border border-[#E2E8F0] rounded-[7.5px] bg-white text-[#0F172A] outline-none focus:border-[#2563EB] shadow-xs"
-                    />
-                  </div>
-                </div>
-
-                {loadingLogs ? (
-                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                    Querying logs…
-                  </p>
-                ) : (
-                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
-                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <div>USER</div>
-                      <div>ACTION</div>
-                      <div>ENTITY</div>
-                      <div>METADATA CONTEXT</div>
-                      <div>TIMESTAMP</div>
-                    </div>
-
-                    <div className="divide-y divide-[#E2E8F0] max-h-[460px] overflow-y-auto">
-                      {auditLogs.map((log) => (
-                        <div
-                          key={log.id}
-                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
-                        >
-                          <div className="text-[13px] font-medium text-[#0F172A] truncate">
-                            {log.staff?.name || "Demo Admin"}
-                          </div>
-                          <div className="text-[12px] font-bold text-[#2563EB] font-mono truncate">
-                            {log.action}
-                          </div>
-                          <div className="text-[13px] text-[#0F172A] truncate">
-                            {log.entityType}
-                          </div>
-                          <div
-                            className="text-[12px] font-mono text-[#64748B] truncate"
-                            title={typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "")}
-                          >
-                            {typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "—")}
-                          </div>
-                          <div className="text-[12px] font-mono text-[#64748B] whitespace-nowrap">
-                            {log.occurredAt ? log.occurredAt.slice(0, 16).replace("T", " ") : "—"}
-                          </div>
-                        </div>
-                      ))}
-                      {auditLogs.length === 0 && (
-                        <div className="p-8 text-center text-xs text-[#8C9BA5]">
-                          No audit logs found matching search query.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tab 7: Integrations */}
-            {activeTab === "integrations" && (
-              <div className="space-y-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-[16px] font-bold text-[#0F172A]">Partner API Integrations</h2>
-                    <p className="text-[12px] text-[#64748B] mt-1">
-                      Manage external ATS partner API credentials, rate limits, and callback configurations.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowCreatePartnerModal(true)}
-                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
-                  >
-                    <Plus size={14} strokeWidth={2.5} />
-                    <span>Register Partner</span>
-                  </button>
-                </div>
-
-                {loadingPartners ? (
-                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
-                    Loading partner integration records…
-                  </p>
-                ) : partners.length === 0 ? (
-                  <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
-                    <Key className="w-8 h-8 text-[#94A3B8] mx-auto" />
-                    <p className="text-sm font-bold text-[#0F172A]">No Partner API Keys Configured</p>
-                    <p className="text-xs text-[#8C9BA5]">Register an external ATS partner to issue X-API-Key credentials.</p>
-                  </div>
-                ) : (
-                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
-                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B] items-center">
-                      <div>PARTNER NAME</div>
-                      <div>RATE LIMIT</div>
-                      <div>API HITS</div>
-                      <div>CALLBACK URL</div>
-                      <div>STATUS</div>
-                      <div>CREATED</div>
-                      <div className="flex flex-col items-center justify-center text-[8px] leading-[9px] font-bold text-[#64748B]">
-                        <span>A</span>
-                        <span>C</span>
-                        <span>T</span>
-                        <span>I</span>
-                        <span>O</span>
-                        <span>N</span>
-                        <span>S</span>
-                      </div>
-                    </div>
-
-                    <div className="divide-y divide-[#E2E8F0]">
-                      {partners.map((p) => (
-                        <div
-                          key={p.id}
-                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
-                        >
-                          <div>
-                            <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
-                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
-                          </div>
-                          <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
-                          <div className="text-[13px] font-bold text-[#2563EB]">
-                            {(p as any).apiHitCount ?? 0} hits
-                          </div>
-                          <div
-                            className="text-[13px] text-[#8C9BA5] italic truncate"
-                            title={p.callbackUrl || "None"}
-                          >
-                            {p.callbackUrl || "None"}
-                          </div>
-                          <div>
-                            <span
-                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
-                                p.isRevoked
-                                  ? "bg-[#FEF2F2] text-[#EF4444]"
-                                  : "bg-[#ECFDF5] text-[#059669]"
-                              }`}
-                            >
-                              {p.isRevoked ? "REVOKED" : "ACTIVE"}
-                            </span>
-                          </div>
-                          <div className="text-[13px] text-[#64748B]">
-                            {p.createdAt
-                              ? new Date(p.createdAt).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "2-digit",
-                                })
-                              : "—"}
-                          </div>
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => setConfirmRotatePartner(p)}
-                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
-                              title="Rotate API Key"
-                            >
-                              <RefreshCw size={12} />
-                            </button>
-                            <button
-                              onClick={() => setEditingPartner({ ...p })}
-                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
-                              title="Edit Partner Config"
-                            >
-                              <Edit3 size={12} />
-                            </button>
-                            {!p.isRevoked && (
-                              <button
-                                onClick={() => setConfirmRevokePartner(p)}
-                                className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer shadow-2xs"
-                                title="Revoke Partner Key"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tab: Assessment Modules */}
+            {/* Tab 4: Assessment Modules */}
             {activeTab === "modules" && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-[16px] font-bold text-[#0F172A]">Assessment Modules Selection Matrix</h2>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">Assessment Module Department Mapping</h2>
                   <p className="text-[12px] text-[#64748B] mt-1">
                     Configure global module availability per department. Enabling a module makes it selectable during drive and role template calibrations.
                   </p>
@@ -1964,6 +1692,867 @@ function IntegrationsIcon({ size = 16, className = "" }: { size?: number; classN
                         })}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 5: Time Matrix & Difficulty Curves (Calibration) */}
+            {activeTab === "calibration" && (
+              <div className="space-y-8">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">
+                      Question Time Matrix &amp; Seniority Curves
+                    </h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Configure baseline per-question completion minutes and difficulty distribution percentages across seniority bands.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveCalibration}
+                    disabled={savingCalibration || !isAdmin}
+                    className="flex items-center gap-1.5 px-5 h-[34px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
+                  >
+                    <Check size={14} strokeWidth={2.5} />
+                    <span>{savingCalibration ? "Saving Matrix…" : "Save Matrix & Curves"}</span>
+                  </button>
+                </div>
+
+                {/* Section 1: Question Time Matrix by Complexity */}
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-[14px] font-bold text-[#0F172A]">
+                      Question Duration Calibration (Minutes / Question)
+                    </h3>
+                    <p className="text-[11px] text-[#64748B]">
+                      Specifies expected completion minutes allocated per question for each difficulty tier.
+                    </p>
+                  </div>
+
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <table className="w-full border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                          <th className="px-5 py-3 text-left min-w-[200px]">Assessment Module</th>
+                          <th className="px-4 py-3 text-center w-[130px]">Easy (Mins)</th>
+                          <th className="px-4 py-3 text-center w-[130px]">Medium (Mins)</th>
+                          <th className="px-4 py-3 text-center w-[130px]">Hard (Mins)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#F1F5F9]">
+                        {[
+                          { key: "MCQ", label: "Multiple Choice Questions (MCQ)" },
+                          { key: "SQL", label: "SQL Query Execution" },
+                          { key: "NOSQL", label: "NoSQL Data Modeling" },
+                          { key: "CODING", label: "Algorithm & Coding Challenge" },
+                          { key: "DEBUGGING", label: "Code Debugging & Fixes" },
+                          { key: "AI_PROMPTING", label: "AI Prompt Engineering" },
+                          { key: "SIMULATION", label: "System Architecture Simulation" },
+                          { key: "TEST_SCENARIOS", label: "QA & Test Scenario Design" },
+                        ].map((mod) => {
+                          const matrix = timeMatrix[mod.key] || { EASY: 1, MEDIUM: 2, HARD: 3 };
+                          return (
+                            <tr key={mod.key} className="hover:bg-[#F8FAFC]/60 transition-colors">
+                              <td className="px-5 py-3.5 font-bold text-[#0F172A]">
+                                {mod.label}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={120}
+                                  value={matrix.EASY}
+                                  disabled={!isAdmin}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                    setTimeMatrix((prev) => ({
+                                      ...prev,
+                                      [mod.key]: { ...(prev[mod.key] || { EASY: 1, MEDIUM: 2, HARD: 3 }), EASY: val },
+                                    }));
+                                  }}
+                                  className="w-[80px] h-[32px] px-2 text-center text-xs font-semibold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white focus:border-[#2563EB] outline-none"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={120}
+                                  value={matrix.MEDIUM}
+                                  disabled={!isAdmin}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                    setTimeMatrix((prev) => ({
+                                      ...prev,
+                                      [mod.key]: { ...(prev[mod.key] || { EASY: 1, MEDIUM: 2, HARD: 3 }), MEDIUM: val },
+                                    }));
+                                  }}
+                                  className="w-[80px] h-[32px] px-2 text-center text-xs font-semibold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white focus:border-[#2563EB] outline-none"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={180}
+                                  value={matrix.HARD}
+                                  disabled={!isAdmin}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                    setTimeMatrix((prev) => ({
+                                      ...prev,
+                                      [mod.key]: { ...(prev[mod.key] || { EASY: 1, MEDIUM: 2, HARD: 3 }), HARD: val },
+                                    }));
+                                  }}
+                                  className="w-[80px] h-[32px] px-2 text-center text-xs font-semibold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white focus:border-[#2563EB] outline-none"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Section 2: Seniority Difficulty Curves */}
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-[14px] font-bold text-[#0F172A]">
+                      Seniority Difficulty Distribution Curves
+                    </h3>
+                    <p className="text-[11px] text-[#64748B]">
+                      Defines question difficulty proportions for candidate assessment dynamic question generation.
+                    </p>
+                  </div>
+
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <table className="w-full border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                          <th className="px-5 py-3 text-left min-w-[200px]">Seniority Level</th>
+                          <th className="px-4 py-3 text-center w-[120px]">Easy (%)</th>
+                          <th className="px-4 py-3 text-center w-[120px]">Medium (%)</th>
+                          <th className="px-4 py-3 text-center w-[120px]">Hard (%)</th>
+                          <th className="px-4 py-3 text-center w-[120px]">Total Ratio</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#F1F5F9]">
+                        {[
+                          { key: "fresher", label: "Fresher / Junior (0 - 1 Yrs)" },
+                          { key: "l1", label: "L1 / Mid-Level (1 - 3 Yrs)" },
+                          { key: "l2", label: "L2 / Senior Engineer (3 - 6 Yrs)" },
+                          { key: "l3", label: "L3 / Staff & Principal (6+ Yrs)" },
+                        ].map((tier) => {
+                          const ratio = seniorityRatios[tier.key] || { easy: 0.33, medium: 0.33, hard: 0.34 };
+                          const easyPct = Math.round((ratio.easy ?? 0) * 100);
+                          const medPct = Math.round((ratio.medium ?? 0) * 100);
+                          const hardPct = Math.round((ratio.hard ?? 0) * 100);
+                          const totalPct = easyPct + medPct + hardPct;
+                          const isValid = totalPct === 100;
+
+                          return (
+                            <tr key={tier.key} className="hover:bg-[#F8FAFC]/60 transition-colors">
+                              <td className="px-5 py-3.5 font-bold text-[#0F172A]">
+                                {tier.label}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={easyPct}
+                                  disabled={!isAdmin}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                    setSeniorityRatios((prev) => ({
+                                      ...prev,
+                                      [tier.key]: {
+                                        ...(prev[tier.key] || { easy: 0.3, medium: 0.5, hard: 0.2 }),
+                                        easy: val / 100,
+                                      },
+                                    }));
+                                  }}
+                                  className="w-[75px] h-[32px] px-2 text-center text-xs font-semibold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white focus:border-[#2563EB] outline-none"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={medPct}
+                                  disabled={!isAdmin}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                    setSeniorityRatios((prev) => ({
+                                      ...prev,
+                                      [tier.key]: {
+                                        ...(prev[tier.key] || { easy: 0.3, medium: 0.5, hard: 0.2 }),
+                                        medium: val / 100,
+                                      },
+                                    }));
+                                  }}
+                                  className="w-[75px] h-[32px] px-2 text-center text-xs font-semibold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white focus:border-[#2563EB] outline-none"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={hardPct}
+                                  disabled={!isAdmin}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                    setSeniorityRatios((prev) => ({
+                                      ...prev,
+                                      [tier.key]: {
+                                        ...(prev[tier.key] || { easy: 0.3, medium: 0.5, hard: 0.2 }),
+                                        hard: val / 100,
+                                      },
+                                    }));
+                                  }}
+                                  className="w-[75px] h-[32px] px-2 text-center text-xs font-semibold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white focus:border-[#2563EB] outline-none"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span
+                                  className={`px-2.5 py-1 rounded-[4px] text-[11px] font-mono font-bold ${
+                                    isValid
+                                      ? "bg-[#ECFDF5] text-[#059669]"
+                                      : "bg-[#FEF2F2] text-[#DC2626]"
+                                  }`}
+                                >
+                                  {totalPct}% {isValid ? "✓" : "≠100%"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 6: Proctoring & Biometric Thresholds */}
+            {activeTab === "proctoring" && (
+              <div className="space-y-8 max-w-[680px]">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">
+                      Proctoring &amp; Biometric Integrity Controls
+                    </h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Configure face verification confidence, look-away triggers, voice sensitivity, and telemetry event cooldowns.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveProctoringThresholds}
+                    disabled={savingProctoring || !isAdmin}
+                    className="flex items-center gap-1.5 px-5 h-[34px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
+                  >
+                    <Check size={14} strokeWidth={2.5} />
+                    <span>{savingProctoring ? "Saving…" : "Save Proctoring Config"}</span>
+                  </button>
+                </div>
+
+                {/* Section 1: Biometric & Identity Match */}
+                <div className="p-5 border border-[#E2E8F0] rounded-[12px] bg-white space-y-5">
+                  <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wider">
+                    Biometric &amp; ID Verification Sensitivity
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[12px] font-semibold text-[#475569]">
+                          Facial Similarity Match Threshold
+                        </label>
+                        <span className="text-xs font-bold font-mono text-[#2563EB]">
+                          {Math.round((proctoringThresholds.faceThreshold ?? 0.68) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.4"
+                        max="0.95"
+                        step="0.01"
+                        value={proctoringThresholds.faceThreshold ?? 0.68}
+                        onChange={(e) =>
+                          setProctoringThresholds((prev) => ({
+                            ...prev,
+                            faceThreshold: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full figma-slider"
+                      />
+                      <p className="text-[11px] text-[#64748B] mt-1">
+                        Minimum cosine similarity required between webcam feed and ID card photo.
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[12px] font-semibold text-[#475569]">
+                          ID Name Match Fuzzy Distance
+                        </label>
+                        <span className="text-xs font-bold font-mono text-[#2563EB]">
+                          {Math.round((proctoringThresholds.nameThreshold ?? 0.75) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="0.95"
+                        step="0.01"
+                        value={proctoringThresholds.nameThreshold ?? 0.75}
+                        onChange={(e) =>
+                          setProctoringThresholds((prev) => ({
+                            ...prev,
+                            nameThreshold: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full figma-slider"
+                      />
+                      <p className="text-[11px] text-[#64748B] mt-1">
+                        Levenshtein ratio required when matching candidate ID document OCR name against registered profile name.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Environmental Telemetry */}
+                <div className="p-5 border border-[#E2E8F0] rounded-[12px] bg-white space-y-4">
+                  <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wider">
+                    Environmental &amp; Gaze Telemetry Limits
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                        Looking Away Trigger (ms)
+                      </label>
+                      <input
+                        type="number"
+                        min={200}
+                        max={5000}
+                        step={100}
+                        value={proctoringThresholds.lookingAwayThresholdMs ?? 800}
+                        onChange={(e) =>
+                          setProctoringThresholds((prev) => ({
+                            ...prev,
+                            lookingAwayThresholdMs: parseInt(e.target.value) || 800,
+                          }))
+                        }
+                        className="w-full h-[38px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white outline-none focus:border-[#2563EB]"
+                      />
+                      <p className="text-[11px] text-[#64748B] mt-1">
+                        Gaze deviation duration before flagging looking away.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                        Voice Sensitivity Level (0 - 100)
+                      </label>
+                      <input
+                        type="number"
+                        min={10}
+                        max={90}
+                        value={proctoringThresholds.voiceSensitivityThreshold ?? 40}
+                        onChange={(e) =>
+                          setProctoringThresholds((prev) => ({
+                            ...prev,
+                            voiceSensitivityThreshold: parseInt(e.target.value) || 40,
+                          }))
+                        }
+                        className="w-full h-[38px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white outline-none focus:border-[#2563EB]"
+                      />
+                      <p className="text-[11px] text-[#64748B] mt-1">
+                        Audio decibel amplitude threshold for speech detection.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                        Sustained Voice Trigger (ms)
+                      </label>
+                      <input
+                        type="number"
+                        min={500}
+                        max={10000}
+                        step={250}
+                        value={proctoringThresholds.voiceSustainedMs ?? 3500}
+                        onChange={(e) =>
+                          setProctoringThresholds((prev) => ({
+                            ...prev,
+                            voiceSustainedMs: parseInt(e.target.value) || 3500,
+                          }))
+                        }
+                        className="w-full h-[38px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white outline-none focus:border-[#2563EB]"
+                      />
+                      <p className="text-[11px] text-[#64748B] mt-1">
+                        Continuous voice duration required to trigger sustained voice flag.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Event Cooldown Throttles */}
+                <div className="p-5 border border-[#E2E8F0] rounded-[12px] bg-white space-y-4">
+                  <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wider">
+                    Violation Event Cooldown Periods (ms)
+                  </h3>
+                  <p className="text-[11px] text-[#64748B]">
+                    Minimum interval between telemetry flag events of the same category to prevent log flooding.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {[
+                      { key: "PHONE_DETECTED", label: "Phone Detected" },
+                      { key: "HEADPHONES_DETECTED", label: "Headphones / Earbuds" },
+                      { key: "BOOK_DETECTED", label: "Book / Reference Material" },
+                      { key: "FACE_MISSING", label: "Face Missing" },
+                      { key: "LOOKING_AWAY", label: "Looking Away" },
+                      { key: "EXCESSIVE_MOVEMENT", label: "Excessive Movement" },
+                      { key: "MULTIPLE_FACES", label: "Multiple Faces" },
+                      { key: "TAB_SWITCH", label: "Tab Switch / Lost Focus" },
+                      { key: "PASTE", label: "Clipboard Paste" },
+                      { key: "FULLSCREEN_EXIT", label: "Fullscreen Exit" },
+                      { key: "SPEECH_DETECTED", label: "Speech Detected" },
+                      { key: "SECOND_VOICE_SUSPECTED", label: "Second Voice Suspected" },
+                      { key: "IDENTITY_MISMATCH", label: "Identity Mismatch" },
+                    ].map((item) => {
+                      const currentVal = proctoringThresholds.cooldowns?.[item.key] ?? 10000;
+                      return (
+                        <div key={item.key} className="flex items-center justify-between p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg">
+                          <span className="text-[12px] font-semibold text-[#334155]">{item.label}</span>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={0}
+                              max={60000}
+                              step={500}
+                              value={currentVal}
+                              disabled={!isAdmin}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setProctoringThresholds((prev) => ({
+                                  ...prev,
+                                  cooldowns: {
+                                    ...(prev.cooldowns || {}),
+                                    [item.key]: val,
+                                  },
+                                }));
+                              }}
+                              className="w-[75px] h-[30px] px-2 text-right text-xs font-mono font-bold text-[#0F172A] border border-[#CBD5E1] rounded-[6px] bg-white outline-none focus:border-[#2563EB]"
+                            />
+                            <span className="text-[11px] font-mono text-[#64748B]">ms</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 7: Scoring & AI Intensity */}
+            {activeTab === "scoring" && (
+              <div className="max-w-[499px] space-y-6">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
+                    AI Proctoring Intensity &amp; Scoring Controls
+                  </h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Configure real-time monitoring strictness and score threshold levels.
+                  </p>
+                </div>
+
+                <div className="space-y-5 pt-2">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      AI Proctoring Intensity Level
+                    </label>
+                    <select
+                      value={aiIntensity}
+                      onChange={(e) => setAiIntensity(e.target.value)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    >
+                      <option value="HIGH">High (Strict — Flag multi-face &amp; tab switches quickly)</option>
+                      <option value="MEDIUM">Medium (Balanced — Standard monitoring threshold)</option>
+                      <option value="LOW">Low (Permissive — Minimum flags for minor shifts)</option>
+                      <option value="STRICT">Strict (Maximum Enforcement — Instant alert triggers)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      AI Confidence Audit Level
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.05"
+                        value={aiThreshold}
+                        onChange={(e) => setAiThreshold(parseFloat(e.target.value))}
+                        className="flex-1 figma-slider"
+                        style={{
+                          background: `linear-gradient(to right, #2563EB ${aiThreshold * 100}%, #E2E8F0 ${aiThreshold * 100}%)`,
+                        }}
+                      />
+                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
+                        {Math.round(aiThreshold * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-2">
+                      Module Passing Score Threshold
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.05"
+                        value={passThreshold}
+                        onChange={(e) => setPassThreshold(parseFloat(e.target.value))}
+                        className="flex-1 figma-slider"
+                        style={{
+                          background: `linear-gradient(to right, #2563EB ${passThreshold * 100}%, #E2E8F0 ${passThreshold * 100}%)`,
+                        }}
+                      />
+                      <span className="font-bold text-xs text-[#0F172A] w-12 text-right">
+                        {Math.round(passThreshold * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3">
+                  <button
+                    onClick={handleSaveScoring}
+                    disabled={savingScoring}
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
+                  >
+                    {savingScoring ? "Saving Scoring & AI Config…" : "Save Scoring & AI Config"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 8: System Timing & Session Parameters */}
+            {activeTab === "system" && (
+              <div className="max-w-[499px] space-y-6">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
+                    System &amp; Session Integrity Parameters
+                  </h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Adjust session disconnect tolerances and heartbeat timeout thresholds.
+                  </p>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                      Heartbeat Stale Threshold (Seconds)
+                    </label>
+                    <input
+                      type="number"
+                      value={staleHeartbeat}
+                      onChange={(e) => setStaleHeartbeat(parseInt(e.target.value) || 30)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
+                      Time without heartbeat before session is marked connection degraded.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                      Reconnection Grace Window (Seconds)
+                    </label>
+                    <input
+                      type="number"
+                      value={graceWindow}
+                      onChange={(e) => setGraceWindow(parseInt(e.target.value) || 300)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
+                      Allowed window for candidate to re-establish connection without termination.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
+                      Maximum Disconnect Count Allowance
+                    </label>
+                    <input
+                      type="number"
+                      value={maxDisconnects}
+                      onChange={(e) => setMaxDisconnects(parseInt(e.target.value) || 3)}
+                      className="w-full h-[40px] px-3.5 border border-[#E2E8F0] rounded-[7.5px] text-[13px] text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <p className="text-[11px] text-[#64748B] mt-1.5 leading-normal">
+                      Max disconnects before requiring proctor manual review.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-3">
+                  <button
+                    onClick={handleSaveSystem}
+                    disabled={savingSystem}
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
+                  >
+                    {savingSystem ? "Saving System Parameters…" : "Save System Parameters"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 9: Retention */}
+            {activeTab === "retention" && (
+              <div className="max-w-[499px] space-y-6">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">
+                    Evidence &amp; Proctoring Retention Schedules
+                  </h2>
+                  <p className="text-[12px] text-[#64748B] mt-1">
+                    Define timelines for purging biometric clips and screenshots.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <label className="block text-[12px] font-semibold text-[#475569]">
+                    Purge files after
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={retentionDays}
+                      onChange={(e) => setRetentionDays(parseInt(e.target.value) || 1)}
+                      className="w-[99px] h-[39px] px-3 border border-[#E2E8F0] rounded-[7.5px] text-[13px] font-bold text-center text-[#0F172A] bg-white focus:border-[#2563EB] outline-none shadow-xs"
+                    />
+                    <span className="text-[13px] font-medium text-[#64748B]">days</span>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    onClick={handleSaveRetention}
+                    disabled={savingRetention}
+                    className="px-6 h-[37px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-blue-300 rounded-[8px] shadow-xs transition-all cursor-pointer"
+                  >
+                    {savingRetention ? "Saving Configurations…" : "Save Configurations"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 10: Audit Logs */}
+            {activeTab === "audit" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">System Audit Logs</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Chronological record of all administrative operations.
+                    </p>
+                  </div>
+                  <div className="relative w-[259px]">
+                    <Search
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                    />
+                    <input
+                      value={logsQuery}
+                      onChange={(e) => setLogsQuery(e.target.value)}
+                      placeholder="Search logs..."
+                      className="w-full h-[31px] pl-9 pr-3 text-[12px] border border-[#E2E8F0] rounded-[7.5px] bg-white text-[#0F172A] outline-none focus:border-[#2563EB] shadow-xs"
+                    />
+                  </div>
+                </div>
+
+                {loadingLogs ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Querying logs…
+                  </p>
+                ) : (
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <div className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B]">
+                      <div>USER</div>
+                      <div>ACTION</div>
+                      <div>ENTITY</div>
+                      <div>METADATA CONTEXT</div>
+                      <div>TIMESTAMP</div>
+                    </div>
+
+                    <div className="divide-y divide-[#E2E8F0] max-h-[460px] overflow-y-auto">
+                      {auditLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="grid grid-cols-[1.3fr_1.8fr_1fr_2.4fr_1.3fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
+                        >
+                          <div className="text-[13px] font-medium text-[#0F172A] truncate">
+                            {log.staff?.name || "Demo Admin"}
+                          </div>
+                          <div className="text-[12px] font-bold text-[#2563EB] font-mono truncate">
+                            {log.action}
+                          </div>
+                          <div className="text-[13px] text-[#0F172A] truncate">
+                            {log.entityType}
+                          </div>
+                          <div
+                            className="text-[12px] font-mono text-[#64748B] truncate"
+                            title={typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "")}
+                          >
+                            {typeof log.metadata === "object" ? JSON.stringify(log.metadata) : String(log.metadata || "—")}
+                          </div>
+                          <div className="text-[12px] font-mono text-[#64748B] whitespace-nowrap">
+                            {log.occurredAt ? log.occurredAt.slice(0, 16).replace("T", " ") : "—"}
+                          </div>
+                        </div>
+                      ))}
+                      {auditLogs.length === 0 && (
+                        <div className="p-8 text-center text-xs text-[#8C9BA5]">
+                          No audit logs found matching search query.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 11: Integrations */}
+            {activeTab === "integrations" && (
+              <div className="space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">Partner API Integrations</h2>
+                    <p className="text-[12px] text-[#64748B] mt-1">
+                      Manage external ATS partner API credentials, rate limits, and callback configurations.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowCreatePartnerModal(true)}
+                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                    <span>Register Partner</span>
+                  </button>
+                </div>
+
+                {loadingPartners ? (
+                  <p className="text-center font-mono text-xs text-ink-tertiary py-8">
+                    Loading partner integration records…
+                  </p>
+                ) : partners.length === 0 ? (
+                  <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
+                    <Key className="w-8 h-8 text-[#94A3B8] mx-auto" />
+                    <p className="text-sm font-bold text-[#0F172A]">No Partner API Keys Configured</p>
+                    <p className="text-xs text-[#8C9BA5]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                  </div>
+                ) : (
+                  <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
+                    <div className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-3.5 border-b border-[#E2E8F0] bg-[#F8FAFC] font-sans text-[11px] uppercase tracking-wider font-bold text-[#64748B] items-center">
+                      <div>PARTNER NAME</div>
+                      <div>RATE LIMIT</div>
+                      <div>API HITS</div>
+                      <div>CALLBACK URL</div>
+                      <div>STATUS</div>
+                      <div>CREATED</div>
+                      <div className="flex flex-col items-center justify-center text-[8px] leading-[9px] font-bold text-[#64748B]">
+                        <span>A</span>
+                        <span>C</span>
+                        <span>T</span>
+                        <span>I</span>
+                        <span>O</span>
+                        <span>N</span>
+                        <span>S</span>
+                      </div>
+                    </div>
+
+                    <div className="divide-y divide-[#E2E8F0]">
+                      {partners.map((p) => (
+                        <div
+                          key={p.id}
+                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
+                        >
+                          <div>
+                            <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
+                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
+                          </div>
+                          <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
+                          <div className="text-[13px] font-bold text-[#2563EB]">
+                            {(p as any).apiHitCount ?? 0} hits
+                          </div>
+                          <div
+                            className="text-[13px] text-[#8C9BA5] italic truncate"
+                            title={p.callbackUrl || "None"}
+                          >
+                            {p.callbackUrl || "None"}
+                          </div>
+                          <div>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
+                                p.isRevoked
+                                  ? "bg-[#FEF2F2] text-[#EF4444]"
+                                  : "bg-[#ECFDF5] text-[#059669]"
+                              }`}
+                            >
+                              {p.isRevoked ? "REVOKED" : "ACTIVE"}
+                            </span>
+                          </div>
+                          <div className="text-[13px] text-[#64748B]">
+                            {p.createdAt
+                              ? new Date(p.createdAt).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "2-digit",
+                                })
+                              : "—"}
+                          </div>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => setConfirmRotatePartner(p)}
+                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
+                              title="Rotate API Key"
+                            >
+                              <RefreshCw size={12} />
+                            </button>
+                            <button
+                              onClick={() => setEditingPartner({ ...p })}
+                              className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
+                              title="Edit Partner Config"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            {!p.isRevoked && (
+                              <button
+                                onClick={() => setConfirmRevokePartner(p)}
+                                className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer shadow-2xs"
+                                title="Revoke Partner Key"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
