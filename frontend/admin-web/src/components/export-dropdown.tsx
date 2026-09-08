@@ -1141,6 +1141,7 @@ export function ExportDropdown({
     const pendingAudits = dashboardPayload?.actionQueue?.pendingReviewsCount ?? data.filter((s: any) => s.status === "ai_scored" || s.status === "submitted" || s.status === "review" || s.status === "pending").length;
     const expiringSoon = dashboardPayload?.actionQueue?.expiringInvitesCount ?? 0;
     const closingDrives = dashboardPayload?.actionQueue?.closingDrivesCount ?? 0;
+    const reportSubtitle = subtitle || "Actionable list of all assessment sessions requiring evaluation & executive overview";
 
     const htmlContent = `
       <!DOCTYPE html>
