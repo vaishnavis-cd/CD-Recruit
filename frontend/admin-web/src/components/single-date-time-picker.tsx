@@ -596,22 +596,6 @@ export function SingleDateTimePicker({
                   />
                 </div>
 
-<<<<<<< HEAD
-                <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-3.5 flex items-center justify-between relative cursor-pointer hover:border-[#2E5DE0] transition-colors">
-                  <span className="text-[13px] font-bold text-[#1E1B4B] select-none">
-                    {startAmPm}
-                  </span>
-                  <ChevronDown size={14} className="text-[#6B7280] pointer-events-none" />
-                  <select
-                    value={startAmPm}
-                    onChange={(e) => handleStartAmPmChange(e.target.value)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-=======
                 {/* AM/PM Dropdown Box (100 x 37) */}
                 <CustomDropdown
                   value={startAmPm}
@@ -636,95 +620,10 @@ export function SingleDateTimePicker({
                     { value: "PM", label: "PM" },
                   ]}
                 />
->>>>>>> vaish-ui
               </div>
             </div>
 
             <div className="space-y-1.5">
-<<<<<<< HEAD
-              <div className="flex items-center justify-between">
-                <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
-                {isFixedDuration && (
-                  <span className="text-[10px] font-bold text-[#2E5DE0] bg-[#EEF2FF] px-2 py-0.5 rounded-full uppercase tracking-wide">
-                    Fixed 90 Mins
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {isFixedDuration ? (
-                  <>
-                    <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-[#F8FAFC] px-[16px] py-[10px] flex items-center justify-center font-mono font-bold text-[14px] text-[#4B5563] select-none shadow-2xs">
-                      <span>{endHour}:{endMinute}</span>
-                    </div>
-
-                    <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-[#F8FAFC] px-3.5 flex items-center justify-center font-bold text-[13px] text-[#4B5563] select-none shadow-2xs">
-                      <span>{endAmPm}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-[16px] py-[10px] flex items-center justify-center focus-within:border-[#2E5DE0] transition-colors">
-                      <TimeInputGroup
-                        hourValue={endHour}
-                        minuteValue={endMinute}
-                        onChangeHour={(h) =>
-                          onChange({
-                            date: selectedDate,
-                            startHour,
-                            startMinute,
-                            startSecond: "00",
-                            startAmPm,
-                            endHour: h,
-                            endMinute,
-                            endSecond: "00",
-                            endAmPm,
-                          })
-                        }
-                        onChangeMinute={(m) =>
-                          onChange({
-                            date: selectedDate,
-                            startHour,
-                            startMinute,
-                            startSecond: "00",
-                            startAmPm,
-                            endHour,
-                            endMinute: m,
-                            endSecond: "00",
-                            endAmPm,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-3.5 flex items-center justify-between relative cursor-pointer hover:border-[#2E5DE0] transition-colors">
-                      <span className="text-[13px] font-bold text-[#1E1B4B] select-none">
-                        {endAmPm}
-                      </span>
-                      <ChevronDown size={14} className="text-[#6B7280] pointer-events-none" />
-                      <select
-                        value={endAmPm}
-                        onChange={(e) =>
-                          onChange({
-                            date: selectedDate,
-                            startHour,
-                            startMinute,
-                            startSecond: "00",
-                            startAmPm,
-                            endHour,
-                            endMinute,
-                            endSecond: "00",
-                            endAmPm: e.target.value,
-                          })
-                        }
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      >
-                        <option value="AM">AM</option>
-                        <option value="PM">PM</option>
-                      </select>
-                    </div>
-                  </>
-                )}
-=======
               <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
               <div className="flex items-center gap-2">
                 {/* Time Value Box (153.75 x 37) */}
@@ -785,7 +684,6 @@ export function SingleDateTimePicker({
                     { value: "PM", label: "PM" },
                   ]}
                 />
->>>>>>> vaish-ui
               </div>
             </div>
           </div>
