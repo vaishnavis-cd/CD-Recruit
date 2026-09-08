@@ -178,7 +178,7 @@ export class AdminService {
         moduleScores,
         humanReviewRequired,
         integrityFlagsCount: flagCount,
-        integrityFlags: session.integrityFlags || [],
+        integrityFlags: (session as any).integrityFlags || [],
         proctoringEvents: (session as any).proctoringEvents || [],
         identityVerificationResult: (session as any).identityVerificationResult ?? null,
         reviewerDecision: session.reviewerDecision
