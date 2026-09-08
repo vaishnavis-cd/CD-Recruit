@@ -25,6 +25,7 @@ import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveStatus } from "../lib/types";
 import { formatDriveName } from "../lib/utils";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/drives")({
   component: DrivesPage,
@@ -894,25 +895,7 @@ function DrivesPage() {
               opacity: 1,
             }}
           >
-            {/* SOURCE: Label (49x10) */}
-            <span
-              className="w-[49px] h-[10px] uppercase shrink-0 opacity-100 rotate-0 inline-flex items-center whitespace-nowrap"
-              style={{
-                width: "49px",
-                height: "10px",
-                fontFamily: "Instrument Sans, sans-serif",
-                fontWeight: 700,
-                fontSize: "11px",
-                lineHeight: "100%",
-                letterSpacing: "0.08em",
-                color: "#9CA3AF",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              SOURCE:
-            </span>
+            
 
             {/* All Sources Custom Dropdown (160x32) */}
             <div
@@ -1124,10 +1107,10 @@ function DrivesPage() {
                               lineHeight: "100%",
                               letterSpacing: "0%",
                               color: isPartner ? "#8B5CF6" : "#6B7280",
-                              textTransform: "uppercase",
+                              textTransform: "",
                             }}
                           >
-                            {isPartner ? "PARTNER API" : "DIRECT"}
+                            {isPartner ? "PARTNER" : "DIRECT"}
                           </span>
                         </div>
 
@@ -1169,7 +1152,7 @@ function DrivesPage() {
                                   : d.status === "CLOSED"
                                   ? "#D97706"
                                   : "#6B7280",
-                              textTransform: "uppercase",
+                              textTransform: "",
                             }}
                           >
                             {d.status}
@@ -1323,7 +1306,7 @@ function DrivesPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 overflow-y-auto">
+            <div className="p-6 space-y-4 overflow-visible">
               {/* Creation Mode Toggle */}
               <div className="flex bg-canvas p-1 rounded-lg border border-line">
                 <button
@@ -1358,33 +1341,39 @@ function DrivesPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Department</label>
-                      <select
+                      <CustomDropdown
                         value={templateDeptFilter}
-                        onChange={(e) => setTemplateDeptFilter(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink"
-                      >
-                        <option value="all">All Departments</option>
-                        <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
-                        <option value="DATA_ENGINEERING">Data Engineering</option>
-                        <option value="QA">Quality Assurance</option>
-                        <option value="SRE">Site Reliability Engineering</option>
-                        <option value="SYSOPS">System Operations</option>
-                        <option value="ITOPS">IT Operations</option>
-                        <option value="PMO">Project Management</option>
-                        <option value="SECOPS">Security Operations</option>
-                      </select>
+                        onChange={setTemplateDeptFilter}
+                        rounded="16px"
+                        size="sm"
+                        className="w-full"
+                        options={[
+                          { value: "all", label: "All Departments" },
+                          { value: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
+                          { value: "DATA_ENGINEERING", label: "Data Engineering" },
+                          { value: "QA", label: "Quality Assurance" },
+                          { value: "SRE", label: "Site Reliability Engineering" },
+                          { value: "SYSOPS", label: "System Operations" },
+                          { value: "ITOPS", label: "IT Operations" },
+                          { value: "PMO", label: "Project Management" },
+                          { value: "SECOPS", label: "Security Operations" },
+                        ]}
+                      />
                     </div>
                     <div>
                       <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Category</label>
-                      <select
+                      <CustomDropdown
                         value={templateCategoryFilter}
-                        onChange={(e) => setTemplateCategoryFilter(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink"
-                      >
-                        <option value="all">All Categories</option>
-                        <option value="FRESHER">Fresher (0-1 yrs)</option>
-                        <option value="EXPERIENCED">Experienced (2+ yrs)</option>
-                      </select>
+                        onChange={setTemplateCategoryFilter}
+                        rounded="16px"
+                        size="sm"
+                        className="w-full"
+                        options={[
+                          { value: "all", label: "All Categories" },
+                          { value: "FRESHER", label: "Fresher (0-1 yrs)" },
+                          { value: "EXPERIENCED", label: "Experienced (2+ yrs)" },
+                        ]}
+                      />
                     </div>
                   </div>
 
@@ -1392,27 +1381,27 @@ function DrivesPage() {
                     <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
                       Select Role Template <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedTemplateId}
-                      onChange={(e) => {
-                        const tpl = (roleTemplates || []).find((r) => r.id === e.target.value);
+                      onChange={(val) => {
+                        const tpl = (roleTemplates || []).find((r) => r.id === val);
                         if (tpl) handleSelectTemplate(tpl);
                         else setSelectedTemplateId("");
                       }}
-                      className="w-full px-3 py-2 text-sm-minus border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
-                    >
-                      <option value="">-- Choose a Role Template --</option>
-                      {filteredTemplates.map((tpl) => {
+                      placeholder="-- Choose a Role Template --"
+                      rounded="16px"
+                      size="md"
+                      className="w-full"
+                      options={filteredTemplates.map((tpl) => {
                         const tier = (tpl as any).experienceTier || (((tpl as any).category || "FRESHER") === "FRESHER" ? "0-1" : "2-5");
                         const tierDisplay = tier === "0-1" ? "Fresher (0–1 yrs)" : tier === "11-15" ? "Level 3 (11+ yrs)" : tier === "6-10" ? "Level 2 (6–10 yrs)" : "Level 1 (2–5 yrs)";
                         const cleanRole = (tpl.roleName || "").replace(/\s*[-–]\s*(Fresher|Level\s*\d).*$/i, "").trim() || tpl.roleName;
-                        return (
-                          <option key={tpl.id} value={tpl.id}>
-                            {cleanRole} • {tierDisplay} (v{tpl.version || 1})
-                          </option>
-                        );
+                        return {
+                          value: tpl.id,
+                          label: `${cleanRole} • ${tierDisplay} (v${tpl.version || 1})`,
+                        };
                       })}
-                    </select>
+                    />
                   </div>
 
                   {selectedTemplateObj && (
@@ -1423,7 +1412,7 @@ function DrivesPage() {
                           <span className="px-2 py-0.5 bg-brand/10 text-brand font-mono font-bold rounded text-2xs">
                             {Math.max(90, selectedTemplateObj.durationMinutes || 90)} mins
                           </span>
-                          <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs uppercase font-mono font-bold">
+                          <span className="px-2 py-0.5 bg-brand text-white rounded text-2xs  font-mono font-bold">
                             {(selectedTemplateObj as any).experienceTier || "0-1"} yrs
                           </span>
                         </div>
@@ -1590,13 +1579,13 @@ function DrivesPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteDrive(null)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-2xl hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteDrive}
-                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded-3xl"
               >
                 Delete Drive
               </button>

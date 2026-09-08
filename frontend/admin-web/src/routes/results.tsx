@@ -23,9 +23,10 @@ import {
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE } from "../lib/store";
-import { formatTimestamp } from "../lib/utils";
+import { formatTimestamp, formatDriveName } from "../lib/utils";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
@@ -241,8 +242,8 @@ function ResultsPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(
               [
                 { id: "all", label: `All Results (${stats.total})` },
@@ -265,31 +266,35 @@ function ResultsPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
             {/* Search Input */}
-            <div className="relative w-[240px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <div className="relative w-[220px]">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search candidate..."
-                className="w-full h-[35px] pl-9 pr-3 text-[12px] border border-[#E2E8F0] rounded-[8px] bg-white text-[#0F172A] outline-none focus:border-[#2563EB] shadow-xs"
+                className="w-full h-[34px] pl-9 pr-3 text-[12px] border border-[#D5DAEC] rounded-[16px] bg-white text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#2E5DE0] focus:ring-2 focus:ring-[#2E5DE0]/10 shadow-xs"
               />
             </div>
 
             {/* Filter by Drive */}
-            <select
+            <CustomDropdown
               value={driveFilter}
-              onChange={(e) => setDriveFilter(e.target.value)}
-              className="h-[35px] px-3 text-[12px] border border-[#E2E8F0] rounded-[8px] bg-white text-[#0F172A] focus:border-[#2563EB] outline-none shadow-xs cursor-pointer"
-            >
-              <option value="all">All Drives</option>
-              {drives.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              onChange={setDriveFilter}
+              rounded="16px"
+              size="md"
+              align="right"
+              className="min-w-[160px]"
+              buttonClassName="h-[34px] text-xs font-normal text-slate-700 border-[#D5DAEC]"
+              options={[
+                { value: "all", label: "All Drives" },
+                ...drives.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                })),
+              ]}
+            />
           </div>
         </div>
 
@@ -373,9 +378,15 @@ function ResultsPage() {
                       </td>
 
                       {/* Drive & Track */}
+<<<<<<< HEAD
                       <td className="py-2.5 px-3">
                         <div className="text-ink font-medium truncate max-w-[150px] text-[12px]">
                           {item.driveName || "General Drive"}
+=======
+                      <td className="py-3 px-4">
+                        <div className="text-ink font-medium truncate max-w-[180px]">
+                          {formatDriveName(item.driveName) || "General Drive"}
+>>>>>>> 261a72ca1a635bf187cd2a7035d29610e0f85dd3
                         </div>
                         <div className="text-[11px] text-ink-secondary truncate max-w-[150px]">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>

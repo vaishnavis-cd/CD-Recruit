@@ -18,9 +18,11 @@ import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 import { useStore } from "../lib/store";
 import { getUserProfile } from "../lib/auth";
 import { type RoleTemplate } from "../lib/types";
+import { formatDriveName } from "../lib/utils";
 
 function buildDashboardStats(sessions: any[] = [], drives: any[] = [], backendStats?: any) {
   const safeDrives = Array.isArray(drives) ? drives : [];
@@ -483,7 +485,20 @@ function DashboardPage() {
           <div className="flex items-center gap-3">
             
             {/* Date Range Dropdown */}
-            <DateRangeDropdown value={dateRange} onChange={setDateRange} />
+            <CustomDropdown
+              value={dateRange}
+              onChange={setDateRange}
+              rounded="16px"
+              size="md"
+              align="right"
+              className="min-w-[130px]"
+              buttonClassName="h-[36px] text-xs font-semibold text-[#0d1424] border-[#e8ecf4] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+              options={[
+                { value: "7", label: "Last 7 Days" },
+                { value: "30", label: "Last 30 Days" },
+                { value: "all", label: "All Time" },
+              ]}
+            />
 
             {/* Export Dropdown */}
             <ExportDropdown
@@ -503,8 +518,8 @@ function DashboardPage() {
             <div className="bg-white rounded-2xl p-5 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[130px] relative">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">
-                    TOTAL CANDIDATES
+                  <div className="text-[12px] font-bold tracking-wider text-[#94a3b8]">
+                    Total Candidates
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-2xl font-extrabold text-[#0d1424]">{totalCandidates}</span>
@@ -531,8 +546,8 @@ function DashboardPage() {
             <div className="bg-white rounded-2xl p-5 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[130px] relative">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">
-                    ACTIVE PIPELINE
+                  <div className="text-[12px] font-bold tracking-wider text-[#94a3b8]">
+                    Active Pipeline
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-2xl font-extrabold text-[#0d1424]">{activePipeline}</span>
@@ -556,8 +571,8 @@ function DashboardPage() {
             <div className="bg-white rounded-2xl p-5 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[130px] relative">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">
-                    PASS RATE
+                  <div className="text-[12px] font-bold tracking-wider text-[#94a3b8]">
+                    Pass Rate
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-2xl font-extrabold text-[#0d1424]">{passRate}</span>
@@ -581,8 +596,8 @@ function DashboardPage() {
             <div className="bg-white rounded-2xl p-5 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[130px] relative">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">
-                    CRITICAL RISK
+                  <div className="text-[12px] font-bold tracking-wider text-[#94a3b8]">
+                    Critical Risk
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-2xl font-extrabold text-[#0d1424]">{flagRate}</span>
@@ -720,8 +735,8 @@ function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left: Pipeline Funnel */}
           <div className="lg:col-span-8 bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-4 font-mono">
-              PIPELINE FUNNEL
+            <div className="text-[12px] font-bold tracking-wider text-[#94a3b8] mb-4 font-mono">
+              Pipeline Funnel
             </div>
 
             <div className="space-y-3.5">
@@ -780,17 +795,10 @@ function DashboardPage() {
               {/* Header */}
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xs font-bold text-[#0d1424]">Live Session Stream</h3>
+                  
+                  <h3 className="text-[12px] font-bold tracking-wider text-[#94a3b8] font-mono">Live Session Stream</h3>
                 </div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ecfdf3] text-[#12b76a] text-[10px] font-bold border border-[#a6f4c5]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#12b76a] animate-pulse" />
-                  Live
-                </div>
+                
               </div>
               <p className="text-[11px] text-[#94a3b8] mb-4">Real-time candidate activities</p>
 
@@ -851,7 +859,7 @@ function DashboardPage() {
               <div className="flex items-center gap-1.5">
                 {[
                   { id: "all", label: "All" },
-                  { id: "pending", label: "Needs Audit" },
+                  { id: "pending", label: "Pending" },
                   { id: "reviewed", label: "Reviewed" },
                   { id: "decided", label: "Decided" },
                 ].map((t) => (
@@ -874,14 +882,14 @@ function DashboardPage() {
           {/* Roster Table */}
           <div className="overflow-x-auto border border-[#f1f5f9] rounded-2xl bg-white shadow-2xs">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#f8fafc] text-[#94a3b8] font-bold text-[10px] uppercase tracking-wider border-b border-[#f1f5f9]">
+              <thead className="bg-[#f8fafc] text-[#94a3b8] font-bold text-[12px] tracking-wider border-b border-[#f1f5f9]">
                 <tr>
                   <th className="py-3 px-5">Candidate</th>
                   <th className="py-3 px-4">Role / Drive</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Composite Score</th>
-                  <th className="py-3 px-4">Say-Do Sync</th>
-                  <th className="py-3 px-4">Risk Flags</th>
+                  <th className="py-3 px-4">Say-Do</th>
+                  <th className="py-3 px-4">Flags</th>
                   <th className="py-3 px-5 text-right">Action</th>
                 </tr>
               </thead>
@@ -924,7 +932,7 @@ function DashboardPage() {
                         </td>
                         <td className="py-3.5 px-4 text-[#64748b]">
                           <div className="font-semibold text-[#0d1424]">{s.roleTemplate?.roleName || s.roleName || "Software Engineer"}</div>
-                          <div className="text-[11px] text-[#94a3b8]">{s.driveName || "Drive Session"}</div>
+                          <div className="text-[11px] text-[#94a3b8]">{formatDriveName(s.driveName) || "Drive Session"}</div>
                         </td>
                         <td className="py-3.5 px-4">
                           {isDecided ? (
@@ -933,7 +941,7 @@ function DashboardPage() {
                             </span>
                           ) : isNeedsAudit ? (
                             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#fef9c3] text-[#ca8a04] border border-[#fef08a] inline-block">
-                              Needs Audit
+                              Pending
                             </span>
                           ) : (
                             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#eff6ff] text-[#2563eb] border border-[#dbeafe] inline-block">
@@ -1129,16 +1137,20 @@ function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
       <SectionTitle
         noMargin
         action={
-          <select
+          <CustomDropdown
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="text-xs-plus font-medium border border-line rounded-md px-2 py-1 bg-canvas text-ink-secondary"
-          >
-            <option value="all">All Roles</option>
-            {roleTemplates.map((rt) => (
-              <option key={rt.id} value={rt.id}>{rt.roleName}</option>
-            ))}
-          </select>
+            onChange={setRoleFilter}
+            rounded="16px"
+            size="sm"
+            className="min-w-[140px]"
+            options={[
+              { value: "all", label: "All Roles" },
+              ...roleTemplates.map((rt) => ({
+                value: rt.id,
+                label: rt.roleName,
+              })),
+            ]}
+          />
         }
       >
         Score Distribution
@@ -1249,7 +1261,7 @@ function IntegrityView({ data }: { data: any[] }) {
         <div className="inline-grid gap-1.5 min-w-[500px]" style={{ gridTemplateColumns: `180px repeat(${severities.length}, 1fr)` }}>
           <div /> {/* Top-left empty cell */}
           {severities.map((s) => (
-            <div key={s} className="text-2xs font-bold uppercase tracking-wider text-ink-tertiary text-center pb-2">
+            <div key={s} className="text-2xs font-bold tracking-wider text-ink-tertiary text-center pb-2">
               {s}
             </div>
           ))}
@@ -1312,7 +1324,7 @@ function ReviewerView({ data }: { data: any }) {
         </div>
         
         <div className="flex-1 w-full flex flex-col justify-center">
-          <div className="text-2xs font-bold uppercase tracking-wider text-ink-secondary mb-4">
+          <div className="text-2xs font-bold tracking-wider text-ink-secondary mb-4">
             Human Overrides ({total})
           </div>
           <div className="space-y-4">

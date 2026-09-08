@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Clock, Calendar as CalendarIcon, X } from "lucide-react";
+import { CustomDropdown } from "./ui/custom-dropdown";
 
 interface SingleDateTimePickerProps {
   selectedDate: string; // ISO date string "YYYY-MM-DD"
@@ -595,6 +596,7 @@ export function SingleDateTimePicker({
                   />
                 </div>
 
+<<<<<<< HEAD
                 <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-3.5 flex items-center justify-between relative cursor-pointer hover:border-[#2E5DE0] transition-colors">
                   <span className="text-[13px] font-bold text-[#1E1B4B] select-none">
                     {startAmPm}
@@ -609,10 +611,37 @@ export function SingleDateTimePicker({
                     <option value="PM">PM</option>
                   </select>
                 </div>
+=======
+                {/* AM/PM Dropdown Box (100 x 37) */}
+                <CustomDropdown
+                  value={startAmPm}
+                  onChange={(val) =>
+                    onChange({
+                      date: selectedDate,
+                      startHour,
+                      startMinute,
+                      startSecond: "00",
+                      startAmPm: val,
+                      endHour,
+                      endMinute,
+                      endSecond: "00",
+                      endAmPm,
+                    })
+                  }
+                  rounded="full"
+                  className="w-[100px] shrink-0"
+                  buttonClassName="h-[37px] rounded-[19px] border-[#E9EEFE] px-3.5 text-[13px] font-bold text-[#1E1B4B]"
+                  options={[
+                    { value: "AM", label: "AM" },
+                    { value: "PM", label: "PM" },
+                  ]}
+                />
+>>>>>>> vaish-ui
               </div>
             </div>
 
             <div className="space-y-1.5">
+<<<<<<< HEAD
               <div className="flex items-center justify-between">
                 <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
                 {isFixedDuration && (
@@ -695,6 +724,68 @@ export function SingleDateTimePicker({
                     </div>
                   </>
                 )}
+=======
+              <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
+              <div className="flex items-center gap-2">
+                {/* Time Value Box (153.75 x 37) */}
+                <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-[16px] py-[10px] flex items-center justify-center focus-within:border-[#2E5DE0] transition-colors">
+                  <TimeInputGroup
+                    hourValue={endHour}
+                    minuteValue={endMinute}
+                    onChangeHour={(h) =>
+                      onChange({
+                        date: selectedDate,
+                        startHour,
+                        startMinute,
+                        startSecond: "00",
+                        startAmPm,
+                        endHour: h,
+                        endMinute,
+                        endSecond: "00",
+                        endAmPm,
+                      })
+                    }
+                    onChangeMinute={(m) =>
+                      onChange({
+                        date: selectedDate,
+                        startHour,
+                        startMinute,
+                        startSecond: "00",
+                        startAmPm,
+                        endHour,
+                        endMinute: m,
+                        endSecond: "00",
+                        endAmPm,
+                      })
+                    }
+                  />
+                </div>
+
+                {/* AM/PM Dropdown Box (100 x 37) */}
+                <CustomDropdown
+                  value={endAmPm}
+                  onChange={(val) =>
+                    onChange({
+                      date: selectedDate,
+                      startHour,
+                      startMinute,
+                      startSecond: "00",
+                      startAmPm,
+                      endHour,
+                      endMinute,
+                      endSecond: "00",
+                      endAmPm: val,
+                    })
+                  }
+                  rounded="full"
+                  className="w-[100px] shrink-0"
+                  buttonClassName="h-[37px] rounded-[19px] border-[#E9EEFE] px-3.5 text-[13px] font-bold text-[#1E1B4B]"
+                  options={[
+                    { value: "AM", label: "AM" },
+                    { value: "PM", label: "PM" },
+                  ]}
+                />
+>>>>>>> vaish-ui
               </div>
             </div>
           </div>
