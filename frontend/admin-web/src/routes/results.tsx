@@ -109,15 +109,25 @@ function ResultsPage() {
     return { total, pending, approved, rejected, avgScore };
   }, [safeResultsList]);
 
-  const handleExportCsv = () => {
-    const driveParam = driveFilter !== "all" ? `?driveId=${encodeURIComponent(driveFilter)}` : "";
-    window.open(`${API_BASE}/admin/reports/export/csv${driveParam}`, "_blank");
+  const exportResultsCsv = useStore((s) => s.exportResultsCsv);
+
+  const handleExportCsv = async () => {
+    try {
+      await exportResultsCsv(driveFilter !== "all" ? driveFilter : undefined);
+      toast.success("CSV export downloaded successfully!");
+    } catch (err: any) {
+      toast.error("Failed to export CSV: " + (err.message || err));
+    }
   };
 
   const handleVerifyAll = async () => {
-    const sessionsToVerify = filtered
-      .map((item) => item.sessionId || item.id)
-      .filter(Boolean);
+    const sessionsToVerify = Array.from(
+      new Set(
+        filtered
+          .map((item) => item.sessionId || item.id || item.candidateId)
+          .filter(Boolean)
+      )
+    );
 
     if (sessionsToVerify.length === 0) {
       toast.info("No candidates selected for verification.");
@@ -167,6 +177,37 @@ function ResultsPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+<<<<<<< HEAD
+=======
+            {statusFilter === "PASS" && (
+              <button
+                onClick={handleVerifyAll}
+                disabled={verifying}
+                className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-white bg-brand hover:bg-brand-hover rounded-[10px] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                title="Verify identity for all approved candidates"
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Verifying All...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={14} />
+                    <span>Verify All Candidates</span>
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
+              title="Download full candidate evaluation CSV dataset from server"
+            >
+              <Download size={13} />
+              <span>Export CSV</span>
+            </button>
+>>>>>>> dev2-phase2-ui
             <ExportDropdown
               data={filtered}
               filenamePrefix="proctora-candidate-results"
@@ -275,17 +316,17 @@ function ResultsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full text-left text-[13px] border-collapse">
               <thead>
                 <tr className="bg-white border-b border-[#E2E8F0] text-[10px] font-bold font-sans uppercase tracking-wider text-[#64748B]">
-                  <th className="py-3 px-4">Candidate</th>
-                  <th className="py-3 px-4">Drive &amp; Track</th>
-                  <th className="py-3 px-4">Submitted</th>
-                  <th className="py-3 px-4 text-center">Score</th>
-                  <th className="py-3 px-4 text-center">Integrity Risk</th>
-                  <th className="py-3 px-4 text-center">Decision</th>
-                  <th className="py-3 px-4 text-center">Verification</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-2.5 px-3">Candidate</th>
+                  <th className="py-2.5 px-3">Drive &amp; Track</th>
+                  <th className="py-2.5 px-3">Submitted</th>
+                  <th className="py-2.5 px-3 text-center">Score</th>
+                  <th className="py-2.5 px-3 text-center">Integrity Risk</th>
+                  <th className="py-2.5 px-3 text-center">Decision</th>
+                  <th className="py-2.5 px-3 text-center">Verification</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9]">
@@ -323,62 +364,65 @@ function ResultsPage() {
                   return (
                     <tr key={item.id || item.sessionId} className="hover:bg-canvas/60 transition-colors">
                       {/* Candidate Name & Email with Initial Avatar */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-xs border border-brand-border">
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-[11px] border border-brand-border shrink-0">
                             {initialLetter}
                           </div>
-                          <div>
-                            <div className="font-semibold text-ink flex items-center gap-1.5">
-                              <span>{item.candidateName}</span>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-ink flex items-center gap-1.5 flex-wrap">
+                              <span className="truncate max-w-[140px] text-[13px]">{item.candidateName}</span>
                               {item.referenceId && (
-                                <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                                <span
+                                  className="px-1.5 py-0.5 rounded text-[10px] leading-none font-mono font-medium bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0] shrink-0"
+                                  title={`Candidate Reference ID: ${item.referenceId}`}
+                                >
                                   {item.referenceId}
                                 </span>
                               )}
                             </div>
-                            <div className="text-2xs font-mono text-ink-tertiary">{item.candidateEmail}</div>
+                            <div className="text-[11px] font-mono text-ink-tertiary truncate max-w-[180px]">{item.candidateEmail}</div>
                           </div>
                         </div>
                       </td>
 
                       {/* Drive & Track */}
-                      <td className="py-3 px-4">
-                        <div className="text-ink font-medium truncate max-w-[180px]">
+                      <td className="py-2.5 px-3">
+                        <div className="text-ink font-medium truncate max-w-[150px] text-[12px]">
                           {formatDriveName(item.driveName) || "General Drive"}
                         </div>
-                        <div className="text-xs text-ink-secondary">{item.roleTemplateName || "Software Engineering"}</div>
+                        <div className="text-[11px] text-ink-secondary truncate max-w-[150px]">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>
 
                       {/* Submitted Timestamp */}
-                      <td className="py-3 px-4 font-mono text-xs text-ink-secondary">
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-ink-secondary whitespace-nowrap">
                         {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
                       </td>
 
                       {/* Score */}
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold border ${scoreColor}`}>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full font-mono text-[11px] font-semibold border ${scoreColor}`}>
                           {scoreVal}%
                         </span>
                       </td>
 
                       {/* Integrity Risk */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {flagsCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold">
-                            <ShieldAlert size={12} />
-                            {flagsCount} Flags
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[11px] bg-danger-subtle text-danger border border-danger-border font-semibold whitespace-nowrap">
+                            <ShieldAlert size={11} className="shrink-0" />
+                            <span>{flagsCount} {flagsCount === 1 ? "Flag" : "Flags"}</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold">
-                            <ShieldCheck size={12} />
-                            Low
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[11px] bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold whitespace-nowrap">
+                            <ShieldCheck size={11} className="shrink-0" />
+                            <span>Low</span>
                           </span>
                         )}
                       </td>
 
                       {/* Decision Status */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-3 text-center">
                         <StatusBadge
                           variant={isApproved ? "success" : isRejected ? "danger" : "warning"}
                           size="xs"
@@ -388,45 +432,45 @@ function ResultsPage() {
                       </td>
 
                       {/* Verification Column Pill Button */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {isMatch ? (
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
                           >
-                            <CheckCircle2 size={12} />
-                            Match <Info size={11} className="ml-0.5 opacity-70" />
+                            <CheckCircle2 size={11} />
+                            Match <Info size={10} className="ml-0.5 opacity-70" />
                           </button>
                         ) : isMismatch ? (
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
                           >
-                            <XCircle size={12} />
-                            Mismatch <Info size={11} className="ml-0.5 opacity-70" />
+                            <XCircle size={11} />
+                            Mismatch <Info size={10} className="ml-0.5 opacity-70" />
                           </button>
                         ) : (
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
                           >
-                            <Clock size={12} />
-                            Pending <Info size={11} className="ml-0.5 opacity-70" />
+                            <Clock size={11} />
+                            Pending <Info size={10} className="ml-0.5 opacity-70" />
                           </button>
                         )}
                       </td>
 
                       {/* Action */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <Link
                           to="/results/$id"
                           params={{ id: item.sessionId || item.id }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-lg transition-all shadow-2xs cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-md transition-all shadow-2xs cursor-pointer"
                         >
-                          <Eye size={12} />
+                          <Eye size={11} />
                           Evaluate
                         </Link>
                       </td>
@@ -459,7 +503,10 @@ function VerificationSidePanel({
   onClose: () => void;
 }) {
   const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
+  const bulkVerifyIdentity = useStore((s) => s.bulkVerifyIdentity);
+  const fetchResults = useStore((s) => s.fetchResults);
   const [loading, setLoading] = useState(true);
+  const [verifyingCandidate, setVerifyingCandidate] = useState(false);
   const [detail, setDetail] = useState<any>(null);
 
   // Accordion state (open / collapsed)
@@ -496,6 +543,26 @@ function VerificationSidePanel({
       isMounted = false;
     };
   }, [item, fetchSessionDetail]);
+
+  const handleVerifyThisCandidate = async () => {
+    const targetId = item.sessionId || item.id || detail?.sessionId || candidateData?.id;
+    if (!targetId) return;
+    setVerifyingCandidate(true);
+    try {
+      await bulkVerifyIdentity([targetId]);
+      toast.success(`Identity successfully verified for ${item.candidateName || candidateData?.name || "candidate"}!`);
+      const sessionId = item.sessionId || item.id;
+      if (sessionId) {
+        const res = await fetchSessionDetail(sessionId);
+        setDetail(res);
+      }
+      await fetchResults();
+    } catch (err: any) {
+      toast.error("Verification failed: " + (err.message || err));
+    } finally {
+      setVerifyingCandidate(false);
+    }
+  };
 
   const candidateData = detail?.candidate || item;
   const idVerifyResult =
@@ -795,13 +862,29 @@ function VerificationSidePanel({
 
         {/* Panel Footer */}
         <div className="p-4 border-t border-line bg-canvas">
-          <Link
-            to="/results/$id"
-            params={{ id: item.sessionId || item.id }}
-            className="w-full py-2.5 px-4 bg-brand-subtle hover:bg-brand-subtle text-brand font-semibold text-sm-minus rounded-lg border border-brand-border flex items-center justify-center gap-2 transition-colors"
+          <button
+            type="button"
+            onClick={handleVerifyThisCandidate}
+            disabled={verifyingCandidate}
+            className="w-full py-2.5 px-4 bg-brand hover:bg-brand-hover text-white font-semibold text-sm-minus rounded-lg border border-brand flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
-            View Full Evaluation <ExternalLink size={14} />
-          </Link>
+            {verifyingCandidate ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Verifying Candidate...</span>
+              </>
+            ) : isMatched ? (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Verified (Click to Re-Verify)</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={15} />
+                <span>Verify Candidate</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </>
