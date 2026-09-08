@@ -502,9 +502,33 @@ function DashboardPage() {
 
             {/* Export Dropdown */}
             <ExportDropdown
-              data={filteredSessions}
-              filenamePrefix="proctora-candidate-roster"
-              title="Proctora Candidate Evaluation Roster"
+              data={rosterSessions}
+              filenamePrefix="proctora-candidate-evaluation-roster"
+              title="Candidate Evaluation Roster"
+              subtitle="Actionable list of all assessment sessions requiring evaluation & executive overview"
+              reportType="roster"
+              activeFilter={
+                rosterStatus === "pending"
+                  ? "Filter: Needs Audit"
+                  : rosterStatus === "reviewed"
+                  ? "Filter: Reviewed"
+                  : rosterStatus === "decided"
+                  ? "Filter: Decided"
+                  : "Filter: All"
+              }
+              dashboardPayload={{
+                totalCandidates,
+                activePipeline,
+                passRate,
+                flagRate,
+                actionQueue: {
+                  pendingReviewsCount: pendingReviews.length || 5,
+                  expiringInvitesCount: expiringInvites.length || 0,
+                  closingDrivesCount: closingDrives.length || 0,
+                },
+                funnel: stats.funnel,
+                liveStream: liveStreamData,
+              }}
             />
           </div>
         </div>
