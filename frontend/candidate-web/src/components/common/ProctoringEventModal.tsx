@@ -253,8 +253,19 @@ export function ProctoringEventModal() {
         {/* Bottom Accent Bar matching alert color */}
         <div className="w-full bg-[var(--background)] h-1 shrink-0 border-t border-[var(--border)] relative">
           <div
-            style={{ width: `${progress}%` }}
-            className={`h-full ${details.accentColor} transition-all duration-100 ease-linear`}
+            className={`h-full ${details.accentColor} transition-all duration-100 ease-linear ${
+              progress >= 95 ? 'w-full' :
+              progress >= 90 ? 'w-[90%]' :
+              progress >= 80 ? 'w-[80%]' :
+              progress >= 70 ? 'w-[70%]' :
+              progress >= 60 ? 'w-[60%]' :
+              progress >= 50 ? 'w-[50%]' :
+              progress >= 40 ? 'w-[40%]' :
+              progress >= 30 ? 'w-[30%]' :
+              progress >= 20 ? 'w-[20%]' :
+              progress >= 10 ? 'w-[10%]' :
+              progress > 0 ? 'w-[5%]' : 'w-0'
+            }`}
           />
         </div>
       </div>

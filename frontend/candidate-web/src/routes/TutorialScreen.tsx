@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSessionStore } from '../store/sessionMachine';
 import { services } from '../services';
-import { MODULES, TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions';
+import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { StatusChip } from '../components/common/StatusChip';
-import { CheckCircle2, ArrowRight, ArrowLeft, Clock, Inbox, Sparkles, Image as ImageIcon } from 'lucide-react';
-import workspaceIntroImg from '../assets/workspace-intro.png';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface TutorialScreenProps {
   mode: 'full' | 'condensed';
@@ -25,7 +24,7 @@ const FULL_STEPS: TutorialStep[] = ['layout', 'timer', 'palette', 'contextual-si
 const CONDENSED_STEPS: TutorialStep[] = ['layout', 'timer', 'palette', 'contextual-sim', 'done'];
 
 export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
-  const { transitionTo, session, assessment, cvMode, initAssessment, setSession } = useSessionStore();
+  const { transitionTo, session, assessment } = useSessionStore();
   const [stepIndex, setStepIndex] = useState(0);
   const [practiceAnswer, setPracticeAnswer] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -38,350 +37,205 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
     } catch { return null; }
   });
 
-  // Dynamic allocated assessment duration from session/backend DB
-  const allocatedMinutes = session?.durationMinutes
-    ? session.durationMinutes
-    : assessment?.totalSeconds
-    ? Math.round(assessment.totalSeconds / 60)
-    : 60;
-
-  const formattedTimerDisplay = `${allocatedMinutes}:00`;
-
-  // Filter modules to present ONLY assigned/selected modules for this candidate's assessment
-  const activeModules = useMemo(() => {
-    const questions = session?.questions || assessment?.questions;
-    if (questions && questions.length > 0) {
-      const activeTypes = new Set(questions.map((q: any) => getEffectiveModuleType(q)));
-      return MODULES.filter(m => {
-        const mType = m.type.toUpperCase();
-        if (mType === 'CONTEXTUAL' || mType === 'SIMULATION') {
-          return activeTypes.has('CONTEXTUAL') || activeTypes.has('SIMULATION');
-        }
-        if (mType === 'PROMPTING' || mType === 'AI_PROMPTING') {
-          return activeTypes.has('PROMPTING') || activeTypes.has('AI_PROMPTING');
-        }
-        return activeTypes.has(mType as any);
-      });
-    }
-    return MODULES;
-  }, [session, assessment]);
-
-  useEffect(() => {
-    if (!scheduledMs || mode !== 'full') return;
-
-    const unsub = services.time.subscribe(nowMs => {
-      const remaining = Math.round((scheduledMs - nowMs) / 1000);
-
-      if (remaining <= 0) {
-        setCountdown(0);
-      } else if (remaining <= 60) {
-        setCountdown(remaining);
-      } else {
-        setCountdown(null);
-      }
-    });
-    return unsub;
-  }, [scheduledMs, mode]);
-
   const currentStep = steps[stepIndex];
   const isLast = stepIndex === steps.length - 1;
 
+  // Countdown timer on final 'done' (All Set) screen
+  useEffect(() => {
+    if (currentStep === 'done') {
+      const graceEnd = Date.now() + 5 * 1000;
+      const interval = setInterval(() => {
+        const left = Math.max(0, Math.ceil((graceEnd - Date.now()) / 1000));
+        setCountdown(left);
+        if (left <= 0) {
+          clearInterval(interval);
+          handleFinish();
+        }
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [currentStep]);
+
+  function handleFinish() {
+    const now = services.time.getServerNow();
+    const scheduled = scheduledMs || (now + 60 * 1000);
+
+    transitionTo({
+      type: 'waiting-room',
+      scheduledTimeMs: scheduled,
+      inviteToken,
+    });
+  }
+
   function handleNext() {
-    if (stepIndex < steps.length - 1) {
-      setStepIndex(i => i + 1);
+    if (isLast) {
+      handleFinish();
     } else {
-      proceedToAssessment();
+      setStepIndex(i => Math.min(steps.length - 1, i + 1));
     }
   }
 
-  async function proceedToAssessment() {
-    const nowMs = services.time.getServerNow();
-
-    let preheatTargetMs: number;
-    if (scheduledMs && scheduledMs > nowMs) {
-      preheatTargetMs = scheduledMs;
-    } else {
-      preheatTargetMs = nowMs + 60 * 1000;
-    }
-
-    localStorage.setItem('cd-recruit-scheduled-ms', preheatTargetMs.toString());
-
-    try {
-      const selfieDataUrl = localStorage.getItem('cd-recruit-selfie-data');
-      const newSession = await services.sessionApi.createSession(
-        inviteToken,
-        cvMode,
-        mode,
-        selfieDataUrl
-      );
-      setSession(newSession);
-
-      const sessionDuration = (newSession.durationMinutes || allocatedMinutes) * 60;
-      initAssessment(newSession.id, sessionDuration, newSession.questions);
-
-      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
-    } catch (err: any) {
-      const code = err?.response?.data?.code ?? err?.response?.data?.error;
-      console.error('[TutorialScreen] Failed to create session:', code, err);
-
-      const currentSession = session || useSessionStore.getState().session;
-      if (currentSession?.id) {
-        const sessionDuration = (currentSession.durationMinutes || allocatedMinutes) * 60;
-        initAssessment(currentSession.id, sessionDuration, currentSession.questions);
-        transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
-        return;
-      }
-
-      transitionTo({ type: 'waiting-room', scheduledTimeMs: preheatTargetMs, inviteToken });
-    }
-  }
-
-  const StepContent = () => {
+  // Right card content per step
+  function renderStepCard() {
     switch (currentStep) {
       case 'layout':
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-[var(--foreground)]">Interface Overview</h2>
-
-            {/* Image Placeholder Space */}
-            <div className="w-full h-44 rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--surface)]/50 flex flex-col items-center justify-center gap-2 text-[var(--muted-foreground)]">
-              <div className="p-3 rounded-full bg-[var(--background)] border border-[var(--border)] text-[var(--accent)]">
-                <ImageIcon size={24} />
-              </div>
-              <span className="text-xs font-medium">Image Placeholder</span>
-            </div>
-
-            <div className="space-y-3 text-xs text-[var(--muted-foreground)] leading-relaxed">
-              <p>The top bar displays your total remaining timer, integrity indicator, module navigation tabs, and the Review &amp; Submit trigger.</p>
-              <p>The left sidebar contains the question navigation palette for jumping directly to any item within the active module. You can switch between modules at any time.</p>
-              <p>The main central workspace changes dynamically based on the active module (Multiple Choice, SQL, Coding Workspace, AI Prompting, or Contextual Simulation).</p>
-            </div>
-          </div>
+          <img
+            src="/assets/overview-card.svg"
+            alt="Interface Overview"
+            className="w-full h-auto rounded-2xl block"
+          />
         );
 
       case 'timer':
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-[var(--foreground)]">Timer &amp; Server Synchronization</h2>
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center gap-4 shadow-sm">
-              <div className="p-3 rounded-xl bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
-                <Clock size={24} />
-              </div>
-              <div>
-                <div className="text-2xl font-mono font-bold text-[var(--foreground)] tracking-tight">
-                  {formattedTimerDisplay}
-                </div>
-                <div className="text-xs text-[var(--muted-foreground)]">Server-authoritative timer synced with backend allocated duration.</div>
-              </div>
-            </div>
-            <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-              Total allocated assessment duration is <strong>{allocatedMinutes} minutes</strong>. Assigned assessment modules:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              {activeModules.map(m => (
-                <div key={m.index} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--background)] flex items-center gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />
-                  <span className="font-semibold text-[var(--foreground)]">{m.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <img
+            src="/assets/timer-sync-card.svg"
+            alt="Timer & Server Synchronization"
+            className="w-full h-auto rounded-2xl block"
+          />
         );
 
       case 'palette':
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-[var(--foreground)]">Question Navigation Palette</h2>
-            <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">Each question tile in the sidebar palette indicates its current response status:</p>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              {[
-                { status: 'Unvisited', tone: 'neutral' as const, note: 'Not yet opened' },
-                { status: 'Answered', tone: 'success' as const, note: 'Response saved' },
-                { status: 'Skipped', tone: 'warning' as const, note: 'Marked for return' },
-                { status: 'Flagged', tone: 'warning' as const, note: 'Flagged for review' },
-              ].map(({ status, tone, note }) => (
-                <div key={status} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--background)] flex items-center gap-3">
-                  <StatusChip tone={tone} label={status.toUpperCase()} size="sm" />
-                  <span className="text-[var(--muted-foreground)] text-xs-plus">{note}</span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-[var(--muted-foreground)]">
-              Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--background)] font-mono text-xs-plus">F</kbd> on any question to flag or unflag it for review.
-            </p>
-          </div>
+          <img
+            src="/assets/tutorial-card.svg"
+            alt="Question Navigation Palette"
+            className="w-full h-auto rounded-2xl block"
+          />
         );
 
       case 'contextual-sim':
         return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Sparkles size={20} className="text-[var(--accent)]" />
-              <h2 className="text-xl font-bold text-[var(--foreground)]">Contextual Simulation &amp; On-Call Guide</h2>
-            </div>
-            <div className="p-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 space-y-2">
-              <div className="font-semibold text-sm text-[var(--foreground)]">Simulated Real-World Incident Workspace</div>
-              <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-                In this module, realistic engineering scenarios unfold dynamically. You are placed on-call to triage production incidents, communicate with team members, and formulate root-cause solutions.
-              </p>
-            </div>
-            <div className="space-y-2 text-xs text-[var(--muted-foreground)] leading-relaxed">
-              <ul className="space-y-2 pl-4 list-disc text-[var(--foreground)]">
-                <li><strong>Incident Triage:</strong> Review incoming PagerDuty alerts, inspect server log streams, and isolate root causes.</li>
-                <li><strong>AI Collaboration:</strong> Use built-in AI prompting tools to analyze stack traces and draft resolutions.</li>
-                <li><strong>Stakeholder Communication:</strong> Compose clear, professional responses to team members and tech leads.</li>
-              </ul>
-            </div>
-          </div>
+          <img
+            src="/assets/tutorial-card-1.svg"
+            alt="Contextual Simulation & On-Call Guide"
+            className="w-full h-auto rounded-2xl block"
+          />
         );
 
       case 'run-vs-submit':
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-[var(--foreground)]">Run vs. Submit (Coding &amp; SQL)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 space-y-2">
-                <div className="font-bold text-[var(--accent)] flex items-center gap-1.5">
-                  <span>▶ Run Query / Test</span>
-                </div>
-                <ul className="space-y-1 text-[var(--muted-foreground)] leading-relaxed">
-                  <li>• Executes visible test cases only</li>
-                  <li>• Instant output &amp; console logs</li>
-                  <li>• Does NOT finalize submission</li>
-                </ul>
-              </div>
-              <div className="p-4 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/10 space-y-2">
-                <div className="font-bold text-[var(--success)] flex items-center gap-1.5">
-                  <CheckCircle2 size={14} />
-                  <span>Submit Answer</span>
-                </div>
-                <ul className="space-y-1 text-[var(--muted-foreground)] leading-relaxed">
-                  <li>• Runs visible &amp; hidden evaluation suite</li>
-                  <li>• Persists solution payload to session</li>
-                  <li>• You can revise code after submitting</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+          <img
+            src="/assets/tutorial-card-2.svg"
+            alt="Run vs. Submit (Coding & SQL)"
+            className="w-full h-auto rounded-2xl block"
+          />
         );
 
       case 'practice':
+        // Interactive Multiple-Choice Question matching tutorial-card (3).png exactly
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-[var(--foreground)]">Practice Question (Zero Stakes)</h2>
-            <fieldset className="space-y-3">
-              <legend className="text-xs font-semibold text-[var(--foreground)]">
+          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-7 sm:p-9 space-y-6">
+            <div>
+              <h2 className="text-2xl sm:text-[28px] font-extrabold text-[#0F172A] tracking-tight leading-tight">
+                Practice Question (Zero Stakes)
+              </h2>
+              <p className="text-base font-semibold text-[#0F172A] mt-2">
                 Which HTTP status code indicates "Resource Not Found"?
-              </legend>
-              <div className="space-y-2">
-                {[
-                  { id: 'a', text: '200 OK' },
-                  { id: 'b', text: '400 Bad Request' },
-                  { id: 'c', text: '404 Not Found' },
-                  { id: 'd', text: '500 Internal Server Error' },
-                ].map(opt => (
+              </p>
+            </div>
+
+            <div className="space-y-3" role="radiogroup" aria-label="HTTP status code practice question">
+              {[
+                { id: '200', label: '200 OK' },
+                { id: '400', label: '400 Bad Request' },
+                { id: '404', label: '404 Not Found' },
+                { id: '500', label: '500 Internal Server Error' },
+              ].map(opt => {
+                const isSelected = practiceAnswer === opt.id;
+                return (
                   <label
                     key={opt.id}
-                    className={`
-                      flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all text-xs
-                      ${practiceAnswer === opt.id
-                        ? opt.id === 'c'
-                          ? 'border-[var(--success)] bg-[var(--success)]/10 font-medium'
-                          : 'border-rose-500 bg-rose-500/10 font-medium'
-                        : 'border-[var(--border)] bg-[var(--background)] hover:border-[var(--accent)]'
-                      }
-                    `}
+                    onClick={() => setPracticeAnswer(opt.id)}
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-[#2F65F6] bg-[#EFF6FF] text-[#0F172A] shadow-xs'
+                        : 'border-slate-200 bg-white text-[#0F172A] hover:border-slate-300'
+                    }`}
                   >
-                    <input
-                      type="radio"
-                      name="practice"
-                      checked={practiceAnswer === opt.id}
-                      onChange={() => setPracticeAnswer(opt.id)}
-                      className="w-4 h-4 text-[var(--accent)] focus:ring-[var(--accent)]"
-                    />
-                    <span className="text-[var(--foreground)]">{opt.text}</span>
+                    <span
+                      className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        isSelected
+                          ? 'border-[#2F65F6] bg-[#2F65F6]'
+                          : 'border-slate-400 bg-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white block" />
+                      )}
+                    </span>
+                    <span className="text-[15px] font-normal text-[#0F172A]">
+                      {opt.label}
+                    </span>
                   </label>
-                ))}
-              </div>
-              {practiceAnswer && (
-                <div className={`p-3 rounded-xl border text-xs font-medium ${practiceAnswer === 'c' ? 'border-[var(--success)]/30 bg-[var(--success)]/10 text-[var(--success)]' : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
-                  {practiceAnswer === 'c'
-                    ? '✓ Correct! 404 Not Found is the standard response for non-existent endpoints.'
-                    : '← Select 404 Not Found to test answer selection.'
-                  }
-                </div>
-              )}
-            </fieldset>
+                );
+              })}
+            </div>
           </div>
         );
 
       case 'done':
-        return (
-          <div className="text-center space-y-4 py-4">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20 flex items-center justify-center mx-auto shadow-sm">
-              <CheckCircle2 size={32} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-[var(--foreground)] mb-1">You're All Set!</h2>
-              <p className="text-xs text-[var(--muted-foreground)]">Continuing will enter the sandbox preheating waiting room before starting Module 1.</p>
-            </div>
-          </div>
-        );
+        return null;
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen px-6 py-10 flex flex-col justify-center bg-[var(--background)]" role="main" aria-labelledby="tutorial-heading">
-      <div className="w-full max-w-6xl mx-auto animate-cd-fade-in space-y-6">
-        {/* Top Header Bar */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
-              Tutorial
-            </div>
-            <h1 id="tutorial-heading" className="text-3xl-plus font-semibold tracking-tight mt-1 text-[var(--foreground)]">
-              {mode === 'full' ? 'Before you start' : 'Quick Orientation'}
-            </h1>
-          </div>
-
-          {countdown !== null && countdown <= 60 && (
-            <StatusChip
-              tone="warning"
-              label={countdown === 0 ? 'STARTING NOW' : `STARTING IN ${countdown}S`}
-              size="sm"
-              loading
+    <div
+      className="figma-page-layout items-center"
+      role="main"
+      aria-labelledby="tutorial-heading"
+    >
+      <div className="w-full max-w-[1240px] animate-cd-fade-in space-y-8">
+        {/* Multi-segment Progress Bar matching Figma 960x6 gap:8px */}
+        <div
+          className="flex items-center gap-2 h-1.5 w-full max-w-[960px] mx-auto"
+          role="progressbar"
+          aria-valuenow={stepIndex + 1}
+          aria-valuemax={steps.length}
+        >
+          {steps.map((_, idx) => (
+            <div
+              key={idx}
+              className={`flex-1 h-1.5 rounded-[3px] transition-colors duration-200 ${
+                idx <= stepIndex ? 'bg-[#2F65F6]' : 'bg-slate-200'
+              }`}
             />
-          )}
+          ))}
         </div>
 
-        {/* 2-Column Split Layout for steps before 'done' */}
+        {/* 2-Column Layout for Tutorial Steps 1-6 */}
         {currentStep !== 'done' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Column: Persistent Workspace Preview Image (5 cols) */}
-            <div className="lg:col-span-5 sticky top-6 flex items-center justify-center">
+          <div className="flex flex-col lg:flex-row items-start justify-center gap-10 lg:gap-16">
+            {/* Left Column: Common illustration-block.png for all 6 tutorial pages */}
+            <div className="w-full lg:w-[420px] shrink-0 flex items-center justify-center">
               <img
-                src={workspaceIntroImg}
-                alt="Workspace Layout Preview"
-                className="w-full h-auto object-contain max-h-[420px]"
+                src="/assets/illustration-block.png"
+                alt="Tutorial - Before you start"
+                className="w-full max-w-[420px] h-auto object-contain block"
               />
             </div>
 
-            {/* Right Column: Step Content Card & Navigation (7 cols) */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Progress Bar */}
-              <div className="h-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden" role="progressbar" aria-valuenow={stepIndex + 1} aria-valuemax={steps.length}>
-                <div className="h-full rounded-full bg-[var(--accent)] transition-all duration-300" style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
-              </div>
+            {/* Right Column: Step card image / practice UI and navigation */}
+            <div className="w-full max-w-[760px] flex flex-col space-y-6">
+              {renderStepCard()}
 
-              <div className="p-7 min-h-[380px] flex flex-col justify-between rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-                <StepContent />
-              </div>
-
+              {/* Controls Row */}
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => setStepIndex(i => Math.max(0, i - 1))}
-                  disabled={stepIndex === 0}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (stepIndex > 0) {
+                      setStepIndex(i => i - 1);
+                    } else {
+                      transitionTo({
+                        type: 'consent',
+                        step: 'audio',
+                        inviteToken,
+                      });
+                    }
+                  }}
+                  className="figma-btn-secondary"
+                  type="button"
                 >
                   <ArrowLeft size={14} />
                   <span>Back</span>
@@ -389,25 +243,29 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
                 <button
                   onClick={handleNext}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  className="figma-btn-primary"
+                  type="button"
                 >
-                  <span>{isLast ? 'Enter Waiting Room' : 'Next'}</span>
+                  <span>Next →</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          /* Final Screen ('done'): Centered Card */
-          <div className="max-w-xl mx-auto space-y-6">
-            <div className="p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-              <StepContent />
-            </div>
+          /* Step 7 ('done'): All Set Screen with all-set-card.svg */
+          <div className="max-w-[720px] mx-auto space-y-6">
+            <img
+              src="/assets/all-set-card.svg"
+              alt="You're All Set!"
+              className="w-full h-auto rounded-2xl block"
+            />
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pt-2">
               <button
                 onClick={() => setStepIndex(i => Math.max(0, i - 1))}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
+                className="figma-btn-secondary"
+                type="button"
               >
                 <ArrowLeft size={14} />
                 <span>Back</span>
@@ -415,9 +273,10 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
               <button
                 onClick={handleNext}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                className="figma-btn-primary"
+                type="button"
               >
-                <span>Enter Waiting Room</span>
+                <span>{countdown !== null ? `Enter Waiting Room (${countdown}s)` : 'Enter Waiting Room'}</span>
                 <ArrowRight size={14} />
               </button>
             </div>

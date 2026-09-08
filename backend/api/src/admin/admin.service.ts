@@ -183,20 +183,20 @@ export class AdminService {
         identityVerificationResult: (session as any).identityVerificationResult ?? null,
         reviewerDecision: session.reviewerDecision
           ? (session.reviewerDecision.decision === "ADVANCE"
-              ? "PASS"
-              : session.reviewerDecision.decision === "REJECT"
+            ? "PASS"
+            : session.reviewerDecision.decision === "REJECT"
               ? "FAIL"
               : session.reviewerDecision.decision)
           : null,
         decision: session.reviewerDecision
           ? ({
-              outcome: session.reviewerDecision.decision as any,
-              decidedAt: session.reviewerDecision.decidedAt.toISOString(),
-              decidedBy: session.reviewerDecision.staff
-                ? session.reviewerDecision.staff.name
-                : "Recruiter",
-              note: session.reviewerDecision.note,
-            } as any)
+            outcome: session.reviewerDecision.decision as any,
+            decidedAt: session.reviewerDecision.decidedAt.toISOString(),
+            decidedBy: session.reviewerDecision.staff
+              ? session.reviewerDecision.staff.name
+              : "Recruiter",
+            note: session.reviewerDecision.note,
+          } as any)
           : null,
       };
     });
@@ -497,7 +497,7 @@ export class AdminService {
       const tags = res.question?.tags || [];
       const promptText = qContent.prompt || qContent.title || qContent.text || qContent.question || "Question";
       const payloadModType = (res.responsePayload as any)?.moduleType;
-      const rawModuleType = res.question?.moduleType || payloadModType;
+      const rawModuleType = (res as any).moduleType || res.question?.moduleType || payloadModType;
       const isDebug = rawModuleType === "DEBUGGING" ||
         res.question?.moduleType === "DEBUGGING" ||
         tags.includes("debugging") ||
@@ -553,28 +553,28 @@ export class AdminService {
     let telemetryActions = Array.isArray(snapshotObj.telemetryActions) && snapshotObj.telemetryActions.length > 0
       ? snapshotObj.telemetryActions
       : ((session as any).eventLogs?.map((log: any) => {
-          const dt = log.occurredAt ? new Date(log.occurredAt) : log.createdAt ? new Date(log.createdAt) : new Date();
-          const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-          const payload = (log.payload as any) || {};
-          let label = payload.label || payload.action || payload.text;
-          
-          if (!label) {
-            if (log.eventType?.includes("INITIAL_SAY")) label = "Submitted Initial SAY debugging plan";
-            else if (log.eventType?.includes("EMAIL_REPLY")) label = "Submitted manager email reply";
-            else if (log.eventType?.includes("MANAGER_EMAIL")) label = "Received incoming email from Manager";
-            else if (log.eventType?.includes("TEST_EXECUTE") || log.eventType?.includes("run_code")) label = "Executed diagnostic test suite";
-            else if (log.eventType?.includes("FILE_EDIT")) label = `Modified ${payload.filepath || 'login_validation.py'}`;
-            else if (log.eventType?.includes("FILE_OPEN")) label = `Inspected ${payload.filepath || 'login_validation.py'}`;
-            else if (log.eventType?.includes("SIMULATION_SUBMITTED")) label = "Submitted final incident solution";
-            else label = log.eventType || "Action logged";
-          }
+        const dt = log.occurredAt ? new Date(log.occurredAt) : log.createdAt ? new Date(log.createdAt) : new Date();
+        const timeStr = dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const payload = (log.payload as any) || {};
+        let label = payload.label || payload.action || payload.text;
 
-          return {
-            timestamp: timeStr,
-            type: log.eventType || "ACTION",
-            label,
-          };
-        }) || []);
+        if (!label) {
+          if (log.eventType?.includes("INITIAL_SAY")) label = "Submitted Initial SAY debugging plan";
+          else if (log.eventType?.includes("EMAIL_REPLY")) label = "Submitted manager email reply";
+          else if (log.eventType?.includes("MANAGER_EMAIL")) label = "Received incoming email from Manager";
+          else if (log.eventType?.includes("TEST_EXECUTE") || log.eventType?.includes("run_code")) label = "Executed diagnostic test suite";
+          else if (log.eventType?.includes("FILE_EDIT")) label = `Modified ${payload.filepath || 'login_validation.py'}`;
+          else if (log.eventType?.includes("FILE_OPEN")) label = `Inspected ${payload.filepath || 'login_validation.py'}`;
+          else if (log.eventType?.includes("SIMULATION_SUBMITTED")) label = "Submitted final incident solution";
+          else label = log.eventType || "Action logged";
+        }
+
+        return {
+          timestamp: timeStr,
+          type: log.eventType || "ACTION",
+          label,
+        };
+      }) || []);
 
     if (telemetryActions.length === 0 && session.moduleResponses.length > 0) {
       telemetryActions = session.moduleResponses.map((r) => {
@@ -723,25 +723,25 @@ export class AdminService {
       referenceId: session.referenceId ?? null,
       candidate: session.candidate
         ? {
-            id: session.candidate.id,
-            name: session.candidate.name,
-            email: session.candidate.email,
-            identityVerificationResult: (session as any).identityVerificationResult || null,
-            baselineSelfieRef,
-            idProofRef,
-            baselineSelfieUrl: baselineSelfieUrl || baselineSelfieRef,
-            idProofUrl: idProofUrl || idProofRef,
-          }
+          id: session.candidate.id,
+          name: session.candidate.name,
+          email: session.candidate.email,
+          identityVerificationResult: (session as any).identityVerificationResult || null,
+          baselineSelfieRef,
+          idProofRef,
+          baselineSelfieUrl: baselineSelfieUrl || baselineSelfieRef,
+          idProofUrl: idProofUrl || idProofRef,
+        }
         : {
-            id: (session as any).candidateId || "",
-            name: (session as any).candidateName || "",
-            email: (session as any).candidateEmail || "",
-            identityVerificationResult: null,
-            baselineSelfieRef: null,
-            idProofRef: null,
-            baselineSelfieUrl: null,
-            idProofUrl: null,
-          },
+          id: (session as any).candidateId || "",
+          name: (session as any).candidateName || "",
+          email: (session as any).candidateEmail || "",
+          identityVerificationResult: null,
+          baselineSelfieRef: null,
+          idProofRef: null,
+          baselineSelfieUrl: null,
+          idProofUrl: null,
+        },
       candidateName: session.candidate.name,
       candidateEmail: session.candidate.email,
       driveName: session.drive?.name || "Assessment Drive",
@@ -769,11 +769,11 @@ export class AdminService {
       score: scoreObj,
       decision: session.reviewerDecision
         ? {
-            outcome: session.reviewerDecision.decision as any,
-            decidedAt: session.reviewerDecision.decidedAt.toISOString(),
-            decidedBy: session.reviewerDecision.staff.name,
-            note: session.reviewerDecision.note || undefined,
-          }
+          outcome: session.reviewerDecision.decision as any,
+          decidedAt: session.reviewerDecision.decidedAt.toISOString(),
+          decidedBy: session.reviewerDecision.staff.name,
+          note: session.reviewerDecision.note || undefined,
+        }
         : undefined,
     };
   }
@@ -954,28 +954,28 @@ export class AdminService {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id: candidateId },
     });
-    
+
     if (!candidate) {
       throw new NotFoundException(`Candidate not found with ID ${candidateId}`);
     }
-    
+
     if (!candidate.idProofEmbedding || !candidate.baselineSelfieEmbedding) {
       const missing = [];
       if (!candidate.idProofEmbedding) missing.push("id_proof");
       if (!candidate.baselineSelfieEmbedding) missing.push("baseline_selfie");
-      
+
       return { status: "insufficient_data", missing };
     }
-    
+
     const idProofEmb = candidate.idProofEmbedding as number[];
     const selfieEmb = candidate.baselineSelfieEmbedding as number[];
-    
+
     const verification = this.faceVerifyOnnxService.verifyEmbeddings(
       selfieEmb,
       idProofEmb,
       this.faceThreshold,
     );
-    
+
     const identityVerificationResult = {
       matched: verification.matched,
       distance: verification.distance,
@@ -983,12 +983,12 @@ export class AdminService {
       verifiedAt: new Date().toISOString(),
       verifiedBy: staffId,
     };
-    
+
     await this.prisma.candidate.update({
       where: { id: candidateId },
       data: { identityVerificationResult },
     });
-    
+
     await this.prisma.auditLog.create({
       data: {
         staffId,
@@ -998,7 +998,7 @@ export class AdminService {
         metadata: { matched: verification.matched, distance: verification.distance },
       },
     });
-    
+
     return { status: verification.matched ? "verified" : "not_verified", result: identityVerificationResult };
   }
 

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { services } from '../services';
-import { IllustrationContainer } from '../components/common/IllustrationContainer';
 import { StatusChip } from '../components/common/StatusChip';
-import { CheckCircle2, Unlock, BookOpen, Star, LifeBuoy, Copy, Check } from 'lucide-react';
+import { AssessmentTopBar } from '../components/common/AssessmentTopBar';
+import { LightGradientBackground } from '../components/common/LightGradientBackground';
+import { Check, Copy, Unlock, BookOpen, LifeBuoy, ArrowRight } from 'lucide-react';
 
 const SUPPORT_EMAIL = 'mailto:support@proctora.com';
 const LEARNING_HUB_LINKS = [
@@ -20,7 +21,7 @@ interface DoneScreenProps {
 
 const EXPERIENCE_RATINGS = [1, 2, 3, 4, 5] as const;
 
-export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
+export function DoneScreen({ referenceId, auto }: DoneScreenProps) {
   const [surveyRating, setSurveyRating] = useState<number | null>(null);
   const [surveyComment, setSurveyComment] = useState('');
   const [surveySent, setSurveySent] = useState(false);
@@ -45,181 +46,215 @@ export function DoneScreen({ referenceId, sessionId, auto }: DoneScreenProps) {
   }
 
   return (
-    <div
-      className="min-h-screen px-6 py-14 flex justify-center bg-[var(--background)]"
-      role="main"
-      aria-labelledby="done-heading"
-    >
-      <div className="w-full max-w-4xl animate-cd-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-10 items-start">
-          <div className="mx-auto md:mx-0 w-full">
-            <IllustrationContainer
-              src="/src/assets/assessment-complete.png"
-              alt="Assessment Complete Illustration"
-              fallbackIcon={CheckCircle2}
-              aspectRatio="aspect-square"
-              imgClassName="object-contain p-2 max-h-[220px] w-full"
-              className="w-full card-base border-none bg-transparent shadow-none"
-            />
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent)]">
-              Assessment Completed
-            </div>
-            <h1 id="done-heading" className="text-4xl sm:text-4xl font-bold tracking-tight mt-1 text-[var(--foreground)]">
-              {auto ? 'Assessment Submitted' : 'The assessment ended for you'}
-            </h1>
-            <p className="mt-3 text-md text-[var(--muted-foreground)] leading-relaxed">
-              {auto
-                ? 'Time limit reached — your last-saved answers were submitted automatically.'
-                : 'Your responses have been securely submitted and recorded for review. You cannot re-take or re-enter this assessment.'
-              }
-            </p>
+    <div className="relative min-h-screen w-full flex flex-col bg-white overflow-x-hidden select-none">
+      {/* Dynamic light gradient background matching waiting room / review screens */}
+      <LightGradientBackground />
 
-            <div className="mt-6 p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] inline-flex items-center gap-5 shadow-sm">
-              <div>
-                <div className="text-2xs uppercase tracking-wider font-semibold text-[var(--muted-foreground)]">
-                  Reference ID
-                </div>
-                <div
-                  className="font-mono text-4xl font-bold leading-tight text-[var(--accent)]"
-                  aria-label={`Session reference ID: ${referenceId}`}
-                >
-                  {referenceId}
-                </div>
-              </div>
-              <button
-                onClick={handleCopyRef}
-                title={copied ? 'Copied!' : 'Copy reference ID'}
-                aria-label={copied ? 'Copied' : 'Copy reference ID'}
-                className={`
-                  flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer
-                  ${copied
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-[var(--surface)] border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
-                  }
-                `}
-              >
-                {copied ? <Check size={13} /> : <Copy size={13} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
+      {/* Common Proctora Top Bar */}
+      <AssessmentTopBar showTimer={false} />
 
-            <div className="mt-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--muted-foreground)]">
-              <Unlock size={13} className="text-[var(--success)]" /> Camera &amp; microphone access released
-            </div>
+      {/* Main Content Area */}
+      <main
+        className="relative z-10 flex-1 w-full max-w-[1104px] mx-auto px-4 sm:px-8 py-10 flex flex-col items-center gap-8"
+        role="main"
+        aria-labelledby="done-heading"
+      >
+        {/* Message Header (matching message-header.svg) */}
+        <div className="flex flex-col items-center text-center gap-3 max-w-2xl">
+          {/* Emerald Checkmark Circle */}
+          <div className="w-16 h-16 rounded-full bg-[#F0FDF4] border border-[#10B981] flex items-center justify-center text-[#10B981] shadow-sm mb-1">
+            <Check size={28} strokeWidth={2.5} />
           </div>
+
+          {/* Pill Badge */}
+          <span className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-bold tracking-wider bg-[#F0FDF4] border border-[#10B981]/30 text-[#10B981] uppercase">
+            All Done
+          </span>
+
+          {/* Heading */}
+          <h1 id="done-heading" className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] tracking-tight">
+            {auto ? 'Assessment Submitted' : 'Thanks for completing your assessment'}
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-sm sm:text-base text-[#475569] leading-relaxed">
+            {auto
+              ? 'Time limit reached — your last-saved answers were submitted automatically.'
+              : 'Your responses have been recorded and your camera and microphone access have been completely released.'}
+          </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-            <div className="font-semibold mb-4 text-[var(--foreground)]">What happens next</div>
+        {/* Reference Card (matching reference-card.svg) */}
+        <div className="w-full max-w-[640px] bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-xl p-5 flex items-center justify-between gap-4 shadow-sm">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">
+              Reference ID
+            </span>
+            <span
+              className="font-mono text-xl sm:text-2xl font-bold tracking-wide text-[#2F65F6] select-all mt-0.5"
+              aria-label={`Session reference ID: ${referenceId}`}
+            >
+              {referenceId}
+            </span>
+          </div>
+
+          <button
+            onClick={handleCopyRef}
+            title={copied ? 'Copied!' : 'Copy reference ID'}
+            aria-label={copied ? 'Copied' : 'Copy reference ID'}
+            type="button"
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer shrink-0
+              ${copied
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                : 'bg-white border-[#CBD5E1] text-[#334155] hover:bg-slate-50 hover:border-slate-400 active:scale-95'
+              }
+            `}
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+        </div>
+
+        {/* Camera & Microphone Access Released Badge */}
+        <div className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-full bg-[#F0FDF4] border border-[#10B981]/30 text-emerald-800 font-medium">
+          <Unlock size={14} className="text-[#10B981]" />
+          <span>Camera &amp; microphone access released</span>
+        </div>
+
+        {/* Content Grid: What happens next + Learning hub */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          {/* What happens next Card */}
+          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 sm:p-7 space-y-5 shadow-sm">
+            <div className="text-base font-bold text-[#0F172A]">What happens next</div>
             <ol className="space-y-4">
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-semibold shrink-0 bg-[var(--surface)] text-[var(--accent)] border border-[var(--border)]">
+              <li className="flex items-start gap-3.5">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0 bg-blue-50 text-[#2563EB] border border-blue-200 mt-0.5">
                   1
                 </span>
                 <div>
-                  <div className="text-sm font-medium text-[var(--foreground)]">Scoring &amp; review</div>
-                  <div className="text-xs mt-0.5 text-[var(--muted-foreground)]">Our team reviews your submission within 3–5 business days.</div>
+                  <div className="text-sm font-semibold text-slate-900">Scoring &amp; review</div>
+                  <div className="text-xs text-[#64748B] mt-0.5">Our team reviews your submission within 3–5 business days.</div>
                 </div>
               </li>
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-semibold shrink-0 bg-[var(--surface)] text-[var(--accent)] border border-[var(--border)]">
+              <li className="flex items-start gap-3.5">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0 bg-blue-50 text-[#2563EB] border border-blue-200 mt-0.5">
                   2
                 </span>
                 <div>
-                  <div className="text-sm font-medium text-[var(--foreground)]">Recruiter follow-up</div>
-                  <div className="text-xs mt-0.5 text-[var(--muted-foreground)]">You'll receive an email notification with review results.</div>
+                  <div className="text-sm font-semibold text-slate-900">Recruiter follow-up</div>
+                  <div className="text-xs text-[#64748B] mt-0.5">You'll receive an email notification with review results.</div>
                 </div>
               </li>
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-semibold shrink-0 bg-[var(--surface)] text-[var(--accent)] border border-[var(--border)]">
+              <li className="flex items-start gap-3.5">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0 bg-blue-50 text-[#2563EB] border border-blue-200 mt-0.5">
                   3
                 </span>
                 <div>
-                  <div className="text-sm font-medium text-[var(--foreground)]">Support inquiry</div>
-                  <div className="text-xs mt-0.5 text-[var(--muted-foreground)]">Reach out with your reference ID if you have questions.</div>
+                  <div className="text-sm font-semibold text-slate-900">Support inquiry</div>
+                  <div className="text-xs text-[#64748B] mt-0.5">Reach out with your reference ID if you have questions.</div>
                 </div>
               </li>
             </ol>
           </div>
 
-          <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="font-semibold text-[var(--foreground)] flex items-center gap-2">
-                <BookOpen size={16} className="text-[var(--accent)]" />
-                <span>Learning hub</span>
+          {/* Learning Hub Card */}
+          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 sm:p-7 space-y-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+                  <BookOpen size={18} className="text-[#2563EB]" />
+                  <span>Learning hub</span>
+                </div>
+                <StatusChip tone="neutral" label="COMING SOON" size="sm" />
               </div>
-              <StatusChip tone="neutral" label="COMING SOON" size="sm" />
-            </div>
-            <div className="space-y-2">
-              {LEARNING_HUB_LINKS.map((l) => (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] transition-colors hover:border-[var(--foreground)]"
-                >
-                  <span className="text-sm text-[var(--foreground)]">{l.label}</span>
-                  <span className="text-2xs font-mono text-[var(--muted-foreground)]">Preview</span>
-                </a>
-              ))}
+              <div className="space-y-2">
+                {LEARNING_HUB_LINKS.map((l) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] transition-colors hover:border-slate-400 group"
+                  >
+                    <span className="text-xs sm:text-sm text-slate-800 font-medium group-hover:text-blue-600 transition-colors">
+                      {l.label}
+                    </span>
+                    <span className="text-2xs font-mono text-[#64748B] flex items-center gap-1">
+                      <span>Preview</span>
+                      <ArrowRight size={10} />
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Micro-survey */}
-        <div className="mt-6 p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-          <div className="font-semibold text-[var(--foreground)]">How was your experience?</div>
-          <p className="text-xs mt-1 text-[var(--muted-foreground)]">Optional candidate feedback</p>
+        {/* Feedback Section (matching feedback-section.svg) */}
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 sm:p-8 shadow-sm w-full space-y-4">
+          <div>
+            <div className="text-lg font-bold text-[#0F172A]">How was your experience?</div>
+            <p className="text-xs sm:text-sm text-[#475569] mt-0.5">Optional candidate feedback</p>
+          </div>
+
           {!surveySent ? (
-            <form onSubmit={handleSurveySubmit} className="mt-4 space-y-4">
-              <div className="flex items-center gap-2">
+            <form onSubmit={handleSurveySubmit} className="space-y-4 pt-1">
+              {/* Rating Pills (1 to 5) */}
+              <div className="flex items-center gap-3">
                 {EXPERIENCE_RATINGS.map((n) => {
-                  const active = surveyRating !== null && n <= surveyRating;
+                  const selected = surveyRating === n;
                   return (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setSurveyRating(n)}
                       className={`
-                        w-10 h-10 rounded-lg flex items-center justify-center transition-colors cursor-pointer
-                        ${active ? 'bg-[var(--surface)] text-[var(--accent)] border border-[var(--accent)] font-bold' : 'bg-[var(--surface)] text-[var(--muted-foreground)] border border-[var(--border)]'}
+                        w-12 h-12 rounded-full flex items-center justify-center text-sm transition-all cursor-pointer
+                        ${selected
+                          ? 'bg-[#EFF6FF] border-2 border-[#2563EB] text-[#2563EB] font-bold shadow-sm'
+                          : 'bg-white border border-[#E2E8F0] text-[#475569] hover:border-slate-300 hover:bg-slate-50 font-medium'
+                        }
                       `}
                     >
-                      <Star size={18} fill={active ? 'currentColor' : 'none'} />
+                      {n}
                     </button>
                   );
                 })}
               </div>
+
               {surveyRating !== null && (
-                <div className="space-y-3">
+                <div className="space-y-3 animate-cd-fade-in pt-1">
                   <textarea
                     value={surveyComment}
                     onChange={e => setSurveyComment(e.target.value)}
                     placeholder="Any additional feedback on the interface or process…"
-                    rows={2}
-                    className="w-full p-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] text-xs placeholder:text-[var(--muted-foreground)]"
+                    rows={3}
+                    className="w-full p-3.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all"
                   />
-                  <button type="submit" className="btn-primary text-xs cursor-pointer">
-                    Submit Feedback
+                  <button type="submit" className="figma-btn-primary">
+                    <span>Submit Feedback</span>
                   </button>
                 </div>
               )}
             </form>
           ) : (
-            <div className="mt-4 text-xs font-semibold text-[var(--success)]">
-              Thank you for sharing your feedback!
+            <div className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+              <Check size={16} />
+              <span>Thank you for sharing your feedback!</span>
             </div>
           )}
         </div>
 
-        <div className="mt-8 text-center">
-          <a href={SUPPORT_EMAIL} className="inline-flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
-            <LifeBuoy size={14} /> Contact support
+        {/* Footer Support Link */}
+        <div className="pt-2 text-center">
+          <a
+            href={SUPPORT_EMAIL}
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <LifeBuoy size={14} />
+            <span>Contact support</span>
           </a>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

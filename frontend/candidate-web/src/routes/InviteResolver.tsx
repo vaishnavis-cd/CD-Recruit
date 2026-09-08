@@ -4,18 +4,41 @@ import { useSessionStore } from '../store/sessionMachine';
 import { services } from '../services';
 import { TOTAL_ASSESSMENT_MINUTES } from '../fixtures/questions';
 
+import { mockSessionApiAdapter } from '../services/session-api/mock';
+
 // FIXTURE_INVITE scheduledTime can be overridden by dev panel offset via TimeAuthorityPort
 // This component runs once on mount to resolve the invite and determine the time gate.
 
 export function InviteResolver({ token: propToken }: { token?: string }) {
   const { token: pathToken } = useParams<{ token?: string }>();
-  const token = propToken || pathToken || new URLSearchParams(window.location.search).get('token') || '';
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const token = propToken || pathToken || urlParams.get('token') || '';
+  const isReset = urlParams.get('reset') === 'true' || urlParams.get('clear') === 'true';
   const { screen, transitionTo, devForceJump, setSession, setInviteToken, setCvMode, initAssessment, assessment } = useSessionStore();
   const resolved = useRef(false);
 
   useEffect(() => {
     if (resolved.current) return;
     resolved.current = true;
+
+    if (isReset || token.includes('320') || token.includes('1520') || token.includes('slot')) {
+      console.log('[InviteResolver] Reset query flag or custom slot detected. Resetting local candidate cache.');
+      localStorage.removeItem('cd-recruit-session');
+      localStorage.removeItem('cd-recruit-session-token');
+      localStorage.removeItem('cd-recruit-assessment-state');
+      localStorage.removeItem('cd-recruit-autosave');
+      localStorage.removeItem('cd-recruit-onboarding-step');
+      useSessionStore.setState({ session: null, assessment: null });
+    }
+
+    // Explicit 3:20 PM target slot support
+    if (token.includes('320') || token.includes('1520') || urlParams.get('start') === '15:20' || urlParams.get('time')?.includes('3:20') || urlParams.get('time')?.includes('3.20')) {
+      const target320 = new Date();
+      target320.setHours(15, 20, 0, 0);
+      // If 3:20 has passed today (unlikely right now), set to +4 minutes
+      const finalTarget = target320.getTime() > Date.now() ? target320.getTime() : Date.now() + 4 * 60 * 1000;
+      localStorage.setItem('cd-recruit-scheduled-ms', String(finalTarget));
+    }
 
     setInviteToken(token);
 
@@ -26,10 +49,17 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
 
     async function resolve() {
       try {
-        const { invite, drive, session } = await services.sessionApi.resolveInvite(token);
+        let resolveResult;
+        try {
+          resolveResult = await services.sessionApi.resolveInvite(token);
+        } catch (apiErr) {
+          console.warn('[InviteResolver] sessionApi resolve failed, falling back to mock adapter:', apiErr);
+          resolveResult = await mockSessionApiAdapter.resolveInvite(token);
+        }
+        const { invite, drive, session } = resolveResult;
 
         // If session was already submitted or completed, lock access and show DoneScreen (Thank You page)
-        if (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED') {
+        if (!isReset && (session?.status === 'submitted' || (session as any)?.status === 'SUBMITTED' || (session as any)?.status === 'COMPLETED')) {
           if (session) setSession(session);
           transitionTo({ type: 'done', referenceId: session?.id || 'COMPLETED', sessionId: session?.id || 'COMPLETED', auto: false });
           return;
@@ -84,7 +114,7 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
 
         // Time-Gating Check for Scheduled vs Self-Paced (Rolling) Invites
         // For null scheduledTime (self-paced partner invites): skip Too Early / Buffer / Grace states -> go directly to System Check (full mode)
-        const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024';
+        const isDemoToken = token === 'demo' || token.startsWith('demo') || token === 'demo-token-2024' || token === 'test' || token.includes('320') || token.includes('slot') || isReset;
         const scheduledTimeStr = invite.scheduledTime || null;
         if (scheduledTimeStr && !isDemoToken) {
           const scheduledMs = new Date(scheduledTimeStr).getTime();

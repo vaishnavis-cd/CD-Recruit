@@ -35,12 +35,16 @@ const LEGAL_TRANSITIONS: Set<TransitionKey> = new Set([
   'resolving->pre-submit-review', // resuming at review stage
   'too-early->system-check',
   'system-check->consent',
+  'system-check->system-check',
   'system-check->expired', // drive closed during check
+  'consent->system-check', // Back button from terms step
   'consent->consent', // step advancement within consent flow (terms→biometric→id-proof→liveness→selfie)
   'consent->tutorial',
   'consent->expired', // drive closed during consent
+  'tutorial->consent', // Back button from tutorial interface overview
   'tutorial->waiting-room',
   'tutorial->assessment', // grace path: no waiting room
+  'waiting-room->tutorial', // Back button from waiting room
   'waiting-room->assessment',
   'assessment->assessment', // module navigation
   'assessment->pre-submit-review',

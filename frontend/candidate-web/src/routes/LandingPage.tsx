@@ -215,12 +215,9 @@ function Header() {
 
   return (
     <header
-      className="fixed top-0 w-full z-50 backdrop-blur-md transition-all duration-200"
-      style={{
-        background: scrolled ? 'rgba(255, 255, 255, 0.96)' : 'rgba(255, 255, 255, 0.9)',
-        borderBottom: '1px solid rgba(229, 231, 235, 0.8)',
-        boxShadow: scrolled ? '0 4px 20px -2px rgba(0, 0, 0, 0.05)' : 'none',
-      }}
+      className={`fixed top-0 w-full z-50 backdrop-blur-md transition-all duration-200 ${
+        scrolled ? 'landing-header-bg-scrolled' : 'landing-header-bg-default'
+      }`}
     >
       <div className="max-w-[1440px] mx-auto px-8 sm:px-12 flex items-center justify-between h-[104px]">
         {/* Brand Logo (Left) */}
@@ -252,8 +249,7 @@ function Header() {
 
           <a
             href="mailto:hello@proctora.com?subject=Demo%20request"
-            className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-semibold text-white rounded-lg no-underline transition-all hover:bg-[#2349B8] hover:shadow-md active:scale-98 whitespace-nowrap"
-            style={{ background: '#2E5DE0', boxShadow: '0 2px 10px rgba(46,93,224,0.25)' }}
+            className="landing-demo-btn inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-semibold text-white rounded-lg no-underline transition-all hover:bg-[#2349B8] hover:shadow-md active:scale-98 whitespace-nowrap"
           >
             Book Demo <ArrowRight size={14} />
           </a>
@@ -326,8 +322,7 @@ function InviteWidget() {
         <button
           onClick={handleStart}
           disabled={loading}
-          className="flex items-center justify-center gap-1.5 rounded-[10px] text-[14px] font-semibold text-white transition-all hover:bg-[#2349B8] active:scale-[0.98] cursor-pointer flex-shrink-0 whitespace-nowrap"
-          style={{ background: '#2E5DE0', width: '151px', height: '49px' }}
+          className="landing-start-btn flex items-center justify-center gap-1.5 rounded-[10px] text-[14px] font-semibold text-white transition-all hover:bg-[#2349B8] active:scale-[0.98] cursor-pointer flex-shrink-0 whitespace-nowrap"
         >
           {loading ? (
             <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none">
@@ -366,10 +361,7 @@ function BrowserMockup() {
   return (
     <Reveal delay={0.35} className="mt-14 max-w-[960px] mx-auto">
       <div
-        className="rounded-2xl border border-[#1E293B]/80 overflow-hidden text-left bg-[#12131A] shadow-2xl"
-        style={{
-          boxShadow: '0 30px 90px -15px rgba(15, 23, 42, 0.4), 0 0 80px -20px rgba(37, 99, 235, 0.25)',
-        }}
+        className="rounded-2xl border border-[#1E293B]/80 overflow-hidden text-left bg-[#12131A] shadow-2xl landing-browser-shadow"
       >
         {/* Window Chrome Header Bar */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#1E293B] bg-[#0E0F15]">
@@ -391,8 +383,7 @@ function BrowserMockup() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #F97316 0%, #EF4444 100%)' }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0 landing-avatar-gradient"
                 >
                   P
                 </div>
@@ -404,8 +395,7 @@ function BrowserMockup() {
 
               {/* Message Box */}
               <div
-                className="rounded-xl p-4 border border-[#2563EB]/30"
-                style={{ background: 'rgba(37, 99, 235, 0.08)' }}
+                className="rounded-xl p-4 border border-[#2563EB]/30 landing-msg-bubble"
               >
                 <p className="text-[13px] text-[#E2E8F0] leading-relaxed italic m-0">
                   "Good catch — I'll make sure to add payload validation before this ships to prod."
@@ -700,13 +690,7 @@ export function LandingPage() {
 
       {/* ═══ HERO SECTION (Figma BG.png & Container (4).svg) ═══ */}
       <section
-        className="relative text-center pt-36 pb-20 overflow-hidden min-h-[880px]"
-        style={{
-          backgroundImage: "url('/hero_bg.png')",
-          backgroundSize: '100% 100%',
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center top',
-        }}
+        className="landing-hero-section relative text-center pt-36 pb-20 overflow-hidden min-h-[880px]"
       >
         <div className="max-w-[1320px] mx-auto px-4 sm:px-6 relative z-10">
           <Reveal delay={0.1}>

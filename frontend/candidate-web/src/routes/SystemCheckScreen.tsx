@@ -1,8 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useSessionStore } from '../store/sessionMachine'
 import { services } from '../services'
-import { StatusChip } from '../components/common/StatusChip'
-import { Cpu, Camera, Wifi, Gauge, Maximize2, Info, AlertTriangle, Monitor, Bluetooth, RotateCcw } from 'lucide-react'
+import {
+  Settings,
+  Camera,
+  Wifi,
+  Headphones,
+  Maximize2,
+  Info,
+  AlertTriangle,
+  Monitor,
+  Bluetooth,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react'
 
 type CheckStatus = 'pending' | 'checking' | 'pass' | 'warn' | 'fail' | 'skipped'
 
@@ -30,7 +41,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     {
       id: 'wasm',
       label: 'WebAssembly support',
-      icon: <Cpu size={18} />,
+      icon: <Settings size={18} />,
       status: 'pending',
       note: 'Verifying runtime…',
     },
@@ -51,7 +62,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     {
       id: 'perf',
       label: 'Performance benchmark',
-      icon: <Gauge size={18} />,
+      icon: <Headphones size={18} />,
       status: 'pending',
       note: 'Running micro-benchmark…',
     },
@@ -72,7 +83,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   ])
 
   function updateCheck(id: string, update: Partial<CheckItem>) {
-    setChecks(prev => prev.map(c => c.id === id ? { ...c, ...update } : c))
+    setChecks((prev) => prev.map((c) => (c.id === id ? { ...c, ...update } : c)))
   }
 
   // Storage check on mount
@@ -91,7 +102,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     await sleep(300)
 
     const isExtended = Boolean((window.screen as any)?.isExtended || (window as any)?.isExtended)
-    const isMultiScreen = isExtended || (window.screen.availWidth > window.screen.width)
+    const isMultiScreen = isExtended || window.screen.availWidth > window.screen.width
 
     if (isMultiScreen) {
       updateCheck('monitor', {
@@ -99,11 +110,13 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
         note: 'Multiple displays detected',
         errorMessage: 'Secondary monitor or HDMI display detected. Please disconnect external monitors to continue.',
       })
-      services.sessionApi.reportIntegritySignal({
-        kind: 'infra-failure',
-        category: 'functional',
-        timestamp: new Date(services.time.getServerNow()).toISOString(),
-      }).catch(() => {})
+      services.sessionApi
+        .reportIntegritySignal({
+          kind: 'infra-failure',
+          category: 'functional',
+          timestamp: new Date(services.time.getServerNow()).toISOString(),
+        })
+        .catch(() => {})
     } else {
       updateCheck('monitor', { status: 'pass', note: 'Single display verified', errorMessage: undefined })
     }
@@ -117,23 +130,26 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
       if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
         const devices = await navigator.mediaDevices.enumerateDevices()
         const bluetoothKeywords = ['bluetooth', 'wireless', 'airpods', 'headset', 'hands-free', 'handsfree', 'bth']
-        
-        const activeBtDevice = devices.find(d => {
+
+        const activeBtDevice = devices.find((d) => {
           const label = (d.label || '').toLowerCase()
-          return bluetoothKeywords.some(kw => label.includes(kw))
+          return bluetoothKeywords.some((kw) => label.includes(kw))
         })
 
         if (activeBtDevice) {
           updateCheck('bluetooth', {
             status: 'fail',
             note: 'Active Bluetooth device connected',
-            errorMessage: 'Active Bluetooth headset or wireless audio device detected. Please disconnect your Bluetooth audio devices to continue.',
+            errorMessage:
+              'Active Bluetooth headset or wireless audio device detected. Please disconnect your Bluetooth audio devices to continue.',
           })
-          services.sessionApi.reportIntegritySignal({
-            kind: 'infra-failure',
-            category: 'functional',
-            timestamp: new Date(services.time.getServerNow()).toISOString(),
-          }).catch(() => {})
+          services.sessionApi
+            .reportIntegritySignal({
+              kind: 'infra-failure',
+              category: 'functional',
+              timestamp: new Date(services.time.getServerNow()).toISOString(),
+            })
+            .catch(() => {})
         } else {
           updateCheck('bluetooth', { status: 'pass', note: 'No wireless peripherals active', errorMessage: undefined })
         }
@@ -150,18 +166,44 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   }, [])
 
   const assessment = useSessionStore((s) => s.assessment)
-  const proctoringConfig = (assessment as any)?.proctoringConfig || (assessment as any)?.drive?.moduleConfig?.proctoringConfig || {}
 
   async function runSequentialChecks() {
-    const pConfig = (assessment as any)?.proctoringConfig || (assessment as any)?.drive?.moduleConfig?.proctoringConfig || {}
+    const pConfig =
+      (assessment as any)?.proctoringConfig ||
+      (assessment as any)?.drive?.moduleConfig?.proctoringConfig ||
+      {}
 
     setChecks([
-      { id: 'wasm', label: 'WebAssembly support', icon: <Cpu size={18} />, status: 'pending', note: 'Verifying runtime…' },
-      { id: 'cam', label: 'Camera access', icon: <Camera size={18} />, status: 'pending', note: pConfig.requireCamera === false ? 'Disabled by drive config' : 'Awaiting device…' },
+      { id: 'wasm', label: 'WebAssembly support', icon: <Settings size={18} />, status: 'pending', note: 'Verifying runtime…' },
+      {
+        id: 'cam',
+        label: 'Camera access',
+        icon: <Camera size={18} />,
+        status: 'pending',
+        note: pConfig.requireCamera === false ? 'Disabled by drive config' : 'Awaiting device…',
+      },
       { id: 'net', label: 'Connection quality', icon: <Wifi size={18} />, status: 'pending', note: 'Measuring bandwidth…' },
-      { id: 'perf', label: 'Performance benchmark', icon: <Gauge size={18} />, status: 'pending', note: pConfig.cpuMathBenchmark === false ? 'Disabled by drive config' : 'Running micro-benchmark…' },
-      { id: 'monitor', label: 'Display & Monitor check', icon: <Monitor size={18} />, status: 'pending', note: pConfig.requireScreenShare === false ? 'Disabled by drive config' : 'Checking display configuration…' },
-      { id: 'bluetooth', label: 'External & Bluetooth devices check', icon: <Bluetooth size={18} />, status: 'pending', note: 'Scanning for active peripherals…' },
+      {
+        id: 'perf',
+        label: 'Performance benchmark',
+        icon: <Headphones size={18} />,
+        status: 'pending',
+        note: pConfig.cpuMathBenchmark === false ? 'Disabled by drive config' : 'Running micro-benchmark…',
+      },
+      {
+        id: 'monitor',
+        label: 'Display & Monitor check',
+        icon: <Monitor size={18} />,
+        status: 'pending',
+        note: pConfig.requireScreenShare === false ? 'Disabled by drive config' : 'Checking display configuration…',
+      },
+      {
+        id: 'bluetooth',
+        label: 'External & Bluetooth devices check',
+        icon: <Bluetooth size={18} />,
+        status: 'pending',
+        note: 'Scanning for active peripherals…',
+      },
     ])
 
     // 1. WASM check
@@ -189,9 +231,11 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
         const stream = (services.cv as any).getStream?.()
         const track = stream?.getVideoTracks?.()?.[0]
         const settings = track?.getSettings?.()
-        const resNote = settings?.height ? `${settings.height}p @ ${Math.round(settings.frameRate || 30)}fps` : '1080p @ 30fps'
+        const resNote = settings?.height
+          ? `${settings.height}p @ ${Math.round(settings.frameRate || 30)}fps`
+          : '1080p @ 30fps'
         updateCheck('cam', { status: 'pass', note: resNote })
-      } catch (err) {
+      } catch {
         if (mode === 'expedited') {
           updateCheck('cam', {
             status: 'warn',
@@ -235,7 +279,10 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     const benchDuration = Math.max(1, performance.now() - benchStart)
     const opsPerMs = Math.round(2000000 / benchDuration)
     const opsK = Math.round(opsPerMs / 1000)
-    updateCheck('perf', { status: 'pass', note: `${opsK}k ops/ms · High Performance (${dummy > 0 ? 'Verified' : 'OK'})` })
+    updateCheck('perf', {
+      status: 'pass',
+      note: `${opsK}k ops/ms · High Performance (${dummy > 0 ? 'Verified' : 'OK'})`,
+    })
 
     // 5. Monitor check
     await runMonitorCheck()
@@ -275,112 +322,166 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
     })
   }
 
-  const allPassed = checks.length === 6 && checks.every(c => c.status === 'pass' || c.status === 'warn')
+  const allPassed =
+    checks.length === 6 && checks.every((c) => c.status === 'pass' || c.status === 'warn')
+
+  function renderStatusBadge(status: CheckStatus) {
+    if (status === 'checking') {
+      return (
+        <span className="figma-badge figma-badge-checking">
+          <Loader2 size={12} className="animate-spin shrink-0 text-blue-600" />
+          <span>Checking…</span>
+        </span>
+      )
+    }
+    if (status === 'pass') {
+      return (
+        <span className="figma-badge figma-badge-pass">
+          <span className="figma-dot figma-dot-pass" aria-hidden />
+          <span>Ready</span>
+        </span>
+      )
+    }
+    if (status === 'warn') {
+      return (
+        <span className="figma-badge figma-badge-warn">
+          <span className="figma-dot figma-dot-warn" aria-hidden />
+          <span>Acceptable</span>
+        </span>
+      )
+    }
+    if (status === 'fail') {
+      return (
+        <span className="figma-badge figma-badge-fail">
+          <span className="figma-dot figma-dot-fail" aria-hidden />
+          <span>Failed</span>
+        </span>
+      )
+    }
+    return (
+      <span className="figma-badge figma-badge-pending">
+        <span className="figma-dot figma-dot-pending" aria-hidden />
+        <span>Pending</span>
+      </span>
+    )
+  }
 
   return (
     <div
-      className="min-h-screen px-6 py-12 flex items-center justify-center"
+      className="figma-page-layout items-center"
       role="main"
       aria-labelledby="system-check-heading"
     >
-      <div className="w-full max-w-2xl animate-cd-fade-in">
-        <div className="mb-8 flex items-center justify-between">
+      <div className="figma-container-960">
+        {/* Header Bar (Figma header-row) */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 id="system-check-heading" className="text-4xl font-semibold tracking-tight text-[var(--foreground)]">
+            <h1 id="system-check-heading" className="figma-h1-instrument">
               System check
             </h1>
-            <p className="text-sm mt-2 text-[var(--muted-foreground)]">
+            <p className="figma-subtitle figma-subtitle-instrument">
               We'll verify a few things before you begin. This usually takes under 10 seconds.
             </p>
           </div>
-          <RetryButton onClick={runSequentialChecks} label="Re-check System" />
+          <button
+            onClick={runSequentialChecks}
+            type="button"
+            className="figma-btn-recheck shrink-0"
+          >
+            <RotateCcw size={14} />
+            <span>Re-check System</span>
+          </button>
         </div>
 
+        {/* Low Storage Warning */}
         {storageFull && (
-          <div role="alert" className="mb-6 p-4 rounded-xl border border-[var(--warning)] bg-[var(--surface)] text-sm text-[var(--warning)] flex items-start gap-3">
-            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <div
+            role="alert"
+            className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-800 flex items-start gap-3"
+          >
+            <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600" />
             <div>
               <div className="font-semibold mb-0.5">Storage Space Low</div>
-              <div className="text-xs text-[var(--muted-foreground)]">Your responses will sync directly — make sure you keep your window open during the assessment.</div>
+              <div className="text-amber-700">
+                Your responses will sync directly — make sure you keep your window open during the assessment.
+              </div>
             </div>
           </div>
         )}
 
-        {/* Card list */}
-        <div className="card-base divide-y" style={{ borderColor: "var(--border)" }} role="list" aria-label="System check items">
-          {checks.map(c => {
-            const tone =
-              c.status === 'checking' ? 'pending' :
-              c.status === 'pass' ? 'success' :
-              c.status === 'warn' ? 'warning' :
-              c.status === 'fail' ? 'critical' : 'neutral'
-
-            const label =
-              c.status === 'checking' ? 'Checking…' :
-              c.status === 'pass' ? 'Ready' :
-              c.status === 'warn' ? 'Acceptable' :
-              c.status === 'fail' ? 'Failed' : 'Pending'
-
-            return (
-              <div key={c.id} className="flex flex-col px-5 py-4 gap-2" role="listitem">
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--muted-foreground)]"
-                  >
+        {/* Card List (Figma 960x432px r:16px) */}
+        <div
+          className="figma-card"
+          role="list"
+          aria-label="System check items"
+        >
+          {checks.map((c) => (
+            <div
+              key={c.id}
+              className="figma-card-row"
+              role="listitem"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="figma-icon-box">
                     {c.icon}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[var(--foreground)] text-sm">{c.label}</div>
-                    <div className="text-xs text-[var(--muted-foreground)] mt-0.5">{c.note}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {(c.id === 'monitor' || c.id === 'bluetooth') && c.status === 'fail' && (
-                      <button
-                        onClick={c.id === 'monitor' ? runMonitorCheck : runBluetoothCheck}
-                        className="btn-secondary text-xs px-2.5 py-1 inline-flex items-center gap-1 cursor-pointer"
-                        type="button"
-                      >
-                        <RotateCcw size={12} />
-                        <span>Re-check</span>
-                      </button>
-                    )}
-                    <StatusChip tone={tone} label={label} loading={c.status === 'checking'} />
+                  <div className="min-w-0">
+                    <div className="figma-card-title">{c.label}</div>
+                    <div className="figma-caption">{c.note}</div>
                   </div>
                 </div>
-                {c.errorMessage && (
-                  <div className="text-xs text-[var(--critical)] bg-[var(--critical-subtle,#fff0f0)] p-2.5 rounded-lg font-medium border border-[var(--critical)]/20">
-                    {c.errorMessage}
-                  </div>
-                )}
+
+                <div className="flex items-center gap-3 shrink-0">
+                  {(c.id === 'monitor' || c.id === 'bluetooth') && c.status === 'fail' && (
+                    <button
+                      onClick={c.id === 'monitor' ? runMonitorCheck : runBluetoothCheck}
+                      className="px-2.5 py-1 rounded-md border border-slate-200 bg-transparent text-slate-600 text-xs font-medium hover:bg-white/40 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                      type="button"
+                    >
+                      <RotateCcw size={12} className="text-slate-500" />
+                      <span>Re-check</span>
+                    </button>
+                  )}
+                  {renderStatusBadge(c.status)}
+                </div>
               </div>
-            )
-          })}
+
+              {c.errorMessage && (
+                <div className="figma-error-banner">
+                  {c.errorMessage}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Info Callout Box */}
-        <div className="mt-6 flex items-start gap-3 p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-          <Info size={16} className="text-[var(--accent)] mt-0.5 shrink-0" />
-          <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
-            We'll ask for camera access next. It's used only for identity verification and integrity checks during the assessment — never for anything else. Note: Power cables/chargers are excluded from device checks.
+        {/* Info Callout Box (Figma 960x78px r:12px) */}
+        <div className="figma-info-banner">
+          <Info size={18} className="text-[#0F172A] shrink-0 mt-0.5" />
+          <p className="figma-body">
+            We'll ask for camera access next. It's used only for identity verification and integrity checks
+            during the assessment — never for anything else. Note: Power cables/chargers are excluded from
+            device checks.
           </p>
         </div>
 
         {/* Bottom Action Bar */}
-        <div className="mt-6 flex items-center justify-between">
+        <div className="pt-2 flex items-center justify-between gap-4">
           <button
             onClick={toggleFullscreen}
             type="button"
-            className="btn-secondary inline-flex items-center gap-2 text-xs font-medium cursor-pointer"
+            className="figma-fullscreen-btn"
           >
             <Maximize2 size={16} />
-            <span>{fullscreen ? 'Fullscreen enabled' : 'Enter fullscreen mode'}</span>
+            <span>Fullscreen enabled</span>
           </button>
 
           <button
             onClick={handleContinue}
             disabled={!allPassed}
             type="button"
-            className="btn-primary text-xs font-semibold px-6 py-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="figma-btn-primary"
           >
             Continue
           </button>
@@ -390,18 +491,6 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
   )
 }
 
-function RetryButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      type="button"
-      className="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 cursor-pointer"
-    >
-      <RotateCcw size={14} />
-      <span>{label}</span>
-    </button>
-  )
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
-
-function sleep(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)) }
-

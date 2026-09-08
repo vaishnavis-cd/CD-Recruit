@@ -3,9 +3,7 @@ import { useSessionStore } from '../store/sessionMachine';
 import { services } from '../services';
 import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
-import { StatusChip } from '../components/common/StatusChip';
-import { LifeBuoy, ArrowRight, ShieldCheck } from 'lucide-react';
-import waitingRoomCalmImg from '../assets/waiting-room-calm.png';
+import { HelpCircle, Check, ArrowRight } from 'lucide-react';
 
 const SUPPORT_EMAIL = 'mailto:support@proctora.com';
 
@@ -34,12 +32,12 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
     }
 
     // Sanity-check: scheduled time must be in the future AND at most 10 minutes away.
-    const MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutes maximum countdown
+    const MAX_WAIT_MS = 10 * 60 * 1000;
     if (scheduled && scheduled > currentNow && (scheduled - currentNow) <= MAX_WAIT_MS) {
       return scheduled;
     }
 
-    // Candidate arrived at or after start time OR scheduled time is too far out — mandatory 60s briefing
+    // 60s preheat countdown
     const preheatTarget = currentNow + 60 * 1000;
     localStorage.setItem('cd-recruit-scheduled-ms', String(preheatTarget));
     return preheatTarget;
@@ -49,14 +47,12 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
     return services.time.subscribe(setNowMs);
   }, []);
 
-  // Dynamic allocated minutes
   const allocatedMinutes = session?.durationMinutes
     ? session.durationMinutes
     : assessment?.totalSeconds
     ? Math.round(assessment.totalSeconds / 60)
     : 60;
 
-  // Filter modules to assigned modules
   const activeModules = useMemo(() => {
     const questions = session?.questions || assessment?.questions;
     if (questions && questions.length > 0) {
@@ -88,7 +84,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
     transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: validSessionId });
   };
 
-  // When 1-minute countdown reaches 0, automatically start the assessment
+  // When countdown reaches 0, automatically start the assessment
   useEffect(() => {
     if (nowMs >= targetTimeMs) {
       handleStartNow();
@@ -101,51 +97,62 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
 
   return (
     <div
-      className="min-h-screen px-6 py-10 flex justify-center items-center bg-[var(--background)]"
+      className="figma-page-layout items-center"
       role="main"
       aria-labelledby="waiting-room-heading"
     >
-      <div className="w-full max-w-4xl animate-cd-fade-in">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Side: Illustration */}
-          <div className="lg:col-span-5 flex items-center justify-center p-4">
+      <div className="w-full max-w-[1380px] animate-cd-fade-in py-6">
+        {/* Figma waiting-room: HORIZONTAL gap:174px pad:100px 160px */}
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-[120px]">
+          {/* Left: Elastic illustration (Figma Elastic 500x500) */}
+          <div className="w-full lg:w-[480px] shrink-0 flex items-center justify-center">
             <img
-              src={waitingRoomCalmImg}
-              alt="Calm candidate illustration"
-              className="w-full h-auto object-contain max-h-[340px]"
+              src="/assets/Elastic.png"
+              alt="Calm candidate relaxation illustration"
+              className="w-full max-w-[460px] h-auto object-contain block"
             />
           </div>
 
-          {/* Right Side: Clean Content & Timer */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Top Chip & Heading */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <StatusChip tone="accent" label="PREPARING YOUR ASSESSMENT" size="sm" loading />
-                <span className="text-xs font-mono text-[var(--muted-foreground)]">• {allocatedMinutes}m total time</span>
-              </div>
-              <h1 id="waiting-room-heading" className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
+          {/* Right: content-block (Figma 720x748 r:20px p:60px gap:32px bg:#FFFFFF) */}
+          <div className="w-full max-w-[680px] bg-white rounded-[20px] border border-slate-200 shadow-sm p-8 sm:p-[48px] flex flex-col space-y-7">
+            {/* status-row: badge + total time */}
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#BFDBFE] bg-white text-[12px] font-bold text-[#2F65F6] tracking-wide">
+                <span className="w-2 h-2 rounded-full bg-[#2F65F6]" />
+                <span>PREPARING YOUR ASSESSMENT</span>
+              </span>
+              <span className="text-[14px] font-medium text-[#475569]">
+                · {allocatedMinutes}m total time
+              </span>
+            </div>
+
+            {/* headline-stack */}
+            <div className="space-y-2.5">
+              <h1 id="waiting-room-heading" className="text-3xl sm:text-[36px] font-bold text-[#0F172A] leading-tight tracking-tight">
                 Take a deep breath
               </h1>
-              <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              <p className="text-[16px] text-[#475569] leading-relaxed max-w-[500px]">
                 Your test environment is initialized. Take a moment to relax before beginning.
               </p>
             </div>
 
-            {/* Reverse Timer & Start Now CTA */}
-            <div className="p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4 shadow-sm">
+            {/* timer-card (Figma 600x212 r:16px fill:#F8FAFC stroke:#E2E8F0 p:28px 32px gap:16px) */}
+            <div className="w-full rounded-[16px] bg-[#F8FAFC] border border-[#E2E8F0] p-6 sm:p-7 flex flex-col space-y-4">
+              {/* card-top */}
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
-                  Starting Automatically In
+                <span className="text-[12px] sm:text-[13px] font-bold text-[#475569] uppercase tracking-wider">
+                  STARTING AUTOMATICALLY IN
                 </span>
-                <span className="text-xs-plus text-[var(--muted-foreground)] flex items-center gap-1 font-medium">
-                  <ShieldCheck size={13} className="text-[var(--success)]" /> Environment Ready
-                </span>
+                <div className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-[#15803D]">
+                  <Check size={16} strokeWidth={2.5} className="text-[#15803D]" />
+                  <span>Environment Ready</span>
+                </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Dynamic countdown display & Start button */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div
-                  className="font-mono text-4xl font-bold tabular-nums text-[var(--accent)] tracking-tight"
+                  className="font-mono text-4xl sm:text-[56px] font-extrabold text-[#2F65F6] tracking-tight tabular-nums leading-none"
                   role="timer"
                   aria-live="off"
                 >
@@ -154,39 +161,47 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
 
                 <button
                   onClick={handleStartNow}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] hover:opacity-90 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  className="figma-btn-primary shadow-xs hover:brightness-105 transition-all text-sm inline-flex items-center gap-2 px-5 py-2.5 cursor-pointer"
+                  type="button"
                 >
                   <span>Start Assessment Now</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
-              <p className="text-xs text-[var(--muted-foreground)] pt-1">
-                Assessment will automatically launch when the countdown reaches 00:00, or click above to begin immediately.
+
+              {/* Caption */}
+              <p className="text-[13px] sm:text-[14px] text-[#475569] leading-relaxed">
+                Assessment will automatically launch when the preheat countdown reaches 00:00, or click start above anytime.
               </p>
             </div>
 
-            {/* Active Modules Badges */}
-            {activeModules.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs font-medium text-[var(--muted-foreground)]">Assigned Modules:</span>
+            {/* modules-list */}
+            <div className="space-y-3">
+              <div className="text-[14px] font-bold text-[#475569]">
+                Assigned Modules:
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
                 {activeModules.map((m) => (
                   <span
                     key={m.type}
-                    className="px-3 py-1 rounded-lg text-xs font-semibold bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]"
+                    className="inline-flex items-center px-4 py-1.5 rounded-full border border-[#E2E8F0] bg-white text-[14px] font-semibold text-black shadow-2xs"
                   >
                     {m.name}
                   </span>
                 ))}
               </div>
-            )}
+            </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-[var(--border)] text-xs text-[var(--muted-foreground)]">
+            {/* Line separator */}
+            <div className="w-full border-t border-[#E2E8F0]" />
+
+            {/* footer */}
+            <div className="flex items-center justify-between text-[14px] text-[#475569] font-medium">
               <a
                 href={SUPPORT_EMAIL}
-                className="inline-flex items-center gap-1.5 hover:text-[var(--foreground)] transition-colors"
+                className="inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors"
               >
-                <LifeBuoy size={14} />
+                <HelpCircle size={16} className="text-[#475569]" />
                 <span>Need support?</span>
               </a>
               <span>Proctora Candidate Environment</span>
