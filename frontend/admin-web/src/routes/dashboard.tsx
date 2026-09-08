@@ -18,6 +18,7 @@ import { AppShell } from "../components/app-shell";
 import { ScopePanel } from "../components/scope-panel";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 import { useStore } from "../lib/store";
 import { getUserProfile } from "../lib/auth";
 import { type RoleTemplate } from "../lib/types";
@@ -484,7 +485,20 @@ function DashboardPage() {
           <div className="flex items-center gap-3">
             
             {/* Date Range Dropdown */}
-            <DateRangeDropdown value={dateRange} onChange={setDateRange} />
+            <CustomDropdown
+              value={dateRange}
+              onChange={setDateRange}
+              rounded="16px"
+              size="md"
+              align="right"
+              className="min-w-[130px]"
+              buttonClassName="h-[36px] text-xs font-semibold text-[#0d1424] border-[#e8ecf4] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+              options={[
+                { value: "7", label: "Last 7 Days" },
+                { value: "30", label: "Last 30 Days" },
+                { value: "all", label: "All Time" },
+              ]}
+            />
 
             {/* Export Dropdown */}
             <ExportDropdown
@@ -1123,16 +1137,20 @@ function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
       <SectionTitle
         noMargin
         action={
-          <select
+          <CustomDropdown
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="text-xs-plus font-medium border border-line rounded-md px-2 py-1 bg-canvas text-ink-secondary"
-          >
-            <option value="all">All Roles</option>
-            {roleTemplates.map((rt) => (
-              <option key={rt.id} value={rt.id}>{rt.roleName}</option>
-            ))}
-          </select>
+            onChange={setRoleFilter}
+            rounded="16px"
+            size="sm"
+            className="min-w-[140px]"
+            options={[
+              { value: "all", label: "All Roles" },
+              ...roleTemplates.map((rt) => ({
+                value: rt.id,
+                label: rt.roleName,
+              })),
+            ]}
+          />
         }
       >
         Score Distribution
