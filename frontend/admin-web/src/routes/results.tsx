@@ -109,9 +109,15 @@ function ResultsPage() {
     return { total, pending, approved, rejected, avgScore };
   }, [safeResultsList]);
 
-  const handleExportCsv = () => {
-    const driveParam = driveFilter !== "all" ? `?driveId=${encodeURIComponent(driveFilter)}` : "";
-    window.open(`${API_BASE}/admin/reports/export/csv${driveParam}`, "_blank");
+  const exportResultsCsv = useStore((s) => s.exportResultsCsv);
+
+  const handleExportCsv = async () => {
+    try {
+      await exportResultsCsv(driveFilter !== "all" ? driveFilter : undefined);
+      toast.success("CSV export downloaded successfully!");
+    } catch (err: any) {
+      toast.error("Failed to export CSV: " + (err.message || err));
+    }
   };
 
   const handleVerifyAll = async () => {
@@ -378,15 +384,9 @@ function ResultsPage() {
                       </td>
 
                       {/* Drive & Track */}
-<<<<<<< HEAD
                       <td className="py-2.5 px-3">
                         <div className="text-ink font-medium truncate max-w-[150px] text-[12px]">
-                          {item.driveName || "General Drive"}
-=======
-                      <td className="py-3 px-4">
-                        <div className="text-ink font-medium truncate max-w-[180px]">
                           {formatDriveName(item.driveName) || "General Drive"}
->>>>>>> 261a72ca1a635bf187cd2a7035d29610e0f85dd3
                         </div>
                         <div className="text-[11px] text-ink-secondary truncate max-w-[150px]">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>
