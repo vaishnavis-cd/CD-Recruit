@@ -146,6 +146,7 @@
   * {
     border-color: var(--color-border);
   }
+
   html,
   body {
     background-color: #f7f7f9;
@@ -167,6 +168,7 @@
   .font-mono {
     font-family: var(--font-mono);
   }
+
   select {
     appearance: none;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%235b5b64' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E") !important;
@@ -183,10 +185,12 @@
     cursor: pointer;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
   }
+
   select:hover {
     background-color: #F4F4F6;
     border-color: #D1D1D6;
   }
+
   select:focus {
     border-color: #2F5CFF;
     background-color: #ffffff;
@@ -243,5 +247,3 @@
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
-
-

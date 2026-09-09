@@ -38,7 +38,7 @@ export interface QuestionSlice {
       status?: string;
     },
   ) => Promise<void>;
-  bulkUploadQuestions: (moduleType: string, questions: any[]) => Promise<void>;
+  bulkUploadQuestions: (moduleType: string, questions: any[]) => Promise<any>;
 }
 
 export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (set, get) => ({
@@ -100,11 +100,17 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
 
   bulkUploadQuestions: async (moduleType: string, questions: any[]) => {
     const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/questions/bulk`, {
+    const res = await fetch(`${API_BASE}/admin/questions/bulk`, {
       method: "POST",
       headers,
       body: JSON.stringify({ moduleType, questions }),
     });
-    get().fetchQuestions();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to bulk upload questions");
+    }
+    const data = await res.json();
+    await get().fetchQuestions();
+    return data.questions || data;
   },
 });

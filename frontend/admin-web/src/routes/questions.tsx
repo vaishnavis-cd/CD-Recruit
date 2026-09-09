@@ -24,12 +24,14 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
+import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { ModuleType } from "@cd-recruit/shared-types";
 import { CodeEditor } from "../components/common/CodeEditor";
-import { processQuestionTags } from "./drives.$id";
+import { processQuestionTags, DEFAULT_TIME_MATRIX } from "./drives.$id";
+import { downloadUnifiedSampleCSV, parseQuestionsFromCSV } from "../lib/csvParser";
 import {
   MODULE_LABEL_MAP,
+  ALL_MODULE_KEYS,
   getDepartmentAllowedModules,
 } from "../lib/roleModules";
 
@@ -336,7 +338,22 @@ export function formatTagDisplayName(tag: string, section?: TagSectionType): { t
   };
 }
 
+export interface QuestionsSearchSchema {
+  fromDriveId?: string;
+  driveName?: string;
+  autoBulk?: string;
+  folder?: string;
+  module?: string;
+}
+
 export const Route = createFileRoute("/questions")({
+  validateSearch: (search: Record<string, unknown>): QuestionsSearchSchema => ({
+    fromDriveId: typeof search.fromDriveId === "string" ? search.fromDriveId : undefined,
+    driveName: typeof search.driveName === "string" ? search.driveName : undefined,
+    autoBulk: search.autoBulk === "true" || search.autoBulk === true ? "true" : undefined,
+    folder: typeof search.folder === "string" ? search.folder : undefined,
+    module: typeof search.module === "string" ? search.module : undefined,
+  }),
   component: QuestionBankPage,
   head: () => ({
     meta: [
@@ -480,20 +497,19 @@ function QuestionBankPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const autoBulk = params.get("autoBulk") === "true";
-      const driveName = params.get("driveName");
+  const routeSearch = Route.useSearch();
+  const searchDriveName = routeSearch.driveName || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("driveName") : null);
+  const searchAutoBulk = routeSearch.autoBulk === "true" || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("autoBulk") === "true");
+  const searchFromDriveId = routeSearch.fromDriveId || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("fromDriveId") : null);
 
-      if (driveName) {
-        setSelectedFolder(driveName);
-      }
-      if (autoBulk) {
-        setShowImportModal(true);
-      }
+  useEffect(() => {
+    if (searchDriveName) {
+      setSelectedFolder(`drive:${searchDriveName.toLowerCase().trim()}`);
     }
-  }, []);
+    if (searchAutoBulk) {
+      setShowImportModal(true);
+    }
+  }, [searchDriveName, searchAutoBulk]);
 
   // Form State (Create)
   const [moduleType, setModuleType] = useState<string>("MCQ");
@@ -700,7 +716,8 @@ function QuestionBankPage() {
           cleanTag.startsWith("[drive]") ||
           cleanTag.includes("drive:")
         ) {
-          const driveKey = `drive:${cleanTag}`;
+          const normalizedDriveName = cleanTag.replace(/^(#?drive\s*:\s*|#?drive\s*-\s*|\[drive\]\s*|drive_)/i, "").trim();
+          const driveKey = `drive:${normalizedDriveName}`;
           if (!driveTagMap.has(driveKey)) {
             driveTagMap.set(driveKey, []);
           }
@@ -730,6 +747,14 @@ function QuestionBankPage() {
         }
       });
     });
+
+    // Ensure incoming drive from search query params exists in driveTagMap even if 0 questions exist yet
+    if (searchDriveName) {
+      const driveKey = `drive:${searchDriveName.toLowerCase().trim()}`;
+      if (!driveTagMap.has(driveKey)) {
+        driveTagMap.set(driveKey, []);
+      }
+    }
 
     // Populate Drive section
     driveTagMap.forEach((qList, driveKey) => {
@@ -1009,50 +1034,14 @@ function QuestionBankPage() {
     setAiIdealResponse("");
   };
 
-  // CSV Parser Utility
-  function parseCSV(text: string) {
-    const lines = [];
-    let row: string[] = [];
-    let inQuotes = false;
-    let val = "";
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      const next = text[i + 1];
-      if (c === '"') {
-        if (inQuotes && next === '"') {
-          val += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (c === "," && !inQuotes) {
-        row.push(val.trim());
-        val = "";
-      } else if ((c === "\n" || c === "\r") && !inQuotes) {
-        if (c === "\r" && next === "\n") i++;
-        row.push(val.trim());
-        if (row.length > 0 && row.some((x) => x)) {
-          lines.push(row);
-        }
-        row = [];
-        val = "";
-      } else {
-        val += c;
-      }
-    }
-    if (val || row.length > 0) {
-      row.push(val.trim());
-      lines.push(row);
-    }
-    return lines;
-  }
-
-  // Single Unified Multi-Module Sample CSV Template Download
+  // Single Unified Multi-Module Sample CSV Template Download (20 Columns)
   const handleDownloadUnifiedSampleCSV = () => {
     const headers = [
       "moduleType",
       "prompt",
       "difficulty",
+      "durationMinutes",
+      "points",
       "tags",
       "role",
       "targetLevel",
@@ -1065,6 +1054,8 @@ function QuestionBankPage() {
       "hiddenTestCases",
       "schema",
       "seedData",
+      "supportingFiles",
+      "rubric",
       "explanation",
     ].join(",");
 
@@ -1074,11 +1065,15 @@ function QuestionBankPage() {
         "MCQ",
         '"What is the time complexity of searching in a balanced Binary Search Tree?"',
         "easy",
+        "1",
+        "1",
         '"algorithms,binary-search-tree,data-structures"',
         '"Backend Engineer"',
         '"0-1"',
-        '"[\\"O(1)\\", \\"O(log n)\\", \\"O(n)\\", \\"O(n log n)\\"]"',
+        '"O(1) | O(log n) | O(n) | O(n log n)"',
         '"O(log n)"',
+        "",
+        "",
         "",
         "",
         "",
@@ -1094,6 +1089,8 @@ function QuestionBankPage() {
         "SQL",
         '"Calculate total revenue and order count for each product category having at least 5 orders."',
         "medium",
+        "12",
+        "10",
         '"sql,postgresql,aggregations"',
         '"Data Engineer"',
         '"2-5"',
@@ -1106,6 +1103,8 @@ function QuestionBankPage() {
         "",
         '"CREATE TABLE categories (id INT PRIMARY KEY, name TEXT); CREATE TABLE products (id INT PRIMARY KEY, category_id INT, price NUMERIC); CREATE TABLE orders (id INT PRIMARY KEY, product_id INT, quantity INT);"',
         '"INSERT INTO categories VALUES (1, \'Electronics\'), (2, \'Books\'); INSERT INTO products VALUES (101, 1, 99.99), (102, 2, 19.99); INSERT INTO orders VALUES (1, 101, 5), (2, 102, 2);"',
+        "",
+        "",
         '"SELECT c.name, SUM(p.price * o.quantity) AS total_revenue, COUNT(o.id) AS order_count FROM categories c JOIN products p ON c.id = p.category_id JOIN orders o ON p.id = o.product_id GROUP BY c.name HAVING COUNT(o.id) >= 5;"',
       ].join(","),
 
@@ -1114,6 +1113,8 @@ function QuestionBankPage() {
         "CODING",
         '"Given an integer array nums and an integer target, return indices of the two numbers such that they add up to target."',
         "medium",
+        "25",
+        "50",
         '"algorithms,arrays,hash-table"',
         '"Backend Engineer"',
         '"0-1"',
@@ -1122,8 +1123,10 @@ function QuestionBankPage() {
         "javascript",
         '"nums: number[], target: number"',
         '"function twoSum(nums, target) {\\n  const map = new Map();\\n  for (let i = 0; i < nums.length; i++) {\\n    const diff = target - nums[i];\\n    if (map.has(diff)) return [map.get(diff), i];\\n    map.set(nums[i], i);\\n  }\\n  return [];\\n}"',
-        '"[{\\"input\\": \\"[2, 7, 11, 15], 9\\", \\"expectedOutput\\": \\"[0, 1]\\", \\"label\\": \\"Example 1: Basic case\\"}, {\\"input\\": \\"[3, 2, 4], 6\\", \\"expectedOutput\\": \\"[1, 2]\\", \\"label\\": \\"Example 2: Mixed indices\\"}]"',
-        '"[{\\"input\\": \\"[3, 3], 6\\", \\"expectedOutput\\": \\"[0, 1]\\", \\"label\\": \\"Hidden 1: Duplicate elements\\"}, {\\"input\\": \\"[-1, -2, -3, -4, -5], -8\\", \\"expectedOutput\\": \\"[2, 4]\\", \\"label\\": \\"Hidden 2: Negative numbers\\"}]"',
+        '"input: [2, 7, 11, 15], 9, expected: [0, 1] | input: [3, 2, 4], 6, expected: [1, 2]"',
+        '"input: [3, 3], 6, expected: [0, 1] | input: [-1, -2, -3, -4, -5], -8, expected: [2, 4]"',
+        "",
+        "",
         "",
         "",
         '"Use a Map to track visited number indices in O(n) single-pass lookup time."',
@@ -1134,6 +1137,8 @@ function QuestionBankPage() {
         "DEBUGGING",
         '"Fix off-by-one index error in binary search loop condition."',
         "medium",
+        "15",
+        "25",
         '"debugging,algorithms,search"',
         '"Software Engineer"',
         '"2-5"',
@@ -1142,8 +1147,10 @@ function QuestionBankPage() {
         "javascript",
         '"arr: number[], target: number"',
         '"function binarySearch(arr, target) {\\n  let left = 0;\\n  let right = arr.length; // BUG: should be arr.length - 1\\n  while (left <= right) {\\n    let mid = Math.floor((left + right) / 2);\\n    if (arr[mid] === target) return mid;\\n    if (arr[mid] < target) left = mid + 1;\\n    else right = mid - 1;\\n  }\\n  return -1;\\n}"',
-        '"[{\\"input\\": \\"[1, 3, 5, 7, 9], 9\\", \\"expectedOutput\\": \\"4\\", \\"label\\": \\"Example 1: Target at end\\"}]"',
-        '"[{\\"input\\": \\"[1, 3, 5], 2\\", \\"expectedOutput\\": \\"-1\\", \\"label\\": \\"Hidden 1: Target not present\\"}]"',
+        '"input: [1, 3, 5, 7, 9], 9, expected: 4"',
+        '"input: [1, 3, 5], 2, expected: -1"',
+        "",
+        "",
         "",
         "",
         '"Ensure upper bound right is initialized to arr.length - 1 to prevent out of bounds inspection."',
@@ -1154,6 +1161,8 @@ function QuestionBankPage() {
         "NOSQL",
         '"Find all active customer accounts with a balance greater than 1000 and return name and balance."',
         "medium",
+        "10",
+        "10",
         '"nosql,mongodb,query"',
         '"Data Engineer"',
         '"2-5"',
@@ -1166,6 +1175,8 @@ function QuestionBankPage() {
         "",
         '"customers"',
         '"[{\\"filter\\": {\\"status\\": \\"ACTIVE\\", \\"balance\\": {\\"$gt\\": 1000}}, \\"projection\\": {\\"name\\": 1, \\"balance\\": 1, \\"_id\\": 0}}]"',
+        "",
+        "",
         '"Execute db.customers.find({ status: \'ACTIVE\', balance: { $gt: 1000 } }, { name: 1, balance: 1, _id: 0 })."',
       ].join(","),
 
@@ -1174,6 +1185,8 @@ function QuestionBankPage() {
         "AI_PROMPTING",
         '"Design a system prompt for a customer service assistant handling strict refund validations."',
         "medium",
+        "15",
+        "20",
         '"ai,prompt-engineering,system-instructions"',
         '"AI Engineer"',
         '"2-5"',
@@ -1182,31 +1195,37 @@ function QuestionBankPage() {
         "",
         "",
         "",
-        '"[{\\"criteria\\": \\"Policy Adherence\\", \\"maxScore\\": 5}, {\\"criteria\\": \\"Tone & Empathy\\", \\"maxScore\\": 5}, {\\"criteria\\": \\"Anti-Jailbreak Guardrails\\", \\"maxScore\\": 5}]"',
         "",
         "",
+        '"You are an automated refund verification agent operating under strict PCI-DSS guidelines."',
         "",
+        "",
+        '"Policy Adherence: 10 | Tone & Empathy: 5 | Anti-Jailbreak Guardrails: 5"',
         '"Provide unambiguous role definition, order verification steps, and refusal rules for out-of-window requests."',
       ].join(","),
 
       // 7. SIMULATION
       [
         "SIMULATION",
-        '"Live Incident: Production PostgreSQL replica lag spikes to 45 minutes during high-traffic campaign."',
+        '"Live Incident: Production PostgreSQL connection pool exhaustion causing API request drops."',
         "hard",
-        '"sre,incident-management,database"',
+        "45",
+        "100",
+        '"sre,incident-management,database,python"',
         '"SRE / DevOps"',
         '"6-10"',
         "",
         "",
+        "python",
         "",
+        '"def acquire_connection():\\n    # Candidate modifies this connection acquire function\\n    pass"',
+        '"input: acquire_connection, expected: success"',
         "",
-        "",
-        '"[{\\"timeSeconds\\": 30, \\"message\\": \\"Alert: Replica replication lag exceeded 45m.\\"}]"',
-        '"[{\\"criteria\\": \\"Root Cause Triage\\", \\"maxScore\\": 10}, {\\"criteria\\": \\"Incident Mitigation\\", \\"maxScore\\": 10}]"',
-        "",
-        "",
-        '"Identify long-running vacuums, connection starvation, or WAL sender saturation."',
+        '"src/db/connection_pool.py"',
+        '"slack: Alert: PostgreSQL connection starvation on replica pool. | jira: INC-402: 500 errors spiking"',
+        '"[src/db/pool_manager.py]\\n# Read-only lifecycle manager\\nclass PoolManager:\\n    pass\\n---\\n[config/database.yaml]\\npool_size: 10\\nmax_overflow: 5"',
+        '"Root Cause Triage: 30 | Pool Resource Leak Fix: 40 | Regression Test Execution: 30"',
+        '"Identify orphaned connections, unclosed cursors, and configure proper connection eviction timeouts."',
       ].join(","),
 
       // 8. TEST_SCENARIOS
@@ -1214,6 +1233,8 @@ function QuestionBankPage() {
         "TEST_SCENARIOS",
         '"Design comprehensive integration test scenarios for an OAuth2 / OpenID Connect authorization code flow."',
         "medium",
+        "15",
+        "20",
         '"qa,testing,security,oauth2"',
         '"QA Engineer"',
         '"2-5"',
@@ -1222,10 +1243,12 @@ function QuestionBankPage() {
         "",
         "",
         "",
-        '"[{\\"scenario\\": \\"Happy Path Token Exchange\\", \\"expected\\": \\"200 OK with ID and Refresh Tokens\\"}, {\\"scenario\\": \\"Expired Auth Code\\", \\"expected\\": \\"400 Bad Request invalid_grant\\"}, {\\"scenario\\": \\"CSRF State Mismatch\\", \\"expected\\": \\"403 Forbidden state parameter rejected\\"}]"',
+        '"scenario: Happy Path Token Exchange, expected: 200 OK | scenario: Expired Auth Code, expected: 400 Bad Request"',
         "",
         "",
         "",
+        "",
+        '"Security Edge Cases: 10 | Token Lifecycle Coverage: 10"',
         '"Validate authorization grants, token refresh, expired authorization codes, invalid client secrets, and PKCE verification."',
       ].join(","),
     ];
@@ -1233,7 +1256,7 @@ function QuestionBankPage() {
     const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(headers + "\n" + rows.join("\n"));
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
-    link.setAttribute("download", "cd_recruit_all_modules_sample_template.csv");
+    link.setAttribute("download", "cd_recruit_assessment_template.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1244,169 +1267,30 @@ function QuestionBankPage() {
       toast.error("Please select a CSV file first.");
       return;
     }
-    const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-    const fromDriveId = searchParams.get("fromDriveId");
-    const driveNameParam = searchParams.get("driveName");
+    const fromDriveId = searchFromDriveId;
+    const driveNameParam = searchDriveName;
 
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
-        const rows = parseCSV(text);
-        if (rows.length < 2) {
-          toast.error("The CSV file must contain at least a header row and one data row.");
+        const driveTag = driveNameParam ? `drive:${driveNameParam.toLowerCase().trim()}` : undefined;
+        const parseResult = parseQuestionsFromCSV(text, DEFAULT_TIME_MATRIX, driveTag);
+
+        if (parseResult.errors.length > 0) {
+          toast.error(parseResult.errors[0]);
           return;
         }
-        const headers = rows[0].map((h) => h.toLowerCase());
-        const parsedQuestions = [];
 
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          if (row.length === 0 || (row.length === 1 && !row[0])) continue;
-
-          const getVal = (headerName: string) => {
-            const idx = headers.indexOf(headerName.toLowerCase());
-            return idx !== -1 ? row[idx] : "";
-          };
-
-          const rawModule = getVal("moduletype") || getVal("module") || (importModuleType !== "ALL" ? importModuleType : "MCQ");
-          const targetModuleType = rawModule.toUpperCase();
-          const difficulty = (getVal("difficulty") || "medium").toLowerCase();
-          const targetLvl = getVal("targetlevel") || "0-1";
-          const roleVal = getVal("role") || "General";
-          const tags = (getVal("tags") || "")
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean);
-
-          if (!tags.includes(targetModuleType.toLowerCase())) {
-            tags.push(targetModuleType.toLowerCase());
-          }
-
-          if (driveNameParam) {
-            const driveTag = `Drive: ${driveNameParam}`;
-            if (!tags.some((t) => t.toLowerCase() === driveTag.toLowerCase())) {
-              tags.push(driveTag);
-            }
-          }
-
-          const content: any = {};
-          const scoringConfig: any = { points: difficulty === "hard" ? 3 : difficulty === "medium" ? 2 : 1 };
-
-          const prompt = getVal("prompt") || getVal("title") || getVal("question") || "Assessment Question";
-          content.prompt = prompt;
-          content.explanation = getVal("explanation") || "";
-
-          if (targetModuleType === "MCQ") {
-            let options: string[] = [];
-            const rawOptions = getVal("options");
-            if (rawOptions && rawOptions.startsWith("[")) {
-              try {
-                options = JSON.parse(rawOptions);
-              } catch {
-                options = rawOptions.split(",").map((o) => o.trim());
-              }
-            } else {
-              const opt1 = getVal("option1") || getVal("optiona");
-              const opt2 = getVal("option2") || getVal("optionb");
-              const opt3 = getVal("option3") || getVal("optionc");
-              const opt4 = getVal("option4") || getVal("optiond");
-              options = [opt1, opt2, opt3, opt4].filter(Boolean);
-            }
-            if (options.length === 0) {
-              options = ["Option A", "Option B", "Option C", "Option D"];
-            }
-            content.options = options;
-            const correctAns = getVal("correctanswer") || getVal("correctanswertext");
-            const rawIdx = getVal("correctindex");
-            let cIndex = rawIdx !== "" ? parseInt(rawIdx, 10) : 0;
-            if (correctAns && options.indexOf(correctAns) >= 0) {
-              cIndex = options.indexOf(correctAns);
-            }
-            content.correctAnswer = options[cIndex] || options[0];
-            scoringConfig.correctIndex = cIndex;
-            scoringConfig.correctAnswer = content.correctAnswer;
-          } else if (targetModuleType === "SQL") {
-            content.schema = getVal("schema") || "CREATE TABLE records (id SERIAL PRIMARY KEY, title TEXT);";
-            content.seedData = getVal("seeddata") || "INSERT INTO records (title) VALUES ('Sample Record');";
-            content.expectedQuery = getVal("expectedquery") || getVal("correctanswer") || "SELECT * FROM records;";
-          } else if (targetModuleType === "NOSQL") {
-            content.collections = (getVal("collections") || "documents").split(",").map((c) => c.trim()).filter(Boolean);
-            content.allowedOperations = (getVal("allowedoperations") || "find,aggregate").split(",").map((c) => c.trim()).filter(Boolean);
-            content.validatorType = getVal("validatortype") || "OUTPUT_COMPARISON";
-            const expOp = getVal("expectedoperation") || getVal("seeddata");
-            if (expOp) {
-              try {
-                content.expectedOperation = JSON.parse(expOp);
-              } catch {
-                content.expectedOperation = expOp;
-              }
-            }
-          } else if (targetModuleType === "CODING" || targetModuleType === "DEBUGGING") {
-            content.functionName = getVal("functionname") || "solution";
-            content.parameters = getVal("parameters") || "";
-            content.returnType = getVal("returntype") || "";
-            content.language = getVal("language") || "javascript";
-            content.starterCode = getVal("startercode") || "function solution() {\n  // Write your code here\n}";
-            content.constraints = getVal("constraints") ? getVal("constraints").split("\n").filter(Boolean) : [];
-
-            const sampleTcVal = getVal("sampletestcases") || getVal("visibletestcases") || getVal("testcasesjson");
-            const hiddenTcVal = getVal("hiddentestcases");
-
-            let visibleTestCases = [];
-            let hiddenTestCases = [];
-
-            if (sampleTcVal) {
-              try {
-                visibleTestCases = JSON.parse(sampleTcVal);
-              } catch {
-                visibleTestCases = [{ input: sampleTcVal, expectedOutput: getVal("correctanswer") || "", label: "Example 1" }];
-              }
-            }
-            if (hiddenTcVal) {
-              try {
-                hiddenTestCases = JSON.parse(hiddenTcVal);
-              } catch {
-                hiddenTestCases = [];
-              }
-            }
-
-            content.visibleTestCases = visibleTestCases;
-            content.hiddenTestCases = hiddenTestCases;
-            content.testCases = [
-              ...visibleTestCases.map((tc: any) => ({ ...tc, isHidden: false })),
-              ...hiddenTestCases.map((tc: any) => ({ ...tc, isHidden: true })),
-            ];
-          } else if (targetModuleType === "AI_PROMPTING") {
-            const rub = getVal("rubric") || getVal("rubricjson") || getVal("sampletestcases");
-            content.rubric = rub ? (typeof rub === "string" && rub.startsWith("[") ? JSON.parse(rub) : rub) : [];
-            content.systemContext = getVal("systemcontext") || getVal("context") || "";
-            content.techStack = getVal("techstack") || "React/TypeScript";
-          } else if (targetModuleType === "SIMULATION") {
-            content.title = prompt;
-            const trig = getVal("triggers") || getVal("triggersjson");
-            const rub = getVal("rubric") || getVal("rubricjson");
-            content.triggers = trig ? (typeof trig === "string" && trig.startsWith("[") ? JSON.parse(trig) : trig) : [];
-            content.rubric = rub ? (typeof rub === "string" && rub.startsWith("[") ? JSON.parse(rub) : rub) : [];
-          } else if (targetModuleType === "TEST_SCENARIOS") {
-            const scVal = getVal("sampletestcases") || getVal("testcases") || getVal("rubric");
-            content.testScenarios = scVal ? (typeof scVal === "string" && scVal.startsWith("[") ? JSON.parse(scVal) : scVal) : [];
-            content.expectedAnswer = getVal("correctanswer") || getVal("expectedanswer") || "";
-          }
-
-          parsedQuestions.push({
-            moduleType: targetModuleType,
-            difficulty,
-            targetLevel: targetLvl,
-            tags,
-            role: roleVal,
-            content,
-            scoringConfig,
-          });
+        if (parseResult.questions.length === 0) {
+          toast.error("No valid questions found in the CSV file.");
+          return;
         }
 
-        const created = await bulkUploadQuestions("ALL", parsedQuestions);
-        toast.success(`Successfully imported ${parsedQuestions.length} questions across all modules!`);
+        const created = await bulkUploadQuestions("ALL", parseResult.questions);
+        toast.success(
+          `Successfully imported ${parseResult.questions.length} questions across ${parseResult.detectedModules.join(", ")}!`
+        );
         setCsvFile(null);
         setShowImportModal(false);
 
@@ -1417,14 +1301,62 @@ function QuestionBankPage() {
             const newIds = Array.isArray(created) ? created.map((q: any) => q.id) : [];
             const combinedIds = Array.from(new Set([...existingIds, ...newIds]));
             await useStore.getState().saveDriveQuestions(fromDriveId, combinedIds);
-            toast.success(`Linked imported questions to drive. Redirecting back to Drive Config...`);
+
+            // Calibrate Strategy A module weights and detected modules
+            const modConfig: Record<string, any> = {
+              isCustomRole: true,
+              proctoringConfig: (driveDetail.moduleConfig as any)?.proctoringConfig,
+            };
+            ALL_MODULE_KEYS.forEach((mod) => {
+              if (parseResult.detectedModules.includes(mod)) {
+                modConfig[mod] = {
+                  enabled: true,
+                  weight: parseResult.moduleWeights[mod] || 0,
+                  durationMinutes: parseResult.moduleDurations[mod] || 15,
+                  questionWeighting: { mode: "equal" },
+                };
+              } else {
+                modConfig[mod] = {
+                  enabled: false,
+                  weight: 0,
+                  durationMinutes: 0,
+                };
+              }
+            });
+
+            // Auto-extend schedule window if content duration exceeds default window
+            let scheduleEnd = driveDetail.scheduleEnd;
+            if (driveDetail.scheduleStart && parseResult.totalDurationMinutes > 0) {
+              const startObj = new Date(driveDetail.scheduleStart);
+              const curEndObj = new Date(driveDetail.scheduleEnd || startObj.getTime() + 90 * 60 * 1000);
+              const currentWindowMins = Math.round((curEndObj.getTime() - startObj.getTime()) / 60000);
+              if (parseResult.totalDurationMinutes > currentWindowMins) {
+                scheduleEnd = new Date(startObj.getTime() + parseResult.totalDurationMinutes * 60 * 1000).toISOString();
+              }
+            }
+
+            const headers = await getAuthHeaders();
+            await fetch(`${API_BASE}/admin/drives/${fromDriveId}`, {
+              method: "PATCH",
+              headers,
+              body: JSON.stringify({
+                moduleConfig: modConfig,
+                scheduleEnd,
+              }),
+            });
+
+            toast.success(`Assigned imported questions & calibrated Strategy A module weights to drive.`);
           } catch (e) {
             console.error("Auto linking questions to drive failed", e);
           }
-          navigate({ to: `/drives/${fromDriveId}` as any });
+          navigate({
+            to: `/drives/${fromDriveId}` as any,
+            search: { tab: "questions", imported: "true" } as any,
+          });
         }
       } catch (err: any) {
-        toast.error("CSV Import failed: " + err.message);
+        console.error("CSV import error:", err);
+        toast.error(err.message || "Failed to import CSV.");
       }
     };
     reader.readAsText(csvFile);
@@ -1435,9 +1367,7 @@ function QuestionBankPage() {
       <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Single-Click Return Banner if navigated from a Drive */}
         {(() => {
-          if (typeof window === "undefined") return null;
-          const params = new URLSearchParams(window.location.search);
-          const driveId = params.get("driveId") || params.get("fromDrive");
+          const driveId = searchFromDriveId || (typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("driveId") || new URLSearchParams(window.location.search).get("fromDrive")) : null);
           if (!driveId) return null;
           return (
             <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between shadow-2xs">
@@ -1628,13 +1558,12 @@ function QuestionBankPage() {
                         </span>
                         <span className="text-2xs text-slate-400 font-mono">v{q.version}</span>
                         <span
-                          className={`px-2.5 py-0.5 rounded text-2xs font-semibold capitalize ${
-                            q.difficulty === "easy"
+                          className={`px-2.5 py-0.5 rounded text-2xs font-semibold capitalize ${q.difficulty === "easy"
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               : q.difficulty === "medium"
                                 ? "bg-amber-50 text-amber-700 border border-amber-200"
                                 : "bg-rose-50 text-rose-700 border border-rose-200"
-                          }`}
+                            }`}
                         >
                           {q.difficulty}
                         </span>
@@ -1708,14 +1637,14 @@ function QuestionBankPage() {
             const allFolderQuestions = groupedQuestions[selectedFolder] || [];
             const currentList = folderQuery.trim()
               ? allFolderQuestions.filter((q) => {
-                  const fq = folderQuery.toLowerCase().trim();
-                  const prompt = (q.content?.prompt || q.content?.title || "").toLowerCase();
-                  const tags = (q.tags || []).join(" ").toLowerCase();
-                  const role = (q.role || "").toLowerCase();
-                  const diff = (q.difficulty || "").toLowerCase();
-                  const mod = (q.moduleType || "").toLowerCase();
-                  return prompt.includes(fq) || tags.includes(fq) || role.includes(fq) || diff.includes(fq) || mod.includes(fq);
-                })
+                const fq = folderQuery.toLowerCase().trim();
+                const prompt = (q.content?.prompt || q.content?.title || "").toLowerCase();
+                const tags = (q.tags || []).join(" ").toLowerCase();
+                const role = (q.role || "").toLowerCase();
+                const diff = (q.difficulty || "").toLowerCase();
+                const mod = (q.moduleType || "").toLowerCase();
+                return prompt.includes(fq) || tags.includes(fq) || role.includes(fq) || diff.includes(fq) || mod.includes(fq);
+              })
               : allFolderQuestions;
 
             return (
@@ -1782,13 +1711,12 @@ function QuestionBankPage() {
                             </span>
                             <span className="text-2xs text-slate-400 font-mono">v{q.version}</span>
                             <span
-                              className={`px-2.5 py-0.5 rounded text-2xs font-semibold capitalize ${
-                                q.difficulty === "easy"
+                              className={`px-2.5 py-0.5 rounded text-2xs font-semibold capitalize ${q.difficulty === "easy"
                                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                   : q.difficulty === "medium"
                                     ? "bg-amber-50 text-amber-700 border border-amber-200"
                                     : "bg-rose-50 text-rose-700 border border-rose-200"
-                              }`}
+                                }`}
                             >
                               {q.difficulty}
                             </span>
@@ -1880,9 +1808,8 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className={`bg-white border rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all relative flex flex-col justify-between min-h-[120px] group cursor-pointer ${
-                      isSelected ? "border-2 border-[#2563EB] shadow-md" : "border-[#E2E8F0] hover:border-slate-300"
-                    }`}
+                    className={`bg-white border rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all relative flex flex-col justify-between min-h-[120px] group cursor-pointer ${isSelected ? "border-2 border-[#2563EB] shadow-md" : "border-[#E2E8F0] hover:border-slate-300"
+                      }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
@@ -1920,8 +1847,37 @@ function QuestionBankPage() {
               })}
             </div>
 
-            {/* Additional Repositories Categories (Levels, Topics, Drives) */}
+            {/* Additional Repositories Categories (Drives, Levels, Topics) */}
             <div className="space-y-6 pt-4 border-t border-slate-200">
+              {/* Drive Repositories */}
+              {categorizedTagGroups.drive.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
+                    <Folder size={15} className="text-[#2563EB]" fill="#2563EB" />
+                    <span>Drive Repositories</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {categorizedTagGroups.drive.map((item) => (
+                      <div
+                        key={item.tag}
+                        onClick={() => setSelectedFolder(item.tag)}
+                        className="bg-white border border-[#E2E8F0] hover:border-[#2563EB] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+                      >
+                        <div>
+                          <h5 className="font-bold text-sm text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                            {item.title}
+                          </h5>
+                          <p className="text-xs text-slate-400 font-normal mt-0.5">
+                            {item.questions.length} questions
+                          </p>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-300 group-hover:text-[#2563EB] transition-colors" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Experience Levels */}
               <div className="space-y-3">
                 <h4 className="text-sm font-bold text-[#0F172A]">Experience Levels</h4>
@@ -2285,9 +2241,8 @@ function QuestionBankPage() {
                               setCodingLanguage(lang);
                               setStarterCode(starterCodeMap[lang] || "");
                             }}
-                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${
-                              codingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
-                            }`}
+                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${codingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
+                              }`}
                           >
                             {lang.toUpperCase()}
                           </button>
@@ -2578,6 +2533,24 @@ function QuestionBankPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {(() => {
+                const driveName = searchDriveName || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("driveName") : null);
+                const fromDriveId = searchFromDriveId || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("fromDriveId") : null);
+                if (!driveName) return null;
+                return (
+                  <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center gap-2.5 text-xs text-blue-950">
+                    <Folder size={18} className="text-[#2563EB] shrink-0" fill="#2563EB" />
+                    <div>
+                      <span className="font-bold">Target Repository Folder:</span>{" "}
+                      <strong className="text-[#2563EB] font-bold">{driveName}</strong>
+                      <p className="text-[11px] text-blue-800 mt-0.5">
+                        Imported questions will be organized into this folder and linked directly to Drive assessment #{fromDriveId ? fromDriveId.slice(0, 8) : ""}.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <p className="text-xs text-ink-secondary">
                 Upload a CSV file containing questions across any module type (MCQ, SQL, Coding, Debugging, NoSQL, AI Prompting, Simulation, Test Scenarios).
               </p>
@@ -2952,9 +2925,8 @@ function QuestionBankPage() {
                               setEditCodingLanguage(lang);
                               setEditStarterCode(editStarterCodeMap[lang] || "");
                             }}
-                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${
-                              editCodingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
-                            }`}
+                            className={`px-2 py-0.5 text-2xs font-mono rounded cursor-pointer ${editCodingLanguage === lang ? "bg-white font-bold text-brand shadow-xs" : "text-ink-tertiary hover:text-ink"
+                              }`}
                           >
                             {lang.toUpperCase()}
                           </button>
@@ -3188,7 +3160,7 @@ function QuestionBankPage() {
               </div>
               <h3 className="text-base font-semibold text-ink">Archive Question?</h3>
             </div>
-            
+
             <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to archive this question? The question will be removed from active use and won't appear in new drive assignments.
             </p>
@@ -3224,7 +3196,7 @@ function QuestionBankPage() {
               </div>
               <h3 className="text-base font-semibold text-ink">Delete Question Folder?</h3>
             </div>
-            
+
             <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to delete the folder <strong className="text-ink">"{confirmDeleteFolder}"</strong> containing{" "}
               <strong className="text-ink">{groupedQuestions[confirmDeleteFolder]?.length || 0} questions</strong>? All questions in this repository will be archived.

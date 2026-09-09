@@ -63,6 +63,8 @@ export interface Question {
   status: string;
   usageCount: number;
   avgScore: number | null;
+  durationMinutes?: number;
+  points?: number;
 }
 
 export interface ActionQueueItemReview {

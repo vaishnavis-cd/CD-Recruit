@@ -26,6 +26,7 @@ import {
   getDefaultDifficultyDistribution,
   getEstimatedModuleDuration,
 } from "../session/session.service";
+import { DEFAULT_TIME_MATRIX } from "../settings/settings.service";
 
 @Injectable()
 export class DriveService {
@@ -51,6 +52,19 @@ export class DriveService {
       scheduleEnd,
       candidates = [],
     } = dto;
+
+    // 0. Ensure drive name is unique among active/draft/scheduled drives
+    const existingNamedDrive = await this.prisma.drive.findFirst({
+      where: {
+        name: { equals: name.trim(), mode: "insensitive" },
+        status: { not: DriveStatus.CLOSED },
+      },
+    });
+    if (existingNamedDrive) {
+      throw new BadRequestException(
+        `A drive named "${name.trim()}" already exists. Please choose a unique drive name.`,
+      );
+    }
 
     // 1. Verify RoleTemplate exists by ID, roleName, or department/level
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roleTemplateId);
@@ -1477,5 +1491,75 @@ export class DriveService {
     });
 
     return updated;
+  }
+
+  async suggestDeficitQuestions(
+    driveId: string,
+    targetDeficitMinutes: number,
+    moduleType?: string,
+  ) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+      include: { questions: true },
+    });
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    const assignedIds = new Set(drive.questions.map((dq) => dq.questionId));
+
+    const where: any = {
+      status: "PUBLISHED",
+      id: { notIn: Array.from(assignedIds) },
+    };
+    if (moduleType && moduleType !== "ALL") {
+      where.moduleType = moduleType as any;
+    }
+
+    const available = await this.prisma.question.findMany({
+      where,
+      take: 100,
+      orderBy: { version: "desc" },
+    });
+
+    const getQuestionDuration = (q: any) => {
+      if (q.content && typeof q.content === "object" && (q.content as any).durationMinutes) {
+        return Number((q.content as any).durationMinutes);
+      }
+      const modTimes = (DEFAULT_TIME_MATRIX as any)[q.moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+      const diffKey = String(q.difficulty || "MEDIUM").toUpperCase();
+      return modTimes[diffKey] || modTimes.MEDIUM || 5;
+    };
+
+    const candidates = available.map((q) => ({
+      ...q,
+      durationMinutes: getQuestionDuration(q),
+      points: (q.scoringConfig as any)?.points || (q.difficulty === "hard" ? 3 : q.difficulty === "medium" ? 2 : 1),
+    }));
+
+    candidates.sort((a, b) => b.durationMinutes - a.durationMinutes);
+    const selected: typeof candidates = [];
+    let accumulated = 0;
+
+    for (const c of candidates) {
+      if (accumulated + c.durationMinutes <= targetDeficitMinutes) {
+        selected.push(c);
+        accumulated += c.durationMinutes;
+      }
+      if (accumulated >= targetDeficitMinutes) break;
+    }
+
+    if (selected.length === 0 && candidates.length > 0) {
+      const smallest = [...candidates].sort((a, b) => a.durationMinutes - b.durationMinutes)[0];
+      selected.push(smallest);
+      accumulated = smallest.durationMinutes;
+    }
+
+    return {
+      targetDeficitMinutes,
+      accumulatedDurationMinutes: accumulated,
+      remainingDeficitMinutes: Math.max(0, targetDeficitMinutes - accumulated),
+      suggestedQuestions: selected,
+    };
   }
 }

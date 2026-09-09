@@ -90,7 +90,7 @@ function buildDashboardStats(sessions: any[] = [], drives: any[] = [], backendSt
           traceMap[dateStr].sumDid += s.compositeScore || 0;
           traceMap[dateStr].count += 1;
         }
-      } catch (err) {}
+      } catch (err) { }
     }
   });
 
@@ -203,11 +203,10 @@ function DateRangeDropdown({ value, onChange }: { value: string; onChange: (val:
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className={`flex items-center justify-between w-full px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer text-left ${
-                value === opt.value
+              className={`flex items-center justify-between w-full px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer text-left ${value === opt.value
                   ? "text-[#2f68ff] bg-blue-50/70 font-semibold"
                   : "text-[#0d1424] hover:bg-[#f8fafc]"
-              }`}
+                }`}
             >
               <span>{opt.label}</span>
               {value === opt.value && <span className="text-[#2f68ff] text-xs font-bold">✓</span>}
@@ -265,7 +264,7 @@ function DashboardPage() {
           const parsed = JSON.parse(saved);
           if (parsed.name) customName = parsed.name;
         }
-      } catch {}
+      } catch { }
 
       const user = getUserProfile();
       const name = customName || user?.name || user?.username || (user?.email ? user.email.split("@")[0] : "Admin");
@@ -315,7 +314,7 @@ function DashboardPage() {
               const now = new Date();
               const diffDays = (now.getTime() - subDate.getTime()) / (1000 * 3600 * 24);
               if (diffDays > days) return false;
-            } catch (err) {}
+            } catch (err) { }
           }
         }
       }
@@ -368,20 +367,20 @@ function DashboardPage() {
   const passRate =
     filteredSessions.length > 0
       ? Math.round(
-          (filteredSessions.filter((s) => s?.status === "reviewed" || s?.status === "decision" || (s?.compositeScore || 0) >= 70).length /
-            filteredSessions.length) *
-            100,
-        )
+        (filteredSessions.filter((s) => s?.status === "reviewed" || s?.status === "decision" || (s?.compositeScore || 0) >= 70).length /
+          filteredSessions.length) *
+        100,
+      )
       : 0;
 
   const flagRate =
     filteredSessions.length > 0
       ? Math.round(
-          (filteredSessions.filter((s) => (s?.integrityFlags || []).some((f: any) => f?.severity === "critical") || (s?.integrityFlagsCount || 0) > 0)
-            .length /
-            filteredSessions.length) *
-            100,
-        )
+        (filteredSessions.filter((s) => (s?.integrityFlags || []).some((f: any) => f?.severity === "critical") || (s?.integrityFlagsCount || 0) > 0)
+          .length /
+          filteredSessions.length) *
+        100,
+      )
       : 0;
 
   // Funnel data dynamically calculated from stats / backend
@@ -412,8 +411,8 @@ function DashboardPage() {
         conversionRate >= 70
           ? ("success" as const)
           : conversionRate >= 40
-          ? ("warning" as const)
-          : ("danger" as const);
+            ? ("warning" as const)
+            : ("danger" as const);
 
       return {
         ...item,
@@ -468,7 +467,7 @@ function DashboardPage() {
   return (
     <AppShell hideHeader={true}>
       <div className="max-w-[1360px] mx-auto pb-12 space-y-6">
-        
+
         {/* TOP HEADER MATCHING FIGMA */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
           <div>
@@ -482,7 +481,7 @@ function DashboardPage() {
 
           {/* Top-right Actions */}
           <div className="flex items-center gap-3">
-            
+
             {/* Date Range Dropdown */}
             <DateRangeDropdown value={dateRange} onChange={setDateRange} />
 
@@ -499,7 +498,7 @@ function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left: 2x2 Grid of 4 Stat Cards */}
           <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
+
             {/* Card 1: TOTAL CANDIDATES */}
             <div className="bg-white rounded-2xl p-5 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[130px] relative">
               <div className="flex items-start justify-between">
@@ -610,7 +609,7 @@ function DashboardPage() {
           {/* Right: Action Queue / Alerts Card (Matching Image 2) */}
           <div className="lg:col-span-6 bg-white rounded-2xl p-6 md:p-7 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
             <div className="divide-y divide-[#f1f5f9] flex flex-col justify-between h-full">
-              
+
               {/* Row 1: Audit Required */}
               <div className="pb-4">
                 <div className="flex items-center justify-between">
@@ -781,10 +780,10 @@ function DashboardPage() {
               {/* Header */}
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  
+
                   <h3 className="text-[12px] font-bold tracking-wider text-[#94a3b8] font-mono">Live Session Stream</h3>
                 </div>
-                
+
               </div>
               <p className="text-[11px] text-[#94a3b8] mb-4">Real-time candidate activities</p>
 
@@ -852,11 +851,10 @@ function DashboardPage() {
                   <button
                     key={t.id}
                     onClick={() => setRosterStatus(t.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      rosterStatus === t.id
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${rosterStatus === t.id
                         ? "bg-[#2f68ff] text-white shadow-xs"
                         : "text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc]"
-                    }`}
+                      }`}
                   >
                     {t.label}
                   </button>
@@ -1026,7 +1024,7 @@ function ActionCard({ icon, title, tone, description, children }: { icon: React.
     warning: "text-amber-700 bg-amber-50",
     info: "text-brand bg-brand-subtle"
   };
-  
+
   return (
     <div className="bg-white border border-line rounded-xl p-5 flex flex-col shadow-sm">
       <div className={`inline-flex items-center gap-2 text-xs-plus font-bold uppercase tracking-wider mb-2 w-fit px-2 py-1 rounded-md ${tones[tone]}`}>
@@ -1069,8 +1067,8 @@ function FunnelView({ data }: { data: { stage: string; count: number }[] }) {
         {data.map((d, i) => {
           const pct = (d.count / max) * 100;
           const drop = i > 0 && data[i - 1].count > 0
-              ? Math.round(((data[i - 1].count - d.count) / data[i - 1].count) * 100)
-              : 0;
+            ? Math.round(((data[i - 1].count - d.count) / data[i - 1].count) * 100)
+            : 0;
           return (
             <div key={d.stage} className="flex items-center gap-4">
               <div className="w-28 text-sm-minus font-medium text-ink-secondary truncate" title={d.stage}>{d.stage}</div>
@@ -1117,7 +1115,7 @@ function ScoreDistView({ sessions, roleFilter, setRoleFilter }: any) {
     };
   });
   const max = Math.max(...dist.map((d) => d.count), 1);
-  
+
   return (
     <div className="h-full flex flex-col">
       <SectionTitle
@@ -1195,7 +1193,7 @@ function SayDoView({ sessions }: { sessions: any[] }) {
 function TimeView({ data }: { data: any[] }) {
   const max = Math.max(...data.flatMap((d) => [d.avgSeconds, d.cohortAvgSeconds]), 1);
   const fmt = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
-  
+
   return (
     <div className="h-full flex flex-col">
       <SectionTitle>Time per Module</SectionTitle>
@@ -1235,7 +1233,7 @@ function IntegrityView({ data }: { data: any[] }) {
   const categories = Array.from(new Set(data.map((d) => d.category)));
   const severities = ["low", "medium", "critical"];
   const max = Math.max(...data.map((d) => d.count), 1);
-  
+
   return (
     <div className="h-full flex flex-col">
       <SectionTitle>Integrity Flags Matrix</SectionTitle>
@@ -1258,7 +1256,7 @@ function IntegrityView({ data }: { data: any[] }) {
                 const bg = isCritical
                   ? `rgba(229, 72, 77, ${0.15 + intensity * 0.85})`
                   : `rgba(47, 92, 255, ${0.05 + intensity * 0.95})`;
-                  
+
                 return (
                   <div
                     key={c + s}
@@ -1280,7 +1278,7 @@ function IntegrityView({ data }: { data: any[] }) {
 function ReviewerView({ data }: { data: any }) {
   const angle = data.agreementRate * 180;
   const total = data.overrides.reduce((a: number, o: any) => a + o.count, 0) || 1;
-  
+
   return (
     <div className="h-full flex flex-col">
       <SectionTitle>AI/Human Agreement</SectionTitle>
@@ -1304,7 +1302,7 @@ function ReviewerView({ data }: { data: any }) {
             </text>
           </svg>
         </div>
-        
+
         <div className="flex-1 w-full flex flex-col justify-center">
           <div className="text-2xs font-bold tracking-wider text-ink-secondary mb-4">
             Human Overrides ({total})

@@ -20,11 +20,32 @@ import {
   RefreshCw,
   Lock,
   ChevronDown,
+  UploadCloud,
+  Upload,
+  Download,
+  Loader2,
+  Clock,
+  Award,
+  FolderPlus,
+  Folder,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveStatus } from "../lib/types";
 import { formatDriveName } from "../lib/utils";
+import { parseQuestionsFromCSV, downloadUnifiedSampleCSV } from "../lib/csvParser";
+import { ALL_MODULE_KEYS, MODULE_LABEL_MAP } from "../lib/roleModules";
+
+export const DEFAULT_TIME_MATRIX: Record<string, Record<string, number>> = {
+  MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
+  SQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  CODING: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  DEBUGGING: { EASY: 5, MEDIUM: 10, HARD: 18 },
+  TEST_SCENARIOS: { EASY: 3, MEDIUM: 6, HARD: 12 },
+  AI_PROMPTING: { EASY: 4, MEDIUM: 7, HARD: 12 },
+  SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
+  NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
+};
 
 export const Route = createFileRoute("/drives")({
   component: DrivesPage,
@@ -77,6 +98,7 @@ function DrivesPage() {
   const questions = useStore((s) => s.questions);
   const fetchQuestions = useStore((s) => s.fetchQuestions);
   const saveDriveQuestions = useStore((s) => s.saveDriveQuestions);
+  const bulkUploadQuestions = useStore((s) => s.bulkUploadQuestions);
   const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
   const loading = useStore((s) => s.loading);
@@ -122,7 +144,7 @@ function DrivesPage() {
 
   // Wizard State
   const [step, setStep] = useState(1);
-  const [creationMode, setCreationMode] = useState<"TEMPLATE" | "CUSTOM">("TEMPLATE");
+  const [creationMode, setCreationMode] = useState<"TEMPLATE" | "CUSTOM" | "BULK_IMPORT">("TEMPLATE");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [templateDeptFilter, setTemplateDeptFilter] = useState<string>("all");
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
@@ -134,6 +156,21 @@ function DrivesPage() {
   const [activeTemplatePreview, setActiveTemplatePreview] = useState<any | null>(null);
   const [isLoadingTemplatePreview, setIsLoadingTemplatePreview] = useState(false);
   const [templatePreviewError, setTemplatePreviewError] = useState<string | null>(null);
+
+  // Direct CSV Bulk Import in Drive Creation Wizard
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvParsedPreview, setCsvParsedPreview] = useState<any | null>(null);
+  const [isCsvParsing, setIsCsvParsing] = useState(false);
+  const [isCsvCreating, setIsCsvCreating] = useState(false);
+  const bulkImportInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isDuplicateDriveName = useMemo(() => {
+    const trimmed = driveName.trim().toLowerCase();
+    if (!trimmed) return false;
+    return (drives || []).some(
+      (d) => d.name.toLowerCase().trim() === trimmed && d.status !== "CLOSED"
+    );
+  }, [driveName, drives]);
 
   const filteredTemplates = useMemo(() => {
     return (roleTemplates || []).filter((rt) => {
@@ -156,7 +193,165 @@ function DrivesPage() {
       setDriveName(`${template.roleName} Drive - ${dateStr}`);
     }
   };
-  
+
+  const handleCsvFileSelected = async (file: File) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast.error("Please upload a .csv file.");
+      return;
+    }
+    try {
+      setIsCsvParsing(true);
+      const text = await file.text();
+      const defaultName = `Assessment Drive - ${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+      const currentName = driveName.trim() || defaultName;
+      const parseResult = parseQuestionsFromCSV(text, DEFAULT_TIME_MATRIX, currentName);
+
+      if (parseResult.errors.length > 0) {
+        toast.error(parseResult.errors[0]);
+        return;
+      }
+      if (parseResult.questions.length === 0) {
+        toast.error("No valid questions found in CSV.");
+        return;
+      }
+
+      setCsvFile(file);
+      setCsvParsedPreview(parseResult);
+      if (!driveName.trim()) {
+        setDriveName(currentName);
+      }
+      toast.success(
+        `Parsed ${parseResult.questions.length} questions across ${parseResult.detectedModules.join(", ")}!`
+      );
+    } catch (err: any) {
+      toast.error("Failed to parse CSV: " + err.message);
+    } finally {
+      setIsCsvParsing(false);
+    }
+  };
+
+  const handleCreateDriveFromCSV = async () => {
+    if (!csvParsedPreview || csvParsedPreview.questions.length === 0) {
+      toast.error("Please select a valid questions CSV file first.");
+      return;
+    }
+    const finalName = driveName.trim() || `Assessment Drive - ${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+
+    try {
+      setIsCsvCreating(true);
+
+      // Build module config with Strategy A weights and detected modules
+      const modConfig: Record<string, any> = {
+        isCustomRole: true,
+      };
+      ALL_MODULE_KEYS.forEach((mod) => {
+        if (csvParsedPreview.detectedModules.includes(mod)) {
+          modConfig[mod] = {
+            enabled: true,
+            weight: csvParsedPreview.moduleWeights[mod] || 0,
+            durationMinutes: csvParsedPreview.moduleDurations[mod] || 15,
+            questionWeighting: { mode: "equal" },
+          };
+        } else {
+          modConfig[mod] = {
+            enabled: false,
+            weight: 0,
+            durationMinutes: 0,
+          };
+        }
+      });
+
+      const now = new Date();
+      const start = new Date(now.getTime() + 60 * 60 * 1000);
+      start.setMinutes(0, 0, 0);
+      const end = new Date(start.getTime() + Math.max(60, csvParsedPreview.totalDurationMinutes) * 60 * 1000);
+
+      // 1. Create drive
+      const result = await createDrive({
+        name: finalName,
+        roleTemplateId: "CUSTOM",
+        status: "DRAFT",
+        moduleConfig: modConfig,
+        scheduleStart: start.toISOString(),
+        scheduleEnd: end.toISOString(),
+      });
+
+      const newDriveId = result?.driveId || result?.id;
+      if (!newDriveId) throw new Error("Failed to retrieve new Drive ID");
+
+      // 2. Bulk upload questions
+      const created = await bulkUploadQuestions("ALL", csvParsedPreview.questions);
+      const questionIds = Array.isArray(created) ? created.map((q: any) => q.id) : [];
+
+      // 3. Associate questions to drive
+      if (questionIds.length > 0) {
+        await saveDriveQuestions(newDriveId, questionIds);
+      }
+
+      toast.success(`Drive "${finalName}" created with ${questionIds.length} questions! Opening drive configuration...`);
+      setShowWizard(false);
+      resetWizard();
+      navigate({ to: "/drives/$id", params: { id: newDriveId } });
+    } catch (err: any) {
+      console.error("Bulk Import Drive creation failed:", err);
+      toast.error(err.message || "Failed to create drive from CSV");
+    } finally {
+      setIsCsvCreating(false);
+    }
+  };
+
+  const handleCreateDriveAndRedirectToBulkImport = async () => {
+    if (!driveName.trim()) {
+      toast.error("Please enter a drive name.");
+      return;
+    }
+    if (isDuplicateDriveName) {
+      toast.error(`A drive named "${driveName.trim()}" already exists. Please choose a unique drive name to prevent repository collisions.`);
+      return;
+    }
+    try {
+      setIsCsvCreating(true);
+      const finalName = driveName.trim();
+      const now = new Date();
+      const start = new Date(now.getTime() + 60 * 60 * 1000);
+      start.setMinutes(0, 0, 0);
+      const end = new Date(start.getTime() + 90 * 60 * 1000);
+
+      const result = await createDrive({
+        name: finalName,
+        roleTemplateId: "CUSTOM",
+        status: "DRAFT",
+        moduleConfig: {
+          isCustomRole: true,
+        },
+        scheduleStart: start.toISOString(),
+        scheduleEnd: end.toISOString(),
+      });
+
+      const newDriveId = result?.driveId || result?.id;
+      if (!newDriveId) throw new Error("Failed to retrieve new Drive ID");
+
+      toast.success(`Drive "${finalName}" initialized! Opening Question Bank folder...`);
+      setShowWizard(false);
+      resetWizard();
+
+      navigate({
+        to: "/questions",
+        search: {
+          fromDriveId: newDriveId,
+          driveName: finalName,
+          autoBulk: "true",
+        } as any,
+      });
+    } catch (err: any) {
+      console.error("Failed to initialize drive for bulk import:", err);
+      toast.error(err.message || "Failed to create drive");
+    } finally {
+      setIsCsvCreating(false);
+    }
+  };
+
   // Step 2: Modules config
   const [modulesConfig, setModulesConfig] = useState<Record<string, { enabled: boolean; durationMinutes: number; weight: number }>>({
     MCQ: { enabled: true, durationMinutes: 15, weight: 0.15 },
@@ -323,32 +518,32 @@ function DrivesPage() {
     lines.forEach((line, idx) => {
       const trimmed = line.trim();
       if (!trimmed) return;
-      
+
       const parts = trimmed.split(/[,;\t]+/);
       if (parts.length < 2) {
         errors.push(`Line ${idx + 1}: Must contain name and email separated by a comma (e.g. "John Doe, john@example.com").`);
         return;
       }
-      
+
       const name = parts[0].trim();
       const email = parts[1].trim();
-      
+
       if (!name) {
         errors.push(`Line ${idx + 1}: Name is missing.`);
         return;
       }
-      
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         errors.push(`Line ${idx + 1}: Invalid email address format "${email}".`);
         return;
       }
-      
+
       if (emailsSeen.has(email.toLowerCase())) {
         errors.push(`Line ${idx + 1}: Duplicate email address "${email}".`);
         return;
       }
-      
+
       emailsSeen.add(email.toLowerCase());
       parsed.push({ name, email });
     });
@@ -370,12 +565,12 @@ function DrivesPage() {
     if (!role.trim()) {
       errors.push("Role is required.");
     }
-    
+
     const enabledModules = Object.keys(modulesConfig).filter(k => modulesConfig[k].enabled);
     if (enabledModules.length === 0) {
       errors.push("At least one module must be enabled.");
     }
-    
+
     const totalWeight = enabledModules.reduce((sum, k) => sum + modulesConfig[k].weight, 0);
     if (enabledModules.length > 0 && Math.abs(totalWeight - 1.0) > 0.001) {
       errors.push(`Total module weights must sum to 100% (currently ${Math.round(totalWeight * 100)}%).`);
@@ -391,7 +586,7 @@ function DrivesPage() {
         errors.push(`Module "${modType}" is enabled but has no questions selected.`);
       }
     });
-    
+
     if (!scheduleStart) {
       errors.push("Schedule Start date is required.");
     }
@@ -401,14 +596,14 @@ function DrivesPage() {
     if (scheduleStart && scheduleEnd && new Date(scheduleStart) >= new Date(scheduleEnd)) {
       errors.push("Schedule End date must be after Schedule Start date.");
     }
-    
+
     if (candidateList.length === 0) {
       errors.push("At least one candidate must be added to the roster.");
     }
     if (candidateErrors.length > 0) {
       errors.push("Please resolve candidate list validation errors.");
     }
-    
+
     return errors;
   }, [driveName, role, modulesConfig, selectedQuestionIds, questions, scheduleStart, scheduleEnd, candidateList, candidateErrors]);
 
@@ -480,6 +675,10 @@ function DrivesPage() {
     setRole("");
     setDepartment("");
     setLevel("");
+    setSelectedTemplateId("");
+    setCreationMode("TEMPLATE");
+    setCsvFile(null);
+    setCsvParsedPreview(null);
     setActiveTemplatePreview(null);
     setTemplatePreviewError(null);
     setModulesConfig({
@@ -858,7 +1057,7 @@ function DrivesPage() {
               opacity: 1,
             }}
           >
-            
+
 
             {/* All Sources Custom Dropdown (160x32) */}
             <div
@@ -896,14 +1095,13 @@ function DrivesPage() {
                   {sourceFilter === "DIRECT"
                     ? "Direct"
                     : sourceFilter === "PARTNER_API"
-                    ? "Partner API"
-                    : "All Sources"}
+                      ? "Partner API"
+                      : "All Sources"}
                 </span>
                 <ChevronDown
                   size={12}
-                  className={`w-[12px] h-[12px] transition-transform duration-150 shrink-0 ${
-                    sourceDropdownOpen ? "rotate-180" : ""
-                  }`}
+                  className={`w-[12px] h-[12px] transition-transform duration-150 shrink-0 ${sourceDropdownOpen ? "rotate-180" : ""
+                    }`}
                   style={{
                     width: "12px",
                     height: "12px",
@@ -936,11 +1134,10 @@ function DrivesPage() {
                           setSourceFilter(opt.value as any);
                           setSourceDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${
-                          sourceFilter === opt.value
-                            ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
-                            : "text-[#6B7280] hover:bg-slate-50 font-medium"
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${sourceFilter === opt.value
+                          ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
+                          : "text-[#6B7280] hover:bg-slate-50 font-medium"
+                          }`}
                       >
                         <span>{opt.label}</span>
                       </button>
@@ -1092,10 +1289,10 @@ function DrivesPage() {
                               d.status === "ACTIVE"
                                 ? "#D1FAE5"
                                 : d.status === "SCHEDULED"
-                                ? "#E0E7FF"
-                                : d.status === "CLOSED"
-                                ? "#FEF3C7"
-                                : "#F3F4F6",
+                                  ? "#E0E7FF"
+                                  : d.status === "CLOSED"
+                                    ? "#FEF3C7"
+                                    : "#F3F4F6",
                             transform: "rotate(0deg)",
                             opacity: 1,
                           }}
@@ -1111,10 +1308,10 @@ function DrivesPage() {
                                 d.status === "ACTIVE"
                                   ? "#10B981"
                                   : d.status === "SCHEDULED"
-                                  ? "#4338CA"
-                                  : d.status === "CLOSED"
-                                  ? "#D97706"
-                                  : "#6B7280",
+                                    ? "#4338CA"
+                                    : d.status === "CLOSED"
+                                      ? "#D97706"
+                                      : "#6B7280",
                               textTransform: "",
                             }}
                           >
@@ -1271,17 +1468,16 @@ function DrivesPage() {
 
             <div className="p-6 space-y-4 overflow-y-auto">
               {/* Creation Mode Toggle */}
-              <div className="flex bg-canvas p-1 rounded-lg border border-line">
+              <div className="flex bg-canvas p-1 rounded-lg border border-line gap-1">
                 <button
                   type="button"
                   onClick={() => setCreationMode("TEMPLATE")}
-                  className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    creationMode === "TEMPLATE"
-                      ? "bg-white text-brand shadow-sm"
-                      : "text-ink-secondary hover:text-ink"
-                  }`}
+                  className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${creationMode === "TEMPLATE"
+                    ? "bg-white text-brand shadow-sm font-bold"
+                    : "text-ink-secondary hover:text-ink"
+                    }`}
                 >
-                  <Sparkles size={14} /> Use Role Template (Recommended)
+                  <Sparkles size={13} /> Role Template
                 </button>
                 <button
                   type="button"
@@ -1289,13 +1485,25 @@ function DrivesPage() {
                     setCreationMode("CUSTOM");
                     setSelectedTemplateId("");
                   }}
-                  className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    creationMode === "CUSTOM"
-                      ? "bg-white text-brand shadow-sm"
-                      : "text-ink-secondary hover:text-ink"
-                  }`}
+                  className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${creationMode === "CUSTOM"
+                    ? "bg-white text-brand shadow-sm font-bold"
+                    : "text-ink-secondary hover:text-ink"
+                    }`}
                 >
-                  <PenLine size={14} /> Custom Role (No Template)
+                  <PenLine size={13} /> Custom Role
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreationMode("BULK_IMPORT");
+                    setSelectedTemplateId("");
+                  }}
+                  className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${creationMode === "BULK_IMPORT"
+                    ? "bg-white text-[#2E5DE0] shadow-sm font-bold"
+                    : "text-ink-secondary hover:text-ink"
+                    }`}
+                >
+                  <UploadCloud size={13} /> Bulk Import CSV
                 </button>
               </div>
 
@@ -1399,8 +1607,14 @@ function DrivesPage() {
                   value={driveName}
                   onChange={(e) => setDriveName(e.target.value)}
                   placeholder="e.g. Senior Software Engineer Drive - August 2026"
-                  className="w-full px-3.5 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
+                  className={`w-full px-3.5 py-2 text-sm-minus border rounded-md bg-white focus:outline-none ${isDuplicateDriveName ? "border-amber-400 focus:border-amber-500" : "border-line focus:border-brand"}`}
                 />
+                {isDuplicateDriveName && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700 font-medium">
+                    <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                    <span>A drive named "{driveName.trim()}" already exists. Drive names must be unique.</span>
+                  </div>
+                )}
               </div>
 
               {creationMode === "CUSTOM" && (
@@ -1415,67 +1629,118 @@ function DrivesPage() {
                     placeholder="e.g. Senior Software Engineer"
                     className="w-full px-3.5 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
                   />
-                  
+                </div>
+              )}
+
+              {creationMode === "BULK_IMPORT" && (
+                <div className="p-4 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#2E5DE0] shrink-0">
+                      <FolderPlus size={20} className="text-[#2E5DE0]" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-[#1E1B4B]">
+                        Question Bank Dedicated Folder Workflow
+                      </h4>
+                      <p className="text-[11px] text-[#64748B] leading-relaxed">
+                        Creating this drive will initialize its record and automatically redirect you to the <strong>Question Bank</strong> with a dedicated folder created in the drive's name. The bulk upload prompt will open immediately so you can ingest questions from CSV.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500 font-medium">Need sample multi-module CSV format?</span>
+                    <button
+                      type="button"
+                      onClick={downloadUnifiedSampleCSV}
+                      className="h-[28px] px-3 text-[11px] font-semibold text-[#475569] bg-white hover:bg-slate-100 border border-[#CBD5E1] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Download size={12} />
+                      <span>Download Sample CSV</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="px-6 py-4 border-t border-line bg-canvas rounded-b-[12px] flex items-center justify-end gap-2">
               <button
-                onClick={() => setShowWizard(false)}
-                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-md transition-colors"
+                type="button"
+                onClick={() => {
+                  setShowWizard(false);
+                  resetWizard();
+                }}
+                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-md transition-colors cursor-pointer"
               >
                 Cancel
               </button>
-              <button
-                onClick={async () => {
-                  if (!driveName.trim()) {
-                    toast.error("Please enter a drive name.");
-                    return;
-                  }
-                  if (creationMode === "TEMPLATE" && !selectedTemplateId) {
-                    toast.error("Please select a Role Template.");
-                    return;
-                  }
-                  if (creationMode === "CUSTOM" && !role.trim()) {
-                    toast.error("Please enter a role title.");
-                    return;
-                  }
 
-                  const isCustom = creationMode === "CUSTOM";
-                  const effectiveRoleTemplateId =
-                    !isCustom && selectedTemplateId
-                      ? selectedTemplateId
-                      : role.trim();
-
-                  try {
-                    const res = await createDrive({
-                      name: driveName.trim(),
-                      roleTemplateId: effectiveRoleTemplateId,
-                      status: "DRAFT",
-                      moduleConfig: {
-                        isCustomRole: isCustom,
-                      },
-                    });
-                    const targetId = res?.driveId || res?.id;
-                    toast.success(
-                      isCustom
-                        ? "Custom Role drive created! Opening full configuration workspace..."
-                        : "Drive created with selected Role Template! Opening configuration screen..."
-                    );
-                    setShowWizard(false);
-                    if (targetId) {
-                      navigate({ to: "/drives/$id", params: { id: targetId } });
+              {creationMode === "BULK_IMPORT" ? (
+                <button
+                  type="button"
+                  disabled={isCsvCreating || !driveName.trim()}
+                  onClick={handleCreateDriveAndRedirectToBulkImport}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {isCsvCreating ? <Loader2 size={13} className="animate-spin" /> : <FolderPlus size={13} />}
+                  <span>{isCsvCreating ? "Creating Drive..." : "Create Drive & Bulk Import in Question Bank"}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!driveName.trim()) {
+                      toast.error("Please enter a drive name.");
+                      return;
                     }
-                  } catch (err: any) {
-                    toast.error("Failed to create drive: " + (err.message || err));
-                  }
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
-              >
-                Create &amp; Configure Drive
-                <ArrowRight size={14} />
-              </button>
+                    if (isDuplicateDriveName) {
+                      toast.error(`A drive named "${driveName.trim()}" already exists. Please choose a unique drive name.`);
+                      return;
+                    }
+                    if (creationMode === "TEMPLATE" && !selectedTemplateId) {
+                      toast.error("Please select a Role Template.");
+                      return;
+                    }
+                    if (creationMode === "CUSTOM" && !role.trim()) {
+                      toast.error("Please enter a role title.");
+                      return;
+                    }
+
+                    const isCustom = creationMode === "CUSTOM";
+                    const effectiveRoleTemplateId =
+                      !isCustom && selectedTemplateId
+                        ? selectedTemplateId
+                        : role.trim();
+
+                    try {
+                      const res = await createDrive({
+                        name: driveName.trim(),
+                        roleTemplateId: effectiveRoleTemplateId,
+                        status: "DRAFT",
+                        moduleConfig: {
+                          isCustomRole: isCustom,
+                        },
+                      });
+                      const targetId = res?.driveId || res?.id;
+                      toast.success(
+                        isCustom
+                          ? "Custom Role drive created! Opening full configuration workspace..."
+                          : "Drive created with selected Role Template! Opening configuration screen..."
+                      );
+                      setShowWizard(false);
+                      if (targetId) {
+                        navigate({ to: "/drives/$id", params: { id: targetId } });
+                      }
+                    } catch (err: any) {
+                      toast.error("Failed to create drive: " + (err.message || err));
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
+                >
+                  Create &amp; Configure Drive
+                  <ArrowRight size={14} />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1491,7 +1756,7 @@ function DrivesPage() {
               </div>
               <h3 className="text-base font-semibold text-ink">Close Drive Early?</h3>
             </div>
-            
+
             <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to close the assessment drive <span className="font-semibold text-ink">"{confirmCloseDrive.name}"</span> early? This will prevent any new candidates from starting the assessment and mark the drive as closed.
             </p>
@@ -1527,7 +1792,7 @@ function DrivesPage() {
               </div>
               <h3 className="text-base font-semibold text-ink">Delete Drive?</h3>
             </div>
-            
+
             <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to delete the assessment drive <span className="font-semibold text-ink">"{confirmDeleteDrive.name}"</span>?
               This will permanently revoke all invites and delete all candidate sessions, proctoring/event logs, and scores. This action cannot be undone.

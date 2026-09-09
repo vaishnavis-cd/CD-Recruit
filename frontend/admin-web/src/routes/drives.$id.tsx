@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
   Copy,
@@ -48,6 +48,8 @@ import {
   Link2,
   Layers,
   Pin,
+  Loader2,
+  Undo2,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { SingleDateTimePicker, computeRollingEndDate, computeEndTimeWithDuration } from "../components/single-date-time-picker";
@@ -55,6 +57,7 @@ import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveDetail } from "../lib/types";
 import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
 import { formatDriveName } from "../lib/utils";
+import { parseQuestionsFromCSV, downloadUnifiedSampleCSV } from "../lib/csvParser";
 import {
   getDepartmentAllowedModules,
   MODULE_LABEL_MAP,
@@ -357,6 +360,8 @@ function DriveDetailPage() {
   const fetchQuestions = useStore((s) => s.fetchQuestions);
   const questionsBank = useStore((s) => s.questions) || [];
   const saveDriveQuestions = useStore((s) => s.saveDriveQuestions);
+  const bulkUploadQuestions = useStore((s) => s.bulkUploadQuestions);
+  const suggestDeficitQuestions = useStore((s) => s.suggestDeficitQuestions);
   const addCandidatesBulk = useStore((s) => s.addCandidatesBulk);
   const generateDriveLinks = useStore((s) => s.generateDriveLinks);
   const removeCandidateFromDrive = useStore((s) => s.removeCandidateFromDrive);
@@ -377,7 +382,14 @@ function DriveDetailPage() {
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<"roster" | "questions" | "configuration">("configuration");
+  const [activeTab, setActiveTab] = useState<"roster" | "questions" | "configuration">(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const tab = p.get("tab");
+      if (tab === "questions" || tab === "roster" || tab === "configuration") return tab;
+    }
+    return "configuration";
+  });
 
   // Config States
   const [editName, setEditName] = useState("");
@@ -429,6 +441,14 @@ function DriveDetailPage() {
   const [savedAssignedQuestions, setSavedAssignedQuestions] = useState<string[]>([]);
   const [bulkImportConflict, setBulkImportConflict] = useState<{ importedIds: string[] } | null>(null);
 
+  // Direct CSV Question Ingestion & Timing Deficit State
+  const [isCsvUploading, setIsCsvUploading] = useState(false);
+  const [suggestedDeficitModalOpen, setSuggestedDeficitModalOpen] = useState(false);
+  const [suggestedDeficitData, setSuggestedDeficitData] = useState<any>(null);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [highlightTrimmingMode, setHighlightTrimmingMode] = useState(false);
+  const csvFileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Automatically persist draft assigned questions in sessionStorage to survive bulk import modal navigation
   useEffect(() => {
     if (driveId && assignedQuestions.length > 0) {
@@ -443,6 +463,68 @@ function DriveDetailPage() {
   const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState<string>("ALL");
   const [questionSearch, setQuestionSearch] = useState("");
   const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
+  const [showBankSelector, setShowBankSelector] = useState(false);
+
+  // Timing & Question Assignment Undo History Stack
+  interface DriveHistorySnapshot {
+    label: string;
+    schedule: {
+      startHour: string;
+      startMinute: string;
+      startAmPm: string;
+      endHour: string;
+      endMinute: string;
+      endAmPm: string;
+      startDate: string;
+      endDate: string;
+    };
+    assignedQuestions: string[];
+  }
+  const [historyStack, setHistoryStack] = useState<DriveHistorySnapshot[]>([]);
+
+  const pushHistory = (label: string) => {
+    setHistoryStack((prev) => [
+      ...prev,
+      {
+        label,
+        schedule: {
+          startHour,
+          startMinute,
+          startAmPm,
+          endHour,
+          endMinute,
+          endAmPm,
+          startDate,
+          endDate,
+        },
+        assignedQuestions: [...assignedQuestions],
+      },
+    ]);
+  };
+
+  const handleUndo = async () => {
+    if (historyStack.length === 0) return;
+    const lastSnapshot = historyStack[historyStack.length - 1];
+    setHistoryStack((prev) => prev.slice(0, -1));
+
+    setStartHour(lastSnapshot.schedule.startHour);
+    setStartMinute(lastSnapshot.schedule.startMinute);
+    setStartAmPm(lastSnapshot.schedule.startAmPm);
+    setEndHour(lastSnapshot.schedule.endHour);
+    setEndMinute(lastSnapshot.schedule.endMinute);
+    setEndAmPm(lastSnapshot.schedule.endAmPm);
+    setStartDate(lastSnapshot.schedule.startDate);
+    setEndDate(lastSnapshot.schedule.endDate);
+
+    setAssignedQuestions(lastSnapshot.assignedQuestions);
+    try {
+      await saveDriveQuestions(driveId, lastSnapshot.assignedQuestions);
+    } catch (err) {
+      console.error("Failed to sync restored questions to drive", err);
+    }
+
+    toast.success(`Undid: "${lastSnapshot.label}". Restored previous timing and questions.`);
+  };
 
   // Add Candidate Modal State
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
@@ -640,7 +722,7 @@ function DriveDetailPage() {
             if (tplQuestionIds.length > 0) {
               setAssignedQuestions(tplQuestionIds);
               setSavedAssignedQuestions(tplQuestionIds);
-              saveDriveQuestions(driveId, tplQuestionIds).catch(() => {});
+              saveDriveQuestions(driveId, tplQuestionIds).catch(() => { });
             }
           }
         } catch (e) {
@@ -794,6 +876,16 @@ function DriveDetailPage() {
     loadData();
     fetchQuestions({ pageSize: 1000 });
     fetchRoleTemplates();
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const tab = p.get("tab");
+      if (tab === "questions" || tab === "roster" || tab === "configuration") {
+        setActiveTab(tab);
+      }
+      if (p.get("imported") === "true") {
+        toast.success("Questions successfully imported and assigned to this drive!");
+      }
+    }
   }, [driveId]);
 
   const handleUnlockEditing = async () => {
@@ -1386,6 +1478,47 @@ function DriveDetailPage() {
     return (drive?.roster?.length || 0) > 0;
   }, [drive]);
 
+  // Resolved question objects and Timing / Scoring Metrics
+  const assignedQuestionObjects = useMemo(() => {
+    return (assignedQuestions || []).map((id) => {
+      const found = questionsBank.find((q) => q.id === id);
+      if (found) return found;
+      return {
+        id,
+        moduleType: "MCQ",
+        difficulty: "medium",
+        content: { prompt: "Assigned Question" },
+      };
+    });
+  }, [assignedQuestions, questionsBank]);
+
+  const totalContentDuration = useMemo(() => {
+    return assignedQuestionObjects.reduce((sum, q: any) => {
+      const dur = q.durationMinutes || (q.content as any)?.durationMinutes;
+      if (dur && dur > 0) return sum + dur;
+      const modTimes = DEFAULT_TIME_MATRIX[q.moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+      const diffKey = String(q.difficulty || "MEDIUM").toUpperCase();
+      return sum + (modTimes[diffKey] || modTimes.MEDIUM || 5);
+    }, 0);
+  }, [assignedQuestionObjects]);
+
+  const totalContentPoints = useMemo(() => {
+    return assignedQuestionObjects.reduce((sum, q: any) => {
+      const pts = q.points || (q.scoringConfig as any)?.points;
+      if (pts && pts > 0) return sum + pts;
+      const diff = String(q.difficulty || "medium").toLowerCase();
+      return sum + (diff === "hard" ? 3 : diff === "medium" ? 2 : 1);
+    }, 0);
+  }, [assignedQuestionObjects]);
+
+  const scheduledWindowDuration = useMemo(() => {
+    return computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+  }, [startHour, startMinute, startAmPm, endHour, endMinute, endAmPm]);
+
+  const isTimingOverBudget = totalContentDuration > scheduledWindowDuration;
+  const isTimingUnderBudget = totalContentDuration > 0 && totalContentDuration < scheduledWindowDuration;
+  const timingMismatchDiff = Math.abs(scheduledWindowDuration - totalContentDuration);
+
   const templateModulesSummary = useMemo(() => {
     if (!isTemplateGoverned) return null;
 
@@ -1806,6 +1939,141 @@ function DriveDetailPage() {
     }
   };
 
+  const handleAutoExtendWindow = () => {
+    pushHistory(`Auto-Extend Window (${totalContentDuration}m)`);
+    const derived = computeEndTimeWithDuration(startHour, startMinute, startAmPm, totalContentDuration);
+    setEndHour(derived.endHour);
+    setEndMinute(derived.endMinute);
+    setEndAmPm(derived.endAmPm);
+    toast.success(
+      `Extended scheduled window to ${totalContentDuration} minutes (${startHour}:${startMinute} ${startAmPm} - ${derived.endHour}:${derived.endMinute} ${derived.endAmPm}).`,
+      {
+        action: {
+          label: "Undo",
+          onClick: () => handleUndo(),
+        },
+      }
+    );
+  };
+
+  const handleFitWindowToContent = () => {
+    pushHistory(`Fit Window (${totalContentDuration}m)`);
+    const derived = computeEndTimeWithDuration(startHour, startMinute, startAmPm, totalContentDuration);
+    setEndHour(derived.endHour);
+    setEndMinute(derived.endMinute);
+    setEndAmPm(derived.endAmPm);
+    toast.success(
+      `Adjusted schedule window to match content duration (${totalContentDuration} mins).`,
+      {
+        action: {
+          label: "Undo",
+          onClick: () => handleUndo(),
+        },
+      }
+    );
+  };
+
+  const handleFetchDeficitSuggestions = async () => {
+    try {
+      setIsLoadingSuggestions(true);
+      const res = await suggestDeficitQuestions(driveId, timingMismatchDiff);
+      setSuggestedDeficitData(res);
+      setSuggestedDeficitModalOpen(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to fetch suggested questions");
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const handleApplyDeficitSuggestions = async () => {
+    if (!suggestedDeficitData?.suggestedQuestions?.length) return;
+    pushHistory(`Add Matching Questions (+${timingMismatchDiff}m)`);
+    const newIds = suggestedDeficitData.suggestedQuestions.map((q: any) => q.id);
+    const combined = Array.from(new Set([...assignedQuestions, ...newIds]));
+    setAssignedQuestions(combined);
+    await saveDriveQuestions(driveId, combined);
+    setSuggestedDeficitModalOpen(false);
+    toast.success(`Assigned ${newIds.length} question(s) from Question Bank to satisfy timing deficit!`, {
+      action: {
+        label: "Undo",
+        onClick: () => handleUndo(),
+      },
+    });
+    loadData();
+  };
+
+  const handleDirectCSVUpload = async (file: File) => {
+    try {
+      setIsCsvUploading(true);
+      const text = await file.text();
+      const driveTag = `Drive: ${drive?.name || "Assessment"}`;
+      const parseResult = parseQuestionsFromCSV(text, DEFAULT_TIME_MATRIX, driveTag);
+
+      if (parseResult.errors.length > 0) {
+        toast.error(parseResult.errors[0]);
+        return;
+      }
+
+      if (parseResult.questions.length === 0) {
+        toast.error("No valid questions found in CSV.");
+        return;
+      }
+
+      // 1. Bulk upload questions
+      const created = await bulkUploadQuestions("ALL", parseResult.questions);
+      const newQuestionIds = Array.isArray(created) ? created.map((q: any) => q.id) : [];
+
+      // 2. Associate to drive
+      const currentIds = drive?.questionIds || [];
+      const combinedIds = Array.from(new Set([...currentIds, ...newQuestionIds]));
+      setAssignedQuestions(combinedIds);
+      await saveDriveQuestions(driveId, combinedIds);
+
+      // 3. Decouple module selection: Enable detected modules & set Strategy A weights!
+      const nextModConfig: Record<string, any> = { ...moduleConfig };
+      ALL_MODULE_KEYS.forEach((mod) => {
+        if (parseResult.detectedModules.includes(mod)) {
+          nextModConfig[mod] = {
+            ...nextModConfig[mod],
+            enabled: true,
+            weight: parseResult.moduleWeights[mod] || 0,
+            durationMinutes: parseResult.moduleDurations[mod] || 15,
+          };
+        } else {
+          nextModConfig[mod] = {
+            ...nextModConfig[mod],
+            enabled: false,
+            weight: 0,
+          };
+        }
+      });
+      setModuleConfig(nextModConfig);
+
+      // 4. Timing auto-extension if content duration exceeds scheduled window
+      if (parseResult.totalDurationMinutes > scheduledWindowDuration) {
+        const derived = computeEndTimeWithDuration(startHour, startMinute, startAmPm, parseResult.totalDurationMinutes);
+        setEndHour(derived.endHour);
+        setEndMinute(derived.endMinute);
+        setEndAmPm(derived.endAmPm);
+        toast.success(
+          `Imported ${parseResult.questions.length} questions across ${parseResult.detectedModules.join(", ")}. Window auto-extended to ${parseResult.totalDurationMinutes}m.`
+        );
+      } else {
+        toast.success(
+          `Imported ${parseResult.questions.length} questions across ${parseResult.detectedModules.join(", ")} with Strategy A weights!`
+        );
+      }
+
+      loadData();
+    } catch (err: any) {
+      console.error("Direct CSV Upload failed:", err);
+      toast.error(err.message || "Failed to import questions from CSV");
+    } finally {
+      setIsCsvUploading(false);
+    }
+  };
+
   const handleDownloadSampleCandidates = async () => {
     try {
       const headers = await getAuthHeaders();
@@ -1878,9 +2146,9 @@ function DriveDetailPage() {
     const modulesToProcess = targetModId
       ? [targetModId]
       : allowedModules.filter((m) => {
-          const conf = moduleConfig[m];
-          return conf && conf.enabled && Number(conf.weight) > 0;
-        });
+        const conf = moduleConfig[m];
+        return conf && conf.enabled && Number(conf.weight) > 0;
+      });
 
     let newAssigned = [...assignedQuestions];
     let newlyAddedCount = 0;
@@ -2024,6 +2292,20 @@ function DriveDetailPage() {
   return (
     <AppShell hideHeader={true}>
       <div className="w-full max-w-[1269px] min-h-[944px] flex flex-col mx-auto gap-6 pb-12">
+        {/* Hidden Global CSV File Input for Drive Direct Question Ingestion */}
+        <input
+          ref={csvFileInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              handleDirectCSVUpload(e.target.files[0]);
+              e.target.value = "";
+            }
+          }}
+        />
+
         {/* TopBar (1269x102 inside 1317x142 region) */}
         <div className="w-full max-w-[1269px] pt-4 pb-4 border-b border-[#2E5DE01A] flex flex-col gap-2.5">
           {/* Breadcrumbs (78x15, gap 6px) */}
@@ -2105,7 +2387,7 @@ function DriveDetailPage() {
             </button>
           </div>
 
-          {/* Details Subtitle: Role Template, Direct Origin, Active */}
+          {/* Details Subtitle: Role Template, Direct Origin, Active, Upfront Bulk Import */}
           <div className="flex items-center gap-2.5 flex-wrap text-[13px]" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
             <div className="flex items-center gap-1.5">
               <span className="text-[#6B7280]">Role Template:</span>
@@ -2128,6 +2410,7 @@ function DriveDetailPage() {
                 <Sparkles size={11} /> Select / Change Template
               </button>
             </div>
+
             <span className="text-[#9CA3AF]">·</span>
             <div className="px-2 py-0.5 rounded-[8px] bg-[#F3F4F6] inline-flex items-center justify-center">
               <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
@@ -2171,10 +2454,8 @@ function DriveDetailPage() {
                         }}
                         className={`w-full px-2.5 py-1.5 text-[11px] font-bold rounded-[8px] flex items-center justify-between transition-colors cursor-pointer text-[#1E1B4B] hover:bg-[#F8FAFC]`}
                       >
-                        <span className={`px-2 py-0.5 rounded-full border text-[10px] ${item.badge}`}>
-                          {item.label}
-                        </span>
-                        {drive.status === item.id && <Check size={13} className="shrink-0 text-[#2E5DE0]" />}
+                        <span>{item.label}</span>
+                        {drive.status === item.id && <Check size={12} className="text-[#2E5DE0]" />}
                       </button>
                     ))}
                   </div>
@@ -2461,6 +2742,18 @@ function DriveDetailPage() {
                       <Clock size={12} className="text-white" />
                       <span>Smart Fit to Time</span>
                     </button>
+
+                    {/* Bulk Import Questions Button */}
+                    <button
+                      type="button"
+                      disabled={isCsvUploading}
+                      onClick={() => csvFileInputRef.current?.click()}
+                      className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[14px] shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      title="Ingest questions via CSV to auto-detect modules and calibrate Strategy A weights"
+                    >
+                      {isCsvUploading ? <Loader2 size={12} className="animate-spin text-[#2E5DE0]" /> : <Upload size={12} />}
+                      <span>Bulk Import via CSV</span>
+                    </button>
                   </div>
                 </div>
 
@@ -2497,9 +2790,8 @@ function DriveDetailPage() {
                       {/* Visual progress bar */}
                       <div className="w-full bg-[#E9EEFE] h-2 rounded-full overflow-hidden">
                         <div
-                          className={`h-full transition-all duration-300 rounded-full ${
-                            isOverTime ? "bg-rose-500" : percentUsed > 90 ? "bg-amber-500" : "bg-[#2E5DE0]"
-                          }`}
+                          className={`h-full transition-all duration-300 rounded-full ${isOverTime ? "bg-rose-500" : percentUsed > 90 ? "bg-amber-500" : "bg-[#2E5DE0]"
+                            }`}
                           style={{ width: `${percentUsed}%` }}
                         />
                       </div>
@@ -2599,11 +2891,10 @@ function DriveDetailPage() {
                                 <button
                                   type="button"
                                   onClick={() => togglePinWeight(mod.id)}
-                                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all flex items-center gap-1 ${
-                                    isPinned
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all flex items-center gap-1 ${isPinned
                                       ? "bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE] hover:bg-[#E0E7FF]"
                                       : "bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] hover:bg-[#E2E8F0] hover:text-[#334155]"
-                                  }`}
+                                    }`}
                                   title={isPinned ? "Click to unlock automatic weight rebalancing" : "Click to pin this weight"}
                                 >
                                   {isPinned ? (
@@ -2631,9 +2922,8 @@ function DriveDetailPage() {
                                   handleWeightChange(mod.id, val);
                                 }}
                                 onFocus={(e) => e.target.select()}
-                                className={`w-full h-[36px] px-3 rounded-[18px] border font-mono font-bold text-[14px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] ${
-                                  isPinned ? "border-indigo-300 bg-indigo-50/20" : "border-[#E9EEFE] bg-white"
-                                }`}
+                                className={`w-full h-[36px] px-3 rounded-[18px] border font-mono font-bold text-[14px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] ${isPinned ? "border-indigo-300 bg-indigo-50/20" : "border-[#E9EEFE] bg-white"
+                                  }`}
                               />
                             </div>
 
@@ -2648,17 +2938,16 @@ function DriveDetailPage() {
                                         [mod.id]: { ...(conf as any), questionSource: "AI_DYNAMIC" } as any,
                                       })
                                     }
-                                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${
-                                      ((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"
+                                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"
                                         ? "bg-white text-[#2E5DE0] shadow-2xs border border-[#2E5DE0]/20 font-bold"
                                         : "text-[#6B7280] hover:text-[#1E1B4B]"
-                                    }`}
+                                      }`}
                                   >
                                     <input
                                       type="radio"
                                       name="aiPromptingSource"
                                       checked={((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"}
-                                      onChange={() => {}}
+                                      onChange={() => { }}
                                       className="w-3 h-3 text-[#2E5DE0] accent-[#2E5DE0] cursor-pointer"
                                     />
                                     <span>AI Generated</span>
@@ -2671,17 +2960,16 @@ function DriveDetailPage() {
                                         [mod.id]: { ...(conf as any), questionSource: "STATIC_BANK" } as any,
                                       })
                                     }
-                                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${
-                                      (conf as any).questionSource === "STATIC_BANK"
+                                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${(conf as any).questionSource === "STATIC_BANK"
                                         ? "bg-white text-[#2E5DE0] shadow-2xs border border-[#2E5DE0]/20 font-bold"
                                         : "text-[#6B7280] hover:text-[#1E1B4B]"
-                                    }`}
+                                      }`}
                                   >
                                     <input
                                       type="radio"
                                       name="aiPromptingSource"
                                       checked={(conf as any).questionSource === "STATIC_BANK"}
-                                      onChange={() => {}}
+                                      onChange={() => { }}
                                       className="w-3 h-3 text-[#2E5DE0] accent-[#2E5DE0] cursor-pointer"
                                     />
                                     <span>Question Bank</span>
@@ -2954,32 +3242,9 @@ function DriveDetailPage() {
                   <p className="text-[13px] text-[#6B7280] mt-1.5">
                     {isTemplateGoverned
                       ? "Standardized assessment questions pre-calibrated by the selected Role Template."
-                      : "Select and assign questions from the central question library or import via CSV."}
+                      : "Review, calibrate, and verify questions assigned to this drive assessment."}
                   </p>
                 </div>
-
-                {!isTemplateGoverned && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigate({
-                          to: "/questions",
-                          search: {
-                            fromDriveId: driveId,
-                            driveName: drive.name,
-                            autoBulk: "true",
-                          } as any,
-                        });
-                      }}
-                      className="h-[32px] px-4 py-1.5 gap-2 text-[13px] font-semibold text-[#2E5DE0] bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE0] rounded-full transition-colors cursor-pointer inline-flex items-center shadow-xs"
-                      style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                    >
-                      <Upload size={14} className="text-[#2E5DE0] shrink-0" />
-                      <span className="text-[#2E5DE0] leading-none whitespace-nowrap">Bulk Import Questions</span>
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Locked Warning Banner */}
@@ -2995,15 +3260,145 @@ function DriveDetailPage() {
                 </div>
               )}
 
+              {/* Timing Mismatch Diagnostic Alerts */}
+              {isTimingOverBudget && (
+                <div className="p-4 rounded-[12px] bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-[13.5px] font-bold text-rose-900 flex items-center gap-2">
+                        <span>Over-Budget: Content Exceeds Scheduled Drive Window</span>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-rose-200 text-rose-800 font-mono font-bold">
+                          +{timingMismatchDiff}m Over
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-rose-800 mt-0.5">
+                        Assigned questions require <strong>{totalContentDuration} mins</strong> (Total Marks: {totalContentPoints}), but the scheduled drive window is only <strong>{scheduledWindowDuration} mins</strong>.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleAutoExtendWindow}
+                      className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                      title={`Extend schedule window end time to allow full ${totalContentDuration}m`}
+                    >
+                      <Sparkles size={13} className="text-amber-300" />
+                      <span>Auto-Extend Window ({totalContentDuration}m)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHighlightTrimmingMode(!highlightTrimmingMode)}
+                      className={`h-[32px] px-3 py-1 text-[12px] font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        highlightTrimmingMode
+                          ? "bg-rose-100 text-rose-900 border-rose-300"
+                          : "bg-white text-rose-700 border-rose-300 hover:bg-rose-50"
+                      }`}
+                    >
+                      <span>{highlightTrimmingMode ? "Done Trimming" : "Rework / Trim Questions"}</span>
+                    </button>
+                    {historyStack.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleUndo}
+                        className="h-[32px] px-3 py-1 text-[12px] font-semibold text-rose-800 bg-white hover:bg-rose-100/60 border border-rose-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        title={`Undo: ${historyStack[historyStack.length - 1].label}`}
+                      >
+                        <Undo2 size={13} className="text-rose-700" />
+                        <span>Undo ({historyStack[historyStack.length - 1].label})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {isTimingUnderBudget && (
+                <div className="p-4 rounded-[12px] bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-[13.5px] font-bold text-amber-900 flex items-center gap-2">
+                        <span>Under-Budget: Schedule Window Has Deficit</span>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 font-mono font-bold">
+                          {timingMismatchDiff}m Deficit
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-amber-800 mt-0.5">
+                        Assigned questions total <strong>{totalContentDuration} mins</strong> (Total Marks: {totalContentPoints}), but the scheduled drive window is <strong>{scheduledWindowDuration} mins</strong>.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleFitWindowToContent}
+                      className="h-[32px] px-3.5 py-1 text-[12px] font-semibold text-[#475569] bg-white hover:bg-slate-50 border border-[#CBD5E1] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                      title={`Shorten schedule window to match content duration (${totalContentDuration}m)`}
+                    >
+                      <span>Fit Window to Content ({totalContentDuration}m)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFetchDeficitSuggestions}
+                      disabled={isLoadingSuggestions}
+                      className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                      title={`Find matching questions in Question Bank whose total duration fills the +${timingMismatchDiff}m deficit`}
+                    >
+                      {isLoadingSuggestions ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={13} className="text-amber-200" />
+                      )}
+                      <span>Add Matching Questions (+{timingMismatchDiff}m)</span>
+                    </button>
+                    {historyStack.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleUndo}
+                        className="h-[32px] px-3 py-1 text-[12px] font-semibold text-amber-900 bg-white hover:bg-amber-100/50 border border-amber-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        title={`Undo: ${historyStack[historyStack.length - 1].label}`}
+                      >
+                        <Undo2 size={13} className="text-amber-800" />
+                        <span>Undo ({historyStack[historyStack.length - 1].label})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* QuestionsListContainer: Assigned Questions Section */}
               <div className="w-full border border-[#E9EEFE] rounded-[12px] overflow-hidden">
                 {/* ListHeader */}
                 <div className="h-auto min-h-[42px] px-5 py-2.5 bg-[#F2F2FB] border-b border-[#E9EEFE] flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <CheckCircle2 size={16} className="text-[#2E5DE0]" />
                     <h4 className="text-[14px] font-bold text-[#1E1B4B]">
                       Assigned Questions for this Drive ({assignedQuestions.length})
                     </h4>
+                    {assignedQuestions.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-slate-200/80 text-[#334155] text-[11px] font-mono font-semibold inline-flex items-center gap-1">
+                          <Clock size={10} className="text-[#64748B]" />
+                          {totalContentDuration}m
+                        </span>
+                        <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-amber-100/70 text-amber-900 text-[11px] font-mono font-semibold inline-flex items-center gap-1 border border-amber-200">
+                          <Award size={10} className="text-amber-700" />
+                          {totalContentPoints} pts
+                        </span>
+                        {historyStack.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleUndo}
+                            className="h-[20px] px-2 py-0.5 rounded-[6px] bg-white hover:bg-slate-50 text-[#334155] text-[11px] font-semibold inline-flex items-center gap-1 border border-slate-300 shadow-2xs cursor-pointer transition-colors"
+                            title={`Undo: ${historyStack[historyStack.length - 1].label}`}
+                          >
+                            <Undo2 size={10} className="text-slate-600" />
+                            <span>Undo</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {isQuestionsEditable && questionDeficits.length > 0 && (
@@ -3030,7 +3425,7 @@ function DriveDetailPage() {
                     No questions assigned to this drive yet. Select and assign questions from the Question Bank below.
                   </div>
                 ) : (
-                  <div className={`divide-y divide-[#E9EEFE] bg-white ${isTemplateGoverned ? "max-h-[550px]" : "max-h-[300px]"} overflow-y-auto`}>
+                  <div className={`divide-y divide-[#E9EEFE] bg-white ${isTemplateGoverned || assignedQuestions.length > 0 ? "max-h-[550px]" : "max-h-[300px]"} overflow-y-auto`}>
                     {assignedQuestions.map((qId) => {
                       const q = questionsBank.find((item) => item.id === qId) || {
                         id: qId,
@@ -3041,11 +3436,17 @@ function DriveDetailPage() {
                       const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
                       const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
                       const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
+                      const dur = (q as any).durationMinutes || (q.content as any)?.durationMinutes || (DEFAULT_TIME_MATRIX[displayModule] || { EASY: 5, MEDIUM: 5, HARD: 5 })[String(q.difficulty || "MEDIUM").toUpperCase()] || 5;
+                      const pts = (q as any).points || (q as any).scoringConfig?.points || (String(q.difficulty || "medium").toLowerCase() === "hard" ? 3 : String(q.difficulty || "medium").toLowerCase() === "medium" ? 2 : 1);
                       return (
                         <div
                           key={qId}
                           onClick={() => setPreviewQuestion(q)}
-                          className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-[#F8FAFC] transition-colors cursor-pointer group"
+                          className={`px-5 py-3.5 flex items-center justify-between gap-4 transition-colors cursor-pointer group ${
+                            highlightTrimmingMode
+                              ? "bg-rose-50/40 hover:bg-rose-50 border-l-4 border-l-rose-500"
+                              : "hover:bg-[#F8FAFC]"
+                          }`}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
                             <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-[12px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
@@ -3054,10 +3455,20 @@ function DriveDetailPage() {
                             <span className="text-[13.5px] font-medium text-[#1E1B4B] group-hover:text-[#2E5DE0] transition-colors truncate leading-[140%]">
                               {title}
                             </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-slate-100 text-[#475569] text-[11px] font-mono font-medium inline-flex items-center gap-1">
+                                <Clock size={10} className="text-[#64748B]" />
+                                {dur}m
+                              </span>
+                              <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-amber-50 text-amber-800 text-[11px] font-mono font-medium inline-flex items-center gap-1 border border-amber-200/60">
+                                <Award size={10} className="text-amber-600" />
+                                {pts} pts
+                              </span>
+                            </div>
                           </div>
 
                           {/* Row Actions with exact aligned widths */}
-                          <div className={`${isTemplateGoverned ? "w-[84px]" : "w-[172px]"} flex items-center justify-end gap-2.5 shrink-0`} onClick={(e) => e.stopPropagation()}>
+                          <div className={`${isTemplateGoverned ? "w-[84px]" : highlightTrimmingMode ? "w-[200px]" : "w-[172px]"} flex items-center justify-end gap-2.5 shrink-0`} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -3070,16 +3481,45 @@ function DriveDetailPage() {
                               <span>Preview</span>
                             </button>
                             {isQuestionsEditable ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setAssignedQuestions(assignedQuestions.filter((id) => id !== qId));
-                                }}
-                                className="w-[76px] h-[28px] rounded-[14px] bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[12px] font-semibold flex items-center justify-center transition-colors cursor-pointer"
-                              >
-                                Remove
-                              </button>
+                              highlightTrimmingMode ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    pushHistory(`Trim question (-${dur}m)`);
+                                    setAssignedQuestions(assignedQuestions.filter((id) => id !== qId));
+                                    toast.info(`Trimmed question (-${dur}m).`, {
+                                      action: {
+                                        label: "Undo",
+                                        onClick: () => handleUndo(),
+                                      },
+                                    });
+                                  }}
+                                  className="h-[28px] px-3 rounded-[14px] bg-rose-600 hover:bg-rose-700 text-white font-bold text-[12px] flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                                  title={`Trim question (-${dur}m)`}
+                                >
+                                  <Trash2 size={12} />
+                                  <span>Trim (-{dur}m)</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    pushHistory(`Remove question`);
+                                    setAssignedQuestions(assignedQuestions.filter((id) => id !== qId));
+                                    toast.info("Question removed from drive.", {
+                                      action: {
+                                        label: "Undo",
+                                        onClick: () => handleUndo(),
+                                      },
+                                    });
+                                  }}
+                                  className="w-[76px] h-[28px] rounded-[14px] bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[12px] font-semibold flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              )
                             ) : isTemplateGoverned ? null : (
                               <span className="w-[76px] h-[28px] rounded-[14px] bg-[#F2F2FB] text-[#9CA3AF] text-[12px] font-semibold flex items-center justify-center gap-1 cursor-not-allowed">
                                 <Lock size={12} className="text-[#9CA3AF]" />
@@ -3094,448 +3534,241 @@ function DriveDetailPage() {
                 )}
               </div>
 
-              {/* Pool Sufficiency & Question Bank Selector (Custom Role Drives Only) */}
+              {/* Central Question Bank Selector Toggle (Custom Role Drives Only) */}
               {!isTemplateGoverned && (
                 <>
-                  {/* Pool Sufficiency & Status Banners */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                {allowedModules.map((modId) => {
-                  const conf = moduleConfig[modId] || { enabled: false, weight: 0 };
-                  if (!conf.enabled || Number(conf.weight) <= 0) return null;
-
-                  const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-                  const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-                    lowerName.includes("l1") ? "l1" : (
-                      lowerName.includes("l2") ? "l2" : "l3"
-                    )
-                  );
-                  const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                  const reqCount = getRequiredQuestionCount(modId, conf.weight, totalDuration, resolvedTag);
-                  const dist = (conf as any).difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
-
-                  const poolQuestions = (questionsBank || []).filter(q => {
-                    const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-                    const displayMod = isDebug ? "DEBUGGING" : q.moduleType;
-                    return assignedQuestions.includes(q.id) && displayMod === modId;
-                  });
-                  const poolSize = poolQuestions.length;
-
-                  const easyAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "EASY").length;
-                  const mediumAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "MEDIUM").length;
-                  const hardAvail = poolQuestions.filter(q => (q.difficulty || "medium").toUpperCase() === "HARD").length;
-
-                  const hasRoleTemplate = Boolean(drive?.roleTemplateId || (drive as any)?.roleTemplate);
-                  const errors: string[] = [];
-                  if (!hasRoleTemplate) {
-                    if (easyAvail < dist.easy) errors.push(`Need ${dist.easy - easyAvail} more Easy question(s) (Target: ${dist.easy}, Selected: ${easyAvail})`);
-                    if (mediumAvail < dist.medium) errors.push(`Need ${dist.medium - mediumAvail} more Medium question(s) (Target: ${dist.medium}, Selected: ${mediumAvail})`);
-                    if (hardAvail < dist.hard) errors.push(`Need ${dist.hard - hardAvail} more Hard question(s) (Target: ${dist.hard}, Selected: ${hardAvail})`);
-                  }
-
-                  const isCountMatched = poolSize >= reqCount;
-                  const isDifficultyMatched = easyAvail === dist.easy && mediumAvail === dist.medium && hardAvail === dist.hard;
-
-                  const renderDiffMetric = (label: string, val: number) => {
-                    const isZero = val === 0;
-                    return (
-                      <span className={`inline-flex items-center gap-1 ${isZero ? "text-[#9CA3AF]" : "text-[#1E1B4B]"}`}>
-                        <span className={isZero ? "text-[#9CA3AF]" : "text-[#6B7280]"}>{label}:</span>
-                        <span className={isZero ? "text-[#9CA3AF] font-normal" : "font-bold text-[#1E1B4B]"}>{val}</span>
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowBankSelector(!showBankSelector)}
+                      className="h-[32px] px-4 text-[12px] font-semibold text-[#2E5DE0] bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE033] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <BookOpen size={13} />
+                      <span>{showBankSelector ? "Hide Central Question Bank" : "+ Add More Questions from Question Bank"}</span>
+                    </button>
+                    {assignedQuestions.length === 0 && (
+                      <span className="text-[12px] text-amber-700 font-medium">
+                        Please assign assessment questions from the library below.
                       </span>
-                    );
-                  };
+                    )}
+                  </div>
 
-                  return (
-                    <div key={modId} className="bg-white border border-[#E9EEFE] rounded-[12px] p-4 space-y-2.5 text-xs shadow-xs">
-                      <div className="flex items-center justify-between font-semibold border-b border-[#E9EEFE] pb-2">
-                        <span className="text-[#1E1B4B] font-bold text-[13px]">
-                          {MODULE_LABEL_MAP[modId] || modId} Module
-                        </span>
-                        <span className={`text-[12px] font-semibold ${isCountMatched ? "text-emerald-700" : "text-[#2E5DE0]"}`}>
-                          {isCountMatched ? `Attached: ${poolSize} / ${reqCount}` : `Required: ${reqCount} (${poolSize} selected)`}
-                        </span>
-                      </div>
+                  {(showBankSelector || assignedQuestions.length === 0) && (
+                    <div className="space-y-4 pt-3 border-t border-[#E9EEFE]">
+                      {/* FilterBar (Module tabs + Complexity filters) */}
+                      <div id="question-bank-selector-section" className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuestionModuleFilter("ALL")}
+                        className={`h-[32px] px-3.5 py-1.5 rounded-[16px] text-[13px] transition-colors cursor-pointer ${questionModuleFilter === "ALL"
+                            ? "bg-[#2E5DE0] text-white font-semibold border border-[#2E5DE0] shadow-xs"
+                            : "bg-white text-[#6B7280] hover:text-[#1E1B4B] font-medium border border-[#E9EEFE] hover:border-[#D5DAEC]"
+                          }`}
+                      >
+                        All Modules ({allowedModules.length})
+                      </button>
+                      {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS", "NOSQL"] as const)
+                        .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
+                        .map((modKey) => {
+                          const labelMap: Record<string, string> = {
+                            MCQ: "MCQ",
+                            SQL: "SQL",
+                            CODING: "Coding",
+                            DEBUGGING: "Debugging",
+                            AI_PROMPTING: "AI Prompting",
+                            SIMULATION: "Simulation",
+                            TEST_SCENARIOS: "Test Scenarios",
+                            NOSQL: "NoSQL",
+                          };
+                          return (
+                            <button
+                              key={modKey}
+                              type="button"
+                              onClick={() => setQuestionModuleFilter(modKey)}
+                              className={`h-[32px] px-3.5 py-1.5 rounded-[16px] text-[13px] transition-colors cursor-pointer ${questionModuleFilter === modKey
+                                  ? "bg-[#2E5DE0] text-white font-semibold border border-[#2E5DE0] shadow-xs"
+                                  : "bg-white text-[#6B7280] hover:text-[#1E1B4B] font-medium border border-[#E9EEFE] hover:border-[#D5DAEC]"
+                                }`}
+                            >
+                              <span>{labelMap[modKey] || modKey}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
 
-                      <div className="space-y-1.5 font-mono text-[12px]">
-                        {/* Strictly aligned vertical grid */}
-                        <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
-                          <span className="text-[#6B7280] font-sans font-medium text-[12px]">Target:</span>
-                          <div>{renderDiffMetric("Easy", dist.easy)}</div>
-                          <div>{renderDiffMetric("Medium", dist.medium)}</div>
-                          <div>{renderDiffMetric("Hard", dist.hard)}</div>
-                        </div>
-
-                        <div className="grid grid-cols-[64px_1fr_1fr_1fr] items-center">
-                          <span className="text-[#6B7280] font-sans font-medium text-[12px]">Selected:</span>
-                          <div>{renderDiffMetric("Easy", easyAvail)}</div>
-                          <div>{renderDiffMetric("Medium", mediumAvail)}</div>
-                          <div>{renderDiffMetric("Hard", hardAvail)}</div>
-                        </div>
-
-                        {/* Emphasized Progress Ratio & Bar */}
-                        <div className="flex items-center justify-between font-sans pt-1.5 border-t border-[#E9EEFE]">
-                          <span className="text-[#6B7280] text-[12px] font-medium">Selected:</span>
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${isCountMatched ? "bg-emerald-500" : "bg-[#2E5DE0]"
-                                  }`}
-                                style={{ width: `${Math.min(100, reqCount > 0 ? (poolSize / reqCount) * 100 : 0)}%` }}
-                              />
-                            </div>
-                            <span className={`text-[12px] font-bold font-mono ${isCountMatched ? "text-emerald-700" : "text-[#1E1B4B]"}`}>
-                              {poolSize} / {reqCount}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-1.5 border-t border-[#E9EEFE] text-[12px] space-y-1">
-                        {isCountMatched ? (
-                          isDifficultyMatched ? (
-                            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-[8px] font-medium">
-                              ✓ Required question count &amp; target difficulty matched.
-                            </div>
-                          ) : (
-                            <div className="text-emerald-800 bg-emerald-50/80 border border-emerald-200 px-2.5 py-1.5 rounded-[8px] space-y-0.5">
-                              <div className="font-medium text-emerald-800">
-                                ✓ Required question count reached ({poolSize} attached).
-                              </div>
-                              <div className="text-[11px] text-[#6B7280]">
-                                Note: Difficulty composition ({easyAvail}E / {mediumAvail}M / {hardAvail}H) differs slightly from target ({dist.easy}E / {dist.medium}M / {dist.hard}H).
-                              </div>
-                            </div>
-                          )
-                        ) : poolSize === 0 ? (
-                          <div className="text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-2 rounded-[8px] space-y-1.5">
-                            <div className="font-semibold text-rose-800 flex items-center gap-1.5">
-                              <XCircle size={13} className="text-rose-600 shrink-0" />
-                              <span>0 questions attached. Please select or import {reqCount} {MODULE_LABEL_MAP[modId] || modId} question(s).</span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                              {isQuestionsEditable && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAutoAssignQuestions(modId)}
-                                  className="px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[6px] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
-                                  title={`Automatically select and assign ${reqCount} question(s) for ${MODULE_LABEL_MAP[modId] || modId} from Question Bank`}
-                                >
-                                  <Sparkles size={10} className="text-amber-300" /> Auto-Assign ({reqCount})
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setQuestionModuleFilter(modId);
-                                  const el = document.getElementById("question-bank-selector-section");
-                                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                                }}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <BookOpen size={10} /> Question Bank
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigate({
-                                    to: "/questions",
-                                    search: {
-                                      fromDriveId: driveId,
-                                      driveName: drive.name,
-                                      autoBulk: "true",
-                                    } as any,
-                                  });
-                                }}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-rose-800 bg-white border border-rose-300 rounded-[6px] hover:bg-rose-100 flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Upload size={10} /> Bulk Import (CSV)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveTab("configuration")}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Settings size={10} /> Adjust Weight
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-2 rounded-[8px] space-y-1.5">
-                            <div className="font-semibold text-amber-800 flex items-center gap-1.5">
-                              <AlertTriangle size={13} className="text-amber-600 shrink-0" />
-                              <span>Incomplete: {poolSize} / {reqCount} questions attached ({reqCount - poolSize} more required)</span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                              {isQuestionsEditable && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAutoAssignQuestions(modId)}
-                                  className="px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[6px] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
-                                  title={`Automatically select and assign ${reqCount - poolSize} question(s) for ${MODULE_LABEL_MAP[modId] || modId} from Question Bank`}
-                                >
-                                  <Sparkles size={10} className="text-amber-300" /> Auto-Assign ({reqCount - poolSize})
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setQuestionModuleFilter(modId);
-                                  const el = document.getElementById("question-bank-selector-section");
-                                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                                }}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <BookOpen size={10} /> Question Bank
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigate({
-                                    to: "/questions",
-                                    search: {
-                                      fromDriveId: driveId,
-                                      driveName: drive.name,
-                                      autoBulk: "true",
-                                    } as any,
-                                  });
-                                }}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#2E5DE0] bg-white border border-[#2E5DE033] rounded-[6px] hover:bg-blue-50 flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Upload size={10} /> Bulk Import (CSV)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveTab("configuration")}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] rounded-[6px] hover:text-[#1E1B4B] flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Settings size={10} /> Adjust Weight
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                    {/* Complexity Filters */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em]">COMPLEXITY:</span>
+                      <div className="flex items-center gap-1.5">
+                        {[
+                          { id: "ALL", label: "All" },
+                          { id: "EASY", label: "Easy" },
+                          { id: "MEDIUM", label: "Medium" },
+                          { id: "HARD", label: "Hard" },
+                        ].map((diff) => (
+                          <button
+                            key={diff.id}
+                            type="button"
+                            onClick={() => setQuestionDifficultyFilter(diff.id)}
+                            className={`h-[27px] px-3 py-1 rounded-[14px] text-[11px] font-bold transition-colors cursor-pointer ${questionDifficultyFilter === diff.id
+                                ? "bg-[#2E5DE0] text-white border border-[#2E5DE0] shadow-xs"
+                                : "bg-white text-[#6B7280] hover:text-[#1E1B4B] border border-[#E9EEFE] hover:border-[#D5DAEC]"
+                              }`}
+                          >
+                            {diff.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* FilterBar (Module tabs + Complexity filters) */}
-              <div id="question-bank-selector-section" className="flex flex-wrap items-center justify-between gap-3 pt-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setQuestionModuleFilter("ALL")}
-                    className={`h-[32px] px-3.5 py-1.5 rounded-[16px] text-[13px] transition-colors cursor-pointer ${
-                      questionModuleFilter === "ALL"
-                        ? "bg-[#2E5DE0] text-white font-semibold border border-[#2E5DE0] shadow-xs"
-                        : "bg-white text-[#6B7280] hover:text-[#1E1B4B] font-medium border border-[#E9EEFE] hover:border-[#D5DAEC]"
-                    }`}
-                  >
-                    All Modules ({allowedModules.length})
-                  </button>
-                  {(["MCQ", "SQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS", "NOSQL"] as const)
-                    .filter((modKey) => enabledModuleKeys.length === 0 || enabledModuleKeys.includes(modKey))
-                    .map((modKey) => {
-                      const labelMap: Record<string, string> = {
-                        MCQ: "MCQ",
-                        SQL: "SQL",
-                        CODING: "Coding",
-                        DEBUGGING: "Debugging",
-                        AI_PROMPTING: "AI Prompting",
-                        SIMULATION: "Simulation",
-                        TEST_SCENARIOS: "Test Scenarios",
-                        NOSQL: "NoSQL",
-                      };
-                      return (
-                        <button
-                          key={modKey}
-                          type="button"
-                          onClick={() => setQuestionModuleFilter(modKey)}
-                          className={`h-[32px] px-3.5 py-1.5 rounded-[16px] text-[13px] transition-colors cursor-pointer ${
-                            questionModuleFilter === modKey
-                              ? "bg-[#2E5DE0] text-white font-semibold border border-[#2E5DE0] shadow-xs"
-                              : "bg-white text-[#6B7280] hover:text-[#1E1B4B] font-medium border border-[#E9EEFE] hover:border-[#D5DAEC]"
-                          }`}
-                        >
-                          <span>{labelMap[modKey] || modKey}</span>
-                        </button>
-                      );
-                    })}
-                </div>
-
-                {/* Complexity Filters */}
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em]">COMPLEXITY:</span>
-                  <div className="flex items-center gap-1.5">
-                    {[
-                      { id: "ALL", label: "All" },
-                      { id: "EASY", label: "Easy" },
-                      { id: "MEDIUM", label: "Medium" },
-                      { id: "HARD", label: "Hard" },
-                    ].map((diff) => (
-                      <button
-                        key={diff.id}
-                        type="button"
-                        onClick={() => setQuestionDifficultyFilter(diff.id)}
-                        className={`h-[27px] px-3 py-1 rounded-[14px] text-[11px] font-bold transition-colors cursor-pointer ${
-                          questionDifficultyFilter === diff.id
-                            ? "bg-[#2E5DE0] text-white border border-[#2E5DE0] shadow-xs"
-                            : "bg-white text-[#6B7280] hover:text-[#1E1B4B] border border-[#E9EEFE] hover:border-[#D5DAEC]"
-                        }`}
-                      >
-                        {diff.label}
-                      </button>
-                    ))}
                   </div>
-                </div>
-              </div>
 
-              {/* Search Input Bar */}
-              <div className="relative w-full">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  type="text"
-                  value={questionSearch}
-                  onChange={(e) => setQuestionSearch(e.target.value)}
-                  placeholder="Search questions..."
-                  className="w-full h-[38px] pl-9 pr-4 text-[13px] rounded-[16px] border border-[#E9EEFE] bg-white text-[#1E1B4B] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#2E5DE0] transition-colors"
-                />
-              </div>
-
-              {/* Dynamic AI Mode Notice */}
-              {isAiPromptingDynamic && (questionModuleFilter === "ALL" || questionModuleFilter === "AI_PROMPTING") && (
-                <div className="p-3.5 bg-[#F2F2FB] border border-[#E9EEFE] rounded-[10px] text-[13px] italic text-[#6B7280] flex items-center gap-2">
-                  <Sparkles size={14} className="text-[#2E5DE0] shrink-0" />
-                  <span>AI-Generated Mode Selected — Questions &amp; evaluation will be dynamically generated by AI during the candidate assessment.</span>
-                </div>
-              )}
-
-              {/* Question Selector List in Question Bank */}
-              <div className="border border-[#E9EEFE] rounded-[12px] divide-y divide-[#E9EEFE] bg-white max-h-[460px] overflow-y-auto">
-                {filteredQuestionsList.length === 0 ? (
-                  <div className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
-                    No matching questions found in bank.
+                  {/* Search Input Bar */}
+                  <div className="relative w-full">
+                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <input
+                      type="text"
+                      value={questionSearch}
+                      onChange={(e) => setQuestionSearch(e.target.value)}
+                      placeholder="Search questions..."
+                      className="w-full h-[38px] pl-9 pr-4 text-[13px] rounded-[16px] border border-[#E9EEFE] bg-white text-[#1E1B4B] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#2E5DE0] transition-colors"
+                    />
                   </div>
-                ) : (
-                  filteredQuestionsList.map((q) => {
-                    const isSelected = assignedQuestions.includes(q.id);
-                    const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
-                    const difficulty = q.difficulty || "MEDIUM";
-                    const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
-                    const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
-                    const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
 
-                    return (
-                      <div
-                        key={q.id}
-                        onClick={() => setPreviewQuestion(q)}
-                        className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-[#F8FAFC] transition-colors cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-3 pr-4 flex-1 min-w-0">
-                          <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-[12px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
-                            {MODULE_LABEL_MAP[displayModule] || displayModule}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[13.5px] font-medium text-[#1E1B4B] group-hover:text-[#2E5DE0] transition-colors truncate">
-                              {title}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span
-                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[6px] ${
-                                  difficulty.toUpperCase() === "EASY"
-                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                                    : difficulty.toUpperCase() === "HARD"
-                                      ? "bg-rose-50 text-rose-600 border border-rose-200"
-                                      : "bg-amber-50 text-amber-600 border border-amber-200"
-                                }`}
-                              >
-                                {difficulty}
+                  {/* Dynamic AI Mode Notice */}
+                  {isAiPromptingDynamic && (questionModuleFilter === "ALL" || questionModuleFilter === "AI_PROMPTING") && (
+                    <div className="p-3.5 bg-[#F2F2FB] border border-[#E9EEFE] rounded-[10px] text-[13px] italic text-[#6B7280] flex items-center gap-2">
+                      <Sparkles size={14} className="text-[#2E5DE0] shrink-0" />
+                      <span>AI-Generated Mode Selected — Questions &amp; evaluation will be dynamically generated by AI during the candidate assessment.</span>
+                    </div>
+                  )}
+
+                  {/* Question Selector List in Question Bank */}
+                  <div className="border border-[#E9EEFE] rounded-[12px] divide-y divide-[#E9EEFE] bg-white max-h-[460px] overflow-y-auto">
+                    {filteredQuestionsList.length === 0 ? (
+                      <div className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
+                        No matching questions found in bank.
+                      </div>
+                    ) : (
+                      filteredQuestionsList.map((q) => {
+                        const isSelected = assignedQuestions.includes(q.id);
+                        const title = q.content?.title || q.content?.prompt || q.content?.name || q.content?.question || q.content?.problemStatement || q.content?.text || `Question #${q.id.slice(0, 6)}`;
+                        const difficulty = q.difficulty || "MEDIUM";
+                        const isDebugging = q.moduleType === "DEBUGGING" || (Array.isArray(q.tags) && q.tags.includes("debugging"));
+                        const displayModule = isDebugging ? "DEBUGGING" : q.moduleType;
+                        const { displayTags, hiddenDriveCount } = processQuestionTags(q.tags, q.moduleType);
+
+                        return (
+                          <div
+                            key={q.id}
+                            onClick={() => setPreviewQuestion(q)}
+                            className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-[#F8FAFC] transition-colors cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-3 pr-4 flex-1 min-w-0">
+                              <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-[12px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
+                                {MODULE_LABEL_MAP[displayModule] || displayModule}
                               </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[13.5px] font-medium text-[#1E1B4B] group-hover:text-[#2E5DE0] transition-colors truncate">
+                                  {title}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span
+                                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[6px] ${difficulty.toUpperCase() === "EASY"
+                                        ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                        : difficulty.toUpperCase() === "HARD"
+                                          ? "bg-rose-50 text-rose-600 border border-rose-200"
+                                          : "bg-amber-50 text-amber-600 border border-amber-200"
+                                      }`}
+                                  >
+                                    {difficulty}
+                                  </span>
 
-                              {displayTags.length > 0 && (
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  {displayTags.map((tag: string) => (
-                                    <span key={tag} className="text-[10px] font-mono text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-[6px]">
-                                      #{tag}
-                                    </span>
-                                  ))}
-                                  {hiddenDriveCount > 0 && (
-                                    <span className="text-[10px] text-[#2E5DE0] bg-[#EEF2FF] px-1.5 py-0.5 rounded-[6px] font-semibold">
-                                      +{hiddenDriveCount} more drives
-                                    </span>
+                                  {displayTags.length > 0 && (
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      {displayTags.map((tag: string) => (
+                                        <span key={tag} className="text-[10px] font-mono text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-[6px]">
+                                          #{tag}
+                                        </span>
+                                      ))}
+                                      {hiddenDriveCount > 0 && (
+                                        <span className="text-[10px] text-[#2E5DE0] bg-[#EEF2FF] px-1.5 py-0.5 rounded-[6px] font-semibold">
+                                          +{hiddenDriveCount} more drives
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        </div>
 
-                        {/* Row Actions with exact aligned widths */}
-                        <div className="w-[172px] flex items-center justify-end gap-2.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewQuestion(q);
-                            }}
-                            className="w-[84px] h-[28px] rounded-[14px] border border-[#E9EEFE] bg-white hover:bg-slate-50 text-[#2E5DE0] text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                          >
-                            <Eye size={13} className="text-[#2E5DE0]" />
-                            <span>Preview</span>
-                          </button>
-                          {isQuestionsEditable ? (() => {
-                            const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
-                            const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                            const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
-                            const modAssigned = (questionsBank || []).filter((item) => {
-                              const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
-                              const dMod = isDeb ? "DEBUGGING" : item.moduleType;
-                              return assignedQuestions.includes(item.id) && dMod === displayModule;
-                            });
-                            const isLimitReached = !isSelected && modAssigned.length >= reqCount;
-
-                            return (
+                            {/* Row Actions with exact aligned widths */}
+                            <div className="w-[172px] flex items-center justify-end gap-2.5 shrink-0">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (isSelected) {
-                                    setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
-                                  } else {
-                                    if (modAssigned.length >= reqCount) {
-                                      toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
-                                      return;
-                                    }
-                                    setAssignedQuestions([...assignedQuestions, q.id]);
-                                  }
+                                  setPreviewQuestion(q);
                                 }}
-                                className={`w-[76px] h-[28px] rounded-[14px] text-[12px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${
-                                  isSelected
-                                    ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200"
-                                    : isLimitReached
-                                      ? "bg-gray-100 text-[#9CA3AF] border border-gray-200 cursor-not-allowed"
-                                      : "bg-[#2E5DE0] text-white hover:bg-[#254ec4] shadow-xs"
-                                }`}
-                                title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
+                                className="w-[84px] h-[28px] rounded-[14px] border border-[#E9EEFE] bg-white hover:bg-slate-50 text-[#2E5DE0] text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                               >
-                                {isSelected ? "Remove" : "Assign"}
+                                <Eye size={13} className="text-[#2E5DE0]" />
+                                <span>Preview</span>
                               </button>
-                            );
-                          })() : (
-                            <span
-                              className="w-[76px] h-[28px] rounded-[14px] text-[12px] font-semibold bg-[#F2F2FB] text-[#9CA3AF] flex items-center justify-center gap-1 cursor-not-allowed"
-                              title="Locked: Candidate links already generated"
-                            >
-                              <Lock size={12} className="text-[#9CA3AF]" />
-                              <span>Locked</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                              {isQuestionsEditable ? (() => {
+                                const conf = moduleConfig[displayModule] || { enabled: false, weight: 0 };
+                                const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
+                                const reqCount = getRequiredQuestionCount(displayModule, conf.weight, totalDuration, driveEvaluationSummary.resolvedTag);
+                                const modAssigned = (questionsBank || []).filter((item) => {
+                                  const isDeb = item.moduleType === "DEBUGGING" || (Array.isArray(item.tags) && item.tags.includes("debugging"));
+                                  const dMod = isDeb ? "DEBUGGING" : item.moduleType;
+                                  return assignedQuestions.includes(item.id) && dMod === displayModule;
+                                });
+                                const isLimitReached = !isSelected && modAssigned.length >= reqCount;
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isSelected) {
+                                        setAssignedQuestions(assignedQuestions.filter((id) => id !== q.id));
+                                      } else {
+                                        if (modAssigned.length >= reqCount) {
+                                          toast.error(`Required question limit reached (${reqCount} questions) for ${displayModule}. No additional questions can be added.`);
+                                          return;
+                                        }
+                                        setAssignedQuestions([...assignedQuestions, q.id]);
+                                      }
+                                    }}
+                                    className={`w-[76px] h-[28px] rounded-[14px] text-[12px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${isSelected
+                                        ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200"
+                                        : isLimitReached
+                                          ? "bg-gray-100 text-[#9CA3AF] border border-gray-200 cursor-not-allowed"
+                                          : "bg-[#2E5DE0] text-white hover:bg-[#254ec4] shadow-xs"
+                                      }`}
+                                    title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
+                                  >
+                                    {isSelected ? "Remove" : "Assign"}
+                                  </button>
+                                );
+                              })() : (
+                                <span
+                                  className="w-[76px] h-[28px] rounded-[14px] text-[12px] font-semibold bg-[#F2F2FB] text-[#9CA3AF] flex items-center justify-center gap-1 cursor-not-allowed"
+                                  title="Locked: Candidate links already generated"
+                                >
+                                  <Lock size={12} className="text-[#9CA3AF]" />
+                                  <span>Locked</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -3555,184 +3788,183 @@ function DriveDetailPage() {
           </div>
         )}
 
-      {/* ROSTER TAB */}
-      {activeTab === "roster" && (
-        <div className="space-y-6" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
-          <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
-              <div>
-                <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
-                  Candidate Roster &amp; Link Generation
-                </h3>
-                <p className="text-[13px] text-[#6B7280] mt-1.5">
-                  Manage candidates and copy assessment invitation links.
-                </p>
+        {/* ROSTER TAB */}
+        {activeTab === "roster" && (
+          <div className="space-y-6" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
+            <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5">
+              {/* Header */}
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+                <div>
+                  <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                    Candidate Roster &amp; Link Generation
+                  </h3>
+                  <p className="text-[13px] text-[#6B7280] mt-1.5">
+                    Manage candidates and copy assessment invitation links.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCandidateModal(true)}
+                    className="h-[32px] px-4 py-1.5 rounded-full bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[13px] font-semibold flex items-center gap-1.5 shadow-[0px_4px_14px_0px_#2E5DE044] transition-all cursor-pointer"
+                    style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                  >
+                    <Plus size={15} strokeWidth={2.5} className="text-white shrink-0" />
+                    <span>Add Candidate</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkImportModal(true)}
+                    className="h-[32px] px-4 py-1.5 rounded-full bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE0] text-[#2E5DE0] text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                  >
+                    <Upload size={14} className="text-[#2E5DE0] shrink-0" />
+                    <span>Bulk Import Candidates</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowAddCandidateModal(true)}
-                  className="h-[32px] px-4 py-1.5 rounded-full bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[13px] font-semibold flex items-center gap-1.5 shadow-[0px_4px_14px_0px_#2E5DE044] transition-all cursor-pointer"
-                  style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                >
-                  <Plus size={15} strokeWidth={2.5} className="text-white shrink-0" />
-                  <span>Add Candidate</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowBulkImportModal(true)}
-                  className="h-[32px] px-4 py-1.5 rounded-full bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE0] text-[#2E5DE0] text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                  style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                >
-                  <Upload size={14} className="text-[#2E5DE0] shrink-0" />
-                  <span>Bulk Import Candidates</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Candidates Table */}
-            <div className="border border-[#E9EEFE] rounded-[12px] overflow-hidden bg-white">
-              <table className="w-full text-left text-[13.5px] border-collapse table-fixed">
-                <colgroup>
-                  <col className="w-[18%]" />
-                  <col className="w-[24%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[16%]" />
-                  <col className="w-[21%]" />
-                </colgroup>
-                <thead>
-                  <tr className="h-[42px] bg-[#F2F2FB] text-[11px] font-bold text-[#64748B] uppercase tracking-[0.5px] border-b border-[#E9EEFE]">
-                    <th className="pl-5 pr-3 py-2.5 whitespace-nowrap">Candidate</th>
-                    <th className="px-3 py-2.5 whitespace-nowrap">Email</th>
-                    <th className="px-3 py-2.5 text-center whitespace-nowrap">Target Role</th>
-                    <th className="px-3 py-2.5 text-center whitespace-nowrap">Status</th>
-                    <th className="px-3 py-2.5 text-center whitespace-nowrap">Invite Link</th>
-                    <th className="pl-3 pr-5 py-2.5 text-right whitespace-nowrap">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E9EEFE] bg-white">
-                  {drive.roster.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
-                        No candidates added to roster yet. Click "Add Candidate" above to get started.
-                      </td>
+              {/* Candidates Table */}
+              <div className="border border-[#E9EEFE] rounded-[12px] overflow-hidden bg-white">
+                <table className="w-full text-left text-[13.5px] border-collapse table-fixed">
+                  <colgroup>
+                    <col className="w-[18%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[21%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="h-[42px] bg-[#F2F2FB] text-[11px] font-bold text-[#64748B] uppercase tracking-[0.5px] border-b border-[#E9EEFE]">
+                      <th className="pl-5 pr-3 py-2.5 whitespace-nowrap">Candidate</th>
+                      <th className="px-3 py-2.5 whitespace-nowrap">Email</th>
+                      <th className="px-3 py-2.5 text-center whitespace-nowrap">Target Role</th>
+                      <th className="px-3 py-2.5 text-center whitespace-nowrap">Status</th>
+                      <th className="px-3 py-2.5 text-center whitespace-nowrap">Invite Link</th>
+                      <th className="pl-3 pr-5 py-2.5 text-right whitespace-nowrap">Action</th>
                     </tr>
-                  ) : (
-                    drive.roster.map((c) => (
-                      <tr key={c.candidateId} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="pl-5 pr-3 py-3.5 font-semibold text-[#1E1B4B] max-w-0" title={c.candidateName}>
-                          <div className="truncate" title={c.candidateName}>
-                            {c.candidateName}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3.5 font-mono text-[12.5px] text-[#6B7280] max-w-0" title={c.candidateEmail}>
-                          <div className="truncate" title={c.candidateEmail}>
-                            {c.candidateEmail}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                          <span className="h-[20px] px-2.5 rounded-[10px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center whitespace-nowrap">
-                            {c.experienceTier ? `${c.experienceTier} yrs` : (c.level || drive.roleTemplateName || "Assigned Role")}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                          {c.inviteStatus === "REDEEMED" || c.inviteStatus === "COMPLETED" ? (
-                            <span
-                              className="w-[82px] h-[21px] px-[10px] py-[4px] rounded-[11px] bg-[#E2F0D9] text-[#385723] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap"
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                            >
-                              REDEEMED
-                            </span>
-                          ) : (
-                            <span
-                              className={`h-[21px] px-[10px] py-[4px] rounded-[11px] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${
-                                c.isGenerated
-                                  ? "bg-[#EFF6FF] text-[#2563EB]"
-                                  : "bg-[#FEF3C7] text-[#D97706]"
-                              }`}
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                            >
-                              {c.isGenerated ? c.inviteStatus : "DRAFT"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                          {c.isGenerated && c.inviteLink ? (
-                            <button
-                              type="button"
-                              onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
-                              className="w-[137px] h-[27px] px-[10px] py-[6px] gap-[6px] rounded-[14px] bg-[#EFF6FF] border border-[#3B82F6] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                            >
-                              {copiedCandidateId === c.candidateId ? (
-                                <>
-                                  <Check size={12} className="text-emerald-600 shrink-0" />
-                                  <span className="text-emerald-600 font-semibold leading-none">Copied!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={12} className="text-[#2563EB] shrink-0" />
-                                  <span className="leading-none whitespace-nowrap">Copy Unique Link</span>
-                                </>
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                await handleGenerateLinks();
-                                const updated = await fetchDriveDetail(driveId);
-                                const match = (updated.roster || []).find((item: any) => item.candidateId === c.candidateId || item.candidateEmail === c.candidateEmail);
-                                if (match?.inviteLink) {
-                                  copyCandidateLink(match.inviteLink, c.candidateId);
-                                }
-                              }}
-                              className="h-[27px] px-3.5 rounded-[14px] bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                            >
-                              <Sparkles size={12} />
-                              <span>Generate Link</span>
-                            </button>
-                          )}
-                        </td>
-                        <td className="pl-3 pr-5 py-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                            {c.sessionId && (
-                              <Link
-                                to="/results/$id"
-                                params={{ id: c.sessionId }}
-                                className="h-[27px] px-3 py-1 rounded-[14px] border border-[#3B82F6] bg-[#EFF6FF] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0"
-                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                              >
-                                <Eye size={13} className="text-[#2563EB] shrink-0" />
-                                <span className="leading-none">View Results</span>
-                              </Link>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => setCandidateToRemove(c)}
-                              className="h-[27px] px-3 py-1 rounded-[14px] bg-[#FFF1F2] hover:bg-rose-100 border border-[#C62828] text-[#C62828] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                              title="Remove candidate &amp; revoke access"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                                <path d="M5 5.49996V8.5002M7 5.49996V8.5002M9.5 2.99976V10.0003C9.5 10.2656 9.39464 10.5199 9.20711 10.7075C9.01957 10.895 8.76522 11.0004 8.5 11.0004H3.5C3.23478 11.0004 2.98043 10.895 2.79289 10.7075C2.60536 10.5199 2.5 10.2656 2.5 10.0003V2.99976M1.5 2.99976H10.5M4 2.99976V1.99968C4 1.73445 4.10536 1.48007 4.29289 1.29252C4.48043 1.10497 4.73478 0.999603 5 0.999603H7C7.26522 0.999603 7.51957 1.10497 7.70711 1.29252C7.89464 1.48007 8 1.73445 8 1.99968V2.99976" stroke="#C62828" strokeWidth="1.5" strokeLinecap="round" />
-                              </svg>
-                              <span className="leading-none">Remove</span>
-                            </button>
-                          </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#E9EEFE] bg-white">
+                    {drive.roster.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
+                          No candidates added to roster yet. Click "Add Candidate" above to get started.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      drive.roster.map((c) => (
+                        <tr key={c.candidateId} className="hover:bg-[#F8FAFC] transition-colors">
+                          <td className="pl-5 pr-3 py-3.5 font-semibold text-[#1E1B4B] max-w-0" title={c.candidateName}>
+                            <div className="truncate" title={c.candidateName}>
+                              {c.candidateName}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3.5 font-mono text-[12.5px] text-[#6B7280] max-w-0" title={c.candidateEmail}>
+                            <div className="truncate" title={c.candidateEmail}>
+                              {c.candidateEmail}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                            <span className="h-[20px] px-2.5 rounded-[10px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center whitespace-nowrap">
+                              {c.experienceTier ? `${c.experienceTier} yrs` : (c.level || drive.roleTemplateName || "Assigned Role")}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                            {c.inviteStatus === "REDEEMED" || c.inviteStatus === "COMPLETED" ? (
+                              <span
+                                className="w-[82px] h-[21px] px-[10px] py-[4px] rounded-[11px] bg-[#E2F0D9] text-[#385723] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap"
+                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                              >
+                                REDEEMED
+                              </span>
+                            ) : (
+                              <span
+                                className={`h-[21px] px-[10px] py-[4px] rounded-[11px] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${c.isGenerated
+                                    ? "bg-[#EFF6FF] text-[#2563EB]"
+                                    : "bg-[#FEF3C7] text-[#D97706]"
+                                  }`}
+                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                              >
+                                {c.isGenerated ? c.inviteStatus : "DRAFT"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                            {c.isGenerated && c.inviteLink ? (
+                              <button
+                                type="button"
+                                onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
+                                className="w-[137px] h-[27px] px-[10px] py-[6px] gap-[6px] rounded-[14px] bg-[#EFF6FF] border border-[#3B82F6] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                              >
+                                {copiedCandidateId === c.candidateId ? (
+                                  <>
+                                    <Check size={12} className="text-emerald-600 shrink-0" />
+                                    <span className="text-emerald-600 font-semibold leading-none">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} className="text-[#2563EB] shrink-0" />
+                                    <span className="leading-none whitespace-nowrap">Copy Unique Link</span>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await handleGenerateLinks();
+                                  const updated = await fetchDriveDetail(driveId);
+                                  const match = (updated.roster || []).find((item: any) => item.candidateId === c.candidateId || item.candidateEmail === c.candidateEmail);
+                                  if (match?.inviteLink) {
+                                    copyCandidateLink(match.inviteLink, c.candidateId);
+                                  }
+                                }}
+                                className="h-[27px] px-3.5 rounded-[14px] bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                              >
+                                <Sparkles size={12} />
+                                <span>Generate Link</span>
+                              </button>
+                            )}
+                          </td>
+                          <td className="pl-3 pr-5 py-3.5 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                              {c.sessionId && (
+                                <Link
+                                  to="/results/$id"
+                                  params={{ id: c.sessionId }}
+                                  className="h-[27px] px-3 py-1 rounded-[14px] border border-[#3B82F6] bg-[#EFF6FF] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0"
+                                  style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                                >
+                                  <Eye size={13} className="text-[#2563EB] shrink-0" />
+                                  <span className="leading-none">View Results</span>
+                                </Link>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setCandidateToRemove(c)}
+                                className="h-[27px] px-3 py-1 rounded-[14px] bg-[#FFF1F2] hover:bg-rose-100 border border-[#C62828] text-[#C62828] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                                title="Remove candidate &amp; revoke access"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                                  <path d="M5 5.49996V8.5002M7 5.49996V8.5002M9.5 2.99976V10.0003C9.5 10.2656 9.39464 10.5199 9.20711 10.7075C9.01957 10.895 8.76522 11.0004 8.5 11.0004H3.5C3.23478 11.0004 2.98043 10.895 2.79289 10.7075C2.60536 10.5199 2.5 10.2656 2.5 10.0003V2.99976M1.5 2.99976H10.5M4 2.99976V1.99968C4 1.73445 4.10536 1.48007 4.29289 1.29252C4.48043 1.10497 4.73478 0.999603 5 0.999603H7C7.26522 0.999603 7.51957 1.10497 7.70711 1.29252C7.89464 1.48007 8 1.73445 8 1.99968V2.99976" stroke="#C62828" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                                <span className="leading-none">Remove</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Preview Question Modal */}
         {previewQuestion && (
@@ -3770,7 +4002,7 @@ function DriveDetailPage() {
                   title="Close preview"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
@@ -3810,11 +4042,10 @@ function DriveDetailPage() {
                       return (
                         <div
                           key={idx}
-                          className={`px-4 py-2 rounded-[8px] text-[13px] flex items-center justify-between transition-colors ${
-                            isCorrect
+                          className={`px-4 py-2 rounded-[8px] text-[13px] flex items-center justify-between transition-colors ${isCorrect
                               ? "h-[50px] bg-[#E8F7F0] border border-[#A7F3D0] text-[#065F46] font-semibold"
                               : "h-[44px] bg-[#F1F5F9] text-[#334155] font-medium"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2.5 pr-2">
                             <span className={`font-semibold ${isCorrect ? "text-[#065F46] font-bold" : "text-[#64748B]"}`}>
@@ -3911,13 +4142,12 @@ function DriveDetailPage() {
                           setPreviewQuestion(null);
                         }
                       }}
-                      className={`min-w-[190px] h-[38px] px-5 rounded-[8px] text-[13px] font-bold transition-all shadow-sm flex items-center justify-center ${
-                        isAssigned
+                      className={`min-w-[190px] h-[38px] px-5 rounded-[8px] text-[13px] font-bold transition-all shadow-sm flex items-center justify-center ${isAssigned
                           ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 cursor-pointer"
                           : isLimitReached
                             ? "bg-gray-100 text-[#9CA3AF] border border-gray-200 cursor-not-allowed"
                             : "bg-[#2E5DE0] hover:bg-[#254ec4] text-white shadow-[0px_4px_12px_0px_#2E5DE044] cursor-pointer"
-                      }`}
+                        }`}
                     >
                       {isAssigned ? "Remove Question from Drive" : "Assign Question to Drive"}
                     </button>
@@ -3944,7 +4174,7 @@ function DriveDetailPage() {
                   title="Close"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
@@ -4101,7 +4331,7 @@ function DriveDetailPage() {
                   title="Close"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
@@ -4158,7 +4388,7 @@ function DriveDetailPage() {
                   title="Close"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
@@ -4258,20 +4488,20 @@ function DriveDetailPage() {
                   >
                     Cancel
                   </button>
-                    <button
-                      type="button"
-                      onClick={handleBulkImportSubmit}
-                      disabled={submittingBulkImport || parseBulkCandidates(bulkCandidateInput).parsed.length === 0}
-                      className="h-[36px] px-5 rounded-[10px] text-[13px] font-semibold text-white bg-[#2E5DE0] hover:bg-[#254ec4] shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {submittingBulkImport ? "Importing..." : "Import Candidates"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleBulkImportSubmit}
+                    disabled={submittingBulkImport || parseBulkCandidates(bulkCandidateInput).parsed.length === 0}
+                    className="h-[36px] px-5 rounded-[10px] text-[13px] font-semibold text-white bg-[#2E5DE0] hover:bg-[#254ec4] shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submittingBulkImport ? "Importing..." : "Import Candidates"}
+                  </button>
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
       {/* Select / Change Role Template Modal */}
       {showSelectTemplateModal && (
@@ -4408,6 +4638,112 @@ function DriveDetailPage() {
               >
                 <Sparkles size={14} /> Apply Template &amp; Sync Questions
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deficit Question Suggestions Modal */}
+      {suggestedDeficitModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setSuggestedDeficitModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-[620px] shadow-2xl flex flex-col max-h-[85vh] z-[101] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-[#E9EEFE] flex items-center justify-between bg-gradient-to-r from-amber-50/50 to-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1E1B4B]">
+                    Smart Deficit Fill Suggestions
+                  </h3>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Target deficit: <strong className="text-amber-700 font-mono">+{timingMismatchDiff} minutes</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuggestedDeficitModalOpen(false)}
+                className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#1E1B4B] hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="p-3.5 rounded-lg bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 leading-relaxed">
+                Found <strong>{suggestedDeficitData?.suggestedQuestions?.length || 0} question(s)</strong> in your Question Bank totaling{" "}
+                <strong>{suggestedDeficitData?.totalSuggestedDuration || 0} minutes</strong>. Assigning these questions will help satisfy your schedule window deficit.
+              </div>
+
+              <div className="border border-[#E9EEFE] rounded-lg divide-y divide-[#E9EEFE] max-h-[340px] overflow-y-auto bg-white">
+                {(!suggestedDeficitData?.suggestedQuestions || suggestedDeficitData.suggestedQuestions.length === 0) ? (
+                  <div className="p-8 text-center text-xs text-[#94A3B8] italic">
+                    No matching questions found in the Question Bank matching this deficit duration.
+                  </div>
+                ) : (
+                  suggestedDeficitData.suggestedQuestions.map((q: any) => {
+                    const title = q.content?.title || q.content?.prompt || q.content?.question || `Question #${q.id.slice(0, 6)}`;
+                    const dur = q.durationMinutes || (q.content as any)?.durationMinutes || 5;
+                    const pts = q.points || (q.scoringConfig as any)?.points || (q.difficulty === "hard" ? 3 : q.difficulty === "medium" ? 2 : 1);
+                    return (
+                      <div key={q.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EEF2FF] text-[#4F46E5] uppercase font-mono">
+                              {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-[#475569] uppercase font-mono">
+                              {q.difficulty}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-[#1E1B4B] truncate">{title}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 text-[#475569] flex items-center gap-1">
+                            <Clock size={11} className="text-[#64748B]" />
+                            {dur}m
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200/60 flex items-center gap-1">
+                            <Award size={11} className="text-amber-600" />
+                            {pts} pts
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#E9EEFE] bg-[#F8FAFC] flex items-center justify-between">
+              <span className="text-xs text-[#6B7280]">
+                Total Duration: <strong className="text-[#1E1B4B]">{suggestedDeficitData?.totalSuggestedDuration || 0}m</strong>
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSuggestedDeficitModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-medium text-[#6B7280] hover:bg-slate-200/50 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyDeficitSuggestions}
+                  disabled={!suggestedDeficitData?.suggestedQuestions?.length}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  <Plus size={14} />
+                  <span>Assign Suggested Questions</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

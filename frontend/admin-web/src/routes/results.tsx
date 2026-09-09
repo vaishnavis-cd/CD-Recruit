@@ -230,11 +230,10 @@ function ResultsPage() {
               <button
                 key={chip.id}
                 onClick={() => setStatusFilter(chip.id)}
-                className={`h-[35px] px-4 rounded-full text-[13px] transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === chip.id
+                className={`h-[35px] px-4 rounded-full text-[13px] transition-all cursor-pointer whitespace-nowrap ${statusFilter === chip.id
                     ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
                     : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal border border-transparent"
-                }`}
+                  }`}
               >
                 {chip.label}
               </button>
@@ -271,184 +270,184 @@ function ResultsPage() {
 
         {/* Results Data Table */}
         <div className="bg-white border border-[#E2E8F0] rounded-[12px] shadow-xs overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="py-12 text-center">
-            <FileSpreadsheet size={32} className="mx-auto text-[#94A3B8] mb-2" />
-            <p className="text-[13px] text-[#94A3B8] italic">No candidate evaluation results found.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-white border-b border-[#E2E8F0] text-[10px] font-bold font-sans uppercase tracking-wider text-[#64748B]">
-                  <th className="py-3 px-4">Candidate</th>
-                  <th className="py-3 px-4">Drive &amp; Track</th>
-                  <th className="py-3 px-4">Submitted</th>
-                  <th className="py-3 px-4 text-center">Score</th>
-                  <th className="py-3 px-4 text-center">Integrity Risk</th>
-                  <th className="py-3 px-4 text-center">Decision</th>
-                  <th className="py-3 px-4 text-center">Verification</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F1F5F9]">
-                {filtered.map((item: any) => {
-                  const rawScore = item.compositeScore;
-                  const scoreVal = typeof rawScore === "number" ? Math.round(rawScore) : 0;
-                  const scoreColor =
-                    scoreVal >= 80
-                      ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                      : scoreVal >= 60
-                      ? "text-amber-700 bg-amber-50 border-amber-200"
-                      : "text-ink-secondary bg-canvas border-line";
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center">
+              <FileSpreadsheet size={32} className="mx-auto text-[#94A3B8] mb-2" />
+              <p className="text-[13px] text-[#94A3B8] italic">No candidate evaluation results found.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-white border-b border-[#E2E8F0] text-[10px] font-bold font-sans uppercase tracking-wider text-[#64748B]">
+                    <th className="py-3 px-4">Candidate</th>
+                    <th className="py-3 px-4">Drive &amp; Track</th>
+                    <th className="py-3 px-4">Submitted</th>
+                    <th className="py-3 px-4 text-center">Score</th>
+                    <th className="py-3 px-4 text-center">Integrity Risk</th>
+                    <th className="py-3 px-4 text-center">Decision</th>
+                    <th className="py-3 px-4 text-center">Verification</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F1F5F9]">
+                  {filtered.map((item: any) => {
+                    const rawScore = item.compositeScore;
+                    const scoreVal = typeof rawScore === "number" ? Math.round(rawScore) : 0;
+                    const scoreColor =
+                      scoreVal >= 80
+                        ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                        : scoreVal >= 60
+                          ? "text-amber-700 bg-amber-50 border-amber-200"
+                          : "text-ink-secondary bg-canvas border-line";
 
-                  const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
-                  const dec = getItemDecision(item);
-                  const isApproved = dec === "PASS";
-                  const isRejected = dec === "FAIL";
+                    const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
+                    const dec = getItemDecision(item);
+                    const isApproved = dec === "PASS";
+                    const isRejected = dec === "FAIL";
 
-                  // Verification Pill logic
-                  const svr = sessionVerifyResults
-                    ? (sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId] || sessionVerifyResults[item.id])
-                    : null;
-                  const idVerifyResult = item.identityVerificationResult || svr;
+                    // Verification Pill logic
+                    const svr = sessionVerifyResults
+                      ? (sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId] || sessionVerifyResults[item.id])
+                      : null;
+                    const idVerifyResult = item.identityVerificationResult || svr;
 
-                  const isMatch =
-                    idVerifyResult?.matched === true ||
-                    (svr && svr.matched === true);
-                  const isMismatch =
-                    idVerifyResult?.matched === false ||
-                    (svr && svr.matched === false) ||
-                    (idVerifyResult?.inTestCaptures && idVerifyResult.inTestCaptures.mismatched > 0);
+                    const isMatch =
+                      idVerifyResult?.matched === true ||
+                      (svr && svr.matched === true);
+                    const isMismatch =
+                      idVerifyResult?.matched === false ||
+                      (svr && svr.matched === false) ||
+                      (idVerifyResult?.inTestCaptures && idVerifyResult.inTestCaptures.mismatched > 0);
 
-                  const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
+                    const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
-                  return (
-                    <tr key={item.id || item.sessionId} className="hover:bg-canvas/60 transition-colors">
-                      {/* Candidate Name & Email with Initial Avatar */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-xs border border-brand-border">
-                            {initialLetter}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-ink flex items-center gap-1.5">
-                              <span>{item.candidateName}</span>
-                              {item.referenceId && (
-                                <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
-                                  {item.referenceId}
-                                </span>
-                              )}
+                    return (
+                      <tr key={item.id || item.sessionId} className="hover:bg-canvas/60 transition-colors">
+                        {/* Candidate Name & Email with Initial Avatar */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-xs border border-brand-border">
+                              {initialLetter}
                             </div>
-                            <div className="text-2xs font-mono text-ink-tertiary">{item.candidateEmail}</div>
+                            <div>
+                              <div className="font-semibold text-ink flex items-center gap-1.5">
+                                <span>{item.candidateName}</span>
+                                {item.referenceId && (
+                                  <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                                    {item.referenceId}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-2xs font-mono text-ink-tertiary">{item.candidateEmail}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Drive & Track */}
-                      <td className="py-3 px-4">
-                        <div className="text-ink font-medium truncate max-w-[180px]">
-                          {formatDriveName(item.driveName) || "General Drive"}
-                        </div>
-                        <div className="text-xs text-ink-secondary">{item.roleTemplateName || "Software Engineering"}</div>
-                      </td>
+                        {/* Drive & Track */}
+                        <td className="py-3 px-4">
+                          <div className="text-ink font-medium truncate max-w-[180px]">
+                            {formatDriveName(item.driveName) || "General Drive"}
+                          </div>
+                          <div className="text-xs text-ink-secondary">{item.roleTemplateName || "Software Engineering"}</div>
+                        </td>
 
-                      {/* Submitted Timestamp */}
-                      <td className="py-3 px-4 font-mono text-xs text-ink-secondary">
-                        {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
-                      </td>
+                        {/* Submitted Timestamp */}
+                        <td className="py-3 px-4 font-mono text-xs text-ink-secondary">
+                          {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
+                        </td>
 
-                      {/* Score */}
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold border ${scoreColor}`}>
-                          {scoreVal}%
-                        </span>
-                      </td>
-
-                      {/* Integrity Risk */}
-                      <td className="py-3 px-4 text-center">
-                        {flagsCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold">
-                            <ShieldAlert size={12} />
-                            {flagsCount} Flags
+                        {/* Score */}
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold border ${scoreColor}`}>
+                            {scoreVal}%
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold">
-                            <ShieldCheck size={12} />
-                            Low
-                          </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Decision Status */}
-                      <td className="py-3 px-4 text-center">
-                        <StatusBadge
-                          variant={isApproved ? "success" : isRejected ? "danger" : "warning"}
-                          size="xs"
-                        >
-                          {isApproved ? "Approved" : isRejected ? "Rejected" : "Pending Review"}
-                        </StatusBadge>
-                      </td>
+                        {/* Integrity Risk */}
+                        <td className="py-3 px-4 text-center">
+                          {flagsCount > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold">
+                              <ShieldAlert size={12} />
+                              {flagsCount} Flags
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold">
+                              <ShieldCheck size={12} />
+                              Low
+                            </span>
+                          )}
+                        </td>
 
-                      {/* Verification Column Pill Button */}
-                      <td className="py-3 px-4 text-center">
-                        {isMatch ? (
-                          <button
-                            onClick={() => setSelectedVerificationItem(item)}
-                            title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
+                        {/* Decision Status */}
+                        <td className="py-3 px-4 text-center">
+                          <StatusBadge
+                            variant={isApproved ? "success" : isRejected ? "danger" : "warning"}
+                            size="xs"
                           >
-                            <CheckCircle2 size={12} />
-                            Match <Info size={11} className="ml-0.5 opacity-70" />
-                          </button>
-                        ) : isMismatch ? (
-                          <button
-                            onClick={() => setSelectedVerificationItem(item)}
-                            title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
-                          >
-                            <XCircle size={12} />
-                            Mismatch <Info size={11} className="ml-0.5 opacity-70" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setSelectedVerificationItem(item)}
-                            title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
-                          >
-                            <Clock size={12} />
-                            Pending <Info size={11} className="ml-0.5 opacity-70" />
-                          </button>
-                        )}
-                      </td>
+                            {isApproved ? "Approved" : isRejected ? "Rejected" : "Pending Review"}
+                          </StatusBadge>
+                        </td>
 
-                      {/* Action */}
-                      <td className="py-3 px-4 text-right">
-                        <Link
-                          to="/results/$id"
-                          params={{ id: item.sessionId || item.id }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-lg transition-all shadow-2xs cursor-pointer"
-                        >
-                          <Eye size={12} />
-                          Evaluate
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* Verification Column Pill Button */}
+                        <td className="py-3 px-4 text-center">
+                          {isMatch ? (
+                            <button
+                              onClick={() => setSelectedVerificationItem(item)}
+                              title="Click to open Verification Side Panel"
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <CheckCircle2 size={12} />
+                              Match <Info size={11} className="ml-0.5 opacity-70" />
+                            </button>
+                          ) : isMismatch ? (
+                            <button
+                              onClick={() => setSelectedVerificationItem(item)}
+                              title="Click to open Verification Side Panel"
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <XCircle size={12} />
+                              Mismatch <Info size={11} className="ml-0.5 opacity-70" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setSelectedVerificationItem(item)}
+                              title="Click to open Verification Side Panel"
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <Clock size={12} />
+                              Pending <Info size={11} className="ml-0.5 opacity-70" />
+                            </button>
+                          )}
+                        </td>
+
+                        {/* Action */}
+                        <td className="py-3 px-4 text-right">
+                          <Link
+                            to="/results/$id"
+                            params={{ id: item.sessionId || item.id }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-lg transition-all shadow-2xs cursor-pointer"
+                          >
+                            <Eye size={12} />
+                            Evaluate
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Verification Slide-Over Side Panel */}
+        {selectedVerificationItem && (
+          <VerificationSidePanel
+            item={selectedVerificationItem}
+            onClose={() => setSelectedVerificationItem(null)}
+          />
         )}
-      </div>
-
-      {/* Verification Slide-Over Side Panel */}
-      {selectedVerificationItem && (
-        <VerificationSidePanel
-          item={selectedVerificationItem}
-          onClose={() => setSelectedVerificationItem(null)}
-        />
-      )}
       </div>
     </AppShell>
   );
@@ -620,13 +619,12 @@ function VerificationSidePanel({
                       1. Identity Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
-                        idMatch === true
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${idMatch === true
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : idMatch === false
-                          ? "bg-rose-50 text-rose-700 border border-rose-200"
-                          : "bg-amber-50 text-amber-700 border border-amber-200"
-                      }`}
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        }`}
                     >
                       {idMatch === true ? "Match" : idMatch === false ? "Mismatch" : "Pending"}
                     </span>
@@ -690,13 +688,12 @@ function VerificationSidePanel({
                       2. Random Capture Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
-                        matchedCount === 3
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${matchedCount === 3
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : matchedCount > 0
-                          ? "bg-amber-50 text-amber-700 border border-amber-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
-                      }`}
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : "bg-rose-50 text-rose-700 border border-rose-200"
+                        }`}
                     >
                       {inTestSummary}
                     </span>
@@ -730,13 +727,12 @@ function VerificationSidePanel({
                             Captured at {capTime}
                           </span>
                           <span
-                            className={`text-2xs font-semibold mt-0.5 ${
-                              !isComp
+                            className={`text-2xs font-semibold mt-0.5 ${!isComp
                                 ? "text-gray-500"
                                 : isWinMatch
-                                ? "text-emerald-600"
-                                : "text-rose-600"
-                            }`}
+                                  ? "text-emerald-600"
+                                  : "text-rose-600"
+                              }`}
                           >
                             {!isComp ? w.status : isWinMatch ? "Matched" : "Mismatch"}
                           </span>
@@ -758,11 +754,10 @@ function VerificationSidePanel({
                       3. OCR Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
-                        ocrMatched
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${ocrMatched
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : "bg-rose-50 text-rose-700 border border-rose-200"
-                      }`}
+                        }`}
                     >
                       {ocrMatched ? "Match" : "Mismatch"}
                     </span>

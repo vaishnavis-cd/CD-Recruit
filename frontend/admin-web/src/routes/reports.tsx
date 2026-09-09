@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { 
-  FileText, 
-  Users, 
-  Settings2, 
-  Lock, 
-  Eye, 
-  CheckCircle2, 
+import {
+  FileText,
+  Users,
+  Settings2,
+  Lock,
+  Eye,
+  CheckCircle2,
   Check,
   ShieldAlert,
   Shield,
@@ -321,16 +321,15 @@ function ReportsPage() {
       }
     >
       <div className="w-full flex flex-col gap-[14px]">
-        
+
         {/* Navigation Tabs (Pill Buttons) */}
         <div className="flex items-center gap-[8px] flex-wrap shrink-0">
           <button
             onClick={() => setActiveTab("PERFORMANCE")}
-            className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition-none flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "PERFORMANCE"
+            className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition-none flex items-center gap-1.5 cursor-pointer ${activeTab === "PERFORMANCE"
                 ? "bg-white text-blue-600 border border-blue-600 shadow-xs shadow-blue-500/10"
                 : "bg-white/70 hover:bg-white text-slate-600 hover:text-slate-900 border border-slate-200/90"
-            }`}
+              }`}
           >
             <TrendingUp size={12} className={activeTab === "PERFORMANCE" ? "text-blue-600" : "text-slate-400"} />
             <span>Performance &amp; Domain Metrics</span>
@@ -338,11 +337,10 @@ function ReportsPage() {
 
           <button
             onClick={() => setActiveTab("INTEGRITY")}
-            className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition-none flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "INTEGRITY"
+            className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition-none flex items-center gap-1.5 cursor-pointer ${activeTab === "INTEGRITY"
                 ? "bg-white text-blue-600 border border-blue-600 shadow-xs shadow-blue-500/10"
                 : "bg-white/70 hover:bg-white text-slate-600 hover:text-slate-900 border border-slate-200/90"
-            }`}
+              }`}
           >
             <Hexagon size={12} className={activeTab === "INTEGRITY" ? "text-blue-600" : "text-slate-400"} />
             <span>Integrity &amp; Risk Analytics</span>
@@ -350,11 +348,10 @@ function ReportsPage() {
 
           <button
             onClick={() => setActiveTab("EXPORTS")}
-            className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition-none flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "EXPORTS"
+            className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold transition-none flex items-center gap-1.5 cursor-pointer ${activeTab === "EXPORTS"
                 ? "bg-white text-blue-600 border border-blue-600 shadow-xs shadow-blue-500/10"
                 : "bg-white/70 hover:bg-white text-slate-600 hover:text-slate-900 border border-slate-200/90"
-            }`}
+              }`}
           >
             <SlidersHorizontal size={12} className={activeTab === "EXPORTS" ? "text-blue-600" : "text-slate-400"} />
             <span>Custom Export Configuration</span>
@@ -564,13 +561,12 @@ function ReportsPage() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                            item.color === "rose"
+                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${item.color === "rose"
                               ? "bg-rose-50 text-rose-500"
                               : item.color === "amber"
-                              ? "bg-amber-50 text-amber-500"
-                              : "bg-blue-50 text-blue-500"
-                          }`}
+                                ? "bg-amber-50 text-amber-500"
+                                : "bg-blue-50 text-blue-500"
+                            }`}
                         >
                           <Icon size={14} />
                         </div>
@@ -592,13 +588,12 @@ function ReportsPage() {
                           <div className="text-[9px] text-slate-400 mt-0.5">{item.rate}</div>
                         </div>
                         <span
-                          className={`min-w-[76px] text-center px-2.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-wider uppercase ${
-                            item.risk === "HIGH"
+                          className={`min-w-[76px] text-center px-2.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-wider uppercase ${item.risk === "HIGH"
                               ? "bg-[#FEF2F2] text-[#DC2626]"
                               : item.risk === "MEDIUM"
-                              ? "bg-[#FFFBEB] text-[#D97706]"
-                              : "bg-[#EEF4FF] text-[#2563EB]"
-                          }`}
+                                ? "bg-[#FFFBEB] text-[#D97706]"
+                                : "bg-[#EEF4FF] text-[#2563EB]"
+                            }`}
                         >
                           {item.risk} RISK
                         </span>
@@ -625,28 +620,26 @@ function ReportsPage() {
                   Configure data fields included in generated PDF, CSV, and JSON report payloads
                 </div>
               </div>
-              
+
               {/* Segmented Control */}
               <div className="flex p-[3px] bg-[#F1F5F9] rounded-[10px]">
                 <button
                   type="button"
                   onClick={() => setVariant("internal")}
-                  className={`px-4 py-1.5 text-[12px] rounded-[8px] transition-all cursor-pointer ${
-                    variant === "internal" 
-                      ? "bg-white shadow-xs text-slate-900 font-bold" 
+                  className={`px-4 py-1.5 text-[12px] rounded-[8px] transition-all cursor-pointer ${variant === "internal"
+                      ? "bg-white shadow-xs text-slate-900 font-bold"
                       : "text-slate-500 hover:text-slate-900 font-medium"
-                  }`}
+                    }`}
                 >
                   Internal / Recruiter
                 </button>
                 <button
                   type="button"
                   onClick={() => setVariant("candidate")}
-                  className={`px-4 py-1.5 text-[12px] rounded-[8px] transition-all cursor-pointer ${
-                    variant === "candidate" 
-                      ? "bg-white shadow-xs text-slate-900 font-bold" 
+                  className={`px-4 py-1.5 text-[12px] rounded-[8px] transition-all cursor-pointer ${variant === "candidate"
+                      ? "bg-white shadow-xs text-slate-900 font-bold"
                       : "text-slate-500 hover:text-slate-900 font-medium"
-                  }`}
+                    }`}
                 >
                   Candidate-Facing
                 </button>
@@ -661,27 +654,24 @@ function ReportsPage() {
                   <div
                     key={f.label}
                     onClick={() => toggleField(f.label)}
-                    className={`group flex items-center justify-between border rounded-[12px] px-[16px] py-[13px] transition-all cursor-pointer select-none ${
-                      isSelected
+                    className={`group flex items-center justify-between border rounded-[12px] px-[16px] py-[13px] transition-all cursor-pointer select-none ${isSelected
                         ? "border-[#E2E8F0] bg-white hover:border-blue-300 hover:bg-blue-50/10 shadow-xs"
                         : "border-slate-200/60 bg-slate-50/50 opacity-60 hover:opacity-90 hover:border-slate-300"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-[20px] h-[20px] rounded-[6px] flex items-center justify-center shrink-0 transition-all ${
-                          isSelected
+                        className={`w-[20px] h-[20px] rounded-[6px] flex items-center justify-center shrink-0 transition-all ${isSelected
                             ? "bg-blue-600 text-white shadow-xs"
                             : "border border-slate-300 bg-white group-hover:border-blue-400"
-                        }`}
+                          }`}
                       >
                         {isSelected && <Check size={13} strokeWidth={3} className="text-white" />}
                       </div>
                       <div className="min-w-0">
                         <div
-                          className={`text-[13px] font-bold leading-tight truncate transition-colors ${
-                            isSelected ? "text-slate-900" : "text-slate-500"
-                          }`}
+                          className={`text-[13px] font-bold leading-tight truncate transition-colors ${isSelected ? "text-slate-900" : "text-slate-500"
+                            }`}
                         >
                           {f.label}
                         </div>

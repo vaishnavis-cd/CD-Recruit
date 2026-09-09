@@ -666,30 +666,16 @@ export class SessionService implements SessionStatusPort {
       );
     }
 
-    if (session.driveId) {
-      const drive = await this.prisma.drive.findUnique({
-        where: { id: session.driveId },
-      });
-      if (drive && drive.scheduleStart) {
-        const now = new Date();
-        const graceMinutes = 20; // 20 minutes grace window
-        const cutoff = new Date(drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
-        if (now > cutoff) {
-          throw new BadRequestException({
-            code: "INVITE_TOKEN_EXPIRED",
-            message: "The assessment window has expired.",
-          });
-        }
-      }
-    }
-
     let durationMinutes = session.roleTemplate.durationMinutes;
+    let driveRecord: any = null;
+
     if (session.driveId) {
-      const drive = await this.prisma.drive.findUnique({
+      driveRecord = await this.prisma.drive.findUnique({
         where: { id: session.driveId },
       });
-      if (drive && drive.moduleConfig) {
-        const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+
+      if (driveRecord && driveRecord.moduleConfig) {
+        const mc = driveRecord.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
         const totalDriveMins = Object.values(mc)
           .filter((conf) => conf?.enabled)
           .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
@@ -698,12 +684,48 @@ export class SessionService implements SessionStatusPort {
           durationMinutes = totalDriveMins;
         }
       }
+
+      if (driveRecord && driveRecord.scheduleStart && driveRecord.scheduleEnd) {
+        const now = new Date();
+        const windowSpanMinutes = Math.round(
+          (driveRecord.scheduleEnd.getTime() - driveRecord.scheduleStart.getTime()) / (60 * 1000),
+        );
+        const isFlexibleWindow = windowSpanMinutes > durationMinutes + 30;
+
+        let cutoff: Date;
+        if (isFlexibleWindow) {
+          // Flexible Window (e.g. 24h window): candidate can start as long as enough time remains to complete test
+          cutoff = new Date(driveRecord.scheduleEnd.getTime() - durationMinutes * 60 * 1000);
+        } else {
+          // Fixed Slot: candidate must join within 20 mins grace window of scheduleStart
+          const graceMinutes = 20;
+          cutoff = new Date(driveRecord.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        }
+
+        if (now > cutoff) {
+          throw new BadRequestException({
+            code: "INVITE_TOKEN_EXPIRED",
+            message: isFlexibleWindow
+              ? "The assessment window does not have sufficient remaining time to complete the test."
+              : "The 20-minute join window for this scheduled assessment has expired.",
+          });
+        }
+      }
     }
 
     const now = new Date();
-    const deadlineAt = new Date(
+    let deadlineAt = new Date(
       now.getTime() + durationMinutes * 60 * 1000,
     );
+
+    // Hard ceiling: in fixed slot drives, deadline cannot exceed scheduleEnd + bufferMinutes
+    if (driveRecord && driveRecord.scheduleEnd) {
+      const bufferMs = (driveRecord.bufferMinutes ?? 15) * 60 * 1000;
+      const hardEnd = new Date(driveRecord.scheduleEnd.getTime() + bufferMs);
+      if (deadlineAt > hardEnd) {
+        deadlineAt = hardEnd;
+      }
+    }
 
     const updated = await this.prisma.session.update({
       where: { id: sessionId },

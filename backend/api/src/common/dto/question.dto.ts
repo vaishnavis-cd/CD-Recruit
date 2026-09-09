@@ -41,6 +41,17 @@ export class CreateQuestionDto {
   @IsOptional()
   @IsEnum(QuestionStatus)
   status?: QuestionStatus;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(180)
+  durationMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  points?: number;
 }
 
 export class UpdateQuestionDto {
@@ -74,6 +85,17 @@ export class UpdateQuestionDto {
   @IsOptional()
   @IsEnum(QuestionStatus)
   status?: QuestionStatus;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(180)
+  durationMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  points?: number;
 }
 
 export class ListQuestionsQueryDto {

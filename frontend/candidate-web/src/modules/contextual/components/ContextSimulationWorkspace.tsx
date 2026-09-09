@@ -71,13 +71,14 @@ export function ContextSimulationWorkspace({
 
   // Languages & Target File Setup
   const [selectedLanguage, setSelectedLanguage] = useState<'python' | 'javascript'>('python');
-  const defaultFile = 'src/auth/validation.py';
 
-  // Starter code per language matching UI reference
-  const starterCode =
-    scenario.starterCode?.[selectedLanguage] ||
-    scenario.starterCode?.python ||
-    `# login_validation.py
+  // Starter code per language matching UI reference or bulk import
+  const customStarter =
+    typeof scenario.starterCode === 'string' && scenario.starterCode.trim()
+      ? scenario.starterCode
+      : scenario.starterCode?.[selectedLanguage] || scenario.starterCode?.python;
+
+  const defaultStarterFallback = `# login_validation.py
 
 def validate_username(username: str) -> bool:
     """
@@ -98,8 +99,11 @@ def validate_username(username: str) -> bool:
     return all(c.isalnum() or c == '_' for c in username)
 `;
 
-  // Readonly repo files matching UI team images
-  const readonlyFiles: Record<string, string> = {
+  const starterCode = customStarter || defaultStarterFallback;
+  const defaultFile = scenario.targetFile || 'src/auth/validation.py';
+
+  // Readonly repo files: uses scenario.supportingFiles if provided from CSV / API, or defaults
+  const defaultReadonlyFiles: Record<string, string> = {
     'src/auth/auth_handler.py': `# auth_handler.py - Core Authentication Handler
 
 from validation import validate_username
@@ -146,13 +150,17 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
 `,
   };
 
+  const readonlyFiles: Record<string, string> =
+    scenario.supportingFiles && Object.keys(scenario.supportingFiles).length > 0
+      ? scenario.supportingFiles
+      : defaultReadonlyFiles;
+
   // Active open tabs and selected file
   const [openTabs, setOpenTabs] = useState<string[]>([
-    'src/auth/validation.py',
-    'src/auth/auth_handler.py',
-    'src/auth/middleware.py',
+    defaultFile,
+    ...Object.keys(readonlyFiles).slice(0, 2),
   ]);
-  const [activeFile, setActiveFile] = useState<string>('src/auth/validation.py');
+  const [activeFile, setActiveFile] = useState<string>(defaultFile);
 
   // Candidate code buffer
   const [code, setCode] = useState<string>(starterCode);
@@ -448,13 +456,10 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
   const isPrevModuleAvailable = moduleIndex > 0;
   const isNextModuleAvailable = moduleIndex < activeModules.length - 1;
 
-  const repoFilesList = [
-    { path: 'src/auth/auth_handler.py', label: 'src/auth/auth_handler....' },
-    { path: 'src/auth/middleware.py', label: 'src/auth/middleware.py' },
-    { path: 'tests/test_validation.py', label: 'tests/test_validation.py' },
-    { path: 'config/settings.yaml', label: 'config/settings.yaml' },
-    { path: 'utils/string_helper.py', label: 'utils/string_helper.py' },
-  ];
+  const repoFilesList = Object.keys(readonlyFiles).map((p) => ({
+    path: p,
+    label: p.length > 25 ? p.slice(0, 22) + '...' : p,
+  }));
 
   return (
     <div className="flex flex-col h-screen w-screen bg-white dark:bg-[#0B0F17] text-[#0F172A] dark:text-[#F8FAFC] font-sans overflow-hidden select-none">

@@ -49,7 +49,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
             break;
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     }
   }
   return {

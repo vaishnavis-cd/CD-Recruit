@@ -775,11 +775,10 @@ export function RoleTemplatesPage() {
                             }
                           }}
                           disabled={tpl.isActive || activatingId === tpl.id}
-                          className={`px-2.5 py-0.5 rounded-full text-2xs font-semibold border transition-all ${
-                            tpl.isActive
+                          className={`px-2.5 py-0.5 rounded-full text-2xs font-semibold border transition-all ${tpl.isActive
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
                               : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-brand hover:text-white cursor-pointer"
-                          }`}
+                            }`}
                           title={tpl.isActive ? "Active template" : "Click to set active"}
                         >
                           {activatingId === tpl.id ? "Activating..." : tpl.isActive ? "Active" : "Inactive"}
@@ -996,11 +995,10 @@ export function RoleTemplatesPage() {
                     <button
                       type="button"
                       onClick={() => setShowSelectedOnly(!showSelectedOnly)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
-                        showSelectedOnly
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${showSelectedOnly
                           ? "bg-brand text-white border-brand shadow-xs"
                           : "bg-white text-ink-secondary border-line hover:border-brand hover:text-brand"
-                      }`}
+                        }`}
                     >
                       <CheckCircle2 size={13} />
                       <span>Show Selected Only</span>
@@ -1087,18 +1085,17 @@ export function RoleTemplatesPage() {
                         <div
                           key={q.id}
                           onClick={() => toggleQuestionSelection(q)}
-                          className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${
-                            isSelected
+                          className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${isSelected
                               ? "bg-brand-subtle border-brand shadow-xs"
                               : "bg-white border-line hover:border-slate-300 hover:bg-canvas/80"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start gap-3 min-w-0">
                             <div className="pt-0.5">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 className="rounded border-brand-border text-brand cursor-pointer h-4 w-4"
                               />
                             </div>
