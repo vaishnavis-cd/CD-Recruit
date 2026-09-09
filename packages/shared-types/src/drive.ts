@@ -214,3 +214,82 @@ export function computeDriveStatus(
   return hasGeneratedLinks ? DriveStatus.ACTIVE : DriveStatus.DRAFT;
 }
 
+export type DriveCreationPathway =
+  | "PARTNER_API"
+  | "TEMPLATE"
+  | "CUSTOM_MANUAL"
+  | "CUSTOM_BULK_IMPORT";
+
+/**
+ * Resolve the archetype creation pathway of a drive.
+ * Decouples the 4 distinct workflows:
+ * 1. PARTNER_API: Ingested via external webhook/API, fixed configuration, zero blockers.
+ * 2. TEMPLATE: Built from curated RoleTemplate, standard 90m module calibration, fixed questions.
+ * 3. CUSTOM_MANUAL: Fully manual role wizard, custom weights/sliders, difficulty distribution checklist.
+ * 4. CUSTOM_BULK_IMPORT: Ingested via CSV question import, Strategy A weights, timing deficit diagnostics (no checklists).
+ */
+export function resolveDrivePathway(
+  drive: {
+    originChannel?: string | null;
+    roleTemplateId?: string | null;
+    roleTemplate?: any;
+    moduleConfig?: any;
+    name?: string | null;
+    questions?: any[];
+  } | null | undefined,
+): DriveCreationPathway {
+  if (!drive) return "TEMPLATE";
+
+  if (drive.originChannel === "PARTNER_API") {
+    return "PARTNER_API";
+  }
+
+  const mc = (drive.moduleConfig || {}) as Record<string, any>;
+  if (mc.creationPathway) {
+    return mc.creationPathway as DriveCreationPathway;
+  }
+  if (mc.creationMethod === "BULK_IMPORT" || mc.isBulkImport === true) {
+    return "CUSTOM_BULK_IMPORT";
+  }
+
+  // Check if roleTemplateId is a curated role template with department
+  const roleName = drive.roleTemplate?.roleName || drive.roleTemplateId || "";
+  const isCustomTemplate =
+    drive.roleTemplateId === "CUSTOM" ||
+    roleName.toLowerCase() === "custom" ||
+    mc.isCustomRole === true;
+
+  if (!isCustomTemplate && drive.roleTemplateId) {
+    return "TEMPLATE";
+  }
+
+  // If custom, determine if it has difficulty distribution / requiredCount (Manual) or is Bulk Import
+  const hasManualDist = Object.values(mc).some(
+    (val: any) =>
+      val && typeof val === "object" && Boolean(val.difficultyDistribution),
+  );
+  if (hasManualDist) {
+    return "CUSTOM_MANUAL";
+  }
+
+  // Check if questions are tagged with drive name
+  const driveNameLower = drive.name?.toLowerCase().trim();
+  if (
+    driveNameLower &&
+    drive.questions &&
+    drive.questions.some((q: any) =>
+      (q.tags || q.question?.tags || []).some(
+        (t: string) =>
+          typeof t === "string" &&
+          (t.toLowerCase().includes(`drive:${driveNameLower}`) ||
+            t.toLowerCase().includes(`#drive:${driveNameLower}`)),
+      ),
+    )
+  ) {
+    return "CUSTOM_BULK_IMPORT";
+  }
+
+  return mc.isCustomRole ? "CUSTOM_MANUAL" : "TEMPLATE";
+}
+
+

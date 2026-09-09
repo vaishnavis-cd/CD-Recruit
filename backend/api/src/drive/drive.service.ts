@@ -14,6 +14,7 @@ import {
   DriveDetail,
   DriveCandidateRosterItem,
   computeDriveStatus,
+  resolveDrivePathway,
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
@@ -196,14 +197,17 @@ export class DriveService {
       }
     }
 
-    // 3. Completeness check
+    // 3. Completeness check - ONLY applies to Direct Fully Manual drives
+    const isBulkImportCreation = dto.moduleConfig?.creationPathway === "CUSTOM_BULK_IMPORT" || (dto.moduleConfig as any)?.creationMethod === "BULK_IMPORT" || (dto.moduleConfig as any)?.isBulkImport === true;
+    const isPartnerCreation = (dto as any).originChannel === OriginChannel.PARTNER_API || (dto as any).channel === "PARTNER_API";
+
     const activeEnabledModules = Object.entries(defaultModuleConfig)
       .filter(([_, conf]: [string, any]) => conf.enabled)
       .map(([mod, _]) => mod);
 
     const completenessTargetDept = template.department || template.roleName;
 
-    if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
+    if (!isBulkImportCreation && !isPartnerCreation && (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE)) {
       for (const mod of activeEnabledModules) {
         if (mod === "AI_PROMPTING") continue;
 
@@ -903,42 +907,57 @@ export class DriveService {
         : lowerName.includes("l2")
         ? "l2"
         : "l3";
+      const pathway = resolveDrivePathway({
+        originChannel: drive.originChannel,
+        roleTemplateId: roleTemplateId || drive.roleTemplateId,
+        roleTemplate: template,
+        moduleConfig: moduleConfig,
+        name: name || drive.name,
+      });
+      const isManualRole = pathway === "CUSTOM_MANUAL";
 
       let totalEstimatedDuration = 0;
-      const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig };
-      const isCustomRole = Boolean((moduleConfig as any)?.isCustomRole);
+      const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig, creationPathway: pathway };
 
       for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
         const conf = modConf as any;
         if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
 
-        let reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
-        let dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        if (isManualRole) {
+          let reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
+          let dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-        if (isCustomRole && conf.difficultyDistribution) {
-          dist = conf.difficultyDistribution;
-          reqCount = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-        } else {
-          const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-          if (distSum !== reqCount) {
-            throw new BadRequestException(
-              `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
-            );
+          if (conf.difficultyDistribution) {
+            dist = conf.difficultyDistribution;
+            reqCount = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+          } else {
+            const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+            if (distSum !== reqCount) {
+              throw new BadRequestException(
+                `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
+              );
+            }
           }
+
+          const estDuration = getEstimatedModuleDuration(moduleType, dist);
+          totalEstimatedDuration += estDuration;
+
+          sanitizedModuleConfig[moduleType] = {
+            ...conf,
+            requiredCount: reqCount,
+            difficultyDistribution: dist,
+            durationMinutes: estDuration,
+          };
+        } else {
+          // For Bulk Import, Template, and Partner API drives, preserve exact configured values without forcing algorithmic requiredCount
+          totalEstimatedDuration += Number(conf.durationMinutes) || 15;
+          sanitizedModuleConfig[moduleType] = {
+            ...conf,
+          };
         }
-
-        const estDuration = getEstimatedModuleDuration(moduleType, dist);
-        totalEstimatedDuration += estDuration;
-
-        sanitizedModuleConfig[moduleType] = {
-          ...conf,
-          requiredCount: reqCount,
-          difficultyDistribution: dist,
-          durationMinutes: estDuration,
-        };
       }
 
-      if (isCustomRole && totalEstimatedDuration > windowMinutes) {
+      if (isManualRole && totalEstimatedDuration > windowMinutes) {
         const overflow = (totalEstimatedDuration - windowMinutes).toFixed(1);
         throw new BadRequestException(
           `Estimated assessment time (${totalEstimatedDuration} min) exceeds the configured assessment duration (${windowMinutes} min) by ${overflow} minutes. Please adjust module weights or difficulty distributions.`

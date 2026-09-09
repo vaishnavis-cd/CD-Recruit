@@ -283,6 +283,9 @@ function DrivesPage() {
       // Build module config with Strategy A weights and detected modules
       const modConfig: Record<string, any> = {
         isCustomRole: true,
+        isBulkImport: true,
+        creationMethod: "BULK_IMPORT",
+        creationPathway: "CUSTOM_BULK_IMPORT",
       };
       ALL_MODULE_KEYS.forEach((mod) => {
         if (csvParsedPreview.detectedModules.includes(mod)) {
@@ -365,6 +368,7 @@ function DrivesPage() {
           isCustomRole: true,
           creationMethod: "BULK_IMPORT",
           isBulkImport: true,
+          creationPathway: "CUSTOM_BULK_IMPORT",
         },
         scheduleStart: start.toISOString(),
         scheduleEnd: end.toISOString(),
@@ -678,12 +682,28 @@ function DrivesPage() {
       : role.trim();
 
     try {
+      const creationPathway =
+        creationMode === "TEMPLATE"
+          ? "TEMPLATE"
+          : customRolePathway === "BULK_IMPORT"
+          ? "CUSTOM_BULK_IMPORT"
+          : "CUSTOM_MANUAL";
+
+      const finalModuleConfig = {
+        ...modulesConfig,
+        isCustomRole: creationMode === "CUSTOM",
+        creationPathway,
+        ...(creationPathway === "CUSTOM_BULK_IMPORT"
+          ? { isBulkImport: true, creationMethod: "BULK_IMPORT" }
+          : {}),
+      };
+
       // 1. Create Drive
       const result = await createDrive({
         name: driveName,
         roleTemplateId: effectiveRoleTemplateId,
         status: "SCHEDULED",
-        moduleConfig: modulesConfig,
+        moduleConfig: finalModuleConfig,
         scheduleStart: new Date(scheduleStart).toISOString(),
         scheduleEnd: new Date(scheduleEnd).toISOString(),
       });
