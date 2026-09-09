@@ -447,6 +447,9 @@ function DriveDetailPage() {
   const [suggestedDeficitData, setSuggestedDeficitData] = useState<any>(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [highlightTrimmingMode, setHighlightTrimmingMode] = useState(false);
+  const [deficitSelectedQuestionIds, setDeficitSelectedQuestionIds] = useState<string[]>([]);
+  const [deficitModuleFilter, setDeficitModuleFilter] = useState<string>("ALL");
+  const [deficitSearchQuery, setDeficitSearchQuery] = useState("");
   const csvFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Automatically persist draft assigned questions in sessionStorage to survive bulk import modal navigation
@@ -1515,8 +1518,21 @@ function DriveDetailPage() {
     return computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
   }, [startHour, startMinute, startAmPm, endHour, endMinute, endAmPm]);
 
-  const isTimingOverBudget = totalContentDuration > scheduledWindowDuration;
-  const isTimingUnderBudget = totalContentDuration > 0 && totalContentDuration < scheduledWindowDuration;
+  const isBulkImportDrive = useMemo(() => {
+    if (!drive) return false;
+    const mc = drive.moduleConfig as any;
+    if (mc?.creationMethod === "BULK_IMPORT" || mc?.isBulkImport === true) return true;
+    const driveNameLower = drive.name?.toLowerCase().trim();
+    if (driveNameLower && assignedQuestionObjects.some((q: any) => (q.tags || []).some((t: string) => t.toLowerCase() === `drive:${driveNameLower}` || t.toLowerCase() === `#drive:${driveNameLower}`))) {
+      return true;
+    }
+    return false;
+  }, [drive, assignedQuestionObjects]);
+
+  // Timing mismatch diagnostics are specifically targeted for Bulk Import drives where content duration comes dynamically from CSV
+  const shouldShowTimingDiagnostics = isBulkImportDrive && !isTemplateGoverned;
+  const isTimingOverBudget = shouldShowTimingDiagnostics && totalContentDuration > scheduledWindowDuration;
+  const isTimingUnderBudget = shouldShowTimingDiagnostics && totalContentDuration > 0 && totalContentDuration < scheduledWindowDuration;
   const timingMismatchDiff = Math.abs(scheduledWindowDuration - totalContentDuration);
 
   const templateModulesSummary = useMemo(() => {
@@ -1978,6 +1994,10 @@ function DriveDetailPage() {
       setIsLoadingSuggestions(true);
       const res = await suggestDeficitQuestions(driveId, timingMismatchDiff);
       setSuggestedDeficitData(res);
+      const initialSelected = (res?.suggestedQuestions || []).map((q: any) => q.id);
+      setDeficitSelectedQuestionIds(initialSelected);
+      setDeficitModuleFilter("ALL");
+      setDeficitSearchQuery("");
       setSuggestedDeficitModalOpen(true);
     } catch (err: any) {
       toast.error(err.message || "Failed to fetch suggested questions");
@@ -1986,15 +2006,32 @@ function DriveDetailPage() {
     }
   };
 
-  const handleApplyDeficitSuggestions = async () => {
-    if (!suggestedDeficitData?.suggestedQuestions?.length) return;
-    pushHistory(`Add Matching Questions (+${timingMismatchDiff}m)`);
-    const newIds = suggestedDeficitData.suggestedQuestions.map((q: any) => q.id);
-    const combined = Array.from(new Set([...assignedQuestions, ...newIds]));
+  const handleToggleDeficitQuestion = (questionId: string) => {
+    setDeficitSelectedQuestionIds((prev) =>
+      prev.includes(questionId) ? prev.filter((id) => id !== questionId) : [...prev, questionId]
+    );
+  };
+
+  const handleSelectAllSuggestedDeficit = () => {
+    const suggestedIds = (suggestedDeficitData?.suggestedQuestions || []).map((q: any) => q.id);
+    setDeficitSelectedQuestionIds(Array.from(new Set([...deficitSelectedQuestionIds, ...suggestedIds])));
+  };
+
+  const handleClearDeficitSelection = () => {
+    setDeficitSelectedQuestionIds([]);
+  };
+
+  const handleApplyInteractiveDeficitQuestions = async (selectedDuration: number) => {
+    if (deficitSelectedQuestionIds.length === 0) {
+      toast.error("Please select at least one question to add.");
+      return;
+    }
+    pushHistory(`Add ${deficitSelectedQuestionIds.length} question(s) (+${selectedDuration}m)`);
+    const combined = Array.from(new Set([...assignedQuestions, ...deficitSelectedQuestionIds]));
     setAssignedQuestions(combined);
     await saveDriveQuestions(driveId, combined);
     setSuggestedDeficitModalOpen(false);
-    toast.success(`Assigned ${newIds.length} question(s) from Question Bank to satisfy timing deficit!`, {
+    toast.success(`Assigned ${deficitSelectedQuestionIds.length} question(s) totaling +${selectedDuration}m to drive!`, {
       action: {
         label: "Undo",
         onClick: () => handleUndo(),
@@ -4643,69 +4680,258 @@ function DriveDetailPage() {
         </div>
       )}
 
-      {/* Deficit Question Suggestions Modal */}
-      {suggestedDeficitModalOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setSuggestedDeficitModalOpen(false)}
-        >
+      {/* Interactive Multi-Module Deficit Question Suggestions Modal */}
+      {suggestedDeficitModalOpen && (() => {
+        // Collect all pool questions
+        const backendCandidates: any[] = suggestedDeficitData?.availableQuestions || [];
+        const backendSuggestions: any[] = suggestedDeficitData?.suggestedQuestions || [];
+        
+        // Merge without duplicates, preferring availableQuestions or falling back to questionsBank
+        const poolMap = new Map<string, any>();
+        backendSuggestions.forEach((q) => poolMap.set(q.id, q));
+        backendCandidates.forEach((q) => poolMap.set(q.id, q));
+        questionsBank.forEach((q) => {
+          if (!assignedQuestions.includes(q.id) && !poolMap.has(q.id)) {
+            const modTimes = (DEFAULT_TIME_MATRIX as any)[q.moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+            const diffKey = String(q.difficulty || "MEDIUM").toUpperCase();
+            const dur = (q.content as any)?.durationMinutes || modTimes[diffKey] || modTimes.MEDIUM || 5;
+            const pts = (q.scoringConfig as any)?.points || (q.difficulty === "hard" ? 3 : q.difficulty === "medium" ? 2 : 1);
+            poolMap.set(q.id, { ...q, durationMinutes: dur, points: pts });
+          }
+        });
+        const allPoolQuestions = Array.from(poolMap.values());
+
+        // Modules present with counts
+        const moduleCounts: Record<string, number> = { ALL: allPoolQuestions.length };
+        allPoolQuestions.forEach((q) => {
+          moduleCounts[q.moduleType] = (moduleCounts[q.moduleType] || 0) + 1;
+        });
+
+        // Filtered pool
+        const filteredDeficitPool = allPoolQuestions.filter((q) => {
+          if (deficitModuleFilter !== "ALL" && deficitModuleFilter !== "SUGGESTED") {
+            if (q.moduleType !== deficitModuleFilter) return false;
+          }
+          if (deficitModuleFilter === "SUGGESTED") {
+            if (!backendSuggestions.some((s) => s.id === q.id)) return false;
+          }
+          if (deficitSearchQuery.trim()) {
+            const query = deficitSearchQuery.toLowerCase().trim();
+            const title = String(q.content?.title || q.content?.prompt || q.content?.question || "").toLowerCase();
+            const tags = Array.isArray(q.tags) ? q.tags.join(" ").toLowerCase() : "";
+            if (!title.includes(query) && !tags.includes(query) && !q.moduleType.toLowerCase().includes(query)) {
+              return false;
+            }
+          }
+          return true;
+        });
+
+        // Current selection metrics
+        const selectedQuestions = allPoolQuestions.filter((q) => deficitSelectedQuestionIds.includes(q.id));
+        const currentSelectedDuration = selectedQuestions.reduce((sum, q) => sum + (Number(q.durationMinutes) || 5), 0);
+        const currentSelectedPoints = selectedQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+        const diffMinutes = currentSelectedDuration - timingMismatchDiff;
+
+        return (
           <div
-            className="bg-white rounded-xl w-full max-w-[620px] shadow-2xl flex flex-col max-h-[85vh] z-[101] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+            onClick={() => setSuggestedDeficitModalOpen(false)}
           >
-            <div className="px-6 py-4 border-b border-[#E9EEFE] flex items-center justify-between bg-gradient-to-r from-amber-50/50 to-white">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
-                  <Sparkles size={16} />
+            <div
+              className="bg-white rounded-2xl w-full max-w-[780px] shadow-2xl flex flex-col max-h-[90vh] z-[101] overflow-hidden border border-[#E2E8F0]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header with Live Counter Bar */}
+              <div className="px-6 py-4 border-b border-[#E9EEFE] bg-gradient-to-r from-amber-50/70 via-white to-blue-50/40">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200/80 flex items-center justify-center text-amber-700 shrink-0">
+                      <Sparkles size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-[#1E1B4B]">
+                        Select Deficit Fill Questions
+                      </h3>
+                      <p className="text-xs text-[#6B7280] mt-0.5">
+                        Pick and choose questions across any module to fill the schedule window deficit.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSuggestedDeficitModalOpen(false)}
+                    className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#1E1B4B] hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-[#1E1B4B]">
-                    Smart Deficit Fill Suggestions
-                  </h3>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Target deficit: <strong className="text-amber-700 font-mono">+{timingMismatchDiff} minutes</strong>
-                  </p>
+
+                {/* Real-time Deficit Balance Summary */}
+                <div className="mt-3.5 p-3 rounded-xl bg-white border border-[#CBD5E1] shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-slate-600">
+                      Target Deficit: <strong className="font-mono text-amber-700 font-bold">+{timingMismatchDiff}m</strong>
+                    </div>
+                    <div className="h-3 w-px bg-slate-200" />
+                    <div className="text-xs text-slate-600">
+                      Selected: <strong className="font-mono text-[#2563EB] font-bold">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} qs, {currentSelectedPoints} pts)
+                    </div>
+                  </div>
+
+                  <div>
+                    {diffMinutes === 0 ? (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 font-mono">
+                        <Check size={12} strokeWidth={3} /> Exact Match (+{timingMismatchDiff}m)
+                      </span>
+                    ) : diffMinutes < 0 ? (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 font-mono">
+                        <Clock size={12} /> {Math.abs(diffMinutes)}m Remaining Deficit
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1 font-mono">
+                        <Plus size={12} /> +{diffMinutes}m Over Target
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setSuggestedDeficitModalOpen(false)}
-                className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#1E1B4B] hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div className="p-3.5 rounded-lg bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 leading-relaxed">
-                Found <strong>{suggestedDeficitData?.suggestedQuestions?.length || 0} question(s)</strong> in your Question Bank totaling{" "}
-                <strong>{suggestedDeficitData?.totalSuggestedDuration || 0} minutes</strong>. Assigning these questions will help satisfy your schedule window deficit.
+              {/* Filters Bar: Search & Module Pills */}
+              <div className="px-6 py-3 border-b border-[#E9EEFE] bg-[#F8FAFC] space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by question title, prompt or tags..."
+                      value={deficitSearchQuery}
+                      onChange={(e) => setDeficitSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#2563EB]"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllSuggestedDeficit}
+                      className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] cursor-pointer"
+                    >
+                      Select Smart Picks
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={handleClearDeficitSelection}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+
+                {/* Module Pill Tabs */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setDeficitModuleFilter("ALL")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                      deficitModuleFilter === "ALL"
+                        ? "bg-[#2563EB] text-white shadow-2xs"
+                        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    }`}
+                  >
+                    All Modules ({allPoolQuestions.length})
+                  </button>
+
+                  {backendSuggestions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDeficitModuleFilter("SUGGESTED")}
+                      className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors flex items-center gap-1 ${
+                        deficitModuleFilter === "SUGGESTED"
+                          ? "bg-amber-600 text-white shadow-2xs"
+                          : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200"
+                      }`}
+                    >
+                      <Sparkles size={11} />
+                      <span>Smart Picks ({backendSuggestions.length})</span>
+                    </button>
+                  )}
+
+                  {ALL_MODULE_KEYS.filter((mod) => (moduleCounts[mod] || 0) > 0).map((mod) => (
+                    <button
+                      key={mod}
+                      type="button"
+                      onClick={() => setDeficitModuleFilter(mod)}
+                      className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                        deficitModuleFilter === mod
+                          ? "bg-[#2563EB] text-white shadow-2xs"
+                          : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                      }`}
+                    >
+                      {MODULE_LABEL_MAP[mod] || mod} ({moduleCounts[mod] || 0})
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="border border-[#E9EEFE] rounded-lg divide-y divide-[#E9EEFE] max-h-[340px] overflow-y-auto bg-white">
-                {(!suggestedDeficitData?.suggestedQuestions || suggestedDeficitData.suggestedQuestions.length === 0) ? (
-                  <div className="p-8 text-center text-xs text-[#94A3B8] italic">
-                    No matching questions found in the Question Bank matching this deficit duration.
+              {/* Questions List with Checkboxes */}
+              <div className="p-6 space-y-2 overflow-y-auto flex-1 max-h-[380px] bg-slate-50/50">
+                {filteredDeficitPool.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-slate-400 italic">
+                    No questions found matching the selected module filter or search query.
                   </div>
                 ) : (
-                  suggestedDeficitData.suggestedQuestions.map((q: any) => {
+                  filteredDeficitPool.map((q) => {
+                    const isSelected = deficitSelectedQuestionIds.includes(q.id);
+                    const isSmartPick = backendSuggestions.some((s) => s.id === q.id);
                     const title = q.content?.title || q.content?.prompt || q.content?.question || `Question #${q.id.slice(0, 6)}`;
-                    const dur = q.durationMinutes || (q.content as any)?.durationMinutes || 5;
-                    const pts = q.points || (q.scoringConfig as any)?.points || (q.difficulty === "hard" ? 3 : q.difficulty === "medium" ? 2 : 1);
+                    const dur = q.durationMinutes || 5;
+                    const pts = q.points || 1;
+
                     return (
-                      <div key={q.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EEF2FF] text-[#4F46E5] uppercase font-mono">
-                              {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
-                            </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-[#475569] uppercase font-mono">
-                              {q.difficulty}
-                            </span>
+                      <div
+                        key={q.id}
+                        onClick={() => handleToggleDeficitQuestion(q.id)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? "bg-white border-[#2563EB] shadow-2xs ring-1 ring-[#2563EB]/20"
+                            : "bg-white border-[#E2E8F0] hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {/* Checkbox */}
+                          <div
+                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors shrink-0 ${
+                              isSelected
+                                ? "bg-[#2563EB] text-white"
+                                : "border border-slate-300 bg-white"
+                            }`}
+                          >
+                            {isSelected && <Check size={11} strokeWidth={3} />}
                           </div>
-                          <p className="text-xs font-medium text-[#1E1B4B] truncate">{title}</p>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0 pr-2">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EEF2FF] text-[#4F46E5] uppercase font-mono">
+                                {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-[#475569] uppercase font-mono">
+                                {q.difficulty}
+                              </span>
+                              {isSmartPick && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                                  <Sparkles size={9} /> Smart Pick
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs font-semibold text-[#0F172A] truncate">{title}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+
+                        {/* Badges & Preview */}
+                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 text-[#475569] flex items-center gap-1">
                             <Clock size={11} className="text-[#64748B]" />
                             {dur}m
@@ -4714,40 +4940,50 @@ function DriveDetailPage() {
                             <Award size={11} className="text-amber-600" />
                             {pts} pts
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewQuestion(q)}
+                            className="p-1 text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 rounded transition-colors"
+                            title="Preview Question"
+                          >
+                            <Eye size={14} />
+                          </button>
                         </div>
                       </div>
                     );
                   })
                 )}
               </div>
-            </div>
 
-            <div className="px-6 py-4 border-t border-[#E9EEFE] bg-[#F8FAFC] flex items-center justify-between">
-              <span className="text-xs text-[#6B7280]">
-                Total Duration: <strong className="text-[#1E1B4B]">{suggestedDeficitData?.totalSuggestedDuration || 0}m</strong>
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSuggestedDeficitModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-medium text-[#6B7280] hover:bg-slate-200/50 rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleApplyDeficitSuggestions}
-                  disabled={!suggestedDeficitData?.suggestedQuestions?.length}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-                >
-                  <Plus size={14} />
-                  <span>Assign Suggested Questions</span>
-                </button>
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-[#E9EEFE] bg-[#F8FAFC] flex items-center justify-between gap-3">
+                <div className="text-xs text-slate-600">
+                  Total Selected: <strong className="font-bold text-[#0F172A]">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} questions, {currentSelectedPoints} pts)
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSuggestedDeficitModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deficitSelectedQuestionIds.length === 0}
+                    onClick={() => handleApplyInteractiveDeficitQuestions(currentSelectedDuration)}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                    <span>Add Selected Questions (+{currentSelectedDuration}m)</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </AppShell>
   );
 }

@@ -1560,6 +1560,7 @@ export class DriveService {
       accumulatedDurationMinutes: accumulated,
       remainingDeficitMinutes: Math.max(0, targetDeficitMinutes - accumulated),
       suggestedQuestions: selected,
+      availableQuestions: candidates,
     };
   }
 }

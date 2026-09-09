@@ -144,7 +144,8 @@ function DrivesPage() {
 
   // Wizard State
   const [step, setStep] = useState(1);
-  const [creationMode, setCreationMode] = useState<"TEMPLATE" | "CUSTOM" | "BULK_IMPORT">("TEMPLATE");
+  const [creationMode, setCreationMode] = useState<"TEMPLATE" | "CUSTOM">("TEMPLATE");
+  const [customRolePathway, setCustomRolePathway] = useState<"MANUAL" | "BULK_IMPORT">("MANUAL");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [templateDeptFilter, setTemplateDeptFilter] = useState<string>("all");
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
@@ -324,6 +325,8 @@ function DrivesPage() {
         status: "DRAFT",
         moduleConfig: {
           isCustomRole: true,
+          creationMethod: "BULK_IMPORT",
+          isBulkImport: true,
         },
         scheduleStart: start.toISOString(),
         scheduleEnd: end.toISOString(),
@@ -677,6 +680,7 @@ function DrivesPage() {
     setLevel("");
     setSelectedTemplateId("");
     setCreationMode("TEMPLATE");
+    setCustomRolePathway("MANUAL");
     setCsvFile(null);
     setCsvParsedPreview(null);
     setActiveTemplatePreview(null);
@@ -1467,7 +1471,7 @@ function DrivesPage() {
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto">
-              {/* Creation Mode Toggle */}
+              {/* Creation Mode Toggle - 2 Options Only */}
               <div className="flex bg-canvas p-1 rounded-lg border border-line gap-1">
                 <button
                   type="button"
@@ -1491,19 +1495,6 @@ function DrivesPage() {
                     }`}
                 >
                   <PenLine size={13} /> Custom Role
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreationMode("BULK_IMPORT");
-                    setSelectedTemplateId("");
-                  }}
-                  className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${creationMode === "BULK_IMPORT"
-                    ? "bg-white text-[#2E5DE0] shadow-sm font-bold"
-                    : "text-ink-secondary hover:text-ink"
-                    }`}
-                >
-                  <UploadCloud size={13} /> Bulk Import CSV
                 </button>
               </div>
 
@@ -1618,47 +1609,106 @@ function DrivesPage() {
               </div>
 
               {creationMode === "CUSTOM" && (
-                <div>
-                  <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
-                    Role Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    placeholder="e.g. Senior Software Engineer"
-                    className="w-full px-3.5 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
-                  />
-                </div>
-              )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
+                      Role Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      placeholder="e.g. Senior Software Engineer"
+                      className="w-full px-3.5 py-2 text-sm-minus border border-line rounded-md bg-white focus:outline-none focus:border-brand"
+                    />
+                  </div>
 
-              {creationMode === "BULK_IMPORT" && (
-                <div className="p-4 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#2E5DE0] shrink-0">
-                      <FolderPlus size={20} className="text-[#2E5DE0]" />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-[#1E1B4B]">
-                        Question Bank Dedicated Folder Workflow
-                      </h4>
-                      <p className="text-[11px] text-[#64748B] leading-relaxed">
-                        Creating this drive will initialize its record and automatically redirect you to the <strong>Question Bank</strong> with a dedicated folder created in the drive's name. The bulk upload prompt will open immediately so you can ingest questions from CSV.
-                      </p>
+                  <div>
+                    <label className="block text-xs font-bold text-[#1E1B4B] mb-2 uppercase tracking-wider">
+                      Setup Method
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setCustomRolePathway("MANUAL")}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                          customRolePathway === "MANUAL"
+                            ? "border-[#2563EB] bg-blue-50/50 shadow-xs"
+                            : "border-line bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-600"}`}>
+                            <PenLine size={14} />
+                          </div>
+                          {customRolePathway === "MANUAL" && (
+                            <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-[#0F172A]">Manual Wizard</h4>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            Configure modules, duration, questions & roster step-by-step.
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setCustomRolePathway("BULK_IMPORT")}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                          customRolePathway === "BULK_IMPORT"
+                            ? "border-[#2563EB] bg-blue-50/50 shadow-xs"
+                            : "border-line bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-600"}`}>
+                            <UploadCloud size={14} />
+                          </div>
+                          {customRolePathway === "BULK_IMPORT" && (
+                            <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-[#0F172A]">Bulk Import (CSV)</h4>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            Ingest questions via dedicated Question Bank folder.
+                          </p>
+                        </div>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-500 font-medium">Need sample multi-module CSV format?</span>
-                    <button
-                      type="button"
-                      onClick={downloadUnifiedSampleCSV}
-                      className="h-[28px] px-3 text-[11px] font-semibold text-[#475569] bg-white hover:bg-slate-100 border border-[#CBD5E1] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                    >
-                      <Download size={12} />
-                      <span>Download Sample CSV</span>
-                    </button>
-                  </div>
+                  {customRolePathway === "BULK_IMPORT" && (
+                    <div className="p-4 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#2E5DE0] shrink-0">
+                          <FolderPlus size={20} className="text-[#2E5DE0]" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold text-[#1E1B4B]">
+                            Question Bank Dedicated Folder Workflow
+                          </h4>
+                          <p className="text-[11px] text-[#64748B] leading-relaxed">
+                            Creating this drive will initialize its record and automatically redirect you to the <strong>Question Bank</strong> with a dedicated folder created in the drive's name. The bulk upload prompt will open immediately so you can ingest questions from CSV.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                        <span className="text-[11px] text-slate-500 font-medium">Need sample multi-module CSV format?</span>
+                        <button
+                          type="button"
+                          onClick={downloadUnifiedSampleCSV}
+                          className="h-[28px] px-3 text-[11px] font-semibold text-[#475569] bg-white hover:bg-slate-100 border border-[#CBD5E1] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        >
+                          <Download size={12} />
+                          <span>Download Sample CSV</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1675,7 +1725,7 @@ function DrivesPage() {
                 Cancel
               </button>
 
-              {creationMode === "BULK_IMPORT" ? (
+              {creationMode === "CUSTOM" && customRolePathway === "BULK_IMPORT" ? (
                 <button
                   type="button"
                   disabled={isCsvCreating || !driveName.trim()}
