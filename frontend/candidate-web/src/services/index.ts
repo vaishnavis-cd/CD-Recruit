@@ -17,14 +17,14 @@ export interface Services {
 }
 
 export function createServices(): Services {
-  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'real'
+  const sessionApiMode = import.meta.env.VITE_SESSION_API_MODE ?? 'auto'
   const isRealToken = typeof window !== 'undefined' && (
     window.location.search.includes('token=inv_') ||
     window.location.search.includes('token=eyJ') ||
     window.location.pathname.includes('/inv_') ||
     window.location.pathname.includes('/eyJ')
   )
-  const useRealApi = sessionApiMode === 'real' || (sessionApiMode === 'auto' && isRealToken) || isRealToken
+  const useRealApi = sessionApiMode === 'real' || (sessionApiMode === 'auto' && isRealToken)
 
   return {
     sessionApi: useRealApi ? realSessionApiAdapter : mockSessionApiAdapter,

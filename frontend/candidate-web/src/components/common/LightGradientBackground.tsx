@@ -1,17 +1,23 @@
 import React from 'react'
+import lightGradientPng from '../../assets/light-gradient-14.png'
 
 /**
  * LightGradientBackground
  *
- * Implements the Figma "Light Gradient 13" ambient mesh background with exact
- * vector coordinates, blur filters, matrix transformations, and opacities.
+ * Implements the Figma "Light Gradient 14" ambient mesh background
+ * with high-fidelity vector glows and soft blur filters.
  */
 export function LightGradientBackground({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden bg-[#f7f7f9] bg-cover bg-center bg-no-repeat bg-fixed ${className}`}
-      style={{ backgroundImage: "url('/light-gradient-14.svg')" }}
+      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden select-none ${className}`}
       aria-hidden="true"
-    />
+    >
+      <img
+        src={lightGradientPng}
+        alt=""
+        className="w-full h-full object-cover object-center opacity-90"
+      />
+    </div>
   )
 }

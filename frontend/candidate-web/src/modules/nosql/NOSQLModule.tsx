@@ -125,7 +125,7 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
 
   const assignedQuestions = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) return []
-    return assessment.questions.filter((q) => q.moduleType === 'NOSQL')
+    return assessment.questions.filter((q) => (q.moduleType as string) === 'NOSQL')
   }, [assessment?.questions])
 
   const questions = assignedQuestions

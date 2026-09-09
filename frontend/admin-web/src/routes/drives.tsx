@@ -46,6 +46,7 @@ export const DEFAULT_TIME_MATRIX: Record<string, Record<string, number>> = {
   SIMULATION: { EASY: 6, MEDIUM: 12, HARD: 22 },
   NOSQL: { EASY: 3, MEDIUM: 6, HARD: 12 },
 };
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/drives")({
   component: DrivesPage,
@@ -192,6 +193,42 @@ function DrivesPage() {
     const dateStr = new Date().toLocaleString("en-US", { month: "short", year: "numeric" });
     if (!driveName || driveName.includes("Drive")) {
       setDriveName(`${template.roleName} Drive - ${dateStr}`);
+    }
+
+    if (template.weightingPreset && typeof template.weightingPreset === "object") {
+      const preset = template.weightingPreset as Record<string, number>;
+      const entries = Object.entries(preset);
+      if (entries.length > 0) {
+        let total = entries.reduce((s, [_, v]) => s + (typeof v === "number" ? (v <= 1 && v > 0 ? Math.round(v * 100) : Math.round(v)) : 0), 0);
+        const normalizedWeights: Record<string, number> = {};
+        let running = 0;
+        entries.forEach(([mod, v], idx) => {
+          let w = typeof v === "number" ? (v <= 1 && v > 0 ? Math.round(v * 100) : Math.round(v)) : 0;
+          if (total !== 100 && total > 0) {
+            if (idx === entries.length - 1) {
+              w = Math.max(1, 100 - running);
+            } else {
+              w = Math.max(1, Math.round((w / total) * 100));
+              running += w;
+            }
+          }
+          normalizedWeights[mod] = w;
+        });
+
+        setModulesConfig((prev) => {
+          const next = { ...prev };
+          Object.entries(normalizedWeights).forEach(([mod, w]) => {
+            if (next[mod]) {
+              next[mod] = {
+                ...next[mod],
+                enabled: w > 0,
+                weight: w > 1 ? Number((w / 100).toFixed(2)) : w,
+              };
+            }
+          });
+          return next;
+        });
+      }
     }
   };
 
@@ -1503,33 +1540,39 @@ function DrivesPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Department</label>
-                      <select
+                      <CustomDropdown
                         value={templateDeptFilter}
-                        onChange={(e) => setTemplateDeptFilter(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink"
-                      >
-                        <option value="all">All Departments</option>
-                        <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
-                        <option value="DATA_ENGINEERING">Data Engineering</option>
-                        <option value="QA">Quality Assurance</option>
-                        <option value="SRE">Site Reliability Engineering</option>
-                        <option value="SYSOPS">System Operations</option>
-                        <option value="ITOPS">IT Operations</option>
-                        <option value="PMO">Project Management</option>
-                        <option value="SECOPS">Security Operations</option>
-                      </select>
+                        onChange={setTemplateDeptFilter}
+                        rounded="16px"
+                        size="sm"
+                        className="w-full"
+                        options={[
+                          { value: "all", label: "All Departments" },
+                          { value: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
+                          { value: "DATA_ENGINEERING", label: "Data Engineering" },
+                          { value: "QA", label: "Quality Assurance" },
+                          { value: "SRE", label: "Site Reliability Engineering" },
+                          { value: "SYSOPS", label: "System Operations" },
+                          { value: "ITOPS", label: "IT Operations" },
+                          { value: "PMO", label: "Project Management" },
+                          { value: "SECOPS", label: "Security Operations" },
+                        ]}
+                      />
                     </div>
                     <div>
                       <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Category</label>
-                      <select
+                      <CustomDropdown
                         value={templateCategoryFilter}
-                        onChange={(e) => setTemplateCategoryFilter(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink"
-                      >
-                        <option value="all">All Categories</option>
-                        <option value="FRESHER">Fresher (0-1 yrs)</option>
-                        <option value="EXPERIENCED">Experienced (2+ yrs)</option>
-                      </select>
+                        onChange={setTemplateCategoryFilter}
+                        rounded="16px"
+                        size="sm"
+                        className="w-full"
+                        options={[
+                          { value: "all", label: "All Categories" },
+                          { value: "FRESHER", label: "Fresher (0-1 yrs)" },
+                          { value: "EXPERIENCED", label: "Experienced (2+ yrs)" },
+                        ]}
+                      />
                     </div>
                   </div>
 
@@ -1537,27 +1580,27 @@ function DrivesPage() {
                     <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
                       Select Role Template <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <CustomDropdown
                       value={selectedTemplateId}
-                      onChange={(e) => {
-                        const tpl = (roleTemplates || []).find((r) => r.id === e.target.value);
+                      onChange={(val) => {
+                        const tpl = (roleTemplates || []).find((r) => r.id === val);
                         if (tpl) handleSelectTemplate(tpl);
                         else setSelectedTemplateId("");
                       }}
-                      className="w-full px-3 py-2 text-sm-minus border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
-                    >
-                      <option value="">-- Choose a Role Template --</option>
-                      {filteredTemplates.map((tpl) => {
+                      placeholder="-- Choose a Role Template --"
+                      rounded="16px"
+                      size="md"
+                      className="w-full"
+                      options={filteredTemplates.map((tpl) => {
                         const tier = (tpl as any).experienceTier || (((tpl as any).category || "FRESHER") === "FRESHER" ? "0-1" : "2-5");
                         const tierDisplay = tier === "0-1" ? "Fresher (0–1 yrs)" : tier === "11-15" ? "Level 3 (11+ yrs)" : tier === "6-10" ? "Level 2 (6–10 yrs)" : "Level 1 (2–5 yrs)";
                         const cleanRole = (tpl.roleName || "").replace(/\s*[-–]\s*(Fresher|Level\s*\d).*$/i, "").trim() || tpl.roleName;
-                        return (
-                          <option key={tpl.id} value={tpl.id}>
-                            {cleanRole} • {tierDisplay} (v{tpl.version || 1})
-                          </option>
-                        );
+                        return {
+                          value: tpl.id,
+                          label: `${cleanRole} • ${tierDisplay} (v${tpl.version || 1})`,
+                        };
                       })}
-                    </select>
+                    />
                   </div>
 
                   {selectedTemplateObj && (

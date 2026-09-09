@@ -27,6 +27,7 @@ import { BulkActionBar } from "../components/ui/bulk-action-bar";
 import { useStore } from "../lib/store";
 import { type Invite } from "../lib/types";
 import { formatDriveName } from "../lib/utils";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/invites")({
   component: InvitesPage,
@@ -897,7 +898,7 @@ function InvitesPage() {
           onClick={resetForm}
         >
           <div
-            className="bg-white rounded-[16px] w-full max-w-[520px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] p-8 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-[16px] w-full max-w-[520px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] p-8 max-h-[90vh] overflow-visible"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header: Title + Subtitle + Close Icon */}
@@ -932,27 +933,19 @@ function InvitesPage() {
                   <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-[0.05em] mb-2">
                     TARGET RECRUITING DRIVE
                   </label>
-                  <div className="relative">
-                    <select
-                      value={selectedDriveId}
-                      onChange={(e) => setSelectedDriveId(e.target.value)}
-                      className="w-full h-[42px] rounded-[8px] border border-[#CBD5E1] bg-white pl-3.5 pr-10 text-[13.5px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] transition-colors cursor-pointer"
-                      style={{
-                        appearance: "none",
-                        WebkitAppearance: "none",
-                        MozAppearance: "none",
-                        backgroundImage: "none",
-                      }}
-                    >
-                      <option value="">Select a Drive...</option>
-                      {drives.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {formatDriveName(d.name)}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#64748B] pointer-events-none" strokeWidth={2} />
-                  </div>
+                  <CustomDropdown
+                    value={selectedDriveId}
+                    onChange={setSelectedDriveId}
+                    placeholder="Select a Drive..."
+                    rounded="16px"
+                    size="lg"
+                    className="w-full"
+                    buttonClassName="h-[42px] border-[#CBD5E1] text-[13.5px] text-[#1E1B4B]"
+                    options={drives.map((d) => ({
+                      value: d.id,
+                      label: formatDriveName(d.name),
+                    }))}
+                  />
                 </div>
 
                 {/* Field 2: Candidate Name */}

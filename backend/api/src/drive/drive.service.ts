@@ -146,20 +146,39 @@ export class DriveService {
       const configMap: Record<string, any> = {
         isCustomRole: isCustomRole,
       };
-      let totalWeight = 0;
+      let rawSum = 0;
+      const rawWeights: Record<string, number> = {};
       for (const mod of allModules) {
         const isGloballyEnabled = enabledModules.has(mod);
         const presetWeightFraction = preset[mod] !== undefined ? Number(preset[mod]) : 0;
-        const weight = isGloballyEnabled ? presetWeightFraction * 100 : 0;
+        let weight = isGloballyEnabled ? (presetWeightFraction <= 1 && presetWeightFraction > 0 ? Math.round(presetWeightFraction * 100) : Math.round(presetWeightFraction)) : 0;
+        rawWeights[mod] = weight;
+        if (weight > 0) rawSum += weight;
+      }
+
+      const activeMods = allModules.filter((mod) => enabledModules.has(mod) && rawWeights[mod] > 0);
+      if (activeMods.length > 0 && rawSum !== 100) {
+        let running = 0;
+        activeMods.forEach((mod, idx) => {
+          if (idx === activeMods.length - 1) {
+            rawWeights[mod] = Math.max(1, 100 - running);
+          } else {
+            const scaled = rawSum > 0 ? Math.max(1, Math.round((rawWeights[mod] / rawSum) * 100)) : Math.floor(100 / activeMods.length);
+            rawWeights[mod] = scaled;
+            running += scaled;
+          }
+        });
+      }
+
+      for (const mod of allModules) {
+        const isGloballyEnabled = enabledModules.has(mod);
+        const weight = rawWeights[mod] || 0;
         const enabled = isGloballyEnabled && weight > 0;
         configMap[mod] = {
           enabled,
           durationMinutes: mod === "CODING" ? 30 : mod === "SQL" || mod === "DEBUGGING" || mod === "NOSQL" ? 20 : mod === "SIMULATION" ? 10 : 15,
           weight,
         };
-        if (enabled) {
-          totalWeight += weight;
-        }
       }
       defaultModuleConfig = configMap;
     }
@@ -366,11 +385,21 @@ export class DriveService {
         }
 
         let allocatedMinutesSum = 0;
+        let runningWeight = 0;
         entries.forEach(([mod, w], idx) => {
           let weightNum = typeof w === "number" ? w : 0.2;
           if (weightNum <= 1 && weightNum > 0) weightNum = Math.round(weightNum * 100);
 
-          let modDuration = Math.max(5, Math.round((weightNum / (totalWeight || 100)) * totalDuration));
+          if (totalWeight !== 100 && totalWeight > 0) {
+            if (idx === entries.length - 1) {
+              weightNum = Math.max(1, 100 - runningWeight);
+            } else {
+              weightNum = Math.max(1, Math.round((weightNum / totalWeight) * 100));
+              runningWeight += weightNum;
+            }
+          }
+
+          let modDuration = Math.max(5, Math.round((weightNum / 100) * totalDuration));
           if (idx === entries.length - 1) {
             modDuration = Math.max(5, totalDuration - allocatedMinutesSum);
           } else {
@@ -762,8 +791,28 @@ export class DriveService {
           totalWeight += weight;
         }
       }
-      if (totalWeight !== 100) {
-        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      const activeEntries = Object.entries(moduleConfig).filter(
+        ([m, conf]: [string, any]) => conf && conf.enabled === true && enabledModules.has(m as any)
+      );
+
+      if (totalWeight !== 100 && activeEntries.length > 0) {
+        let running = 0;
+        activeEntries.forEach(([mod, conf], idx) => {
+          const rawW = Number((conf as any).weight) || 0;
+          let newW = 0;
+          if (idx === activeEntries.length - 1) {
+            newW = Math.max(1, 100 - running);
+          } else {
+            newW = totalWeight > 0 ? Math.max(1, Math.round((rawW / totalWeight) * 100)) : Math.floor(100 / activeEntries.length);
+            running += newW;
+          }
+          (conf as any).weight = newW;
+        });
+        totalWeight = 100;
+      }
+
+      if (totalWeight !== 100 && activeEntries.length === 0) {
+        throw new BadRequestException("At least one enabled module is required with a total weight of 100%.");
       }
 
       const sStart = scheduleStart ? new Date(scheduleStart) : (drive.scheduleStart || new Date());

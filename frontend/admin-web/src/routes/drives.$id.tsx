@@ -58,6 +58,7 @@ import { type DriveDetail } from "../lib/types";
 import { validateDriveModuleWeights, type DriveModuleConfigEntry } from "@cd-recruit/shared-types";
 import { formatDriveName } from "../lib/utils";
 import { parseQuestionsFromCSV, downloadUnifiedSampleCSV } from "../lib/csvParser";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 import {
   getDepartmentAllowedModules,
   MODULE_LABEL_MAP,
@@ -831,9 +832,35 @@ function DriveDetailPage() {
             initialConfig[mod].weight = w;
           }
         });
+
+        const activeEnabled = Object.keys(initialConfig).filter(
+          (m) => initialConfig[m]?.enabled && (enabledForDept.length === 0 || enabledForDept.includes(m))
+        );
+        const totalW = activeEnabled.reduce(
+          (sum, m) => sum + (Number(initialConfig[m]?.weight) || 0),
+          0
+        );
+        if (activeEnabled.length > 0 && totalW !== 100) {
+          let running = 0;
+          activeEnabled.forEach((m, idx) => {
+            const rawW = Number(initialConfig[m]?.weight) || 0;
+            let newW = 0;
+            if (idx === activeEnabled.length - 1) {
+              newW = Math.max(1, 100 - running);
+            } else {
+              newW = totalW > 0 ? Math.max(1, Math.round((rawW / totalW) * 100)) : Math.floor(100 / activeEnabled.length);
+              running += newW;
+            }
+            initialConfig[m].weight = newW;
+          });
+        }
       } else {
         const preset = ((data as any).roleTemplate?.weightingPreset as Record<string, number>) || {};
-        Object.keys(initialConfig).forEach((mod) => {
+        const allMods = Object.keys(initialConfig);
+        const rawWeights: Record<string, number> = {};
+        let enabledSum = 0;
+
+        allMods.forEach((mod) => {
           const isGloballyEnabled = enabledForDept.includes(mod);
           const rawPreset = preset[mod] !== undefined ? Number(preset[mod]) : 0;
           let weight = 0;
@@ -842,6 +869,28 @@ function DriveDetailPage() {
           else weight = Math.round(rawPreset);
 
           weight = isGloballyEnabled ? weight : 0;
+          rawWeights[mod] = weight;
+          if (weight > 0) enabledSum += weight;
+        });
+
+        // Ensure active modules strictly calibrate to 100 marks standard
+        const activeModList = allMods.filter((m) => enabledForDept.includes(m) && rawWeights[m] > 0);
+        if (activeModList.length > 0 && enabledSum !== 100) {
+          let running = 0;
+          activeModList.forEach((m, idx) => {
+            if (idx === activeModList.length - 1) {
+              rawWeights[m] = Math.max(1, 100 - running);
+            } else {
+              const scaled = Math.max(1, Math.round((rawWeights[m] / enabledSum) * 100));
+              rawWeights[m] = scaled;
+              running += scaled;
+            }
+          });
+        }
+
+        allMods.forEach((mod) => {
+          const isGloballyEnabled = enabledForDept.includes(mod);
+          const weight = rawWeights[mod] || 0;
           const enabled = isGloballyEnabled && weight > 0;
 
           initialConfig[mod] = {
@@ -951,14 +1000,32 @@ function DriveDetailPage() {
 
         if (tplData.weightingPreset) {
           const preset = tplData.weightingPreset as Record<string, number>;
+          const entries = Object.entries(preset);
+          let sum = entries.reduce((s, [_, w]) => s + (typeof w === "number" ? (w <= 1 && w > 0 ? Math.round(w * 100) : Math.round(w)) : 0), 0);
+          const normalizedWeights: Record<string, number> = {};
+          let running = 0;
+
+          entries.forEach(([mod, w], idx) => {
+            let weightNum = typeof w === "number" ? (w <= 1 && w > 0 ? Math.round(w * 100) : Math.round(w)) : 0;
+            if (sum !== 100 && sum > 0) {
+              if (idx === entries.length - 1) {
+                weightNum = Math.max(1, 100 - running);
+              } else {
+                weightNum = Math.max(1, Math.round((weightNum / sum) * 100));
+                running += weightNum;
+              }
+            }
+            normalizedWeights[mod] = weightNum;
+          });
+
           setModuleConfig((prev) => {
             const updated = { ...prev };
-            Object.entries(preset).forEach(([mod, w]) => {
+            Object.entries(normalizedWeights).forEach(([mod, w]) => {
               if (updated[mod]) {
                 updated[mod] = {
                   ...updated[mod],
-                  enabled: true,
-                  weight: typeof w === "number" ? Math.round(w <= 1 ? w * 100 : w) : updated[mod].weight,
+                  enabled: w > 0,
+                  weight: w,
                 };
               }
             });
@@ -1592,15 +1659,38 @@ function DriveDetailPage() {
       };
     });
 
-    const totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
-    const totalMarks = summaryData.reduce((sum, m) => sum + m.marks, 0);
+    let totalWeight = summaryData.reduce((sum, m) => sum + m.weight, 0);
+    if (summaryData.length > 0 && totalWeight !== 100) {
+      if (totalWeight === 0) {
+        const base = Math.floor(100 / summaryData.length);
+        const rem = 100 - base * summaryData.length;
+        summaryData.forEach((m, idx) => {
+          m.weight = base + (idx < rem ? 1 : 0);
+          m.marks = m.weight;
+        });
+      } else {
+        let running = 0;
+        summaryData.forEach((m, idx) => {
+          if (idx === summaryData.length - 1) {
+            m.weight = Math.max(1, 100 - running);
+          } else {
+            m.weight = Math.max(1, Math.round((m.weight / totalWeight) * 100));
+            running += m.weight;
+          }
+          m.marks = m.weight;
+        });
+      }
+      totalWeight = 100;
+    }
+
+    const totalMarks = 100;
     const totalQuestions = summaryData.reduce((sum, m) => sum + m.count, 0);
 
     return {
       summaryData,
       totalDuration: 90,
-      totalWeight: totalWeight || 100,
-      totalMarks: totalMarks || 100,
+      totalWeight: 100,
+      totalMarks: 100,
       totalQuestions,
       totalEstTime: 90,
       isOverTime: false,
@@ -1773,10 +1863,32 @@ function DriveDetailPage() {
       } as any;
     }
 
-    const enabledMods = Object.values(updatedModuleConfig).filter((m) => m.enabled);
-    if (enabledMods.length === 0) {
+    const enabledEntries = Object.entries(updatedModuleConfig).filter(
+      ([m, conf]) => conf && conf.enabled && (globalEnabledModules.length === 0 || globalEnabledModules.includes(m))
+    );
+    if (enabledEntries.length === 0) {
       toast.error("At least one assessment module must be enabled.");
       return;
+    }
+
+    // Automatically rebalance active enabled modules to strictly sum to 100%
+    const currentWeightSum = enabledEntries.reduce((s, [_, c]) => s + (Number(c.weight) || 0), 0);
+    if (currentWeightSum !== 100) {
+      let running = 0;
+      enabledEntries.forEach(([modId, conf], idx) => {
+        const rawW = Number(conf.weight) || 0;
+        let scaled = 0;
+        if (idx === enabledEntries.length - 1) {
+          scaled = Math.max(1, 100 - running);
+        } else {
+          scaled = currentWeightSum > 0 ? Math.max(1, Math.round((rawW / currentWeightSum) * 100)) : Math.floor(100 / enabledEntries.length);
+          running += scaled;
+        }
+        updatedModuleConfig[modId] = {
+          ...conf,
+          weight: scaled,
+        };
+      });
     }
 
     if (!isTemplateGoverned) {
@@ -3863,139 +3975,129 @@ function DriveDetailPage() {
               </div>
 
               {/* Candidates Table */}
-              <div className="border border-[#E9EEFE] rounded-[12px] overflow-hidden bg-white">
-                <table className="w-full text-left text-[13.5px] border-collapse table-fixed">
-                  <colgroup>
-                    <col className="w-[18%]" />
-                    <col className="w-[24%]" />
-                    <col className="w-[10%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[16%]" />
-                    <col className="w-[21%]" />
-                  </colgroup>
-                  <thead>
-                    <tr className="h-[42px] bg-[#F2F2FB] text-[11px] font-bold text-[#64748B] uppercase tracking-[0.5px] border-b border-[#E9EEFE]">
-                      <th className="pl-5 pr-3 py-2.5 whitespace-nowrap">Candidate</th>
-                      <th className="px-3 py-2.5 whitespace-nowrap">Email</th>
-                      <th className="px-3 py-2.5 text-center whitespace-nowrap">Target Role</th>
-                      <th className="px-3 py-2.5 text-center whitespace-nowrap">Status</th>
-                      <th className="px-3 py-2.5 text-center whitespace-nowrap">Invite Link</th>
-                      <th className="pl-3 pr-5 py-2.5 text-right whitespace-nowrap">Action</th>
+            <div className="border border-[#E9EEFE] rounded-[12px] overflow-x-auto bg-white">
+              <table className="w-full text-left text-[13.5px] border-collapse min-w-[780px]">
+                <colgroup>
+                  <col className="w-[24%]" />
+                  <col className="w-[28%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[16%]" />
+                </colgroup>
+                <thead>
+                  <tr className="h-[44px] bg-[#F2F2FB] text-[11px] font-bold text-[#64748B] uppercase tracking-[0.5px] border-b border-[#E9EEFE]">
+                    <th className="pl-6 pr-4 py-3 whitespace-nowrap">Candidate</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Invite Link</th>
+                    <th className="pl-4 pr-6 py-3 text-right whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E9EEFE] bg-white">
+                  {drive.roster.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
+                        No candidates added to roster yet. Click "Add Candidate" above to get started.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E9EEFE] bg-white">
-                    {drive.roster.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
-                          No candidates added to roster yet. Click "Add Candidate" above to get started.
+                  ) : (
+                    drive.roster.map((c) => (
+                      <tr key={c.candidateId} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="pl-6 pr-4 py-3.5 font-semibold text-[#1E1B4B]">
+                          <div className="truncate max-w-[200px]" title={c.candidateName}>
+                            {c.candidateName}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 font-mono text-[12.5px] text-[#6B7280]">
+                          <div className="truncate max-w-[240px]" title={c.candidateEmail}>
+                            {c.candidateEmail}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                          {c.inviteStatus === "REDEEMED" || c.inviteStatus === "COMPLETED" ? (
+                            <span
+                              className="h-[22px] px-2.5 py-1 rounded-[11px] bg-[#E2F0D9] text-[#385723] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap"
+                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                            >
+                              REDEEMED
+                            </span>
+                          ) : (
+                            <span
+                              className={`h-[22px] px-2.5 py-1 rounded-[11px] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${
+                                c.isGenerated
+                                  ? "bg-[#EFF6FF] text-[#2563EB]"
+                                  : "bg-[#FEF3C7] text-[#D97706]"
+                              }`}
+                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                            >
+                              {c.isGenerated ? c.inviteStatus : "DRAFT"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                          {c.isGenerated && c.inviteLink ? (
+                            <button
+                              type="button"
+                              onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
+                              className="h-[27px] px-3.5 gap-1.5 rounded-[14px] bg-[#EFF6FF] border border-[#3B82F6] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                            >
+                              {copiedCandidateId === c.candidateId ? (
+                                <>
+                                  <Check size={12} className="text-emerald-600 shrink-0" />
+                                  <span className="text-emerald-600 font-semibold leading-none">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={12} className="text-[#2563EB] shrink-0" />
+                                  <span className="leading-none whitespace-nowrap">Copy Link</span>
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await handleGenerateLinks();
+                                const updated = await fetchDriveDetail(driveId);
+                                const match = (updated.roster || []).find((item: any) => item.candidateId === c.candidateId || item.candidateEmail === c.candidateEmail);
+                                if (match?.inviteLink) {
+                                  copyCandidateLink(match.inviteLink, c.candidateId);
+                                }
+                              }}
+                              className="h-[27px] px-3.5 rounded-[14px] bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                            >
+                              <Sparkles size={12} />
+                              <span>Generate Link</span>
+                            </button>
+                          )}
+                        </td>
+                        <td className="pl-4 pr-6 py-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2.5 whitespace-nowrap">
+                            {c.sessionId && (
+                              <Link
+                                to="/results/$id"
+                                params={{ id: c.sessionId }}
+                                className="h-[27px] px-3 py-1 rounded-[14px] border border-[#3B82F6] bg-[#EFF6FF] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0"
+                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                              >
+                                <Eye size={13} className="text-[#2563EB] shrink-0" />
+                                <span className="leading-none">View Results</span>
+                              </Link>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setCandidateToRemove(c)}
+                              className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                              title="Remove candidate & revoke access"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ) : (
-                      drive.roster.map((c) => (
-                        <tr key={c.candidateId} className="hover:bg-[#F8FAFC] transition-colors">
-                          <td className="pl-5 pr-3 py-3.5 font-semibold text-[#1E1B4B] max-w-0" title={c.candidateName}>
-                            <div className="truncate" title={c.candidateName}>
-                              {c.candidateName}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3.5 font-mono text-[12.5px] text-[#6B7280] max-w-0" title={c.candidateEmail}>
-                            <div className="truncate" title={c.candidateEmail}>
-                              {c.candidateEmail}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                            <span className="h-[20px] px-2.5 rounded-[10px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center whitespace-nowrap">
-                              {c.experienceTier ? `${c.experienceTier} yrs` : (c.level || drive.roleTemplateName || "Assigned Role")}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                            {c.inviteStatus === "REDEEMED" || c.inviteStatus === "COMPLETED" ? (
-                              <span
-                                className="w-[82px] h-[21px] px-[10px] py-[4px] rounded-[11px] bg-[#E2F0D9] text-[#385723] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap"
-                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                              >
-                                REDEEMED
-                              </span>
-                            ) : (
-                              <span
-                                className={`h-[21px] px-[10px] py-[4px] rounded-[11px] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${c.isGenerated
-                                    ? "bg-[#EFF6FF] text-[#2563EB]"
-                                    : "bg-[#FEF3C7] text-[#D97706]"
-                                  }`}
-                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                              >
-                                {c.isGenerated ? c.inviteStatus : "DRAFT"}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                            {c.isGenerated && c.inviteLink ? (
-                              <button
-                                type="button"
-                                onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
-                                className="w-[137px] h-[27px] px-[10px] py-[6px] gap-[6px] rounded-[14px] bg-[#EFF6FF] border border-[#3B82F6] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                              >
-                                {copiedCandidateId === c.candidateId ? (
-                                  <>
-                                    <Check size={12} className="text-emerald-600 shrink-0" />
-                                    <span className="text-emerald-600 font-semibold leading-none">Copied!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy size={12} className="text-[#2563EB] shrink-0" />
-                                    <span className="leading-none whitespace-nowrap">Copy Unique Link</span>
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await handleGenerateLinks();
-                                  const updated = await fetchDriveDetail(driveId);
-                                  const match = (updated.roster || []).find((item: any) => item.candidateId === c.candidateId || item.candidateEmail === c.candidateEmail);
-                                  if (match?.inviteLink) {
-                                    copyCandidateLink(match.inviteLink, c.candidateId);
-                                  }
-                                }}
-                                className="h-[27px] px-3.5 rounded-[14px] bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
-                              >
-                                <Sparkles size={12} />
-                                <span>Generate Link</span>
-                              </button>
-                            )}
-                          </td>
-                          <td className="pl-3 pr-5 py-3.5 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                              {c.sessionId && (
-                                <Link
-                                  to="/results/$id"
-                                  params={{ id: c.sessionId }}
-                                  className="h-[27px] px-3 py-1 rounded-[14px] border border-[#3B82F6] bg-[#EFF6FF] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0"
-                                  style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                                >
-                                  <Eye size={13} className="text-[#2563EB] shrink-0" />
-                                  <span className="leading-none">View Results</span>
-                                </Link>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setCandidateToRemove(c)}
-                                className="h-[27px] px-3 py-1 rounded-[14px] bg-[#FFF1F2] hover:bg-rose-100 border border-[#C62828] text-[#C62828] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                                title="Remove candidate &amp; revoke access"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                                  <path d="M5 5.49996V8.5002M7 5.49996V8.5002M9.5 2.99976V10.0003C9.5 10.2656 9.39464 10.5199 9.20711 10.7075C9.01957 10.895 8.76522 11.0004 8.5 11.0004H3.5C3.23478 11.0004 2.98043 10.895 2.79289 10.7075C2.60536 10.5199 2.5 10.2656 2.5 10.0003V2.99976M1.5 2.99976H10.5M4 2.99976V1.99968C4 1.73445 4.10536 1.48007 4.29289 1.29252C4.48043 1.10497 4.73478 0.999603 5 0.999603H7C7.26522 0.999603 7.51957 1.10497 7.70711 1.29252C7.89464 1.48007 8 1.73445 8 1.99968V2.99976" stroke="#C62828" strokeWidth="1.5" strokeLinecap="round" />
-                                </svg>
-                                <span className="leading-none">Remove</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                    ))
+                  )}
                   </tbody>
                 </table>
               </div>
@@ -4566,35 +4668,41 @@ function DriveDetailPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 overflow-y-auto">
+            <div className="p-6 space-y-4 overflow-visible">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Department</label>
-                  <select
+                  <CustomDropdown
                     value={templateDeptFilter}
-                    onChange={(e) => setTemplateDeptFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
-                  >
-                    <option value="all">All Departments</option>
-                    <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
-                    <option value="DATA_ENGINEERING">Data Engineering</option>
-                    <option value="QA_TESTING">QA &amp; Testing</option>
-                    <option value="DEVOPS_SRE">DevOps &amp; SRE</option>
-                    <option value="CYBERSECURITY">Cybersecurity</option>
-                    <option value="PRODUCT_DESIGN">Product &amp; Design</option>
-                  </select>
+                    onChange={setTemplateDeptFilter}
+                    rounded="16px"
+                    size="sm"
+                    className="w-full"
+                    options={[
+                      { value: "all", label: "All Departments" },
+                      { value: "SOFTWARE_ENGINEERING", label: "Software Engineering" },
+                      { value: "DATA_ENGINEERING", label: "Data Engineering" },
+                      { value: "QA_TESTING", label: "QA & Testing" },
+                      { value: "DEVOPS_SRE", label: "DevOps & SRE" },
+                      { value: "CYBERSECURITY", label: "Cybersecurity" },
+                      { value: "PRODUCT_DESIGN", label: "Product & Design" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs-plus font-medium text-ink-secondary mb-1">Filter Category</label>
-                  <select
+                  <CustomDropdown
                     value={templateCategoryFilter}
-                    onChange={(e) => setTemplateCategoryFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="FRESHER">Fresher (0-1 yrs)</option>
-                    <option value="EXPERIENCED">Experienced (2+ yrs)</option>
-                  </select>
+                    onChange={setTemplateCategoryFilter}
+                    rounded="16px"
+                    size="sm"
+                    className="w-full"
+                    options={[
+                      { value: "all", label: "All Categories" },
+                      { value: "FRESHER", label: "Fresher (0-1 yrs)" },
+                      { value: "EXPERIENCED", label: "Experienced (2+ yrs)" },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -4602,13 +4710,14 @@ function DriveDetailPage() {
                 <label className="block text-sm-minus font-medium text-ink-secondary mb-1.5">
                   Select Role Template <span className="text-red-500">*</span>
                 </label>
-                <select
+                <CustomDropdown
                   value={selectedTemplateForDrive}
-                  onChange={(e) => setSelectedTemplateForDrive(e.target.value)}
-                  className="w-full px-3 py-2 text-sm-minus border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand cursor-pointer"
-                >
-                  <option value="">-- Choose Role Template --</option>
-                  {(roleTemplates || [])
+                  onChange={setSelectedTemplateForDrive}
+                  placeholder="-- Choose Role Template --"
+                  rounded="16px"
+                  size="md"
+                  className="w-full"
+                  options={(roleTemplates || [])
                     .filter((rt) => {
                       if (!rt) return false;
                       if (templateDeptFilter !== "all" && (rt.department || "CUSTOM") !== templateDeptFilter) return false;
@@ -4620,13 +4729,12 @@ function DriveDetailPage() {
                       const tier = (tpl as any).experienceTier || (((tpl as any).category || "FRESHER") === "FRESHER" ? "0-1" : "2-5");
                       const tierDisplay = tier === "0-1" ? "Fresher (0–1 yrs)" : tier === "11-15" ? "Level 3 (11+ yrs)" : tier === "6-10" ? "Level 2 (6–10 yrs)" : "Level 1 (2–5 yrs)";
                       const cleanRole = (tpl.roleName || "").replace(/\s*[-–]\s*(Fresher|Level\s*\d).*$/i, "").trim() || tpl.roleName;
-                      return (
-                        <option key={tpl.id} value={tpl.id}>
-                          {cleanRole} • {tierDisplay} (v{tpl.version || 1})
-                        </option>
-                      );
+                      return {
+                        value: tpl.id,
+                        label: `${cleanRole} • ${tierDisplay} (v${tpl.version || 1})`,
+                      };
                     })}
-                </select>
+                />
               </div>
 
               {selectedTemplateForDrive && (
