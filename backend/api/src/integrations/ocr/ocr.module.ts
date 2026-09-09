@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
-import { AadhaarOcrService } from "./aadhaar-ocr.service";
+import { IdOcrService } from "./id-ocr.service";
 import { NameMatchService } from "../../common/services/name-match.service";
 
 @Module({
-  providers: [AadhaarOcrService, NameMatchService],
-  exports: [AadhaarOcrService, NameMatchService],
+  providers: [IdOcrService, NameMatchService],
+  exports: [IdOcrService, NameMatchService],
 })
 export class OcrModule {}
