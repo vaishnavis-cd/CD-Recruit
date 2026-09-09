@@ -9,8 +9,13 @@ import React from "react";
 export function LightGradientBackground({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden bg-[#f7f7f9] bg-cover bg-center bg-no-repeat bg-fixed ${className}`}
-      style={{ backgroundImage: "url('/light-gradient-14.svg')" }}
+      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden bg-[#f7f7f9] bg-cover bg-center bg-no-repeat ${className}`}
+      style={{
+        backgroundImage: "url('/light-gradient-14.svg')",
+        transform: "translate3d(0, 0, 0)",
+        willChange: "transform",
+        contain: "strict",
+      }}
       aria-hidden="true"
     />
   );

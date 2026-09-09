@@ -897,7 +897,11 @@ export function LandingPage() {
 
       {/* ═══ HERO SECTION (with 3D Swirl Ribbons & Figma Light Gradient) ═══ */}
       <section
-        className="landing-hero-section relative text-center pt-36 pb-20 overflow-hidden min-h-[880px]"
+        className="relative text-center pt-36 pb-20 overflow-hidden min-h-[880px]"
+        style={{
+          background:
+            'radial-gradient(ellipse 65% 55% at 15% 78%, rgba(244, 114, 182, 0.32) 0%, rgba(251, 113, 133, 0.14) 30%, transparent 60%), radial-gradient(ellipse 65% 55% at 85% 78%, rgba(192, 132, 252, 0.3) 0%, rgba(147, 197, 253, 0.2) 35%, transparent 60%), radial-gradient(ellipse 80% 50% at 50% -10%, rgba(219, 234, 254, 0.6) 0%, rgba(255, 255, 255, 0) 100%), #FFFFFF',
+        }}
       >
         {/* Figma Light Gradient Mesh Background */}
         <div className="absolute inset-0 pointer-events-none select-none z-0 overflow-hidden opacity-80">

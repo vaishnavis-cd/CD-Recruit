@@ -32,6 +32,7 @@ import {
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type DriveStatus } from "../lib/types";
+import { computeDriveStatus } from "@cd-recruit/shared-types";
 import { formatDriveName } from "../lib/utils";
 import { parseQuestionsFromCSV, downloadUnifiedSampleCSV } from "../lib/csvParser";
 import { ALL_MODULE_KEYS, MODULE_LABEL_MAP } from "../lib/roleModules";
@@ -282,6 +283,9 @@ function DrivesPage() {
       // Build module config with Strategy A weights and detected modules
       const modConfig: Record<string, any> = {
         isCustomRole: true,
+        isBulkImport: true,
+        creationMethod: "BULK_IMPORT",
+        creationPathway: "CUSTOM_BULK_IMPORT",
       };
       ALL_MODULE_KEYS.forEach((mod) => {
         if (csvParsedPreview.detectedModules.includes(mod)) {
@@ -364,6 +368,7 @@ function DrivesPage() {
           isCustomRole: true,
           creationMethod: "BULK_IMPORT",
           isBulkImport: true,
+          creationPathway: "CUSTOM_BULK_IMPORT",
         },
         scheduleStart: start.toISOString(),
         scheduleEnd: end.toISOString(),
@@ -649,7 +654,11 @@ function DrivesPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return drives.filter((d) => {
+    const now = new Date();
+    return (drives || []).map((d) => {
+      const resolved = computeDriveStatus(d as any, now);
+      return resolved !== d.status ? { ...d, status: resolved as any } : d;
+    }).filter((d) => {
       if (q && !d.name.toLowerCase().includes(q)) return false;
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
       if (sourceFilter !== "all" && ((d as any).originChannel || "DIRECT") !== sourceFilter) return false;
@@ -673,12 +682,28 @@ function DrivesPage() {
       : role.trim();
 
     try {
+      const creationPathway =
+        creationMode === "TEMPLATE"
+          ? "TEMPLATE"
+          : customRolePathway === "BULK_IMPORT"
+          ? "CUSTOM_BULK_IMPORT"
+          : "CUSTOM_MANUAL";
+
+      const finalModuleConfig = {
+        ...modulesConfig,
+        isCustomRole: creationMode === "CUSTOM",
+        creationPathway,
+        ...(creationPathway === "CUSTOM_BULK_IMPORT"
+          ? { isBulkImport: true, creationMethod: "BULK_IMPORT" }
+          : {}),
+      };
+
       // 1. Create Drive
       const result = await createDrive({
         name: driveName,
         roleTemplateId: effectiveRoleTemplateId,
         status: "SCHEDULED",
-        moduleConfig: modulesConfig,
+        moduleConfig: finalModuleConfig,
         scheduleStart: new Date(scheduleStart).toISOString(),
         scheduleEnd: new Date(scheduleEnd).toISOString(),
       });
@@ -1317,27 +1342,38 @@ function DrivesPage() {
 
                         {/* Status Badge */}
                         <div
-                          className="h-[18px] flex items-center justify-center opacity-100 rotate-0"
+                          className="h-[20px] flex items-center justify-center opacity-100 rotate-0 gap-1.5"
                           style={{
-                            minWidth: "53px",
-                            height: "18px",
-                            paddingTop: "3px",
-                            paddingBottom: "3px",
+                            minWidth: "56px",
+                            height: "20px",
+                            paddingTop: "2px",
+                            paddingBottom: "2px",
                             paddingLeft: "8px",
                             paddingRight: "8px",
                             borderRadius: "6px",
                             background:
                               d.status === "ACTIVE"
-                                ? "#D1FAE5"
+                                ? "#ECFDF5"
                                 : d.status === "SCHEDULED"
-                                  ? "#E0E7FF"
+                                  ? "#EFF6FF"
                                   : d.status === "CLOSED"
-                                    ? "#FEF3C7"
-                                    : "#F3F4F6",
+                                    ? "#F8FAFC"
+                                    : "#F1F5F9",
+                            border:
+                              d.status === "ACTIVE"
+                                ? "1px solid #A7F3D0"
+                                : d.status === "SCHEDULED"
+                                  ? "1px solid #BFDBFE"
+                                  : d.status === "CLOSED"
+                                    ? "1px solid #E2E8F0"
+                                    : "1px solid #E2E8F0",
                             transform: "rotate(0deg)",
                             opacity: 1,
                           }}
                         >
+                          {d.status === "ACTIVE" && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                          )}
                           <span
                             style={{
                               fontFamily: "Instrument Sans, sans-serif",
@@ -1347,13 +1383,12 @@ function DrivesPage() {
                               letterSpacing: "0%",
                               color:
                                 d.status === "ACTIVE"
-                                  ? "#10B981"
+                                  ? "#059669"
                                   : d.status === "SCHEDULED"
-                                    ? "#4338CA"
+                                    ? "#2563EB"
                                     : d.status === "CLOSED"
-                                      ? "#D97706"
-                                      : "#6B7280",
-                              textTransform: "",
+                                      ? "#64748B"
+                                      : "#64748B",
                             }}
                           >
                             {d.status}

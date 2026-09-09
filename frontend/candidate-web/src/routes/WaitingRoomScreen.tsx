@@ -4,6 +4,7 @@ import { services } from '../services';
 import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { HelpCircle, Check, ArrowRight } from 'lucide-react';
+import apiClient from '../api/client';
 
 const SUPPORT_EMAIL = 'mailto:support@proctora.com';
 
@@ -76,6 +77,12 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
       storeState.assessment?.sessionId ||
       localStorage.getItem('cd-recruit-session-id') ||
       'sess_candidate';
+
+    if (validSessionId && !validSessionId.startsWith('sess_')) {
+      apiClient.post(`/sessions/${validSessionId}/begin`).catch((err) => {
+        console.warn('[WaitingRoomScreen] /begin call warning:', err?.message);
+      });
+    }
 
     const questions = currentSession?.questions || assessment?.questions || storeState.assessment?.questions;
     const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60;

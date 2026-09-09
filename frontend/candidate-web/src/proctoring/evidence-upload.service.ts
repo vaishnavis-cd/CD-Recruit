@@ -1,14 +1,5 @@
-import axios from "axios";
 import { ProctoringEvent } from "./proctoring.types";
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
-
-const apiClient = axios.create({
-  baseURL: apiBaseUrl,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import apiClient from "../api/client";
 import { ProctoringEventService } from "./proctoring-event.service";
 import { CONFIG } from "./proctoring.constants";
 
@@ -91,7 +82,7 @@ export class EvidenceUploadService {
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
+            "Content-Type": undefined,
           },
         },
       );
