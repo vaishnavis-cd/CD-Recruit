@@ -43,6 +43,7 @@ enum ModuleType {
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
+  NOSQL
 }
 
 enum SessionStatus {
