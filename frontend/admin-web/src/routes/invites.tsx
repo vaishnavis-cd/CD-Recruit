@@ -60,9 +60,8 @@ function StatusStepper({ status }: { status: Invite["status"] }) {
         return (
           <div key={s} className="flex items-center gap-1 shrink-0">
             <span
-              className={`inline-block w-[5px] h-[5px] rounded-full shrink-0 ${
-                done ? "bg-[#2563EB]" : "bg-[#CBD5E1]"
-              }`}
+              className={`inline-block w-[5px] h-[5px] rounded-full shrink-0 ${done ? "bg-[#2563EB]" : "bg-[#CBD5E1]"
+                }`}
             />
             <span
               style={{
@@ -79,9 +78,8 @@ function StatusStepper({ status }: { status: Invite["status"] }) {
             </span>
             {i < STEPS.length - 1 && (
               <span
-                className={`inline-block w-3 h-[1.5px] shrink-0 ${
-                  done && i < activeIdx ? "bg-[#2563EB]" : "bg-[#CBD5E1]"
-                }`}
+                className={`inline-block w-3 h-[1.5px] shrink-0 ${done && i < activeIdx ? "bg-[#2563EB]" : "bg-[#CBD5E1]"
+                  }`}
               />
             )}
           </div>
@@ -488,14 +486,13 @@ function InvitesPage() {
                   {driveFilter === "all"
                     ? "All Drives"
                     : drives.find((d) => d.id === driveFilter)
-                    ? formatDriveName(drives.find((d) => d.id === driveFilter)!.name)
-                    : "All Drives"}
+                      ? formatDriveName(drives.find((d) => d.id === driveFilter)!.name)
+                      : "All Drives"}
                 </span>
                 <ChevronDown
                   size={12}
-                  className={`w-[12px] h-[12px] text-[#6B7280] transition-transform duration-150 shrink-0 ${
-                    driveDropdownOpen ? "rotate-180" : ""
-                  }`}
+                  className={`w-[12px] h-[12px] text-[#6B7280] transition-transform duration-150 shrink-0 ${driveDropdownOpen ? "rotate-180" : ""
+                    }`}
                 />
               </button>
               {driveDropdownOpen && (
@@ -510,11 +507,10 @@ function InvitesPage() {
                         setDriveFilter("all");
                         setDriveDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${
-                        driveFilter === "all"
-                          ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
-                          : "text-[#6B7280] hover:bg-slate-50 font-medium"
-                      }`}
+                      className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${driveFilter === "all"
+                        ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
+                        : "text-[#6B7280] hover:bg-slate-50 font-medium"
+                        }`}
                     >
                       <span>All Drives</span>
                     </button>
@@ -525,11 +521,10 @@ function InvitesPage() {
                           setDriveFilter(d.id);
                           setDriveDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${
-                          driveFilter === d.id
-                            ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
-                            : "text-[#6B7280] hover:bg-slate-50 font-medium"
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${driveFilter === d.id
+                          ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
+                          : "text-[#6B7280] hover:bg-slate-50 font-medium"
+                          }`}
                       >
                         <span className="truncate">{formatDriveName(d.name)}</span>
                       </button>
@@ -750,81 +745,81 @@ function InvitesPage() {
             )}
           </div>
 
-        {/* Pagination Bar */}
-        <div className="px-4 py-3 bg-canvas border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs text-ink-secondary">
-          <div className="flex items-center gap-3">
-            <span>
-              Showing{" "}
-              <strong className="text-ink">
-                {invitesTotal === 0 ? 0 : (page - 1) * pageSize + 1}
-              </strong>{" "}
-              to{" "}
-              <strong className="text-ink">
-                {Math.min(page * pageSize, invitesTotal)}
-              </strong>{" "}
-              of <strong className="text-ink">{invitesTotal}</strong> candidates
-            </span>
+          {/* Pagination Bar */}
+          <div className="px-4 py-3 bg-canvas border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs text-ink-secondary">
+            <div className="flex items-center gap-3">
+              <span>
+                Showing{" "}
+                <strong className="text-ink">
+                  {invitesTotal === 0 ? 0 : (page - 1) * pageSize + 1}
+                </strong>{" "}
+                to{" "}
+                <strong className="text-ink">
+                  {Math.min(page * pageSize, invitesTotal)}
+                </strong>{" "}
+                of <strong className="text-ink">{invitesTotal}</strong> candidates
+              </span>
 
-            <div className="flex items-center gap-1.5 ml-2">
-              <span className="text-xs-plus text-ink-tertiary">Per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="px-2 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand cursor-pointer"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+              <div className="flex items-center gap-1.5 ml-2">
+                <span className="text-xs-plus text-ink-tertiary">Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="px-2 py-1 text-xs font-medium border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setPage(1)}
-              disabled={page <= 1}
-              className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-              title="First Page"
-            >
-              <ChevronsLeft size={14} />
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-              title="Previous Page"
-            >
-              <ChevronLeft size={14} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page <= 1}
+                className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                title="First Page"
+              >
+                <ChevronsLeft size={14} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                title="Previous Page"
+              >
+                <ChevronLeft size={14} />
+              </button>
 
-            <span className="px-2 text-xs font-semibold text-ink">
-              Page {page} of {Math.max(1, invitesTotalPages)}
-            </span>
+              <span className="px-2 text-xs font-semibold text-ink">
+                Page {page} of {Math.max(1, invitesTotalPages)}
+              </span>
 
-            <button
-              onClick={() => setPage((p) => Math.min(invitesTotalPages, p + 1))}
-              disabled={page >= invitesTotalPages}
-              className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-              title="Next Page"
-            >
-              <ChevronRight size={14} />
-            </button>
-            <button
-              onClick={() => setPage(invitesTotalPages)}
-              disabled={page >= invitesTotalPages}
-              className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-              title="Last Page"
-            >
-              <ChevronsRight size={14} />
-            </button>
+              <button
+                onClick={() => setPage((p) => Math.min(invitesTotalPages, p + 1))}
+                disabled={page >= invitesTotalPages}
+                className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                title="Next Page"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <button
+                onClick={() => setPage(invitesTotalPages)}
+                disabled={page >= invitesTotalPages}
+                className="p-1.5 rounded-md border border-line bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                title="Last Page"
+              >
+                <ChevronsRight size={14} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* Direct ID Proof Upload Modal */}
       {directUploadInvite && (
@@ -923,7 +918,7 @@ function InvitesPage() {
                 title="Close"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
@@ -985,11 +980,10 @@ function InvitesPage() {
                   type="button"
                   onClick={submit}
                   disabled={!name || !email || !selectedDriveId}
-                  className={`w-full h-[42px] rounded-[8px] text-[13.5px] font-bold flex items-center justify-center gap-2 transition-all mt-6 ${
-                    !name || !email || !selectedDriveId
-                      ? "bg-[#DBE4F0] text-[#64748B] cursor-not-allowed"
-                      : "bg-[#2E5DE0] hover:bg-[#254ec4] text-white shadow-md cursor-pointer"
-                  }`}
+                  className={`w-full h-[42px] rounded-[8px] text-[13.5px] font-bold flex items-center justify-center gap-2 transition-all mt-6 ${!name || !email || !selectedDriveId
+                    ? "bg-[#DBE4F0] text-[#64748B] cursor-not-allowed"
+                    : "bg-[#2E5DE0] hover:bg-[#254ec4] text-white shadow-md cursor-pointer"
+                    }`}
                 >
                   Generate invite link
                 </button>
@@ -1146,7 +1140,7 @@ function InvitesPage() {
               </div>
               <h3 className="text-base font-semibold text-ink">Revoke Multiple Invites?</h3>
             </div>
-            
+
             <p className="text-sm-minus text-ink-secondary leading-relaxed">
               Are you sure you want to revoke <span className="font-semibold text-ink">{selectedIds.length} invite(s)</span>? The invite links will no longer be valid and the candidates will not be able to access the assessment.
             </p>

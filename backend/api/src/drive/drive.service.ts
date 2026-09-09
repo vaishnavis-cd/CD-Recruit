@@ -13,6 +13,8 @@ import {
   DriveListItem,
   DriveDetail,
   DriveCandidateRosterItem,
+  computeDriveStatus,
+  resolveDrivePathway,
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
@@ -26,6 +28,7 @@ import {
   getDefaultDifficultyDistribution,
   getEstimatedModuleDuration,
 } from "../session/session.service";
+import { DEFAULT_TIME_MATRIX } from "../settings/settings.service";
 
 @Injectable()
 export class DriveService {
@@ -51,6 +54,19 @@ export class DriveService {
       scheduleEnd,
       candidates = [],
     } = dto;
+
+    // 0. Ensure drive name is unique among active/draft/scheduled drives
+    const existingNamedDrive = await this.prisma.drive.findFirst({
+      where: {
+        name: { equals: name.trim(), mode: "insensitive" },
+        status: { not: DriveStatus.CLOSED },
+      },
+    });
+    if (existingNamedDrive) {
+      throw new BadRequestException(
+        `A drive named "${name.trim()}" already exists. Please choose a unique drive name.`,
+      );
+    }
 
     // 1. Verify RoleTemplate exists by ID, roleName, or department/level
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roleTemplateId);
@@ -132,20 +148,39 @@ export class DriveService {
       const configMap: Record<string, any> = {
         isCustomRole: isCustomRole,
       };
-      let totalWeight = 0;
+      let rawSum = 0;
+      const rawWeights: Record<string, number> = {};
       for (const mod of allModules) {
         const isGloballyEnabled = enabledModules.has(mod);
         const presetWeightFraction = preset[mod] !== undefined ? Number(preset[mod]) : 0;
-        const weight = isGloballyEnabled ? presetWeightFraction * 100 : 0;
+        let weight = isGloballyEnabled ? (presetWeightFraction <= 1 && presetWeightFraction > 0 ? Math.round(presetWeightFraction * 100) : Math.round(presetWeightFraction)) : 0;
+        rawWeights[mod] = weight;
+        if (weight > 0) rawSum += weight;
+      }
+
+      const activeMods = allModules.filter((mod) => enabledModules.has(mod) && rawWeights[mod] > 0);
+      if (activeMods.length > 0 && rawSum !== 100) {
+        let running = 0;
+        activeMods.forEach((mod, idx) => {
+          if (idx === activeMods.length - 1) {
+            rawWeights[mod] = Math.max(1, 100 - running);
+          } else {
+            const scaled = rawSum > 0 ? Math.max(1, Math.round((rawWeights[mod] / rawSum) * 100)) : Math.floor(100 / activeMods.length);
+            rawWeights[mod] = scaled;
+            running += scaled;
+          }
+        });
+      }
+
+      for (const mod of allModules) {
+        const isGloballyEnabled = enabledModules.has(mod);
+        const weight = rawWeights[mod] || 0;
         const enabled = isGloballyEnabled && weight > 0;
         configMap[mod] = {
           enabled,
           durationMinutes: mod === "CODING" ? 30 : mod === "SQL" || mod === "DEBUGGING" || mod === "NOSQL" ? 20 : mod === "SIMULATION" ? 10 : 15,
           weight,
         };
-        if (enabled) {
-          totalWeight += weight;
-        }
       }
       defaultModuleConfig = configMap;
     }
@@ -162,14 +197,17 @@ export class DriveService {
       }
     }
 
-    // 3. Completeness check
+    // 3. Completeness check - ONLY applies to Direct Fully Manual drives
+    const isBulkImportCreation = dto.moduleConfig?.creationPathway === "CUSTOM_BULK_IMPORT" || (dto.moduleConfig as any)?.creationMethod === "BULK_IMPORT" || (dto.moduleConfig as any)?.isBulkImport === true;
+    const isPartnerCreation = (dto as any).originChannel === OriginChannel.PARTNER_API || (dto as any).channel === "PARTNER_API";
+
     const activeEnabledModules = Object.entries(defaultModuleConfig)
       .filter(([_, conf]: [string, any]) => conf.enabled)
       .map(([mod, _]) => mod);
 
     const completenessTargetDept = template.department || template.roleName;
 
-    if (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE) {
+    if (!isBulkImportCreation && !isPartnerCreation && (status === DriveStatus.SCHEDULED || status === DriveStatus.ACTIVE)) {
       for (const mod of activeEnabledModules) {
         if (mod === "AI_PROMPTING") continue;
 
@@ -352,11 +390,21 @@ export class DriveService {
         }
 
         let allocatedMinutesSum = 0;
+        let runningWeight = 0;
         entries.forEach(([mod, w], idx) => {
           let weightNum = typeof w === "number" ? w : 0.2;
           if (weightNum <= 1 && weightNum > 0) weightNum = Math.round(weightNum * 100);
 
-          let modDuration = Math.max(5, Math.round((weightNum / (totalWeight || 100)) * totalDuration));
+          if (totalWeight !== 100 && totalWeight > 0) {
+            if (idx === entries.length - 1) {
+              weightNum = Math.max(1, 100 - runningWeight);
+            } else {
+              weightNum = Math.max(1, Math.round((weightNum / totalWeight) * 100));
+              runningWeight += weightNum;
+            }
+          }
+
+          let modDuration = Math.max(5, Math.round((weightNum / 100) * totalDuration));
           if (idx === entries.length - 1) {
             modDuration = Math.max(5, totalDuration - allocatedMinutesSum);
           } else {
@@ -512,10 +560,46 @@ export class DriveService {
     });
   }
 
+  /**
+   * Synchronize drive lifecycle statuses based on schedule windows and candidate buffers.
+   * - SCHEDULED -> ACTIVE when within the 15-minute candidate pre-flight / waiting-room window.
+   * - ACTIVE -> CLOSED when scheduleEnd + 35 minutes buffer (20m grace + 15m buffer) has elapsed.
+   */
+  async syncDriveStatuses(): Promise<void> {
+    const now = new Date();
+    const preflightWindow = new Date(now.getTime() + 15 * 60 * 1000);
+
+    // 1. Transition SCHEDULED drives into ACTIVE when pre-flight window opens
+    await this.prisma.drive.updateMany({
+      where: {
+        status: DriveStatus.SCHEDULED,
+        scheduleStart: { lte: preflightWindow },
+      },
+      data: {
+        status: DriveStatus.ACTIVE,
+      },
+    });
+
+    // 2. Transition ACTIVE drives into CLOSED when scheduleEnd + 35m cutoff has passed
+    const cutoffTime = new Date(now.getTime() - 35 * 60 * 1000);
+    await this.prisma.drive.updateMany({
+      where: {
+        status: DriveStatus.ACTIVE,
+        scheduleEnd: { lte: cutoffTime },
+      },
+      data: {
+        status: DriveStatus.CLOSED,
+      },
+    });
+  }
+
   async list(query: ListDrivesQueryDto): Promise<DriveListResponse> {
     const { page, pageSize, status, search } = query;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
+
+    // Sync statuses before querying so filters reflect real-world drive lifecycle state
+    await this.syncDriveStatuses();
 
     const where: any = {};
     if (status) {
@@ -555,13 +639,25 @@ export class DriveService {
           ["SUBMITTED", "AUTO_SUBMITTED", "CLOSED"].includes(i.session.status),
       ).length;
 
+      const resolvedStatus = computeDriveStatus(
+        {
+          status: drive.status,
+          scheduleStart: drive.scheduleStart,
+          scheduleEnd: drive.scheduleEnd,
+          bufferMinutes: drive.bufferMinutes,
+          graceMinutes: drive.graceMinutes,
+          invites: drive.invites,
+        },
+        new Date(),
+      );
+
       return {
         id: drive.id,
         name: drive.name,
         roleTemplateId: drive.roleTemplateId,
         roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
         moduleConfig: drive.moduleConfig as any,
-        status: drive.status as any,
+        status: resolvedStatus,
         originChannel: drive.originChannel,
         scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
         scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
@@ -603,6 +699,26 @@ export class DriveService {
 
     if (!drive) {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    const resolvedStatus = computeDriveStatus(
+      {
+        status: drive.status,
+        scheduleStart: drive.scheduleStart,
+        scheduleEnd: drive.scheduleEnd,
+        bufferMinutes: drive.bufferMinutes,
+        graceMinutes: drive.graceMinutes,
+        invites: drive.invites,
+      },
+      new Date(),
+    );
+
+    if (resolvedStatus !== drive.status) {
+      await this.prisma.drive.update({
+        where: { id: drive.id },
+        data: { status: resolvedStatus },
+      });
+      drive.status = resolvedStatus;
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
@@ -748,8 +864,28 @@ export class DriveService {
           totalWeight += weight;
         }
       }
-      if (totalWeight !== 100) {
-        throw new BadRequestException(`Total module weight must equal exactly 100%. Current sum: ${totalWeight}%`);
+      const activeEntries = Object.entries(moduleConfig).filter(
+        ([m, conf]: [string, any]) => conf && conf.enabled === true && enabledModules.has(m as any)
+      );
+
+      if (totalWeight !== 100 && activeEntries.length > 0) {
+        let running = 0;
+        activeEntries.forEach(([mod, conf], idx) => {
+          const rawW = Number((conf as any).weight) || 0;
+          let newW = 0;
+          if (idx === activeEntries.length - 1) {
+            newW = Math.max(1, 100 - running);
+          } else {
+            newW = totalWeight > 0 ? Math.max(1, Math.round((rawW / totalWeight) * 100)) : Math.floor(100 / activeEntries.length);
+            running += newW;
+          }
+          (conf as any).weight = newW;
+        });
+        totalWeight = 100;
+      }
+
+      if (totalWeight !== 100 && activeEntries.length === 0) {
+        throw new BadRequestException("At least one enabled module is required with a total weight of 100%.");
       }
 
       const sStart = scheduleStart ? new Date(scheduleStart) : (drive.scheduleStart || new Date());
@@ -771,42 +907,57 @@ export class DriveService {
         : lowerName.includes("l2")
         ? "l2"
         : "l3";
+      const pathway = resolveDrivePathway({
+        originChannel: drive.originChannel,
+        roleTemplateId: roleTemplateId || drive.roleTemplateId,
+        roleTemplate: template,
+        moduleConfig: moduleConfig,
+        name: name || drive.name,
+      });
+      const isManualRole = pathway === "CUSTOM_MANUAL";
 
       let totalEstimatedDuration = 0;
-      const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig };
-      const isCustomRole = Boolean((moduleConfig as any)?.isCustomRole);
+      const sanitizedModuleConfig: Record<string, any> = { ...moduleConfig, creationPathway: pathway };
 
       for (const [moduleType, modConf] of Object.entries(moduleConfig)) {
         const conf = modConf as any;
         if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
 
-        let reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
-        let dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
+        if (isManualRole) {
+          let reqCount = getRequiredQuestionCount(moduleType, conf.weight, windowMinutes, resolvedTag);
+          let dist = conf.difficultyDistribution || getDefaultDifficultyDistribution(reqCount, resolvedTag);
 
-        if (isCustomRole && conf.difficultyDistribution) {
-          dist = conf.difficultyDistribution;
-          reqCount = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-        } else {
-          const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
-          if (distSum !== reqCount) {
-            throw new BadRequestException(
-              `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
-            );
+          if (conf.difficultyDistribution) {
+            dist = conf.difficultyDistribution;
+            reqCount = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+          } else {
+            const distSum = (Number(dist.easy) || 0) + (Number(dist.medium) || 0) + (Number(dist.hard) || 0);
+            if (distSum !== reqCount) {
+              throw new BadRequestException(
+                `Module ${moduleType} difficulty distribution (Easy: ${dist.easy}, Med: ${dist.medium}, Hard: ${dist.hard}) must sum exactly to required count (${reqCount}). Current sum: ${distSum}.`
+              );
+            }
           }
+
+          const estDuration = getEstimatedModuleDuration(moduleType, dist);
+          totalEstimatedDuration += estDuration;
+
+          sanitizedModuleConfig[moduleType] = {
+            ...conf,
+            requiredCount: reqCount,
+            difficultyDistribution: dist,
+            durationMinutes: estDuration,
+          };
+        } else {
+          // For Bulk Import, Template, and Partner API drives, preserve exact configured values without forcing algorithmic requiredCount
+          totalEstimatedDuration += Number(conf.durationMinutes) || 15;
+          sanitizedModuleConfig[moduleType] = {
+            ...conf,
+          };
         }
-
-        const estDuration = getEstimatedModuleDuration(moduleType, dist);
-        totalEstimatedDuration += estDuration;
-
-        sanitizedModuleConfig[moduleType] = {
-          ...conf,
-          requiredCount: reqCount,
-          difficultyDistribution: dist,
-          durationMinutes: estDuration,
-        };
       }
 
-      if (isCustomRole && totalEstimatedDuration > windowMinutes) {
+      if (isManualRole && totalEstimatedDuration > windowMinutes) {
         const overflow = (totalEstimatedDuration - windowMinutes).toFixed(1);
         throw new BadRequestException(
           `Estimated assessment time (${totalEstimatedDuration} min) exceeds the configured assessment duration (${windowMinutes} min) by ${overflow} minutes. Please adjust module weights or difficulty distributions.`
@@ -921,14 +1072,14 @@ export class DriveService {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
     }
 
-    if (drive.status !== "ACTIVE") {
-      throw new BadRequestException("Only ACTIVE drives can be closed early");
+    if (drive.status !== DriveStatus.ACTIVE && drive.status !== DriveStatus.SCHEDULED) {
+      throw new BadRequestException("Only ACTIVE or SCHEDULED drives can be closed early");
     }
 
     const updated = await this.prisma.drive.update({
       where: { id: driveId },
       data: {
-        status: "CLOSED",
+        status: DriveStatus.CLOSED,
         scheduleEnd: new Date(),
       },
     });
@@ -1324,14 +1475,26 @@ export class DriveService {
       });
     });
 
+    const nextStatus = computeDriveStatus(
+      {
+        status: drive.status,
+        scheduleStart: drive.scheduleStart,
+        scheduleEnd: drive.scheduleEnd,
+        bufferMinutes: drive.bufferMinutes,
+        graceMinutes: drive.graceMinutes,
+        hasGeneratedLinks: true,
+      },
+      new Date(),
+    );
+
     await this.prisma.$transaction(async (tx) => {
       // Execute all updates
       await Promise.all(updates);
 
-      // Shift drive status automatically to ACTIVE
+      // Shift drive status automatically based on scheduled window (SCHEDULED or ACTIVE)
       await tx.drive.update({
         where: { id: driveId },
-        data: { status: DriveStatus.ACTIVE },
+        data: { status: nextStatus },
       });
 
       // Log audit
@@ -1477,5 +1640,76 @@ export class DriveService {
     });
 
     return updated;
+  }
+
+  async suggestDeficitQuestions(
+    driveId: string,
+    targetDeficitMinutes: number,
+    moduleType?: string,
+  ) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+      include: { questions: true },
+    });
+    if (!drive) {
+      throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    const assignedIds = new Set(drive.questions.map((dq) => dq.questionId));
+
+    const where: any = {
+      status: "PUBLISHED",
+      id: { notIn: Array.from(assignedIds) },
+    };
+    if (moduleType && moduleType !== "ALL") {
+      where.moduleType = moduleType as any;
+    }
+
+    const available = await this.prisma.question.findMany({
+      where,
+      take: 100,
+      orderBy: { version: "desc" },
+    });
+
+    const getQuestionDuration = (q: any) => {
+      if (q.content && typeof q.content === "object" && (q.content as any).durationMinutes) {
+        return Number((q.content as any).durationMinutes);
+      }
+      const modTimes = (DEFAULT_TIME_MATRIX as any)[q.moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+      const diffKey = String(q.difficulty || "MEDIUM").toUpperCase();
+      return modTimes[diffKey] || modTimes.MEDIUM || 5;
+    };
+
+    const candidates = available.map((q) => ({
+      ...q,
+      durationMinutes: getQuestionDuration(q),
+      points: (q.scoringConfig as any)?.points || (q.difficulty === "hard" ? 3 : q.difficulty === "medium" ? 2 : 1),
+    }));
+
+    candidates.sort((a, b) => b.durationMinutes - a.durationMinutes);
+    const selected: typeof candidates = [];
+    let accumulated = 0;
+
+    for (const c of candidates) {
+      if (accumulated + c.durationMinutes <= targetDeficitMinutes) {
+        selected.push(c);
+        accumulated += c.durationMinutes;
+      }
+      if (accumulated >= targetDeficitMinutes) break;
+    }
+
+    if (selected.length === 0 && candidates.length > 0) {
+      const smallest = [...candidates].sort((a, b) => a.durationMinutes - b.durationMinutes)[0];
+      selected.push(smallest);
+      accumulated = smallest.durationMinutes;
+    }
+
+    return {
+      targetDeficitMinutes,
+      accumulatedDurationMinutes: accumulated,
+      remainingDeficitMinutes: Math.max(0, targetDeficitMinutes - accumulated),
+      suggestedQuestions: selected,
+      availableQuestions: candidates,
+    };
   }
 }

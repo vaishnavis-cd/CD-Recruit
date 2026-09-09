@@ -624,66 +624,85 @@ export function SingleDateTimePicker({
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-[14px] font-semibold text-[#1E1B4B]">End time</label>
+                {isFixedDuration && (
+                  <span className="text-[10px] font-bold text-[#2E5DE0] bg-[#EEF2FF] px-2 py-0.5 rounded-full uppercase tracking-wide">
+                    Fixed {fixedDurationMinutes || 90} Mins
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
-                {/* Time Value Box (153.75 x 37) */}
-                <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-[16px] py-[10px] flex items-center justify-center focus-within:border-[#2E5DE0] transition-colors">
-                  <TimeInputGroup
-                    hourValue={endHour}
-                    minuteValue={endMinute}
-                    onChangeHour={(h) =>
-                      onChange({
-                        date: selectedDate,
-                        startHour,
-                        startMinute,
-                        startSecond: "00",
-                        startAmPm,
-                        endHour: h,
-                        endMinute,
-                        endSecond: "00",
-                        endAmPm,
-                      })
-                    }
-                    onChangeMinute={(m) =>
-                      onChange({
-                        date: selectedDate,
-                        startHour,
-                        startMinute,
-                        startSecond: "00",
-                        startAmPm,
-                        endHour,
-                        endMinute: m,
-                        endSecond: "00",
-                        endAmPm,
-                      })
-                    }
-                  />
-                </div>
+                {isFixedDuration ? (
+                  <>
+                    <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-[#F8FAFC] px-[16px] py-[10px] flex items-center justify-center font-mono font-bold text-[14px] text-[#4B5563] select-none shadow-2xs">
+                      <span>{endHour}:{endMinute}</span>
+                    </div>
 
-                {/* AM/PM Dropdown Box (100 x 37) */}
-                <CustomDropdown
-                  value={endAmPm}
-                  onChange={(val) =>
-                    onChange({
-                      date: selectedDate,
-                      startHour,
-                      startMinute,
-                      startSecond: "00",
-                      startAmPm,
-                      endHour,
-                      endMinute,
-                      endSecond: "00",
-                      endAmPm: val,
-                    })
-                  }
-                  rounded="full"
-                  className="w-[100px] shrink-0"
-                  buttonClassName="h-[37px] rounded-[19px] border-[#E9EEFE] px-3.5 text-[13px] font-bold text-[#1E1B4B]"
-                  options={[
-                    { value: "AM", label: "AM" },
-                    { value: "PM", label: "PM" },
-                  ]}
-                />
+                    <div className="w-[100px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-[#F8FAFC] px-3.5 flex items-center justify-center font-bold text-[13px] text-[#4B5563] select-none shadow-2xs">
+                      <span>{endAmPm}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-[153.75px] h-[37px] rounded-[19px] border border-[#E9EEFE] bg-white px-[16px] py-[10px] flex items-center justify-center focus-within:border-[#2E5DE0] transition-colors">
+                      <TimeInputGroup
+                        hourValue={endHour}
+                        minuteValue={endMinute}
+                        onChangeHour={(h) =>
+                          onChange({
+                            date: selectedDate,
+                            startHour,
+                            startMinute,
+                            startSecond: "00",
+                            startAmPm,
+                            endHour: h,
+                            endMinute,
+                            endSecond: "00",
+                            endAmPm,
+                          })
+                        }
+                        onChangeMinute={(m) =>
+                          onChange({
+                            date: selectedDate,
+                            startHour,
+                            startMinute,
+                            startSecond: "00",
+                            startAmPm,
+                            endHour,
+                            endMinute: m,
+                            endSecond: "00",
+                            endAmPm,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <CustomDropdown
+                      value={endAmPm}
+                      onChange={(val) =>
+                        onChange({
+                          date: selectedDate,
+                          startHour,
+                          startMinute,
+                          startSecond: "00",
+                          startAmPm,
+                          endHour,
+                          endMinute,
+                          endSecond: "00",
+                          endAmPm: val,
+                        })
+                      }
+                      rounded="full"
+                      className="w-[100px] shrink-0"
+                      buttonClassName="h-[37px] rounded-[19px] border-[#E9EEFE] px-3.5 text-[13px] font-bold text-[#1E1B4B]"
+                      options={[
+                        { value: "AM", label: "AM" },
+                        { value: "PM", label: "PM" },
+                      ]}
+                    />
+                  </>
+                )}
               </div>
             </div>
           </div>

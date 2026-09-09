@@ -1,6 +1,5 @@
 import { WebcamService } from "./webcam.service";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+import apiClient from "../api/client";
 
 export class IdentityCaptureScheduler {
   private static instance: IdentityCaptureScheduler | null = null;
@@ -28,7 +27,7 @@ export class IdentityCaptureScheduler {
   ): void {
     this.stop();
     this.activeSessionId = sessionId;
-    this.token = token || localStorage.getItem("cd-recruit-invite-token") || null;
+    this.token = token || localStorage.getItem("cd-recruit-session-token") || localStorage.getItem("cd-recruit-invite-token") || null;
 
     const splitRatios = [0.30, 0.60, 0.90];
     const durationMs = (durationMinutes || 15) * 60 * 1000;
@@ -110,37 +109,21 @@ export class IdentityCaptureScheduler {
       );
 
       // STAGE 5: Network Call
-      const token = this.token || localStorage.getItem("cd-recruit-invite-token") || "";
-      const endpointUrl = `${API_BASE}/sessions/${sessionId}/identity-capture`;
+      const endpointUrl = `/sessions/${sessionId}/identity-capture`;
 
       console.log(
         `[IdentityCaptureScheduler] STAGE 5 (POST_REQUEST): URL=${endpointUrl}, windowIndex=${windowIndex}`,
       );
 
-      const response = await fetch(endpointUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          windowIndex,
-          imageBase64,
-        }),
+      const response = await apiClient.post(endpointUrl, {
+        windowIndex,
+        imageBase64,
       });
 
-      const responseData = await response.json().catch(() => ({}));
       console.log(
-        `[IdentityCaptureScheduler] STAGE 5 (NETWORK_RESPONSE): status=${response.status}, ok=${response.ok}, payload=`,
-        responseData,
+        `[IdentityCaptureScheduler] STAGE 5 (NETWORK_RESPONSE): status=${response.status}, payload=`,
+        response.data,
       );
-
-      if (!response.ok) {
-        console.error(
-          `[IdentityCaptureScheduler] STAGE 5 FAILURE: Server responded with status ${response.status}:`,
-          responseData,
-        );
-      }
     } catch (err: any) {
       console.error(
         `[IdentityCaptureScheduler] CAPTURE_UPLOAD_ERROR: windowIndex=${windowIndex}:`,

@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken } from "../lib/auth";
-import { LightGradientBackground } from "./common/LightGradientBackground";
 
 import dashboardDefault from "../assets/Selected=Default.svg";
 import dashboardVariant2 from "../assets/Selected=Variant2.svg";
@@ -178,8 +177,6 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
     <div
       className="flex h-screen max-h-screen w-full max-w-full overflow-hidden text-ink font-sans relative bg-transparent"
     >
-      {/* Figma Light Gradient 13 Global Mesh Background */}
-      <LightGradientBackground />
 
       {/* Left Sidebar: Fixed end-to-end */}
       <aside className="w-[248px] shrink-0 bg-transparent text-ink flex flex-col h-screen z-20 overflow-y-auto no-scrollbar">
@@ -357,9 +354,9 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 h-screen overflow-y-auto overflow-x-hidden flex flex-col min-w-0 max-w-full">
+      <div className="flex-1 h-screen overflow-y-auto overflow-x-hidden flex flex-col min-w-0 max-w-full overscroll-contain">
         {!hideHeader && title && (
-          <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-[#e8ecf4] px-8 h-[64px] flex items-center gap-4">
+          <header className="sticky top-0 z-10 bg-white border-b border-[#e8ecf4] px-8 h-[64px] flex items-center gap-4 shadow-[0_1px_2px_0_rgba(0,0,0,0.02)]">
             <div className="flex items-baseline gap-3 flex-1 min-w-0">
               <h1 className="text-lg font-bold text-[#0d1424] tracking-tight">{title}</h1>
               {count !== undefined && (

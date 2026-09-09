@@ -1,150 +1,160 @@
-import { StateCreator } from "zustand";
-import { type Drive, type DriveDetail, type DriveStatus } from "../types";
-import { getAuthHeaders, API_BASE } from "../store";
+  import { StateCreator } from "zustand";
+  import { type Drive, type DriveDetail, type DriveStatus } from "../types";
+  import { getAuthHeaders, API_BASE } from "../store";
 
-export interface DriveSlice {
-  drives: Drive[];
+  export interface DriveSlice {
+    drives: Drive[];
 
-  fetchDrives: (query?: { status?: string; search?: string }, silent?: boolean) => Promise<Drive[]>;
-  fetchDriveDetail: (driveId: string) => Promise<DriveDetail>;
-  createDrive: (input: {
-    name: string;
-    roleTemplateId: string;
-    moduleConfig?: any;
-    status?: DriveStatus;
-    scheduleStart?: string;
-    scheduleEnd?: string;
-    candidates?: Array<{ name: string; email: string }>;
-  }) => Promise<any>;
-  duplicateDrive: (driveId: string) => Promise<void>;
-  closeDrive: (driveId: string) => Promise<void>;
-  deleteDrive: (driveId: string) => Promise<void>;
-  saveDriveQuestions: (driveId: string, questionIds: string[]) => Promise<void>;
-  addCandidatesBulk: (
-    driveId: string,
-    candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>,
-  ) => Promise<void>;
-  generateDriveLinks: (driveId: string) => Promise<void>;
-  removeCandidateFromDrive: (driveId: string, candidateId: string) => Promise<void>;
-}
+    fetchDrives: (query?: { status?: string; search?: string }, silent?: boolean) => Promise<Drive[]>;
+    fetchDriveDetail: (driveId: string) => Promise<DriveDetail>;
+    createDrive: (input: {
+      name: string;
+      roleTemplateId: string;
+      moduleConfig?: any;
+      status?: DriveStatus;
+      scheduleStart?: string;
+      scheduleEnd?: string;
+      candidates?: Array<{ name: string; email: string }>;
+    }) => Promise<any>;
+    duplicateDrive: (driveId: string) => Promise<void>;
+    closeDrive: (driveId: string) => Promise<void>;
+    deleteDrive: (driveId: string) => Promise<void>;
+    saveDriveQuestions: (driveId: string, questionIds: string[]) => Promise<void>;
+    suggestDeficitQuestions: (driveId: string, targetDeficitMinutes: number, moduleType?: string) => Promise<any>;
+    addCandidatesBulk: (
+      driveId: string,
+      candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>,
+    ) => Promise<void>;
+    generateDriveLinks: (driveId: string) => Promise<void>;
+    removeCandidateFromDrive: (driveId: string, candidateId: string) => Promise<void>;
+  }
 
-export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get) => ({
-  drives: [],
+  export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get) => ({
+    drives: [],
 
-  fetchDrives: async (query, silent = false) => {
-    if (!silent) set({ loading: true });
-    try {
+    fetchDrives: async (query, silent = false) => {
+      if (!silent) set({ loading: true });
+      try {
+        const headers = await getAuthHeaders();
+        let url = `${API_BASE}/admin/drives?page=1&pageSize=100`;
+        if (query?.status) url += `&status=${query.status}`;
+        if (query?.search) url += `&search=${encodeURIComponent(query.search)}`;
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.items || data.data || []);
+        set({ drives: items, loading: false });
+        return items;
+      } catch (err: any) {
+
+        console.error(err);
+        if (!silent) set({ error: err.message, loading: false });
+        return [];
+      }
+    },
+
+    fetchDriveDetail: async (driveId: string): Promise<DriveDetail> => {
       const headers = await getAuthHeaders();
-      let url = `${API_BASE}/admin/drives?page=1&pageSize=100`;
-      if (query?.status) url += `&status=${query.status}`;
-      if (query?.search) url += `&search=${encodeURIComponent(query.search)}`;
-      const res = await fetch(url, { headers });
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch drive detail");
+      return await res.json();
+    },
+
+    createDrive: async (input) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to create drive");
+      }
       const data = await res.json();
-      const items = Array.isArray(data) ? data : (data.items || data.data || []);
-      set({ drives: items, loading: false });
-      return items;
-    } catch (err: any) {
+      get().fetchDrives();
+      return data;
+    },
 
-      console.error(err);
-      if (!silent) set({ error: err.message, loading: false });
-      return [];
-    }
-  },
+    duplicateDrive: async (driveId: string) => {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/admin/drives/${driveId}/duplicate`, {
+        method: "POST",
+        headers,
+      });
+      get().fetchDrives();
+    },
 
-  fetchDriveDetail: async (driveId: string): Promise<DriveDetail> => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, { headers });
-    if (!res.ok) throw new Error("Failed to fetch drive detail");
-    return await res.json();
-  },
+    closeDrive: async (driveId: string) => {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/admin/drives/${driveId}/close`, {
+        method: "POST",
+        headers,
+      });
+      get().fetchDrives();
+    },
 
-  createDrive: async (input) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/admin/drives`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.message || "Failed to create drive");
-    }
-    const data = await res.json();
-    get().fetchDrives();
-    return data;
-  },
+    deleteDrive: async (driveId: string) => {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "DELETE",
+        headers,
+      });
+      get().fetchDrives();
+    },
 
-  duplicateDrive: async (driveId: string) => {
-    const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/drives/${driveId}/duplicate`, {
-      method: "POST",
-      headers,
-    });
-    get().fetchDrives();
-  },
+    saveDriveQuestions: async (driveId: string, payload: string[] | { questionIds?: string[]; questionAssignments?: Array<{ questionId: string; pointShare?: number }> }) => {
+      const headers = await getAuthHeaders();
+      const body = Array.isArray(payload) ? { questionIds: payload } : payload;
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/questions`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to save questions to drive");
+      }
+    },
 
-  closeDrive: async (driveId: string) => {
-    const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/drives/${driveId}/close`, {
-      method: "POST",
-      headers,
-    });
-    get().fetchDrives();
-  },
+    addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/bulk`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ candidates }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to add candidates to drive");
+      }
+    },
 
-  deleteDrive: async (driveId: string) => {
-    const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/drives/${driveId}`, {
-      method: "DELETE",
-      headers,
-    });
-    get().fetchDrives();
-  },
+    generateDriveLinks: async (driveId: string) => {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/admin/drives/${driveId}/generate-links`, {
+        method: "POST",
+        headers,
+      });
+    },
 
-  saveDriveQuestions: async (driveId: string, payload: string[] | { questionIds?: string[]; questionAssignments?: Array<{ questionId: string; pointShare?: number }> }) => {
-    const headers = await getAuthHeaders();
-    const body = Array.isArray(payload) ? { questionIds: payload } : payload;
-    const res = await fetch(`${API_BASE}/admin/drives/${driveId}/questions`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Failed to save questions to drive");
-    }
-  },
+    removeCandidateFromDrive: async (driveId: string, candidateId: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/${candidateId}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to remove candidate from drive");
+      }
+    },
 
-  addCandidatesBulk: async (driveId: string, candidates: Array<{ name: string; candidateEmail: string; level?: string; category?: string; experienceTier?: string; phone?: string; externalCandidateRef?: string }>) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/bulk`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ candidates }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Failed to add candidates to drive");
-    }
-  },
-
-  generateDriveLinks: async (driveId: string) => {
-    const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/drives/${driveId}/generate-links`, {
-      method: "POST",
-      headers,
-    });
-  },
-
-  removeCandidateFromDrive: async (driveId: string, candidateId: string) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/admin/drives/${driveId}/candidates/${candidateId}`, {
-      method: "DELETE",
-      headers,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Failed to remove candidate from drive");
-    }
-  },
-});
+    suggestDeficitQuestions: async (driveId: string, targetDeficitMinutes: number, moduleType?: string) => {
+      const headers = await getAuthHeaders();
+      let url = `${API_BASE}/admin/drives/${driveId}/suggest-deficit-questions?targetDeficitMinutes=${targetDeficitMinutes}`;
+      if (moduleType) url += `&moduleType=${moduleType}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Failed to fetch suggested deficit questions");
+      return await res.json();
+    },
+  });

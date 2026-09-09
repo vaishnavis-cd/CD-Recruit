@@ -25,6 +25,8 @@ export interface McqQuestionContent {
   prompt: string;
   /** Ordered answer choices; candidate submits the 0-based selectedIndex. */
   options: string[];
+  durationMinutes?: number;
+  points?: number;
 }
 
 export interface SqlQuestionContent {
@@ -35,6 +37,8 @@ export interface SqlQuestionContent {
   schema: string;
   /** INSERT statements that seed the in-browser sandbox before the candidate runs queries. */
   seedData: string;
+  durationMinutes?: number;
+  points?: number;
 }
 
 export interface CodingQuestionContent {
@@ -44,12 +48,15 @@ export interface CodingQuestionContent {
    * Starter code templates keyed by language slug, e.g. { python: "def solve(...):\n    pass" }.
    * May be empty if no starter code is provided for a given language.
    */
-  starterCode: Record<string, string>;
+  starterCode: Record<string, string> | string;
   /** Visible test cases the candidate can run against their solution. */
   testCases: TestCase[];
   /** Constraints shown alongside the problem statement, e.g. ["1 ≤ n ≤ 10^5", "Time limit: 2s"]. */
   constraints: string[];
   difficulty: "easy" | "medium" | "hard";
+  supportingFiles?: Record<string, string>;
+  durationMinutes?: number;
+  points?: number;
 }
 
 /** Flexible rubric JSON — actual scoring logic defined in Phase 10 (Correlation Engine). */
@@ -68,7 +75,9 @@ export interface AiPromptingQuestionContent {
    * Lightweight grading guidance for human reviewers / Claude API.
    * Schema intentionally kept flexible — Phase 10 will extend without a migration.
    */
-  rubric: AiPromptingRubric;
+  rubric: AiPromptingRubric | any;
+  durationMinutes?: number;
+  points?: number;
 }
 
 export interface SimulationTrigger {
@@ -102,6 +111,14 @@ export interface SimulationQuestionContent {
   rubric: SimulationRubricCriteria[];
   dualRubric?: DualRubricTrack;
   adminConcernFlags?: string[];
+  defaultFile?: string;
+  targetFile?: string;
+  starterCode?: string | Record<string, string>;
+  supportingFiles?: Record<string, string>;
+  readonlyFiles?: Record<string, string>;
+  testCases?: TestCase[];
+  durationMinutes?: number;
+  points?: number;
 }
 
 // ---------------------------------------------------------------------------
