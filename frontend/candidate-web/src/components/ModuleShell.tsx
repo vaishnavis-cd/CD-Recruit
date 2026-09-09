@@ -61,6 +61,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const cvMode = useSessionStore(s => s.cvMode);
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
   const assessment = useSessionStore(s => s.assessment);
+  const session = useSessionStore(s => s.session);
   const transitionTo = useSessionStore(s => s.transitionTo);
   const { theme, toggle } = useTheme();
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge();
@@ -97,7 +98,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
 
   // STEP 1: Start ProctoringModule when assessment session is active
   useEffect(() => {
-    const sessionId = assessment?.sessionId;
+    const sessionId = assessment?.sessionId || session?.id;
     if (!sessionId) {
       console.warn('[ModuleShell] STEP 1: sessionId is undefined, skipping ProctoringModule.start()');
       return;
@@ -115,7 +116,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
 
     // ProctoringModule is a global singleton for the assessment session.
     // Switching question tabs within the same session must NOT tear down the camera/proctoring pipeline.
-  }, [assessment?.sessionId]);
+  }, [assessment?.sessionId, session?.id]);
 
   // Silent integrity signals — no UI reaction per spec
   useEffect(() => {

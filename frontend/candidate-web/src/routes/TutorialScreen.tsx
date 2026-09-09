@@ -148,18 +148,16 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
                   <label
                     key={opt.id}
                     onClick={() => setPracticeAnswer(opt.id)}
-                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all ${
-                      isSelected
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all ${isSelected
                         ? 'border-[#2F65F6] bg-[#EFF6FF] text-[#0F172A] shadow-xs'
                         : 'border-slate-200 bg-white text-[#0F172A] hover:border-slate-300'
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected
+                      className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected
                           ? 'border-[#2F65F6] bg-[#2F65F6]'
                           : 'border-slate-400 bg-white'
-                      }`}
+                        }`}
                     >
                       {isSelected && (
                         <span className="w-1.5 h-1.5 rounded-full bg-white block" />
@@ -197,9 +195,8 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           {steps.map((_, idx) => (
             <div
               key={idx}
-              className={`flex-1 h-1.5 rounded-[3px] transition-colors duration-200 ${
-                idx <= stepIndex ? 'bg-[#2F65F6]' : 'bg-slate-200'
-              }`}
+              className={`flex-1 h-1.5 rounded-[3px] transition-colors duration-200 ${idx <= stepIndex ? 'bg-[#2F65F6]' : 'bg-slate-200'
+                }`}
             />
           ))}
         </div>

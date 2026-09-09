@@ -98,7 +98,7 @@ async function performSilentFrameCapture(sessionId: string, captureId: string, i
           formData,
           {
             headers: {
-              'Content-Type': 'multipart/form-data',
+              'Content-Type': undefined,
             },
           }
         )

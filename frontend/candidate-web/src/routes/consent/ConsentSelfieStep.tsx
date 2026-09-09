@@ -113,7 +113,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
       formData.append('file', blob, 'selfie.jpg');
 
       const response = await apiClient.post(`/sessions/${sessionId}/verify-identity`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
 
       const data = response.data;

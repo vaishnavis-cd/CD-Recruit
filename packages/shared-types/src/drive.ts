@@ -138,3 +138,79 @@ export interface UpdateDriveRequest {
   scheduleStart?: string;
   scheduleEnd?: string;
 }
+
+/**
+ * Compute real-time lifecycle status of a drive.
+ * Lifecycle: DRAFT -> SCHEDULED -> ACTIVE -> CLOSED
+ *
+ * Rules:
+ * 1. CLOSED: Explicitly closed, or now > scheduleEnd + (bufferMinutes + graceMinutes) [default 35m].
+ * 2. ACTIVE: Candidate invite links generated AND pre-flight window opened (now >= scheduleStart - 15m).
+ * 3. SCHEDULED: Candidate invite links generated, but now < scheduleStart - 15m.
+ * 4. DRAFT: Links have not been generated yet.
+ */
+export function computeDriveStatus(
+  drive: {
+    status?: DriveStatus | string;
+    scheduleStart?: Date | string | null;
+    scheduleEnd?: Date | string | null;
+    bufferMinutes?: number | null;
+    graceMinutes?: number | null;
+    invites?: Array<{ token?: string | null; isGenerated?: boolean; status?: string }>;
+    hasGeneratedLinks?: boolean;
+  },
+  now: Date = new Date(),
+): DriveStatus {
+  // If explicitly closed or manually closed early, always remain CLOSED
+  if (drive.status === DriveStatus.CLOSED) {
+    return DriveStatus.CLOSED;
+  }
+
+  const hasGeneratedLinks =
+    drive.hasGeneratedLinks ??
+    (drive.invites?.some(
+      (i) =>
+        Boolean(i.token) ||
+        i.isGenerated === true ||
+        i.status === "DELIVERED" ||
+        i.status === "INVITED" ||
+        i.status === "REDEEMED",
+    ) ?? false);
+
+  // 1. DRAFT: Links not generated yet and current status is DRAFT
+  if (!hasGeneratedLinks && drive.status === DriveStatus.DRAFT) {
+    return DriveStatus.DRAFT;
+  }
+
+  // If schedule dates exist:
+  if (drive.scheduleStart && drive.scheduleEnd) {
+    const startMs = new Date(drive.scheduleStart).getTime();
+    const endMs = new Date(drive.scheduleEnd).getTime();
+
+    if (!isNaN(startMs) && !isNaN(endMs)) {
+      // 20m start grace/buffer + 15m late entry = 35m total cutoff buffer (fallback defaults)
+      const grace = drive.graceMinutes ?? 20;
+      const buffer = drive.bufferMinutes ?? 15;
+      const bufferMs = (grace + buffer) * 60 * 1000;
+      const nowMs = now.getTime();
+
+      // 4. CLOSED: Passed scheduleEnd + buffers
+      if (nowMs > endMs + bufferMs) {
+        return DriveStatus.CLOSED;
+      }
+
+      // 3. ACTIVE: Schedule window open (with 15-minute candidate pre-flight waiting room buffer before startMs)
+      const preflightStartMs = startMs - 15 * 60 * 1000;
+      if (nowMs >= preflightStartMs) {
+        return DriveStatus.ACTIVE;
+      }
+
+      // 2. SCHEDULED: Links generated, but scheduled window is still in the future
+      return DriveStatus.SCHEDULED;
+    }
+  }
+
+  // Fallback: If links generated but no schedule dates set, consider ACTIVE, otherwise DRAFT
+  return hasGeneratedLinks ? DriveStatus.ACTIVE : DriveStatus.DRAFT;
+}
+

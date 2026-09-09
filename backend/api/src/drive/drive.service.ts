@@ -13,6 +13,7 @@ import {
   DriveListItem,
   DriveDetail,
   DriveCandidateRosterItem,
+  computeDriveStatus,
 } from "@cd-recruit/shared-types";
 import { AppException } from "../common/filters/app-exception";
 import { AuthService } from "../auth/auth.service";
@@ -555,10 +556,46 @@ export class DriveService {
     });
   }
 
+  /**
+   * Synchronize drive lifecycle statuses based on schedule windows and candidate buffers.
+   * - SCHEDULED -> ACTIVE when within the 15-minute candidate pre-flight / waiting-room window.
+   * - ACTIVE -> CLOSED when scheduleEnd + 35 minutes buffer (20m grace + 15m buffer) has elapsed.
+   */
+  async syncDriveStatuses(): Promise<void> {
+    const now = new Date();
+    const preflightWindow = new Date(now.getTime() + 15 * 60 * 1000);
+
+    // 1. Transition SCHEDULED drives into ACTIVE when pre-flight window opens
+    await this.prisma.drive.updateMany({
+      where: {
+        status: DriveStatus.SCHEDULED,
+        scheduleStart: { lte: preflightWindow },
+      },
+      data: {
+        status: DriveStatus.ACTIVE,
+      },
+    });
+
+    // 2. Transition ACTIVE drives into CLOSED when scheduleEnd + 35m cutoff has passed
+    const cutoffTime = new Date(now.getTime() - 35 * 60 * 1000);
+    await this.prisma.drive.updateMany({
+      where: {
+        status: DriveStatus.ACTIVE,
+        scheduleEnd: { lte: cutoffTime },
+      },
+      data: {
+        status: DriveStatus.CLOSED,
+      },
+    });
+  }
+
   async list(query: ListDrivesQueryDto): Promise<DriveListResponse> {
     const { page, pageSize, status, search } = query;
     const skip = (page - 1) * pageSize;
     const take = pageSize;
+
+    // Sync statuses before querying so filters reflect real-world drive lifecycle state
+    await this.syncDriveStatuses();
 
     const where: any = {};
     if (status) {
@@ -598,13 +635,25 @@ export class DriveService {
           ["SUBMITTED", "AUTO_SUBMITTED", "CLOSED"].includes(i.session.status),
       ).length;
 
+      const resolvedStatus = computeDriveStatus(
+        {
+          status: drive.status,
+          scheduleStart: drive.scheduleStart,
+          scheduleEnd: drive.scheduleEnd,
+          bufferMinutes: drive.bufferMinutes,
+          graceMinutes: drive.graceMinutes,
+          invites: drive.invites,
+        },
+        new Date(),
+      );
+
       return {
         id: drive.id,
         name: drive.name,
         roleTemplateId: drive.roleTemplateId,
         roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
         moduleConfig: drive.moduleConfig as any,
-        status: drive.status as any,
+        status: resolvedStatus,
         originChannel: drive.originChannel,
         scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
         scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
@@ -646,6 +695,26 @@ export class DriveService {
 
     if (!drive) {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
+    }
+
+    const resolvedStatus = computeDriveStatus(
+      {
+        status: drive.status,
+        scheduleStart: drive.scheduleStart,
+        scheduleEnd: drive.scheduleEnd,
+        bufferMinutes: drive.bufferMinutes,
+        graceMinutes: drive.graceMinutes,
+        invites: drive.invites,
+      },
+      new Date(),
+    );
+
+    if (resolvedStatus !== drive.status) {
+      await this.prisma.drive.update({
+        where: { id: drive.id },
+        data: { status: resolvedStatus },
+      });
+      drive.status = resolvedStatus;
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
@@ -984,14 +1053,14 @@ export class DriveService {
       throw new NotFoundException(`Drive not found with ID ${driveId}`);
     }
 
-    if (drive.status !== "ACTIVE") {
-      throw new BadRequestException("Only ACTIVE drives can be closed early");
+    if (drive.status !== DriveStatus.ACTIVE && drive.status !== DriveStatus.SCHEDULED) {
+      throw new BadRequestException("Only ACTIVE or SCHEDULED drives can be closed early");
     }
 
     const updated = await this.prisma.drive.update({
       where: { id: driveId },
       data: {
-        status: "CLOSED",
+        status: DriveStatus.CLOSED,
         scheduleEnd: new Date(),
       },
     });
@@ -1387,14 +1456,26 @@ export class DriveService {
       });
     });
 
+    const nextStatus = computeDriveStatus(
+      {
+        status: drive.status,
+        scheduleStart: drive.scheduleStart,
+        scheduleEnd: drive.scheduleEnd,
+        bufferMinutes: drive.bufferMinutes,
+        graceMinutes: drive.graceMinutes,
+        hasGeneratedLinks: true,
+      },
+      new Date(),
+    );
+
     await this.prisma.$transaction(async (tx) => {
       // Execute all updates
       await Promise.all(updates);
 
-      // Shift drive status automatically to ACTIVE
+      // Shift drive status automatically based on scheduled window (SCHEDULED or ACTIVE)
       await tx.drive.update({
         where: { id: driveId },
-        data: { status: DriveStatus.ACTIVE },
+        data: { status: nextStatus },
       });
 
       // Log audit

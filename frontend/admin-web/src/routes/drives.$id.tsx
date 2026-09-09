@@ -2575,11 +2575,14 @@ function DriveDetailPage() {
                   h-[24px] px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer transition-all border outline-none
                   ${drive.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : ''}
                   ${drive.status === 'SCHEDULED' ? 'bg-blue-50 text-blue-700 border-blue-300' : ''}
-                  ${drive.status === 'DRAFT' ? 'bg-amber-50 text-amber-700 border-amber-300' : ''}
-                  ${drive.status === 'CLOSED' ? 'bg-rose-50 text-rose-700 border-rose-300' : ''}
+                  ${drive.status === 'DRAFT' ? 'bg-slate-100 text-slate-700 border-slate-300' : ''}
+                  ${drive.status === 'CLOSED' ? 'bg-slate-50 text-slate-500 border-slate-200' : ''}
                 `}
                 title="Click to change Drive Status"
               >
+                {drive.status === 'ACTIVE' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                )}
                 <span>{drive.status}</span>
                 <ChevronDown size={11} className="shrink-0 opacity-75" />
               </button>
@@ -3451,10 +3454,10 @@ function DriveDetailPage() {
                       <button
                         type="button"
                         onClick={handleUndo}
-                        className="h-[32px] px-3 py-1 text-[12px] font-semibold text-rose-800 bg-white hover:bg-rose-100/60 border border-rose-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-[#0F172A] hover:bg-[#1E293B] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
                         title={`Undo: ${historyStack[historyStack.length - 1].label}`}
                       >
-                        <Undo2 size={13} className="text-rose-700" />
+                        <Undo2 size={13} className="text-white" />
                         <span>Undo ({historyStack[historyStack.length - 1].label})</span>
                       </button>
                     )}
@@ -3491,13 +3494,13 @@ function DriveDetailPage() {
                       type="button"
                       onClick={handleFetchDeficitSuggestions}
                       disabled={isLoadingSuggestions}
-                      className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                      className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
                       title={`Find matching questions in Question Bank whose total duration fills the +${timingMismatchDiff}m deficit`}
                     >
                       {isLoadingSuggestions ? (
                         <Loader2 size={13} className="animate-spin" />
                       ) : (
-                        <Sparkles size={13} className="text-amber-200" />
+                        <Sparkles size={13} className="text-blue-100" />
                       )}
                       <span>Add Matching Questions (+{timingMismatchDiff}m)</span>
                     </button>
@@ -3505,10 +3508,10 @@ function DriveDetailPage() {
                       <button
                         type="button"
                         onClick={handleUndo}
-                        className="h-[32px] px-3 py-1 text-[12px] font-semibold text-amber-900 bg-white hover:bg-amber-100/50 border border-amber-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-[#0F172A] bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                         title={`Undo: ${historyStack[historyStack.length - 1].label}`}
                       >
-                        <Undo2 size={13} className="text-amber-800" />
+                        <Undo2 size={13} className="text-[#0F172A]" />
                         <span>Undo ({historyStack[historyStack.length - 1].label})</span>
                       </button>
                     )}
@@ -3539,10 +3542,10 @@ function DriveDetailPage() {
                           <button
                             type="button"
                             onClick={handleUndo}
-                            className="h-[20px] px-2 py-0.5 rounded-[6px] bg-white hover:bg-slate-50 text-[#334155] text-[11px] font-semibold inline-flex items-center gap-1 border border-slate-300 shadow-2xs cursor-pointer transition-colors"
+                            className="h-[22px] px-2.5 py-0.5 rounded-[6px] bg-[#0F172A] hover:bg-[#1E293B] text-white text-[11px] font-bold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
                             title={`Undo: ${historyStack[historyStack.length - 1].label}`}
                           >
-                            <Undo2 size={10} className="text-slate-600" />
+                            <Undo2 size={11} className="text-white" />
                             <span>Undo</span>
                           </button>
                         )}
@@ -4108,12 +4111,12 @@ function DriveDetailPage() {
         {/* Preview Question Modal */}
         {previewQuestion && (
           <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
             style={{ fontFamily: "Instrument Sans, sans-serif" }}
             onClick={() => setPreviewQuestion(null)}
           >
             <div
-              className="bg-white rounded-[16px] w-full max-w-[660px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] p-6 sm:p-7 space-y-3 overflow-hidden"
+              className="bg-white rounded-[16px] w-full max-w-[660px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.25)] p-6 sm:p-7 space-y-3 overflow-hidden z-[151]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header: Module badge + Difficulty badge + Close Icon */}
@@ -4850,17 +4853,17 @@ function DriveDetailPage() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header with Live Counter Bar */}
-              <div className="px-6 py-4 border-b border-[#E9EEFE] bg-gradient-to-r from-amber-50/70 via-white to-blue-50/40">
+              <div className="px-6 py-4 border-b border-[#E2E8F0] bg-white">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200/80 flex items-center justify-center text-amber-700 shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#EAF0FF] border border-[#B3C5FF] flex items-center justify-center text-[#2F5CFF] shrink-0">
                       <Sparkles size={18} />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-[#1E1B4B]">
+                      <h3 className="text-base font-bold text-[#0B0B0D]">
                         Select Deficit Fill Questions
                       </h3>
-                      <p className="text-xs text-[#6B7280] mt-0.5">
+                      <p className="text-xs text-[#5B5B64] mt-0.5">
                         Pick and choose questions across any module to fill the schedule window deficit.
                       </p>
                     </div>
@@ -4868,35 +4871,35 @@ function DriveDetailPage() {
                   <button
                     type="button"
                     onClick={() => setSuggestedDeficitModalOpen(false)}
-                    className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#1E1B4B] hover:bg-slate-100 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0B0B0D] hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
                 {/* Real-time Deficit Balance Summary */}
-                <div className="mt-3.5 p-3 rounded-xl bg-white border border-[#CBD5E1] shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                <div className="mt-3.5 p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] shadow-2xs flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="text-xs text-slate-600">
-                      Target Deficit: <strong className="font-mono text-amber-700 font-bold">+{timingMismatchDiff}m</strong>
+                      Target Deficit: <strong className="font-mono text-[#0B0B0D] font-bold">+{timingMismatchDiff}m</strong>
                     </div>
                     <div className="h-3 w-px bg-slate-200" />
                     <div className="text-xs text-slate-600">
-                      Selected: <strong className="font-mono text-[#2563EB] font-bold">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} qs, {currentSelectedPoints} pts)
+                      Selected: <strong className="font-mono text-[#2F5CFF] font-bold">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} qs, {currentSelectedPoints} pts)
                     </div>
                   </div>
 
                   <div>
                     {diffMinutes === 0 ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 font-mono">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0] flex items-center gap-1 font-mono">
                         <Check size={12} strokeWidth={3} /> Exact Match (+{timingMismatchDiff}m)
                       </span>
                     ) : diffMinutes < 0 ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 font-mono">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] flex items-center gap-1 font-mono">
                         <Clock size={12} /> {Math.abs(diffMinutes)}m Remaining Deficit
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1 font-mono">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] flex items-center gap-1 font-mono">
                         <Plus size={12} /> +{diffMinutes}m Over Target
                       </span>
                     )}
@@ -4905,7 +4908,7 @@ function DriveDetailPage() {
               </div>
 
               {/* Filters Bar: Search & Module Pills */}
-              <div className="px-6 py-3 border-b border-[#E9EEFE] bg-[#F8FAFC] space-y-2.5">
+              <div className="px-6 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC] space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   <div className="relative flex-1 min-w-[200px] max-w-sm">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -4914,7 +4917,7 @@ function DriveDetailPage() {
                       placeholder="Search by question title, prompt or tags..."
                       value={deficitSearchQuery}
                       onChange={(e) => setDeficitSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#2563EB]"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[#CBD5E1] bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#2F5CFF]"
                     />
                   </div>
 
@@ -4922,7 +4925,7 @@ function DriveDetailPage() {
                     <button
                       type="button"
                       onClick={handleSelectAllSuggestedDeficit}
-                      className="text-[11px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] cursor-pointer"
+                      className="text-[11px] font-semibold text-[#2F5CFF] hover:text-[#0037FF] cursor-pointer"
                     >
                       Select Smart Picks
                     </button>
@@ -4944,8 +4947,8 @@ function DriveDetailPage() {
                     onClick={() => setDeficitModuleFilter("ALL")}
                     className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                       deficitModuleFilter === "ALL"
-                        ? "bg-[#2563EB] text-white shadow-2xs"
-                        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        ? "bg-[#2F5CFF] text-white shadow-2xs"
+                        : "bg-white text-[#5B5B64] hover:bg-slate-100 hover:text-[#0B0B0D] border border-[#E2E8F0]"
                     }`}
                   >
                     All Modules ({allPoolQuestions.length})
@@ -4957,8 +4960,8 @@ function DriveDetailPage() {
                       onClick={() => setDeficitModuleFilter("SUGGESTED")}
                       className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors flex items-center gap-1 ${
                         deficitModuleFilter === "SUGGESTED"
-                          ? "bg-amber-600 text-white shadow-2xs"
-                          : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200"
+                          ? "bg-[#2F5CFF] text-white shadow-2xs"
+                          : "bg-[#EAF0FF] text-[#2F5CFF] hover:bg-[#DBE6FF] border border-[#B3C5FF]"
                       }`}
                     >
                       <Sparkles size={11} />
@@ -4973,8 +4976,8 @@ function DriveDetailPage() {
                       onClick={() => setDeficitModuleFilter(mod)}
                       className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                         deficitModuleFilter === mod
-                          ? "bg-[#2563EB] text-white shadow-2xs"
-                          : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                          ? "bg-[#2F5CFF] text-white shadow-2xs"
+                          : "bg-white text-[#5B5B64] hover:bg-slate-100 hover:text-[#0B0B0D] border border-[#E2E8F0]"
                       }`}
                     >
                       {MODULE_LABEL_MAP[mod] || mod} ({moduleCounts[mod] || 0})
@@ -4984,7 +4987,7 @@ function DriveDetailPage() {
               </div>
 
               {/* Questions List with Checkboxes */}
-              <div className="p-6 space-y-2 overflow-y-auto flex-1 max-h-[380px] bg-slate-50/50">
+              <div className="p-6 space-y-2 overflow-y-auto flex-1 max-h-[380px] bg-[#F8FAFC]">
                 {filteredDeficitPool.length === 0 ? (
                   <div className="py-12 text-center text-xs text-slate-400 italic">
                     No questions found matching the selected module filter or search query.
@@ -5003,7 +5006,7 @@ function DriveDetailPage() {
                         onClick={() => handleToggleDeficitQuestion(q.id)}
                         className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           isSelected
-                            ? "bg-white border-[#2563EB] shadow-2xs ring-1 ring-[#2563EB]/20"
+                            ? "bg-white border-[#2F5CFF] shadow-2xs ring-1 ring-[#2F5CFF]/20"
                             : "bg-white border-[#E2E8F0] hover:border-slate-300"
                         }`}
                       >
@@ -5012,7 +5015,7 @@ function DriveDetailPage() {
                           <div
                             className={`w-4 h-4 rounded flex items-center justify-center transition-colors shrink-0 ${
                               isSelected
-                                ? "bg-[#2563EB] text-white"
+                                ? "bg-[#2F5CFF] text-white"
                                 : "border border-slate-300 bg-white"
                             }`}
                           >
@@ -5029,7 +5032,7 @@ function DriveDetailPage() {
                                 {q.difficulty}
                               </span>
                               {isSmartPick && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EAF0FF] text-[#2F5CFF] border border-[#B3C5FF] flex items-center gap-1">
                                   <Sparkles size={9} /> Smart Pick
                                 </span>
                               )}
@@ -5051,7 +5054,7 @@ function DriveDetailPage() {
                           <button
                             type="button"
                             onClick={() => setPreviewQuestion(q)}
-                            className="p-1 text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 rounded transition-colors"
+                            className="p-1 text-slate-400 hover:text-[#2F5CFF] hover:bg-[#EAF0FF] rounded transition-colors"
                             title="Preview Question"
                           >
                             <Eye size={14} />
@@ -5064,7 +5067,7 @@ function DriveDetailPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-[#E9EEFE] bg-[#F8FAFC] flex items-center justify-between gap-3">
+              <div className="px-6 py-4 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-3">
                 <div className="text-xs text-slate-600">
                   Total Selected: <strong className="font-bold text-[#0F172A]">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} questions, {currentSelectedPoints} pts)
                 </div>
@@ -5073,7 +5076,7 @@ function DriveDetailPage() {
                   <button
                     type="button"
                     onClick={() => setSuggestedDeficitModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -5081,7 +5084,7 @@ function DriveDetailPage() {
                     type="button"
                     disabled={deficitSelectedQuestionIds.length === 0}
                     onClick={() => handleApplyInteractiveDeficitQuestions(currentSelectedDuration)}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                   >
                     <Plus size={14} strokeWidth={2.5} />
                     <span>Add Selected Questions (+{currentSelectedDuration}m)</span>
