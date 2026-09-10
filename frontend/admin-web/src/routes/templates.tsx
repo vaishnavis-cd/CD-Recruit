@@ -74,6 +74,29 @@ const TIERS = [
   { value: "11-15", label: "11+ yrs (Level 3)", category: "EXPERIENCED" },
 ] as const;
 
+/** Formats template titles and tier strings for display, converting "11-15 yrs" to "11+ yrs" without mutating database values */
+export function formatTierLabel(text?: string | null): string {
+  if (!text) return "";
+  return text.replace(/11-15\s*yrs?/gi, "11+ yrs").replace(/\b11-15\b/g, "11+");
+}
+
+/** Canonical experience tier ranking for intuitive ordering: Fresher (0-1) -> Level 1 (2-5) -> Level 2 (6-10) -> Level 3 (11+) */
+export function getTierRank(tier?: string | null, level?: string | null, roleName?: string | null): number {
+  const cleanTier = (tier || "").trim();
+  if (cleanTier === "0-1") return 1;
+  if (cleanTier === "2-5") return 2;
+  if (cleanTier === "6-10") return 3;
+  if (cleanTier === "11-15" || cleanTier === "11+") return 4;
+
+  if (level === "FRESHER") return 1;
+  const lowerName = (roleName || "").toLowerCase();
+  if (lowerName.includes("fresher") || lowerName.includes("0-1")) return 1;
+  if (lowerName.includes("level 1") || lowerName.includes("l1") || lowerName.includes("2-5")) return 2;
+  if (lowerName.includes("level 2") || lowerName.includes("l2") || lowerName.includes("6-10")) return 3;
+  if (lowerName.includes("level 3") || lowerName.includes("l3") || lowerName.includes("11-15") || lowerName.includes("11+")) return 4;
+  return 99;
+}
+
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   MCQ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
   SQL: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
@@ -571,14 +594,21 @@ export function RoleTemplatesPage() {
       });
     }
 
-    // 7. Stable canonical sort
+    // 7. Stable canonical sort: Department -> Tier Rank (Fresher -> Level 1 -> Level 2 -> Level 3) -> Role Name -> Version desc
     return list.sort((a, b) => {
       const deptA = a.department || "CUSTOM";
       const deptB = b.department || "CUSTOM";
       if (deptA !== deptB) return deptA.localeCompare(deptB);
-      const tierA = a.experienceTier || (a.level === "FRESHER" ? "0-1" : "2-5");
-      const tierB = b.experienceTier || (b.level === "FRESHER" ? "0-1" : "2-5");
-      return tierA.localeCompare(tierB);
+
+      const rankA = getTierRank(a.experienceTier, a.level, a.roleName);
+      const rankB = getTierRank(b.experienceTier, b.level, b.roleName);
+      if (rankA !== rankB) return rankA - rankB;
+
+      const nameA = a.roleName || "";
+      const nameB = b.roleName || "";
+      if (nameA !== nameB) return nameA.localeCompare(nameB);
+
+      return (b.version || 1) - (a.version || 1);
     });
   }, [templates, versionFilter, deptFilter, categoryFilter, tierFilter, activeOnlyFilter, searchQuery]);
 
@@ -755,9 +785,9 @@ export function RoleTemplatesPage() {
                     <div className="flex items-start justify-between gap-3">
                       <h3
                         className="font-bold text-sm text-[#0F172A] leading-snug line-clamp-2"
-                        title={tpl.roleName}
+                        title={formatTierLabel(tpl.roleName)}
                       >
-                        {tpl.roleName}
+                        {formatTierLabel(tpl.roleName)}
                       </h3>
 
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -853,7 +883,7 @@ export function RoleTemplatesPage() {
               <div>
                 <h2 className="text-base font-bold text-ink">
                   {editingTemplate
-                    ? `Edit Role Template (${editingTemplate.roleName})`
+                    ? `Edit Role Template (${formatTierLabel(editingTemplate.roleName)})`
                     : "Create New Role Template"}
                 </h2>
                 <p className="text-xs text-ink-secondary mt-0.5">
@@ -882,7 +912,7 @@ export function RoleTemplatesPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Software Engineering - Experienced (2-5 yrs)"
+                      placeholder="e.g. Software Engineering - Experienced (11+ yrs)"
                       value={roleName}
                       onChange={(e) => setRoleName(e.target.value)}
                       className="w-full px-3.5 py-2 text-xs border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand bg-white shadow-2xs"
@@ -946,7 +976,7 @@ export function RoleTemplatesPage() {
                       size="md"
                       options={CATEGORIES.map((c) => ({
                         value: c,
-                        label: c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)",
+                        label: c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2+ yrs)",
                       }))}
                     />
                   </div>

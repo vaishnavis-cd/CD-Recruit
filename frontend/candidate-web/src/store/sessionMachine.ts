@@ -173,7 +173,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (existing && existing.sessionId === sessionId) {
       const nowMs = services.time.getServerNow();
       const elapsedMs = existing.timerStartMs !== null ? nowMs - existing.timerStartMs : 0;
-      const validTotalSeconds = (totalSeconds && totalSeconds > 0) ? totalSeconds : (existing.totalSeconds || 1800);
+      const validTotalSeconds = (totalSeconds && totalSeconds > 0) ? totalSeconds : (existing.totalSeconds || 5400);
       const totalMs = validTotalSeconds * 1000;
 
       // Only preserve existing assessment state if timer is unstarted or NOT expired
@@ -196,7 +196,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       currentModuleIndex: 0,
       currentQuestionIndex: 0,
       timerStartMs: null,
-      totalSeconds,
+      totalSeconds: totalSeconds > 0 ? totalSeconds : 5400,
       questions,
     };
     set({ assessment: state });

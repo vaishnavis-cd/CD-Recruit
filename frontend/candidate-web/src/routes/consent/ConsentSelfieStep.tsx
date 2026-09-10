@@ -219,9 +219,9 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Video Container */}
-      <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border border-[var(--border)]">
+    <div className="max-w-[640px] mx-auto space-y-4">
+      {/* Video Container (Spacious and aligned with action buttons) */}
+      <div className="relative w-full aspect-video max-h-[380px] mx-auto rounded-2xl overflow-hidden bg-black border border-[var(--border)] shadow-md">
         {/* Live Video (Always mounted to preserve stream ref) */}
         <video
           ref={videoRef}
@@ -305,7 +305,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
         {!selfieCaptured && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
             <div
-              className={`w-44 h-56 rounded-[50%] border-2 transition-all duration-300 ${
+              className={`w-40 sm:w-44 h-52 sm:h-60 rounded-[50%] border-2 transition-all duration-300 ${
                 isAligned
                   ? 'border-emerald-400 bg-emerald-400/10 scale-105 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
                   : faceDetected

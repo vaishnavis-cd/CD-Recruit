@@ -90,10 +90,10 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
             />
             <span>{hasStream ? 'Camera Live' : 'Camera Off'}</span>
           </div>
-          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider uppercase mt-0.5">
+          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider  mt-0.5">
             {cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}
           </span>
-          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider uppercase">
+          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider">
             Active Session
           </span>
         </div>

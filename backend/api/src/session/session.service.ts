@@ -675,21 +675,28 @@ export class SessionService implements SessionStatusPort {
       });
 
       if (driveRecord && driveRecord.moduleConfig) {
-        const mc = driveRecord.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
-        const totalDriveMins = Object.values(mc)
-          .filter((conf) => conf?.enabled)
-          .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+        const isCustomRole = (driveRecord.moduleConfig as any)?.isCustomRole === true;
+        if (isCustomRole) {
+          const mc = driveRecord.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+          const totalDriveMins = Object.values(mc)
+            .filter((conf) => conf?.enabled)
+            .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
 
-        if (totalDriveMins > 0) {
-          durationMinutes = totalDriveMins;
+          if (totalDriveMins > 0) {
+            durationMinutes = totalDriveMins;
+          }
         }
       }
 
       if (driveRecord && driveRecord.scheduleStart && driveRecord.scheduleEnd) {
-        const now = new Date();
         const windowSpanMinutes = Math.round(
           (driveRecord.scheduleEnd.getTime() - driveRecord.scheduleStart.getTime()) / (60 * 1000),
         );
+        if (windowSpanMinutes > 0 && windowSpanMinutes <= 180) {
+          durationMinutes = Math.min(durationMinutes, windowSpanMinutes);
+        }
+
+        const now = new Date();
         const isFlexibleWindow = windowSpanMinutes > durationMinutes + 30;
 
         let cutoff: Date;
@@ -1240,13 +1247,25 @@ export class SessionService implements SessionStatusPort {
 
     let durationMinutes = session.roleTemplate.durationMinutes;
     if (drive && drive.moduleConfig) {
-      const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
-      const totalDriveMins = Object.values(mc)
-        .filter((conf) => conf?.enabled)
-        .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+      const isCustomRole = (drive.moduleConfig as any)?.isCustomRole === true;
+      if (isCustomRole) {
+        const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+        const totalDriveMins = Object.values(mc)
+          .filter((conf) => conf?.enabled)
+          .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
 
-      if (totalDriveMins > 0) {
-        durationMinutes = totalDriveMins;
+        if (totalDriveMins > 0) {
+          durationMinutes = totalDriveMins;
+        }
+      }
+    }
+
+    if (drive && drive.scheduleStart && drive.scheduleEnd) {
+      const windowSpanMinutes = Math.round(
+        (drive.scheduleEnd.getTime() - drive.scheduleStart.getTime()) / (60 * 1000),
+      );
+      if (windowSpanMinutes > 0 && windowSpanMinutes <= 180) {
+        durationMinutes = Math.min(durationMinutes, windowSpanMinutes);
       }
     }
 

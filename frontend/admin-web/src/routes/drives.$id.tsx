@@ -699,6 +699,18 @@ function DriveDetailPage() {
       setDrive(data);
       setEditName(data.name);
       setIsEditingUnlocked(!!(data as any)?.isEditingUnlocked);
+
+      // Mark partner drive as opened so NEW badge is permanently dismissed
+      try {
+        const saved = localStorage.getItem("cd-recruit-opened-partner-drives");
+        const set = saved ? new Set(JSON.parse(saved)) : new Set();
+        if (!set.has(driveId)) {
+          set.add(driveId);
+          localStorage.setItem("cd-recruit-opened-partner-drives", JSON.stringify(Array.from(set)));
+        }
+      } catch (e) {
+        console.error("Failed persisting opened partner drive:", e);
+      }
       const draftStored = sessionStorage.getItem(`drive_draft_questions_${driveId}`);
       if (draftStored) {
         try {

@@ -35,13 +35,7 @@ export function SessionRouter({ token: propToken }: { token?: string }) {
   const activeToken = propToken || pathToken || new URLSearchParams(window.location.search).get('token') || ''
   const screen = useSessionStore(s => s.screen)
 
-  // Store scheduled time in localStorage for tutorial/waiting-room usage
-  useEffect(() => {
-    if (!localStorage.getItem('cd-recruit-scheduled-ms')) {
-      const scheduledMs = new Date(FIXTURE_INVITE.scheduledTime).getTime()
-      localStorage.setItem('cd-recruit-scheduled-ms', String(scheduledMs))
-    }
-  }, [])
+
 
   // Store system check mode for consent/tutorial
   useEffect(() => {

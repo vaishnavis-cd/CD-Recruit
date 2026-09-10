@@ -37,6 +37,44 @@ export interface UpdateRoleTemplateDto {
   questions?: RoleTemplateQuestionInput[];
 }
 
+function sortRoleTemplatesCanonical<
+  T extends {
+    department?: Department | null;
+    category?: string | null;
+    experienceTier?: string | null;
+    level?: ExperienceLevel | null;
+    roleName?: string | null;
+    version?: number;
+  },
+>(items: T[]): T[] {
+  const tierRankMap: Record<string, number> = {
+    "0-1": 1,
+    "2-5": 2,
+    "6-10": 3,
+    "11-15": 4,
+    "11+": 4,
+  };
+  return items.sort((a, b) => {
+    const deptA = a.department || "";
+    const deptB = b.department || "";
+    if (deptA !== deptB) return deptA.localeCompare(deptB);
+
+    const rankA =
+      tierRankMap[a.experienceTier || ""] ||
+      (a.level === ExperienceLevel.FRESHER ? 1 : 99);
+    const rankB =
+      tierRankMap[b.experienceTier || ""] ||
+      (b.level === ExperienceLevel.FRESHER ? 1 : 99);
+    if (rankA !== rankB) return rankA - rankB;
+
+    const nameA = a.roleName || "";
+    const nameB = b.roleName || "";
+    if (nameA !== nameB) return nameA.localeCompare(nameB);
+
+    return (b.version || 1) - (a.version || 1);
+  });
+}
+
 @Injectable()
 export class RoleTemplateService {
   constructor(private readonly prisma: PrismaService) {}
@@ -132,7 +170,7 @@ export class RoleTemplateService {
    * Retrieves all active RoleTemplates for a department (pre-fetches for high-throughput batching).
    */
   async findActiveTemplatesForDepartment(department: Department) {
-    return this.prisma.roleTemplate.findMany({
+    const items = await this.prisma.roleTemplate.findMany({
       where: {
         department,
         isActive: true,
@@ -145,6 +183,7 @@ export class RoleTemplateService {
       },
       orderBy: [{ category: "asc" }, { experienceTier: "asc" }, { version: "desc" }],
     });
+    return sortRoleTemplatesCanonical(items);
   }
 
   /**
@@ -210,7 +249,7 @@ export class RoleTemplateService {
     experienceTier?: string;
     isActive?: boolean;
   }) {
-    return this.prisma.roleTemplate.findMany({
+    const items = await this.prisma.roleTemplate.findMany({
       where: {
         ...(filters?.department ? { department: filters.department } : {}),
         ...(filters?.level ? { level: filters.level } : {}),
@@ -226,6 +265,7 @@ export class RoleTemplateService {
       },
       orderBy: [{ department: "asc" }, { category: "asc" }, { experienceTier: "asc" }, { version: "desc" }],
     });
+    return sortRoleTemplatesCanonical(items);
   }
 
   /**

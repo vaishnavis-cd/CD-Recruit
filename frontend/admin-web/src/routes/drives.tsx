@@ -122,6 +122,29 @@ function DrivesPage() {
   const [newDriveIds, setNewDriveIds] = useState<Set<string>>(new Set());
   const knownDriveIdsRef = useRef<Set<string>>(new Set());
 
+  // Track which Partner API drives have been opened/viewed by the recruiter
+  const [openedDriveIds, setOpenedDriveIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("cd-recruit-opened-partner-drives");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const markDriveOpened = (id: string) => {
+    setOpenedDriveIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem("cd-recruit-opened-partner-drives", JSON.stringify(Array.from(next)));
+      } catch (e) {
+        console.error("Failed to persist opened partner drives:", e);
+      }
+      return next;
+    });
+  };
+
   // Auto-open Create Drive wizard when navigated with ?create=true
   useEffect(() => {
     if (!isExactDrives) return;
@@ -470,7 +493,10 @@ function DrivesPage() {
               {
                 action: {
                   label: "View Drive",
-                  onClick: () => navigate({ to: "/drives/$id", params: { id: latest.id } }),
+                  onClick: () => {
+                    markDriveOpened(latest.id);
+                    navigate({ to: "/drives/$id", params: { id: latest.id } });
+                  },
                 },
                 duration: 8000,
               }
@@ -661,7 +687,11 @@ function DrivesPage() {
     }).filter((d) => {
       if (q && !d.name.toLowerCase().includes(q)) return false;
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
-      if (sourceFilter !== "all" && ((d as any).originChannel || "DIRECT") !== sourceFilter) return false;
+      if (sourceFilter !== "all") {
+        const isPartner = (d as any).originChannel === "PARTNER_API" || d.name?.startsWith("[Partner:") || d.name?.includes("(P)");
+        if (sourceFilter === "PARTNER_API" && !isPartner) return false;
+        if (sourceFilter === "DIRECT" && isPartner) return false;
+      }
       return true;
     });
   }, [drives, query, statusFilter, sourceFilter]);
@@ -1233,8 +1263,16 @@ function DrivesPage() {
             }}
           >
             {filtered.map((d) => {
-              const isNewlyDetected = newDriveIds.has(d.id);
-              const isPartner = (d as any).originChannel === "PARTNER_API";
+              const isPartner = (d as any).originChannel === "PARTNER_API" || d.name?.startsWith("[Partner:") || d.name?.includes("(P)");
+              const isOpened = openedDriveIds.has(d.id);
+              // NEW tag ONLY appears for Partner API drives, and once opened, it goes off permanently
+              const isNewlyDetected = isPartner && !isOpened && (() => {
+                if (newDriveIds.has(d.id)) return true;
+                if (!d.createdAt) return false;
+                const createdTime = new Date(d.createdAt).getTime();
+                // Mark as NEW if created in the last 24 hours
+                return !isNaN(createdTime) && (Date.now() - createdTime) < 24 * 60 * 60 * 1000;
+              })();
               return (
                 <div
                   key={d.id}
@@ -1313,7 +1351,7 @@ function DrivesPage() {
                         <div
                           className="h-[18px] flex items-center justify-center opacity-100 rotate-0"
                           style={{
-                            minWidth: isPartner ? "74px" : "53px",
+                            minWidth: isPartner ? "88px" : "53px",
                             height: "18px",
                             paddingTop: "3px",
                             paddingBottom: "3px",
@@ -1336,7 +1374,7 @@ function DrivesPage() {
                               textTransform: "",
                             }}
                           >
-                            {isPartner ? "PARTNER" : "DIRECT"}
+                            {isPartner ? "PARTNER API" : "DIRECT"}
                           </span>
                         </div>
 
@@ -1467,6 +1505,7 @@ function DrivesPage() {
                     <Link
                       to="/drives/$id"
                       params={{ id: d.id }}
+                      onClick={() => markDriveOpened(d.id)}
                       className="w-[307px] flex-1 h-[37px] rounded-[19px] flex items-center justify-center cursor-pointer transition-all hover:bg-blue-50/40"
                       style={{
                         width: "307px",

@@ -48,11 +48,20 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
     return services.time.subscribe(setNowMs);
   }, []);
 
-  const allocatedMinutes = session?.durationMinutes
-    ? session.durationMinutes
-    : assessment?.totalSeconds
-    ? Math.round(assessment.totalSeconds / 60)
-    : 60;
+  const allocatedMinutes = useMemo(() => {
+    if (session?.durationMinutes && session.durationMinutes > 0) {
+      return session.durationMinutes;
+    }
+    if (assessment?.totalSeconds && assessment.totalSeconds > 0) {
+      return Math.round(assessment.totalSeconds / 60);
+    }
+    const questions = session?.questions || assessment?.questions || [];
+    if (questions.length > 0) {
+      const totalQuestionMins = questions.reduce((sum: number, q: any) => sum + (Number(q.durationMinutes) || 0), 0);
+      if (totalQuestionMins > 0 && totalQuestionMins <= 180) return totalQuestionMins;
+    }
+    return 90;
+  }, [session, assessment]);
 
   const activeModules = useMemo(() => {
     const questions = session?.questions || assessment?.questions;
@@ -85,7 +94,7 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
     }
 
     const questions = currentSession?.questions || assessment?.questions || storeState.assessment?.questions;
-    const durationSeconds = (currentSession?.durationMinutes || allocatedMinutes) * 60;
+    const durationSeconds = allocatedMinutes * 60;
 
     initAssessment(validSessionId, durationSeconds, questions);
     transitionTo({ type: 'assessment', moduleIndex: 0, sessionId: validSessionId });
