@@ -323,38 +323,38 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
       currentQuestionIndex={currentIndex}
       onNavigate={setCurrentIndex}
     >
-      <div ref={containerRef} className="flex-1 h-full flex flex-col md:flex-row min-h-0 bg-[#F8FAFC] dark:bg-[var(--background)] overflow-hidden relative">
+      <div ref={containerRef} className="flex-1 h-full flex flex-col md:flex-row min-h-0 bg-canvas dark:bg-[#0B0F19] overflow-hidden relative">
         {/* Middle Column: Bug Description & Failing Stack Trace (~648px desktop) */}
         <div
           style={{ width: `${leftWidthPct}%` }}
-          className="flex flex-col border-r border-line bg-canvas overflow-y-auto p-6 space-y-5 shrink-0"
+          className="flex flex-col border-r border-line dark:border-slate-800 bg-canvas dark:bg-[#0B0F19] overflow-y-auto p-6 space-y-5 shrink-0"
         >
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xs font-bold text-ink-dim uppercase tracking-wider font-mono">
+              <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
                 DEBUG CHALLENGE {currentIndex + 1} OF {debuggingQuestions.length || 1}
               </span>
-              <div className="flex items-center gap-1.5 text-2xs font-bold text-warning bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+              <div className="flex items-center gap-1.5 text-2xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
                 <Bug className="w-3.5 h-3.5" />
                 <span>LOGIC DEFECT</span>
               </div>
             </div>
 
-            <h2 className="text-xl font-bold text-ink tracking-tight mb-2">
+            <h2 className="text-xl font-bold text-ink dark:text-white tracking-tight mb-2">
               {content.title || 'Fix Logic Defect & Edge Case Failure'}
             </h2>
-            <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap font-normal">
+            <p className="text-sm text-ink-secondary dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-normal">
               {content.prompt || content.description || 'Analyze the failing stack trace and patch the defective function implementation.'}
             </p>
           </div>
 
           {/* Failing Stack Trace Box */}
           <div className="space-y-2 pt-2">
-            <div className="text-2xs font-bold uppercase tracking-wider font-mono text-ink-dim">
+            <div className="text-2xs font-bold uppercase tracking-wider font-mono text-ink-dim dark:text-slate-400">
               Failing Stack Trace / Exception
             </div>
-            <div className="p-4 rounded-xl bg-red-50/70 border border-red-200 text-critical font-mono text-xs leading-relaxed overflow-x-auto shadow-xs">
-              <pre>{bugTrace}</pre>
+            <div className="p-4 rounded-xl bg-red-50/70 dark:bg-red-950/20 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-rose-300 font-mono text-xs leading-relaxed overflow-x-auto shadow-xs">
+              <pre className="whitespace-pre-wrap break-words">{bugTrace}</pre>
             </div>
           </div>
         </div>
@@ -362,10 +362,10 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
         {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="hidden md:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-col-resize flex items-center justify-center border-l border-r border-line dark:border-slate-800 group transition-colors select-none z-10 shrink-0"
+          className="hidden md:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 dark:hover:bg-brand/40 cursor-col-resize flex items-center justify-center border-l border-r border-line dark:border-slate-800 dark:hover:border-brand/60 group transition-colors select-none z-10 shrink-0"
           title="Drag to resize panels"
         >
-          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand dark:group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Pane: Buggy Code Editor & Diagnostic Test Runner */}
@@ -386,7 +386,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           </div>
 
           {/* Monaco Editor Surface */}
-          <div className="flex-1 min-h-0 bg-[#1E293B]">
+          <div className="flex-1 min-h-0 relative bg-white dark:bg-[#1A1D24]">
             <CodeEditor
               value={code}
               onChange={(v) => handleCodeChange(v || '')}
@@ -398,41 +398,41 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           {/* Horizontal Drag Resizer Handle */}
           <div
             onMouseDown={handleVerticalMouseDown}
-            className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-row-resize flex items-center justify-center border-t border-b border-line dark:border-slate-800 group transition-colors select-none shrink-0"
+            className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 dark:hover:bg-brand/40 cursor-row-resize flex items-center justify-center border-t border-b border-line dark:border-slate-800 dark:hover:border-brand/60 group transition-colors select-none shrink-0"
             title="Drag to resize terminal console"
           >
-            <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
+            <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand dark:group-hover:bg-brand transition-colors" />
           </div>
 
           {/* Execution Console Panel */}
           <div
             style={{ height: `${terminalHeight}px` }}
-            className="border-t border-line bg-canvas flex flex-col min-h-0 shrink-0 font-mono text-xs overflow-hidden"
+            className="border-t border-line dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col min-h-0 shrink-0 font-mono text-xs overflow-hidden"
           >
-            <div className="px-4 py-2 border-b border-line bg-white text-xs font-bold text-ink flex items-center justify-between uppercase tracking-wider">
+            <div className="px-4 py-2 border-b border-line dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-bold text-ink dark:text-slate-200 flex items-center justify-between uppercase tracking-wider">
               <span className="flex items-center gap-2">
                 <TerminalIcon className="w-3.5 h-3.5 text-brand" />
                 <span>Diagnostic Test Results</span>
               </span>
               {executionResult && (
-                <span className="text-2xs text-ink-muted">
+                <span className="text-2xs text-ink-muted dark:text-slate-400">
                   {executionResult.executionTime ? `${executionResult.executionTime}ms` : '0ms'}
                 </span>
               )}
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-2 flex-1 text-xs">
+            <div className="p-4 overflow-y-auto space-y-2 flex-1 text-xs bg-white dark:bg-[#111827]">
               {isRunning && (
-                <div className="flex items-center gap-2 text-ink-secondary">
+                <div className="flex items-center gap-2 text-ink-secondary dark:text-slate-400">
                   <Loader2 className="w-4 h-4 animate-spin text-brand" />
                   <span>Running diagnostic sandbox tests...</span>
                 </div>
               )}
 
               {execError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-critical space-y-1">
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-critical dark:text-red-300 space-y-1">
                   <div className="font-bold flex items-center gap-1.5">
-                    <XCircle className="w-4 h-4 text-[#EF4444]" />
+                    <XCircle className="w-4 h-4 text-red-500" />
                     <span>Execution Mismatch / Error</span>
                   </div>
                   <pre className="whitespace-pre-wrap leading-relaxed">{execError}</pre>
@@ -443,12 +443,12 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 font-bold text-xs">
                     {executionResult.passedTests === executionResult.totalTests ? (
-                      <span className="flex items-center gap-1.5 text-success">
+                      <span className="flex items-center gap-1.5 text-success dark:text-emerald-400">
                         <CheckCircle2 className="w-4 h-4" />
                         <span>All Tests Passed ({executionResult.passedTests}/{executionResult.totalTests})</span>
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-critical">
+                      <span className="flex items-center gap-1.5 text-critical dark:text-rose-400">
                         <XCircle className="w-4 h-4" />
                         <span>Tests Failed ({executionResult.passedTests}/{executionResult.totalTests} passed)</span>
                       </span>
@@ -456,9 +456,9 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                   </div>
 
                   {executionResult.stdout && (
-                    <div className="p-3 rounded-lg bg-slate-900 text-emerald-400 font-mono text-xs">
+                    <div className="p-3 rounded-lg bg-slate-900 dark:bg-slate-950 border border-slate-800 text-emerald-400 font-mono text-xs">
                       <div className="text-2xs text-gray-400 uppercase mb-1">Standard Output</div>
-                      <pre>{executionResult.stdout}</pre>
+                      <pre className="whitespace-pre-wrap">{executionResult.stdout}</pre>
                     </div>
                   )}
 
@@ -474,7 +474,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            {r.passed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-red-600" />}
+                            {r.passed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}
                             <span className="font-bold">Case {i + 1}</span>
                           </div>
                           {r.executionTime && <span className="font-mono text-2xs">{r.executionTime}ms</span>}
@@ -486,8 +486,8 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
               )}
 
               {!isRunning && !execError && !executionResult && (
-                <div className="text-ink-muted text-slate-400 italic">
-                  Click "Run Diagnostics" to execute your patched code against test cases.
+                <div className="text-slate-400 dark:text-slate-500 italic">
+                  Click &quot;Run Diagnostics&quot; to execute your patched code against test cases.
                 </div>
               )}
             </div>

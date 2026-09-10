@@ -20,11 +20,15 @@ import {
   Users,
   ShieldCheck,
   Lock,
+  Mail,
+  X,
+  ChevronRight,
 } from 'lucide-react';
 import apiClient from '../../../api/client';
 import { useTheme } from '../../../theme/ThemeProvider';
 import { useSessionStore } from '../../../store/sessionMachine';
 import { getEffectiveModuleType } from '../../../utils/moduleType';
+import { Timer } from '../../../components/Timer';
 
 interface ContextSimulationWorkspaceProps {
   sessionId: string;
@@ -176,16 +180,16 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
   const [testResults, setTestResults] = useState<any[] | null>(null);
   const [bottomTab, setBottomTab] = useState<'diagnostics' | 'terminal'>('diagnostics');
 
+  const repoName = scenario?.terminalInfo?.repository || 'cdrecruit/auth-service';
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    `pytest tests/test_validation.py`,
-    `============================= test session starts ==============================`,
-    `platform linux -- Python 3.11.8, pytest-7.4.4`,
-    `rootdir: /workspace/auth-service`,
-    `collected 3 items`,
+    `cdrecruit-workstation:~$ cd /workspace/${repoName}`,
+    `cdrecruit-workstation:/workspace/${repoName}$ ls -la`,
+    `total 24`,
+    `drwxr-xr-x 4 dev dev 4096 tests`,
+    `drwxr-xr-x 3 dev dev 4096 src`,
+    `-rw-r--r-- 1 dev dev  520 package.json`,
     ``,
-    `tests/test_validation.py::test_valid_username PASSED [ 33% ]`,
-    `tests/test_validation.py::test_leading_space FAILED [ 66% ]`,
-    `tests/test_validation.py::test_trailing_space FAILED [ 100% ]`,
+    `cdrecruit-workstation:/workspace/${repoName}$ # Test runner standby. Click 'Run Tests' above to execute regression suite.`,
   ]);
 
   // Right Incident Context Drawer State (Jira is default)
@@ -195,6 +199,11 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
   const [emailReplyText, setEmailReplyText] = useState<string>('');
   const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
   const [emailSentSuccess, setEmailSentSuccess] = useState<boolean>(false);
+
+  // Manager Email Arrival Notification & Toast State
+  const [hasUnreadManagerEmail, setHasUnreadManagerEmail] = useState<boolean>(false);
+  const [showEmailToast, setShowEmailToast] = useState<boolean>(false);
+  const emailToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Slack Messages state
   const [slackMessages, setSlackMessages] = useState<
@@ -223,22 +232,23 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
   const [remediationSummary, setRemediationSummary] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Countdown timer
-  const [countdown, setCountdown] = useState(6177);
-
+  // Clean up email toast timer on unmount
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
+    return () => {
+      if (emailToastTimerRef.current) {
+        clearTimeout(emailToastTimerRef.current);
+      }
+    };
   }, []);
 
-  const formatTimer = (totalSec: number) => {
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
+  // Check on mount if manager email is already pending and unread
+  useEffect(() => {
+    if (scenario?.managerEmail && !emailReplyText.trim() && !emailSentSuccess) {
+      if (scenario.emailTriggered || scenario.hasInitialSay) {
+        setHasUnreadManagerEmail(true);
+      }
+    }
+  }, [scenario, emailReplyText, emailSentSuccess]);
 
   // Telemetry Debounce Reference
   const telemetryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -291,11 +301,17 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
     telemetryDebounceRef.current = setTimeout(async () => {
       if (!sessionId) return;
       try {
-        await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
+        const res = await apiClient.post(`/sessions/${sessionId}/simulation/telemetry`, {
           type: 'FILE_EDIT',
           filepath: activeFile,
           metadata: { codeLength: updated.length },
         });
+        if (res?.data?.emailTriggered && !emailSentSuccess) {
+          setHasUnreadManagerEmail(true);
+          setShowEmailToast(true);
+          if (emailToastTimerRef.current) clearTimeout(emailToastTimerRef.current);
+          emailToastTimerRef.current = setTimeout(() => setShowEmailToast(false), 8000);
+        }
       } catch (err) {
         console.warn('Telemetry error:', err);
       }
@@ -317,6 +333,14 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
             type: 'TEST_EXECUTE',
             filepath: defaultFile,
           })
+          .then((res) => {
+            if (res?.data?.emailTriggered && !emailSentSuccess) {
+              setHasUnreadManagerEmail(true);
+              setShowEmailToast(true);
+              if (emailToastTimerRef.current) clearTimeout(emailToastTimerRef.current);
+              emailToastTimerRef.current = setTimeout(() => setShowEmailToast(false), 8000);
+            }
+          })
           .catch(() => {});
       }
 
@@ -336,16 +360,20 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
       const passedCount = results.filter((r: any) => r.passed).length;
       const totalCount = results.length;
 
+      const runnerCmd = selectedLanguage === 'python'
+        ? `pytest tests/test_${scenario?.id || 'validation'}.py`
+        : `npm test -- tests/test_${scenario?.id || 'validation'}.test.js`;
+
       setTerminalLogs([
-        `pytest tests/test_validation.py`,
+        `cdrecruit-workstation:/workspace/${repoName}$ ${runnerCmd}`,
         `============================= test session starts ==============================`,
-        `platform linux -- Python 3.11.8, pytest-7.4.4`,
-        `rootdir: /workspace/auth-service`,
+        `platform linux -- ${selectedLanguage === 'python' ? 'Python 3.11.8, pytest-7.4.4' : 'Node v20.11.1, jest-29.7.0'}`,
+        `rootdir: /workspace/${repoName}`,
         `collected ${totalCount} items`,
         ``,
         ...results.map(
           (r: any, idx: number) =>
-            `tests/test_validation.py::test_${r.label.toLowerCase().replace(/\\s+/g, '_')} ${
+            `tests/test_${(r.label || `case_${idx + 1}`).toLowerCase().replace(/\s+/g, '_')} ${
               r.passed ? 'PASSED' : 'FAILED'
             } [ ${Math.round(((idx + 1) / totalCount) * 100)}% ]`
         ),
@@ -353,7 +381,23 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
       ]);
     } catch (err: any) {
       // Realistic diagnostic output if error occurs or module missing
-      const isSyntaxOrModuleError = activeCode.includes('SyntaxError') || !activeCode.includes('strip');
+      const runnerCmd = selectedLanguage === 'python'
+        ? `pytest tests/test_${scenario?.id || 'validation'}.py`
+        : `npm test`;
+      setTerminalLogs([
+        `cdrecruit-workstation:/workspace/${repoName}$ ${runnerCmd}`,
+        `============================= test session starts ==============================`,
+        `platform linux -- ${selectedLanguage === 'python' ? 'Python 3.11.8, pytest-7.4.4' : 'Node v20.11.1'}`,
+        `rootdir: /workspace/${repoName}`,
+        `collected 3 items`,
+        ``,
+        `tests/test_${scenario?.id || 'validation'}.py::test_validation_rules FAILED [ 33% ]`,
+        `E   AssertionError: Validation rules failed against inputs with leading/trailing whitespace`,
+        `E   File "/workspace/${repoName}/${defaultFile}", line 16`,
+        ``,
+        `=========================== 3 failed in 0.41s ===========================`,
+      ]);
+
       setTestResults([
         {
           label: 'Sample Valid Username',
@@ -514,10 +558,8 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
             </button>
           )}
 
-          {/* Red Timer Pill */}
-          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#DC2626] bg-[#FEF2F2] dark:bg-[#7F1D1D]/30 px-3 py-1 rounded-md border border-[#FCA5A5] dark:border-[#991B1B]/50 shadow-2xs">
-            <span>{formatTimer(countdown)}</span>
-          </div>
+          {/* Synchronized Assessment Timer */}
+          <Timer />
         </div>
 
         {/* Right Section: Language, Run Tests, Submit Hotfix, Theme */}
@@ -807,14 +849,23 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
                 Slack War Room
               </button>
               <button
-                onClick={() => setContextTab('email')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                onClick={() => {
+                  setContextTab('email');
+                  setHasUnreadManagerEmail(false);
+                  setShowEmailToast(false);
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer relative flex items-center gap-1.5 ${
                   contextTab === 'email'
                     ? 'bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 border-[#2563EB] text-[#2563EB] dark:text-[#60A5FA] font-bold shadow-2xs'
                     : 'bg-white dark:bg-[#1E293B] border-[#E2E8F0] dark:border-[#334155] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A]'
                 }`}
               >
-                Email
+                <span>Email</span>
+                {hasUnreadManagerEmail && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold animate-pulse">
+                    NEW
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -1081,6 +1132,45 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Manager Email Arrival Toast Notification */}
+      {showEmailToast && (
+        <aside
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 p-4 bg-white dark:bg-[#1E293B] border border-rose-500/50 rounded-2xl shadow-2xl flex items-start gap-3.5 max-w-sm font-sans animate-cd-fade-in"
+        >
+          <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 dark:text-rose-400 shrink-0 border border-rose-200 dark:border-rose-900">
+            <Mail className="w-5 h-5" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="text-xs font-bold text-[#0F172A] dark:text-white flex items-center justify-between">
+              <span>New Manager Email</span>
+              <button
+                onClick={() => setShowEmailToast(false)}
+                className="text-[#64748B] hover:text-[#0F172A] dark:hover:text-white p-0.5 rounded cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
+              {scenario?.managerEmail?.fromName || 'Engineering Manager'} sent an urgent status inquiry regarding your bug investigation and ETA.
+            </p>
+            <button
+              onClick={() => {
+                setContextTab('email');
+                setHasUnreadManagerEmail(false);
+                setShowEmailToast(false);
+              }}
+              className="text-[11px] font-bold text-[#2563EB] dark:text-[#60A5FA] hover:underline inline-flex items-center gap-1 pt-1 cursor-pointer"
+            >
+              <span>Open Email Tab</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </aside>
       )}
     </div>
   );

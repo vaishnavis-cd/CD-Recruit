@@ -519,10 +519,10 @@ export function CodingWorkspace({
       {terminalOpen && (
         <div
           onMouseDown={handleVerticalMouseDown}
-          className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-row-resize flex items-center justify-center border-t border-b border-line dark:border-slate-800 group transition-colors select-none shrink-0"
+          className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 dark:hover:bg-brand/40 cursor-row-resize flex items-center justify-center border-t border-b border-line dark:border-slate-800 dark:hover:border-brand/60 group transition-colors select-none shrink-0"
           title="Drag up or down to adjust terminal height"
         >
-          <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
+          <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand dark:group-hover:bg-brand transition-colors" />
         </div>
       )}
 

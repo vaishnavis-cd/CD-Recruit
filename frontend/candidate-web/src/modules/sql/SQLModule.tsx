@@ -532,10 +532,10 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="hidden lg:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 border-l border-r border-line dark:border-slate-800 cursor-col-resize items-center justify-center transition-colors group select-none shrink-0 z-10"
+          className="hidden lg:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 dark:hover:bg-brand/40 border-l border-r border-line dark:border-slate-800 dark:hover:border-brand/60 cursor-col-resize items-center justify-center transition-colors group select-none shrink-0 z-10"
           title="Drag horizontally to adjust panel widths"
         >
-          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand dark:group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Column: SQL Editor & Output */}
@@ -557,10 +557,10 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
               {/* Horizontal Resizer handle */}
               <div
                 onMouseDown={handleVerticalMouseDown}
-                className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 border-t border-b border-line dark:border-slate-800 cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
+                className="h-2 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 dark:hover:bg-brand/40 border-t border-b border-line dark:border-slate-800 dark:hover:border-brand/60 cursor-row-resize flex items-center justify-center transition-colors group select-none shrink-0"
                 title="Drag vertically to adjust results terminal height"
               >
-                <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
+                <div className="h-1.5 w-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand dark:group-hover:bg-brand transition-colors" />
               </div>
 
               <div

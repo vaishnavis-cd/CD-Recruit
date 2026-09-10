@@ -474,7 +474,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
             className="figma-fullscreen-btn"
           >
             <Maximize2 size={16} />
-            <span>Fullscreen enabled</span>
+            <span>Fullscreen</span>
           </button>
 
           <button

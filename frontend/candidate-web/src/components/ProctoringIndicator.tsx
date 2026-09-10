@@ -61,15 +61,18 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
       <div
         aria-label={`Integrity monitoring ${active ? 'active' : 'standby'}`}
         title="Live Camera & Proctoring Status"
-        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-surface dark:bg-[#111827] border border-line dark:border-slate-800 text-xs text-ink-muted dark:text-slate-400 shadow-xs"
+        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#111827] border border-line dark:border-slate-800 text-xs text-ink-muted dark:text-slate-400 shadow-xs"
       >
-        <div className="relative group cursor-pointer w-12 h-12 rounded-lg bg-black border border-[#E2E8F0] overflow-hidden shadow-2xs flex-shrink-0" onClick={() => setIsExpanded(!isExpanded)}>
+        <div
+          className="relative group cursor-pointer w-10 h-10 rounded-lg bg-black border border-line dark:border-slate-700 overflow-hidden shadow-2xs flex-shrink-0"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-8 h-8 rounded-lg object-cover bg-slate-950 border border-line dark:border-slate-700 shadow-xs"
+            className="w-full h-full object-cover transform -scale-x-100 bg-slate-950"
           />
           {!hasStream && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900 rounded-lg">
@@ -93,7 +96,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
           <div className="text-2xs font-mono text-ink-dim dark:text-slate-400">
             <span>{cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}</span>
             {lastEventType && (
-              <span className="text-warning ml-1">
+              <span className="text-warning dark:text-amber-400 ml-1 font-semibold">
                 • {lastEventType.replace('_', ' ')}
               </span>
             )}

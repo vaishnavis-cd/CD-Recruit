@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ShieldAlert,
   HelpCircle,
@@ -7,11 +7,11 @@ import {
   ArrowLeft,
   Sun,
   Moon,
-  Clock,
   Info,
   AlertCircle,
 } from 'lucide-react';
 import { useTheme } from '../../../theme/ThemeProvider';
+import { Timer } from '../../../components/Timer';
 
 interface InitialSayStepProps {
   scenario?: any;
@@ -47,23 +47,6 @@ export function InitialSayStep({
   const sayPrompt = scenario?.initialSayPrompt || prompt || 'What would you do to solve this issue?';
   const repoName = scenario?.terminalInfo?.repository || 'cdrecruit/auth-service';
   const ticketId = scenario?.jiraTicket?.ticketId || 'BUG-3124';
-
-  // Countdown timer
-  const [countdown, setCountdown] = useState(6177);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTimer = (totalSec: number) => {
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,10 +93,8 @@ export function InitialSayStep({
 
         {/* Right: Theme Toggle, Countdown & Next Section */}
         <div className="flex items-center gap-3">
-          {/* Red/Pink Countdown Timer Pill */}
-          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#DC2626] bg-[#FEF2F2] dark:bg-[#7F1D1D]/30 px-3 py-1 rounded-md border border-[#FCA5A5] dark:border-[#991B1B]/50 shadow-2xs">
-            <span>{formatTimer(countdown)}</span>
-          </div>
+          {/* Synchronized Assessment Timer */}
+          <Timer />
 
           <button
             onClick={toggleTheme}
@@ -126,9 +107,9 @@ export function InitialSayStep({
           {isNextAvailable && onNavigateModule && (
             <button
               onClick={() => onNavigateModule(moduleIndex + 1)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#CBD5E1] dark:border-[#334155] bg-[#2563EB] hover:bg-[#1D4ED8] text-white dark:bg-[#1E293B] text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
             >
-              <span>Next Section</span>
+              <span>Next</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
@@ -178,12 +159,12 @@ export function InitialSayStep({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
               {/* Step 1: Active Formulate Strategy */}
-              <div className="p-4 rounded-[12px] bg-[#F8FAFC] dark:bg-[#1E293B]/40 border-2 border-[#2563EB] space-y-2">
-                <div className="flex items-center gap-2 font-bold text-[#2563EB] dark:text-[#60A5FA]">
-                  <span className="w-5 h-5 rounded-full bg-[#EFF6FF] dark:bg-[#1E3A8A] text-[#2563EB] dark:text-[#93C5FD] flex items-center justify-center text-xs font-mono font-bold">
+              <div className="p-4 rounded-[12px] bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#1E293B] space-y-2">
+                <div className="flex items-center gap-2 font-bold text-[#0F172A] dark:text-white">
+                  <span className="w-5 h-5 rounded-full bg-[#EFF6FF] dark:bg-[#1E3A8A] text-[#64748B] dark:text-[#94A3B8] flex items-center justify-center text-xs font-mono font-bold">
                     1
                   </span>
-                  <span className="text-[12px]">1. Formulate Strategy</span>
+                  <span className="text-[12px]">Formulate Strategy</span>
                 </div>
                 <p className="text-[#64748B] dark:text-[#94A3B8] text-[11px] leading-relaxed">
                   Read the scenario and answer the investigation question below (evaluated for your SAY score).
@@ -196,7 +177,7 @@ export function InitialSayStep({
                   <span className="w-5 h-5 rounded-full bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] flex items-center justify-center text-xs font-mono font-bold">
                     2
                   </span>
-                  <span className="text-[12px]">2. Live Workstation</span>
+                  <span className="text-[12px]">Live Workstation</span>
                 </div>
                 <p className="text-[#64748B] dark:text-[#94A3B8] text-[11px] leading-relaxed">
                   Enter an interactive IDE. Inspect repository files, check Slack/Jira/Email, and edit code.
@@ -209,7 +190,7 @@ export function InitialSayStep({
                   <span className="w-5 h-5 rounded-full bg-[#F1F5F9] dark:bg-[#1E293B] text-[#64748B] dark:text-[#94A3B8] flex items-center justify-center text-xs font-mono font-bold">
                     3
                   </span>
-                  <span className="text-[12px]">3. Test &amp; Sign Off</span>
+                  <span className="text-[12px]">Test &amp; Sign Off</span>
                 </div>
                 <p className="text-[#64748B] dark:text-[#94A3B8] text-[11px] leading-relaxed">
                   Run automated diagnostics against your patch, select deployment strategy, and submit hotfix.

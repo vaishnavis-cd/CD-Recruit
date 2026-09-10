@@ -295,10 +295,10 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
         {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 cursor-col-resize flex items-center justify-center border-l border-r border-line dark:border-slate-800 group transition-colors shrink-0 select-none z-10"
+          className="w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 dark:hover:bg-brand/40 cursor-col-resize flex items-center justify-center border-l border-r border-line dark:border-slate-800 dark:hover:border-brand/60 group transition-colors shrink-0 select-none z-10"
           title="Drag left or right to adjust panel split"
         >
-          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand dark:group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Panel: Monaco Workspace */}

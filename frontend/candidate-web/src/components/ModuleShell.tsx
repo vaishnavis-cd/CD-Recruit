@@ -282,7 +282,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 isActive
                   ? 'bg-white dark:bg-[#1e293b] border-2 border-brand text-brand shadow-xs font-bold'
-                  : 'text-ink-secondary dark:text-slate-400 hover:text-ink dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-850 border border-transparent'
+                  : 'text-ink-secondary dark:text-slate-400 hover:text-brand dark:hover:text-brand hover:bg-blue-50/50 dark:hover:bg-blue-950/30 hover:border-brand/30 dark:hover:border-brand/40 border border-transparent'
               }`}
             >
               {mod.name}

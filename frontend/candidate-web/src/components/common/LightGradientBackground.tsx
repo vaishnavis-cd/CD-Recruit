@@ -1,4 +1,4 @@
-import React from 'react'
+
 import lightGradientPng from '../../assets/light-gradient-14.png'
 
 /**

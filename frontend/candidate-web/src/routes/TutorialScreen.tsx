@@ -116,7 +116,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           <img
             src="/assets/overview-card.svg"
             alt="Interface Overview"
-            className="w-full max-h-[350px] h-auto object-contain rounded-2xl block mx-auto"
+            className="w-full max-h-[460px] sm:max-h-[480px] h-auto object-contain rounded-2xl block mx-auto drop-shadow-sm"
           />
         );
 
@@ -126,36 +126,36 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           : `${allocatedMinutes}:00`;
 
         return (
-          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7 space-y-4 animate-cd-fade-in">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-[#0F172A] tracking-tight leading-tight">
+          <div className="w-full bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md p-7 sm:p-9 space-y-6 animate-cd-fade-in">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight leading-tight">
               Timer &amp; Server Synchronization
             </h2>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-center gap-4 shadow-2xs">
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
-                <Clock size={20} />
+            <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 flex items-center gap-5 shadow-2xs">
+              <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900 flex items-center justify-center shrink-0">
+                <Clock size={24} />
               </div>
-              <div className="space-y-0.5">
-                <div className="text-2xl font-extrabold text-[#0F172A] font-mono tracking-tight">
+              <div className="space-y-1">
+                <div className="text-3xl sm:text-4xl font-extrabold text-[#0F172A] dark:text-white font-mono tracking-tight">
                   {durationFormatted}
                 </div>
-                <div className="text-xs text-slate-500 font-medium">
+                <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                   Server-authoritative timer synced with backend allocated duration.
                 </div>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Total allocated assessment duration is <strong className="text-slate-900 font-semibold">{allocatedMinutes} minutes</strong>. Assigned assessment modules:
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+              Total allocated assessment duration is <strong className="text-slate-900 dark:text-white font-bold">{allocatedMinutes} minutes</strong>. Assigned assessment modules:
             </p>
 
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-2.5 pt-1">
               {moduleLabels.map((label) => (
                 <div
                   key={label}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-2 shadow-2xs"
+                  className="px-3.5 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2 shadow-2xs"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400" />
                   <span>{label}</span>
                 </div>
               ))}
@@ -169,7 +169,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           <img
             src="/assets/tutorial-card.svg"
             alt="Question Navigation Palette"
-            className="w-full max-h-[350px] h-auto object-contain rounded-2xl block mx-auto"
+            className="w-full max-h-[460px] sm:max-h-[480px] h-auto object-contain rounded-2xl block mx-auto drop-shadow-sm"
           />
         );
 
@@ -178,7 +178,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           <img
             src="/assets/tutorial-card-1.svg"
             alt="Contextual Simulation & On-Call Guide"
-            className="w-full max-h-[350px] h-auto object-contain rounded-2xl block mx-auto"
+            className="w-full max-h-[460px] sm:max-h-[480px] h-auto object-contain rounded-2xl block mx-auto drop-shadow-sm"
           />
         );
 
@@ -187,24 +187,23 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           <img
             src="/assets/tutorial-card-2.svg"
             alt="Run vs. Submit (Coding & SQL)"
-            className="w-full max-h-[350px] h-auto object-contain rounded-2xl block mx-auto"
+            className="w-full max-h-[460px] sm:max-h-[480px] h-auto object-contain rounded-2xl block mx-auto drop-shadow-sm"
           />
         );
 
       case 'practice':
-        // Interactive Multiple-Choice Question matching tutorial-card (3).png exactly
         return (
-          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7 space-y-5">
+          <div className="w-full bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md p-7 sm:p-9 space-y-6">
             <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-[#0F172A] tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight leading-tight">
                 Practice Question (Zero Stakes)
               </h2>
-              <p className="text-sm font-semibold text-[#0F172A] mt-1.5">
-                Which HTTP status code indicates "Resource Not Found"?
+              <p className="text-base sm:text-lg font-semibold text-[#0F172A] dark:text-slate-200 mt-2">
+                Which HTTP status code indicates &quot;Resource Not Found&quot;?
               </p>
             </div>
 
-            <div className="space-y-2.5" role="radiogroup" aria-label="HTTP status code practice question">
+            <div className="space-y-3" role="radiogroup" aria-label="HTTP status code practice question">
               {[
                 { id: '200', label: '200 OK' },
                 { id: '400', label: '400 Bad Request' },
@@ -216,22 +215,24 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
                   <label
                     key={opt.id}
                     onClick={() => setPracticeAnswer(opt.id)}
-                    className={`w-full min-h-[44px] px-4 py-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${isSelected
-                        ? 'border-[#2F65F6] bg-[#EFF6FF] text-[#0F172A] shadow-xs'
-                        : 'border-slate-200 bg-white text-[#0F172A] hover:border-slate-300'
-                      }`}
+                    className={`w-full min-h-[52px] px-5 py-3 rounded-xl border flex items-center gap-3.5 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-[#2F65F6] bg-[#EFF6FF] dark:bg-blue-950/40 text-[#0F172A] dark:text-white shadow-xs font-semibold'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-[#0F172A] dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600'
+                    }`}
                   >
                     <span
-                      className={`w-[16px] h-[16px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected
+                      className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        isSelected
                           ? 'border-[#2F65F6] bg-[#2F65F6]'
-                          : 'border-slate-400 bg-white'
-                        }`}
+                          : 'border-slate-400 dark:border-slate-500 bg-white dark:bg-slate-800'
+                      }`}
                     >
                       {isSelected && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white block" />
+                        <span className="w-2 h-2 rounded-full bg-white block" />
                       )}
                     </span>
-                    <span className="text-[14px] font-normal text-[#0F172A]">
+                    <span className="text-[15px]">
                       {opt.label}
                     </span>
                   </label>
@@ -252,10 +253,10 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
       role="main"
       aria-labelledby="tutorial-heading"
     >
-      <div className="w-full max-w-[1180px] animate-cd-fade-in space-y-6">
-        {/* Multi-segment Progress Bar matching Figma 960x6 gap:8px */}
+      <div className="w-full max-w-[1240px] animate-cd-fade-in space-y-8 my-auto">
+        {/* Multi-segment Progress Bar matching Figma */}
         <div
-          className="flex items-center gap-2 h-1.5 w-full max-w-[960px] mx-auto"
+          className="flex items-center gap-2.5 h-2 w-full max-w-[1020px] mx-auto"
           role="progressbar"
           aria-valuenow={effectiveIndex + 1}
           aria-valuemax={steps.length}
@@ -263,30 +264,31 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
           {steps.map((_, idx) => (
             <div
               key={idx}
-              className={`flex-1 h-1.5 rounded-[3px] transition-colors duration-200 ${idx <= effectiveIndex ? 'bg-[#2F65F6]' : 'bg-slate-200'
-                }`}
+              className={`flex-1 h-2 rounded-full transition-all duration-300 ${
+                idx <= effectiveIndex ? 'bg-[#2F65F6] shadow-2xs' : 'bg-slate-200/80 dark:bg-slate-700/80'
+              }`}
             />
           ))}
         </div>
 
         {/* 2-Column Layout for Tutorial Steps 1-6 */}
         {currentStep !== 'done' ? (
-          <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
-            {/* Left Column: Common illustration-block.png for all tutorial pages */}
-            <div className="w-full lg:w-[340px] shrink-0 flex items-center justify-center">
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-14 pt-2">
+            {/* Left Column: Candidate-tutorial-gif.gif */}
+            <div className="w-full lg:w-[440px] xl:w-[460px] shrink-0 flex items-center justify-center">
               <img
-                src="/assets/illustration-block.png"
+                src="/assets/Candidate-tutorial-gif.gif"
                 alt="Tutorial - Before you start"
-                className="w-full max-w-[320px] max-h-[320px] h-auto object-contain block"
+                className="w-full max-w-[420px] lg:max-w-[460px] h-auto object-contain block drop-shadow-sm select-none"
               />
             </div>
 
             {/* Right Column: Step card image / practice UI and navigation */}
-            <div className="w-full max-w-[680px] flex flex-col space-y-5">
+            <div className="w-full max-w-[720px] xl:max-w-[760px] flex flex-col space-y-6">
               {renderStepCard()}
 
               {/* Controls Row */}
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between pt-2">
                 <button
                   onClick={() => {
                     if (stepIndex > 0) {
@@ -299,50 +301,50 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
                       });
                     }
                   }}
-                  className="figma-btn-secondary"
+                  className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                   type="button"
                 >
-                  <ArrowLeft size={14} />
+                  <ArrowLeft size={16} />
                   <span>Back</span>
                 </button>
 
                 <button
                   onClick={handleNext}
-                  className="figma-btn-primary"
+                  className="px-7 py-2.5 rounded-xl bg-[#2F65F6] hover:bg-[#234ac2] text-white text-sm font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
                   type="button"
                 >
                   <span>Next</span>
-                  <ArrowRight size={14} />
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </div>
           </div>
         ) : (
           /* Step 7 ('done'): All Set Screen with all-set-card.svg */
-          <div className="max-w-[640px] mx-auto space-y-6">
+          <div className="max-w-[760px] mx-auto space-y-7 pt-4">
             <img
               src="/assets/all-set-card.svg"
               alt="You're All Set!"
-              className="w-full max-h-[350px] h-auto object-contain rounded-2xl block mx-auto"
+              className="w-full max-h-[460px] h-auto object-contain rounded-2xl block mx-auto drop-shadow-sm"
             />
 
             <div className="flex items-center justify-between pt-2">
               <button
                 onClick={() => setStepIndex(i => Math.max(0, i - 1))}
-                className="figma-btn-secondary"
+                className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                 type="button"
               >
-                <ArrowLeft size={14} />
+                <ArrowLeft size={16} />
                 <span>Back</span>
               </button>
 
               <button
                 onClick={handleNext}
-                className="figma-btn-primary"
+                className="px-7 py-2.5 rounded-xl bg-[#2F65F6] hover:bg-[#234ac2] text-white text-sm font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 type="button"
               >
                 <span>Enter Waiting Room</span>
-                <ArrowRight size={14} />
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
