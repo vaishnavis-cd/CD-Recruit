@@ -14,6 +14,8 @@ function formatTime(seconds: number): string {
 
 export function Timer() {
   const assessment = useSessionStore(s => s.assessment)
+  const inviteToken = useSessionStore(s => s.inviteToken)
+  const session = useSessionStore(s => s.session)
   const [nowMs, setNowMs] = useState(() => services.time.getServerNow())
 
   useEffect(() => {
@@ -26,6 +28,26 @@ export function Timer() {
       clearInterval(highPrecisionInterval)
     }
   }, [])
+
+  // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+  const isUnlimitedDemo =
+    (assessment && assessment.totalSeconds >= 86400 * 30) ||
+    inviteToken === 'demo' ||
+    inviteToken?.startsWith('demo') ||
+    inviteToken?.startsWith('unlimited-') ||
+    (session as any)?.durationMinutes >= 999999;
+
+  if (isUnlimitedDemo) {
+    return (
+      <div
+        className="font-mono text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50/90 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-brand dark:text-blue-300 tabular-nums flex items-center gap-1.5 shadow-xs select-none"
+        title="Unlimited Demo Session — Assessment timer is infinite and will never expire"
+      >
+        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+        <span className="tracking-tight font-bold uppercase">DEMO • ∞</span>
+      </div>
+    )
+  }
 
   if (!assessment || assessment.timerStartMs === null) {
     return (
@@ -55,16 +77,12 @@ export function Timer() {
 
   return (
     <div
-      className="font-mono text-sm font-bold px-3 py-1.5 rounded-lg bg-[#FFEBEB] border border-[#EF4444]/40 text-[#991B1B] tabular-nums flex items-center gap-1.5 shadow-2xs transition-all select-none"
+      className="font-mono text-base font-bold px-3.5 py-1.5 rounded-lg bg-red-50/70 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-critical dark:text-red-400 tabular-nums flex items-center justify-center shadow-xs"
       role="timer"
       aria-label={label}
       aria-live="off"
     >
-      <svg className="w-3.5 h-3.5 text-[#EF4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-      <span aria-hidden className="tracking-tight">{formatTime(remainingSeconds)}</span>
+      <span aria-hidden className="tracking-tight text-critical dark:text-red-400">{formatTime(remainingSeconds)}</span>
       <span className="sr-only">{label}</span>
     </div>
   )
@@ -73,6 +91,8 @@ export function Timer() {
 export function useAssessmentTimer() {
   const assessment = useSessionStore(s => s.assessment)
   const screen = useSessionStore(s => s.screen)
+  const inviteToken = useSessionStore(s => s.inviteToken)
+  const session = useSessionStore(s => s.session)
   const transitionTo = useSessionStore(s => s.transitionTo)
   const [nowMs, setNowMs] = useState(() => services.time.getServerNow())
 
@@ -80,7 +100,16 @@ export function useAssessmentTimer() {
     return services.time.subscribe(setNowMs)
   }, [])
 
+  // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+  const isUnlimitedDemo =
+    (assessment && assessment.totalSeconds >= 86400 * 30) ||
+    inviteToken === 'demo' ||
+    inviteToken?.startsWith('demo') ||
+    inviteToken?.startsWith('unlimited-') ||
+    (session as any)?.durationMinutes >= 999999;
+
   useEffect(() => {
+    if (isUnlimitedDemo) return;
     if (!assessment || assessment.timerStartMs === null) return
     if (screen.type !== 'assessment' && screen.type !== 'pre-submit-review') return
 
@@ -91,8 +120,9 @@ export function useAssessmentTimer() {
       // Auto-submit on timeout
       transitionTo({ type: 'syncing', sessionId: assessment.sessionId, auto: true })
     }
-  }, [nowMs, assessment, screen, transitionTo])
+  }, [nowMs, assessment, screen, transitionTo, isUnlimitedDemo])
 
+  if (isUnlimitedDemo) return 999999;
   if (!assessment || assessment.timerStartMs === null) return null
 
   const elapsedMs = nowMs - assessment.timerStartMs
@@ -103,6 +133,20 @@ export function useAssessmentTimer() {
 
 // Warning banner thresholds — amber, never red
 export function TimerWarningBanner() {
+  const assessment = useSessionStore(s => s.assessment)
+  const inviteToken = useSessionStore(s => s.inviteToken)
+  const session = useSessionStore(s => s.session)
+
+  // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+  const isUnlimitedDemo =
+    (assessment && assessment.totalSeconds >= 86400 * 30) ||
+    inviteToken === 'demo' ||
+    inviteToken?.startsWith('demo') ||
+    inviteToken?.startsWith('unlimited-') ||
+    (session as any)?.durationMinutes >= 999999;
+
+  if (isUnlimitedDemo) return null;
+
   const remaining = useAssessmentTimer()
   if (remaining === null || remaining === undefined) return null
 

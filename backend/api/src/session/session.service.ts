@@ -517,22 +517,31 @@ export class SessionService implements SessionStatusPort {
     );
 
     // 3.5 Check if candidate already has a SUBMITTED or COMPLETED session for this drive
-    const submittedSession = await this.prisma.session.findFirst({
-      where: {
-        candidateId: candidateRecord.id,
-        driveId: payload.driveId || undefined,
-        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED] },
-      },
-      orderBy: { submittedAt: "desc" },
-      include: { roleTemplate: true },
-    });
+    // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+    const isUnlimitedDevSession =
+      payload.isUnlimitedDemo ||
+      inviteToken === "demo" ||
+      inviteToken.startsWith("demo-") ||
+      inviteToken.startsWith("unlimited-");
 
-    if (submittedSession) {
-      this.logger.warn(`Candidate ${candidateRecord.email} already completed session ${submittedSession.id}.`);
-      return await this.buildStartResponse(
-        submittedSession as SessionWithTemplate,
-        candidateRecord.id,
-      );
+    if (!isUnlimitedDevSession) {
+      const submittedSession = await this.prisma.session.findFirst({
+        where: {
+          candidateId: candidateRecord.id,
+          driveId: payload.driveId || undefined,
+          status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED] },
+        },
+        orderBy: { submittedAt: "desc" },
+        include: { roleTemplate: true },
+      });
+
+      if (submittedSession) {
+        this.logger.warn(`Candidate ${candidateRecord.email} already completed session ${submittedSession.id}.`);
+        return await this.buildStartResponse(
+          submittedSession as SessionWithTemplate,
+          candidateRecord.id,
+        );
+      }
     }
 
     // 4. Reuse existing session if already created for this candidate
@@ -1267,6 +1276,17 @@ export class SessionService implements SessionStatusPort {
       if (windowSpanMinutes > 0 && windowSpanMinutes <= 180) {
         durationMinutes = Math.min(durationMinutes, windowSpanMinutes);
       }
+    }
+
+    // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+    const isDemoSession =
+      session.id === "demo-session" ||
+      session.id.startsWith("demo-") ||
+      session.roleTemplate?.roleName?.includes("Demo") ||
+      durationMinutes >= 999999;
+
+    if (isDemoSession) {
+      durationMinutes = 999999;
     }
 
     return {

@@ -5,7 +5,7 @@ import { ModuleShell } from '../../components/ModuleShell'
 import { useTheme } from '../../theme/ThemeProvider'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface QueryResult {
   result: any;
@@ -460,17 +460,13 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
           </div>
         </div>
 
-        {/* Horizontal Resizer handle */}
+        {/* Vertical Drag Resizer Handle */}
         <div
           onMouseDown={handleHorizontalMouseDown}
-          className="hidden lg:flex w-3.5 bg-[var(--surface)] hover:bg-[var(--accent)]/30 border-x border-[var(--border)] cursor-col-resize items-center justify-center transition-colors group select-none shrink-0"
+          className="hidden lg:flex w-2 hover:w-2.5 bg-canvas dark:bg-[#0B0F19] hover:bg-brand/30 border-l border-r border-line dark:border-slate-800 cursor-col-resize items-center justify-center transition-colors group select-none shrink-0 z-10"
           title="Drag horizontally to adjust panel widths"
         >
-          <div className="w-1.5 h-8 flex flex-col justify-between items-center opacity-60 group-hover:opacity-100">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)] group-hover:bg-[var(--accent)]" />
-          </div>
+          <div className="w-1.5 h-10 rounded-full bg-line dark:bg-slate-700 group-hover:bg-brand transition-colors" />
         </div>
 
         {/* Right Column: Editor, Console, Output */}
@@ -557,17 +553,18 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
               <button
                 onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 aria-label="Previous question"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={14} className="shrink-0" />
                 <span>Previous</span>
               </button>
               <button
                 onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
               >
                 <span>{nextButtonLabel}</span>
+                <ChevronRight size={14} className="shrink-0" />
               </button>
             </div>
           </footer>

@@ -2768,8 +2768,10 @@ function SettingsPage() {
               <span>{newlyCreatedKey.apiKey}</span>
               <button
                 onClick={async () => {
-                  await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
-                  toast.success("API key copied to clipboard!");
+                  if (newlyCreatedKey?.apiKey) {
+                    await navigator.clipboard.writeText(newlyCreatedKey.apiKey);
+                    toast.success("API key copied to clipboard!");
+                  }
                 }}
                 className="px-3 py-1 text-xs font-sans font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-full cursor-pointer shrink-0"
               >

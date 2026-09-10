@@ -61,7 +61,7 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
       <div
         aria-label={`Integrity monitoring ${active ? 'active' : 'standby'}`}
         title="Live Camera & Proctoring Status"
-        className="flex items-center gap-3 px-2 py-1 select-none"
+        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-surface dark:bg-[#111827] border border-line dark:border-slate-800 text-xs text-ink-muted dark:text-slate-400 shadow-xs"
       >
         <div className="relative group cursor-pointer w-12 h-12 rounded-lg bg-black border border-[#E2E8F0] overflow-hidden shadow-2xs flex-shrink-0" onClick={() => setIsExpanded(!isExpanded)}>
           <video
@@ -69,33 +69,35 @@ export function ProctoringIndicator({ cvMode }: ProctoringIndicatorProps) {
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover transform -scale-x-100"
+            className="w-8 h-8 rounded-lg object-cover bg-slate-950 border border-line dark:border-slate-700 shadow-xs"
           />
           {!hasStream && (
-            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-2xs text-slate-400">
-              <Camera size={12} className="mb-0.5 text-slate-500" />
-              Off
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900 rounded-lg">
+              <Camera size={14} className="text-slate-400" />
             </div>
           )}
-          <div className="absolute bottom-0.5 right-0.5 bg-black/60 backdrop-blur-xs p-0.5 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity">
-            {isExpanded ? <Minimize2 size={9} /> : <Maximize2 size={9} />}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+            <Maximize2 size={12} className="text-white" />
           </div>
         </div>
 
-        <div className="flex flex-col text-xs leading-tight">
-          <div className="flex items-center gap-1.5 font-semibold text-[#15803D] dark:text-emerald-400">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5 font-bold text-success dark:text-emerald-400">
             <span
-              className={`w-2 h-2 rounded-full ${hasStream ? 'bg-[#10B981] animate-pulse' : 'bg-[#94A3B8]'}`}
-              aria-hidden
+              className={`w-2 h-2 rounded-full transition-colors ${
+                active ? 'bg-success dark:bg-emerald-400 animate-pulse' : 'bg-slate-400'
+              }`}
             />
-            <span>{hasStream ? 'Camera Live' : 'Camera Off'}</span>
+            <span>Camera Live</span>
           </div>
-          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider  mt-0.5">
-            {cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}
-          </span>
-          <span className="text-2xs font-mono font-medium text-[#475569] dark:text-slate-400 tracking-wider">
-            Active Session
-          </span>
+          <div className="text-2xs font-mono text-ink-dim dark:text-slate-400">
+            <span>{cvMode === 'full' ? 'Full Integrity' : 'Basic Integrity'}</span>
+            {lastEventType && (
+              <span className="text-warning ml-1">
+                • {lastEventType.replace('_', ' ')}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

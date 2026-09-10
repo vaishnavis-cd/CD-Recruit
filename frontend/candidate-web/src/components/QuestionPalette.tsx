@@ -1,7 +1,8 @@
 import React from 'react'
+import { Flag } from 'lucide-react'
 import type { QuestionStatus } from '../store/sessionMachine'
 import { useSessionStore } from '../store/sessionMachine'
-import { Flag } from 'lucide-react'
+
 
 interface QuestionPaletteProps {
   questions: Array<{ id: string; label: string }>
@@ -10,77 +11,89 @@ interface QuestionPaletteProps {
   onNavigate: (index: number) => void
 }
 
-const STATUS_ITEMS: Array<{ status: QuestionStatus; dotColor: string; label: string }> = [
-  { status: 'unvisited', dotColor: 'bg-[#94A3B8]', label: 'Not yet visited' },
-  { status: 'answered', dotColor: 'bg-[#10B981]', label: 'Answered' },
-  { status: 'skipped', dotColor: 'bg-[#F59E0B]', label: 'Skipped' },
-  { status: 'flagged', dotColor: 'bg-[#8B5CF6]', label: 'Flagged for review' },
-]
+export function QuestionPalette({ questions, currentQuestionIndex, onNavigate }: QuestionPaletteProps) {
+  const assessment = useSessionStore(s => s.assessment)
+  const questionStatus = assessment?.questionStatus ?? {}
+  const setQuestionStatus = useSessionStore(s => s.setQuestionStatus)
+  const currentQuestion = questions[currentQuestionIndex]
 
-export function QuestionPalette({ questions, moduleIndex, currentQuestionIndex, onNavigate }: QuestionPaletteProps) {
-  const questionStatus = useSessionStore(s => s.assessment?.questionStatus ?? {})
+  const handleToggleFlag = () => {
+    if (!currentQuestion) return
+    const current = questionStatus[currentQuestion.id] ?? 'unvisited'
+    setQuestionStatus(currentQuestion.id, current === 'flagged' ? 'answered' : 'flagged')
+  }
 
   return (
-    <nav aria-label="Question palette" className="p-6 flex flex-col justify-between h-full bg-white dark:bg-[var(--surface)] select-none">
-      <div>
-        <div className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider mb-4">
-          QUESTIONS
+    <nav aria-label="Question palette" className="p-5 select-none bg-white dark:bg-[#111827]">
+      <div className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider mb-3">
+        QUESTIONS
+      </div>
+
+      {/* Question grid */}
+      <div className="flex flex-wrap gap-2.5" role="list">
+        {questions.map((q, index) => {
+          const status: QuestionStatus = questionStatus[q.id] ?? 'unvisited'
+          const isCurrent = index === currentQuestionIndex
+
+          let statusClass = 'border-line dark:border-slate-700 text-ink-secondary dark:text-slate-300 bg-white dark:bg-slate-800/80 hover:border-brand/50 hover:text-brand'
+          if (isCurrent) {
+            statusClass = 'border-2 border-brand text-brand bg-brand-subtle dark:bg-blue-950/60 font-bold shadow-xs'
+          } else if (status === 'answered') {
+            statusClass = 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold'
+          } else if (status === 'skipped') {
+            statusClass = 'border-amber-600 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 font-bold'
+          } else if (status === 'flagged') {
+            statusClass = 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 font-bold'
+          }
+
+          return (
+            <button
+              key={q.id}
+              role="listitem"
+              onClick={() => onNavigate(index)}
+              aria-label={`Question ${index + 1} — ${status}${isCurrent ? ', currently viewing' : ''}`}
+              aria-current={isCurrent ? 'true' : undefined}
+              className={`w-9 h-9 rounded-lg text-sm font-mono font-bold border transition-all cursor-pointer flex items-center justify-center ${statusClass}`}
+            >
+              {index + 1}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Divider */}
+      <div className="border-b border-line dark:border-slate-800 my-5" />
+
+      {/* Vertical Status Legend */}
+      <div className="space-y-2 text-xs text-ink-muted dark:text-slate-400">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+          <span>Not yet visited</span>
         </div>
-
-        {/* Question grid */}
-        <div className="flex flex-wrap gap-2.5 mb-6" role="list">
-          {questions.map((q, index) => {
-            const status: QuestionStatus = questionStatus[q.id] ?? 'unvisited'
-            const isCurrent = index === currentQuestionIndex
-
-            let styleClass = 'bg-[#F8FAFC] border border-[#E2E8F0] text-[#475569] hover:border-[#2F65F6] hover:text-[#2F65F6]'
-            if (isCurrent) {
-              styleClass = 'bg-[#EFF6FF] border-2 border-[#2F65F6] text-[#2F65F6] font-bold shadow-2xs'
-            } else if (status === 'answered') {
-              styleClass = 'bg-emerald-50 border border-emerald-300 text-emerald-600 font-semibold'
-            } else if (status === 'flagged') {
-              styleClass = 'bg-purple-50 border border-purple-300 text-purple-600 font-semibold'
-            } else if (status === 'skipped') {
-              styleClass = 'bg-amber-50 border border-amber-300 text-amber-600 font-semibold'
-            }
-
-            return (
-              <button
-                key={q.id}
-                role="listitem"
-                onClick={() => onNavigate(index)}
-                aria-label={`Question ${index + 1}${isCurrent ? ', currently viewing' : ''}`}
-                aria-current={isCurrent ? 'true' : undefined}
-                className={`
-                  w-[38px] h-[38px] rounded-[7px] text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center
-                  ${styleClass}
-                `}
-              >
-                {index + 1}
-              </button>
-            )
-          })}
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+          <span>Answered</span>
         </div>
-
-        {/* Divider */}
-        <div className="border-t border-[#E2E8F0] my-5" />
-
-        {/* Legend */}
-        <div className="space-y-3">
-          {STATUS_ITEMS.map((item) => (
-            <div key={item.status} className="flex items-center gap-2.5 text-xs text-[#475569] dark:text-slate-300">
-              <span className={`w-2 h-2 rounded-full ${item.dotColor} flex-shrink-0`} />
-              <span>{item.label}</span>
-            </div>
-          ))}
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-warning shrink-0" />
+          <span>Skipped</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+          <span>Flagged for review</span>
         </div>
       </div>
 
-      {/* Flag instruction box */}
-      <div className="bg-[#F8FAFC] dark:bg-[var(--background)] border border-[#E2E8F0] dark:border-[var(--border)] rounded-[8px] p-3 flex items-center gap-2.5 mt-8 text-xs text-[#475569] dark:text-slate-300 font-medium">
-        <Flag size={14} className="text-[#475569] dark:text-slate-400 flex-shrink-0" />
-        <span>Press F to flag question</span>
-      </div>
+      {/* Flag toggle action button */}
+      <button
+        type="button"
+        onClick={handleToggleFlag}
+        className="mt-6 w-full p-2.5 rounded-lg bg-surface dark:bg-slate-800/80 hover:bg-slate-100/80 dark:hover:bg-slate-700/80 border border-line dark:border-slate-700 text-xs text-ink-muted dark:text-slate-300 hover:text-ink dark:hover:text-white flex items-center gap-2 cursor-pointer transition-colors text-left"
+        title="Toggle Flag on current question"
+      >
+        <Flag size={13} className="text-ink-secondary dark:text-slate-400 shrink-0" />
+        <span>Press <strong className="font-bold text-ink dark:text-white">F</strong> to flag question</span>
+      </button>
     </nav>
   )
 }

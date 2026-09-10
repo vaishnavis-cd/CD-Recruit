@@ -1612,124 +1612,131 @@ function IndividualResultPage() {
                       return <div className="text-ink-tertiary italic">No telemetry actions recorded during session.</div>;
                     }
 
-                    return (
-                      <>
-                        {actionsList.map((act: any, idx: number) => (
-                          <div key={idx} className="flex items-center gap-2 py-0.5 border-b border-gray-100 last:border-0">
-                            <span className="text-ink-tertiary shrink-0 font-mono text-2xs">[{act.timestamp || `#${idx + 1}`}]</span>
-                            <span className="font-semibold text-brand shrink-0 text-2xs px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded">
-                              [{act.type || "ACTION"}]
-                            </span>
-                            <span className="text-ink text-xs-plus truncate">{act.label || act.action || "Action logged"}</span>
-                          </div>
-                        ))}
-                        {totalCount > 0 && (
-                          <div className="text-emerald-600 font-semibold pt-2 border-t border-line mt-1 text-xs-plus flex items-center gap-1.5">
-                            <span>✓ Total Recorded Work Events:</span>
-                            <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-2xs">{totalCount}</span>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                  return (
+                    <>
+                      {actionsList.map((act: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 py-0.5 border-b border-gray-100 last:border-0">
+                          <span className="text-ink-tertiary shrink-0 font-mono text-2xs">[{act.timestamp || `#${idx + 1}`}]</span>
+                          <span className="font-semibold text-brand shrink-0 text-2xs px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded">
+                            [{act.type || "ACTION"}]
+                          </span>
+                          <span className="text-ink text-xs-plus truncate">{act.label || act.action || "Action logged"}</span>
+                        </div>
+                      ))}
+                      {totalCount > 0 && (
+                        <div className="text-emerald-600 font-semibold pt-2 border-t border-line mt-1 text-xs-plus flex items-center gap-1.5">
+                          <span>✓ Total Recorded Work Events:</span>
+                          <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-2xs">{totalCount}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
-
-              {/* Recorded Simulation Module Submissions */}
-              {(() => {
-                const allResponses = detail.moduleResponses || (detail as any).submissions || [];
-                const simResponses = allResponses.filter(
-                  (r: any) => {
-                    const p = r.responsePayload || r.payload || r;
-                    return r.moduleType === "SIMULATION" || p?.moduleType === "SIMULATION" || p?.sayText || p?.ticketReply || p?.resolutionData || p?.resolution || p?.initialSayText;
-                  }
-                );
-                return (
-                  <div className="border border-line rounded-md p-4 bg-white space-y-3">
-                    <span className="text-xs-plus font-mono uppercase text-ink font-bold block">
-                      4. Contextual Simulation Recorded Submissions &amp; Resolutions ({simResponses.length})
-                    </span>
-                    {simResponses.length === 0 ? (
-                      <p className="text-xs text-ink-tertiary italic">No direct simulation question responses recorded.</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {simResponses.map((resp: any, idx: number) => {
-                          const payload = resp.responsePayload || resp.payload || resp;
-                          const resolution = payload.resolutionData || payload.resolution || null;
-                          const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
-                          const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode;
-                          const summaryText = resolution?.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
-
-                          const passedTests = typeof payload.passedTests === "number" ? payload.passedTests : (payload.testExecutionResult?.passedTests ?? (payload.isCorrect ? 3 : 0));
-                          const totalTests = typeof payload.totalTests === "number" ? payload.totalTests : (payload.testExecutionResult?.totalTests ?? 3);
-                          const hasRunTests = typeof payload.passedTests === "number" || typeof payload.testExecutionResult?.passedTests === "number" || payload.isCorrect !== undefined;
-
-                          let statusStr = "NOT ATTEMPTED";
-                          let badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
-
-                          if (resolution?.status) {
-                            statusStr = resolution.status;
-                            badgeStyle = statusStr.includes("RESOLVED") ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-blue-50 text-brand border-blue-200";
-                          } else if (hasRunTests && totalTests > 0) {
-                            if (passedTests === totalTests) {
-                              statusStr = "RESOLVED & APPROVED";
-                              badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300";
-                            } else if (passedTests > 0) {
-                              statusStr = "PARTIALLY RESOLVED";
-                              badgeStyle = "bg-amber-50 text-amber-700 border-amber-300";
-                            } else {
-                              statusStr = "TESTS FAILED";
-                              badgeStyle = "bg-rose-50 text-rose-700 border-rose-300";
-                            }
-                          } else if (codePatch) {
-                            statusStr = "SUBMITTED (Unverified)";
-                            badgeStyle = "bg-blue-50 text-brand border-blue-200";
-                          } else {
-                            statusStr = "NOT ATTEMPTED";
-                            badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
-                          }
-
-                          return (
-                            <div key={resp.id || idx} className="p-4 bg-canvas border border-line rounded-xl space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-sm-minus text-ink">{promptText}</span>
-                                <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${badgeStyle}`}>
-                                  {statusStr} {hasRunTests ? `• Passed ${passedTests}/${totalTests} Tests` : "• 0 Tests Executed"}
-                                </span>
-                              </div>
-
-                              {summaryText && (
-                                <div className="space-y-1">
-                                  <span className="text-2xs font-mono uppercase text-ink-tertiary block">Candidate Resolution Rationale &amp; Incident Plan:</span>
-                                  <div className="p-3 bg-white border border-line rounded text-xs text-ink leading-relaxed">
-                                    {summaryText}
-                                  </div>
-                                </div>
-                              )}
-
-                              {codePatch && (
-                                <div className="space-y-1">
-                                  <span className="text-2xs font-mono uppercase text-ink-tertiary block">Submitted Hotfix Source Code:</span>
-                                  <div className="h-44 border border-line rounded-md overflow-hidden">
-                                    <CodeEditor
-                                      value={typeof codePatch === "string" ? codePatch : JSON.stringify(codePatch, null, 2)}
-                                      language="python"
-                                      readOnly={true}
-                                      theme="cd-recruit-dark"
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
             </div>
-          )}
+
+            {/* Recorded Simulation Module Submissions */}
+            {(() => {
+              const allResponses = getAllResponses.length > 0 ? getAllResponses : (detail.moduleResponses || (detail as any).submissions || []);
+              const simResponses = allResponses.filter(
+                (r: any) => {
+                  const modType = (r.moduleType || r.question?.moduleType || "").toUpperCase();
+                  const p = getParsedPayload(r);
+                  const pModType = (p.moduleType || "").toUpperCase();
+                  return modType === "SIMULATION" || pModType === "SIMULATION" || p?.sayText || p?.ticketReply || p?.resolutionData || p?.resolution || p?.initialSayText;
+                }
+              );
+              return (
+                <div className="border border-line rounded-md p-4 bg-white space-y-3">
+                  <span className="text-xs-plus font-mono uppercase text-ink font-bold block">
+                    4. Contextual Simulation Recorded Submissions &amp; Resolutions ({simResponses.length})
+                  </span>
+                  {simResponses.length === 0 ? (
+                    <p className="text-xs text-ink-tertiary italic">No direct simulation question responses recorded.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {simResponses.map((resp: any, idx: number) => {
+                        const payload = getParsedPayload(resp);
+                        const resolution = payload.resolutionData || payload.resolution || null;
+                        const promptText = (resp.question as any)?.prompt || payload.questionText || `P1 Incident Hotfix Resolution #${idx + 1}`;
+                        const codePatch = resolution?.fixedCode || payload.fixedCode || payload.code || payload.sourceCode || payload.patch;
+                        const summaryText = resolution?.summary || payload.summary || payload.sayText || payload.ticketReply || payload.initialSayText || payload.text;
+
+                        const passedTests = typeof payload.passedTests === "number" ? payload.passedTests : (payload.testExecutionResult?.passedTests ?? (payload.isCorrect ? 3 : 0));
+                        const totalTests = typeof payload.totalTests === "number" ? payload.totalTests : (payload.testExecutionResult?.totalTests ?? 3);
+                        const hasRunTests = typeof payload.passedTests === "number" || typeof payload.testExecutionResult?.passedTests === "number" || payload.isCorrect !== undefined;
+
+                        let statusStr = "NOT ATTEMPTED";
+                        let badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+
+                        if (resolution?.status) {
+                          statusStr = resolution.status;
+                          badgeStyle = statusStr.includes("RESOLVED") ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-blue-50 text-brand border-blue-200";
+                        } else if (payload.status) {
+                          statusStr = payload.status;
+                          badgeStyle = payload.status === "SUCCESS" || payload.status === "COMPLETED"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                            : "bg-red-50 text-red-800 border-red-300";
+                        } else if (hasRunTests && totalTests > 0) {
+                          if (passedTests === totalTests) {
+                            statusStr = "RESOLVED & APPROVED";
+                            badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300";
+                          } else if (passedTests > 0) {
+                            statusStr = "PARTIALLY RESOLVED";
+                            badgeStyle = "bg-amber-50 text-amber-700 border-amber-300";
+                          } else {
+                            statusStr = "TESTS FAILED";
+                            badgeStyle = "bg-rose-50 text-rose-700 border-rose-300";
+                          }
+                        } else if (codePatch) {
+                          statusStr = "SUBMITTED (Unverified)";
+                          badgeStyle = "bg-blue-50 text-brand border-blue-200";
+                        } else {
+                          statusStr = "NOT ATTEMPTED";
+                          badgeStyle = "bg-gray-100 text-gray-700 border-gray-300";
+                        }
+
+                        return (
+                          <div key={resp.id || idx} className="p-4 bg-canvas border border-line rounded-xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-sm-minus text-ink">{promptText}</span>
+                              <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${badgeStyle}`}>
+                                {statusStr} {hasRunTests ? `• Passed ${passedTests}/${totalTests} Tests` : "• 0 Tests Executed"}
+                              </span>
+                            </div>
+
+                            {summaryText && (
+                              <div className="space-y-1">
+                                <span className="text-2xs font-mono uppercase text-ink-tertiary block">Candidate Resolution Rationale &amp; Incident Plan:</span>
+                                <div className="p-3 bg-white border border-line rounded text-xs text-ink leading-relaxed">
+                                  {summaryText}
+                                </div>
+                              </div>
+                            )}
+
+                            {codePatch && (
+                              <div className="space-y-1">
+                                <span className="text-2xs font-mono uppercase text-ink-tertiary block">Submitted Hotfix Source Code:</span>
+                                <div className="h-44 border border-line rounded-md overflow-hidden">
+                                  <CodeEditor
+                                    value={typeof codePatch === "string" ? codePatch : JSON.stringify(codePatch, null, 2)}
+                                    language="python"
+                                    readOnly={true}
+                                    theme="cd-recruit-dark"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
           {/* INTEGRITY TAB */}
           {activeTab === "INTEGRITY" && (() => {

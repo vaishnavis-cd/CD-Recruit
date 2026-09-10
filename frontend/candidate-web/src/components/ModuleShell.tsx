@@ -8,7 +8,7 @@ import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { useTheme } from '../theme/ThemeProvider';
 import { ProctoringModule } from '../proctoring/proctoring.module';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, RotateCcw } from 'lucide-react';
 
 import { WatermarkOverlay } from './common/WatermarkOverlay';
 import { IntegrityAlertBanner } from './common/IntegrityAlertBanner';
@@ -61,11 +61,31 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const cvMode = useSessionStore(s => s.cvMode);
   const setQuestionStatus = useSessionStore(s => s.setQuestionStatus);
   const assessment = useSessionStore(s => s.assessment);
+  const inviteToken = useSessionStore(s => s.inviteToken);
   const session = useSessionStore(s => s.session);
   const transitionTo = useSessionStore(s => s.transitionTo);
   const { theme, toggle } = useTheme();
   const { fullscreenExited, setFullscreenExited } = useFunctionalNudge();
   const [networkDisconnected, setNetworkDisconnected] = React.useState(false);
+
+  // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+  const isUnlimitedDemo =
+    (assessment && assessment.totalSeconds >= 86400 * 30) ||
+    inviteToken === 'demo' ||
+    inviteToken?.startsWith('demo') ||
+    inviteToken?.startsWith('unlimited-') ||
+    (session as any)?.durationMinutes >= 999999;
+
+
+
+  const handleResetDemoState = () => {
+    if (confirm('Reset demo state? This will clear local responses and reload fresh questions for UI development.')) {
+      localStorage.removeItem('cd-recruit-assessment-state');
+      localStorage.removeItem('cd-recruit-session');
+      localStorage.removeItem('cd-recruit-autosave');
+      window.location.reload();
+    }
+  };
 
   const activeModules = React.useMemo(() => {
     if (!assessment?.questions || assessment.questions.length === 0) {
@@ -176,7 +196,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
       )}
 
       {/* Fullscreen exit nudge — functional, NOT an accusation */}
-      {fullscreenExited && (
+      {fullscreenExited && !isUnlimitedDemo && (
         <div
           role="status"
           aria-live="polite"
@@ -194,48 +214,54 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </div>
       )}
 
-      {/* Top Navbar (80px) */}
-      <header className="h-20 px-6 border-b border-[#E2E8F0] dark:border-[var(--border)] bg-white dark:bg-[#0f1115] flex items-center justify-between flex-shrink-0 z-20 select-none">
-        {/* Left Side: Brand Logo, Module Title, Question Badge */}
-        <div className="flex items-center">
-          <div className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-white">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#2F65F6] to-[#7F30FF] flex items-center justify-center text-white text-xs font-black shadow-2xs">
-              P
-            </div>
-            <span>Proctora</span>
-          </div>
-
-          <div className="h-6 w-px bg-[#E2E8F0] dark:bg-[var(--border)] mx-4" />
-
-          <div className="font-bold text-sm text-[#2F65F6] tracking-tight">
+      {/* Top bar with 3-part layout: Left Branding, Center Camera & Timer, Right Actions */}
+      <header className="relative flex items-center justify-between px-6 py-2.5 border-b border-line dark:border-slate-800 bg-white dark:bg-[#111827] flex-shrink-0">
+        {/* Left Branding & Active Module Info */}
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-bold tracking-tight text-ink dark:text-white">
+            Proctora
+          </span>
+          <div className="h-4 w-px bg-line dark:bg-slate-700" />
+          <span className="text-sm font-bold text-brand">
             {currentModule?.name ?? `Module ${moduleIndex + 1}`}
-          </div>
-
-          <div className="h-6 w-px bg-[#E2E8F0] dark:bg-[var(--border)] mx-4" />
-
+          </span>
           {currentModule && (
-            <div className="bg-[#F8FAFC] dark:bg-[var(--surface)] border border-[#E2E8F0] dark:border-[var(--border)] rounded-[4px] px-3 py-1 text-xs font-mono font-medium text-[#475569] dark:text-slate-400">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
               Q{currentQuestionIndex + 1} of {questions.length}
-            </div>
+            </span>
           )}
         </div>
 
-        {/* Right Side: Proctoring Preview, Timer, Theme Toggle, Review & Submit */}
+        {/* Center Live Camera & Countdown Timer */}
         <div className="flex items-center gap-3">
           <ProctoringIndicator cvMode={cvMode} />
           <Timer />
+        </div>
+
+        {/* Right Actions: Theme toggle & Review & Submit */}
+        <div className="flex items-center gap-3">
+          {isUnlimitedDemo && (
+            <button
+              onClick={handleResetDemoState}
+              title="Reset / Demolish Demo Answers and Reload Fresh Questions"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+            >
+              <RotateCcw size={13} />
+              <span>Reset State</span>
+            </button>
+          )}
 
           <button
             onClick={toggle}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            className="p-2 rounded-lg bg-[#F8FAFC] dark:bg-[var(--surface)] border border-[#E2E8F0] dark:border-[var(--border)] text-[#475569] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full border border-line dark:border-slate-700 flex items-center justify-center text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </button>
 
           <button
             onClick={handleSubmitAssessment}
-            className="bg-[#2F65F6] hover:bg-blue-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+            className="bg-brand hover:bg-brand-hover text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
             aria-label="Review and submit assessment"
           >
             Review &amp; Submit
@@ -243,8 +269,8 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
         </div>
       </header>
 
-      {/* Dedicated Tabs Bar (45px) */}
-      <nav aria-label="Assessment Module Tabs" className="h-[45px] bg-white dark:bg-[#0f1115] border-b border-[#E2E8F0] dark:border-[var(--border)] px-6 flex items-center gap-2 overflow-x-auto flex-shrink-0 select-none z-10">
+      {/* Module sub-navigation tabs bar */}
+      <div className="px-6 py-2.5 bg-white dark:bg-[#111827] border-b border-line dark:border-slate-800 flex items-center gap-2 overflow-x-auto no-scrollbar flex-shrink-0">
         {activeModules.map((mod, i) => {
           const isActive = i === moduleIndex;
           return (
@@ -253,25 +279,23 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
               onClick={() => transitionTo({ type: 'assessment', moduleIndex: i, sessionId: assessment?.sessionId ?? '' })}
               aria-label={`Go to ${mod.name}`}
               aria-current={isActive ? 'page' : undefined}
-              className={`
-                px-4 py-1.5 text-xs transition-all cursor-pointer whitespace-nowrap
-                ${isActive
-                  ? 'border-2 border-[#2F65F6] text-[#2F65F6] bg-white dark:bg-[var(--surface)] font-semibold rounded-full shadow-2xs'
-                  : 'text-[#475569] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F8FAFC] dark:hover:bg-[var(--surface)] font-medium rounded-md'
-                }
-              `}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-white dark:bg-[#1e293b] border-2 border-brand text-brand shadow-xs font-bold'
+                  : 'text-ink-secondary dark:text-slate-400 hover:text-ink dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-850 border border-transparent'
+              }`}
             >
               {mod.name}
             </button>
           );
         })}
-      </nav>
+      </div>
 
-      {/* Workspace Split (Question Navigator + Problem + Editor/Console) */}
-      <div className="flex flex-1 overflow-hidden bg-[#F8FAFC] dark:bg-[var(--bg)]">
-        {/* Left Column: Question Palette (~320px) */}
+      {/* Main content + sidebar */}
+      <div className="flex flex-1 overflow-hidden bg-canvas dark:bg-[#0B0F19]">
+        {/* Sidebar: Question palette */}
         <aside
-          className="w-80 flex-shrink-0 border-r border-[#E2E8F0] dark:border-[var(--border)] bg-white dark:bg-[var(--surface)] overflow-y-auto hidden lg:block"
+          className="w-60 flex-shrink-0 border-r border-line dark:border-slate-800 bg-white dark:bg-[#111827] overflow-y-auto hidden lg:block"
           aria-label="Question navigation sidebar"
         >
           <QuestionPalette
@@ -282,8 +306,8 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
           />
         </aside>
 
-        {/* Main Workspace Column */}
-        <main className="flex-1 h-full flex flex-col min-h-0 overflow-hidden" id="main-content" tabIndex={-1}>
+        {/* Question content */}
+        <main className="flex-1 h-full flex flex-col min-h-0 overflow-hidden bg-canvas dark:bg-[#0B0F19]" id="main-content" tabIndex={-1}>
           {children}
         </main>
       </div>

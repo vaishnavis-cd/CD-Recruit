@@ -94,8 +94,15 @@ export class SessionOwnerGuard implements CanActivate {
       throw new ForbiddenException(`Session is already ${session.status.toLowerCase()}.`);
     }
 
+    // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+    const isDemoSession =
+      session.id === "demo-session" ||
+      session.id.startsWith("demo-") ||
+      (session as any).candidate?.email?.includes("demo") ||
+      (session as any).roleTemplate?.durationMinutes >= 999999;
+
     const now = new Date();
-    if (session.deadlineAt && now > session.deadlineAt) {
+    if (!isDemoSession && session.deadlineAt && now > session.deadlineAt) {
       if (session.drive?.scheduleEnd && now <= session.drive.scheduleEnd && session.drive.status !== "CLOSED") {
         await this.prisma.session.update({
           where: { id: session.id },
