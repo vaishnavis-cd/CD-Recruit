@@ -599,11 +599,17 @@ function VerificationSidePanel({
 
   // 3. OCR Verification
   const regName = candidateData?.name || item?.candidateName || "N/A";
-  const ocrName =
+  const extractedName =
     idVerifyResult?.name?.extractedName ||
     candidateData?.idProofExtractedName ||
-    "Nitesh R";
-  const ocrMatched = idVerifyResult?.name?.matched ?? (regName.toLowerCase().trim() === ocrName.toLowerCase().trim());
+    null;
+  const ocrName = extractedName || "—";
+  const ocrMatched: boolean | null =
+    typeof idVerifyResult?.name?.matched === "boolean"
+      ? idVerifyResult.name.matched
+      : extractedName
+        ? regName.toLowerCase().trim() === extractedName.toLowerCase().trim()
+        : null;
 
   const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
@@ -815,12 +821,15 @@ function VerificationSidePanel({
                       3. OCR Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${ocrMatched
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
+                        ocrMatched === true
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
-                        }`}
+                          : ocrMatched === false
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                      }`}
                     >
-                      {ocrMatched ? "Match" : "Mismatch"}
+                      {ocrMatched === true ? "Match" : ocrMatched === false ? "Mismatch" : "Pending"}
                     </span>
                   </div>
                   {accordions.ocr ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -835,14 +844,24 @@ function VerificationSidePanel({
                       </div>
                       <div>
                         <span className="text-ink-tertiary block text-xs-plus">Extracted Name (OCR)</span>
-                        <span className="font-semibold text-ink">{ocrName}</span>
+                        <span className={`font-semibold ${extractedName ? "text-ink" : "text-ink-tertiary italic"}`}>
+                          {extractedName || "Pending verification"}
+                        </span>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-line flex items-center justify-between">
                       <span className="text-ink-tertiary text-xs-plus">Result</span>
-                      <span className={`font-bold ${ocrMatched ? "text-emerald-600" : "text-rose-600"}`}>
-                        {ocrMatched ? "Match" : "Mismatch"}
+                      <span
+                        className={`font-bold ${
+                          ocrMatched === true
+                            ? "text-emerald-600"
+                            : ocrMatched === false
+                              ? "text-rose-600"
+                              : "text-amber-600"
+                        }`}
+                      >
+                        {ocrMatched === true ? "Match" : ocrMatched === false ? "Mismatch" : "Pending"}
                       </span>
                     </div>
                   </div>
