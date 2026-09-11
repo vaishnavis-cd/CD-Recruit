@@ -600,16 +600,27 @@ function VerificationSidePanel({
   // 3. OCR Verification
   const regName = candidateData?.name || item?.candidateName || "N/A";
   const extractedName =
-    idVerifyResult?.name?.extractedName ||
+    (idVerifyResult?.name?.extractedName ||
     candidateData?.idProofExtractedName ||
-    null;
-  const ocrName = extractedName || "—";
+    "").trim() || null;
+  const ocrName = extractedName || "Not extracted";
   const ocrMatched: boolean | null =
     typeof idVerifyResult?.name?.matched === "boolean"
       ? idVerifyResult.name.matched
       : extractedName
         ? regName.toLowerCase().trim() === extractedName.toLowerCase().trim()
-        : null;
+        : idVerifyResult
+          ? false
+          : null;
+
+  const ocrStatusLabel =
+    ocrMatched === true
+      ? "Match"
+      : ocrMatched === false
+        ? extractedName
+          ? "Mismatch"
+          : "Not Extracted"
+        : "Pending";
 
   const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
@@ -829,7 +840,7 @@ function VerificationSidePanel({
                             : "bg-amber-50 text-amber-700 border border-amber-200"
                       }`}
                     >
-                      {ocrMatched === true ? "Match" : ocrMatched === false ? "Mismatch" : "Pending"}
+                      {ocrStatusLabel}
                     </span>
                   </div>
                   {accordions.ocr ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -844,8 +855,8 @@ function VerificationSidePanel({
                       </div>
                       <div>
                         <span className="text-ink-tertiary block text-xs-plus">Extracted Name (OCR)</span>
-                        <span className={`font-semibold ${extractedName ? "text-ink" : "text-ink-tertiary italic"}`}>
-                          {extractedName || "Pending verification"}
+                        <span className={`font-semibold ${extractedName ? "text-ink" : "text-rose-600 italic"}`}>
+                          {extractedName || "Not extracted"}
                         </span>
                       </div>
                     </div>
@@ -861,7 +872,7 @@ function VerificationSidePanel({
                               : "text-amber-600"
                         }`}
                       >
-                        {ocrMatched === true ? "Match" : ocrMatched === false ? "Mismatch" : "Pending"}
+                        {ocrStatusLabel}
                       </span>
                     </div>
                   </div>
