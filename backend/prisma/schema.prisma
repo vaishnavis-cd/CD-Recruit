@@ -522,9 +522,11 @@ model CodingExecution {
   questionId     String          @map("question_id")
   languageId     Int             @map("language_id")
   submissionType SubmissionType  @map("submission_type")
-  sourceCode     String          @map("source_code")
-  judge0Token    String?         @map("judge0_token")
-  status         ExecutionStatus
+  sourceCode        String          @map("source_code")
+  judge0Token       String?         @map("judge0_token")
+  judge0Tokens      Json?           @map("judge0_tokens")
+  webhookReceivedAt DateTime?       @map("webhook_received_at")
+  status            ExecutionStatus
   stdout         String?
   stderr         String?
   compileOutput  String?         @map("compile_output")
@@ -538,6 +540,9 @@ model CodingExecution {
   session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
+  @@index([sessionId])
+  @@index([status])
+  @@index([createdAt])
   @@map("coding_execution")
 }
 

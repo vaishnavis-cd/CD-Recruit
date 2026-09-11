@@ -178,6 +178,7 @@ export function CodingWorkspace({
   }, [langMenuOpen]);
 
   const activePollRef = useRef<boolean>(false);
+  const runAbortControllerRef = useRef<AbortController | null>(null);
 
   // Subscribe to proctoring active-flag state
   useEffect(() => {
@@ -217,9 +218,13 @@ export function CodingWorkspace({
     return () => clearTimeout(timer);
   }, [activeCode, selectedLanguage, sessionId, question.id]);
 
-  // Save on unmount (switching questions)
+  // Save on unmount (switching questions) and abort in-flight Run requests
   useEffect(() => {
     return () => {
+      if (runAbortControllerRef.current) {
+        runAbortControllerRef.current.abort();
+        runAbortControllerRef.current = null;
+      }
       const finalCode = latestCodeRef.current;
       const finalLang = latestLanguageRef.current;
       if (sessionId && finalCode.trim()) {
@@ -286,21 +291,52 @@ export function CodingWorkspace({
     }
   };
 
-  const pollExecution = async (executionId: string, maxAttempts = 30) => {
+  const pollExecution = async (executionId: string, maxAttempts = 60): Promise<CodingExecutionResponse> => {
     let attempt = 0;
     while (attempt < maxAttempts && activePollRef.current) {
       attempt++;
       try {
         const result = await getCodingExecution(executionId);
-        if (result.status !== "PENDING" && result.status !== "RUNNING") {
+        if (result.status && result.status !== "PENDING" && result.status !== "RUNNING") {
           return result;
         }
       } catch (err) {
         console.error("Polling error:", err);
       }
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 300));
     }
     throw new Error("Execution timed out.");
+  };
+
+  const executeWithRetry = async (
+    actionFn: () => Promise<CodingExecutionResponse>,
+  ): Promise<CodingExecutionResponse> => {
+    const response = await actionFn();
+    if (response.status === "PENDING" || response.status === "RUNNING") {
+      // Race SSE and fast 300ms Redis polling so the absolute fastest path always wins
+      return await Promise.race([
+        pollExecution(response.executionId),
+        new Promise<CodingExecutionResponse>((resolve) => {
+          try {
+            const sseUrl = `/api/v1/coding/execution/${response.executionId}/events`;
+            const eventSource = new EventSource(sseUrl);
+            eventSource.onmessage = (event) => {
+              try {
+                const payload = JSON.parse(event.data);
+                if (payload.status && payload.status !== "PENDING" && payload.status !== "RUNNING") {
+                  eventSource.close();
+                  resolve(payload);
+                }
+              } catch {}
+            };
+            eventSource.onerror = () => {
+              eventSource.close();
+            };
+          } catch {}
+        }),
+      ]);
+    }
+    return response;
   };
 
   const handleRun = async () => {
@@ -313,27 +349,46 @@ export function CodingWorkspace({
     setActiveTab("testCases");
     activePollRef.current = true;
 
-    try {
-      const response = await runCoding({
-        sessionId,
-        questionId: question.id,
-        language: selectedLanguage,
-        sourceCode: activeCode,
-      });
+    if (runAbortControllerRef.current) {
+      runAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    runAbortControllerRef.current = controller;
 
-      let finalResult = response;
-      if (response.status === "PENDING" || response.status === "RUNNING") {
-        finalResult = await pollExecution(response.executionId);
-      }
+    try {
+      const finalResult = await executeWithRetry(() =>
+        runCoding(
+          {
+            sessionId,
+            questionId: question.id,
+            language: selectedLanguage,
+            sourceCode: activeCode,
+          },
+          { signal: controller.signal },
+        ),
+      );
 
       setExecutionResult(finalResult);
       updateStatus("answered");
     } catch (err: any) {
-      console.error("Remote execution failed:", err?.message || err);
-      setErrorMsg(err?.message || "Remote code execution failed. Please check network connectivity or backend API status.");
+      if (err?.name === "CanceledError" || err?.name === "AbortError" || controller.signal.aborted) {
+        console.log("Run execution request was aborted by candidate action.");
+        return;
+      }
+      console.error("Remote execution failed after retries:", {
+        sessionId,
+        questionId: question.id,
+        timestamp: new Date().toISOString(),
+        error: err?.message || err,
+      });
+      setErrorMsg("Execution service temporarily unavailable — please retry");
+      setExecutionResult(null);
     } finally {
       setIsRunning(false);
       activePollRef.current = false;
+      if (runAbortControllerRef.current === controller) {
+        runAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -348,23 +403,26 @@ export function CodingWorkspace({
     activePollRef.current = true;
 
     try {
-      const response = await submitCoding({
-        sessionId,
-        questionId: question.id,
-        language: selectedLanguage,
-        sourceCode: activeCode,
-      });
-
-      let finalResult = response;
-      if (response.status === "PENDING" || response.status === "RUNNING") {
-        finalResult = await pollExecution(response.executionId);
-      }
+      const finalResult = await executeWithRetry(() =>
+        submitCoding({
+          sessionId,
+          questionId: question.id,
+          language: selectedLanguage,
+          sourceCode: activeCode,
+        }),
+      );
 
       setExecutionResult(finalResult);
       updateStatus("answered");
     } catch (err: any) {
-      console.error("Remote submission failed:", err?.message || err);
-      setErrorMsg(err?.message || "Code submission failed. Please check backend API status.");
+      console.error("Remote submission failed after retries:", {
+        sessionId,
+        questionId: question.id,
+        timestamp: new Date().toISOString(),
+        error: err?.message || err,
+      });
+      setErrorMsg("Execution service temporarily unavailable — please retry");
+      setExecutionResult(null);
     } finally {
       setIsRunning(false);
       activePollRef.current = false;

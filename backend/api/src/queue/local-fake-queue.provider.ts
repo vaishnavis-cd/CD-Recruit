@@ -15,6 +15,28 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
     this.logger.log(`[LocalFakeQueueProvider] Registered handler for ${key}`);
   }
 
+  async enqueue(
+    queueName: string,
+    jobName: string,
+    payload: Record<string, unknown>,
+    opts?: { delayMs?: number; jobId?: string },
+  ): Promise<void> {
+    if (opts?.delayMs && opts.delayMs > 0) {
+      return this.enqueueDelayed(queueName, jobName, payload, { delayMs: opts.delayMs, jobId: opts?.jobId });
+    }
+    const key = `${queueName}:${jobName}`;
+    setImmediate(async () => {
+      const handler = this.handlers.get(key);
+      if (handler) {
+        try {
+          await handler(payload);
+        } catch (err: any) {
+          this.logger.error(`[LocalFakeQueueProvider] Error in immediate job "${key}": ${err.message}`);
+        }
+      }
+    });
+  }
+
   async enqueueDelayed(
     queueName: string,
     jobName: string,

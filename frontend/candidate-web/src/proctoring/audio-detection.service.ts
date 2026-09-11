@@ -11,6 +11,8 @@ export class AudioDetectionService {
   // Heuristic state variables
   private continuousSpeechDurationMs = 0;
   private lastCheckTime = 0;
+  private lastSpeechTriggerTime = 0;
+  private lastSecondVoiceTriggerTime = 0;
 
   private constructor() {}
 
@@ -123,28 +125,32 @@ export class AudioDetectionService {
     const averageSpeechEnergy = speechBinsCount > 0 ? speechEnergySum / speechBinsCount : 0;
     const averageNoiseEnergy = noiseBinsCount > 0 ? noiseEnergySum / noiseBinsCount : 0;
     
-    // Voice activity detection thresholds
-    const VAD_ENERGY_THRESHOLD = 40; 
+    // Voice activity detection thresholds (raised to prevent false positives from background room noise)
+    const VAD_ENERGY_THRESHOLD = 75; 
     const isVoiceHarmonic = averageSpeechEnergy > VAD_ENERGY_THRESHOLD &&
-      (averageSpeechEnergy / (averageNoiseEnergy || 1)) >= 1.3 &&
-      averageNoiseEnergy < (averageSpeechEnergy * 1.1);
+      (averageSpeechEnergy / (averageNoiseEnergy || 1)) >= 1.8 &&
+      averageNoiseEnergy < (averageSpeechEnergy * 0.9);
 
     if (isVoiceHarmonic) {
       this.continuousSpeechDurationMs += deltaTime;
 
-      // 1. Emit generic speech detection signal
-      DetectionEngineService.getInstance().triggerMockEvent("SPEECH_DETECTED", "audio-detector-v1");
+      // 1. Only trigger SPEECH_DETECTED after 2.5s of continuous sustained voice
+      if (this.continuousSpeechDurationMs >= 2500 && (now - this.lastSpeechTriggerTime) > 30000) {
+        this.lastSpeechTriggerTime = now;
+        DetectionEngineService.getInstance().triggerMockEvent("SPEECH_DETECTED", "audio-detector-v1");
+      }
 
-      // 2. Sustained continuous speech over 3.5 seconds triggers SECOND_VOICE_SUSPECTED
-      if (this.continuousSpeechDurationMs >= 3500) {
+      // 2. Sustained continuous speech over 6 seconds triggers SECOND_VOICE_SUSPECTED
+      if (this.continuousSpeechDurationMs >= 6000 && (now - this.lastSecondVoiceTriggerTime) > 60000) {
+        this.lastSecondVoiceTriggerTime = now;
         DetectionEngineService.getInstance().triggerMockEvent("SECOND_VOICE_SUSPECTED", "audio-detector-v1");
       }
     } else {
-      // Decay duration value quickly if silence or transient noise is detected to reset window
-      this.continuousSpeechDurationMs = Math.max(0, this.continuousSpeechDurationMs - deltaTime * 1.8);
+      // Decay duration value quickly if silence or transient noise is detected
+      this.continuousSpeechDurationMs = Math.max(0, this.continuousSpeechDurationMs - deltaTime * 2.0);
     }
 
-    // Schedule next tick (200ms interval, matching vision frame loop)
-    this.timerId = setTimeout(() => this.loop(), 200);
+    // Schedule next tick (1000ms interval to minimize CPU overhead)
+    this.timerId = setTimeout(() => this.loop(), 1000);
   }
 }

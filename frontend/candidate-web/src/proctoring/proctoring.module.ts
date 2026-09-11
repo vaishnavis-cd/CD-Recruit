@@ -119,22 +119,35 @@ export class ProctoringModule {
         });
         console.log("[Proctoring] [STEP 8 SUCCESS] Event listeners registered.");
 
-        // Connect frame processor loop to models and evaluator
+        // Connect frame processor loop to models and evaluator with Interleaved Round-Robin Scheduling
         const processor = FrameProcessorService.getInstance();
+        let frameIndex = 0;
+        let lastFaceRes = { faceDetected: true, faceCount: 1, headDirection: "CENTER" as const };
+        let lastPoseRes = { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
+        let lastObjectRes = { phoneDetected: false, headphonesDetected: false, bookDetected: false };
+
         this.unsubscribeFrame = processor.subscribe((video, timestamp) => {
-          const faceRes = faceModelOk
-            ? FaceDetectionService.getInstance().detect(video)
-            : { faceDetected: false, faceCount: 0, headDirection: "CENTER" as const };
+          frameIndex++;
+          const slot = frameIndex % 4;
 
-          const poseRes = poseModelOk
-            ? PoseDetectionService.getInstance().detect(video)
-            : { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
+          // Slot 1 & 3: Face Detection (Primary focus)
+          // Slot 2: Object Detection (Phones, books)
+          // Slot 0: Pose Detection (Body / seat exit)
+          if (slot === 1 || slot === 3) {
+            if (faceModelOk) {
+              lastFaceRes = FaceDetectionService.getInstance().detect(video);
+            }
+          } else if (slot === 2) {
+            if (objectModelOk) {
+              lastObjectRes = ObjectDetectionService.getInstance().detect(video);
+            }
+          } else if (slot === 0) {
+            if (poseModelOk) {
+              lastPoseRes = PoseDetectionService.getInstance().detect(video);
+            }
+          }
 
-          const objectRes = objectModelOk
-            ? ObjectDetectionService.getInstance().detect(video)
-            : { phoneDetected: false, headphonesDetected: false, bookDetected: false };
-
-          engine.evaluate(faceRes, poseRes, objectRes, timestamp);
+          engine.evaluate(lastFaceRes, lastPoseRes, lastObjectRes, timestamp);
         });
 
         // STEP 9: Start Processing Frames

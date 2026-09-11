@@ -10,6 +10,13 @@ import { HeartbeatMonitorProcessor } from "./heartbeat-monitor.processor";
 import { GraceWindowProcessor } from "./grace-window.processor";
 import { SessionModule } from "@app/session/session.module";
 import { NosqlModule } from "../modules/nosql/nosql.module";
+import { InboundExecutionProcessor } from "./execution/execution-inbound.processor";
+import { OutboundExecutionProcessor } from "./execution/execution-outbound.processor";
+import { WatchdogExecutionProcessor } from "./execution/execution-watchdog.processor";
+import { Judge0Module } from "../integrations/judge0/judge0.module";
+
+import { PrismaModule } from "../prisma/prisma.module";
+import { MinioModule } from "../integrations/minio/minio.module";
 
 const infraMode = process.env.INFRA_MODE ?? "local";
 const isFull = infraMode === "full";
@@ -17,11 +24,17 @@ const isFull = infraMode === "full";
 @Global()
 @Module({
   imports: [
+    PrismaModule,
+    MinioModule,
+    Judge0Module,
     ...(isFull
       ? [
           BullModule.registerQueue(
             { name: "heartbeat-monitor" },
             { name: "grace-window" },
+            { name: "execution-inbound" },
+            { name: "execution-outbound" },
+            { name: "execution-watchdog" },
           ),
         ]
       : []),
@@ -29,8 +42,15 @@ const isFull = infraMode === "full";
     forwardRef(() => NosqlModule),
   ],
   providers: [
+    InboundExecutionProcessor,
+    OutboundExecutionProcessor,
+    WatchdogExecutionProcessor,
     ...(isFull
-      ? [BullmqQueueProvider, HeartbeatMonitorProcessor, GraceWindowProcessor]
+      ? [
+          BullmqQueueProvider,
+          HeartbeatMonitorProcessor,
+          GraceWindowProcessor,
+        ]
       : [LocalFakeQueueProvider, LocalFakeQueueHandlersBootstrap]),
     {
       provide: QueueProviderPort,
@@ -42,3 +62,4 @@ const isFull = infraMode === "full";
   exports: [QueueProviderPort],
 })
 export class QueueModule {}
+

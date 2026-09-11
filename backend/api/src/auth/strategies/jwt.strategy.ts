@@ -123,26 +123,31 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Check if staff exists in DB by ID or email.
-    let staff = await this.prisma.staff.findUnique({
-      where: { id: staffId },
-    });
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId);
+    let staff = null;
+
+    if (isUuid) {
+      staff = await this.prisma.staff.findUnique({
+        where: { id: staffId },
+      });
+    }
 
     if (!staff) {
       staff = await this.prisma.staff.findUnique({
         where: { email },
       });
+    }
 
-      if (!staff) {
-        staff = await this.prisma.staff.create({
-          data: {
-            id: staffId,
-            email,
-            name: displayName,
-            role: (role || StaffRole.ADMIN) as any,
-            keycloakUserId: `keycloak-${staffId}`,
-          },
-        });
-      }
+    if (!staff) {
+      staff = await this.prisma.staff.create({
+        data: {
+          id: staffId,
+          email,
+          name: displayName,
+          role: (role || StaffRole.ADMIN) as any,
+          keycloakUserId: `keycloak-${staffId}`,
+        },
+      });
     }
 
     if (staff && role && staff.role !== (role as any)) {
