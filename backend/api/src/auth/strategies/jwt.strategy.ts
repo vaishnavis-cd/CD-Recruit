@@ -30,14 +30,7 @@ async function getJwksKeys(jwksUri: string) {
   const urisToTry = Array.from(
     new Set([
       jwksUri,
-      jwksUri.replace(":8080", ":8085"),
-      jwksUri.replace(":8085", ":8080"),
-      jwksUri.replace("localhost", "127.0.0.1"),
-      jwksUri.replace("127.0.0.1", "localhost"),
-      "http://localhost:8085/realms/cd-recruit/protocol/openid-connect/certs",
-      "http://127.0.0.1:8085/realms/cd-recruit/protocol/openid-connect/certs",
-      "http://localhost:8080/realms/cd-recruit/protocol/openid-connect/certs",
-      "http://127.0.0.1:8080/realms/cd-recruit/protocol/openid-connect/certs",
+      jwksUri.includes("localhost") ? jwksUri.replace("localhost", "127.0.0.1") : jwksUri.replace("127.0.0.1", "localhost"),
     ]),
   );
 
@@ -145,11 +138,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             id: staffId,
             email,
             name: displayName,
-            role: role || StaffRole.RECRUITER,
+            role: (role || StaffRole.ADMIN) as any,
             keycloakUserId: `keycloak-${staffId}`,
           },
         });
       }
+    }
+
+    if (staff && role && staff.role !== (role as any)) {
+      staff = await this.prisma.staff.update({
+        where: { id: staff.id },
+        data: { role: role as any },
+      });
     }
 
     return {
@@ -160,3 +160,4 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
+

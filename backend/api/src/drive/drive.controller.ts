@@ -120,6 +120,16 @@ export class DriveController {
     return this.driveService.saveQuestions(driveId, dto, actor.id);
   }
 
+  @Get(":driveId/suggest-deficit-questions")
+  async suggestDeficitQuestions(
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+    @Query("targetDeficitMinutes") targetDeficitMinutes?: string,
+    @Query("moduleType") moduleType?: string,
+  ) {
+    const mins = parseInt(targetDeficitMinutes || "15", 10) || 15;
+    return this.driveService.suggestDeficitQuestions(driveId, mins, moduleType);
+  }
+
   @Post(":driveId/candidates/bulk")
   @RequirePermission(Permission.CANDIDATE_INGEST_CSV)
   async addCandidatesBulk(

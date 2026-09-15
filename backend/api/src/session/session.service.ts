@@ -18,7 +18,7 @@ import { CandidateService } from "@app/candidate/candidate.service";
 import { AppConfig } from "@app/config/configuration";
 import { MinioService } from "@app/integrations/minio/minio.service";
 import { FaceVerifyOnnxService } from "@app/integrations/face-verify-onnx/face-verify-onnx.service";
-import { AadhaarOcrService } from "../integrations/ocr/aadhaar-ocr.service";
+import { IdOcrService } from "../integrations/ocr/id-ocr.service";
 import { QueueProviderPort } from "@app/queue/queue-provider.port";
 import { SandboxOrchestratorService } from "../simulation/sandbox/sandbox-orchestrator.service";
 import {
@@ -84,13 +84,16 @@ export function getRequiredQuestionCount(
   weight: number,
   totalDuration: number,
   seniority: string,
+  customTimeMatrix?: Record<string, Record<string, number>>,
+  customSeniorityRatios?: Record<string, { easy: number; medium: number; hard: number }>,
 ): number {
-  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
-  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const ratios = customSeniorityRatios?.[seniority] || SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const matrix = customTimeMatrix || TIME_MATRIX;
+  const times = matrix[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
   const avgTime =
-    ratios.easy * times.EASY +
-    ratios.medium * times.MEDIUM +
-    ratios.hard * times.HARD;
+    ratios.easy * (times.EASY ?? 5) +
+    ratios.medium * (times.MEDIUM ?? 5) +
+    ratios.hard * (times.HARD ?? 5);
   const timeBudget = totalDuration * (weight / 100);
 
   return Math.max(1, Math.round(timeBudget / (avgTime || 1)));
@@ -99,20 +102,23 @@ export function getRequiredQuestionCount(
 export function getEstimatedModuleDuration(
   moduleType: string,
   dist: { easy: number; medium: number; hard: number },
+  customTimeMatrix?: Record<string, Record<string, number>>,
 ): number {
-  const times = TIME_MATRIX[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
+  const matrix = customTimeMatrix || TIME_MATRIX;
+  const times = matrix[moduleType] || { EASY: 5, MEDIUM: 5, HARD: 5 };
   return (
-    (dist.easy || 0) * times.EASY +
-    (dist.medium || 0) * times.MEDIUM +
-    (dist.hard || 0) * times.HARD
+    (dist.easy || 0) * (times.EASY ?? 5) +
+    (dist.medium || 0) * (times.MEDIUM ?? 5) +
+    (dist.hard || 0) * (times.HARD ?? 5)
   );
 }
 
 export function getDefaultDifficultyDistribution(
   requiredCount: number,
   seniority: string,
+  customSeniorityRatios?: Record<string, { easy: number; medium: number; hard: number }>,
 ): { easy: number; medium: number; hard: number } {
-  const ratios = SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
+  const ratios = customSeniorityRatios?.[seniority] || SENIORITY_RATIOS[seniority] || SENIORITY_RATIOS.fresher;
   let easy = Math.round(requiredCount * ratios.easy);
   let medium = Math.round(requiredCount * ratios.medium);
   let hard = requiredCount - easy - medium;
@@ -456,7 +462,7 @@ export class SessionService implements SessionStatusPort {
     private readonly scoringService: SessionScoringService,
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
-    private readonly aadhaarOcrService: AadhaarOcrService,
+    private readonly idOcrService: IdOcrService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -511,22 +517,31 @@ export class SessionService implements SessionStatusPort {
     );
 
     // 3.5 Check if candidate already has a SUBMITTED or COMPLETED session for this drive
-    const submittedSession = await this.prisma.session.findFirst({
-      where: {
-        candidateId: candidateRecord.id,
-        driveId: payload.driveId || undefined,
-        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED] },
-      },
-      orderBy: { submittedAt: "desc" },
-      include: { roleTemplate: true },
-    });
+    // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+    const isUnlimitedDevSession =
+      payload.isUnlimitedDemo ||
+      inviteToken === "demo" ||
+      inviteToken.startsWith("demo-") ||
+      inviteToken.startsWith("unlimited-");
 
-    if (submittedSession) {
-      this.logger.warn(`Candidate ${candidateRecord.email} already completed session ${submittedSession.id}.`);
-      return await this.buildStartResponse(
-        submittedSession as SessionWithTemplate,
-        candidateRecord.id,
-      );
+    if (!isUnlimitedDevSession) {
+      const submittedSession = await this.prisma.session.findFirst({
+        where: {
+          candidateId: candidateRecord.id,
+          driveId: payload.driveId || undefined,
+          status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.CLOSED] },
+        },
+        orderBy: { submittedAt: "desc" },
+        include: { roleTemplate: true },
+      });
+
+      if (submittedSession) {
+        this.logger.warn(`Candidate ${candidateRecord.email} already completed session ${submittedSession.id}.`);
+        return await this.buildStartResponse(
+          submittedSession as SessionWithTemplate,
+          candidateRecord.id,
+        );
+      }
     }
 
     // 4. Reuse existing session if already created for this candidate
@@ -660,44 +675,73 @@ export class SessionService implements SessionStatusPort {
       );
     }
 
+    let durationMinutes = session.roleTemplate.durationMinutes;
+    let driveRecord: any = null;
+
     if (session.driveId) {
-      const drive = await this.prisma.drive.findUnique({
+      driveRecord = await this.prisma.drive.findUnique({
         where: { id: session.driveId },
       });
-      if (drive && drive.scheduleStart) {
+
+      if (driveRecord && driveRecord.moduleConfig) {
+        const isCustomRole = (driveRecord.moduleConfig as any)?.isCustomRole === true;
+        if (isCustomRole) {
+          const mc = driveRecord.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+          const totalDriveMins = Object.values(mc)
+            .filter((conf) => conf?.enabled)
+            .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+
+          if (totalDriveMins > 0) {
+            durationMinutes = totalDriveMins;
+          }
+        }
+      }
+
+      if (driveRecord && driveRecord.scheduleStart && driveRecord.scheduleEnd) {
+        const windowSpanMinutes = Math.round(
+          (driveRecord.scheduleEnd.getTime() - driveRecord.scheduleStart.getTime()) / (60 * 1000),
+        );
+        if (windowSpanMinutes > 0 && windowSpanMinutes <= 180) {
+          durationMinutes = Math.min(durationMinutes, windowSpanMinutes);
+        }
+
         const now = new Date();
-        const graceMinutes = 20; // 20 minutes grace window
-        const cutoff = new Date(drive.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        const isFlexibleWindow = windowSpanMinutes > durationMinutes + 30;
+
+        let cutoff: Date;
+        if (isFlexibleWindow) {
+          // Flexible Window (e.g. 24h window): candidate can start as long as enough time remains to complete test
+          cutoff = new Date(driveRecord.scheduleEnd.getTime() - durationMinutes * 60 * 1000);
+        } else {
+          // Fixed Slot: candidate must join within 20 mins grace window of scheduleStart
+          const graceMinutes = 20;
+          cutoff = new Date(driveRecord.scheduleStart.getTime() + graceMinutes * 60 * 1000);
+        }
+
         if (now > cutoff) {
           throw new BadRequestException({
             code: "INVITE_TOKEN_EXPIRED",
-            message: "The assessment window has expired.",
+            message: isFlexibleWindow
+              ? "The assessment window does not have sufficient remaining time to complete the test."
+              : "The 20-minute join window for this scheduled assessment has expired.",
           });
         }
       }
     }
 
-    let durationMinutes = session.roleTemplate.durationMinutes;
-    if (session.driveId) {
-      const drive = await this.prisma.drive.findUnique({
-        where: { id: session.driveId },
-      });
-      if (drive && drive.moduleConfig) {
-        const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
-        const totalDriveMins = Object.values(mc)
-          .filter((conf) => conf?.enabled)
-          .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
-
-        if (totalDriveMins > 0) {
-          durationMinutes = totalDriveMins;
-        }
-      }
-    }
-
     const now = new Date();
-    const deadlineAt = new Date(
+    let deadlineAt = new Date(
       now.getTime() + durationMinutes * 60 * 1000,
     );
+
+    // Hard ceiling: in fixed slot drives, deadline cannot exceed scheduleEnd + bufferMinutes
+    if (driveRecord && driveRecord.scheduleEnd) {
+      const bufferMs = (driveRecord.bufferMinutes ?? 15) * 60 * 1000;
+      const hardEnd = new Date(driveRecord.scheduleEnd.getTime() + bufferMs);
+      if (deadlineAt > hardEnd) {
+        deadlineAt = hardEnd;
+      }
+    }
 
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
@@ -1212,14 +1256,37 @@ export class SessionService implements SessionStatusPort {
 
     let durationMinutes = session.roleTemplate.durationMinutes;
     if (drive && drive.moduleConfig) {
-      const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
-      const totalDriveMins = Object.values(mc)
-        .filter((conf) => conf?.enabled)
-        .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
+      const isCustomRole = (drive.moduleConfig as any)?.isCustomRole === true;
+      if (isCustomRole) {
+        const mc = drive.moduleConfig as Record<string, { enabled?: boolean; durationMinutes?: number }>;
+        const totalDriveMins = Object.values(mc)
+          .filter((conf) => conf?.enabled)
+          .reduce((sum, conf) => sum + (Number(conf?.durationMinutes) || 0), 0);
 
-      if (totalDriveMins > 0) {
-        durationMinutes = totalDriveMins;
+        if (totalDriveMins > 0) {
+          durationMinutes = totalDriveMins;
+        }
       }
+    }
+
+    if (drive && drive.scheduleStart && drive.scheduleEnd) {
+      const windowSpanMinutes = Math.round(
+        (drive.scheduleEnd.getTime() - drive.scheduleStart.getTime()) / (60 * 1000),
+      );
+      if (windowSpanMinutes > 0 && windowSpanMinutes <= 180) {
+        durationMinutes = Math.min(durationMinutes, windowSpanMinutes);
+      }
+    }
+
+    // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+    const isDemoSession =
+      session.id === "demo-session" ||
+      session.id.startsWith("demo-") ||
+      session.roleTemplate?.roleName?.includes("Demo") ||
+      durationMinutes >= 999999;
+
+    if (isDemoSession) {
+      durationMinutes = 999999;
     }
 
     return {
@@ -1435,22 +1502,28 @@ export class SessionService implements SessionStatusPort {
       },
     });
 
-    // Non-blocking background Aadhaar OCR processing (does not slow down candidate response)
+    // Non-blocking background ID OCR processing (does not slow down candidate response)
     setImmediate(async () => {
       try {
-        const ocrRes = await this.aadhaarOcrService.parseAadhaar(imageBuffer);
+        const ocrRes = await this.idOcrService.extractIdName(imageBuffer);
         if (ocrRes) {
+          let numConfidence = 0.5;
+          if (ocrRes.confidence === "high") numConfidence = 0.95;
+          else if (ocrRes.confidence === "medium") numConfidence = 0.8;
+          else if (ocrRes.confidence === "low-medium") numConfidence = 0.65;
+          else if (ocrRes.confidence === "low") numConfidence = 0.4;
+
           await this.prisma.candidate.update({
             where: { id: session.candidateId },
             data: {
               idProofExtractedName: ocrRes.name,
-              idProofOcrRaw: ocrRes.rawText,
-              ocrConfidence: ocrRes.confidence,
+              idProofOcrRaw: JSON.stringify(ocrRes.rawLines || []),
+              ocrConfidence: numConfidence,
             },
           });
         }
       } catch (ocrErr: any) {
-        this.logger.warn(`Async Aadhaar OCR background processing failed for session ${sessionId}: ${ocrErr.message}`);
+        this.logger.warn(`Async ID OCR background processing failed for session ${sessionId}: ${ocrErr.message}`);
       }
     });
 

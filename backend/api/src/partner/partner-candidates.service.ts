@@ -238,7 +238,8 @@ export class PartnerCandidatesService {
     const candidateWebUrl =
       this.configService.get<string>("CANDIDATE_WEB_URL") ||
       process.env.CANDIDATE_WEB_URL ||
-      "http://localhost:3000";
+      process.env.VITE_CANDIDATE_URL ||
+      "http://localhost:5173";
 
     const inviteResults = ingestionResult.createdInvites.map((inv) => {
       const tierInfo = candidateTierMap.get(inv.candidateEmail.toLowerCase());
@@ -306,7 +307,8 @@ export class PartnerCandidatesService {
     const candidateWebUrl =
       this.configService.get<string>("CANDIDATE_WEB_URL") ||
       process.env.CANDIDATE_WEB_URL ||
-      "http://localhost:3000";
+      process.env.VITE_CANDIDATE_URL ||
+      "http://localhost:5173";
 
     const candidateStatuses = drive.invites.map((inv) => {
       const session = inv.session;

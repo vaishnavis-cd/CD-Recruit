@@ -153,7 +153,7 @@ export const createInviteSlice: StateCreator<any, [], [], InviteSlice> = (set, g
               ? errData.message.join(", ")
               : errData.message;
           }
-        } catch (_) {}
+        } catch (_) { }
         if (res.status === 422 || errorMsg.includes("No face detected")) {
           errorMsg = "No face detected in this photo — please upload a clearer image";
         }

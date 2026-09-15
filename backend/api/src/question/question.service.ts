@@ -81,18 +81,31 @@ export class QuestionService implements OnModuleInit {
         }
         break;
       case ModuleType.AI_PROMPTING:
-        if (!content.prompt || !content.rubric) {
-          throw new BadRequestException("AI Prompting question must contain prompt and rubric");
+        if (!content.prompt) {
+          throw new BadRequestException("AI Prompting question must contain prompt");
+        }
+        if (!content.rubric) {
+          content.rubric = [{ criteria: "Technical Accuracy", maxScore: 10 }];
         }
         break;
       case ModuleType.SIMULATION:
-        if (!content.title || !Array.isArray(content.triggers) || !Array.isArray(content.rubric)) {
-          throw new BadRequestException("Simulation must contain title, triggers, and rubric");
+        content.title = content.title || content.prompt || "System Simulation Scenario";
+        if (!Array.isArray(content.triggers) || content.triggers.length === 0) {
+          content.triggers = [{ type: "slack", from: "system-alerts", body: content.title }];
+        }
+        if (!Array.isArray(content.rubric) || content.rubric.length === 0) {
+          content.rubric = [
+            { criterion: "Root Cause Triage", weight: 40, description: "Investigate and identify problem" },
+            { criterion: "Mitigation Implementation", weight: 60, description: "Apply working fix" }
+          ];
         }
         break;
       case ModuleType.TEST_SCENARIOS:
-        if (!content.prompt || (!content.expectedAnswer && !content.referenceAnswer && !content.criteria)) {
-          throw new BadRequestException("Test Scenario question must contain prompt and expected reference criteria");
+        if (!content.prompt) {
+          throw new BadRequestException("Test Scenario question must contain prompt");
+        }
+        if (!content.expectedAnswer && !content.referenceAnswer && !content.criteria && !content.testScenarios) {
+          content.expectedAnswer = "Validate positive, negative, and security edge cases.";
         }
         break;
     }
@@ -108,8 +121,17 @@ export class QuestionService implements OnModuleInit {
       tags = [],
       status = QuestionStatus.PUBLISHED,
       role = "General",
+      durationMinutes,
+      points,
     } = dto;
     
+    if (durationMinutes) {
+      content.durationMinutes = durationMinutes;
+    }
+    if (points) {
+      scoringConfig.points = points;
+    }
+
     this.validateQuestionContent(moduleType, content, scoringConfig);
 
     if (moduleType === ModuleType.AI_PROMPTING) {
@@ -131,7 +153,11 @@ export class QuestionService implements OnModuleInit {
       },
     });
 
-    return question;
+    return {
+      ...question,
+      durationMinutes: (question.content as any)?.durationMinutes ?? durationMinutes,
+      points: (question.scoringConfig as any)?.points ?? points,
+    };
   }
 
   async list(query: ListQuestionsQueryDto) {
@@ -227,6 +253,7 @@ export class QuestionService implements OnModuleInit {
       id: q.id,
       moduleType: q.moduleType,
       content: q.content,
+      scoringConfig: q.scoringConfig,
       difficulty: q.difficulty,
       targetLevel: q.targetLevel,
       tags: q.tags,
@@ -235,6 +262,8 @@ export class QuestionService implements OnModuleInit {
       role: q.role,
       usageCount: q._count.driveQuestions,
       avgScore: null,
+      durationMinutes: (q.content as any)?.durationMinutes ?? null,
+      points: (q.scoringConfig as any)?.points ?? null,
     }));
 
     return {
@@ -361,14 +390,24 @@ export class QuestionService implements OnModuleInit {
     await this.prisma.$transaction(async (tx) => {
       for (const q of questions) {
         const targetModule = (q.moduleType || moduleType) as ModuleType;
-        this.validateQuestionContent(targetModule, q.content, q.scoringConfig);
+        const qContent = { ...(q.content || {}) };
+        const qScoringConfig = { ...(q.scoringConfig || {}) };
+
+        if (q.durationMinutes && !qContent.durationMinutes) {
+          qContent.durationMinutes = q.durationMinutes;
+        }
+        if (q.points && qScoringConfig.points === undefined) {
+          qScoringConfig.points = q.points;
+        }
+
+        this.validateQuestionContent(targetModule, qContent, qScoringConfig);
 
         const created = await tx.question.create({
           data: {
             moduleType: targetModule as any,
             role: q.role ?? "General",
-            content: q.content,
-            scoringConfig: q.scoringConfig ?? {},
+            content: qContent,
+            scoringConfig: qScoringConfig,
             difficulty: q.difficulty ?? "medium",
             targetLevel: q.targetLevel ?? null,
             tags: q.tags ?? [String(targetModule).toLowerCase()],
@@ -376,7 +415,11 @@ export class QuestionService implements OnModuleInit {
             status: "PUBLISHED",
           },
         });
-        createdList.push(created);
+        createdList.push({
+          ...created,
+          durationMinutes: qContent.durationMinutes,
+          points: qScoringConfig.points,
+        });
       }
     });
 

@@ -18,7 +18,7 @@ import { OcrModule } from "@app/integrations/ocr/ocr.module";
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     AuthModule,
     CandidateModule,
     forwardRef(() => QueueModule),

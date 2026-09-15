@@ -67,16 +67,21 @@ export function ExpiredScreen({ reason }: ExpiredScreenProps) {
           </ul>
         </div>
 
-        <div className="pt-2 flex flex-col items-center gap-2">
+        <div className="pt-2 flex flex-col items-center gap-3">
           <a
-            href={SUPPORT_EMAIL}
-            className="btn-primary inline-flex items-center gap-2 text-xs cursor-pointer"
+            href="/invite/demo?reset=true"
+            className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors text-center shadow-sm"
           >
-            <LifeBuoy size={14} />
-            <span>Contact Support</span>
+            Launch Fresh Assessment Session
           </a>
 
-          <p className="text-xs-plus text-[var(--muted-foreground)] font-mono-data">support@proctora.com</p>
+          <a
+            href={SUPPORT_EMAIL}
+            className="inline-flex items-center gap-2 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <LifeBuoy size={14} />
+            <span>Contact Support: support@proctora.com</span>
+          </a>
         </div>
       </div>
     </div>

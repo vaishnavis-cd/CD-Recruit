@@ -58,3 +58,29 @@ export const CONFIG = {
   MAX_RETRY_ATTEMPTS: 5,
   RETRY_INTERVAL_MS: 30000,
 };
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+
+export function updateDynamicProctoringConfig(cfg: any) {
+  if (!cfg) return;
+  if (typeof cfg.lookingAwayThresholdMs === "number") {
+    CONFIG.LOOKING_AWAY_THRESHOLD_MS = cfg.lookingAwayThresholdMs;
+  }
+  if (cfg.cooldowns && typeof cfg.cooldowns === "object") {
+    Object.assign(COOLDOWN_MAPPING, cfg.cooldowns);
+  }
+}
+
+export async function fetchPublicProctoringConfig(): Promise<void> {
+  try {
+    const res = await fetch(`${apiBaseUrl}/settings/public-proctoring`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data) {
+        updateDynamicProctoringConfig(data);
+      }
+    }
+  } catch (e) {
+    console.warn("Using default proctoring configuration:", e);
+  }
+}

@@ -112,13 +112,13 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
   if (complianceHalt) {
     return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[var(--surface)] border border-[var(--warning)]/30 rounded-2xl p-8 text-center space-y-4 shadow-lg">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--warning)]/10 text-[var(--warning)] flex items-center justify-center mx-auto border border-[var(--warning)]/20">
+      <div className="figma-page-layout items-center">
+        <div className="max-w-md w-full bg-white border border-amber-300 rounded-2xl p-8 text-center space-y-4 shadow-lg">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
             <AlertTriangle size={24} />
           </div>
-          <h1 className="text-xl font-bold text-[var(--foreground)]">Consent Gate Temporarily Unavailable</h1>
-          <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
+          <h1 className="text-xl font-bold text-slate-900">Consent Gate Temporarily Unavailable</h1>
+          <p className="text-xs text-slate-600 leading-relaxed">
             Your consent record could not be registered with the server at this time. Please refresh the page or contact your administrator to continue.
           </p>
         </div>
@@ -128,50 +128,57 @@ export function ConsentScreen({ step, inviteToken }: ConsentScreenProps) {
 
   return (
     <div
-      className="min-h-screen px-6 py-10 flex justify-center bg-[var(--background)]"
+      className="figma-page-layout"
       role="main"
       aria-labelledby="consent-heading"
     >
-      <div className="w-full max-w-2xl animate-cd-fade-in">
-        {/* Navigation & Step Indicator Top Bar */}
-        <div className="flex items-center justify-between mb-8">
+      <div className="figma-container-960">
+        {/* Navigation & Step Indicator Top Bar (Figma header-top) */}
+        <div className="flex items-center justify-between">
           <button
             onClick={handleBack}
-            className="inline-flex items-center gap-1 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+            type="button"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
           >
-            <ArrowLeft size={14} /> Back
+            <ArrowLeft size={16} />
+            <span>Back</span>
           </button>
-          <div className="text-xs font-medium text-[var(--muted-foreground)] font-mono">
+          <div className="text-sm font-medium text-slate-600">
             Step {currentStepIndex + 1} of {STEPS.length}
           </div>
         </div>
 
-        {/* 6-segment thin progress bar */}
-        <div className="flex gap-1.5 mb-8" role="progressbar" aria-valuenow={currentStepIndex + 1} aria-valuemax={STEPS.length}>
+        {/* 5/6-segment progress bar (Figma progress-bar gap:8px, height:6px, r:3px) */}
+        <div
+          className="figma-progress-bar"
+          role="progressbar"
+          aria-valuenow={currentStepIndex + 1}
+          aria-valuemax={STEPS.length}
+        >
           {STEPS.map((s, idx) => (
             <div
               key={s.key}
-              className="h-1 flex-1 rounded-full transition-colors"
-              style={{
-                background: idx <= currentStepIndex ? "var(--accent)" : "var(--border)",
-                opacity: idx <= currentStepIndex ? 1 : 0.6,
-              }}
+              className={`figma-progress-segment ${
+                idx <= currentStepIndex ? 'figma-progress-segment-active' : 'figma-progress-segment-inactive'
+              }`}
             />
           ))}
         </div>
 
-        {/* Title & Subtitle */}
-        <h1 id="consent-heading" className="text-3xl-plus font-semibold tracking-tight text-[var(--foreground)]">
-          {currentStepMeta.title}
-        </h1>
-        {currentStepMeta.subtitle && (
-          <p className="text-sm mt-2 mb-6 text-[var(--muted-foreground)]">
-            {currentStepMeta.subtitle}
-          </p>
-        )}
+        {/* Title & Subtitle (Figma title-group gap:8px) */}
+        <div>
+          <h1 id="consent-heading" className="figma-h1">
+            {currentStepMeta.title}
+          </h1>
+          {currentStepMeta.subtitle && (
+            <p className="figma-subtitle">
+              {currentStepMeta.subtitle}
+            </p>
+          )}
+        </div>
 
         {/* Step Content */}
-        <div className="mt-6">
+        <div>
           {step === 'terms' && <ConsentSimpleAgreementStep type="terms" onAgree={handleTermsComplete} />}
           {step === 'biometric' && <ConsentBiometricStep onConsent={handleBiometricComplete} />}
           {step === 'id-proof' && <ConsentIdProofStep onComplete={handleIdProofComplete} />}

@@ -23,16 +23,14 @@ const MOCK_QUESTIONS = (() => {
 
 
 // Configurable failure rate for retry-path testing (0 = never fail, 1 = always fail)
-const MOCK_FAILURE_RATE = 0.1
+const MOCK_FAILURE_RATE = 0
 
-function randomLatency(minMs = 300, maxMs = 800): Promise<void> {
+function randomLatency(minMs = 100, maxMs = 300): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, minMs + Math.random() * (maxMs - minMs)))
 }
 
-function maybeFail(rate = MOCK_FAILURE_RATE): void {
-  if (Math.random() < rate) {
-    throw new Error('Mock simulated network failure — retry to proceed')
-  }
+function maybeFail(_rate = MOCK_FAILURE_RATE): void {
+  // No-op for stability
 }
 
 let mockSession: Session | null = null
@@ -40,10 +38,15 @@ let mockSession: Session | null = null
 export const mockSessionApiAdapter: CandidateSessionApiPort = {
   async resolveInvite(token: string): Promise<{ invite: Invite; drive: Drive; session: Session | null }> {
     await randomLatency()
-    maybeFail(0.05) // low failure rate on resolve
 
     // Return fixture data — all tokens resolve to the same fixture in mock mode
-    const invite: Invite = { ...FIXTURE_INVITE, token }
+    const invite: Invite = { 
+      ...FIXTURE_INVITE, 
+      token,
+      scheduledTime: new Date().toISOString(),
+      bufferMinutes: 30,
+      graceMinutes: 1440,
+    }
 
     // Check if token matches stored session token
     const storedToken = localStorage.getItem('cd-recruit-session-token')

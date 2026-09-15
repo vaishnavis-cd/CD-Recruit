@@ -1,5 +1,5 @@
 import { FaceDetectionResult, PoseDetectionResult, ObjectDetectionResult, ProctoringEventType, ProctoringEvent } from "./proctoring.types";
-import { CONFIG, COOLDOWN_MAPPING, SEVERITY_MAPPING, CONSECUTIVE_FRAMES_REQUIRED } from "./proctoring.constants";
+import { CONFIG, COOLDOWN_MAPPING, SEVERITY_MAPPING, CONSECUTIVE_FRAMES_REQUIRED, fetchPublicProctoringConfig } from "./proctoring.constants";
 
 export type EventTriggerListener = (event: ProctoringEvent) => void;
 
@@ -55,6 +55,7 @@ export class DetectionEngineService {
 
   public setSessionId(sessionId: string): void {
     this.sessionId = sessionId;
+    fetchPublicProctoringConfig().catch(() => {});
   }
 
   public subscribe(listener: EventTriggerListener): () => void {

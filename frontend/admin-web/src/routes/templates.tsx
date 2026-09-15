@@ -19,6 +19,8 @@ import {
   Send,
   MoreVertical,
   CheckCircle2,
+  Cloud,
+  ChevronDown,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { API_BASE, getAuthHeaders } from "../lib/store";
@@ -26,6 +28,7 @@ import {
   getDepartmentAllowedModules,
   MODULE_LABEL_MAP,
 } from "../lib/roleModules";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/templates")({
   component: RoleTemplatesPage,
@@ -70,6 +73,29 @@ const TIERS = [
   { value: "6-10", label: "6-10 yrs (Level 2)", category: "EXPERIENCED" },
   { value: "11-15", label: "11+ yrs (Level 3)", category: "EXPERIENCED" },
 ] as const;
+
+/** Formats template titles and tier strings for display, converting "11-15 yrs" to "11+ yrs" without mutating database values */
+export function formatTierLabel(text?: string | null): string {
+  if (!text) return "";
+  return text.replace(/11-15\s*yrs?/gi, "11+ yrs").replace(/\b11-15\b/g, "11+");
+}
+
+/** Canonical experience tier ranking for intuitive ordering: Fresher (0-1) -> Level 1 (2-5) -> Level 2 (6-10) -> Level 3 (11+) */
+export function getTierRank(tier?: string | null, level?: string | null, roleName?: string | null): number {
+  const cleanTier = (tier || "").trim();
+  if (cleanTier === "0-1") return 1;
+  if (cleanTier === "2-5") return 2;
+  if (cleanTier === "6-10") return 3;
+  if (cleanTier === "11-15" || cleanTier === "11+") return 4;
+
+  if (level === "FRESHER") return 1;
+  const lowerName = (roleName || "").toLowerCase();
+  if (lowerName.includes("fresher") || lowerName.includes("0-1")) return 1;
+  if (lowerName.includes("level 1") || lowerName.includes("l1") || lowerName.includes("2-5")) return 2;
+  if (lowerName.includes("level 2") || lowerName.includes("l2") || lowerName.includes("6-10")) return 3;
+  if (lowerName.includes("level 3") || lowerName.includes("l3") || lowerName.includes("11-15") || lowerName.includes("11+")) return 4;
+  return 99;
+}
 
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   MCQ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
@@ -568,14 +594,21 @@ export function RoleTemplatesPage() {
       });
     }
 
-    // 7. Stable canonical sort
+    // 7. Stable canonical sort: Department -> Tier Rank (Fresher -> Level 1 -> Level 2 -> Level 3) -> Role Name -> Version desc
     return list.sort((a, b) => {
       const deptA = a.department || "CUSTOM";
       const deptB = b.department || "CUSTOM";
       if (deptA !== deptB) return deptA.localeCompare(deptB);
-      const tierA = a.experienceTier || (a.level === "FRESHER" ? "0-1" : "2-5");
-      const tierB = b.experienceTier || (b.level === "FRESHER" ? "0-1" : "2-5");
-      return tierA.localeCompare(tierB);
+
+      const rankA = getTierRank(a.experienceTier, a.level, a.roleName);
+      const rankB = getTierRank(b.experienceTier, b.level, b.roleName);
+      if (rankA !== rankB) return rankA - rankB;
+
+      const nameA = a.roleName || "";
+      const nameB = b.roleName || "";
+      if (nameA !== nameB) return nameA.localeCompare(nameB);
+
+      return (b.version || 1) - (a.version || 1);
     });
   }, [templates, versionFilter, deptFilter, categoryFilter, tierFilter, activeOnlyFilter, searchQuery]);
 
@@ -611,161 +644,114 @@ export function RoleTemplatesPage() {
   ]);
 
   return (
-    <AppShell
-      title="Role Templates"
-      count={filteredTemplates.length}
-      actions={
-        <button
-          onClick={handleOpenCreate}
-          className="px-3.5 py-2 bg-brand hover:bg-brand-hover text-white text-xs font-medium rounded-md flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
-        >
-          <Plus size={14} />
-          <span>New Role Template</span>
-        </button>
-      }
-    >
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        {/* Controls / Filter Bar */}
-        <div className="bg-white p-4 rounded-xl border border-line shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative min-w-[260px] flex-1 max-w-md">
-              <Search
-                size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary"
-              />
-              <input
-                type="text"
-                placeholder="Search templates by role name or department..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 text-xs border border-line rounded-lg bg-canvas focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all placeholder:text-ink-tertiary text-ink"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {/* Dropdown Filters */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Version Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs-plus font-semibold text-ink-secondary uppercase tracking-wider">
-                  Version:
-                </span>
-                <select
-                  value={versionFilter}
-                  onChange={(e) => setVersionFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
-                >
-                  <option value="latest">Latest Versions</option>
-                  <option value="all">All Versions</option>
-                  <option value="active">Active Only</option>
-                  {availableVersions.map((v) => (
-                    <option key={v} value={v.toString()}>
-                      Version {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Department Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs-plus font-semibold text-ink-secondary tracking-wider">
-                  Department:
-                </span>
-                <select
-                  value={deptFilter}
-                  onChange={(e) => setDeptFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
-                >
-                  <option value="all">All Departments</option>
-                  {DEPARTMENTS.map((d) => (
-                    <option key={d} value={d}>
-                      {DEPARTMENT_LABELS[d] || d}
-                    </option>
-                  ))}
-                  <option value="CUSTOM">Custom / Other Roles</option>
-                </select>
-              </div>
-
-              {/* Category Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs-plus font-semibold text-ink-secondary tracking-wider">
-                  Category:
-                </span>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
-                >
-                  <option value="all">All Categories</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Tier Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs-plus font-semibold text-ink-secondary tracking-wider">
-                  Tier:
-                </span>
-                <select
-                  value={tierFilter}
-                  onChange={(e) => setTierFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs font-semibold border border-line rounded-lg bg-white text-ink focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand cursor-pointer"
-                >
-                  <option value="all">All Tiers</option>
-                  {TIERS.map((tier) => (
-                    <option key={tier.value} value={tier.value}>
-                      {tier.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Active Toggle */}
-              <label className="flex items-center gap-2 text-xs font-semibold text-ink-secondary cursor-pointer select-none bg-canvas px-3 py-1.5 rounded-lg border border-line hover:bg-slate-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={activeOnlyFilter}
-                  onChange={(e) => setActiveOnlyFilter(e.target.checked)}
-                  className="rounded text-brand focus:ring-0 cursor-pointer h-3.5 w-3.5"
-                />
-                <span>Active only</span>
-              </label>
-
-              {/* Reset Filters */}
-              {hasActiveFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-ink-secondary hover:text-ink hover:bg-canvas rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Reset all filters"
-                >
-                  <RotateCcw size={12} />
-                  <span>Reset</span>
-                </button>
-              )}
-            </div>
+    <AppShell hideHeader={true}>
+      <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+        {/* Top Header Row matching reference image */}
+        <div className="flex items-center justify-between gap-4 pt-2">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Role Templates</h1>
           </div>
+
+          <button
+            onClick={handleOpenCreate}
+            className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/25 transition-all"
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            <span>New Role Template</span>
+          </button>
+        </div>
+
+        {/* Filter Controls Row matching reference image */}
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          {/* Search Input */}
+          <div className="relative w-48 sm:w-56">
+            <Search
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300"
+            />
+            <input
+              type="text"
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-7 py-2 text-xs border border-[#E2E8F0] rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-[#2563EB] shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Department Filter */}
+          <CustomDropdown
+            value={deptFilter}
+            onChange={setDeptFilter}
+            rounded="full"
+            size="sm"
+            className="min-w-[200px]"
+            buttonClassName="h-[34px] text-xs font-normal text-slate-600 border-[#E2E8F0]"
+            options={[
+              { value: "all", label: "All Departments" },
+              ...DEPARTMENTS.map((d) => ({
+                value: d,
+                label: DEPARTMENT_LABELS[d] || d,
+              })),
+              { value: "CUSTOM", label: "Custom / Other Roles" },
+            ]}
+          />
+
+          {/* Level Filter */}
+          <CustomDropdown
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            rounded="full"
+            size="sm"
+            className="min-w-[180px]"
+            buttonClassName="h-[34px] text-xs font-normal text-slate-600 border-[#E2E8F0]"
+            options={[
+              { value: "all", label: "All Levels" },
+              ...CATEGORIES.map((c) => ({
+                value: c,
+                label: c === "FRESHER" ? "Junior / Fresher" : "Senior / Experienced",
+              })),
+            ]}
+          />
+
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 rounded-full flex items-center gap-1 transition-colors cursor-pointer"
+              title="Reset all filters"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
+
+          {/* Active templates only Checkbox */}
+          <label className="flex items-center gap-2 text-xs font-normal text-slate-500 cursor-pointer select-none ml-auto">
+            <input
+              type="checkbox"
+              checked={activeOnlyFilter}
+              onChange={(e) => setActiveOnlyFilter(e.target.checked)}
+              className="rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer h-4 w-4"
+            />
+            <span>Active templates only</span>
+          </label>
         </div>
 
         {/* Templates Grid */}
         {loading ? (
-          <div className="p-16 text-center text-ink-tertiary text-sm flex flex-col items-center gap-3">
+          <div className="p-16 text-center text-slate-400 text-sm flex flex-col items-center gap-3">
             <div className="w-7 h-7 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
             <span>Loading role templates...</span>
           </div>
         ) : filteredTemplates.length === 0 ? (
-          <div className="p-16 bg-white rounded-xl border border-line text-center space-y-3 shadow-xs">
+          <div className="p-16 bg-white rounded-2xl border border-line text-center space-y-3 shadow-xs">
             <div className="w-12 h-12 rounded-xl bg-brand-subtle text-brand flex items-center justify-center mx-auto">
               <Layers size={24} />
             </div>
@@ -788,57 +774,26 @@ export function RoleTemplatesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredTemplates.map((tpl) => {
               const isMenuOpen = openMenuTemplateId === tpl.id;
-              const distinctMods = Array.from(
-                new Set(
-                  (tpl.questions || []).map(
-                    (q: any) => MODULE_LABEL_MAP[q.moduleType] || q.moduleType
-                  )
-                )
-              );
-              const displayedMods = distinctMods.slice(0, 3).join(", ");
-              const extraCount = distinctMods.length - 3;
-              const moduleSummary =
-                extraCount > 0 ? `${displayedMods} +${extraCount} more` : displayedMods;
 
               return (
                 <div
                   key={tpl.id}
-                  onClick={() => handleOpenEdit(tpl)}
-                  className={`bg-white border rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:border-brand hover:shadow-md ${
-                    tpl.isActive
-                      ? "border-brand-border shadow-xs ring-1 ring-brand/10"
-                      : "border-line opacity-90"
-                  }`}
+                  className="bg-white border border-[#E2E8F0] rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-md shadow-2xs h-full space-y-4"
                 >
                   <div className="space-y-3">
-                    {/* Top Row: Tier Pill & Version Badge + Active Toggle & Menu */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span
-                          className={`px-2.5 py-0.5 text-xs-plus font-semibold rounded-full border ${
-                            tpl.experienceTier === "0-1" || tpl.level === "FRESHER"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : tpl.experienceTier === "2-5"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : tpl.experienceTier === "6-10"
-                              ? "bg-purple-50 text-purple-700 border-purple-200"
-                              : "bg-amber-50 text-amber-800 border-amber-200"
-                          }`}
-                        >
-                          {tpl.experienceTier === "0-1" || tpl.level === "FRESHER"
-                            ? "Fresher (0–1 yrs)"
-                            : tpl.experienceTier === "2-5"
-                            ? "Level 1 (2–5 yrs)"
-                            : tpl.experienceTier === "6-10"
-                            ? "Level 2 (6–10 yrs)"
-                            : "Level 3 (11+ yrs)"}
-                        </span>
-                        <span className="px-2 py-0.5 text-2xs font-mono font-bold bg-canvas text-ink-secondary rounded-full border border-line">
+                    {/* Header Row: Title on Left, Badges on Right */}
+                    <div className="flex items-start justify-between gap-3">
+                      <h3
+                        className="font-bold text-sm text-[#0F172A] leading-snug line-clamp-2"
+                        title={formatTierLabel(tpl.roleName)}
+                      >
+                        {formatTierLabel(tpl.roleName)}
+                      </h3>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[#3B82F6] font-bold text-2xs bg-blue-50/80 px-1.5 py-0.5 rounded">
                           v{tpl.version || 1}
                         </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -848,144 +803,69 @@ export function RoleTemplatesPage() {
                             }
                           }}
                           disabled={tpl.isActive || activatingId === tpl.id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs-plus font-semibold rounded-full transition-all ${
-                            tpl.isActive
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                              : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-brand hover:text-white hover:border-brand cursor-pointer"
-                          }`}
-                          title={tpl.isActive ? "This is the active version" : "Click to make this version active"}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              tpl.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                          className={`px-2.5 py-0.5 rounded-full text-2xs font-semibold border transition-all ${tpl.isActive
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
+                              : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-brand hover:text-white cursor-pointer"
                             }`}
-                          />
-                          <span>{activatingId === tpl.id ? "Activating..." : tpl.isActive ? "Active" : "Set Active"}</span>
+                          title={tpl.isActive ? "Active template" : "Click to set active"}
+                        >
+                          {activatingId === tpl.id ? "Activating..." : tpl.isActive ? "Active" : "Inactive"}
                         </button>
-
-                        {/* 3-Dot Contextual Dropdown */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuTemplateId(isMenuOpen ? null : tpl.id);
-                            }}
-                            className="p-1 text-ink-tertiary hover:text-ink rounded-md hover:bg-canvas transition-colors cursor-pointer"
-                            title="Template options"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-
-                          {isMenuOpen && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-line rounded-xl shadow-lg py-1.5 z-30 animate-in fade-in slide-in-from-top-1 duration-150"
-                            >
-                              {!tpl.isActive && (
-                                <button
-                                  type="button"
-                                  disabled={activatingId === tpl.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenMenuTemplateId(null);
-                                    handleActivateTemplate(tpl.id, tpl.roleName, tpl.version);
-                                  }}
-                                  className="w-full text-left px-3.5 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer font-medium"
-                                >
-                                  <CheckCircle2 size={13} className="text-emerald-600" />
-                                  <span>Make active version</span>
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuTemplateId(null);
-                                  handleOpenEdit(tpl);
-                                }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-canvas flex items-center gap-2 cursor-pointer font-medium"
-                              >
-                                <Edit3 size={13} className="text-brand" />
-                                <span>Edit details & questions</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={publishingId === tpl.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuTemplateId(null);
-                                  handlePublishNewVersion(tpl.id);
-                                }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-canvas flex items-center gap-2 cursor-pointer font-medium disabled:opacity-50"
-                              >
-                                <GitFork size={13} className="text-brand" />
-                                <span>
-                                  {publishingId === tpl.id ? "Publishing..." : "Publish new version"}
-                                </span>
-                              </button>
-
-                              <div className="my-1 border-t border-line" />
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuTemplateId(null);
-                                  handleDeleteTemplate(tpl.id, tpl.roleName);
-                                }}
-                                className="w-full text-left px-3.5 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-medium"
-                              >
-                                <Trash2 size={13} />
-                                <span>Delete template</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </div>
 
-                    {/* Middle Row: Full Width Role Title & Department */}
-                    <div className="space-y-1 py-1">
-                      <h3
-                        className="font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2"
-                        title={tpl.roleName}
+                    {/* Metadata Strip: Duration & Attached Questions */}
+                    <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={13} className="text-slate-400" />
+                        <span>{tpl.durationMinutes || 60} mins</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <HelpCircle size={13} className="text-slate-400" />
+                        <span>{tpl.questions?.length || 0} attached question(s)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Footer Row */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      disabled={publishingId === tpl.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePublishNewVersion(tpl.id);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <Cloud size={13} />
+                      <span>{publishingId === tpl.id ? "Publishing..." : "Publish new version"}</span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEdit(tpl);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                        title="Edit details & questions"
                       >
-                        {tpl.roleName}
-                      </h3>
-                      <p className="text-xs text-ink-tertiary font-medium">
-                        {DEPARTMENT_LABELS[tpl.department] || tpl.department || "General"}
-                      </p>
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTemplate(tpl.id, tpl.roleName);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                        title="Delete template"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
-
-                    {/* Metadata Strip */}
-                    <div className="flex items-center gap-4 text-xs text-ink-secondary bg-canvas p-2.5 rounded-xl border border-line">
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={14} className="text-ink-tertiary" />
-                        <span className="font-semibold text-ink">
-                          {tpl.durationMinutes || 60} mins
-                        </span>
-                      </div>
-                      <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                      <div className="flex items-center gap-1.5">
-                        <HelpCircle size={14} className="text-ink-tertiary" />
-                        <span className="font-semibold text-ink">
-                          {tpl.questions?.length || 0} attached question(s)
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Simplified Question Module Summary Text */}
-                    {distinctMods.length > 0 && (
-                      <div className="text-xs text-ink-secondary flex items-center gap-1.5 pt-0.5">
-                        <span className="font-medium text-ink-tertiary">Modules:</span>
-                        <span className="font-semibold text-ink truncate">
-                          {moduleSummary}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -1003,7 +883,7 @@ export function RoleTemplatesPage() {
               <div>
                 <h2 className="text-base font-bold text-ink">
                   {editingTemplate
-                    ? `Edit Role Template (${editingTemplate.roleName})`
+                    ? `Edit Role Template (${formatTierLabel(editingTemplate.roleName)})`
                     : "Create New Role Template"}
                 </h2>
                 <p className="text-xs text-ink-secondary mt-0.5">
@@ -1032,7 +912,7 @@ export function RoleTemplatesPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Software Engineering - Experienced (2-5 yrs)"
+                      placeholder="e.g. Software Engineering - Experienced (11+ yrs)"
                       value={roleName}
                       onChange={(e) => setRoleName(e.target.value)}
                       className="w-full px-3.5 py-2 text-xs border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand bg-white shadow-2xs"
@@ -1058,32 +938,32 @@ export function RoleTemplatesPage() {
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Target Department
                     </label>
-                    <select
+                    <CustomDropdown
                       value={department}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      onChange={(val) => {
                         setDepartment(val);
                         autoSelectQuestionsFor(val === "CUSTOM" ? "SOFTWARE_ENGINEERING" : val, category, experienceTier);
                       }}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand shadow-2xs"
-                    >
-                      {DEPARTMENTS.map((d) => (
-                        <option key={d} value={d}>
-                          {DEPARTMENT_LABELS[d] || d}
-                        </option>
-                      ))}
-                      <option value="CUSTOM">Custom / Other Roles</option>
-                    </select>
+                      className="w-full"
+                      rounded="16px"
+                      size="md"
+                      options={[
+                        ...DEPARTMENTS.map((d) => ({
+                          value: d,
+                          label: DEPARTMENT_LABELS[d] || d,
+                        })),
+                        { value: "CUSTOM", label: "Custom / Other Roles" },
+                      ]}
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Candidate Category
                     </label>
-                    <select
+                    <CustomDropdown
                       value={category}
-                      onChange={(e) => {
-                        const newCat = e.target.value;
+                      onChange={(newCat) => {
                         setCategory(newCat);
                         if (newCat === "FRESHER") {
                           setExperienceTier("0-1");
@@ -1091,32 +971,32 @@ export function RoleTemplatesPage() {
                           setExperienceTier("2-5");
                         }
                       }}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white shadow-2xs"
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2-15 yrs)"}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      rounded="16px"
+                      size="md"
+                      options={CATEGORIES.map((c) => ({
+                        value: c,
+                        label: c === "FRESHER" ? "Fresher (0-1 yrs)" : "Experienced (2+ yrs)",
+                      }))}
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-ink-secondary mb-1.5">
                       Experience Tier
                     </label>
-                    <select
+                    <CustomDropdown
                       value={experienceTier}
-                      onChange={(e) => setExperienceTier(e.target.value)}
+                      onChange={setExperienceTier}
                       disabled={category === "FRESHER"}
-                      className="w-full px-3.5 py-2 text-xs border border-line rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400 shadow-2xs"
-                    >
-                      {TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => (
-                        <option key={tier.value} value={tier.value}>
-                          {tier.label}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      rounded="16px"
+                      size="md"
+                      options={TIERS.filter((t) => category === "FRESHER" ? t.category === "FRESHER" : t.category === "EXPERIENCED").map((tier) => ({
+                        value: tier.value,
+                        label: tier.label,
+                      }))}
+                    />
                   </div>
                 </div>
               </div>
@@ -1143,11 +1023,10 @@ export function RoleTemplatesPage() {
                     <button
                       type="button"
                       onClick={() => setShowSelectedOnly(!showSelectedOnly)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
-                        showSelectedOnly
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${showSelectedOnly
                           ? "bg-brand text-white border-brand shadow-xs"
                           : "bg-white text-ink-secondary border-line hover:border-brand hover:text-brand"
-                      }`}
+                        }`}
                     >
                       <CheckCircle2 size={13} />
                       <span>Show Selected Only</span>
@@ -1174,32 +1053,37 @@ export function RoleTemplatesPage() {
 
                   <div className="flex items-center gap-2">
                     <span className="text-xs-plus font-medium text-ink-secondary">Module:</span>
-                    <select
+                    <CustomDropdown
                       value={modalModuleFilter}
-                      onChange={(e) => setModalModuleFilter(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs border border-line rounded-lg bg-white text-ink"
-                    >
-                      <option value="all">Allowed Modules</option>
-                      {getDepartmentAllowedModules(department).map((mod) => (
-                        <option key={mod} value={mod}>
-                          {MODULE_LABEL_MAP[mod] || mod}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setModalModuleFilter}
+                      rounded="16px"
+                      size="sm"
+                      className="min-w-[160px]"
+                      options={[
+                        { value: "all", label: "Allowed Modules" },
+                        ...getDepartmentAllowedModules(department).map((mod) => ({
+                          value: mod,
+                          label: MODULE_LABEL_MAP[mod] || mod,
+                        })),
+                      ]}
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span className="text-xs-plus font-medium text-ink-secondary">Difficulty:</span>
-                    <select
+                    <CustomDropdown
                       value={modalDifficultyFilter}
-                      onChange={(e) => setModalDifficultyFilter(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs border border-line rounded-lg bg-white text-ink"
-                    >
-                      <option value="all">All Difficulties</option>
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </select>
+                      onChange={setModalDifficultyFilter}
+                      rounded="16px"
+                      size="sm"
+                      className="min-w-[140px]"
+                      options={[
+                        { value: "all", label: "All Difficulties" },
+                        { value: "easy", label: "Easy" },
+                        { value: "medium", label: "Medium" },
+                        { value: "hard", label: "Hard" },
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -1218,68 +1102,100 @@ export function RoleTemplatesPage() {
                   <div className="max-h-72 overflow-y-auto space-y-2 border border-line rounded-xl p-3 bg-canvas/30">
                     {modalEligibleQuestions.map((q) => {
                       const isSelected = Boolean(selectedQuestionsMap[q.id]);
-                      const modStyle =
-                        MODULE_COLORS[q.moduleType] || {
-                          bg: "bg-slate-100",
-                          text: "text-ink-secondary",
-                          border: "border-line",
-                        };
                       const prompt =
                         q.content?.prompt ||
                         q.content?.title ||
                         q.content?.text ||
                         "Untitled Question";
 
+                      const getModClass = (mod: string) => {
+                        switch (mod) {
+                          case "MCQ": return "bg-[#EEF2FF] text-[#4F46E5]";
+                          case "SQL": return "bg-[#F3E8FF] text-[#7E22CE]";
+                          case "CODING": return "bg-[#ECFDF5] text-[#047857]";
+                          case "DEBUGGING": return "bg-[#FEF3C7] text-[#B45309]";
+                          case "AI_PROMPTING": return "bg-[#FFE4E6] text-[#BE123C]";
+                          case "SIMULATION": return "bg-[#ECFEFF] text-[#0E7490]";
+                          case "TEST_SCENARIOS": return "bg-[#EEF2FF] text-[#4338CA]";
+                          default: return "bg-[#EEF2FF] text-[#4F46E5]";
+                        }
+                      };
+
+                      const getDiffClass = (diff?: string) => {
+                        const d = (diff || "medium").toLowerCase();
+                        if (d === "easy") return "border border-[#34D399]/70 bg-[#ECFDF5] text-[#059669]";
+                        if (d === "hard") return "border border-[#F87171]/70 bg-[#FEF2F2] text-[#DC2626]";
+                        return "border border-[#FBBF24]/80 bg-[#FFFBEB] text-[#D97706]";
+                      };
+
                       return (
                         <div
                           key={q.id}
                           onClick={() => toggleQuestionSelection(q)}
-                          className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${
-                            isSelected
+                          className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 cursor-pointer transition-all ${isSelected
                               ? "bg-brand-subtle border-brand shadow-xs"
                               : "bg-white border-line hover:border-slate-300 hover:bg-canvas/80"
-                          }`}
+                            }`}
                         >
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="pt-0.5">
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="shrink-0">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 className="rounded border-brand-border text-brand cursor-pointer h-4 w-4"
                               />
                             </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-ink line-clamp-2">
+
+                            {/* Module Badge */}
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${getModClass(
+                                q.moduleType
+                              )}`}
+                            >
+                              {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
+                            </span>
+
+                            {/* Title & Badges */}
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="font-semibold text-[#0F172A] line-clamp-1">
                                 {prompt}
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-2xs font-mono font-bold border ${modStyle.bg} ${modStyle.text} ${modStyle.border}`}
-                                >
-                                  {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
-                                </span>
+                              <div className="flex flex-wrap items-center gap-2">
                                 {q.difficulty && (
-                                  <span className="uppercase text-2xs font-semibold bg-slate-100 text-ink-secondary px-1.5 py-0.5 rounded border border-line">
+                                  <span
+                                    className={`uppercase text-[11px] font-bold rounded-[6px] px-2 py-0.5 tracking-wider ${getDiffClass(
+                                      q.difficulty
+                                    )}`}
+                                  >
                                     {q.difficulty}
                                   </span>
                                 )}
-                                <span className="text-2xs text-ink-tertiary font-mono">
-                                  v{q.version || 1}
-                                </span>
+                                {(q.tags || []).slice(0, 3).map((tag: string) => (
+                                  <span
+                                    key={tag}
+                                    className="text-[11px] font-mono text-[#64748B] bg-[#F1F5F9] px-2 py-0.5 rounded-[4px]"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                                {q.version && (
+                                  <span className="text-[11px] text-slate-400 font-mono">
+                                    v{q.version}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="shrink-0">
+                          <div className="shrink-0 pl-2">
                             {isSelected ? (
-                              <span className="px-2.5 py-1 bg-brand text-white text-xs-plus font-bold rounded-md flex items-center gap-1 shadow-xs">
-                                <Check size={12} />
+                              <span className="px-3.5 py-1 bg-[#2563EB] text-white text-xs font-semibold rounded-md shadow-xs select-none inline-block">
                                 Attached
                               </span>
                             ) : (
-                              <span className="text-ink-tertiary text-xs font-medium hover:text-ink-secondary">
-                                Click to attach
+                              <span className="px-3.5 py-1 bg-white border border-[#D5DAEC] text-[#475569] hover:text-[#2563EB] hover:border-[#2563EB] hover:bg-[#EFF6FF] text-xs font-semibold rounded-md transition-all shadow-2xs select-none inline-block">
+                                Attach
                               </span>
                             )}
                           </div>

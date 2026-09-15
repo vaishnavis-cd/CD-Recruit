@@ -7,38 +7,44 @@
 
 export const brandTokens = {
   accent: {
-    light: "#2F5CFF",
+    light: "#2F65F6",
     dark: "#5B7FFF",
-    hover: "#0037FF",
-    subtle: "#EAF0FF",
-    border: "#B3C5FF",
-    ink: "#15308F",
+    hover: "#1D4ED8",
+    subtle: "#EFF6FF",
+    border: "#BFDBFE",
+    ink: "#1E40AF",
   },
   critical: {
-    light: "#E5484D",
-    dark: "#F0555B",
+    light: "#EF4444",
+    dark: "#F87171",
     subtle: "#FEF2F2",
     border: "#FECACA",
     hover: "#DC2626",
   },
   warning: {
-    light: "#F59E0B",
-    dark: "#FBBF24",
+    light: "#B45309",
+    dark: "#F59E0B",
     subtle: "#FFFBEB",
     border: "#FDE68A",
   },
   success: {
-    light: "#12B76A",
-    dark: "#3ECF8E",
+    light: "#15803D",
+    dark: "#22C55E",
     subtle: "#ECFDF5",
     border: "#A7F3D0",
+  },
+  ink: {
+    primary: "#0F172A",
+    secondary: "#475569",
+    muted: "#64748B",
+    dim: "#94A3B8",
   },
 } as const;
 
 export const typographyTokens = {
   fonts: {
-    sans: "Plus Jakarta Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    mono: "IBM Plex Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    sans: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    mono: 'IBM Plex Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
   },
   scale: {
     "2xs": { size: "10px", lineHeight: "14px" },

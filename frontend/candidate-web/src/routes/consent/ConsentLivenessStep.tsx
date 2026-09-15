@@ -106,9 +106,9 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
     : 'Liveness confirmed';
 
   return (
-    <div>
-      {/* Video Container */}
-      <div className="relative rounded-xl overflow-hidden aspect-video bg-[var(--surface)] border border-[var(--border)]">
+    <div className="max-w-[640px] mx-auto space-y-4">
+      {/* Video Container (Spacious and aligned with action buttons) */}
+      <div className="relative rounded-2xl overflow-hidden aspect-video max-h-[380px] bg-[var(--surface)] border border-[var(--border)] shadow-md">
         <video
           ref={videoRef}
           autoPlay
@@ -133,22 +133,22 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
         {/* Dashed face guide circle overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div
-            className={`w-40 h-52 rounded-[50%] border-2 border-dashed transition-all duration-300 ${
+            className={`w-40 sm:w-44 h-52 sm:h-60 rounded-[50%] border-2 border-dashed transition-all duration-300 ${
               isFaceAligned ? 'border-[var(--success)] bg-[var(--success)]/10 scale-105' : 'border-white/35'
             }`}
           />
         </div>
 
         {/* Bottom center prompt pill overlay */}
-        <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none">
-          <div className="inline-block px-4 py-2 rounded-full text-xs font-semibold bg-black/75 text-white backdrop-blur-xs border border-white/10 font-mono">
+        <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
+          <div className="inline-block px-3.5 py-1.5 rounded-full text-xs font-semibold bg-black/75 text-white backdrop-blur-xs border border-white/10 font-mono">
             {allPassed ? 'Liveness confirmed' : activePromptLabel}
           </div>
         </div>
       </div>
 
       {/* Task list */}
-      <div className="mt-5 space-y-2">
+      <div className="space-y-1.5">
         {[
           { key: 'blink', label: 'Blink twice', done: tasks.blink },
           { key: 'turnLeft', label: 'Turn your head left', done: tasks.turnLeft },
@@ -156,7 +156,7 @@ export function ConsentLivenessStep({ onComplete }: ConsentLivenessStepProps) {
         ].map(t => (
           <div
             key={t.key}
-            className="flex items-center justify-between text-sm py-3 px-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]"
+            className="flex items-center justify-between text-xs py-2 px-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)]"
           >
             <span className="font-medium text-[var(--foreground)]">{t.label}</span>
             <StatusChip

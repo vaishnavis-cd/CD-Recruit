@@ -56,11 +56,20 @@ export class FaceVerifyOnnxService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   /**
-   * Loads both RetinaFace and ArcFace ONNX models ONCE on application startup.
+   * Loads both RetinaFace and ArcFace ONNX models in background on startup.
    */
-  async onModuleInit(): Promise<void> {
+  onModuleInit(): void {
+    this.initModels().catch((error: any) => {
+      this.logger.error(
+        `Failed to load ONNX models during startup: ${error.message}`,
+        error.stack,
+      );
+    });
+  }
+
+  private async initModels(): Promise<void> {
     try {
-      this.logger.log("Initializing ONNX Face Verification Service models...");
+      this.logger.log("Initializing ONNX Face Verification Service models in background...");
 
       const possibleModelDirs = [
         path.join(process.cwd(), "models"),
@@ -114,11 +123,12 @@ export class FaceVerifyOnnxService implements OnModuleInit {
       );
     } catch (error: any) {
       this.logger.error(
-        `Failed to load ONNX models during startup: ${error.message}`,
+        `Failed to load ONNX models during background startup: ${error.message}`,
         error.stack,
       );
     }
   }
+
 
   /**
    * Enrolls a face image by extracting its 512-dim ArcFace embedding.

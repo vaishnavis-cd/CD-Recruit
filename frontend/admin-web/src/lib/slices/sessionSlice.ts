@@ -81,48 +81,64 @@ function mapBackendSession(session: any): Session {
       ? (rawSayDo <= 1.0 && rawSayDo > 0 ? Math.round(rawSayDo * 100) : Math.round(rawSayDo))
       : null;
 
-  const initials = session.candidateName
-    ? session.candidateName
+
+  const candidateName = session.candidateName || session.candidate?.name || "Candidate";
+  const candidateEmail = session.candidateEmail || session.candidate?.email || "candidate@example.com";
+
+  const initials = candidateName
+    ? candidateName
       .split(" ")
       .map((n: string) => n[0])
       .join("")
       .toUpperCase()
     : "CN";
 
-  const roleName = session.roleTemplateName || session.roleName || "Software Developer";
+  const roleName = session.roleTemplateName || session.roleTemplate?.roleName || session.roleName || "Software Developer";
+  const driveName = session.driveName || session.drive?.name || "Assessment Drive";
   const confidenceVal = session.score?.aiConfidence ?? session.aiConfidence ?? null;
+
+  const decOutcome = typeof session.reviewerDecision === "string"
+    ? session.reviewerDecision
+    : session.reviewerDecision?.decision || session.decision?.outcome || session.decisionOutcome;
+  const hasDecision = Boolean(decOutcome);
 
   const status = mapBackendStatus(
     session.status || "SUBMITTED",
     session.compositeScore !== null && session.compositeScore !== undefined,
     !session.humanReviewRequired,
     confidenceVal ?? 0.85,
-    false,
+    hasDecision,
   );
 
   return {
     id: session.sessionId || session.id || "sess",
     driveId: session.driveId || "",
+    driveName,
     candidate: {
-      id: session.candidateEmail || "cand",
-      name: session.candidateName || "Candidate",
-      email: session.candidateEmail || "candidate@example.com",
+      id: session.candidateId || session.candidate?.id || candidateEmail || "cand",
+      name: candidateName,
+      email: candidateEmail,
       initials,
     },
+    candidateName,
+    candidateEmail,
+    roleName,
     roleTemplate: {
-      id: roleName.toLowerCase().replace(/\s+/g, "-"),
+      id: session.roleTemplateId || roleName.toLowerCase().replace(/\s+/g, "-"),
       roleName: roleName,
       track: "Mid",
     },
     status,
+    decision: decOutcome ? { outcome: decOutcome } : null,
     compositeScore,
     sayDoScore,
     sayDoTrace: [],
-    moduleScores: session.moduleScores || {},
+    moduleScores: session.moduleScores || session.score?.moduleScores || {},
     mismatches: [],
     integrityFlags: session.integrityFlags || [],
-    submittedAt: session.submittedAt ? session.submittedAt : new Date().toISOString(),
-    gradingSource: session.score?.gradingSource || "placeholder",
+    integrityFlagsCount: session.integrityFlagsCount ?? (Array.isArray(session.integrityFlags) ? session.integrityFlags.length : 0),
+    submittedAt: session.submittedAt ? session.submittedAt : (session.startedAt || new Date().toISOString()),
+    gradingSource: session.score?.gradingSource || "ai",
     sayDoRationale: session.score?.sayDoRationale || null,
   };
 }
@@ -147,14 +163,15 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
         url += `&search=${encodeURIComponent(query.search)}`;
       }
       const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
-      const mapped = data.items.map((s: any) => mapBackendSession(s));
+      const items = Array.isArray(data) ? data : (data.items || data.data || []);
+      const mapped = items.map((s: any) => mapBackendSession(s));
       set({ sessions: mapped, loading: false });
     } catch (err: any) {
       console.error(err);
       set({ error: err.message, loading: false });
     }
+
   },
 
   fetchSessionDetail: async (sessionId: string): Promise<CandidateSessionDetail> => {
@@ -167,15 +184,15 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       id: detail.sessionId || detail.id || sessionId,
       candidate: detail.candidate
         ? {
-            id: detail.candidate.id || "",
-            name: detail.candidate.name || detail.candidateName || "Candidate",
-            email: detail.candidate.email || detail.candidateEmail || "",
-            identityVerificationResult: detail.candidate.identityVerificationResult || null,
-            baselineSelfieRef: detail.candidate.baselineSelfieRef || null,
-            idProofRef: detail.candidate.idProofRef || null,
-            baselineSelfieUrl: detail.candidate.baselineSelfieUrl || null,
-            idProofUrl: detail.candidate.idProofUrl || null,
-          }
+          id: detail.candidate.id || "",
+          name: detail.candidate.name || detail.candidateName || "Candidate",
+          email: detail.candidate.email || detail.candidateEmail || "",
+          identityVerificationResult: detail.candidate.identityVerificationResult || null,
+          baselineSelfieRef: detail.candidate.baselineSelfieRef || null,
+          idProofRef: detail.candidate.idProofRef || null,
+          baselineSelfieUrl: detail.candidate.baselineSelfieUrl || null,
+          idProofUrl: detail.candidate.idProofUrl || null,
+        }
         : null,
       candidateName: detail.candidate?.name || detail.candidateName || "Candidate",
       candidateEmail: detail.candidate?.email || detail.candidateEmail || "",
@@ -247,10 +264,11 @@ export const createSessionSlice: StateCreator<any, [], [], SessionSlice> = (set,
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch results");
       const data = await res.json();
-      set({ resultsList: data.items, loading: false });
+      const list = Array.isArray(data) ? data : (data.items || data.data || []);
+      set({ resultsList: list, loading: false });
     } catch (err: any) {
       console.error(err);
-      set({ error: err.message, loading: false });
+      set({ resultsList: [], error: err.message, loading: false });
     }
   },
 

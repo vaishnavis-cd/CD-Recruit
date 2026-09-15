@@ -35,12 +35,16 @@ const LEGAL_TRANSITIONS: Set<TransitionKey> = new Set([
   'resolving->pre-submit-review', // resuming at review stage
   'too-early->system-check',
   'system-check->consent',
+  'system-check->system-check',
   'system-check->expired', // drive closed during check
+  'consent->system-check', // Back button from terms step
   'consent->consent', // step advancement within consent flow (terms→biometric→id-proof→liveness→selfie)
   'consent->tutorial',
   'consent->expired', // drive closed during consent
+  'tutorial->consent', // Back button from tutorial interface overview
   'tutorial->waiting-room',
   'tutorial->assessment', // grace path: no waiting room
+  'waiting-room->tutorial', // Back button from waiting room
   'waiting-room->assessment',
   'assessment->assessment', // module navigation
   'assessment->pre-submit-review',
@@ -169,7 +173,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (existing && existing.sessionId === sessionId) {
       const nowMs = services.time.getServerNow();
       const elapsedMs = existing.timerStartMs !== null ? nowMs - existing.timerStartMs : 0;
-      const validTotalSeconds = (totalSeconds && totalSeconds > 0) ? totalSeconds : (existing.totalSeconds || 1800);
+      const validTotalSeconds = (totalSeconds && totalSeconds > 0) ? totalSeconds : (existing.totalSeconds || 5400);
       const totalMs = validTotalSeconds * 1000;
 
       // Only preserve existing assessment state if timer is unstarted or NOT expired
@@ -192,7 +196,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       currentModuleIndex: 0,
       currentQuestionIndex: 0,
       timerStartMs: null,
-      totalSeconds,
+      totalSeconds: totalSeconds > 0 ? totalSeconds : 5400,
       questions,
     };
     set({ assessment: state });

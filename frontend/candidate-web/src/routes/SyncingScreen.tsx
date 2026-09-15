@@ -111,24 +111,20 @@ export function SyncingScreen({ sessionId, auto }: SyncingScreenProps) {
                 {/* Vertical line connecting nodes */}
                 {i < steps.length - 1 && (
                   <div
-                    className="absolute left-[13px] top-[26px] w-[2px] h-[calc(100%+8px)] transition-all duration-500"
-                    style={{
-                      background: isDone ? 'var(--accent)' : 'var(--border)',
-                    }}
+                    className={`absolute left-[13px] top-[26px] w-[2px] h-[calc(100%+8px)] transition-all duration-500 ${
+                      isDone ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+                    }`}
                   />
                 )}
 
                 <div
-                  className="relative z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 mt-0.5"
-                  style={{
-                    background: isDone
-                      ? 'var(--accent)'
+                  className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 mt-0.5 border-2 ${
+                    isDone
+                      ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
                       : isSyncing
-                      ? 'var(--accent)/15'
-                      : 'var(--surface)',
-                    color: isDone ? '#ffffff' : isSyncing ? 'var(--accent)' : 'var(--muted-foreground)',
-                    border: `2px solid ${isDone || isSyncing ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
+                      ? 'bg-[var(--accent)]/15 text-[var(--accent)] border-[var(--accent)]'
+                      : 'bg-[var(--surface)] text-[var(--muted-foreground)] border-[var(--border)]'
+                  }`}
                 >
                   {isSyncing ? (
                     <Loader2 size={14} className="animate-spin" />

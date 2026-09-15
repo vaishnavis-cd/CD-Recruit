@@ -14,3 +14,4 @@ export * from "./score.js";
 export * from "./events.js";
 export * from "./admin.js";
 export * from "./drive.js";
+export * from "./settings.js";

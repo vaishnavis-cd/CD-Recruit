@@ -49,10 +49,25 @@ export class DriveShufflerService {
   }
 
   /**
-   * Seeded Stratified Hypercube Shuffler for 100+ Candidate Drives:
+   * Deterministic 32-bit PRNG (Mulberry32) seeded from an integer.
+   * Returns a pseudo-random float in [0, 1).
+   */
+  private createSeededRandom(seed: number): () => number {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /**
+   * Seeded Stratified Fisher-Yates Shuffler:
    * 1. Enforces Intra-Candidate Uniqueness (0 duplicate/reworded questions for a single candidate).
-   * 2. Uses Candidate Deterministic Seed (candidateId + driveId) to perform stratified difficulty sampling.
-   * 3. Applies a Latin Hypercube / Round-Robin Pool Offset across candidate index to reduce pairwise overlap by 80%+.
+   * 2. Uses Candidate Deterministic Seed (candidateId + driveId) for reproducible question sequence.
+   * 3. Applies Seeded Fisher-Yates (Knuth) permutation per difficulty pool for true non-linear randomization.
+   * 4. Preserves 100% of curated questions and canonical MCQ option ordering for zero grading/result disruption.
    */
   shuffleQuestionsForCandidate(
     driveQuestions: Array<{
@@ -110,11 +125,20 @@ export class DriveShufflerService {
         const subPool = byDifficulty[diff];
         if (subPool.length === 0) return;
 
-        // Rotate starting index using seed
-        const offset = (moduleSeed + diffIdx * 37) % subPool.length;
-        const rotated = [...subPool.slice(offset), ...subPool.slice(0, offset)];
+        // Deterministic sub-seed per module and difficulty bucket
+        const bucketSeed = (moduleSeed + diffIdx * 37 + (diff === "easy" ? 17 : diff === "medium" ? 31 : 59)) >>> 0;
+        const rng = this.createSeededRandom(bucketSeed);
 
-        for (const item of rotated) {
+        // Seeded Fisher-Yates (Knuth) permutation
+        const permuted = [...subPool];
+        for (let i = permuted.length - 1; i > 0; i--) {
+          const j = Math.floor(rng() * (i + 1));
+          const temp = permuted[i];
+          permuted[i] = permuted[j];
+          permuted[j] = temp;
+        }
+
+        for (const item of permuted) {
           const content = item.question?.content || {};
           const cHash = this.computeContentHash(modType, content);
 

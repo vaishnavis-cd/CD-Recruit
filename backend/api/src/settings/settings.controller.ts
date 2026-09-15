@@ -203,4 +203,88 @@ export class SettingsController {
   async resetRolePermissions(@CurrentUser() actor: any) {
     return this.settingsService.resetRolePermissions(actor);
   }
+
+  @Get("time-matrix")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
+  async getTimeMatrix() {
+    return this.settingsService.getTimeMatrixConfig();
+  }
+
+  @Patch("time-matrix")
+  @Roles(StaffRole.ADMIN)
+  async updateTimeMatrix(
+    @Body() dto: { timeMatrix: Record<string, { EASY: number; MEDIUM: number; HARD: number }> },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateTimeMatrixConfig(dto.timeMatrix, actor);
+  }
+
+  @Get("seniority-ratios")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
+  async getSeniorityRatios() {
+    return this.settingsService.getSeniorityRatiosConfig();
+  }
+
+  @Patch("seniority-ratios")
+  @Roles(StaffRole.ADMIN)
+  async updateSeniorityRatios(
+    @Body() dto: { seniorityRatios: Record<string, { easy: number; medium: number; hard: number }> },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateSeniorityRatiosConfig(dto.seniorityRatios, actor);
+  }
+
+  @Get("proctoring")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
+  async getProctoringThresholds() {
+    return this.settingsService.getProctoringThresholds();
+  }
+
+  @Patch("proctoring")
+  @Roles(StaffRole.ADMIN)
+  async updateProctoringThresholds(
+    @Body() dto: any,
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateProctoringThresholds(dto, actor);
+  }
+
+  @Get("module-durations")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
+  async getDefaultModuleDurations() {
+    return this.settingsService.getDefaultModuleDurations();
+  }
+
+  @Patch("module-durations")
+  @Roles(StaffRole.ADMIN)
+  async updateDefaultModuleDurations(
+    @Body() dto: { durations: Record<string, number> },
+    @CurrentUser() actor: any,
+  ) {
+    return this.settingsService.updateDefaultModuleDurations(dto.durations, actor);
+  }
 }

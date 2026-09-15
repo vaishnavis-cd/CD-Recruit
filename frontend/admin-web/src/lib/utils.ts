@@ -23,6 +23,12 @@ export function formatDriveName(name?: string | null): string {
     return `${title} (${reqRef})`;
   }
 
+  // Handle any remaining bracket prefixes e.g. [Partner:UUID] or [REQ:ID]
+  const genericMatch = trimmed.match(/^\[[^\]]+\]\s*(.+)$/);
+  if (genericMatch) {
+    return genericMatch[1].trim();
+  }
+
   return trimmed;
 }
 

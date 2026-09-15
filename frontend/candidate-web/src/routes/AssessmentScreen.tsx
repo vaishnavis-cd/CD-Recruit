@@ -12,6 +12,8 @@ import { TestScenariosModule } from '../modules/test-scenarios/TestScenariosModu
 import { NOSQLModule } from '../modules/nosql/NOSQLModule';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { IdentityCaptureScheduler } from '../proctoring/identity-capture.scheduler';
+import { ProctoringModule } from '../proctoring/proctoring.module';
+import apiClient from '../api/client';
 
 import { FullScreenShield } from '../components/FullScreenShield';
 import { NetworkStatusBar } from '../components/NetworkStatusBar';
@@ -53,15 +55,32 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
     return types.length > 0 ? types : ['MCQ', 'SQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS', 'NOSQL'];
   }, [assessment?.questions]);
 
-  // Start timer when Module 1 opens (never before)
+  // Start timer, proctoring pipeline, and identity scheduler
   useEffect(() => {
     if (moduleIndex === 0) {
       const nowMs = services.time.getServerNow();
       setTimerStart(nowMs);
     }
 
-    if (assessment?.sessionId || sessionId) {
-      const activeSessionId = assessment?.sessionId || sessionId;
+    const activeSessionId = assessment?.sessionId || sessionId || session?.id;
+    if (activeSessionId && !activeSessionId.startsWith('sess_')) {
+      // 1. Transition backend session to IN_PROGRESS if not already started
+      apiClient.post(`/sessions/${activeSessionId}/begin`).catch((err) => {
+        console.warn('[AssessmentScreen] /begin call warning:', err?.message);
+      });
+
+      // 2. Start global ProctoringModule pipeline (webcam, rolling buffer, vision models)
+      console.log(`[AssessmentScreen] Starting ProctoringModule for session ${activeSessionId}...`);
+      ProctoringModule.getInstance()
+        .start(activeSessionId)
+        .then((started) => {
+          console.log(`[AssessmentScreen] ProctoringModule.start() returned: ${started}`);
+        })
+        .catch((err) => {
+          console.error('[AssessmentScreen] ProctoringModule.start() error:', err);
+        });
+
+      // 3. Start duration-proportional IdentityCaptureScheduler
       const durationMinutes = assessment?.totalSeconds
         ? Math.max(1, Math.round(assessment.totalSeconds / 60))
         : session?.durationMinutes || 15;
@@ -74,7 +93,7 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
         startedAt,
       );
     }
-  }, [moduleIndex, sessionId, assessment?.sessionId, assessment?.totalSeconds, session?.durationMinutes, session?.startedAt]);
+  }, [sessionId, assessment?.sessionId, session?.id]);
 
   // The timer hook handles auto-submit on expiry
   useAssessmentTimer();

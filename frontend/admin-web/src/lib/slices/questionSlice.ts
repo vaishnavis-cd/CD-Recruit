@@ -38,7 +38,7 @@ export interface QuestionSlice {
       status?: string;
     },
   ) => Promise<void>;
-  bulkUploadQuestions: (moduleType: string, questions: any[]) => Promise<void>;
+  bulkUploadQuestions: (moduleType: string, questions: any[]) => Promise<any>;
 }
 
 export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (set, get) => ({
@@ -60,10 +60,11 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch questions");
       const data = await res.json();
-      set({ questions: data.items, loading: false });
+      const items = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      set({ questions: items, loading: false });
     } catch (err: any) {
       console.error(err);
-      set({ error: err.message, loading: false });
+      set({ questions: [], error: err.message, loading: false });
     }
   },
 
@@ -99,11 +100,17 @@ export const createQuestionSlice: StateCreator<any, [], [], QuestionSlice> = (se
 
   bulkUploadQuestions: async (moduleType: string, questions: any[]) => {
     const headers = await getAuthHeaders();
-    await fetch(`${API_BASE}/admin/questions/bulk`, {
+    const res = await fetch(`${API_BASE}/admin/questions/bulk`, {
       method: "POST",
       headers,
       body: JSON.stringify({ moduleType, questions }),
     });
-    get().fetchQuestions();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to bulk upload questions");
+    }
+    const data = await res.json();
+    await get().fetchQuestions();
+    return data.questions || data;
   },
 });

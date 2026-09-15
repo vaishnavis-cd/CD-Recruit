@@ -125,7 +125,21 @@ export function IncidentDebriefView({ resolutionData, actionHistory, onCompleteM
               <span className={`font-bold font-mono text-sm ${item.color}`}>{item.score}%</span>
             </div>
             <div className="w-full h-2 rounded-full bg-[var(--background)] overflow-hidden border border-[var(--border)]">
-              <div className={`h-full ${item.bar} rounded-full transition-all duration-500`} style={{ width: `${item.score}%` }} />
+              <div
+                className={`h-full ${item.bar} rounded-full transition-all duration-500 ${
+                  item.score >= 95 ? 'w-full' :
+                  item.score >= 90 ? 'w-[90%]' :
+                  item.score >= 80 ? 'w-[80%]' :
+                  item.score >= 70 ? 'w-[70%]' :
+                  item.score >= 60 ? 'w-[60%]' :
+                  item.score >= 50 ? 'w-[50%]' :
+                  item.score >= 40 ? 'w-[40%]' :
+                  item.score >= 30 ? 'w-[30%]' :
+                  item.score >= 20 ? 'w-[20%]' :
+                  item.score >= 10 ? 'w-[10%]' :
+                  item.score > 0 ? 'w-[5%]' : 'w-0'
+                }`}
+              />
             </div>
           </div>
         ))}

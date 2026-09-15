@@ -22,10 +22,11 @@ import {
   Info,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
-import { useStore } from "../lib/store";
-import { formatTimestamp } from "../lib/utils";
+import { useStore, API_BASE } from "../lib/store";
+import { formatTimestamp, formatDriveName } from "../lib/utils";
 import { ExportDropdown } from "../components/export-dropdown";
 import { StatusBadge } from "../components/ui/status-badge";
+import { CustomDropdown } from "../components/ui/custom-dropdown";
 
 export const Route = createFileRoute("/results")({
   component: ResultsPage,
@@ -73,8 +74,10 @@ function ResultsPage() {
     return null;
   };
 
+  const safeResultsList = useMemo(() => (Array.isArray(resultsList) ? resultsList : []), [resultsList]);
+
   const filtered = useMemo(() => {
-    return resultsList.filter((item) => {
+    return safeResultsList.filter((item) => {
       const q = query.trim().toLowerCase();
       const matchesQuery =
         !q ||
@@ -91,31 +94,40 @@ function ResultsPage() {
 
       return matchesQuery && matchesStatus;
     });
-  }, [resultsList, query, statusFilter]);
+  }, [safeResultsList, query, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = resultsList.length;
-    const pending = resultsList.filter((r) => !getItemDecision(r)).length;
-    const approved = resultsList.filter((r) => getItemDecision(r) === "PASS").length;
-    const rejected = resultsList.filter((r) => getItemDecision(r) === "FAIL").length;
-    const scores = resultsList
+    const total = safeResultsList.length;
+    const pending = safeResultsList.filter((r) => !getItemDecision(r)).length;
+    const approved = safeResultsList.filter((r) => getItemDecision(r) === "PASS").length;
+    const rejected = safeResultsList.filter((r) => getItemDecision(r) === "FAIL").length;
+    const scores = safeResultsList
       .map((r) => (typeof r.compositeScore === "number" ? r.compositeScore : null))
       .filter((s): s is number => s !== null);
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     return { total, pending, approved, rejected, avgScore };
-  }, [resultsList]);
+  }, [safeResultsList]);
 
-  const handleExportCsv = () => {
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1";
-    const driveParam = driveFilter !== "all" ? `?driveId=${encodeURIComponent(driveFilter)}` : "";
-    window.open(`${apiBase}/admin/reports/export/csv${driveParam}`, "_blank");
+  const exportResultsCsv = useStore((s) => s.exportResultsCsv);
+
+  const handleExportCsv = async () => {
+    try {
+      await exportResultsCsv(driveFilter !== "all" ? driveFilter : undefined);
+      toast.success("CSV export downloaded successfully!");
+    } catch (err: any) {
+      toast.error("Failed to export CSV: " + (err.message || err));
+    }
   };
 
   const handleVerifyAll = async () => {
-    const sessionsToVerify = filtered
-      .map((item) => item.sessionId || item.id)
-      .filter(Boolean);
+    const sessionsToVerify = Array.from(
+      new Set(
+        filtered
+          .map((item) => item.sessionId || item.id || item.candidateId)
+          .filter(Boolean)
+      )
+    );
 
     if (sessionsToVerify.length === 0) {
       toast.info("No candidates selected for verification.");
@@ -151,170 +163,169 @@ function ResultsPage() {
   }
 
   return (
-    <AppShell
-      title="Candidate Results"
-      count={filtered.length}
-      search={
-        <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search candidate name or email…"
-            className="w-full pl-9 pr-3 py-2 text-sm-minus border border-line rounded-md bg-canvas focus:outline-none focus:border-brand"
-          />
-        </div>
-      }
-      actions={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle border border-brand-border rounded hover:bg-brand-subtle transition-colors cursor-pointer"
-            title="Download full candidate evaluation CSV dataset from server"
-          >
-            <Download size={13} />
-            Export CSV
-          </button>
-          <ExportDropdown
-            data={filtered}
-            filenamePrefix="proctora-candidate-results"
-            title="Candidate Assessment Results"
-          />
-        </div>
-      }
-    >
-      {/* Metric Cards Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-ink-tertiary mb-1">
-            Total Evaluated
+    <AppShell hideHeader={true}>
+      <div className="max-w-[1320px] mx-auto w-full space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight">
+              Candidate Results
+            </h1>
+            <p className="text-[12px] text-[#64748B] mt-1">
+              Review candidate performance scores, integrity flags, evaluated tracks, and record pass/fail hiring decisions.
+            </p>
           </div>
-          <div className="text-2xl font-mono font-semibold text-ink">{stats.total}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-amber-600 mb-1">
-            Pending Review
-          </div>
-          <div className="text-2xl font-mono font-semibold text-amber-700">{stats.pending}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-emerald-700 mb-1">
-            Approved (Pass)
-          </div>
-          <div className="text-2xl font-mono font-semibold text-emerald-700">{stats.approved}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-rose-700 mb-1">
-            Rejected (Fail)
-          </div>
-          <div className="text-2xl font-mono font-semibold text-rose-700">{stats.rejected}</div>
-        </div>
-        <div className="bg-white border border-line rounded-lg p-4 shadow-sm">
-          <div className="text-xs-plus font-mono uppercase tracking-wider text-brand mb-1">
-            Avg Composite Score
-          </div>
-          <div className="text-2xl font-mono font-semibold text-brand">{stats.avgScore}%</div>
-        </div>
-      </div>
 
-      {/* Filter Bar with Verify All button placed next to Drive Filter */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              { id: "all", label: `All Results (${stats.total})` },
-              { id: "pending", label: `Pending (${stats.pending})` },
-              { id: "PASS", label: `Approved (${stats.approved})` },
-              { id: "FAIL", label: `Rejected (${stats.rejected})` },
-            ] as const
-          ).map((chip) => (
+          <div className="flex items-center gap-2.5">
+            {statusFilter === "PASS" && (
+              <button
+                onClick={handleVerifyAll}
+                disabled={verifying}
+                className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-white bg-brand hover:bg-brand-hover rounded-[10px] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                title="Verify identity for all approved candidates"
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Verifying All...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={14} />
+                    <span>Verify All Candidates</span>
+                  </>
+                )}
+              </button>
+            )}
             <button
-              key={chip.id}
-              onClick={() => setStatusFilter(chip.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                statusFilter === chip.id
-                  ? "bg-brand text-white border-brand"
-                  : "bg-white text-ink-secondary border-line hover:border-line-strong"
-              }`}
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
+              title="Download full candidate evaluation CSV dataset from server"
             >
-              {chip.label}
+              <Download size={13} />
+              <span>Export CSV</span>
             </button>
-          ))}
+            <ExportDropdown
+              data={filtered}
+              filenamePrefix="proctora-candidate-results"
+              title="Candidate Assessment Results"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Verify All Button near Filter Dropdown - visible only when Approved filter is active */}
-          {statusFilter === "PASS" && (
-            <button
-              id="verify-all-btn"
-              onClick={handleVerifyAll}
-              disabled={verifying || filtered.length === 0}
-              title={
-                filtered.length === 0
-                  ? "No candidates to verify"
-                  : `Verify identity for ${filtered.length} candidate${filtered.length === 1 ? "" : "s"}`
-              }
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all shadow-sm ${
-                filtered.length === 0 || verifying
-                  ? "bg-canvas text-ink-muted border-line cursor-not-allowed"
-                  : "text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
-              }`}
-            >
-              {verifying ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  Verifying…
-                </>
-              ) : (
-                <>
-                  <ScanFace size={13} />
-                  Verify All ({filtered.length})
-                </>
-              )}
-            </button>
-          )}
+        {/* Metric Cards Summary Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">
+              Total Evaluated
+            </div>
+            <div className="text-[24px] font-bold text-[#0F172A]">{stats.total}</div>
+          </div>
+          <div className="bg-[#FFFDF5] border border-[#FEF3C7] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#D97706] mb-1">
+              Pending Review
+            </div>
+            <div className="text-[24px] font-bold text-[#D97706]">{stats.pending}</div>
+          </div>
+          <div className="bg-[#F6FEF9] border border-[#D1FAE5] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#059669] mb-1">
+              Approved (Pass)
+            </div>
+            <div className="text-[24px] font-bold text-[#059669]">{stats.approved}</div>
+          </div>
+          <div className="bg-[#FEF6F6] border border-[#FEE2E2] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#DC2626] mb-1">
+              Rejected (Fail)
+            </div>
+            <div className="text-[24px] font-bold text-[#DC2626]">{stats.rejected}</div>
+          </div>
+          <div className="bg-[#F8FAFF] border border-[#DBEAFE] rounded-[12px] p-4.5 shadow-xs">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#2563EB] mb-1">
+              Avg Composite Score
+            </div>
+            <div className="text-[24px] font-bold text-[#2563EB]">{stats.avgScore}%</div>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-ink-secondary font-medium">Filter by Drive:</label>
-            <select
+        {/* Filter Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                { id: "all", label: `All Results (${stats.total})` },
+                { id: "pending", label: `Pending (${stats.pending})` },
+                { id: "PASS", label: `Approved (${stats.approved})` },
+                { id: "FAIL", label: `Rejected (${stats.rejected})` },
+              ] as const
+            ).map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => setStatusFilter(chip.id)}
+                className={`h-[35px] px-4 rounded-full text-[13px] transition-all cursor-pointer whitespace-nowrap ${statusFilter === chip.id
+                    ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                    : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal border border-transparent"
+                  }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+            {/* Search Input */}
+            <div className="relative w-[220px]">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search candidate..."
+                className="w-full h-[34px] pl-9 pr-3 text-[12px] border border-[#D5DAEC] rounded-[16px] bg-white text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#2E5DE0] focus:ring-2 focus:ring-[#2E5DE0]/10 shadow-xs"
+              />
+            </div>
+
+            {/* Filter by Drive */}
+            <CustomDropdown
               value={driveFilter}
-              onChange={(e) => setDriveFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-line rounded-md bg-white text-ink focus:outline-none focus:border-brand"
-            >
-              <option value="all">All Drives</option>
-              {drives.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              onChange={setDriveFilter}
+              rounded="16px"
+              size="md"
+              align="right"
+              className="min-w-[160px]"
+              buttonClassName="h-[34px] text-xs font-normal text-slate-700 border-[#D5DAEC]"
+              options={[
+                { value: "all", label: "All Drives" },
+                ...drives.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                })),
+              ]}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Results Data Table */}
-      <div className="bg-white border border-line rounded-lg shadow-sm overflow-hidden">
+        {/* Results Data Table */}
+        <div className="bg-white border border-[#E2E8F0] rounded-[12px] shadow-xs overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-12 text-center">
-            <FileSpreadsheet size={32} className="mx-auto text-ink-tertiary mb-2" />
-            <p className="text-sm-minus text-ink-tertiary italic">No candidate evaluation results found.</p>
+            <FileSpreadsheet size={32} className="mx-auto text-[#94A3B8] mb-2" />
+            <p className="text-[13px] text-[#94A3B8] italic">No candidate evaluation results found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-left text-[13px] border-collapse">
               <thead>
-                <tr className="bg-canvas border-b border-line text-2xs font-mono uppercase tracking-wider text-ink-secondary">
-                  <th className="py-3 px-4 font-semibold">Candidate</th>
-                  <th className="py-3 px-4 font-semibold">Drive &amp; Track</th>
-                  <th className="py-3 px-4 font-semibold">Submitted</th>
-                  <th className="py-3 px-4 font-semibold text-center">Score</th>
-                  <th className="py-3 px-4 font-semibold text-center">Integrity Risk</th>
-                  <th className="py-3 px-4 font-semibold text-center">Decision</th>
-                  <th className="py-3 px-4 font-semibold text-center">Verification</th>
-                  <th className="py-3 px-4 font-semibold text-right">Action</th>
+                <tr className="bg-white border-b border-[#E2E8F0] text-[10px] font-bold font-sans uppercase tracking-wider text-[#64748B]">
+                  <th className="py-2.5 px-3">Candidate</th>
+                  <th className="py-2.5 px-3">Drive &amp; Track</th>
+                  <th className="py-2.5 px-3">Submitted</th>
+                  <th className="py-2.5 px-3 text-center">Score</th>
+                  <th className="py-2.5 px-3 text-center">Integrity Risk</th>
+                  <th className="py-2.5 px-3 text-center">Decision</th>
+                  <th className="py-2.5 px-3 text-center">Verification</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="divide-y divide-[#F1F5F9]">
                 {filtered.map((item: any) => {
                   const rawScore = item.compositeScore;
                   const scoreVal = typeof rawScore === "number" ? Math.round(rawScore) : 0;
@@ -325,86 +336,89 @@ function ResultsPage() {
                       ? "text-amber-700 bg-amber-50 border-amber-200"
                       : "text-ink-secondary bg-canvas border-line";
 
-                  const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
-                  const dec = getItemDecision(item);
-                  const isApproved = dec === "PASS";
-                  const isRejected = dec === "FAIL";
+                    const flagsCount = item.integrityFlagsCount || item.flagsCount || 0;
+                    const dec = getItemDecision(item);
+                    const isApproved = dec === "PASS";
+                    const isRejected = dec === "FAIL";
 
-                  // Verification Pill logic
-                  const svr = sessionVerifyResults
-                    ? (sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId] || sessionVerifyResults[item.id])
-                    : null;
-                  const idVerifyResult = item.identityVerificationResult || svr;
+                    // Verification Pill logic
+                    const svr = sessionVerifyResults
+                      ? (sessionVerifyResults[item.candidateId] || sessionVerifyResults[item.sessionId] || sessionVerifyResults[item.id])
+                      : null;
+                    const idVerifyResult = item.identityVerificationResult || svr;
 
-                  const isMatch =
-                    idVerifyResult?.matched === true ||
-                    (svr && svr.matched === true);
-                  const isMismatch =
-                    idVerifyResult?.matched === false ||
-                    (svr && svr.matched === false) ||
-                    (idVerifyResult?.inTestCaptures && idVerifyResult.inTestCaptures.mismatched > 0);
+                    const isMatch =
+                      idVerifyResult?.matched === true ||
+                      (svr && svr.matched === true);
+                    const isMismatch =
+                      idVerifyResult?.matched === false ||
+                      (svr && svr.matched === false) ||
+                      (idVerifyResult?.inTestCaptures && idVerifyResult.inTestCaptures.mismatched > 0);
 
-                  const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
+                    const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
                   return (
                     <tr key={item.id || item.sessionId} className="hover:bg-canvas/60 transition-colors">
                       {/* Candidate Name & Email with Initial Avatar */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-xs border border-brand-border">
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-brand-subtle text-brand flex items-center justify-center font-bold text-[11px] border border-brand-border shrink-0">
                             {initialLetter}
                           </div>
-                          <div>
-                            <div className="font-semibold text-ink flex items-center gap-1.5">
-                              <span>{item.candidateName}</span>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-ink flex items-center gap-1.5 flex-wrap">
+                              <span className="truncate max-w-[140px] text-[13px]">{item.candidateName}</span>
                               {item.referenceId && (
-                                <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-brand-subtle text-brand border border-brand-border" title="Candidate Reference ID">
+                                <span
+                                  className="px-1.5 py-0.5 rounded text-[10px] leading-none font-mono font-medium bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0] shrink-0"
+                                  title={`Candidate Reference ID: ${item.referenceId}`}
+                                >
                                   {item.referenceId}
                                 </span>
                               )}
                             </div>
-                            <div className="text-2xs font-mono text-ink-tertiary">{item.candidateEmail}</div>
+                            <div className="text-[11px] font-mono text-ink-tertiary truncate max-w-[180px]">{item.candidateEmail}</div>
                           </div>
                         </div>
                       </td>
 
                       {/* Drive & Track */}
-                      <td className="py-3 px-4">
-                        <div className="text-ink font-medium truncate max-w-[180px]">
-                          {item.driveName || "General Drive"}
+                      <td className="py-2.5 px-3">
+                        <div className="text-ink font-medium truncate max-w-[150px] text-[12px]">
+                          {formatDriveName(item.driveName) || "General Drive"}
                         </div>
-                        <div className="text-xs text-ink-secondary">{item.roleTemplateName || "Software Engineering"}</div>
+                        <div className="text-[11px] text-ink-secondary truncate max-w-[150px]">{item.roleTemplateName || "Software Engineering"}</div>
                       </td>
 
                       {/* Submitted Timestamp */}
-                      <td className="py-3 px-4 font-mono text-xs text-ink-secondary">
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-ink-secondary whitespace-nowrap">
                         {item.submittedAt ? formatTimestamp(item.submittedAt) : (item.status === 'NOT_STARTED' ? 'Not Started' : 'In Progress')}
                       </td>
 
                       {/* Score */}
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold border ${scoreColor}`}>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full font-mono text-[11px] font-semibold border ${scoreColor}`}>
                           {scoreVal}%
                         </span>
                       </td>
 
                       {/* Integrity Risk */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {flagsCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-danger-subtle text-danger border border-danger-border font-semibold">
-                            <ShieldAlert size={12} />
-                            {flagsCount} Flags
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[11px] bg-danger-subtle text-danger border border-danger-border font-semibold whitespace-nowrap">
+                            <ShieldAlert size={11} className="shrink-0" />
+                            <span>{flagsCount} {flagsCount === 1 ? "Flag" : "Flags"}</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-2xs bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold">
-                            <ShieldCheck size={12} />
-                            Low
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[11px] bg-success-subtle text-emerald-700 border border-emerald-200 font-semibold whitespace-nowrap">
+                            <ShieldCheck size={11} className="shrink-0" />
+                            <span>Low</span>
                           </span>
                         )}
                       </td>
 
                       {/* Decision Status */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-3 text-center">
                         <StatusBadge
                           variant={isApproved ? "success" : isRejected ? "danger" : "warning"}
                           size="xs"
@@ -414,45 +428,45 @@ function ResultsPage() {
                       </td>
 
                       {/* Verification Column Pill Button */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {isMatch ? (
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-success-subtle text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs"
                           >
-                            <CheckCircle2 size={12} />
-                            Match <Info size={11} className="ml-0.5 opacity-70" />
+                            <CheckCircle2 size={11} />
+                            Match <Info size={10} className="ml-0.5 opacity-70" />
                           </button>
                         ) : isMismatch ? (
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-danger-subtle text-danger border border-danger-border hover:bg-red-100 transition-all cursor-pointer shadow-2xs"
                           >
-                            <XCircle size={12} />
-                            Mismatch <Info size={11} className="ml-0.5 opacity-70" />
+                            <XCircle size={11} />
+                            Mismatch <Info size={10} className="ml-0.5 opacity-70" />
                           </button>
                         ) : (
                           <button
                             onClick={() => setSelectedVerificationItem(item)}
                             title="Click to open Verification Side Panel"
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-warning-subtle text-amber-800 border border-amber-300 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
                           >
-                            <Clock size={12} />
-                            Pending <Info size={11} className="ml-0.5 opacity-70" />
+                            <Clock size={11} />
+                            Pending <Info size={10} className="ml-0.5 opacity-70" />
                           </button>
                         )}
                       </td>
 
                       {/* Action */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <Link
                           to="/results/$id"
                           params={{ id: item.sessionId || item.id }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-lg transition-all shadow-2xs cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-brand bg-brand-subtle hover:bg-brand hover:text-white border border-brand-border rounded-md transition-all shadow-2xs cursor-pointer"
                         >
-                          <Eye size={12} />
+                          <Eye size={11} />
                           Evaluate
                         </Link>
                       </td>
@@ -472,8 +486,9 @@ function ResultsPage() {
           onClose={() => setSelectedVerificationItem(null)}
         />
       )}
-    </AppShell>
-  );
+    </div>
+  </AppShell>
+);
 }
 
 function VerificationSidePanel({
@@ -484,7 +499,10 @@ function VerificationSidePanel({
   onClose: () => void;
 }) {
   const fetchSessionDetail = useStore((s) => s.fetchSessionDetail);
+  const bulkVerifyIdentity = useStore((s) => s.bulkVerifyIdentity);
+  const fetchResults = useStore((s) => s.fetchResults);
   const [loading, setLoading] = useState(true);
+  const [verifyingCandidate, setVerifyingCandidate] = useState(false);
   const [detail, setDetail] = useState<any>(null);
 
   // Accordion state (open / collapsed)
@@ -521,6 +539,26 @@ function VerificationSidePanel({
       isMounted = false;
     };
   }, [item, fetchSessionDetail]);
+
+  const handleVerifyThisCandidate = async () => {
+    const targetId = item.sessionId || item.id || detail?.sessionId || candidateData?.id;
+    if (!targetId) return;
+    setVerifyingCandidate(true);
+    try {
+      await bulkVerifyIdentity([targetId]);
+      toast.success(`Identity successfully verified for ${item.candidateName || candidateData?.name || "candidate"}!`);
+      const sessionId = item.sessionId || item.id;
+      if (sessionId) {
+        const res = await fetchSessionDetail(sessionId);
+        setDetail(res);
+      }
+      await fetchResults();
+    } catch (err: any) {
+      toast.error("Verification failed: " + (err.message || err));
+    } finally {
+      setVerifyingCandidate(false);
+    }
+  };
 
   const candidateData = detail?.candidate || item;
   const idVerifyResult =
@@ -561,11 +599,28 @@ function VerificationSidePanel({
 
   // 3. OCR Verification
   const regName = candidateData?.name || item?.candidateName || "N/A";
-  const ocrName =
-    idVerifyResult?.name?.extractedName ||
+  const extractedName =
+    (idVerifyResult?.name?.extractedName ||
     candidateData?.idProofExtractedName ||
-    "Nitesh R";
-  const ocrMatched = idVerifyResult?.name?.matched ?? (regName.toLowerCase().trim() === ocrName.toLowerCase().trim());
+    "").trim() || null;
+  const ocrName = extractedName || "Not extracted";
+  const ocrMatched: boolean | null =
+    typeof idVerifyResult?.name?.matched === "boolean"
+      ? idVerifyResult.name.matched
+      : extractedName
+        ? regName.toLowerCase().trim() === extractedName.toLowerCase().trim()
+        : idVerifyResult
+          ? false
+          : null;
+
+  const ocrStatusLabel =
+    ocrMatched === true
+      ? "Match"
+      : ocrMatched === false
+        ? extractedName
+          ? "Mismatch"
+          : "Not Extracted"
+        : "Pending";
 
   const initialLetter = (item.candidateName || "C").charAt(0).toUpperCase();
 
@@ -642,13 +697,12 @@ function VerificationSidePanel({
                       1. Identity Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
-                        idMatch === true
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${idMatch === true
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : idMatch === false
-                          ? "bg-rose-50 text-rose-700 border border-rose-200"
-                          : "bg-amber-50 text-amber-700 border border-amber-200"
-                      }`}
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        }`}
                     >
                       {idMatch === true ? "Match" : idMatch === false ? "Mismatch" : "Pending"}
                     </span>
@@ -712,13 +766,12 @@ function VerificationSidePanel({
                       2. Random Capture Verification
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
-                        matchedCount === 3
+                      className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${matchedCount === 3
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : matchedCount > 0
-                          ? "bg-amber-50 text-amber-700 border border-amber-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
-                      }`}
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : "bg-rose-50 text-rose-700 border border-rose-200"
+                        }`}
                     >
                       {inTestSummary}
                     </span>
@@ -752,13 +805,12 @@ function VerificationSidePanel({
                             Captured at {capTime}
                           </span>
                           <span
-                            className={`text-2xs font-semibold mt-0.5 ${
-                              !isComp
+                            className={`text-2xs font-semibold mt-0.5 ${!isComp
                                 ? "text-gray-500"
                                 : isWinMatch
-                                ? "text-emerald-600"
-                                : "text-rose-600"
-                            }`}
+                                  ? "text-emerald-600"
+                                  : "text-rose-600"
+                              }`}
                           >
                             {!isComp ? w.status : isWinMatch ? "Matched" : "Mismatch"}
                           </span>
@@ -781,12 +833,14 @@ function VerificationSidePanel({
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs-plus font-mono font-medium ${
-                        ocrMatched
+                        ocrMatched === true
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                          : ocrMatched === false
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
                       }`}
                     >
-                      {ocrMatched ? "Match" : "Mismatch"}
+                      {ocrStatusLabel}
                     </span>
                   </div>
                   {accordions.ocr ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -801,14 +855,24 @@ function VerificationSidePanel({
                       </div>
                       <div>
                         <span className="text-ink-tertiary block text-xs-plus">Extracted Name (OCR)</span>
-                        <span className="font-semibold text-ink">{ocrName}</span>
+                        <span className={`font-semibold ${extractedName ? "text-ink" : "text-rose-600 italic"}`}>
+                          {extractedName || "Not extracted"}
+                        </span>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-line flex items-center justify-between">
                       <span className="text-ink-tertiary text-xs-plus">Result</span>
-                      <span className={`font-bold ${ocrMatched ? "text-emerald-600" : "text-rose-600"}`}>
-                        {ocrMatched ? "Match" : "Mismatch"}
+                      <span
+                        className={`font-bold ${
+                          ocrMatched === true
+                            ? "text-emerald-600"
+                            : ocrMatched === false
+                              ? "text-rose-600"
+                              : "text-amber-600"
+                        }`}
+                      >
+                        {ocrStatusLabel}
                       </span>
                     </div>
                   </div>
@@ -820,13 +884,29 @@ function VerificationSidePanel({
 
         {/* Panel Footer */}
         <div className="p-4 border-t border-line bg-canvas">
-          <Link
-            to="/results/$id"
-            params={{ id: item.sessionId || item.id }}
-            className="w-full py-2.5 px-4 bg-brand-subtle hover:bg-brand-subtle text-brand font-semibold text-sm-minus rounded-lg border border-brand-border flex items-center justify-center gap-2 transition-colors"
+          <button
+            type="button"
+            onClick={handleVerifyThisCandidate}
+            disabled={verifyingCandidate}
+            className="w-full py-2.5 px-4 bg-brand hover:bg-brand-hover text-white font-semibold text-sm-minus rounded-lg border border-brand flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
-            View Full Evaluation <ExternalLink size={14} />
-          </Link>
+            {verifyingCandidate ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Verifying Candidate...</span>
+              </>
+            ) : isMatched ? (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Verified (Click to Re-Verify)</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={15} />
+                <span>Verify Candidate</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </>

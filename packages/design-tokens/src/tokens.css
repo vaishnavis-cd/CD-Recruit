@@ -4,30 +4,36 @@
 
 :root {
   /* Brand Accent */
-  --color-brand: #2f5cff;
-  --color-brand-hover: #0037ff;
-  --color-brand-ink: #15308f;
-  --color-brand-subtle: #eaf0ff;
-  --color-brand-border: #b3c5ff;
+  --color-brand: #2F65F6;
+  --color-brand-hover: #1D4ED8;
+  --color-brand-ink: #1E40AF;
+  --color-brand-subtle: #EFF6FF;
+  --color-brand-border: #BFDBFE;
+
+  /* Ink / Text */
+  --color-ink: #0F172A;
+  --color-ink-secondary: #475569;
+  --color-ink-muted: #64748B;
+  --color-ink-dim: #94A3B8;
 
   /* Semantic Feedback */
-  --color-critical: #e5484d;
-  --color-critical-dark: #f0555b;
-  --color-critical-subtle: #fef2f2;
-  --color-critical-border: #fecaca;
+  --color-critical: #EF4444;
+  --color-critical-dark: #F87171;
+  --color-critical-subtle: #FEF2F2;
+  --color-critical-border: #FECACA;
 
-  --color-warning: #f59e0b;
-  --color-warning-dark: #fbbf24;
-  --color-warning-subtle: #fffbeb;
-  --color-warning-border: #fde68a;
+  --color-warning: #B45309;
+  --color-warning-dark: #F59E0B;
+  --color-warning-subtle: #FFFBEB;
+  --color-warning-border: #FDE68A;
 
-  --color-success: #12b76a;
-  --color-success-dark: #3ecf8e;
-  --color-success-subtle: #ecfdf5;
-  --color-success-border: #a7f3d0;
+  --color-success: #15803D;
+  --color-success-dark: #22C55E;
+  --color-success-subtle: #ECFDF5;
+  --color-success-border: #A7F3D0;
 
   /* Fonts */
-  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Radius Scale */
@@ -67,3 +73,125 @@
   --text-4xl: 36px;
   --text-4xl--line-height: 40px;
 }
+
+/* ==========================================================================
+   Light Gradient 13 — Ambient Mesh Tokens & Utility Classes
+   ========================================================================== */
+
+.light-gradient-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #FFFFFF;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.light-gradient-group {
+  position: absolute;
+  width: 140vw;
+  height: 140vh;
+  left: -20vw;
+  top: -15vh;
+  opacity: 0.3;
+  transform: matrix(-1, 0, 0, 1, 0, 0);
+  pointer-events: none;
+}
+
+.light-gradient-vector-1 {
+  position: absolute;
+  left: -24.76%;
+  right: 75.18%;
+  top: -8.89%;
+  bottom: 6.79%;
+  background: #1DA8FF;
+  opacity: 0.5;
+  filter: blur(100px);
+  transform: matrix(-0.81, -0.59, -0.59, 0.81, 0, 0);
+}
+
+.light-gradient-vector-5 {
+  position: absolute;
+  left: -9.67%;
+  right: 90.53%;
+  top: 24.34%;
+  bottom: 36.96%;
+  background: #FFE897;
+  opacity: 0.9;
+  filter: blur(75px);
+  transform: matrix(-0.81, -0.59, -0.59, 0.81, 0, 0);
+}
+
+.light-gradient-vector-6 {
+  position: absolute;
+  left: -7.54%;
+  right: 88.4%;
+  top: 13.02%;
+  bottom: 67.43%;
+  background: #B767FD;
+  opacity: 0.5;
+  filter: blur(75px);
+  transform: matrix(-0.81, -0.59, -0.59, 0.81, 0, 0);
+}
+
+.light-gradient-vector-7 {
+  position: absolute;
+  left: 30.69%;
+  right: 50.17%;
+  top: 77.67%;
+  bottom: 2.77%;
+  background: #FDAD67;
+  opacity: 0.59;
+  filter: blur(75px);
+  transform: matrix(-0.81, -0.59, -0.59, 0.81, 0, 0);
+}
+
+.light-gradient-vector-4 {
+  position: absolute;
+  left: 11.08%;
+  right: 46.17%;
+  top: 18.46%;
+  bottom: 17.2%;
+  background: #1E44EC;
+  opacity: 0.3;
+  filter: blur(150px);
+  transform: matrix(-0.97, 0.23, 0.23, 0.97, 0, 0);
+}
+
+.light-gradient-ellipse-11 {
+  position: absolute;
+  left: 61.57%;
+  right: -12.12%;
+  top: 64.55%;
+  bottom: -25.08%;
+  background: #FFEDA4;
+  filter: blur(100px);
+  transform: matrix(-1, 0, 0, 1, 0, 0);
+}
+
+.light-gradient-vector-3 {
+  position: absolute;
+  left: 41.91%;
+  right: 19.47%;
+  top: 2.12%;
+  bottom: 35.45%;
+  background: #946CE9;
+  opacity: 0.3;
+  filter: blur(150px);
+  transform: matrix(-1, 0, 0, 1, 0, 0);
+}
+
+.light-gradient-ellipse-10 {
+  position: absolute;
+  left: 65.83%;
+  right: -15.27%;
+  top: 11.75%;
+  bottom: 9.25%;
+  background: #49A0EC;
+  opacity: 0.5;
+  filter: blur(150px);
+  transform: matrix(-1, 0, 0, 1, 0, 0);
+}
+

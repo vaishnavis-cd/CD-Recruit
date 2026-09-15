@@ -225,8 +225,15 @@ export class ProctoringService {
       SessionStatus.CLOSED,
     ];
     if (session.status === SessionStatus.NOT_STARTED) {
-      this.logger.log(`[ProctoringService] ONBOARDING_UPLOAD_IGNORED: Upload skipped while session is in NOT_STARTED state.`);
-      return { id: "skipped_onboarding", sessionId, eventType: dto.eventType, severity: dto.severity, timestamp: new Date(), clipUrl: null, uploadStatus: ProctoringUploadStatus.FAILED } as any;
+      this.logger.log(`[ProctoringService] Session ${session.id} was in NOT_STARTED state during evidence upload. Auto-transitioning to IN_PROGRESS.`);
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: {
+          status: SessionStatus.IN_PROGRESS,
+          startedAt: session.startedAt || new Date(),
+        },
+      });
+      session.status = SessionStatus.IN_PROGRESS;
     }
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(

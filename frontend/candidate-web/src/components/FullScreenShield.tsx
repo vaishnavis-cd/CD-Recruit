@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Maximize, MonitorX, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { useSessionStore } from '../store/sessionMachine';
 
 interface FullScreenShieldProps {
   isActive: boolean;
@@ -7,6 +8,19 @@ interface FullScreenShieldProps {
 }
 
 export function FullScreenShield({ isActive, onReEnter }: FullScreenShieldProps) {
+  const inviteToken = useSessionStore(s => s.inviteToken);
+  const assessment = useSessionStore(s => s.assessment);
+  const session = useSessionStore(s => s.session);
+
+  // [DEMO-UNLIMITED-SESSION: TEMPORARY DEV HOOK]
+  const isUnlimitedDemo =
+    (assessment && assessment.totalSeconds >= 86400 * 30) ||
+    inviteToken === 'demo' ||
+    inviteToken?.startsWith('demo') ||
+    inviteToken?.startsWith('unlimited-') ||
+    (session as any)?.durationMinutes >= 999999 ||
+    localStorage.getItem('cd-recruit-session-token')?.startsWith('demo');
+
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
     return typeof document !== 'undefined' && !!document.fullscreenElement;
   });
@@ -15,7 +29,7 @@ export function FullScreenShield({ isActive, onReEnter }: FullScreenShieldProps)
   });
 
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || isUnlimitedDemo) return;
 
     const checkFullscreen = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -49,9 +63,9 @@ export function FullScreenShield({ isActive, onReEnter }: FullScreenShieldProps)
       window.removeEventListener('resize', checkDisplayTopology);
       clearInterval(interval);
     };
-  }, [isActive]);
+  }, [isActive, isUnlimitedDemo]);
 
-  if (!isActive) return null;
+  if (!isActive || isUnlimitedDemo) return null;
 
   const handleRequestFullscreen = async () => {
     try {

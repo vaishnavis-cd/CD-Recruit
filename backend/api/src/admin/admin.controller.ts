@@ -79,6 +79,9 @@ export class AdminController {
   }
 
   @Get("results/export")
+  @Get("results/export/csv")
+  @Get("reports/export")
+  @Get("reports/export/csv")
   async exportResults(
     @Query() query: ListSessionsQueryDto,
     @Res() res: Response,
@@ -93,6 +96,7 @@ export class AdminController {
   }
 
   @Get("sessions/export")
+  @Get("sessions/export/csv")
   async exportSessions(
     @Query() query: ListSessionsQueryDto,
     @Res() res: Response,

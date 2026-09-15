@@ -108,6 +108,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
     let questions = startQuestions || [];
     let startedAt = startStartedAt;
 
+    let finalDurationMinutes = durationMinutes;
     try {
       const beginRes = await apiClient.post(`/sessions/${sessionId}/begin`);
       if (beginRes.data?.questions && beginRes.data.questions.length > 0) {
@@ -115,6 +116,9 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       }
       if (beginRes.data?.startedAt) {
         startedAt = beginRes.data.startedAt;
+      }
+      if (beginRes.data?.durationMinutes) {
+        finalDurationMinutes = beginRes.data.durationMinutes;
       }
     } catch (err: any) {
       console.warn('[realSessionApiAdapter] /begin call warning:', err?.message);
@@ -128,7 +132,7 @@ export const realSessionApiAdapter: CandidateSessionApiPort = {
       submittedAt: null,
       status: 'active',
       questions,
-      durationMinutes: durationMinutes || 60,
+      durationMinutes: finalDurationMinutes || 60,
     };
   },
 

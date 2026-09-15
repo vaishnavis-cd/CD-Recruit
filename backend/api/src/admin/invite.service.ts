@@ -81,7 +81,7 @@ export class InviteService {
       },
     });
 
-    const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+    const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:5173";
     const inviteLink = `${candidateAppBase}/invite/${token}`;
 
     // 3. Create Audit Log
@@ -262,7 +262,7 @@ export class InviteService {
       },
     });
 
-    const candidateAppBase = process.env.CANDIDATE_WEB_URL ?? "http://localhost:3000";
+    const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:5173";
     const inviteLink = `${candidateAppBase}/invite/${token}`;
 
     // Create Audit Log
