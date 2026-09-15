@@ -509,12 +509,7 @@ function SettingsPage() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message || "Failed to add staff member");
       }
-      const data = await res.json();
-      toast.success(
-        data.keycloakSynced
-          ? `Staff member "${newStaffName}" created & synced to Keycloak!`
-          : `Staff member "${newStaffName}" added successfully`
-      );
+      toast.success(`Staff member "${newStaffName}" added successfully`);
       setShowAddStaffModal(false);
       setNewStaffName("");
       setNewStaffEmail("");

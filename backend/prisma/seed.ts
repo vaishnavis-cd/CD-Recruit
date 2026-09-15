@@ -131,7 +131,6 @@ async function main(): Promise<void> {
           email: "recruiter@example.com",
           name: "Rachel Brooks",
           role: "RECRUITER",
-          keycloakUserId: "mock-keycloak-recruiter-id",
         },
       });
       console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);

@@ -37,7 +37,7 @@ The `settings/` module provides centralized system configuration, dynamic role-b
 
 ### 1.4 Staff Management & Compliance Audit Logging (`listStaff`, `createStaff`, `deleteStaff`, `listAuditLogs`)
 * **Staff Lifecycle:**
-  * Creates, deletes, and reassigns staff roles (`ADMIN`, `HR_LEAD`, `HR_ASSOCIATE`, `REVIEWER`, `RECRUITER`) with automated Keycloak ID assignment.
+  * Creates, deletes, and reassigns staff roles (`ADMIN`, `HR_LEAD`, `HR_ASSOCIATE`, `REVIEWER`, `RECRUITER`) in PostgreSQL with scrypt password hashing.
 * **Audit Trail Generation:**
   * Records detailed audit events (`AuditLog`) capturing actor identity (`resolveStaffId`), action name, target entity, and before/after metadata snapshots.
 

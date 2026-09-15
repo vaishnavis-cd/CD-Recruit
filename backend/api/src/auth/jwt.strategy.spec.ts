@@ -10,7 +10,7 @@ import { SettingsService } from "../settings/settings.service";
 import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import * as jwt from "jsonwebtoken";
 
-describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
+describe("JwtStrategy — Pure Local Staff JWT Verification (Phase 6B Decommissioned Keycloak)", () => {
   let strategy: JwtStrategy;
   let prismaService: any;
   let configService: any;
@@ -87,7 +87,22 @@ describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
       expect(done).toHaveBeenCalledWith(null, testSecret);
     });
 
-    it("should reject tokens with unsupported algorithms (e.g. none, HS384)", async () => {
+    it("should reject RS256/Keycloak tokens as unsupported algorithm", async () => {
+      const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+      const payload = Buffer.from(JSON.stringify({ sub: "user-123" })).toString("base64url");
+      const fakeRs256Token = `${header}.${payload}.fake_sig`;
+
+      const secretOrKeyProvider = (strategy as any)._secretOrKeyProvider;
+      const done = jest.fn();
+
+      await secretOrKeyProvider(null, fakeRs256Token, done);
+
+      expect(done).toHaveBeenCalledWith(expect.any(UnauthorizedException));
+      const error: UnauthorizedException = done.mock.calls[0][0];
+      expect(error.message).toContain("UNSUPPORTED_JWT_ALGORITHM: RS256");
+    });
+
+    it("should reject tokens with unsupported algorithms (e.g. HS384, none)", async () => {
       const unsupportedToken = jwt.sign(
         { sub: mockStaff.id },
         testSecret,
@@ -101,7 +116,7 @@ describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
 
       expect(done).toHaveBeenCalledWith(expect.any(UnauthorizedException));
       const error: UnauthorizedException = done.mock.calls[0][0];
-      expect(error.message).toContain("UNSUPPORTED_JWT_ALGORITHM");
+      expect(error.message).toContain("UNSUPPORTED_JWT_ALGORITHM: HS384");
     });
 
     it("should reject malformed tokens", async () => {
@@ -113,20 +128,13 @@ describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
       expect(done).toHaveBeenCalledWith(expect.any(UnauthorizedException));
     });
 
-    it("should reject RS256 token if kid is missing in header", async () => {
-      // Craft RS256-like header without kid
-      const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
-      const payload = Buffer.from(JSON.stringify({ sub: "user-123" })).toString("base64url");
-      const fakeToken = `${header}.${payload}.fake_sig`;
-
+    it("should reject empty token", async () => {
       const secretOrKeyProvider = (strategy as any)._secretOrKeyProvider;
       const done = jest.fn();
 
-      await secretOrKeyProvider(null, fakeToken, done);
+      await secretOrKeyProvider(null, "", done);
 
       expect(done).toHaveBeenCalledWith(expect.any(UnauthorizedException));
-      const error: UnauthorizedException = done.mock.calls[0][0];
-      expect(error.message).toContain("MISSING_KEYCLOAK_KID");
     });
   });
 
@@ -153,7 +161,25 @@ describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
       expect(prismaService.staff.create).not.toHaveBeenCalled();
     });
 
-    it("should reject with 401 Unauthorized and NOT create a staff record when sub is unknown", async () => {
+    it("should fallback to email lookup if sub not found directly", async () => {
+      prismaService.staff.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockStaff);
+
+      const result = await strategy.validate({
+        sub: "legacy-sub-id",
+        email: mockStaff.email,
+        name: mockStaff.name,
+        role: mockStaff.role,
+      });
+
+      expect(prismaService.staff.findUnique).toHaveBeenCalledWith({
+        where: { email: mockStaff.email },
+      });
+      expect(result.id).toBe(mockStaff.id);
+    });
+
+    it("should reject with 401 Unauthorized and NEVER create a staff record when sub is unknown", async () => {
       prismaService.staff.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -165,7 +191,7 @@ describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
         }),
       ).rejects.toThrow(UnauthorizedException);
 
-      // Crucial requirement: NEVER auto-create staff for local JWTs
+      // Crucial requirement: NEVER auto-create staff
       expect(prismaService.staff.create).not.toHaveBeenCalled();
     });
 
@@ -187,28 +213,6 @@ describe("JwtStrategy — Local & Keycloak JWT Verification (Phase 3)", () => {
       });
 
       expect(result.role).toBe(StaffRole.HR_LEAD);
-    });
-
-    it("should maintain backward-compatibility with Keycloak realm_access roles", async () => {
-      const keycloakUser = {
-        id: "kc-staff-uuid",
-        email: "kcuser@cdrecruit.local",
-        name: "Keycloak User",
-        role: StaffRole.ADMIN,
-      };
-
-      prismaService.staff.findUnique.mockResolvedValue(keycloakUser);
-
-      const result = await strategy.validate({
-        sub: "kc-staff-uuid",
-        email: "kcuser@cdrecruit.local",
-        preferred_username: "kcuser",
-        realm_access: {
-          roles: ["ADMIN", "default-roles-cd-recruit"],
-        },
-      });
-
-      expect(result.role).toBe(StaffRole.ADMIN);
     });
   });
 

@@ -82,13 +82,6 @@ export async function login(email: string, pw: string): Promise<StaffLoginRespon
 }
 
 /**
- * Backward compatibility alias for login
- */
-export async function loginWithKeycloak(email: string, pw: string): Promise<any> {
-  return login(email, pw);
-}
-
-/**
  * Rotates the staff refresh token and updates stored credentials in localStorage.
  */
 export async function refreshTokens(): Promise<string | null> {

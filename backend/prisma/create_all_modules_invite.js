@@ -23,7 +23,6 @@ async function main() {
         email: 'recruiter@protora.com',
         name: 'Lead Recruiter',
         role: 'RECRUITER',
-        keycloakUserId: 'keycloak-recruiter-001',
       },
     });
   }

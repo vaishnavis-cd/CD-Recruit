@@ -68,7 +68,6 @@ describe("AuthService — Local Staff Authentication", () => {
         email: mockEmail,
         name: "Admin User",
         role: StaffRole.ADMIN,
-        keycloakUserId: "keycloak-admin-1",
         passwordHash: validPasswordHash,
         refreshTokenHash: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -164,7 +163,6 @@ describe("AuthService — Local Staff Authentication", () => {
         email: "keycloak-only@example.com",
         name: "Keycloak User",
         role: StaffRole.RECRUITER,
-        keycloakUserId: "keycloak-uuid",
         passwordHash: null, // No password hash set yet
       };
 
