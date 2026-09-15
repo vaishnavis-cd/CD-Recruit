@@ -17,14 +17,24 @@ export class Judge0Service {
    * Throws BadRequestException for unknown languages so NestJS returns 400.
    */
   getLanguageId(language: string): number {
-    const id = JUDGE0_LANGUAGE_SLUG_MAP[language.toLowerCase()];
-    if (!id) {
-      const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
-      throw new BadRequestException(
-        `Language "${language}" is not supported. Supported: ${supported.join(", ")}`,
-      );
+    if (!language) return Judge0Language.PYTHON;
+    const clean = language.toLowerCase().trim();
+
+    if (JUDGE0_LANGUAGE_SLUG_MAP[clean]) {
+      return JUDGE0_LANGUAGE_SLUG_MAP[clean];
     }
-    return id;
+
+    if (clean.includes("cpp") || clean.includes("c++")) return Judge0Language.CPP;
+    if (clean.includes("python")) return Judge0Language.PYTHON;
+    if (clean.includes("javascript") || clean.includes("js") || clean.includes("node")) return Judge0Language.JAVASCRIPT;
+    if (clean.includes("typescript") || clean.includes("ts")) return Judge0Language.TYPESCRIPT;
+    if (clean.includes("java")) return Judge0Language.JAVA;
+    if (clean.includes("go")) return Judge0Language.GO;
+
+    const supported = ["python", "javascript", "typescript", "java", "cpp", "go"];
+    throw new BadRequestException(
+      `Language "${language}" is not supported. Supported: ${supported.join(", ")}`,
+    );
   }
 
   /**
@@ -124,12 +134,28 @@ export class Judge0Service {
   }
 
   /**
-   * Polls a batch of tokens in a single request until completion or timeout.
-   * Detects stuck queue workers (IN_QUEUE > 3s) and throws so fallback runner takes over.
+   * Polls a batch of tokens in single requests until all tokens complete or timeout.
+   * Diffing per-token status on each poll tick fires onEachResult callback as individual test cases finish.
+   * Logs telemetry warning if tokens remain IN_QUEUE for over 15s without throwing fatal error.
    */
-  async pollBatchSubmissions(tokens: string[]): Promise<Map<string, Judge0ExecutionResponse>> {
+  async pollBatchSubmissions(
+    tokens: string[],
+    onEachResult?: (token: string, result: Judge0ExecutionResponse) => void,
+    pollIntervalMs: number = JUDGE0_POLLING.INTERVAL_MS,
+  ): Promise<{
+    resultsMap: Map<string, Judge0ExecutionResponse>;
+    metrics: { avgQueueWaitMs: number; avgProcessingWaitMs: number };
+  }> {
     let pendingTokens = [...tokens];
     const resultsMap = new Map<string, Judge0ExecutionResponse>();
+    const finishedTokens = new Set<string>();
+    const startTime = Date.now();
+    const tokenTimings = new Map<string, { enteredProcessing?: number; completed?: number }>();
+    
+    for (const t of tokens) {
+      tokenTimings.set(t, {});
+    }
+
     let attempts = 0;
     let inQueueStallCount = 0;
 
@@ -143,9 +169,25 @@ export class Judge0Service {
         for (const resp of responses) {
           if (!resp || !resp.token) continue;
           const statusId = resp.status?.id;
+          const timing = tokenTimings.get(resp.token) || {};
+
+          if (statusId === JUDGE0_STATUS.PROCESSING && !timing.enteredProcessing) {
+            timing.enteredProcessing = Date.now();
+            tokenTimings.set(resp.token, timing);
+            allInQueue = false;
+          }
+
           if (statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
+            timing.completed = Date.now();
+            tokenTimings.set(resp.token, timing);
             resultsMap.set(resp.token, resp);
             allInQueue = false;
+            if (!finishedTokens.has(resp.token)) {
+              finishedTokens.add(resp.token);
+              if (onEachResult) {
+                onEachResult(resp.token, resp);
+              }
+            }
           } else {
             stillPending.push(resp.token);
             if (statusId !== JUDGE0_STATUS.IN_QUEUE) {
@@ -157,20 +199,18 @@ export class Judge0Service {
 
         if (pendingTokens.length > 0 && allInQueue) {
           inQueueStallCount++;
-          if (inQueueStallCount >= 15) {
-            this.logger.warn(`[Judge0Service] Queue worker is idle/stalled (tokens stuck IN_QUEUE for 15s). Failing execution...`);
-            throw new Error("JUDGE0_QUEUE_STALLED");
+          if (inQueueStallCount === 15) {
+            this.logger.warn(`[Judge0Service] High queue wait: submissions have remained IN_QUEUE for 15s (Judge0 busy under load). Continuing to poll...`);
           }
         } else {
           inQueueStallCount = 0;
         }
       } catch (err: any) {
-        if (err.message === "JUDGE0_QUEUE_STALLED") throw err;
         this.logger.error(`Error polling batch tokens: ${err.message}`);
       }
 
       if (pendingTokens.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, JUDGE0_POLLING.INTERVAL_MS));
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
       }
     }
 
@@ -187,7 +227,29 @@ export class Judge0Service {
       }
     }
 
-    return resultsMap;
+    // Calculate aggregated wait & processing metrics
+    let totalQueueWait = 0;
+    let totalProcessingWait = 0;
+    const now = Date.now();
+
+    for (const [, timing] of tokenTimings.entries()) {
+      const completed = timing.completed || now;
+      if (timing.enteredProcessing) {
+        totalQueueWait += (timing.enteredProcessing - startTime);
+        totalProcessingWait += (completed - timing.enteredProcessing);
+      } else {
+        totalQueueWait += (completed - startTime);
+      }
+    }
+
+    const count = tokens.length || 1;
+    return {
+      resultsMap,
+      metrics: {
+        avgQueueWaitMs: Math.round(totalQueueWait / count),
+        avgProcessingWaitMs: Math.round(totalProcessingWait / count),
+      },
+    };
   }
 
   /**
@@ -243,7 +305,7 @@ export class Judge0Service {
       expectedOutputBase64: this.encodeBase64(tc.expectedOutput),
     }));
 
-    let submissionResponses: Array<Judge0ExecutionResponse & { token: string }> = [];
+    let submissionResponses: Array<{ token: string }> = [];
     let attempts = 0;
     const maxAttempts = 3;
     let delay = 500;
@@ -289,33 +351,26 @@ export class Judge0Service {
       };
     }
 
+    const batchStartTime = Date.now();
     const tokens = submissionResponses.map((r) => r.token);
-    const resultsMap = new Map<string, Judge0ExecutionResponse>();
-    const pendingTokens: string[] = [];
+    let resultsMap = new Map<string, Judge0ExecutionResponse>();
+    let queueWaitMs = 0;
+    let processingWaitMs = 0;
 
-    for (const resp of submissionResponses) {
-      const statusId = resp.status?.id;
-      if (statusId && statusId !== JUDGE0_STATUS.IN_QUEUE && statusId !== JUDGE0_STATUS.PROCESSING) {
-        resultsMap.set(resp.token, resp);
-      } else if (resp.token) {
-        pendingTokens.push(resp.token);
-      }
-    }
-
-    if (pendingTokens.length > 0) {
-      try {
-        const polledMap = await this.pollBatchSubmissions(pendingTokens);
-        polledMap.forEach((val, key) => resultsMap.set(key, val));
-      } catch (err: any) {
-        this.logger.error(
-          `[INFRA_FAILURE_ALERT] Judge0 execution queue failed or stalled: ${err.message}. Flagging infra failure for ops intervention.`,
-        );
-      }
+    try {
+      const { resultsMap: polledMap, metrics } = await this.pollBatchSubmissions(tokens);
+      resultsMap = polledMap;
+      queueWaitMs = metrics.avgQueueWaitMs;
+      processingWaitMs = metrics.avgProcessingWaitMs;
+    } catch (err: any) {
+      this.logger.error(
+        `[INFRA_FAILURE_ALERT] Judge0 execution batch polling failed: ${err.message}. Flagging infra failure for ops intervention.`,
+      );
     }
 
     const results = testCases.map((tc, idx) => {
       const token = tokens[idx];
-      const response = resultsMap.get(token) || submissionResponses[idx];
+      const response = resultsMap.get(token);
 
       if (!response || !response.status) {
         return {
@@ -399,6 +454,23 @@ export class Judge0Service {
         overallStatus = r.status;
       }
     }
+
+    const totalLatencyMs = Date.now() - batchStartTime;
+
+    // Structured Telemetry Log (Phase 0.7)
+    this.logger.log(
+      `[TELEMETRY:JUDGE0_EXECUTION] ${JSON.stringify({
+        event: "JUDGE0_EXECUTION_TIMING",
+        questionId,
+        totalTests: testCases.length,
+        passedTests: passedCount,
+        queueWaitMs,
+        processingWaitMs,
+        sandboxExecutionTimeMs: totalTime,
+        totalLatencyMs,
+        overallStatus,
+      })}`,
+    );
 
     return {
       status: overallStatus,

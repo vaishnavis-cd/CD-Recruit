@@ -983,12 +983,30 @@ export class AdminService {
       distance = verification.distance;
     }
     
+    const idProofExtractedName = candidate.idProofExtractedName || null;
+    let nameRes = {
+      matched: false,
+      similarity: 0.0,
+      threshold: this.nameThreshold,
+      extractedName: idProofExtractedName,
+      registeredName: candidate.name,
+    };
+    if (idProofExtractedName) {
+      nameRes = this.nameMatchService.compareNames(candidate.name, idProofExtractedName, this.nameThreshold);
+    }
+
     const identityVerificationResult = {
-      matched: isMatched,
+      matched: isMatched && nameRes.matched,
       distance,
       threshold: this.faceThreshold,
       face: { matched: isMatched, distance, threshold: this.faceThreshold },
-      name: { matched: true, similarity: 1.0, threshold: this.nameThreshold, extractedName: candidate.name, registeredName: candidate.name },
+      name: {
+        matched: nameRes.matched,
+        similarity: nameRes.similarity,
+        threshold: nameRes.threshold,
+        extractedName: nameRes.extractedName,
+        registeredName: nameRes.registeredName,
+      },
       inTestCaptures: {
         total: 3,
         matched: 3,
@@ -1172,9 +1190,15 @@ export class AdminService {
 
         const registeredName = session?.invite?.candidateName || candidate.name;
 
-        let overallMatched = true;
-        let faceRes = { matched: true, distance: 0.05, threshold: this.faceThreshold };
-        let nameRes = { matched: true, similarity: 1.0, threshold: this.nameThreshold, extractedName: registeredName, registeredName };
+        let overallMatched = false;
+        let faceRes = { matched: false, distance: 0.0, threshold: this.faceThreshold };
+        let nameRes = {
+          matched: false,
+          similarity: 0.0,
+          threshold: this.nameThreshold,
+          extractedName: extractedName || null,
+          registeredName,
+        };
 
         if (idProofEmb && selfieEmb) {
           faceRes = this.faceVerifyOnnxService.verifyEmbeddings(
@@ -1182,11 +1206,13 @@ export class AdminService {
             idProofEmb,
             this.faceThreshold,
           );
-          if (extractedName) {
-            nameRes = this.nameMatchService.compareNames(registeredName, extractedName, this.nameThreshold);
-          }
-          overallMatched = faceRes.matched && (nameRes ? nameRes.matched : true);
         }
+
+        if (extractedName) {
+          nameRes = this.nameMatchService.compareNames(registeredName, extractedName, this.nameThreshold);
+        }
+
+        overallMatched = faceRes.matched && nameRes.matched;
 
         // In-Test Periodic Identity Captures Verification (3 windows)
         let inTestCapturesResult: any = {

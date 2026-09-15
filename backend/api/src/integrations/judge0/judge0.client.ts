@@ -2,12 +2,14 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AppConfig } from "../../config/configuration";
 import { Judge0ExecutionResponse, Judge0SubmissionResponse } from "./judge0.types";
+import CircuitBreaker from "opossum";
 
 export interface BatchSubmissionItem {
   sourceCodeBase64: string;
   languageId: number;
   stdinBase64?: string;
   expectedOutputBase64?: string;
+  callbackUrl?: string;
 }
 
 @Injectable()
@@ -15,11 +17,47 @@ export class Judge0Client {
   private readonly logger = new Logger(Judge0Client.name);
   private readonly apiUrl: string;
   private readonly apiKey: string;
+  private readonly cpuTimeLimit: number;
+  private readonly wallTimeLimit: number;
+  private readonly maxRetryAttempts: number;
+  private readonly retryBaseDelayMs: number;
+  private readonly breaker: CircuitBreaker;
 
   constructor(private readonly configService: ConfigService<AppConfig, true>) {
     const rawUrl = this.configService.get<string>("judge0ApiUrl", { infer: true }) || "http://localhost:2358";
     this.apiUrl = rawUrl.replace(/\/+$/, "");
     this.apiKey = this.configService.get<string>("judge0ApiKey", { infer: true });
+
+    this.cpuTimeLimit = this.configService.get<number>("judge0CpuTimeLimit", { infer: true }) ?? 5.0;
+    this.wallTimeLimit = this.configService.get<number>("judge0WallTimeLimit", { infer: true }) ?? 10.0;
+    this.maxRetryAttempts = this.configService.get<number>("judge0MaxRetryAttempts", { infer: true }) ?? 3;
+    this.retryBaseDelayMs = this.configService.get<number>("judge0RetryBaseDelayMs", { infer: true }) ?? 500;
+
+    const errorThresholdPercentage = this.configService.get<number>("circuitBreakerErrorThresholdPercent", { infer: true }) ?? 50;
+    const resetTimeout = this.configService.get<number>("circuitBreakerResetTimeoutMs", { infer: true }) ?? 10000;
+    const volumeThreshold = this.configService.get<number>("circuitBreakerVolumeThreshold", { infer: true }) ?? 5;
+
+    const breakerOptions: CircuitBreaker.Options = {
+      errorThresholdPercentage,
+      resetTimeout,
+      rollingCountTimeout: resetTimeout,
+      volumeThreshold,
+    };
+
+    this.breaker = new CircuitBreaker(
+      (actionFn: () => Promise<any>) => actionFn(),
+      breakerOptions,
+    );
+
+    this.breaker.on("open", () => {
+      this.logger.warn("[Circuit Breaker] OPEN: High Judge0 failure rate detected. Failing fast for cooldown period.");
+    });
+    this.breaker.on("halfOpen", () => {
+      this.logger.log("[Circuit Breaker] HALF-OPEN: Testing Judge0 recovery...");
+    });
+    this.breaker.on("close", () => {
+      this.logger.log("[Circuit Breaker] CLOSED: Judge0 service confirmed healthy.");
+    });
 
     this.logger.log(`Judge0 Primary Sandbox Engine configured at: ${this.apiUrl || "http://localhost:2358"}`);
   }
@@ -46,12 +84,9 @@ export class Judge0Client {
   }
 
   /**
-   * Submit a single source code & stdin to Judge0.
+   * Internal submission call executing retry-with-backoff.
    */
-  /**
-   * Submit a single source code & stdin to Judge0 with wait=true.
-   */
-  async createSubmission(
+  private async executeSubmissionWithRetry(
     sourceCodeBase64: string,
     languageId: number,
     stdinBase64?: string,
@@ -63,17 +98,16 @@ export class Judge0Client {
       language_id: languageId,
       stdin: stdinBase64 || null,
       expected_output: expectedOutputBase64 || null,
-      cpu_time_limit: 5.0,
-      wall_time_limit: 10.0,
+      cpu_time_limit: this.cpuTimeLimit,
+      wall_time_limit: this.wallTimeLimit,
       enable_per_process_and_thread_time_limit: true,
       enable_per_process_and_thread_memory_limit: true,
     };
 
     let attempts = 0;
-    const maxAttempts = 3;
-    let delay = 500;
+    let delay = this.retryBaseDelayMs;
 
-    while (attempts < maxAttempts) {
+    while (attempts < this.maxRetryAttempts) {
       attempts++;
       try {
         this.logger.log(`Submitting code for language_id: ${languageId} to Judge0 (attempt ${attempts})...`);
@@ -84,8 +118,8 @@ export class Judge0Client {
         });
 
         if (response.status === 429 || response.status === 503) {
-          if (attempts === maxAttempts) {
-            throw new Error(`Rate limit/Server busy (${response.status}) after ${maxAttempts} attempts.`);
+          if (attempts === this.maxRetryAttempts) {
+            throw new Error(`Rate limit/Server busy (${response.status}) after ${this.maxRetryAttempts} attempts.`);
           }
           this.logger.warn(`Judge0 server busy/rate limited (${response.status}). Retrying in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -102,7 +136,7 @@ export class Judge0Client {
         const data = (await response.json()) as Judge0ExecutionResponse & { token: string };
         return data;
       } catch (error: any) {
-        if (attempts === maxAttempts) {
+        if (attempts === this.maxRetryAttempts) {
           this.logger.error(`Error connecting to Judge0 for submission: ${error.message}`);
           throw error;
         }
@@ -116,22 +150,114 @@ export class Judge0Client {
   }
 
   /**
-   * Submit a batch of test cases to Judge0 in parallel synchronous HTTP POST requests with wait=true.
+   * Submit a single source code & stdin to Judge0 with wait=true through Circuit Breaker.
    */
-  async createBatchSubmissions(items: BatchSubmissionItem[]): Promise<Array<Judge0ExecutionResponse & { token: string }>> {
+  async createSubmission(
+    sourceCodeBase64: string,
+    languageId: number,
+    stdinBase64?: string,
+    expectedOutputBase64?: string,
+  ): Promise<Judge0ExecutionResponse & { token: string }> {
+    try {
+      return (await this.breaker.fire(() =>
+        this.executeSubmissionWithRetry(
+          sourceCodeBase64,
+          languageId,
+          stdinBase64,
+          expectedOutputBase64,
+        ),
+      )) as Judge0ExecutionResponse & { token: string };
+    } catch (error: any) {
+      if (error?.code === "EOPENBREAKER" || this.breaker.opened) {
+        throw new Error("Execution service is currently busy, please try again shortly");
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Internal batch submission call executing retry-with-backoff using POST /submissions/batch.
+   */
+  private async executeBatchSubmissionWithRetry(
+    items: BatchSubmissionItem[],
+  ): Promise<Array<{ token: string }>> {
+    const url = `${this.apiUrl}/submissions/batch?base64_encoded=true`;
+    const payload = {
+      submissions: items.map((item) => ({
+        source_code: item.sourceCodeBase64,
+        language_id: item.languageId,
+        stdin: item.stdinBase64 || null,
+        expected_output: item.expectedOutputBase64 || null,
+        cpu_time_limit: this.cpuTimeLimit,
+        wall_time_limit: this.wallTimeLimit,
+        enable_per_process_and_thread_time_limit: true,
+        enable_per_process_and_thread_memory_limit: true,
+        callback_url: item.callbackUrl || null,
+      })),
+    };
+
+    let attempts = 0;
+    let delay = this.retryBaseDelayMs;
+
+    while (attempts < this.maxRetryAttempts) {
+      attempts++;
+      try {
+        this.logger.log(`Submitting batch of ${items.length} items to Judge0 POST /submissions/batch (attempt ${attempts})...`);
+        const response = await fetch(url, {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify(payload),
+        });
+
+        if (response.status === 429 || response.status === 503) {
+          if (attempts === this.maxRetryAttempts) {
+            throw new Error(`Rate limit/Server busy (${response.status}) after ${this.maxRetryAttempts} attempts.`);
+          }
+          this.logger.warn(`Judge0 server busy/rate limited (${response.status}). Retrying batch in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2;
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          this.logger.error(`Judge0 batch submission failed: ${response.status} - ${errorText}`);
+          const nonRetryableError = new Error(`Judge0 API error: ${response.statusText} (${response.status})`);
+          (nonRetryableError as any).isNonRetryable = true;
+          throw nonRetryableError;
+        }
+
+        const tokens = (await response.json()) as Array<{ token: string }>;
+        return tokens;
+      } catch (error: any) {
+        if (error?.isNonRetryable || attempts === this.maxRetryAttempts) {
+          this.logger.error(`Error submitting batch to Judge0: ${error.message}`);
+          throw error;
+        }
+        this.logger.warn(`Network/transient error on batch attempt ${attempts}: ${error.message}. Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+
+    throw new Error("Failed to submit batch to Judge0.");
+  }
+
+  /**
+   * Submit a batch of test cases to Judge0 in a single async POST /submissions/batch request through Circuit Breaker.
+   */
+  async createBatchSubmissions(items: BatchSubmissionItem[]): Promise<Array<{ token: string }>> {
     if (items.length === 0) return [];
-    
-    // Execute all test cases concurrently using synchronous POST requests (wait=true)
-    return Promise.all(
-      items.map((item) =>
-        this.createSubmission(
-          item.sourceCodeBase64,
-          item.languageId,
-          item.stdinBase64,
-          item.expectedOutputBase64
-        )
-      )
-    );
+    try {
+      return (await this.breaker.fire(() =>
+        this.executeBatchSubmissionWithRetry(items),
+      )) as Array<{ token: string }>;
+    } catch (error: any) {
+      if (error?.code === "EOPENBREAKER" || this.breaker.opened) {
+        throw new Error("Execution service is currently busy, please try again shortly");
+      }
+      throw error;
+    }
   }
 
   /**

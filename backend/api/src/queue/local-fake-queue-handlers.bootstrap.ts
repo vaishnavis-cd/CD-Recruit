@@ -1,17 +1,24 @@
 import { Injectable, OnModuleInit, Inject, forwardRef } from "@nestjs/common";
 import { LocalFakeQueueProvider } from "./local-fake-queue.provider";
-import { SessionService } from "@app/session/session.service";
+import { SessionService } from "../session/session.service";
 import { HeartbeatService } from "./heartbeat.service";
 import { NosqlSandboxService } from "../modules/nosql/nosql-sandbox.service";
+import { InboundExecutionProcessor } from "./execution/execution-inbound.processor";
+import { OutboundExecutionProcessor } from "./execution/execution-outbound.processor";
+import { WatchdogExecutionProcessor } from "./execution/execution-watchdog.processor";
 
 @Injectable()
 export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
   constructor(
+    @Inject(forwardRef(() => LocalFakeQueueProvider))
     private readonly fakeQueue: LocalFakeQueueProvider,
     @Inject(forwardRef(() => SessionService))
     private readonly sessionService: SessionService,
     private readonly heartbeatService: HeartbeatService,
     private readonly nosqlSandboxService: NosqlSandboxService,
+    private readonly inboundProcessor: InboundExecutionProcessor,
+    private readonly outboundProcessor: OutboundExecutionProcessor,
+    private readonly watchdogProcessor: WatchdogExecutionProcessor,
   ) {}
 
   onModuleInit() {
@@ -43,13 +50,34 @@ export class LocalFakeQueueHandlersBootstrap implements OnModuleInit {
     );
 
     this.fakeQueue.registerHandler(
-      "heartbeat-monitor",
-      "drop-sandbox",
+      "execution-inbound",
+      "run",
       async (payload) => {
-        const sandboxDbName = payload.sandboxDbName as string;
-        if (sandboxDbName) {
-          await this.nosqlSandboxService.dropSandbox(sandboxDbName);
-        }
+        await this.inboundProcessor.process({ data: payload as any } as any);
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "execution-inbound",
+      "submit",
+      async (payload) => {
+        await this.inboundProcessor.process({ data: payload as any } as any);
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "execution-outbound",
+      "save-result",
+      async (payload) => {
+        await this.outboundProcessor.process({ data: payload as any } as any);
+      },
+    );
+
+    this.fakeQueue.registerHandler(
+      "execution-watchdog",
+      "check-stuck",
+      async (payload) => {
+        await this.watchdogProcessor.process({ data: payload as any } as any);
       },
     );
   }

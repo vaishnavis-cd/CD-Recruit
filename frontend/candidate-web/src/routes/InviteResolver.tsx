@@ -47,6 +47,18 @@ export function InviteResolver({ token: propToken }: { token?: string }) {
       devForceJump({ type: 'session-conflict' });
     });
 
+    // Clear stale local storage if new candidate token is passed
+    const storedToken = localStorage.getItem('cd-recruit-session-token')
+    if (token && storedToken !== token) {
+      console.log('[InviteResolver] New candidate token detected! Clearing stale local session.')
+      localStorage.removeItem('cd-recruit-session')
+      localStorage.removeItem('cd-recruit-assessment-state')
+      localStorage.removeItem('cd-recruit-autosave')
+      localStorage.removeItem('cd-recruit-scheduled-ms')
+      localStorage.setItem('cd-recruit-session-token', token)
+      useSessionStore.setState({ session: null, assessment: null })
+    }
+
     async function resolve() {
       try {
         let resolveResult;
