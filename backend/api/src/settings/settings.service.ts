@@ -3,8 +3,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { ListAuditLogQueryDto, UpdateRolePermissionDto } from "../common/dto/settings.dto";
 import { Department, ModuleType } from "@prisma/client";
+import { hashPassword } from "../common/utils/password.util";
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 
 export interface PermissionDescriptor {
   key: Permission;
@@ -366,6 +368,9 @@ export class SettingsService implements OnModuleInit {
       throw new BadRequestException("Staff member with this email already exists");
     }
 
+    const effectivePassword = dto.tempPassword || `Temp@${crypto.randomBytes(6).toString("hex")}!`;
+    const passwordHash = await hashPassword(effectivePassword);
+
     let keycloakUserId = `keycloak_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     let keycloakSynced = false;
 
@@ -375,7 +380,7 @@ export class SettingsService implements OnModuleInit {
           email: dto.email,
           name: dto.name,
           role: dto.role,
-          tempPassword: dto.tempPassword || "Password@123",
+          tempPassword: effectivePassword,
           temporary: dto.temporary !== undefined ? dto.temporary : true,
           requirePasswordChange: dto.requirePasswordChange !== undefined ? dto.requirePasswordChange : true,
         });
@@ -394,6 +399,7 @@ export class SettingsService implements OnModuleInit {
         email: dto.email,
         role: dto.role as any,
         keycloakUserId,
+        passwordHash,
       },
     });
 
@@ -414,8 +420,9 @@ export class SettingsService implements OnModuleInit {
       },
     });
 
+    const { passwordHash: _ph, refreshTokenHash: _rth, refreshTokenExpiresAt: _rtea, ...sanitizedStaff } = staff as any;
     return {
-      ...staff,
+      ...sanitizedStaff,
       keycloakSynced,
     };
   }
@@ -431,33 +438,53 @@ export class SettingsService implements OnModuleInit {
       throw new NotFoundException(`Staff not found with ID ${staffId}`);
     }
 
-    const targetPassword = dto.newPassword || `Temp@${Math.random().toString(36).slice(2, 8).toUpperCase()}!`;
+    const targetPassword = dto.newPassword || `Temp@${crypto.randomBytes(6).toString("hex")}!`;
     const isTemporary = dto.temporary !== false;
+    const passwordHash = await hashPassword(targetPassword);
     let resetSuccess = false;
 
     if (this.keycloakAdmin && staff.keycloakUserId && !staff.keycloakUserId.startsWith("keycloak_")) {
-      resetSuccess = await this.keycloakAdmin.resetPassword(
-        staff.keycloakUserId,
-        targetPassword,
-        isTemporary,
-      );
+      try {
+        resetSuccess = await this.keycloakAdmin.resetPassword(
+          staff.keycloakUserId,
+          targetPassword,
+          isTemporary,
+        );
+      } catch (err: any) {
+        this.logger.warn(`Failed to reset password in Keycloak: ${err.message}`);
+      }
     } else if (this.keycloakAdmin) {
-      // Try to find / create user in Keycloak if not yet synced
-      const kcUser = await this.keycloakAdmin.createUser({
-        email: staff.email,
-        name: staff.name,
-        role: staff.role,
-        tempPassword: targetPassword,
-        temporary: isTemporary,
-      });
-      if (kcUser.keycloakUserId) {
-        await this.prisma.staff.update({
-          where: { id: staffId },
-          data: { keycloakUserId: kcUser.keycloakUserId },
+      try {
+        // Try to find / create user in Keycloak if not yet synced
+        const kcUser = await this.keycloakAdmin.createUser({
+          email: staff.email,
+          name: staff.name,
+          role: staff.role,
+          tempPassword: targetPassword,
+          temporary: isTemporary,
         });
-        resetSuccess = true;
+        if (kcUser.keycloakUserId) {
+          await this.prisma.staff.update({
+            where: { id: staffId },
+            data: { keycloakUserId: kcUser.keycloakUserId },
+          });
+          resetSuccess = true;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to sync user with Keycloak on password reset: ${err.message}`);
       }
     }
+
+    // Update passwordHash in PostgreSQL and invalidate any existing refresh tokens
+    await (this.prisma.staff as any).update({
+      where: { id: staffId },
+      data: {
+        passwordHash,
+        refreshTokenHash: null,
+        refreshTokenExpiresAt: null,
+      },
+    });
+
 
     await this.prisma.auditLog.create({
       data: {
@@ -475,12 +502,11 @@ export class SettingsService implements OnModuleInit {
 
     return {
       success: true,
-      newPassword: targetPassword,
       temporary: isTemporary,
       keycloakSynced: resetSuccess,
       message: resetSuccess
-        ? "Password successfully reset in Keycloak."
-        : "Password reset generated (Keycloak offline or unlinked).",
+        ? "Password successfully reset in PostgreSQL and Keycloak."
+        : "Password successfully reset in PostgreSQL (Keycloak offline or unlinked).",
     };
   }
 
@@ -539,7 +565,8 @@ export class SettingsService implements OnModuleInit {
       },
     });
 
-    return updated;
+    const { passwordHash: _ph, refreshTokenHash: _rth, refreshTokenExpiresAt: _rtea, ...sanitized } = updated as any;
+    return sanitized;
   }
 
   async getScoringConfig() {

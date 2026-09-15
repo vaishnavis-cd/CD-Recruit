@@ -3,6 +3,19 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import * as crypto from "crypto";
+import {
+  hashPassword,
+  verifyPassword,
+  hashToken,
+  generateRefreshToken,
+} from "../common/utils/password.util";
+import {
+  StaffLoginDto,
+  RefreshTokenDto,
+  StaffLogoutDto,
+  StaffLoginResponse,
+  StaffRefreshResponse,
+} from "../common/dto/auth.dto";
 
 @Injectable()
 export class AuthService {
@@ -16,6 +29,153 @@ export class AuthService {
   ) {
     this.jwtSecret = this.configService.get<string>("app.jwtSecret") ?? "cd-recruit-secret";
     this.encryptionKey = crypto.createHash("sha256").update(this.jwtSecret).digest();
+  }
+
+  /**
+   * Local Staff Login: Authenticates staff credentials against PostgreSQL passwordHash.
+   */
+  async loginStaff(dto: StaffLoginDto): Promise<StaffLoginResponse> {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const staff = await this.prisma.staff.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!staff || !staff.passwordHash) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+
+    const isValidPassword = await verifyPassword(dto.password, staff.passwordHash);
+    if (!isValidPassword) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+
+    const accessToken = this.jwtService.sign(
+      {
+        sub: staff.id,
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+      },
+      { expiresIn: "15m" },
+    );
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = hashToken(refreshToken);
+    const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await (this.prisma.staff as any).update({
+      where: { id: staff.id },
+      data: { refreshTokenHash, refreshTokenExpiresAt },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      tokenType: "Bearer",
+      expiresIn: 900,
+      staff: {
+        id: staff.id,
+        email: staff.email,
+        name: staff.name,
+        role: staff.role as any,
+        createdAt: staff.createdAt.toISOString(),
+      },
+    };
+  }
+
+  /**
+   * Rotates and validates a staff refresh token, issuing a new access and refresh token pair.
+   * Enforces 7-day maximum lifetime and single-use rotation.
+   */
+  async refreshStaffToken(dto: RefreshTokenDto): Promise<StaffRefreshResponse> {
+    if (!dto.refreshToken || typeof dto.refreshToken !== "string") {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const incomingHash = hashToken(dto.refreshToken);
+    const staff = await this.prisma.staff.findFirst({
+      where: { refreshTokenHash: incomingHash },
+    });
+
+    if (!staff || !staff.refreshTokenHash) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+
+    // Check maximum 7-day refresh token expiry
+    if ((staff as any).refreshTokenExpiresAt && (staff as any).refreshTokenExpiresAt < new Date()) {
+      await (this.prisma.staff as any).update({
+        where: { id: staff.id },
+        data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
+      });
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+
+    const newAccessToken = this.jwtService.sign(
+      {
+        sub: staff.id,
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+      },
+      { expiresIn: "15m" },
+    );
+
+    const newRefreshToken = generateRefreshToken();
+    const newRefreshTokenHash = hashToken(newRefreshToken);
+    const newRefreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await (this.prisma.staff as any).update({
+      where: { id: staff.id },
+      data: {
+        refreshTokenHash: newRefreshTokenHash,
+        refreshTokenExpiresAt: newRefreshTokenExpiresAt,
+      },
+    });
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      tokenType: "Bearer",
+      expiresIn: 900,
+    };
+  }
+
+  /**
+   * Logs out staff by clearing their stored refresh token hash and expiration.
+   */
+  async logoutStaff(dto?: StaffLogoutDto, staffId?: string): Promise<{ ok: boolean; message: string }> {
+    if (staffId) {
+      await (this.prisma.staff as any).updateMany({
+        where: { id: staffId },
+        data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
+      });
+      return { ok: true, message: "Logged out successfully" };
+    }
+
+    if (dto?.refreshToken) {
+      const incomingHash = hashToken(dto.refreshToken);
+      await (this.prisma.staff as any).updateMany({
+        where: { refreshTokenHash: incomingHash },
+        data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
+      });
+      return { ok: true, message: "Logged out successfully" };
+    }
+
+    return { ok: true, message: "Logged out successfully" };
+  }
+
+  /**
+   * Utility helper to hash passwords using standard scrypt.
+   */
+  async hashPassword(password: string): Promise<string> {
+    return hashPassword(password);
+  }
+
+  /**
+   * Utility helper to verify passwords against stored hash.
+   */
+  async verifyPassword(password: string, hash: string | null | undefined): Promise<boolean> {
+    return verifyPassword(password, hash);
   }
 
   /**
