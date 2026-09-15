@@ -77,17 +77,17 @@ Open separate terminal windows to launch the services:
 # Terminal 1: NestJS Backend REST API (Port 3001)
 npm run dev:api
 
-# Terminal 2: Admin Web Recruiter Dashboard (Port 3000)
+# Terminal 2: Admin Web Recruiter Dashboard (Port 5173)
 npm run dev:admin
 
-# Terminal 3: Candidate Web Assessment Shell (Port 5173)
+# Terminal 3: Candidate Web Assessment Shell (Port 5174)
 npm run dev:candidate
 ```
 
-- **Admin Web Dashboard**: `http://localhost:3000`
-- **Candidate Web Shell**: `http://localhost:5173`
+- **Admin Web Dashboard**: `http://localhost:5173`
+- **Candidate Web Shell**: `http://localhost:5174`
 - **NestJS REST API**: `http://localhost:3001/api/v1`
-- **Swagger Documentation**: `http://localhost:3001/docs`
+- **Swagger Documentation**: `http://localhost:3001/api-docs`
 
 ---
 
@@ -98,17 +98,19 @@ npm run dev:candidate
 | Container Name | Service | Local Port | Default Credentials / Notes |
 | :--- | :--- | :--- | :--- |
 | `cdrecruit_postgres_dev` | PostgreSQL 16 | **`5434:5432`** | User: `cdrecruit`<br>Pass: `cdrecruit123`<br>Database: `cdrecruit` |
-| `cdrecruit_keycloak_dev` | Keycloak 24 (OIDC) | `8080:8080` | Realm: `cd-recruit`<br>Admin Console: `http://localhost:8080` (`admin` / `admin`) |
 | `cdrecruit_redis_dev` | Redis 7 | `6379:6379` | BullMQ queues & session cache |
+| `cdrecruit_mongodb_dev` | MongoDB 6 | `27017:27017` | NoSQL challenge dataset store |
 | `cdrecruit_minio_dev` | MinIO Storage | `9000` (API)<br>`9001` (Console) | User: `minioadmin`<br>Pass: `minioadmin` |
 | `cdrecruit_judge0_server` | Judge0 CE Server | `2358:2358` | Code sandbox execution engine |
 | `cdrecruit_judge0_worker` | Judge0 Sandboxed Worker | Internal | Queue worker for Judge0 execution |
+| `cdrecruit_face_verify_dev` | Face Verify (FastAPI) | `8001:8000` | DeepFace webcam verification service |
+| `cdrecruit_grafana` | Grafana Dashboard | `3100:3000` | Observability & metrics dashboard |
 
 ---
 
 ### Default Application Login Credentials
 
-#### Admin Dashboard (`http://localhost:3000`)
+#### Admin Dashboard (`http://localhost:5173`)
 - **Admin Role**: Username `demo-admin` (or `admin@cdrecruit.local`) \| Password `password`
 - **Recruiter Role**: Username `demo-recruiter` (or `recruiter@cdrecruit.local`) \| Password `password`
 

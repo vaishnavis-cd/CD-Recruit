@@ -37,12 +37,19 @@ export class MinioService implements OnModuleInit {
         false;
       const accessKey =
         (this.configService.get<string>("minio.accessKey") ||
-        this.configService.get<string>("app.minio.accessKey") ||
-        "minioadmin").trim() || "minioadmin";
+          this.configService.get<string>("app.minio.accessKey") ||
+          "minioadmin").trim() || "minioadmin";
       const secretKey =
         (this.configService.get<string>("minio.secretKey") ||
-        this.configService.get<string>("app.minio.secretKey") ||
-        "minioadmin").trim() || "minioadmin";
+          this.configService.get<string>("app.minio.secretKey") ||
+          "minioadmin").trim() || "minioadmin";
+
+      const region =
+        this.configService.get<string>("minio.region") ??
+        this.configService.get<string>("app.minio.region") ??
+        process.env.AWS_REGION ??
+        process.env.MINIO_REGION ??
+        "us-east-1";
 
       this.minioClient = new Minio.Client({
         endPoint,
@@ -50,7 +57,7 @@ export class MinioService implements OnModuleInit {
         useSSL,
         accessKey,
         secretKey,
-        region: "us-east-1",
+        region,
       });
 
       this.logger.log(

@@ -27,6 +27,12 @@ export class SqlSandboxService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    if (nodeEnv === "production" && (!process.env.SANDBOX_DB_URL || process.env.SANDBOX_DB_URL === process.env.DATABASE_URL)) {
+      this.logger.error("FATAL: In production, SANDBOX_DB_URL must be configured and cannot share the primary DATABASE_URL.");
+      throw new Error("SANDBOX_DB_URL security violation: Production must use an isolated sandbox database role.");
+    }
+
     const sandboxUrl =
       this.configService.get<string>("sandboxDatabaseUrl") ||
       this.configService.get<string>("app.sandboxDatabaseUrl") ||

@@ -52,6 +52,7 @@ export const configuration = () => ({
     useSsl: process.env.MINIO_USE_SSL === "true",
     accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
     secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
+    region: process.env.AWS_REGION || process.env.MINIO_REGION || "us-east-1",
     bucketGeneral: process.env.MINIO_BUCKET_GENERAL ?? "cd-recruit-general",
     bucketBiometric:
       process.env.MINIO_BUCKET_BIOMETRIC ?? "cd-recruit-biometric",
