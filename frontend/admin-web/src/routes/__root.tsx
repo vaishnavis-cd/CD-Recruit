@@ -124,9 +124,11 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="relative min-h-screen text-[#0b0b0d] antialiased">
         <LightGradientBackground />
-        {children}
+        <div className="relative z-10 min-h-screen flex flex-col">
+          {children}
+        </div>
         <Scripts />
       </body>
     </html>
