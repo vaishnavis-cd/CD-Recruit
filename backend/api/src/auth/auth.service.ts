@@ -14,7 +14,10 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.jwtSecret = this.configService.get<string>("app.jwtSecret") ?? "cd-recruit-secret";
+    this.jwtSecret =
+      this.configService?.get?.<string>("app.jwtSecret") ??
+      process.env.JWT_SECRET ??
+      "cd-recruit-secret";
     this.encryptionKey = crypto.createHash("sha256").update(this.jwtSecret).digest();
   }
 

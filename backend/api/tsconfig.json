@@ -11,10 +11,12 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./",
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "paths": {
       "@app/*": ["src/*"],
-      "rxjs": ["node_modules/rxjs", "../../node_modules/rxjs"],
-      "rxjs/*": ["node_modules/rxjs/*", "../../node_modules/rxjs/*"]
+      "@prisma/client": ["../../node_modules/.prisma/client"],
+      "rxjs": ["../../node_modules/rxjs"],
+      "rxjs/*": ["../../node_modules/rxjs/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

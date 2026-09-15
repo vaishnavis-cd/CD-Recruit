@@ -90,19 +90,15 @@ export class RollingBufferService {
       if (this.isAborted) return;
       if (event.data && event.data.size > 0) {
         this.currentSegmentChunks.push(event.data);
-        console.log(`[RollingBufferService] CHUNK_RECEIVED: size=${event.data.size}B, totalChunks=${this.currentSegmentChunks.length}`);
       }
     };
 
     this.recorder.onstop = () => {
-      console.log(`[RollingBufferService] RECORDER_ONSTOP_FIRED: chunkCount=${this.currentSegmentChunks.length}`);
-      
       let segmentBlob = new Blob([], { type: "video/webm" });
       if (this.currentSegmentChunks.length > 0) {
         segmentBlob = new Blob(this.currentSegmentChunks, {
           type: this.selectedMimeType || "video/webm",
         });
-        console.log(`[RollingBufferService] SEGMENT_COMPLETED: size=${segmentBlob.size} bytes (${(segmentBlob.size / 1024).toFixed(1)} KB), type=${segmentBlob.type}`);
         
         this.completedSegments.push(segmentBlob);
         if (this.completedSegments.length > 3) {
