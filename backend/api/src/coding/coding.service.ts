@@ -538,12 +538,13 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
       `execution:${execution.id}`,
       JSON.stringify({
         executionId: execution.id,
-        status: "SUBMITTED",
+        status: ExecutionStatus.PENDING,
         passedTests: 0,
         totalTests: isAutomation ? 1 : allTests.length,
         executionTime: null,
         memoryUsage: null,
-        stdout: "Submission saved successfully. Grading is in progress.",
+        stdout: "",
+        results: [],
       }),
       300,
     );
@@ -562,15 +563,16 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
       });
     }
 
-    // 4. Return instant submission receipt confirmation to candidate
+    // 5. Return instant submission acknowledgment with PENDING status for polling
     return {
       executionId: execution.id,
-      status: "SUBMITTED",
+      status: ExecutionStatus.PENDING,
       passedTests: 0,
       totalTests: isAutomation ? 1 : allTests.length,
       executionTime: null,
       memoryUsage: null,
-      stdout: "Submission saved successfully. Grading is in progress.",
+      stdout: "",
+      results: [],
     };
   }
 

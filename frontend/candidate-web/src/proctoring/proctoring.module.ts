@@ -122,7 +122,7 @@ export class ProctoringModule {
         // Connect frame processor loop to models and evaluator with Interleaved Round-Robin Scheduling
         const processor = FrameProcessorService.getInstance();
         let frameIndex = 0;
-        let lastFaceRes = { faceDetected: true, faceCount: 1, headDirection: "CENTER" as const };
+        let lastFaceRes: any = { faceDetected: true, faceCount: 1, headDirection: "CENTER" };
         let lastPoseRes = { inFrame: true, isLeavingSeat: false, isStanding: false, movementMetric: 0 };
         let lastObjectRes = { phoneDetected: false, headphonesDetected: false, bookDetected: false };
 

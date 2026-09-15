@@ -297,7 +297,7 @@ export function CodingWorkspace({
       attempt++;
       try {
         const result = await getCodingExecution(executionId);
-        if (result.status && result.status !== "PENDING" && result.status !== "RUNNING") {
+        if (result.status && result.status !== "PENDING" && result.status !== "RUNNING" && result.status !== "SUBMITTED") {
           return result;
         }
       } catch (err) {
@@ -312,7 +312,7 @@ export function CodingWorkspace({
     actionFn: () => Promise<CodingExecutionResponse>,
   ): Promise<CodingExecutionResponse> => {
     const response = await actionFn();
-    if (response.status === "PENDING" || response.status === "RUNNING") {
+    if (response.status === "PENDING" || response.status === "RUNNING" || response.status === "SUBMITTED") {
       // Race SSE and fast 300ms Redis polling so the absolute fastest path always wins
       return await Promise.race([
         pollExecution(response.executionId),
@@ -323,7 +323,7 @@ export function CodingWorkspace({
             eventSource.onmessage = (event) => {
               try {
                 const payload = JSON.parse(event.data);
-                if (payload.status && payload.status !== "PENDING" && payload.status !== "RUNNING") {
+                if (payload.status && payload.status !== "PENDING" && payload.status !== "RUNNING" && payload.status !== "SUBMITTED") {
                   eventSource.close();
                   resolve(payload);
                 }
@@ -738,7 +738,7 @@ export function CodingWorkspace({
                                       <div className="text-ink dark:text-slate-200">Input: {r.input}</div>
                                       <div className="text-success font-bold">Expected: {r.expectedOutput}</div>
                                       <div className={r.passed ? "text-success" : "text-critical font-bold"}>
-                                        Actual: {r.actualOutput || "(none)"}
+                                        Actual: {r.actualOutput || r.stdout || (r.stderr ? `Error: ${r.stderr}` : "(none)")}
                                       </div>
                                     </div>
                                   )}
