@@ -252,3 +252,226 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
+
+@layer components {
+  /* =========================================================================
+     Buttons
+     ========================================================================= */
+  .btn-gradient-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 34px;
+    padding: 0 1rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #3a91ed 0%, #2e5de0 100%);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 150ms ease;
+    cursor: pointer;
+  }
+  .btn-gradient-primary:hover {
+    opacity: 0.95;
+    box-shadow: 0 2px 4px 0 rgba(46, 93, 224, 0.2);
+  }
+  .btn-gradient-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 34px;
+    padding: 0 0.875rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-ink-secondary);
+    background-color: #ffffff;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.02);
+    transition: all 150ms ease;
+    cursor: pointer;
+  }
+  .btn-secondary-outline:hover {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+  }
+  .btn-secondary-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* =========================================================================
+     Inputs & Search
+     ========================================================================= */
+  .input-search-pill {
+    padding-left: 2rem;
+    padding-right: 0.875rem;
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    font-size: 12px;
+    background-color: var(--color-bg-soft);
+    border: 1px solid var(--color-line);
+    border-radius: 9999px;
+    color: var(--color-ink);
+    outline: none;
+    transition: all 150ms ease;
+  }
+  .input-search-pill::placeholder {
+    color: var(--color-ink-muted);
+  }
+  .input-search-pill:focus {
+    border-color: var(--color-brand);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 2px var(--color-brand-subtle);
+  }
+
+  .input-field-standard {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 13px;
+    background-color: #ffffff;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    color: var(--color-ink);
+    outline: none;
+    transition: all 150ms ease;
+  }
+  .input-field-standard:focus {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 2px var(--color-brand-subtle);
+  }
+
+  /* =========================================================================
+     Cards & Containers
+     ========================================================================= */
+  .card-surface {
+    background-color: #ffffff;
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-line);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+  }
+
+  .card-surface-subtle {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid var(--color-line);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  /* =========================================================================
+     Modal Overlays & Shells
+     ========================================================================= */
+  .modal-overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .modal-shell-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+  }
+
+  /* =========================================================================
+     Status Badge Pills
+     ========================================================================= */
+  .badge-pill-active {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 20px;
+    min-width: 56px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background-color: var(--color-success-subtle);
+    border: 1px solid var(--color-success-border);
+    color: #059669;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .badge-pill-scheduled {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 20px;
+    min-width: 56px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .badge-pill-closed {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 20px;
+    min-width: 56px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background-color: var(--color-bg-soft);
+    border: 1px solid var(--color-line);
+    color: var(--color-ink-secondary);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .badge-pill-purple {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    min-width: 88px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background-color: #ede9fe;
+    color: #8b5cf6;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .badge-pill-neutral {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    min-width: 53px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background-color: #f3f4f6;
+    color: var(--color-ink-secondary);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .shadow-brand-glow {
+    box-shadow: 0px 4px 14px 0px rgba(46, 93, 224, 0.45);
+  }
+}
