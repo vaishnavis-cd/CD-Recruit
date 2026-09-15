@@ -55,9 +55,9 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full font-sans flex items-center justify-center p-4 relative overflow-hidden bg-[#070B16] select-none">
+    <div className="min-h-screen w-full font-sans flex items-center justify-center p-4 relative overflow-hidden bg-dark-canvas select-none">
       {/* Figma Ambient Background Watermark Icons (Clean Minimalist Vector Outlines) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden text-[#334155]/50">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden text-slate-700/50">
         {/* Top-Left: Code Bracket </> */}
         <div className="absolute left-[7%] top-[9%]">
           <svg className="w-14 h-14" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -144,7 +144,7 @@ function LoginPage() {
       </div>
 
       {/* Bottom Center Figma Navigation Pill */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 px-3 py-1 rounded-full bg-[#0B101E]/70 border border-slate-800/60 text-slate-600 select-none">
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 px-3 py-1 rounded-full bg-dark-card/70 border border-slate-800/60 text-slate-600 select-none">
         <button type="button" className="hover:text-slate-300 transition-colors p-0.5">
           <ChevronLeft size={15} />
         </button>
@@ -154,10 +154,10 @@ function LoginPage() {
       </div>
 
       {/* Figma LoginCard (Width: 480px, Radius: 24px, Padding: 40px, Gap: 24px, Drop Shadow: 0 16px 32px rgba(0,0,0,0.2)) */}
-      <div className="w-full max-w-[480px] relative z-10 bg-white rounded-[24px] p-[40px] shadow-[0_16px_32px_rgba(0,0,0,0.20)] border border-slate-100 transition-all select-text">
+      <div className="auth-card select-text">
         {/* Logo Header */}
         <div className="flex items-center gap-3.5 mb-6">
-          <div className="w-[38px] h-[38px] rounded-full bg-[#2563EB] flex items-center justify-center p-1.5 shrink-0 shadow-xs">
+          <div className="w-[38px] h-[38px] rounded-full bg-brand flex items-center justify-center p-1.5 shrink-0 shadow-xs">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" className="w-full h-full">
               <circle cx="12" cy="12" r="9" />
               <circle cx="12" cy="12" r="5.5" />
@@ -165,10 +165,10 @@ function LoginPage() {
             </svg>
           </div>
           <div>
-            <div className="text-[22px] font-bold tracking-tight text-[#0F172A] leading-none mb-1">
+            <div className="text-[22px] font-bold tracking-tight text-ink leading-none mb-1">
               Proctora
             </div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#64748B] leading-none">
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-secondary leading-none">
               ADMIN CONSOLE
             </div>
           </div>
@@ -184,7 +184,7 @@ function LoginPage() {
           )}
 
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-secondary mb-2">
               EMAIL / USERNAME
             </label>
             <input
@@ -193,12 +193,12 @@ function LoginPage() {
               type="text"
               placeholder="admin@cdrecruit.local"
               disabled={loading}
-              className="w-full h-[48px] bg-[#EEF2F6] rounded-[14px] px-4 text-[14px] text-[#0F172A] placeholder-[#94A3B8] font-medium outline-none focus:ring-2 focus:ring-[#2563EB]/40 focus:bg-white transition-all disabled:opacity-50"
+              className="auth-input"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] mb-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-secondary mb-2">
               PASSWORD
             </label>
             <input
@@ -207,7 +207,7 @@ function LoginPage() {
               type="password"
               placeholder="••••••••"
               disabled={loading}
-              className="w-full h-[48px] bg-[#EEF2F6] rounded-[14px] px-4 text-[14px] text-[#0F172A] placeholder-[#94A3B8] font-medium outline-none focus:ring-2 focus:ring-[#2563EB]/40 focus:bg-white transition-all disabled:opacity-50"
+              className="auth-input"
             />
           </div>
 
@@ -215,7 +215,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-[48px] bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.99] text-white font-semibold text-[14px] rounded-[14px] transition-all shadow-md shadow-[#2563EB]/25 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="btn-auth-primary"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               <span>{loading ? "Signing in…" : "Sign In"}</span>
