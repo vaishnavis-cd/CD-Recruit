@@ -189,16 +189,16 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
           <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video max-h-[380px] w-full mx-auto flex items-center justify-center border border-[var(--border)] shadow-md">
             <video ref={setVideoElement} className="w-full h-full object-cover" autoPlay playsInline muted />
 
-            {/* Rectangular ID card placeholder guide overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            {/* Rectangular ID card placeholder guide overlay (disabled for now) */}
+            {/* <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
               <div className="relative w-[300px] sm:w-[380px] h-[190px] sm:h-[240px] rounded-xl border-2 border-dashed border-indigo-400/90 bg-indigo-500/5 shadow-[0_0_25px_rgba(99,102,241,0.25)] flex flex-col justify-between p-3">
-                {/* Corner indicators */}
+                Corner indicators
                 <div className="flex justify-between w-full">
                   <div className="w-5 h-5 border-t-2 border-l-2 border-indigo-400 -mt-1 -ml-1 rounded-tl" />
                   <div className="w-5 h-5 border-t-2 border-r-2 border-indigo-400 -mt-1 -mr-1 rounded-tr" />
                 </div>
 
-                {/* Center guidance badge */}
+                Center guidance badge
                 <div className="text-center">
                   <span className="text-[11px] font-semibold text-indigo-200 bg-black/70 px-3 py-1 rounded-full backdrop-blur-xs shadow border border-indigo-500/30">
                     Align ID Card Inside Frame
@@ -210,7 +210,7 @@ export function ConsentIdProofStep({ onComplete }: ConsentIdProofStepProps) {
                   <div className="w-5 h-5 border-b-2 border-r-2 border-indigo-400 -mb-1 -mr-1 rounded-br" />
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Top Status Bar */}
             <div className="absolute top-3 left-3 z-30">
