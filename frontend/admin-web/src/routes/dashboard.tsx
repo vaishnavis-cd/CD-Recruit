@@ -757,7 +757,7 @@ function DashboardPage() {
         {/* SECTION 2: PIPELINE FUNNEL (LEFT) + LIVE SESSION STREAM (RIGHT) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left: Pipeline Funnel */}
-          <div className="lg:col-span-8 bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+          <div className="lg:col-span-8 card-surface">
             <div className="text-[12px] font-bold tracking-wider text-[#94a3b8] mb-4 font-mono">
               Pipeline Funnel
             </div>
@@ -788,12 +788,8 @@ function DashboardPage() {
                   </div>
 
                   {/* Change / Conversion Badge */}
-                  <div className="w-16 flex items-center justify-center shrink-0">
-                    {item.change === "—" || item.change === "-" ? (
-                      <span className="inline-flex items-center justify-center min-w-[48px] h-6 text-xs font-semibold text-[#94a3b8]">
-                        —
-                      </span>
-                    ) : item.tone === "success" ? (
+                  <div className="w-20 text-right">
+                    {item.tone === "positive" ? (
                       <span className="inline-flex items-center justify-center min-w-[48px] px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]">
                         {item.change}
                       </span>
@@ -813,25 +809,23 @@ function DashboardPage() {
           </div>
 
           {/* Right: Live Session Stream */}
-          <div className="lg:col-span-4 bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+          <div className="lg:col-span-4 card-surface flex flex-col justify-between">
             <div>
               {/* Header */}
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-
                   <h3 className="text-[12px] font-bold tracking-wider text-[#94a3b8] font-mono">Live Session Stream</h3>
                 </div>
-
               </div>
-              <p className="text-[11px] text-[#94a3b8] mb-4">Real-time candidate activities</p>
+              <p className="text-xs text-[#8c9ba5] mb-4">Real-time candidate score updates</p>
 
-              {/* Stream Items */}
-              <div className="space-y-3.5">
+              {/* Stream Rows */}
+              <div className="divide-y divide-[#f8fafc]">
                 {liveStreamData.map((stream) => (
-                  <div key={stream.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg ${stream.bg} text-white flex items-center justify-center text-[11px] font-bold shrink-0 shadow-xs`}>
-                        {stream.initials}
+                  <div key={stream.id} className="py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-[#f1f5f9] text-[#64748b] text-[11px] font-bold flex items-center justify-center shrink-0">
+                        {stream.avatar}
                       </div>
                       <div>
                         <div className="text-xs font-bold text-[#0d1424] leading-tight">{stream.name}</div>
@@ -850,7 +844,7 @@ function DashboardPage() {
         </div>
 
         {/* SECTION 3: CANDIDATE EVALUATION ROSTER (TABLE MATCHING FIGMA) */}
-        <div className="bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] space-y-4">
+        <div className="card-surface space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-base md:text-lg font-bold text-[#0d1424]">Candidate Evaluation Roster</h3>
@@ -861,21 +855,14 @@ function DashboardPage() {
             <div className="flex flex-wrap items-center gap-3">
               {/* Search Box */}
               <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                 <input
                   type="text"
                   value={rosterQuery}
                   onChange={(e) => setRosterQuery(e.target.value)}
                   placeholder="Search candidate..."
-                  className="pl-8 pr-3.5 py-1.5 text-xs bg-[#f8fafc] border border-[#e8ecf4] rounded-full text-[#0d1424] placeholder:text-[#94a3b8] focus:outline-none focus:border-[#2f68ff] focus:bg-white w-52 transition-all"
+                  className="input-search-pill w-52"
                 />
-                <svg
-                  className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#94a3b8]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
               </div>
 
               {/* Status Filter Buttons */}

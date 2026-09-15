@@ -2556,21 +2556,17 @@ function DriveDetailPage() {
         />
 
         {/* TopBar (1269x102 inside 1317x142 region) */}
-        <div className="w-full max-w-[1269px] pt-4 pb-4 border-b border-[#2E5DE01A] flex flex-col gap-2.5">
+        <div className="w-full max-w-[1269px] pt-4 pb-4 border-b border-brand/10 flex flex-col gap-2.5">
           {/* Breadcrumbs (78x15, gap 6px) */}
           <div className="flex items-center gap-1.5 text-[12px]">
             <Link
               to="/drives"
-              className="text-[#6B7280] hover:text-[#2E5DE0] transition-colors"
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
+              className="text-ink-secondary hover:text-brand transition-colors"
             >
               Drives
             </Link>
-            <span className="text-[#6B7280]">/</span>
-            <span
-              className="font-semibold text-[#2E5DE0]"
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-            >
+            <span className="text-ink-secondary">/</span>
+            <span className="font-semibold text-brand">
               {formatDriveName(drive.name)}
             </span>
           </div>
@@ -2581,20 +2577,17 @@ function DriveDetailPage() {
             <div className="flex items-center gap-3">
               <Link
                 to="/drives"
-                className="w-[24px] h-[24px] rounded-full border border-[#A4BCFF] bg-white flex items-center justify-center text-[#2E5DE0] hover:bg-blue-50 transition-colors shadow-xs shrink-0 cursor-pointer"
+                className="w-[24px] h-[24px] rounded-full border border-brand-subtle bg-white flex items-center justify-center text-brand hover:bg-brand-subtle transition-colors shadow-xs shrink-0 cursor-pointer"
                 title="Back to Drives"
               >
-                <FigmaBackArrowIcon size={14} className="text-[#2E5DE0]" />
+                <FigmaBackArrowIcon size={14} className="text-brand" />
               </Link>
-              <h1
-                className="text-[32px] sm:text-[40px] font-bold text-[#1E1B4B] leading-none tracking-tight"
-                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-              >
+              <h1 className="text-[32px] sm:text-[40px] font-bold text-ink leading-none tracking-tight">
                 {formatDriveName(drive.name)}
               </h1>
             </div>
 
-            {/* Right: Schedule & Generate Links Button (222x34, rounded-24px, linear-gradient, shadow) */}
+            {/* Right: Schedule & Generate Links Button */}
             <button
               onClick={() => {
                 if (isScheduleUnlocked) {
@@ -2616,21 +2609,7 @@ function DriveDetailPage() {
                 }
               }}
               disabled={generating}
-              className="w-auto sm:w-[222px] h-[34px] px-[18px] py-[9px] gap-[7px] text-white text-[13px] font-bold rounded-[24px] flex items-center justify-center cursor-pointer transition-all shrink-0 hover:opacity-95 active:scale-[0.98]"
-              style={{
-                width: "222px",
-                height: "34px",
-                paddingTop: "9px",
-                paddingBottom: "9px",
-                paddingLeft: "18px",
-                paddingRight: "18px",
-                gap: "7px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, #3A91ED 0%, #2E5DE0 100%)",
-                boxShadow: "0px 4px 14px 0px #2E5DE0BF",
-                fontFamily: "Instrument Sans, sans-serif",
-                opacity: 1,
-              }}
+              className="btn-gradient-primary w-auto sm:w-[222px] !h-[34px] !rounded-[24px] !gap-[7px] shadow-brand-glow text-[13px] shrink-0"
             >
               <Link2 size={13} className="shrink-0 text-white" />
               <span className="text-white font-bold text-[13px] leading-none whitespace-nowrap">Schedule &amp; Generate Links</span>
@@ -2638,13 +2617,13 @@ function DriveDetailPage() {
           </div>
 
           {/* Details Subtitle: Role Template, Direct Origin, Active, Upfront Bulk Import */}
-          <div className="flex items-center gap-2.5 flex-wrap text-[13px]" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
+          <div className="flex items-center gap-2.5 flex-wrap text-[13px]">
             <div className="flex items-center gap-1.5">
-              <span className="text-[#6B7280]">Role Template:</span>
-              <span className="font-semibold text-[#1E1B4B]">
+              <span className="text-ink-secondary">Role Template:</span>
+              <span className="font-semibold text-ink">
                 {(drive as any).roleTemplate?.roleName || drive.roleTemplateName}
               </span>
-              <span className="text-[#6B7280]">
+              <span className="text-ink-secondary">
                 (v{(drive as any).roleTemplate?.version || 1})
               </span>
               <button
@@ -2654,20 +2633,20 @@ function DriveDetailPage() {
                   fetchRoleTemplates();
                   setShowSelectTemplateModal(true);
                 }}
-                className="px-2 py-0.5 text-xs font-medium text-[#2E5DE0] bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer border border-[#D5DAEC] flex items-center gap-1 ml-1"
+                className="px-2 py-0.5 text-xs font-medium text-brand bg-brand-subtle hover:bg-blue-100 rounded transition-colors cursor-pointer border border-line flex items-center gap-1 ml-1"
                 title="Select or apply Role Template to this drive"
               >
                 <Sparkles size={11} /> Select / Change Template
               </button>
             </div>
 
-            <span className="text-[#9CA3AF]">·</span>
-            <div className="px-2 py-0.5 rounded-[8px] bg-[#F3F4F6] inline-flex items-center justify-center">
-              <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+            <span className="text-ink-muted">·</span>
+            <div className="px-2 py-0.5 rounded-[8px] bg-slate-100 inline-flex items-center justify-center">
+              <span className="text-[10px] font-bold text-ink-secondary uppercase tracking-wider">
                 {(drive as any).originChannel === "PARTNER_API" ? "PARTNER API" : "DIRECT ORIGIN"}
               </span>
             </div>
-            <span className="text-[#9CA3AF]">·</span>
+            <span className="text-ink-muted">·</span>
             <div className="relative inline-flex items-center">
               <button
                 type="button"
@@ -2682,7 +2661,7 @@ function DriveDetailPage() {
                 title="Click to change Drive Status"
               >
                 {drive.status === 'ACTIVE' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 )}
                 <span>{drive.status}</span>
                 <ChevronDown size={11} className="shrink-0 opacity-75" />
@@ -2691,7 +2670,7 @@ function DriveDetailPage() {
               {showStatusDropdown && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowStatusDropdown(false)} />
-                  <div className="absolute top-full left-0 mt-1.5 w-[140px] bg-white border border-[#E9EEFE] shadow-[0px_10px_30px_0px_rgba(0,0,0,0.12)] rounded-[12px] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 space-y-0.5">
+                  <div className="absolute top-full left-0 mt-1.5 w-[140px] bg-white border border-brand-subtle shadow-[0px_10px_30px_0px_rgba(0,0,0,0.12)] rounded-[12px] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 space-y-0.5">
                     {[
                       { id: "DRAFT", label: "DRAFT", badge: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
                       { id: "SCHEDULED", label: "SCHEDULED", badge: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" },
@@ -2705,10 +2684,10 @@ function DriveDetailPage() {
                           setShowStatusDropdown(false);
                           handleStatusChange(item.id);
                         }}
-                        className={`w-full px-2.5 py-1.5 text-[11px] font-bold rounded-[8px] flex items-center justify-between transition-colors cursor-pointer text-[#1E1B4B] hover:bg-[#F8FAFC]`}
+                        className={`w-full px-2.5 py-1.5 text-[11px] font-bold rounded-[8px] flex items-center justify-between transition-colors cursor-pointer text-ink hover:bg-canvas`}
                       >
                         <span>{item.label}</span>
-                        {drive.status === item.id && <Check size={12} className="text-[#2E5DE0]" />}
+                        {drive.status === item.id && <Check size={12} className="text-brand" />}
                       </button>
                     ))}
                   </div>
@@ -2718,17 +2697,16 @@ function DriveDetailPage() {
           </div>
         </div>
 
-        {/* DriveInfoCard / Tab Navigation Bar (1269x65, py-12px, border-b 1px solid #2E5DE01A) */}
-        <div className="w-full max-w-[1269px] py-2 border-b border-[#2E5DE01A] flex items-center justify-between">
+        {/* DriveInfoCard / Tab Navigation Bar (1269x65, py-12px, border-b border-brand/10) */}
+        <div className="w-full max-w-[1269px] py-2 border-b border-brand/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Tab 1: Drive Configuration */}
             <button
               onClick={() => handleTabSwitch("configuration")}
               className={`h-[32px] px-4 py-2 gap-2 text-[13px] flex items-center transition-colors cursor-pointer ${activeTab === "configuration"
-                ? "rounded-[16px] border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
-                : "rounded-full border border-[#E9EEFE] bg-white text-[#6B7280] hover:text-[#1E1B4B] hover:border-[#D5DAEC] font-medium"
+                ? "rounded-[16px] border border-brand bg-white text-brand font-semibold shadow-xs"
+                : "rounded-full border border-brand-subtle bg-white text-ink-secondary hover:text-ink hover:border-line font-medium"
                 }`}
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
             >
               <FigmaDriveConfigTabIcon size={14} className="shrink-0" />
               <span>Drive Configuration</span>
@@ -2738,10 +2716,9 @@ function DriveDetailPage() {
             <button
               onClick={() => handleTabSwitch("questions")}
               className={`h-[32px] px-4 py-2 gap-2 text-[13px] flex items-center transition-colors cursor-pointer ${activeTab === "questions"
-                ? "rounded-[16px] border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
-                : "rounded-full border border-[#E9EEFE] bg-white text-[#6B7280] hover:text-[#1E1B4B] hover:border-[#D5DAEC] font-medium"
+                ? "rounded-[16px] border border-brand bg-white text-brand font-semibold shadow-xs"
+                : "rounded-full border border-brand-subtle bg-white text-ink-secondary hover:text-ink hover:border-line font-medium"
                 }`}
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
             >
               <FileText size={14} className="shrink-0" />
               <span>Questions ({assignedQuestions.length})</span>
@@ -2751,10 +2728,9 @@ function DriveDetailPage() {
             <button
               onClick={() => handleTabSwitch("roster")}
               className={`h-[32px] px-4 py-2 gap-2 text-[13px] flex items-center transition-colors cursor-pointer ${activeTab === "roster"
-                ? "rounded-[16px] border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
-                : "rounded-full border border-[#E9EEFE] bg-white text-[#6B7280] hover:text-[#1E1B4B] hover:border-[#D5DAEC] font-medium"
+                ? "rounded-[16px] border border-brand bg-white text-brand font-semibold shadow-xs"
+                : "rounded-full border border-brand-subtle bg-white text-ink-secondary hover:text-ink hover:border-line font-medium"
                 }`}
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
             >
               <User size={14} className="shrink-0" />
               <span>Candidates ({drive.roster.length})</span>
@@ -2764,7 +2740,7 @@ function DriveDetailPage() {
 
         {/* Partner API Lock Warning Banner */}
         {(drive as any).originChannel === "PARTNER_API" && !isEditingUnlocked && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="callout-warning mb-6 flex-wrap items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <Lock className="w-5 h-5" />
@@ -2787,25 +2763,25 @@ function DriveDetailPage() {
 
         {/* Unlock Confirmation Modal */}
         {showUnlockConfirmModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
+          <div className="modal-overlay-backdrop">
+            <div className="modal-shell-card !max-w-md p-6 space-y-4">
               <div className="flex items-center gap-3 text-amber-600">
                 <AlertTriangle className="w-6 h-6 shrink-0" />
-                <h3 className="text-base font-bold text-gray-900">Unlock Question Editing?</h3>
+                <h3 className="text-base font-bold text-ink">Unlock Question Editing?</h3>
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <p className="text-xs text-ink-secondary leading-relaxed">
                 Unlocking question editing for this Partner API drive will allow custom question modifications, diverging from the active partner role template. This action will be recorded in the system Audit Log.
               </p>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   onClick={() => setShowUnlockConfirmModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+                  className="btn-secondary-outline"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUnlockEditing}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm cursor-pointer transition-colors"
                 >
                   Confirm Unlock
                 </button>
@@ -2854,30 +2830,27 @@ function DriveDetailPage() {
 
             {/* SECTION 2: Module Selection & 100-Point Scoring Ceiling (Decoupled for Template vs Custom) */}
             {isTemplateGoverned ? (
-              <div
-                className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5"
-                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-              >
+              <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-line space-y-5">
                 {/* Header row */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
                   <div className="flex items-center gap-2.5">
-                    <Layers size={18} className="text-[#2E5DE0]" />
+                    <Layers size={18} className="text-brand" />
                     <div>
-                      <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                      <h3 className="text-[16px] font-bold text-ink leading-none">
                         Pre-Calibrated Assessment Modules (Role Template Governed)
                       </h3>
-                      <p className="text-[12px] text-[#6B7280] mt-1">
+                      <p className="text-[12px] text-ink-secondary mt-1">
                         Modules, question distributions, and scoring weights are standardized and pre-calibrated by the role template.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold bg-[#D1FAE5] text-[#065F46] inline-flex items-center justify-center gap-1.5">
-                      <CheckCircle2 size={12} className="text-[#059669]" />
+                    <span className="h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold bg-emerald-100 text-emerald-800 inline-flex items-center justify-center gap-1.5">
+                      <CheckCircle2 size={12} className="text-emerald-600" />
                       <span>Total Weight: 100 / 100 pts</span>
                     </span>
-                    <span className="h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold bg-[#EEF2FF] text-[#2E5DE0] inline-flex items-center justify-center gap-1.5">
+                    <span className="h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold bg-brand-subtle text-brand inline-flex items-center justify-center gap-1.5">
                       <Clock size={12} />
                       <span>90-min Fixed Window</span>
                     </span>
@@ -2924,21 +2897,21 @@ function DriveDetailPage() {
                       return (
                         <div
                           key={m.modId}
-                          className="rounded-[14px] border border-[#D5DAEC] bg-gradient-to-b from-white to-[#F8FAFC] p-3.5 space-y-2.5 shadow-2xs hover:border-[#2E5DE0] transition-colors"
+                          className="rounded-[14px] border border-line bg-gradient-to-b from-white to-canvas p-3.5 space-y-2.5 shadow-2xs hover:border-brand transition-colors"
                         >
                           <div className="flex items-center justify-between gap-1">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <Icon size={16} className="text-[#2E5DE0] shrink-0" />
-                              <span className="font-bold text-[13px] text-[#1E1B4B] truncate" title={displayName}>
+                              <Icon size={16} className="text-brand shrink-0" />
+                              <span className="font-bold text-[13px] text-ink truncate" title={displayName}>
                                 {displayName}
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono text-[#065F46] bg-[#D1FAE5] px-1.5 py-0.5 rounded font-bold shrink-0">
+                            <span className="text-[10px] font-mono text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded font-bold shrink-0">
                               {m.weight}%
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-[11px] font-mono text-[#6B7280] pt-1.5 border-t border-[#E9EEFE]">
-                            <span className="font-bold text-[#1E1B4B]">{m.count} {m.count === 1 ? "Question" : "Questions"}</span>
+                          <div className="flex items-center justify-between text-[11px] font-mono text-ink-secondary pt-1.5 border-t border-line">
+                            <span className="font-bold text-ink">{m.count} {m.count === 1 ? "Question" : "Questions"}</span>
                             <span>{m.estTime} min</span>
                           </div>
                         </div>
@@ -2949,15 +2922,12 @@ function DriveDetailPage() {
               </div>
             ) : (
               /* Full Interactive Module Selection for Custom Roles */
-              <div
-                className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5"
-                style={{ fontFamily: "Instrument Sans, sans-serif" }}
-              >
+              <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-line space-y-5">
                 {/* Header row: title and actions */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
                   <div className="flex items-center gap-2.5">
-                    <Layers size={18} className="text-[#2E5DE0]" />
-                    <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                    <Layers size={18} className="text-brand" />
+                    <h3 className="text-[16px] font-bold text-ink leading-none">
                       Module Selection &amp; 100-Point Scoring Ceiling
                     </h3>
                   </div>
@@ -2967,7 +2937,7 @@ function DriveDetailPage() {
                     {/* Weight Badge */}
                     <span
                       className={`h-[27px] px-[12px] py-[6px] rounded-[14px] text-[12px] font-bold inline-flex items-center justify-center ${weightValidation.valid
-                        ? "bg-[#D1FAE5] text-[#065F46]"
+                        ? "bg-emerald-100 text-emerald-800"
                         : "bg-rose-50 text-rose-700 border border-red-200"
                         }`}
                     >
@@ -2980,17 +2950,17 @@ function DriveDetailPage() {
                         <button
                           type="button"
                           onClick={handleAutoBalanceWeights}
-                          className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-[#2E5DE0] bg-[#2E5DE014] hover:bg-[#2E5DE024] rounded-[14px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                          className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-brand bg-brand/10 hover:bg-brand/20 rounded-[14px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
                           title="Equally balance 100 points across all active modules"
                         >
-                          <Sparkles size={12} className="text-[#2E5DE0]" />
+                          <Sparkles size={12} className="text-brand" />
                           <span>Auto-Balance Weights</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={handleSmartFitToTime}
-                          className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[14px] shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          className="btn-gradient-primary !h-[27px] !px-[12px] !py-[6px] !rounded-[14px] text-[12px] !font-bold inline-flex items-center gap-1.5 shadow-xs"
                           title="Adjust question difficulty mixes to fit within your assessment time window"
                         >
                           <Clock size={12} className="text-white" />
@@ -3004,10 +2974,10 @@ function DriveDetailPage() {
                       type="button"
                       disabled={isCsvUploading}
                       onClick={() => csvFileInputRef.current?.click()}
-                      className="h-[27px] px-[12px] py-[6px] text-[12px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[14px] shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      className="btn-gradient-primary !h-[27px] !px-[12px] !py-[6px] !rounded-[14px] text-[12px] !font-bold inline-flex items-center gap-1.5 shadow-xs"
                       title="Ingest questions via CSV to auto-detect modules and calibrate Strategy A weights"
                     >
-                      {isCsvUploading ? <Loader2 size={12} className="animate-spin text-[#2E5DE0]" /> : <Upload size={12} />}
+                      {isCsvUploading ? <Loader2 size={12} className="animate-spin text-white" /> : <Upload size={12} />}
                       <span>Bulk Import via CSV</span>
                     </button>
                   </div>
@@ -3020,13 +2990,13 @@ function DriveDetailPage() {
                   const buffer = Math.max(0, totalDuration - totalEstTime);
 
                   return (
-                    <div className="bg-[#F8FAFC] border border-[#E9EEFE] rounded-[14px] p-3.5 space-y-2">
+                    <div className="bg-canvas border border-line rounded-[14px] p-3.5 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-[#2E5DE0]" />
-                          <span className="font-bold text-[#1E1B4B]">Estimated Assessment Solving Time:</span>
-                          <span className="font-mono font-bold text-[#2E5DE0]">{totalEstTime} min</span>
-                          <span className="text-[#6B7280]">/ {totalDuration} min window</span>
+                          <Clock size={14} className="text-brand" />
+                          <span className="font-bold text-ink">Estimated Assessment Solving Time:</span>
+                          <span className="font-mono font-bold text-brand">{totalEstTime} min</span>
+                          <span className="text-ink-secondary">/ {totalDuration} min window</span>
                         </div>
                         <div>
                           {isOverTime ? (
@@ -3044,9 +3014,9 @@ function DriveDetailPage() {
                       </div>
 
                       {/* Visual progress bar */}
-                      <div className="w-full bg-[#E9EEFE] h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-brand-subtle h-2 rounded-full overflow-hidden">
                         <div
-                          className={`h-full transition-all duration-300 rounded-full ${isOverTime ? "bg-rose-500" : percentUsed > 90 ? "bg-amber-500" : "bg-[#2E5DE0]"
+                          className={`h-full transition-all duration-300 rounded-full ${isOverTime ? "bg-rose-500" : percentUsed > 90 ? "bg-amber-500" : "bg-brand"
                             }`}
                           style={{ width: `${percentUsed}%` }}
                         />
@@ -3104,16 +3074,16 @@ function DriveDetailPage() {
                           setModuleConfig(aligned);
                         }}
                         className={`rounded-[16px] border-[1.5px] p-5 space-y-3 transition-all select-none ${!isGloballyEnabled
-                          ? "bg-[#F8FAFC] border-[#E9EEFE] opacity-40 cursor-not-allowed"
+                          ? "bg-canvas border-line opacity-40 cursor-not-allowed"
                           : conf.enabled
-                            ? "bg-white border-[#2E5DE0] shadow-xs cursor-pointer"
-                            : "bg-[#F8FAFC]/60 border-[#E9EEFE] opacity-80 hover:border-[#D5DAEC] cursor-pointer"
+                            ? "bg-white border-brand shadow-xs cursor-pointer"
+                            : "bg-canvas/60 border-line opacity-80 hover:border-slate-300 cursor-pointer"
                           }`}
                       >
                         {/* Card Header */}
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 font-bold text-[15px] text-[#1E1B4B]">
-                            <Icon size={16} className={conf.enabled && isGloballyEnabled ? "text-[#2E5DE0]" : "text-[#6B7280]"} />
+                          <div className="flex items-center gap-2 font-bold text-[15px] text-ink">
+                            <Icon size={16} className={conf.enabled && isGloballyEnabled ? "text-brand" : "text-ink-secondary"} />
                             <span>{mod.name}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
@@ -3127,40 +3097,40 @@ function DriveDetailPage() {
                               checked={conf.enabled && isGloballyEnabled}
                               disabled={!isGloballyEnabled}
                               onChange={() => { }}
-                              className="w-4 h-4 text-[#2E5DE0] rounded cursor-pointer pointer-events-none disabled:opacity-40 accent-[#2E5DE0]"
+                              className="w-4 h-4 text-brand rounded cursor-pointer pointer-events-none disabled:opacity-40 accent-brand"
                             />
                           </div>
                         </div>
-                        <p className="text-[12px] text-[#6B7280] leading-snug">{mod.desc}</p>
+                        <p className="text-[12px] text-ink-secondary leading-snug">{mod.desc}</p>
 
                         {conf.enabled && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="space-y-3 pt-2 border-t border-[#E9EEFE] text-xs"
+                            className="space-y-3 pt-2 border-t border-line text-xs"
                           >
                             {/* Score Weight with Pin/Unpin */}
                             <div className="space-y-1">
                               <div className="flex items-center justify-between">
-                                <label className="text-[12px] font-semibold text-[#1E1B4B]">
+                                <label className="text-[12px] font-semibold text-ink">
                                   Score Weight (%)
                                 </label>
                                 <button
                                   type="button"
                                   onClick={() => togglePinWeight(mod.id)}
                                   className={`text-[10px] px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all flex items-center gap-1 ${isPinned
-                                      ? "bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE] hover:bg-[#E0E7FF]"
-                                      : "bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] hover:bg-[#E2E8F0] hover:text-[#334155]"
+                                      ? "bg-brand-subtle text-brand border border-indigo-200 hover:bg-indigo-100"
+                                      : "bg-slate-100 text-ink-secondary border border-line hover:bg-slate-200 hover:text-ink"
                                     }`}
                                   title={isPinned ? "Click to unlock automatic weight rebalancing" : "Click to pin this weight"}
                                 >
                                   {isPinned ? (
                                     <>
-                                      <Pin size={10} className="text-[#4F46E5] fill-[#4F46E5]" />
+                                      <Pin size={10} className="text-brand fill-brand" />
                                       <span>Pinned</span>
                                     </>
                                   ) : (
                                     <>
-                                      <Sparkles size={10} className="text-[#64748B]" />
+                                      <Sparkles size={10} className="text-ink-secondary" />
                                       <span>Auto</span>
                                     </>
                                   )}
@@ -3178,15 +3148,15 @@ function DriveDetailPage() {
                                   handleWeightChange(mod.id, val);
                                 }}
                                 onFocus={(e) => e.target.select()}
-                                className={`w-full h-[36px] px-3 rounded-[18px] border font-mono font-bold text-[14px] text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] ${isPinned ? "border-indigo-300 bg-indigo-50/20" : "border-[#E9EEFE] bg-white"
+                                className={`w-full h-[36px] px-3 rounded-[18px] border font-mono font-bold text-[14px] text-ink focus:outline-none focus:border-brand ${isPinned ? "border-indigo-300 bg-indigo-50/20" : "border-line bg-white"
                                   }`}
                               />
                             </div>
 
                             {mod.id === "AI_PROMPTING" && (
-                              <div className="pt-2 border-t border-[#E9EEFE] space-y-1.5">
-                                <label className="block text-[11px] font-semibold text-[#1E1B4B]">Question &amp; Validation Source</label>
-                                <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#F8FAFC] border border-[#E9EEFE] rounded-[10px]">
+                              <div className="pt-2 border-t border-line space-y-1.5">
+                                <label className="block text-[11px] font-semibold text-ink">Question &amp; Validation Source</label>
+                                <div className="grid grid-cols-2 gap-1.5 p-1 bg-canvas border border-line rounded-[10px]">
                                   <label
                                     onClick={() =>
                                       setModuleConfig({
@@ -3195,8 +3165,8 @@ function DriveDetailPage() {
                                       })
                                     }
                                     className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"
-                                        ? "bg-white text-[#2E5DE0] shadow-2xs border border-[#2E5DE0]/20 font-bold"
-                                        : "text-[#6B7280] hover:text-[#1E1B4B]"
+                                        ? "bg-white text-brand shadow-2xs border border-brand/20 font-bold"
+                                        : "text-ink-secondary hover:text-ink"
                                       }`}
                                   >
                                     <input
@@ -3204,7 +3174,7 @@ function DriveDetailPage() {
                                       name="aiPromptingSource"
                                       checked={((conf as any).questionSource || "AI_DYNAMIC") === "AI_DYNAMIC"}
                                       onChange={() => { }}
-                                      className="w-3 h-3 text-[#2E5DE0] accent-[#2E5DE0] cursor-pointer"
+                                      className="w-3 h-3 text-brand accent-brand cursor-pointer"
                                     />
                                     <span>AI Generated</span>
                                   </label>
@@ -3217,8 +3187,8 @@ function DriveDetailPage() {
                                       })
                                     }
                                     className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-[7px] text-[11px] font-medium transition-all cursor-pointer select-none ${(conf as any).questionSource === "STATIC_BANK"
-                                        ? "bg-white text-[#2E5DE0] shadow-2xs border border-[#2E5DE0]/20 font-bold"
-                                        : "text-[#6B7280] hover:text-[#1E1B4B]"
+                                        ? "bg-white text-brand shadow-2xs border border-brand/20 font-bold"
+                                        : "text-ink-secondary hover:text-ink"
                                       }`}
                                   >
                                     <input
@@ -3226,7 +3196,7 @@ function DriveDetailPage() {
                                       name="aiPromptingSource"
                                       checked={(conf as any).questionSource === "STATIC_BANK"}
                                       onChange={() => { }}
-                                      className="w-3 h-3 text-[#2E5DE0] accent-[#2E5DE0] cursor-pointer"
+                                      className="w-3 h-3 text-brand accent-brand cursor-pointer"
                                     />
                                     <span>Question Bank</span>
                                   </label>
@@ -3236,12 +3206,12 @@ function DriveDetailPage() {
 
                             {/* Direct Question Complexity Control */}
                             {isManualDrive ? (
-                              <div className="pt-2 border-t border-[#E9EEFE] space-y-1.5">
+                              <div className="pt-2 border-t border-line space-y-1.5">
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-[#1E1B4B]">
+                                  <span className="font-semibold text-ink">
                                     Question Difficulty (Total: {reqCount})
                                   </span>
-                                  <span className="text-[11px] text-[#2E5DE0] bg-[#2E5DE014] px-1.5 py-0.5 rounded font-bold font-mono">
+                                  <span className="text-[11px] text-brand bg-brand/10 px-1.5 py-0.5 rounded font-bold font-mono">
                                     ⏱ {estDuration} min
                                   </span>
                                 </div>
@@ -3259,7 +3229,7 @@ function DriveDetailPage() {
                                         handleDifficultyChange(mod.id, "easy", val);
                                       }}
                                       onFocus={(e) => e.target.select()}
-                                      className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                      className="w-full h-[30px] px-2 rounded-[14px] border border-line font-mono font-bold text-xs text-ink focus:outline-none focus:border-brand"
                                     />
                                   </div>
                                   <div>
@@ -3275,7 +3245,7 @@ function DriveDetailPage() {
                                         handleDifficultyChange(mod.id, "medium", val);
                                       }}
                                       onFocus={(e) => e.target.select()}
-                                      className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                      className="w-full h-[30px] px-2 rounded-[14px] border border-line font-mono font-bold text-xs text-ink focus:outline-none focus:border-brand"
                                     />
                                   </div>
                                   <div>
@@ -3291,17 +3261,17 @@ function DriveDetailPage() {
                                         handleDifficultyChange(mod.id, "hard", val);
                                       }}
                                       onFocus={(e) => e.target.select()}
-                                      className="w-full h-[30px] px-2 rounded-[14px] border border-[#E9EEFE] font-mono font-bold text-xs text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0]"
+                                      className="w-full h-[30px] px-2 rounded-[14px] border border-line font-mono font-bold text-xs text-ink focus:outline-none focus:border-brand"
                                     />
                                   </div>
                                 </div>
                               </div>
                             ) : (
-                              <div className="pt-2 border-t border-[#E9EEFE] flex items-center justify-between text-xs">
-                                <span className="font-semibold text-[#1E1B4B]">
+                              <div className="pt-2 border-t border-line flex items-center justify-between text-xs">
+                                <span className="font-semibold text-ink">
                                   Imported: {reqCount} questions
                                 </span>
-                                <span className="text-[11px] text-[#2E5DE0] bg-[#2E5DE014] px-1.5 py-0.5 rounded font-bold font-mono">
+                                <span className="text-[11px] text-brand bg-brand/10 px-1.5 py-0.5 rounded font-bold font-mono">
                                   ⏱ {estDuration} min
                                 </span>
                               </div>
@@ -3329,22 +3299,19 @@ function DriveDetailPage() {
               } = driveEvaluationSummary;
 
               return (
-                <div
-                  className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-4"
-                  style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                >
-                  <div className="flex items-center gap-2.5 border-b border-[#E9EEFE] pb-3">
-                    <Settings size={18} className="text-[#2E5DE0]" />
+                <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-line space-y-4">
+                  <div className="flex items-center gap-2.5 border-b border-line pb-3">
+                    <Settings size={18} className="text-brand" />
                     <div>
-                      <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">Assessment Composition Summary (Time-Aware)</h3>
-                      <p className="text-[12px] text-[#6B7280] mt-1">Estimated question counts, difficulty mix, and expected candidate duration based on module benchmarks.</p>
+                      <h3 className="text-[16px] font-bold text-ink leading-none">Assessment Composition Summary (Time-Aware)</h3>
+                      <p className="text-[12px] text-ink-secondary mt-1">Estimated question counts, difficulty mix, and expected candidate duration based on module benchmarks.</p>
                     </div>
                   </div>
 
-                  <div className="border border-[#E9EEFE] rounded-[14px] overflow-hidden shadow-xs bg-white text-xs">
+                  <div className="border border-line rounded-[14px] overflow-hidden shadow-xs bg-white text-xs">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-[#F8FAFC] border-b border-[#E9EEFE] font-mono text-[11px] uppercase tracking-wide font-bold text-[#6B7280]">
+                        <tr className="bg-canvas border-b border-line font-mono text-[11px] uppercase tracking-wide font-bold text-ink-secondary">
                           <th className="px-4 py-2.5">Module</th>
                           <th className="px-4 py-2.5 text-center">Weight</th>
                           <th className="px-4 py-2.5 text-center">Marks</th>
@@ -3353,30 +3320,30 @@ function DriveDetailPage() {
                           <th className="px-4 py-2.5 text-right">Estimated Duration</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#E9EEFE] font-mono text-xs">
+                      <tbody className="divide-y divide-line font-mono text-xs">
                         {summaryData.map((m) => (
                           <tr key={m.modId} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3 font-bold text-[#1E1B4B]">{m.modId}</td>
-                            <td className="px-4 py-3 text-center text-[#2E5DE0] font-bold">{m.weight}%</td>
-                            <td className="px-4 py-3 text-center text-[#1E1B4B]">{m.marks} marks</td>
-                            <td className="px-4 py-3 text-center text-[#1E1B4B] font-bold">{m.count} questions</td>
-                            <td className="px-4 py-3 text-center text-[#6B7280]">
+                            <td className="px-4 py-3 font-bold text-ink">{m.modId}</td>
+                            <td className="px-4 py-3 text-center text-brand font-bold">{m.weight}%</td>
+                            <td className="px-4 py-3 text-center text-ink">{m.marks} marks</td>
+                            <td className="px-4 py-3 text-center text-ink font-bold">{m.count} questions</td>
+                            <td className="px-4 py-3 text-center text-ink-secondary">
                               <span className="text-emerald-700 font-bold">{m.dist.easy}E</span> / <span className="text-amber-700 font-bold">{m.dist.medium}M</span> / <span className="text-rose-700 font-bold">{m.dist.hard}H</span>
                             </td>
-                            <td className="px-4 py-3 text-right text-[#6B7280] font-bold">{m.estTime} min</td>
+                            <td className="px-4 py-3 text-right text-ink-secondary font-bold">{m.estTime} min</td>
                           </tr>
                         ))}
-                        <tr className="bg-[#F8FAFC] font-bold border-t border-[#E9EEFE]">
-                          <td className="px-4 py-3 text-[#1E1B4B]">Total Summary</td>
-                          <td className="px-4 py-3 text-center text-[#2E5DE0]">{totalWeight}%</td>
-                          <td className="px-4 py-3 text-center text-[#1E1B4B]">{totalMarks} marks</td>
-                          <td className="px-4 py-3 text-center text-[#1E1B4B]">{totalQuestions} questions</td>
-                          <td className="px-4 py-3 text-center text-[#6B7280]">—</td>
-                          <td className="px-4 py-3 text-right text-[#1E1B4B]">
-                            <span className={isOverTime ? "text-rose-600 font-bold" : "text-[#1E1B4B]"}>
+                        <tr className="bg-canvas font-bold border-t border-line">
+                          <td className="px-4 py-3 text-ink">Total Summary</td>
+                          <td className="px-4 py-3 text-center text-brand">{totalWeight}%</td>
+                          <td className="px-4 py-3 text-center text-ink">{totalMarks} marks</td>
+                          <td className="px-4 py-3 text-center text-ink">{totalQuestions} questions</td>
+                          <td className="px-4 py-3 text-center text-ink-secondary">—</td>
+                          <td className="px-4 py-3 text-right text-ink">
+                            <span className={isOverTime ? "text-rose-600 font-bold" : "text-ink"}>
                               {totalEstTime} min
                             </span>{" "}
-                            <span className="text-[11px] text-[#6B7280] font-normal">(out of {totalDuration} min)</span>
+                            <span className="text-[11px] text-ink-secondary font-normal">(out of {totalDuration} min)</span>
                           </td>
                         </tr>
                       </tbody>
@@ -3405,7 +3372,7 @@ function DriveDetailPage() {
                       <button
                         type="button"
                         onClick={handleSmartFitToTime}
-                        className="shrink-0 px-3.5 py-2 bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-xs font-bold rounded-[10px] shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="shrink-0 px-3.5 py-2 bg-brand hover:bg-brand-hover text-white text-xs font-bold rounded-[10px] shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <Sparkles size={14} className="text-amber-300" />
                         <span>Smart Fit to {totalDuration} min</span>
@@ -3422,17 +3389,14 @@ function DriveDetailPage() {
             })()}
 
             {/* SECTION 3: System Checks & Proctoring Customization */}
-            <div
-              className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-4"
-              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-            >
-              <div className="flex items-center gap-2.5 border-b border-[#E9EEFE] pb-3">
-                <ShieldCheck size={20} className="text-[#2E5DE0]" />
+            <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-line space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-line pb-3">
+                <ShieldCheck size={20} className="text-brand" />
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                  <h3 className="text-[16px] font-bold text-ink leading-none">
                     System Checks &amp; Proctoring Customization
                   </h3>
-                  <p className="text-[12px] text-[#6B7280] mt-1">
+                  <p className="text-[12px] text-ink-secondary mt-1">
                     Enable or customize mandatory hardware, browser, and network checks for candidates.
                   </p>
                 </div>
@@ -3453,8 +3417,8 @@ function DriveDetailPage() {
                     <label
                       key={item.id}
                       className={`flex items-start gap-3.5 p-4 rounded-[16px] border-[1.5px] cursor-pointer transition-all select-none ${isChecked
-                        ? "bg-white border-[#2E5DE0] shadow-xs"
-                        : "bg-[#F8FAFC]/60 border-[#E9EEFE] opacity-80 hover:border-[#D5DAEC]"
+                        ? "bg-white border-brand shadow-xs"
+                        : "bg-canvas/60 border-line opacity-80 hover:border-slate-300"
                         }`}
                     >
                       <input
@@ -3466,14 +3430,14 @@ function DriveDetailPage() {
                             [item.id]: e.target.checked,
                           });
                         }}
-                        className="mt-0.5 accent-[#2E5DE0] text-[#2E5DE0] rounded w-4 h-4 cursor-pointer"
+                        className="mt-0.5 accent-brand text-brand rounded w-4 h-4 cursor-pointer"
                       />
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2 font-bold text-[14px] text-[#1E1B4B]">
-                          <Icon size={16} className={isChecked ? "text-[#2E5DE0]" : "text-[#6B7280]"} />
+                        <div className="flex items-center gap-2 font-bold text-[14px] text-ink">
+                          <Icon size={16} className={isChecked ? "text-brand" : "text-ink-secondary"} />
                           <span>{item.label}</span>
                         </div>
-                        <p className="text-[12px] text-[#6B7280] leading-snug">{item.desc}</p>
+                        <p className="text-[12px] text-ink-secondary leading-snug">{item.desc}</p>
                       </div>
                     </label>
                   );
@@ -3486,8 +3450,7 @@ function DriveDetailPage() {
               <button
                 type="button"
                 onClick={handleSaveAndNext}
-                className="h-[38px] px-6 py-2 rounded-full bg-[#2E5DE0] hover:bg-[#254ec4] text-white font-bold text-[14px] flex items-center gap-1.5 shadow-[0px_4px_14px_0px_#2E5DE066] hover:shadow-[0px_6px_18px_0px_#2E5DE088] active:scale-[0.98] transition-all cursor-pointer"
-                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                className="btn-gradient-primary !h-[38px] px-6 !rounded-full shadow-brand-glow text-[14px]"
               >
                 <Plus size={16} className="text-white shrink-0" strokeWidth={2.5} />
                 <span>Save &amp; Next</span>
@@ -3498,12 +3461,12 @@ function DriveDetailPage() {
 
         {/* QUESTIONS TAB */}
         {activeTab === "questions" && (
-          <div className="space-y-6" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
-            <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5">
+          <div className="space-y-6">
+            <div className="w-full max-w-[1263px] card-standard p-6 space-y-5">
               {/* WorkspaceHeader */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                  <h3 className="text-[16px] font-bold text-ink leading-none">
                     {isPartnerApi
                       ? "Partner Assessment Questions"
                       : isTemplateDrive
@@ -3512,7 +3475,7 @@ function DriveDetailPage() {
                           ? "Imported Assessment Questions"
                           : "Question Bank Assignment"}
                   </h3>
-                  <p className="text-[13px] text-[#6B7280] mt-1.5">
+                  <p className="text-[13px] text-ink-secondary mt-1.5">
                     {isPartnerApi
                       ? "Standardized assessment questions governed by partner integration."
                       : isTemplateDrive
@@ -3526,8 +3489,8 @@ function DriveDetailPage() {
 
               {/* Locked Warning Banner */}
               {!isQuestionsEditable && (
-                <div className="p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-[10px] text-[13px] text-[#B45309] flex items-center gap-2.5">
-                  <Lock size={16} className="text-[#B45309] shrink-0" />
+                <div className="callout-warning flex items-center gap-2.5">
+                  <Lock size={16} className="text-warning-strong shrink-0" />
                   <span>
                     <strong>
                       {isPartnerApi
@@ -3547,7 +3510,7 @@ function DriveDetailPage() {
 
               {/* Timing Mismatch Diagnostic Alerts (CUSTOM_BULK_IMPORT Only) */}
               {isTimingOverBudget && (
-                <div className="p-4 rounded-[12px] bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-start gap-3">
                     <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
                     <div>
@@ -3587,7 +3550,7 @@ function DriveDetailPage() {
                       <button
                         type="button"
                         onClick={handleUndo}
-                        className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-[#0F172A] hover:bg-[#1E293B] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
                         title={`Undo: ${historyStack[historyStack.length - 1].label}`}
                       >
                         <Undo2 size={13} className="text-white" />
@@ -3599,7 +3562,7 @@ function DriveDetailPage() {
               )}
 
               {isTimingUnderBudget && (
-                <div className="p-4 rounded-[12px] bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-start gap-3">
                     <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                     <div>
@@ -3618,7 +3581,7 @@ function DriveDetailPage() {
                     <button
                       type="button"
                       onClick={handleFitWindowToContent}
-                      className="h-[32px] px-3.5 py-1 text-[12px] font-semibold text-[#475569] bg-white hover:bg-slate-50 border border-[#CBD5E1] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                      className="h-[32px] px-3.5 py-1 text-[12px] font-semibold text-ink-secondary bg-white hover:bg-canvas-subtle border border-line rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                       title={`Shorten schedule window to match content duration (${totalContentDuration}m)`}
                     >
                       <span>Fit Window to Content ({totalContentDuration}m)</span>
@@ -3627,7 +3590,7 @@ function DriveDetailPage() {
                       type="button"
                       onClick={handleFetchDeficitSuggestions}
                       disabled={isLoadingSuggestions}
-                      className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                      className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-white btn-gradient-primary rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
                       title={`Find matching questions in Question Bank whose total duration fills the +${timingMismatchDiff}m deficit`}
                     >
                       {isLoadingSuggestions ? (
@@ -3641,10 +3604,10 @@ function DriveDetailPage() {
                       <button
                         type="button"
                         onClick={handleUndo}
-                        className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-[#0F172A] bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        className="h-[32px] px-3.5 py-1 text-[12px] font-bold text-ink bg-white hover:bg-canvas-subtle border border-line rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                         title={`Undo: ${historyStack[historyStack.length - 1].label}`}
                       >
-                        <Undo2 size={13} className="text-[#0F172A]" />
+                        <Undo2 size={13} className="text-ink" />
                         <span>Undo ({historyStack[historyStack.length - 1].label})</span>
                       </button>
                     )}
@@ -3653,18 +3616,18 @@ function DriveDetailPage() {
               )}
 
               {/* QuestionsListContainer: Assigned Questions Section */}
-              <div className="w-full border border-[#E9EEFE] rounded-[12px] overflow-hidden">
+              <div className="w-full border border-line rounded-xl overflow-hidden">
                 {/* ListHeader */}
-                <div className="h-auto min-h-[42px] px-5 py-2.5 bg-[#F2F2FB] border-b border-[#E9EEFE] flex flex-wrap items-center justify-between gap-2">
+                <div className="h-auto min-h-[42px] px-5 py-2.5 bg-canvas-subtle border-b border-line flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 size={16} className="text-[#2E5DE0]" />
-                    <h4 className="text-[14px] font-bold text-[#1E1B4B]">
+                    <CheckCircle2 size={16} className="text-brand" />
+                    <h4 className="text-[14px] font-bold text-ink">
                       Assigned Questions for this Drive ({assignedQuestions.length})
                     </h4>
                     {assignedQuestions.length > 0 && (
                       <div className="flex items-center gap-1.5">
-                        <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-slate-200/80 text-[#334155] text-[11px] font-mono font-semibold inline-flex items-center gap-1">
-                          <Clock size={10} className="text-[#64748B]" />
+                        <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-slate-200/80 text-slate-700 text-[11px] font-mono font-semibold inline-flex items-center gap-1">
+                          <Clock size={10} className="text-slate-500" />
                           {totalContentDuration}m
                         </span>
                         <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-amber-100/70 text-amber-900 text-[11px] font-mono font-semibold inline-flex items-center gap-1 border border-amber-200">
@@ -3675,7 +3638,7 @@ function DriveDetailPage() {
                           <button
                             type="button"
                             onClick={handleUndo}
-                            className="h-[22px] px-2.5 py-0.5 rounded-[6px] bg-[#0F172A] hover:bg-[#1E293B] text-white text-[11px] font-bold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
+                            className="h-[22px] px-2.5 py-0.5 rounded-[6px] bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
                             title={`Undo: ${historyStack[historyStack.length - 1].label}`}
                           >
                             <Undo2 size={11} className="text-white" />
@@ -3690,7 +3653,7 @@ function DriveDetailPage() {
                       <button
                         type="button"
                         onClick={() => handleAutoAssignQuestions()}
-                        className="h-[26px] px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-[13px] flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+                        className="h-[26px] px-2.5 py-0.5 text-[11px] font-bold text-white btn-gradient-primary rounded-full flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
                         title="Automatically assign missing questions from Question Bank to satisfy all module requirements"
                       >
                         <Sparkles size={11} className="text-amber-300" />
@@ -3698,7 +3661,7 @@ function DriveDetailPage() {
                       </button>
                     )}
                     {!isQuestionsEditable && (
-                      <span className="h-[18px] px-2 py-0.5 rounded-[9px] bg-[#FFFBEB] border border-[#FDE68A] text-[#B45309] text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
+                      <span className="h-[18px] px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
                         <Lock size={10} /> Read-Only
                       </span>
                     )}
@@ -3707,10 +3670,10 @@ function DriveDetailPage() {
 
                 {/* Module Requirements Checklist Bar (CUSTOM_MANUAL Only) */}
                 {isManualDrive && driveEvaluationSummary.summaryData.length > 0 && (
-                  <div className="px-5 py-2.5 bg-[#FAF5FF] border-b border-[#E9D5FF] flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="px-5 py-2.5 bg-purple-50/50 border-b border-purple-200 flex flex-wrap items-center justify-between gap-2.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-bold text-[#581C87] uppercase tracking-wider flex items-center gap-1.5">
-                        <CheckCircle2 size={13} className="text-[#7E22CE]" />
+                      <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <CheckCircle2 size={13} className="text-purple-700" />
                         Requirements Checklist:
                       </span>
                       {driveEvaluationSummary.summaryData.map((m) => {
@@ -3723,7 +3686,7 @@ function DriveDetailPage() {
                         return (
                           <span
                             key={m.modId}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[12px] text-[11px] font-bold border transition-all ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${
                               isSatisfied
                                 ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                                 : "bg-amber-50 text-amber-900 border-amber-300"
@@ -3749,11 +3712,11 @@ function DriveDetailPage() {
                 )}
 
                 {assignedQuestions.length === 0 ? (
-                  <div className="p-6 text-center text-[13px] text-[#9CA3AF] italic bg-white">
+                  <div className="p-6 text-center text-[13px] text-ink-tertiary italic bg-white">
                     No questions assigned to this drive yet. Select and assign questions from the Question Bank below.
                   </div>
                 ) : (
-                  <div className={`divide-y divide-[#E9EEFE] bg-white ${isTemplateGoverned || assignedQuestions.length > 0 ? "max-h-[550px]" : "max-h-[300px]"} overflow-y-auto`}>
+                  <div className={`divide-y divide-line bg-white ${isTemplateGoverned || assignedQuestions.length > 0 ? "max-h-[550px]" : "max-h-[300px]"} overflow-y-auto`}>
                     {assignedQuestions.map((qId) => {
                       const q = questionsBank.find((item) => item.id === qId) || {
                         id: qId,
@@ -3773,19 +3736,19 @@ function DriveDetailPage() {
                           className={`px-5 py-3.5 flex items-center justify-between gap-4 transition-colors cursor-pointer group ${
                             highlightTrimmingMode
                               ? "bg-rose-50/40 hover:bg-rose-50 border-l-4 border-l-rose-500"
-                              : "hover:bg-[#F8FAFC]"
+                              : "hover:bg-canvas-subtle"
                           }`}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
-                            <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-[12px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
+                            <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-full bg-brand-subtle text-brand text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
                               {MODULE_LABEL_MAP[displayModule] || displayModule}
                             </span>
-                            <span className="text-[13.5px] font-medium text-[#1E1B4B] group-hover:text-[#2E5DE0] transition-colors truncate leading-[140%]">
+                            <span className="text-[13.5px] font-medium text-ink group-hover:text-brand transition-colors truncate leading-[140%]">
                               {title}
                             </span>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-slate-100 text-[#475569] text-[11px] font-mono font-medium inline-flex items-center gap-1">
-                                <Clock size={10} className="text-[#64748B]" />
+                              <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-slate-100 text-slate-600 text-[11px] font-mono font-medium inline-flex items-center gap-1">
+                                <Clock size={10} className="text-slate-500" />
                                 {dur}m
                               </span>
                               <span className="h-[20px] px-2 py-0.5 rounded-[6px] bg-amber-50 text-amber-800 text-[11px] font-mono font-medium inline-flex items-center gap-1 border border-amber-200/60">
@@ -3800,14 +3763,14 @@ function DriveDetailPage() {
                             <button
                               type="button"
                               onClick={(e) => {
-                                e.stopPropagation();
-                                setPreviewQuestion(q);
-                              }}
-                              className="w-[84px] h-[28px] rounded-[14px] border border-[#E9EEFE] bg-white hover:bg-slate-50 text-[#2E5DE0] text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                            >
-                              <Eye size={13} className="text-[#2E5DE0]" />
-                              <span>Preview</span>
-                            </button>
+                              e.stopPropagation();
+                              setPreviewQuestion(q);
+                            }}
+                            className="btn-secondary-outline !w-[84px] !h-[28px] !rounded-full !text-brand text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-2xs"
+                          >
+                            <Eye size={13} className="text-brand" />
+                            <span>Preview</span>
+                          </button>
                             {isQuestionsEditable ? (
                               highlightTrimmingMode ? (
                                 <button
@@ -3823,7 +3786,7 @@ function DriveDetailPage() {
                                       },
                                     });
                                   }}
-                                  className="h-[28px] px-3 rounded-[14px] bg-rose-600 hover:bg-rose-700 text-white font-bold text-[12px] flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                                  className="h-[28px] px-3 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-[12px] flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
                                   title={`Trim question (-${dur}m)`}
                                 >
                                   <Trash2 size={12} />
@@ -3843,14 +3806,14 @@ function DriveDetailPage() {
                                       },
                                     });
                                   }}
-                                  className="w-[76px] h-[28px] rounded-[14px] bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[12px] font-semibold flex items-center justify-center transition-colors cursor-pointer"
+                                  className="w-[76px] h-[28px] rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[12px] font-semibold flex items-center justify-center transition-colors cursor-pointer"
                                 >
                                   Remove
                                 </button>
                               )
                             ) : isTemplateGoverned ? null : (
-                              <span className="w-[76px] h-[28px] rounded-[14px] bg-[#F2F2FB] text-[#9CA3AF] text-[12px] font-semibold flex items-center justify-center gap-1 cursor-not-allowed">
-                                <Lock size={12} className="text-[#9CA3AF]" />
+                              <span className="w-[76px] h-[28px] rounded-full bg-canvas-subtle text-ink-tertiary text-[12px] font-semibold flex items-center justify-center gap-1 cursor-not-allowed">
+                                <Lock size={12} className="text-ink-tertiary" />
                                 <span>Locked</span>
                               </span>
                             )}
@@ -3869,7 +3832,7 @@ function DriveDetailPage() {
                     <button
                       type="button"
                       onClick={() => setShowBankSelector(!showBankSelector)}
-                      className="h-[32px] px-4 text-[12px] font-semibold text-[#2E5DE0] bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE033] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                      className="h-[32px] px-4 text-[12px] font-semibold text-brand bg-brand-subtle hover:bg-blue-100 border border-brand/20 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                     >
                       <BookOpen size={13} />
                       <span>{showBankSelector ? "Hide Central Question Bank" : "+ Add More Questions from Question Bank"}</span>
@@ -3882,17 +3845,14 @@ function DriveDetailPage() {
                   </div>
 
                   {(showBankSelector || assignedQuestions.length === 0) && (
-                    <div className="space-y-4 pt-3 border-t border-[#E9EEFE]">
+                    <div className="space-y-4 pt-3 border-t border-line">
                       {/* FilterBar (Module tabs + Complexity filters) */}
                       <div id="question-bank-selector-section" className="flex flex-wrap items-center justify-between gap-3 pt-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setQuestionModuleFilter("ALL")}
-                        className={`h-[32px] px-3.5 py-1.5 rounded-[16px] text-[13px] transition-colors cursor-pointer ${questionModuleFilter === "ALL"
-                            ? "bg-[#2E5DE0] text-white font-semibold border border-[#2E5DE0] shadow-xs"
-                            : "bg-white text-[#6B7280] hover:text-[#1E1B4B] font-medium border border-[#E9EEFE] hover:border-[#D5DAEC]"
-                          }`}
+                        className={`pill-tab ${questionModuleFilter === "ALL" ? "pill-tab-active" : "pill-tab-inactive"}`}
                       >
                         All Modules ({allowedModules.length})
                       </button>
@@ -3914,10 +3874,7 @@ function DriveDetailPage() {
                               key={modKey}
                               type="button"
                               onClick={() => setQuestionModuleFilter(modKey)}
-                              className={`h-[32px] px-3.5 py-1.5 rounded-[16px] text-[13px] transition-colors cursor-pointer ${questionModuleFilter === modKey
-                                  ? "bg-[#2E5DE0] text-white font-semibold border border-[#2E5DE0] shadow-xs"
-                                  : "bg-white text-[#6B7280] hover:text-[#1E1B4B] font-medium border border-[#E9EEFE] hover:border-[#D5DAEC]"
-                                }`}
+                              className={`pill-tab ${questionModuleFilter === modKey ? "pill-tab-active" : "pill-tab-inactive"}`}
                             >
                               <span>{labelMap[modKey] || modKey}</span>
                             </button>
@@ -3927,7 +3884,7 @@ function DriveDetailPage() {
 
                     {/* Complexity Filters */}
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-[0.05em]">COMPLEXITY:</span>
+                      <span className="text-[11px] font-bold text-ink-tertiary uppercase tracking-[0.05em]">COMPLEXITY:</span>
                       <div className="flex items-center gap-1.5">
                         {[
                           { id: "ALL", label: "All" },
@@ -3939,10 +3896,7 @@ function DriveDetailPage() {
                             key={diff.id}
                             type="button"
                             onClick={() => setQuestionDifficultyFilter(diff.id)}
-                            className={`h-[27px] px-3 py-1 rounded-[14px] text-[11px] font-bold transition-colors cursor-pointer ${questionDifficultyFilter === diff.id
-                                ? "bg-[#2E5DE0] text-white border border-[#2E5DE0] shadow-xs"
-                                : "bg-white text-[#6B7280] hover:text-[#1E1B4B] border border-[#E9EEFE] hover:border-[#D5DAEC]"
-                              }`}
+                            className={`h-[27px] px-3 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${questionDifficultyFilter === diff.id ? "pill-tab-active" : "pill-tab-inactive"}`}
                           >
                             {diff.label}
                           </button>
@@ -3953,28 +3907,28 @@ function DriveDetailPage() {
 
                   {/* Search Input Bar */}
                   <div className="relative w-full">
-                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary" />
                     <input
                       type="text"
                       value={questionSearch}
                       onChange={(e) => setQuestionSearch(e.target.value)}
                       placeholder="Search questions..."
-                      className="w-full h-[38px] pl-9 pr-4 text-[13px] rounded-[16px] border border-[#E9EEFE] bg-white text-[#1E1B4B] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#2E5DE0] transition-colors"
+                      className="input-search-pill"
                     />
                   </div>
 
                   {/* Dynamic AI Mode Notice */}
                   {isAiPromptingDynamic && (questionModuleFilter === "ALL" || questionModuleFilter === "AI_PROMPTING") && (
-                    <div className="p-3.5 bg-[#F2F2FB] border border-[#E9EEFE] rounded-[10px] text-[13px] italic text-[#6B7280] flex items-center gap-2">
-                      <Sparkles size={14} className="text-[#2E5DE0] shrink-0" />
+                    <div className="p-3.5 bg-canvas-subtle border border-line rounded-lg text-[13px] italic text-ink-secondary flex items-center gap-2">
+                      <Sparkles size={14} className="text-brand shrink-0" />
                       <span>AI-Generated Mode Selected — Questions &amp; evaluation will be dynamically generated by AI during the candidate assessment.</span>
                     </div>
                   )}
 
                   {/* Question Selector List in Question Bank */}
-                  <div className="border border-[#E9EEFE] rounded-[12px] divide-y divide-[#E9EEFE] bg-white max-h-[460px] overflow-y-auto">
+                  <div className="border border-line rounded-xl divide-y divide-line bg-white max-h-[460px] overflow-y-auto">
                     {filteredQuestionsList.length === 0 ? (
-                      <div className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
+                      <div className="p-8 text-center text-[13px] italic text-ink-tertiary">
                         No matching questions found in bank.
                       </div>
                     ) : (
@@ -3990,24 +3944,25 @@ function DriveDetailPage() {
                           <div
                             key={q.id}
                             onClick={() => setPreviewQuestion(q)}
-                            className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-[#F8FAFC] transition-colors cursor-pointer group"
+                            className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-canvas-subtle transition-colors cursor-pointer group"
                           >
                             <div className="flex items-center gap-3 pr-4 flex-1 min-w-0">
-                              <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-[12px] bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
+                              <span className="h-[22px] min-w-[50px] px-3 py-0.5 rounded-full bg-brand-subtle text-brand text-[11px] font-bold inline-flex items-center justify-center shrink-0 uppercase tracking-wide">
                                 {MODULE_LABEL_MAP[displayModule] || displayModule}
                               </span>
                               <div className="min-w-0 flex-1">
-                                <div className="text-[13.5px] font-medium text-[#1E1B4B] group-hover:text-[#2E5DE0] transition-colors truncate">
+                                <div className="text-[13.5px] font-medium text-ink group-hover:text-brand transition-colors truncate">
                                   {title}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
                                   <span
-                                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[6px] ${difficulty.toUpperCase() === "EASY"
-                                        ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                    className={
+                                      difficulty.toUpperCase() === "EASY"
+                                        ? "badge-complexity-easy"
                                         : difficulty.toUpperCase() === "HARD"
-                                          ? "bg-rose-50 text-rose-600 border border-rose-200"
-                                          : "bg-amber-50 text-amber-600 border border-amber-200"
-                                      }`}
+                                          ? "badge-complexity-hard"
+                                          : "badge-complexity-medium"
+                                    }
                                   >
                                     {difficulty}
                                   </span>
@@ -4015,12 +3970,12 @@ function DriveDetailPage() {
                                   {displayTags.length > 0 && (
                                     <div className="flex items-center gap-1 flex-wrap">
                                       {displayTags.map((tag: string) => (
-                                        <span key={tag} className="text-[10px] font-mono text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-[6px]">
+                                        <span key={tag} className="text-[10px] font-mono text-ink-tertiary bg-canvas-subtle px-1.5 py-0.5 rounded-[6px]">
                                           #{tag}
                                         </span>
                                       ))}
                                       {hiddenDriveCount > 0 && (
-                                        <span className="text-[10px] text-[#2E5DE0] bg-[#EEF2FF] px-1.5 py-0.5 rounded-[6px] font-semibold">
+                                        <span className="text-[10px] text-brand bg-brand-subtle px-1.5 py-0.5 rounded-[6px] font-semibold">
                                           +{hiddenDriveCount} more drives
                                         </span>
                                       )}
@@ -4038,9 +3993,9 @@ function DriveDetailPage() {
                                   e.stopPropagation();
                                   setPreviewQuestion(q);
                                 }}
-                                className="w-[84px] h-[28px] rounded-[14px] border border-[#E9EEFE] bg-white hover:bg-slate-50 text-[#2E5DE0] text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                                className="btn-secondary-outline !w-[84px] !h-[28px] !rounded-full !text-brand text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-2xs"
                               >
-                                <Eye size={13} className="text-[#2E5DE0]" />
+                                <Eye size={13} className="text-brand" />
                                 <span>Preview</span>
                               </button>
                               {isQuestionsEditable ? (() => {
@@ -4069,11 +4024,11 @@ function DriveDetailPage() {
                                         setAssignedQuestions([...assignedQuestions, q.id]);
                                       }
                                     }}
-                                    className={`w-[76px] h-[28px] rounded-[14px] text-[12px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${isSelected
+                                    className={`w-[76px] h-[28px] rounded-full text-[12px] font-semibold transition-colors cursor-pointer flex items-center justify-center ${isSelected
                                         ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200"
                                         : isLimitReached
-                                          ? "bg-gray-100 text-[#9CA3AF] border border-gray-200 cursor-not-allowed"
-                                          : "bg-[#2E5DE0] text-white hover:bg-[#254ec4] shadow-xs"
+                                          ? "bg-gray-100 text-ink-tertiary border border-gray-200 cursor-not-allowed"
+                                          : "btn-gradient-primary"
                                       }`}
                                     title={isLimitReached ? `Limit reached: ${reqCount}/${reqCount} questions selected for ${displayModule}` : undefined}
                                   >
@@ -4082,10 +4037,10 @@ function DriveDetailPage() {
                                 );
                               })() : (
                                 <span
-                                  className="w-[76px] h-[28px] rounded-[14px] text-[12px] font-semibold bg-[#F2F2FB] text-[#9CA3AF] flex items-center justify-center gap-1 cursor-not-allowed"
+                                  className="w-[76px] h-[28px] rounded-full text-[12px] font-semibold bg-canvas-subtle text-ink-tertiary flex items-center justify-center gap-1 cursor-not-allowed"
                                   title="Locked: Candidate links already generated"
                                 >
-                                  <Lock size={12} className="text-[#9CA3AF]" />
+                                  <Lock size={12} className="text-ink-tertiary" />
                                   <span>Locked</span>
                                 </span>
                               )}
@@ -4106,8 +4061,7 @@ function DriveDetailPage() {
               <button
                 type="button"
                 onClick={handleSaveQuestionsAndNext}
-                className="h-[38px] px-6 py-2 rounded-full bg-[#2E5DE0] hover:bg-[#254ec4] text-white font-bold text-[14px] flex items-center gap-1.5 shadow-[0px_4px_14px_0px_#2E5DE066] hover:shadow-[0px_6px_18px_0px_#2E5DE088] active:scale-[0.98] transition-all cursor-pointer"
-                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                className="btn-gradient-primary !h-[38px] px-6 !rounded-full shadow-brand-glow text-white font-bold text-[14px] flex items-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <Plus size={16} className="text-white shrink-0" strokeWidth={2.5} />
                 <span>Save &amp; Next</span>
@@ -4118,15 +4072,15 @@ function DriveDetailPage() {
 
         {/* ROSTER TAB */}
         {activeTab === "roster" && (
-          <div className="space-y-6" style={{ fontFamily: "Instrument Sans, sans-serif" }}>
-            <div className="w-full max-w-[1263px] bg-white rounded-[16px] p-6 shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] border border-[#E9EEFE] space-y-5">
+          <div className="space-y-6">
+            <div className="w-full max-w-[1263px] card-standard p-6 space-y-5">
               {/* Header */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E9EEFE] pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#1E1B4B] leading-none">
+                  <h3 className="text-[16px] font-bold text-ink leading-none">
                     Candidate Roster &amp; Link Generation
                   </h3>
-                  <p className="text-[13px] text-[#6B7280] mt-1.5">
+                  <p className="text-[13px] text-ink-secondary mt-1.5">
                     Manage candidates and copy assessment invitation links.
                   </p>
                 </div>
@@ -4135,8 +4089,7 @@ function DriveDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddCandidateModal(true)}
-                    className="h-[32px] px-4 py-1.5 rounded-full bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[13px] font-semibold flex items-center gap-1.5 shadow-[0px_4px_14px_0px_#2E5DE044] transition-all cursor-pointer"
-                    style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                    className="btn-gradient-primary !h-[32px] px-4 !rounded-full shadow-xs text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Plus size={15} strokeWidth={2.5} className="text-white shrink-0" />
                     <span>Add Candidate</span>
@@ -4144,17 +4097,16 @@ function DriveDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowBulkImportModal(true)}
-                    className="h-[32px] px-4 py-1.5 rounded-full bg-[#EEF2FF] hover:bg-blue-100 border border-[#2E5DE0] text-[#2E5DE0] text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                    style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                    className="btn-secondary-outline !h-[32px] px-4 !rounded-full text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
-                    <Upload size={14} className="text-[#2E5DE0] shrink-0" />
+                    <Upload size={14} className="text-brand shrink-0" />
                     <span>Bulk Import Candidates</span>
                   </button>
                 </div>
               </div>
 
               {/* Candidates Table */}
-            <div className="border border-[#E9EEFE] rounded-[12px] overflow-x-auto bg-white">
+            <div className="border border-line rounded-xl overflow-x-auto bg-white">
               <table className="w-full text-left text-[13.5px] border-collapse min-w-[780px]">
                 <colgroup>
                   <col className="w-[24%]" />
@@ -4164,7 +4116,7 @@ function DriveDetailPage() {
                   <col className="w-[16%]" />
                 </colgroup>
                 <thead>
-                  <tr className="h-[44px] bg-[#F2F2FB] text-[11px] font-bold text-[#64748B] uppercase tracking-[0.5px] border-b border-[#E9EEFE]">
+                  <tr className="h-[44px] bg-canvas-subtle text-[11px] font-bold text-slate-500 uppercase tracking-[0.5px] border-b border-line">
                     <th className="pl-6 pr-4 py-3 whitespace-nowrap">Candidate</th>
                     <th className="px-4 py-3 whitespace-nowrap">Email</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>
@@ -4172,42 +4124,38 @@ function DriveDetailPage() {
                     <th className="pl-4 pr-6 py-3 text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E9EEFE] bg-white">
+                <tbody className="divide-y divide-line bg-white">
                   {drive.roster.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-[13px] italic text-[#9CA3AF]">
+                      <td colSpan={5} className="p-8 text-center text-[13px] italic text-ink-tertiary">
                         No candidates added to roster yet. Click "Add Candidate" above to get started.
                       </td>
                     </tr>
                   ) : (
                     drive.roster.map((c) => (
-                      <tr key={c.candidateId} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="pl-6 pr-4 py-3.5 font-semibold text-[#1E1B4B]">
+                      <tr key={c.candidateId} className="hover:bg-canvas-subtle transition-colors">
+                        <td className="pl-6 pr-4 py-3.5 font-semibold text-ink">
                           <div className="truncate max-w-[200px]" title={c.candidateName}>
                             {c.candidateName}
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 font-mono text-[12.5px] text-[#6B7280]">
+                        <td className="px-4 py-3.5 font-mono text-[12.5px] text-ink-secondary">
                           <div className="truncate max-w-[240px]" title={c.candidateEmail}>
                             {c.candidateEmail}
                           </div>
                         </td>
                         <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           {c.inviteStatus === "REDEEMED" || c.inviteStatus === "COMPLETED" ? (
-                            <span
-                              className="h-[22px] px-2.5 py-1 rounded-[11px] bg-[#E2F0D9] text-[#385723] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap"
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
-                            >
+                            <span className="h-[22px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap">
                               REDEEMED
                             </span>
                           ) : (
                             <span
-                              className={`h-[22px] px-2.5 py-1 rounded-[11px] text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${
+                              className={`h-[22px] px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${
                                 c.isGenerated
-                                  ? "bg-[#EFF6FF] text-[#2563EB]"
-                                  : "bg-[#FEF3C7] text-[#D97706]"
+                                  ? "bg-blue-50 text-brand"
+                                  : "bg-amber-50 text-amber-700"
                               }`}
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
                             >
                               {c.isGenerated ? c.inviteStatus : "DRAFT"}
                             </span>
@@ -4218,8 +4166,7 @@ function DriveDetailPage() {
                             <button
                               type="button"
                               onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
-                              className="h-[27px] px-3.5 gap-1.5 rounded-[14px] bg-[#EFF6FF] border border-[#3B82F6] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                              style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                              className="h-[27px] px-3.5 gap-1.5 rounded-full bg-blue-50 border border-brand/40 hover:bg-blue-100 text-brand text-[12px] font-semibold inline-flex items-center justify-center transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
                             >
                               {copiedCandidateId === c.candidateId ? (
                                 <>
@@ -4228,7 +4175,7 @@ function DriveDetailPage() {
                                 </>
                               ) : (
                                 <>
-                                  <Copy size={12} className="text-[#2563EB] shrink-0" />
+                                  <Copy size={12} className="text-brand shrink-0" />
                                   <span className="leading-none whitespace-nowrap">Copy Link</span>
                                 </>
                               )}
@@ -4244,7 +4191,7 @@ function DriveDetailPage() {
                                   copyCandidateLink(match.inviteLink, c.candidateId);
                                 }
                               }}
-                              className="h-[27px] px-3.5 rounded-[14px] bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
+                              className="btn-gradient-primary !h-[27px] px-3.5 !rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
                             >
                               <Sparkles size={12} />
                               <span>Generate Link</span>
@@ -4257,10 +4204,9 @@ function DriveDetailPage() {
                               <Link
                                 to="/results/$id"
                                 params={{ id: c.sessionId }}
-                                className="h-[27px] px-3 py-1 rounded-[14px] border border-[#3B82F6] bg-[#EFF6FF] hover:bg-blue-100 text-[#2563EB] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0"
-                                style={{ fontFamily: "Instrument Sans, sans-serif" }}
+                                className="btn-secondary-outline !h-[27px] px-3 py-1 !rounded-full text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap shrink-0"
                               >
-                                <Eye size={13} className="text-[#2563EB] shrink-0" />
+                                <Eye size={13} className="text-brand shrink-0" />
                                 <span className="leading-none">View Results</span>
                               </Link>
                             )}
@@ -4287,27 +4233,27 @@ function DriveDetailPage() {
         {/* Preview Question Modal */}
         {previewQuestion && (
           <div
-            className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-            style={{ fontFamily: "Instrument Sans, sans-serif" }}
+            className="modal-overlay-backdrop !z-[200]"
             onClick={() => setPreviewQuestion(null)}
           >
             <div
-              className="bg-white rounded-[16px] w-full max-w-[660px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.25)] p-6 sm:p-7 space-y-3 overflow-hidden z-[201]"
+              className="bg-white rounded-2xl w-full max-w-[660px] shadow-2xl p-6 sm:p-7 space-y-3 overflow-hidden z-[201]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header: Module badge + Difficulty badge + Close Icon */}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="h-[21px] px-2 rounded-[4px] bg-[#EFF6FF] text-[#2563EB] text-[11px] font-bold uppercase inline-flex items-center justify-center tracking-wide">
+                  <span className="h-[21px] px-2 rounded-[4px] bg-brand-subtle text-brand text-[11px] font-bold uppercase inline-flex items-center justify-center tracking-wide">
                     {previewQuestion.moduleType}
                   </span>
                   <span
-                    className={`h-[21px] px-2.5 rounded-[4px] text-[11px] font-bold inline-flex items-center justify-center capitalize ${(previewQuestion.difficulty || "").toUpperCase() === "EASY"
-                      ? "bg-[#DCFCE7] text-[#16A34A]"
-                      : (previewQuestion.difficulty || "").toUpperCase() === "HARD"
-                        ? "bg-[#FFE4E6] text-[#E11D48]"
-                        : "bg-[#FEF3C7] text-[#D97706]"
-                      }`}
+                    className={
+                      (previewQuestion.difficulty || "").toUpperCase() === "EASY"
+                        ? "badge-complexity-easy !text-[11px] !py-0.5"
+                        : (previewQuestion.difficulty || "").toUpperCase() === "HARD"
+                          ? "badge-complexity-hard !text-[11px] !py-0.5"
+                          : "badge-complexity-medium !text-[11px] !py-0.5"
+                    }
                   >
                     {(previewQuestion.difficulty || "Medium").toLowerCase().replace(/^\w/, (c: string) => c.toUpperCase())}
                   </span>
@@ -4316,34 +4262,32 @@ function DriveDetailPage() {
                 <button
                   type="button"
                   onClick={() => setPreviewQuestion(null)}
-                  className="w-7 h-7 flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer shrink-0"
+                  className="p-1 rounded-lg text-ink-tertiary hover:text-ink hover:bg-canvas-subtle transition-colors cursor-pointer shrink-0"
                   title="Close preview"
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                  <X size={18} />
                 </button>
               </div>
 
               {/* Question Title */}
               <div className="pt-0.5">
-                <h3 className="text-[17px] sm:text-[18px] font-bold text-[#1E1B4B] leading-snug tracking-tight">
+                <h3 className="text-[17px] sm:text-[18px] font-bold text-ink leading-snug tracking-tight">
                   {previewQuestion.content?.title || previewQuestion.content?.prompt || previewQuestion.content?.text || previewQuestion.content?.question || "Question Details"}
                 </h3>
                 {previewQuestion.content?.description && (
-                  <p className="text-[13px] text-[#6B7280] leading-relaxed mt-1">
+                  <p className="text-[13px] text-ink-secondary leading-relaxed mt-1">
                     {previewQuestion.content.description}
                   </p>
                 )}
               </div>
 
               {/* Divider */}
-              <div className="w-full h-px bg-[#E2E8F0]" />
+              <div className="w-full h-px bg-line" />
 
               {/* MCQ Options */}
               {previewQuestion.content?.options && Array.isArray(previewQuestion.content.options) && (
                 <div className="space-y-2">
-                  <span className="text-[10.5px] font-bold tracking-[0.5px] text-[#64748B] uppercase block">
+                  <span className="text-[10.5px] font-bold tracking-[0.5px] text-ink-tertiary uppercase block">
                     OPTIONS:
                   </span>
                   <div className="space-y-2">
@@ -4361,18 +4305,18 @@ function DriveDetailPage() {
                         <div
                           key={idx}
                           className={`px-4 py-2 rounded-[8px] text-[13px] flex items-center justify-between transition-colors ${isCorrect
-                              ? "h-[50px] bg-[#E8F7F0] border border-[#A7F3D0] text-[#065F46] font-semibold"
-                              : "h-[44px] bg-[#F1F5F9] text-[#334155] font-medium"
+                              ? "h-[50px] bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold"
+                              : "h-[44px] bg-canvas-subtle text-slate-700 font-medium"
                             }`}
                         >
                           <div className="flex items-center gap-2.5 pr-2">
-                            <span className={`font-semibold ${isCorrect ? "text-[#065F46] font-bold" : "text-[#64748B]"}`}>
+                            <span className={`font-semibold ${isCorrect ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
                               {String.fromCharCode(65 + idx)}.
                             </span>
                             <span>{optText}</span>
                           </div>
                           {isCorrect && (
-                            <span className="w-[64px] h-[25px] rounded-[5px] bg-[#0A7E5C] text-white text-[11.5px] font-bold inline-flex items-center justify-center shrink-0">
+                            <span className="w-[64px] h-[25px] rounded-[5px] bg-emerald-600 text-white text-[11.5px] font-bold inline-flex items-center justify-center shrink-0">
                               Answer
                             </span>
                           )}
@@ -4386,10 +4330,10 @@ function DriveDetailPage() {
               {/* Code Snippet / Problem Statement */}
               {previewQuestion.content?.problemStatement && (
                 <div className="space-y-1.5">
-                  <span className="text-[10.5px] font-bold tracking-[0.5px] text-[#64748B] uppercase block">
+                  <span className="text-[10.5px] font-bold tracking-[0.5px] text-ink-tertiary uppercase block">
                     Problem Statement:
                   </span>
-                  <div className="p-3 bg-[#F8FAFC] border border-[#E9EEFE] text-[#1E1B4B] font-mono text-[11.5px] rounded-[8px] whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">
+                  <div className="p-3 bg-canvas-subtle border border-line text-ink font-mono text-[11.5px] rounded-[8px] whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">
                     {previewQuestion.content.problemStatement}
                   </div>
                 </div>
@@ -4398,10 +4342,10 @@ function DriveDetailPage() {
               {/* Expected Answer / Grading Rubric for Test Scenarios & AI Prompting */}
               {(previewQuestion.content?.expectedAnswer || previewQuestion.content?.expectedCriteria) && (
                 <div className="space-y-1.5">
-                  <span className="text-[10.5px] font-bold tracking-[0.5px] text-[#64748B] uppercase block">
+                  <span className="text-[10.5px] font-bold tracking-[0.5px] text-ink-tertiary uppercase block">
                     Expected Guidelines / Rubric:
                   </span>
-                  <div className="p-3 bg-[#EEF2FF] border border-[#E9EEFE] text-[#1E1B4B] text-[12.5px] rounded-[8px] leading-relaxed max-h-24 overflow-y-auto">
+                  <div className="p-3 bg-brand-subtle border border-line text-ink text-[12.5px] rounded-[8px] leading-relaxed max-h-24 overflow-y-auto">
                     {previewQuestion.content.expectedAnswer || previewQuestion.content.expectedCriteria}
                   </div>
                 </div>
@@ -4413,14 +4357,14 @@ function DriveDetailPage() {
                 if (displayTags.length === 0 && hiddenDriveCount === 0) return null;
                 return (
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="text-[10.5px] font-bold text-[#64748B]">Tags:</span>
+                    <span className="text-[10.5px] font-bold text-ink-tertiary">Tags:</span>
                     {displayTags.map((tag: string) => (
-                      <span key={tag} className="text-[10.5px] font-mono text-[#64748B] bg-[#F3F4F6] px-2 py-0.5 rounded-[5px]">
+                      <span key={tag} className="text-[10.5px] font-mono text-ink-tertiary bg-canvas-subtle px-2 py-0.5 rounded-[5px]">
                         #{tag}
                       </span>
                     ))}
                     {hiddenDriveCount > 0 && (
-                      <span className="text-[10.5px] text-[#2E5DE0] bg-[#EEF2FF] px-2 py-0.5 rounded-[5px] font-semibold">
+                      <span className="text-[10.5px] text-brand bg-brand-subtle px-2 py-0.5 rounded-[5px] font-semibold">
                         +{hiddenDriveCount} more drives
                       </span>
                     )}
@@ -4460,11 +4404,11 @@ function DriveDetailPage() {
                           setPreviewQuestion(null);
                         }
                       }}
-                      className={`min-w-[190px] h-[38px] px-5 rounded-[8px] text-[13px] font-bold transition-all shadow-sm flex items-center justify-center ${isAssigned
+                      className={`min-w-[190px] h-[38px] px-5 rounded-full text-[13px] font-bold transition-all shadow-sm flex items-center justify-center ${isAssigned
                           ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 cursor-pointer"
                           : isLimitReached
-                            ? "bg-gray-100 text-[#9CA3AF] border border-gray-200 cursor-not-allowed"
-                            : "bg-[#2E5DE0] hover:bg-[#254ec4] text-white shadow-[0px_4px_12px_0px_#2E5DE044] cursor-pointer"
+                            ? "bg-gray-100 text-ink-tertiary border border-gray-200 cursor-not-allowed"
+                            : "btn-gradient-primary cursor-pointer"
                         }`}
                     >
                       {isAssigned ? "Remove Question from Drive" : "Assign Question to Drive"}
@@ -4478,28 +4422,23 @@ function DriveDetailPage() {
 
         {/* Add Candidate Modal */}
         {showAddCandidateModal && (
-          <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-            style={{ fontFamily: "Instrument Sans, sans-serif" }}
-          >
-            <div className="bg-white rounded-[20px] w-full max-w-[460px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] p-6 sm:p-7 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E9EEFE] pb-3.5">
-                <h3 className="text-[17px] font-bold text-[#1E1B4B]">Add Candidate</h3>
+          <div className="modal-overlay-backdrop">
+            <div className="modal-shell-card !max-w-[460px] p-6 sm:p-7 space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3.5">
+                <h3 className="text-[17px] font-bold text-ink">Add Candidate</h3>
                 <button
                   type="button"
                   onClick={() => setShowAddCandidateModal(false)}
-                  className="w-7 h-7 flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer shrink-0"
+                  className="p-1 rounded-lg text-ink-tertiary hover:text-ink hover:bg-canvas-subtle transition-colors cursor-pointer shrink-0"
                   title="Close"
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                  <X size={18} />
                 </button>
               </div>
 
               <div className="space-y-3.5 pt-1">
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#1E1B4B] mb-1.5">
+                  <label className="block text-[13px] font-semibold text-ink mb-1.5">
                     Candidate Name <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -4507,12 +4446,12 @@ function DriveDetailPage() {
                     value={candidateNameInput}
                     onChange={(e) => setCandidateNameInput(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="w-full h-[40px] px-3.5 text-[13px] border border-[#E9EEFE] rounded-[10px] focus:outline-none focus:border-[#2E5DE0] transition-colors"
+                    className="input-field-standard"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#1E1B4B] mb-1.5">
+                  <label className="block text-[13px] font-semibold text-ink mb-1.5">
                     Candidate Email <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -4520,23 +4459,23 @@ function DriveDetailPage() {
                     value={candidateEmailInput}
                     onChange={(e) => setCandidateEmailInput(e.target.value)}
                     placeholder="e.g. john.doe@example.com"
-                    className="w-full h-[40px] px-3.5 text-[13px] border border-[#E9EEFE] rounded-[10px] focus:outline-none focus:border-[#2E5DE0] transition-colors"
+                    className="input-field-standard"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E9EEFE]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setShowAddCandidateModal(false)}
-                  className="h-[36px] px-4 rounded-[10px] text-[13px] font-semibold text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                  className="btn-secondary-outline !h-[36px]"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleAddCandidate}
-                  className="h-[36px] px-5 rounded-[10px] text-[13px] font-semibold text-white bg-[#2E5DE0] hover:bg-[#254ec4] shadow-xs transition-colors cursor-pointer"
+                  className="btn-gradient-primary !h-[36px]"
                 >
                   Add Candidate
                 </button>
@@ -4547,20 +4486,17 @@ function DriveDetailPage() {
 
         {/* Confirm Generate Links Modal */}
         {confirmGenerateLinks && (
-          <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-            style={{ fontFamily: "Instrument Sans, sans-serif" }}
-          >
-            <div className="bg-white rounded-[20px] w-full max-w-[460px] p-6 sm:p-7 shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] space-y-4">
-              <h3 className="text-[17px] font-bold text-[#1E1B4B]">Confirm Drive Schedule &amp; Link Generation</h3>
-              <p className="text-[13.5px] text-[#6B7280] leading-relaxed">
+          <div className="modal-overlay-backdrop">
+            <div className="modal-shell-card !max-w-[460px] p-6 sm:p-7 space-y-4">
+              <h3 className="text-[17px] font-bold text-ink">Confirm Drive Schedule &amp; Link Generation</h3>
+              <p className="text-[13.5px] text-ink-secondary leading-relaxed">
                 Generate unique assessment links for all {drive.roster.length} candidate(s) in the roster?
               </p>
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E9EEFE]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setConfirmGenerateLinks(false)}
-                  className="h-[36px] px-4 rounded-[10px] text-[13px] font-semibold text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                  className="btn-secondary-outline !h-[36px]"
                 >
                   Cancel
                 </button>
@@ -4568,7 +4504,7 @@ function DriveDetailPage() {
                   type="button"
                   onClick={handleGenerateLinks}
                   disabled={generating}
-                  className="h-[36px] px-5 rounded-[10px] text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  className="h-[36px] px-5 rounded-full text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {generating ? "Generating..." : "Generate Links"}
                 </button>
@@ -4579,27 +4515,24 @@ function DriveDetailPage() {
 
         {/* Unsaved Question Selection Warning Modal */}
         {pendingTabSwitch && (
-          <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-            style={{ fontFamily: "Instrument Sans, sans-serif" }}
-          >
-            <div className="bg-white rounded-[20px] w-full max-w-[460px] p-6 shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] space-y-4 border border-[#E9EEFE]">
+          <div className="modal-overlay-backdrop">
+            <div className="modal-shell-card !max-w-[460px] p-6 space-y-4 border border-line">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
                   <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#1E1B4B]">Unsaved Question Assignments</h3>
-                  <p className="text-[13px] text-[#6B7280] mt-1 leading-relaxed">
+                  <h3 className="text-[16px] font-bold text-ink">Unsaved Question Assignments</h3>
+                  <p className="text-[13px] text-ink-secondary mt-1 leading-relaxed">
                     Selected questions are not saved. Do you want to save them before proceeding?
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-[#E9EEFE]">
+              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setPendingTabSwitch(null)}
-                  className="h-[34px] px-3.5 text-[12px] font-semibold text-[#6B7280] bg-white border border-[#E9EEFE] hover:bg-slate-50 rounded-[8px] transition-colors cursor-pointer"
+                  className="btn-secondary-outline !h-[34px] !px-3.5 !text-[12px] !rounded-full"
                 >
                   Cancel
                 </button>
@@ -4610,7 +4543,7 @@ function DriveDetailPage() {
                     setActiveTab(pendingTabSwitch);
                     setPendingTabSwitch(null);
                   }}
-                  className="h-[34px] px-3.5 text-[12px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-[8px] transition-colors cursor-pointer"
+                  className="h-[34px] px-3.5 text-[12px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-full transition-colors cursor-pointer"
                 >
                   Leave Without Saving
                 </button>
@@ -4621,7 +4554,7 @@ function DriveDetailPage() {
                     setActiveTab(pendingTabSwitch);
                     setPendingTabSwitch(null);
                   }}
-                  className="h-[34px] px-4 text-[12px] font-semibold text-white bg-[#2E5DE0] hover:bg-[#254ec4] rounded-[8px] shadow-xs transition-colors cursor-pointer"
+                  className="btn-gradient-primary !h-[34px] px-4 !text-[12px] !rounded-full"
                 >
                   Save &amp; Continue
                 </button>
@@ -4632,12 +4565,9 @@ function DriveDetailPage() {
 
         {/* Confirmation Modal for Removing Candidate */}
         {candidateToRemove && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150"
-            style={{ fontFamily: "Instrument Sans, sans-serif" }}
-          >
-            <div className="bg-white rounded-[20px] p-6 max-w-md w-full shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E9EEFE] pb-3">
+          <div className="modal-overlay-backdrop">
+            <div className="modal-shell-card !max-w-md p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2 text-rose-600 font-bold text-[16px]">
                   <AlertTriangle size={18} />
                   <span>Remove Candidate</span>
@@ -4645,28 +4575,26 @@ function DriveDetailPage() {
                 <button
                   type="button"
                   onClick={() => setCandidateToRemove(null)}
-                  className="w-7 h-7 flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer shrink-0"
+                  className="p-1 rounded-lg text-ink-tertiary hover:text-ink hover:bg-canvas-subtle transition-colors cursor-pointer shrink-0"
                   title="Close"
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                  <X size={18} />
                 </button>
               </div>
 
-              <p className="text-[13.5px] text-[#1E1B4B] leading-relaxed">
-                Are you sure you want to remove <strong>{candidateToRemove.candidateName}</strong> (<code className="text-[#6B7280]">{candidateToRemove.candidateEmail}</code>) from this assessment drive?
+              <p className="text-[13.5px] text-ink leading-relaxed">
+                Are you sure you want to remove <strong>{candidateToRemove.candidateName}</strong> (<code className="text-ink-secondary">{candidateToRemove.candidateEmail}</code>) from this assessment drive?
               </p>
-              <p className="text-[12px] text-amber-800 bg-[#FFFBEB] p-3 rounded-[10px] border border-[#FDE68A]">
+              <p className="text-[12px] callout-warning">
                 ⚠️ This will revoke their invite link and expire any active assessment session.
               </p>
 
-              <div className="flex justify-end gap-2.5 pt-2 border-t border-[#E9EEFE]">
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setCandidateToRemove(null)}
                   disabled={removingCandidate}
-                  className="h-[36px] px-4 text-[13px] font-semibold text-[#6B7280] hover:bg-[#F3F4F6] rounded-[10px] transition-colors cursor-pointer"
+                  className="btn-secondary-outline !h-[36px]"
                 >
                   Cancel
                 </button>
@@ -4674,7 +4602,7 @@ function DriveDetailPage() {
                   type="button"
                   onClick={handleConfirmRemoveCandidate}
                   disabled={removingCandidate}
-                  className="h-[36px] px-4 text-[13px] font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-[10px] transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                  className="h-[36px] px-4 text-[13px] font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-full transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {removingCandidate ? "Removing..." : "Remove & Revoke"}
                 </button>
@@ -4685,15 +4613,12 @@ function DriveDetailPage() {
 
         {/* Bulk Import Candidates Modal */}
         {showBulkImportModal && (
-          <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-            style={{ fontFamily: "Instrument Sans, sans-serif" }}
-          >
-            <div className="bg-white rounded-[24px] w-full max-w-[580px] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden">
-              <div className="px-7 py-5 border-b border-[#E9EEFE] flex items-start justify-between">
+          <div className="modal-overlay-backdrop">
+            <div className="modal-shell-card !max-w-[580px] flex flex-col overflow-hidden">
+              <div className="px-7 py-5 border-b border-line flex items-start justify-between">
                 <div>
-                  <h2 className="text-[18px] font-bold text-[#1E1B4B]">Bulk Import Candidates</h2>
-                  <p className="text-[13px] text-[#6B7280] mt-0.5">Import candidates and assign directly to test.</p>
+                  <h2 className="text-[18px] font-bold text-ink">Bulk Import Candidates</h2>
+                  <p className="text-[13px] text-ink-secondary mt-0.5">Import candidates and assign directly to test.</p>
                 </div>
                 <button
                   type="button"
@@ -4702,31 +4627,29 @@ function DriveDetailPage() {
                     setBulkCandidateInput("");
                     setBulkCandidateErrors([]);
                   }}
-                  className="w-7 h-7 flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer shrink-0"
+                  className="p-1 rounded-lg text-ink-tertiary hover:text-ink hover:bg-canvas-subtle transition-colors cursor-pointer shrink-0"
                   title="Close"
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9.66736 5.66704L5.66704 9.66736M5.66704 5.66704L9.66736 9.66736M14.3344 7.6672C14.3344 11.3494 11.3494 14.3344 7.6672 14.3344C3.98501 14.3344 1 11.3494 1 7.6672C1 3.98501 3.98501 1 7.6672 1C11.3494 1 14.3344 3.98501 14.3344 7.6672Z" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                  <X size={18} />
                 </button>
               </div>
 
               <div className="p-7 space-y-5 max-h-[75vh] overflow-y-auto">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="block text-[13px] font-semibold text-[#1E1B4B]">
+                    <label className="block text-[13px] font-semibold text-ink">
                       Paste CSV or Tab-Separated Data <span className="text-rose-500">*</span>
                     </label>
                     <button
                       type="button"
                       onClick={handleDownloadSampleCandidates}
-                      className="text-[12px] font-semibold text-[#2E5DE0] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[12px] font-semibold text-brand hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Download size={12} /> Download Sample Template
                     </button>
                   </div>
-                  <p className="text-[12px] text-[#9CA3AF]">
-                    Format: <span className="font-mono text-[#6B7280]">Candidate Name, candidate.email@company.com</span> (one candidate per line)
+                  <p className="text-[12px] text-ink-tertiary">
+                    Format: <span className="font-mono text-ink-secondary">Candidate Name, candidate.email@company.com</span> (one candidate per line)
                   </p>
                   <textarea
                     rows={5}
@@ -4737,12 +4660,12 @@ function DriveDetailPage() {
                       setBulkCandidateErrors(errors);
                     }}
                     placeholder={`John Doe, john@example.com\nJane Smith, jane@example.com\nAlex Rivera, alex@example.com`}
-                    className="w-full p-3 text-[12px] font-mono border border-[#E9EEFE] rounded-[10px] bg-white text-[#1E1B4B] focus:outline-none focus:border-[#2E5DE0] transition-colors"
+                    className="w-full p-3 text-[12px] font-mono border border-line rounded-lg bg-white text-ink focus:outline-none focus:border-brand transition-colors"
                   />
                 </div>
 
                 <div className="space-y-1.5 pt-1">
-                  <label className="block text-[13px] font-semibold text-[#1E1B4B]">
+                  <label className="block text-[13px] font-semibold text-ink">
                     Select CSV File
                   </label>
                   <div
@@ -4757,13 +4680,13 @@ function DriveDetailPage() {
                       const fileInput = document.getElementById("bulk-csv-file-input");
                       if (fileInput) fileInput.click();
                     }}
-                    className="border-2 border-dashed border-[#E9EEFE] hover:border-[#2E5DE0] rounded-[14px] p-6 text-center bg-[#F8FAFC] hover:bg-[#EEF2FF] transition-all cursor-pointer group"
+                    className="border-2 border-dashed border-line hover:border-brand rounded-2xl p-6 text-center bg-canvas-subtle hover:bg-brand-subtle transition-all cursor-pointer group"
                   >
-                    <UploadCloud className="w-9 h-9 text-[#9CA3AF] group-hover:text-[#2E5DE0] mx-auto mb-2 transition-colors" />
-                    <p className="text-[13.5px] font-medium text-[#6B7280] group-hover:text-[#1E1B4B]">
+                    <UploadCloud className="w-9 h-9 text-ink-tertiary group-hover:text-brand mx-auto mb-2 transition-colors" />
+                    <p className="text-[13.5px] font-medium text-ink-secondary group-hover:text-ink">
                       Drag &amp; drop your CSV file here, or click to browse
                     </p>
-                    <p className="text-[12px] text-[#9CA3AF] mt-1">
+                    <p className="text-[12px] text-ink-tertiary mt-1">
                       Accepts .csv format
                     </p>
                     <input
@@ -4790,8 +4713,8 @@ function DriveDetailPage() {
                 )}
               </div>
 
-              <div className="px-7 py-4 bg-[#F8FAFC] border-t border-[#E9EEFE] flex items-center justify-between">
-                <span className="text-[13px] text-[#6B7280]">
+              <div className="px-7 py-4 bg-canvas-subtle border-t border-line flex items-center justify-between">
+                <span className="text-[13px] text-ink-secondary">
                   {parseBulkCandidates(bulkCandidateInput).parsed.length} valid candidate(s) ready
                 </span>
                 <div className="flex items-center gap-2.5">
@@ -4802,7 +4725,7 @@ function DriveDetailPage() {
                       setBulkCandidateInput("");
                       setBulkCandidateErrors([]);
                     }}
-                    className="h-[36px] px-4 rounded-[10px] text-[13px] font-semibold text-[#6B7280] hover:bg-white border border-transparent hover:border-[#E9EEFE] transition-colors cursor-pointer"
+                    className="btn-secondary-outline !h-[36px]"
                   >
                     Cancel
                   </button>
@@ -4810,7 +4733,7 @@ function DriveDetailPage() {
                     type="button"
                     onClick={handleBulkImportSubmit}
                     disabled={submittingBulkImport || parseBulkCandidates(bulkCandidateInput).parsed.length === 0}
-                    className="h-[36px] px-5 rounded-[10px] text-[13px] font-semibold text-white bg-[#2E5DE0] hover:bg-[#254ec4] shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-gradient-primary !h-[36px] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submittingBulkImport ? "Importing..." : "Import Candidates"}
                   </button>
@@ -5025,21 +4948,21 @@ function DriveDetailPage() {
             onClick={() => setSuggestedDeficitModalOpen(false)}
           >
             <div
-              className="bg-white rounded-2xl w-full max-w-[780px] shadow-2xl flex flex-col max-h-[90vh] z-[101] overflow-hidden border border-[#E2E8F0]"
+              className="bg-white rounded-2xl w-full max-w-[780px] shadow-2xl flex flex-col max-h-[90vh] z-[101] overflow-hidden border border-line"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header with Live Counter Bar */}
-              <div className="px-6 py-4 border-b border-[#E2E8F0] bg-white">
+              <div className="px-6 py-4 border-b border-line bg-white">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#EAF0FF] border border-[#B3C5FF] flex items-center justify-center text-[#2F5CFF] shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-brand-subtle border border-brand/20 flex items-center justify-center text-brand shrink-0">
                       <Sparkles size={18} />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-[#0B0B0D]">
+                      <h3 className="text-base font-bold text-ink">
                         Select Deficit Fill Questions
                       </h3>
-                      <p className="text-xs text-[#5B5B64] mt-0.5">
+                      <p className="text-xs text-ink-secondary mt-0.5">
                         Pick and choose questions across any module to fill the schedule window deficit.
                       </p>
                     </div>
@@ -5047,35 +4970,35 @@ function DriveDetailPage() {
                   <button
                     type="button"
                     onClick={() => setSuggestedDeficitModalOpen(false)}
-                    className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0B0B0D] hover:bg-slate-100 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg text-ink-tertiary hover:text-ink hover:bg-canvas-subtle transition-colors cursor-pointer"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
                 {/* Real-time Deficit Balance Summary */}
-                <div className="mt-3.5 p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                <div className="mt-3.5 p-3 rounded-xl bg-canvas-subtle border border-line shadow-2xs flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="text-xs text-slate-600">
-                      Target Deficit: <strong className="font-mono text-[#0B0B0D] font-bold">+{timingMismatchDiff}m</strong>
+                      Target Deficit: <strong className="font-mono text-ink font-bold">+{timingMismatchDiff}m</strong>
                     </div>
                     <div className="h-3 w-px bg-slate-200" />
                     <div className="text-xs text-slate-600">
-                      Selected: <strong className="font-mono text-[#2F5CFF] font-bold">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} qs, {currentSelectedPoints} pts)
+                      Selected: <strong className="font-mono text-brand font-bold">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} qs, {currentSelectedPoints} pts)
                     </div>
                   </div>
 
                   <div>
                     {diffMinutes === 0 ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0] flex items-center gap-1 font-mono">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1 font-mono">
                         <Check size={12} strokeWidth={3} /> Exact Match (+{timingMismatchDiff}m)
                       </span>
                     ) : diffMinutes < 0 ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] flex items-center gap-1 font-mono">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1 font-mono">
                         <Clock size={12} /> {Math.abs(diffMinutes)}m Remaining Deficit
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] flex items-center gap-1 font-mono">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-subtle text-brand border border-brand/20 flex items-center gap-1 font-mono">
                         <Plus size={12} /> +{diffMinutes}m Over Target
                       </span>
                     )}
@@ -5084,7 +5007,7 @@ function DriveDetailPage() {
               </div>
 
               {/* Filters Bar: Search & Module Pills */}
-              <div className="px-6 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC] space-y-2.5">
+              <div className="px-6 py-3 border-b border-line bg-canvas-subtle space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   <div className="relative flex-1 min-w-[200px] max-w-sm">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -5093,7 +5016,7 @@ function DriveDetailPage() {
                       placeholder="Search by question title, prompt or tags..."
                       value={deficitSearchQuery}
                       onChange={(e) => setDeficitSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[#CBD5E1] bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#2F5CFF]"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-line bg-white text-ink placeholder:text-ink-tertiary focus:outline-none focus:border-brand"
                     />
                   </div>
 
@@ -5101,7 +5024,7 @@ function DriveDetailPage() {
                     <button
                       type="button"
                       onClick={handleSelectAllSuggestedDeficit}
-                      className="text-[11px] font-semibold text-[#2F5CFF] hover:text-[#0037FF] cursor-pointer"
+                      className="text-[11px] font-semibold text-brand hover:text-brand-hover cursor-pointer"
                     >
                       Select Smart Picks
                     </button>
@@ -5123,8 +5046,8 @@ function DriveDetailPage() {
                     onClick={() => setDeficitModuleFilter("ALL")}
                     className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                       deficitModuleFilter === "ALL"
-                        ? "bg-[#2F5CFF] text-white shadow-2xs"
-                        : "bg-white text-[#5B5B64] hover:bg-slate-100 hover:text-[#0B0B0D] border border-[#E2E8F0]"
+                        ? "pill-tab-active !text-xs !py-1 !px-2.5 !rounded-lg"
+                        : "pill-tab-inactive !text-xs !py-1 !px-2.5 !rounded-lg"
                     }`}
                   >
                     All Modules ({allPoolQuestions.length})
@@ -5136,8 +5059,8 @@ function DriveDetailPage() {
                       onClick={() => setDeficitModuleFilter("SUGGESTED")}
                       className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors flex items-center gap-1 ${
                         deficitModuleFilter === "SUGGESTED"
-                          ? "bg-[#2F5CFF] text-white shadow-2xs"
-                          : "bg-[#EAF0FF] text-[#2F5CFF] hover:bg-[#DBE6FF] border border-[#B3C5FF]"
+                          ? "pill-tab-active !text-xs !py-1 !px-2.5 !rounded-lg"
+                          : "bg-brand-subtle text-brand hover:bg-brand/10 border border-brand/20 px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors flex items-center gap-1"
                       }`}
                     >
                       <Sparkles size={11} />
@@ -5152,8 +5075,8 @@ function DriveDetailPage() {
                       onClick={() => setDeficitModuleFilter(mod)}
                       className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                         deficitModuleFilter === mod
-                          ? "bg-[#2F5CFF] text-white shadow-2xs"
-                          : "bg-white text-[#5B5B64] hover:bg-slate-100 hover:text-[#0B0B0D] border border-[#E2E8F0]"
+                          ? "pill-tab-active !text-xs !py-1 !px-2.5 !rounded-lg"
+                          : "pill-tab-inactive !text-xs !py-1 !px-2.5 !rounded-lg"
                       }`}
                     >
                       {MODULE_LABEL_MAP[mod] || mod} ({moduleCounts[mod] || 0})
@@ -5163,7 +5086,7 @@ function DriveDetailPage() {
               </div>
 
               {/* Questions List with Checkboxes */}
-              <div className="p-6 space-y-2 overflow-y-auto flex-1 max-h-[380px] bg-[#F8FAFC]">
+              <div className="p-6 space-y-2 overflow-y-auto flex-1 max-h-[380px] bg-canvas-subtle">
                 {filteredDeficitPool.length === 0 ? (
                   <div className="py-12 text-center text-xs text-slate-400 italic">
                     No questions found matching the selected module filter or search query.
@@ -5182,8 +5105,8 @@ function DriveDetailPage() {
                         onClick={() => handleToggleDeficitQuestion(q.id)}
                         className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           isSelected
-                            ? "bg-white border-[#2F5CFF] shadow-2xs ring-1 ring-[#2F5CFF]/20"
-                            : "bg-white border-[#E2E8F0] hover:border-slate-300"
+                            ? "bg-white border-brand shadow-2xs ring-1 ring-brand/20"
+                            : "bg-white border-line hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -5191,7 +5114,7 @@ function DriveDetailPage() {
                           <div
                             className={`w-4 h-4 rounded flex items-center justify-center transition-colors shrink-0 ${
                               isSelected
-                                ? "bg-[#2F5CFF] text-white"
+                                ? "bg-brand text-white"
                                 : "border border-slate-300 bg-white"
                             }`}
                           >
@@ -5201,26 +5124,26 @@ function DriveDetailPage() {
                           {/* Content */}
                           <div className="flex-1 min-w-0 pr-2">
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EEF2FF] text-[#4F46E5] uppercase font-mono">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-subtle text-brand uppercase font-mono">
                                 {MODULE_LABEL_MAP[q.moduleType] || q.moduleType}
                               </span>
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-[#475569] uppercase font-mono">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase font-mono">
                                 {q.difficulty}
                               </span>
                               {isSmartPick && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EAF0FF] text-[#2F5CFF] border border-[#B3C5FF] flex items-center gap-1">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-subtle text-brand border border-brand/20 flex items-center gap-1">
                                   <Sparkles size={9} /> Smart Pick
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs font-semibold text-[#0F172A] truncate">{title}</p>
+                            <p className="text-xs font-semibold text-ink truncate">{title}</p>
                           </div>
                         </div>
 
                         {/* Badges & Preview */}
                         <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 text-[#475569] flex items-center gap-1">
-                            <Clock size={11} className="text-[#64748B]" />
+                          <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 text-slate-600 flex items-center gap-1">
+                            <Clock size={11} className="text-slate-500" />
                             {dur}m
                           </span>
                           <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200/60 flex items-center gap-1">
@@ -5230,7 +5153,7 @@ function DriveDetailPage() {
                           <button
                             type="button"
                             onClick={() => setPreviewQuestion(q)}
-                            className="p-1 text-slate-400 hover:text-[#2F5CFF] hover:bg-[#EAF0FF] rounded transition-colors"
+                            className="p-1 text-slate-400 hover:text-brand hover:bg-brand-subtle rounded transition-colors"
                             title="Preview Question"
                           >
                             <Eye size={14} />
@@ -5243,16 +5166,16 @@ function DriveDetailPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-3">
+              <div className="px-6 py-4 border-t border-line bg-white flex items-center justify-between gap-3">
                 <div className="text-xs text-slate-600">
-                  Total Selected: <strong className="font-bold text-[#0F172A]">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} questions, {currentSelectedPoints} pts)
+                  Total Selected: <strong className="font-bold text-ink">+{currentSelectedDuration}m</strong> ({deficitSelectedQuestionIds.length} questions, {currentSelectedPoints} pts)
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setSuggestedDeficitModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                    className="btn-secondary-outline !h-[36px]"
                   >
                     Cancel
                   </button>
@@ -5260,7 +5183,7 @@ function DriveDetailPage() {
                     type="button"
                     disabled={deficitSelectedQuestionIds.length === 0}
                     onClick={() => handleApplyInteractiveDeficitQuestions(currentSelectedDuration)}
-                    className="flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-[#2F5CFF] hover:bg-[#0037FF] rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                    className="btn-gradient-primary !h-[36px] px-5 !rounded-xl disabled:opacity-50"
                   >
                     <Plus size={14} strokeWidth={2.5} />
                     <span>Add Selected Questions (+{currentSelectedDuration}m)</span>
