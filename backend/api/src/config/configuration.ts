@@ -18,8 +18,8 @@ export const configuration = () => ({
   // ── Redis / BullMQ ───────────────────────────────────────────────────────
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
 
-  // ── Invite-token JWT ─────────────────────────────────────────────────────
-  // Used for candidate-path tokens only.  Keycloak handles admin/staff JWTs.
+  // ── Authentication & JWT ──────────────────────────────────────────────────
+  // Used for local staff JWTs and invite tokens.
   jwtSecret: process.env.JWT_SECRET ?? "",
   inviteTokenTtlHours: parseInt(process.env.INVITE_TOKEN_TTL_HOURS ?? "48", 10),
 

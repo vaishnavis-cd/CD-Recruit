@@ -4,7 +4,12 @@ import sharp from "sharp";
 import * as fs from "fs";
 import * as path from "path";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const ClipperLib = require("clipper-lib");
+let ClipperLib: any = null;
+try {
+  ClipperLib = require("clipper-lib");
+} catch {
+  // clipper-lib is optional; unclipPolygon will fall back to geometric expansion
+}
 
 export interface OcrBbox {
   x: number;
@@ -477,6 +482,18 @@ export class IdOcrService implements OnModuleInit {
 
     if (perimeter === 0) return poly;
     const distance = (area * unclipRatio) / perimeter;
+
+    if (!ClipperLib) {
+      // Geometric fallback: expand polygon outward from centroid
+      const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length;
+      const cy = poly.reduce((s, p) => s + p[1], 0) / poly.length;
+      return poly.map(([x, y]) => {
+        const dx = x - cx;
+        const dy = y - cy;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        return [x + (dx / len) * distance, y + (dy / len) * distance];
+      });
+    }
 
     const path = poly.map(([x, y]) => ({ X: Math.round(x * 1000), Y: Math.round(y * 1000) }));
     const co = new ClipperLib.ClipperOffset();

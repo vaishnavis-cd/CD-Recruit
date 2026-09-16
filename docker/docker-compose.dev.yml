@@ -6,79 +6,7 @@ version: "3.8"
 # Services:
 #   postgres   — primary database (unchanged from Phase 1)
 #   redis      — BullMQ job queues + session cache
-#   keycloak   — OIDC identity provider (dev mode, pre-imported realm)
 #   minio      — S3-compatible object storage (evidence clips, artefacts)
-#
-# Start all services:
-#   docker compose -f docker/docker-compose.dev.yml up -d
-#
-# Stop all services:
-#   docker compose -f docker/docker-compose.dev.yml down
-# ─────────────────────────────────────────────────────────────────────────────
-
-services:
-  # ── Postgres ────────────────────────────────────────────────────────────────
-  # DO NOT MODIFY — Phase 1 config; seeded data lives here.
-  postgres:
-    image: postgres:16-alpine
-    container_name: cdrecruit_postgres_dev
-    environment:
-      POSTGRES_USER: cdrecruit
-      POSTGRES_PASSWORD: cdrecruit123
-      POSTGRES_DB: cdrecruit
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cdrecruit -d cdrecruit"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ── Redis ───────────────────────────────────────────────────────────────────
-  # Used by BullMQ (job queues) and session-state caching.
-  redis:
-    image: redis:7-alpine
-    container_name: cdrecruit_redis_dev
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ── Keycloak ────────────────────────────────────────────────────────────────
-  # OIDC identity provider running in dev mode (no TLS, embedded H2 DB for Keycloak metadata).
-  # The cd-recruit realm is pre-imported from docker/keycloak/realm-export.json.
-  keycloak:
-    image: quay.io/keycloak/keycloak:24.0
-    container_name: cdrecruit_keycloak_dev
-    command: start-dev --import-realm
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./keycloak:/opt/keycloak/data/import
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: on-failure
-    healthcheck:
-      test:
-        ["CMD-SHELL", "curl -fs http://localhost:8080/health/ready || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
 
   # ── MinIO ───────────────────────────────────────────────────────────────────
   # S3-compatible object storage for evidence clips and general artefacts.

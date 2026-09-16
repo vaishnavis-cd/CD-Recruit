@@ -17,6 +17,7 @@ import { PrismaClient, ModuleType, CvMode, DecisionType, Department, CandidateCa
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
+import { hashPassword } from "../api/src/common/utils/password.util";
 
 // Standardize .env contract loading
 dotenv.config({ path: path.join(__dirname, "../../.env") });
@@ -98,12 +99,12 @@ function normalizeModuleType(modStr: string | undefined): ModuleType {
   if (upper === "SQL") return "SQL";
   if (upper === "NOSQL") return "NOSQL";
   if (upper === "TEST_SCENARIOS" || upper === "TESTSCENARIOS") return "TEST_SCENARIOS";
-  if (upper === "MCQ") return "MCQ";
+  if (upper in ModuleType) return upper as ModuleType;
   return "MCQ";
 }
 
-// Seniority determination helper
-function determineSeniorityTags(difficulty?: string, explicitSeniority?: string[]): string[] {
+// Question Seniority categorization helper
+function determineSeniorityTags(difficulty: string, explicitSeniority?: string[]): string[] {
   if (explicitSeniority && explicitSeniority.length > 0) {
     return explicitSeniority.map(s => s.toLowerCase());
   }
@@ -123,15 +124,50 @@ async function main(): Promise<void> {
 
   await prisma.$transaction(
     async (tx) => {
-      // 1. Upsert Staff (Recruiter)
+      // 1. Upsert Staff (Admin & Recruiters with scrypt password hash)
+      const defaultPasswordHash = await hashPassword("password");
+
+      const adminStaff = await tx.staff.upsert({
+        where: { email: "admin@cdrecruit.local" },
+        update: {
+          passwordHash: defaultPasswordHash,
+          role: "ADMIN",
+        },
+        create: {
+          email: "admin@cdrecruit.local",
+          name: "System Administrator",
+          role: "ADMIN",
+          passwordHash: defaultPasswordHash,
+        },
+      });
+      console.log(`  ✔ Upserted Admin Staff "System Administrator" (id: ${adminStaff.id})`);
+
+      const recruiterStaff = await tx.staff.upsert({
+        where: { email: "recruiter@cdrecruit.local" },
+        update: {
+          passwordHash: defaultPasswordHash,
+          role: "RECRUITER",
+        },
+        create: {
+          email: "recruiter@cdrecruit.local",
+          name: "Demo Recruiter",
+          role: "RECRUITER",
+          passwordHash: defaultPasswordHash,
+        },
+      });
+      console.log(`  ✔ Upserted Staff "Demo Recruiter" (id: ${recruiterStaff.id})`);
+
       const staff = await tx.staff.upsert({
         where: { email: "recruiter@example.com" },
-        update: {},
+        update: {
+          passwordHash: defaultPasswordHash,
+          role: "RECRUITER",
+        },
         create: {
           email: "recruiter@example.com",
           name: "Rachel Brooks",
           role: "RECRUITER",
-          keycloakUserId: "mock-keycloak-recruiter-id",
+          passwordHash: defaultPasswordHash,
         },
       });
       console.log(`  ✔ Upserted Staff "Rachel Brooks" (id: ${staff.id})`);

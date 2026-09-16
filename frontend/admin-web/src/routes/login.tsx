@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { loginWithKeycloak, isAuthenticated } from "../lib/auth";
+import { login, isAuthenticated } from "../lib/auth";
 import {
   AlertCircle,
   Loader2,
@@ -45,10 +45,10 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      await loginWithKeycloak(email, pw);
+      await login(email, pw);
       navigate({ to: "/dashboard", replace: true });
     } catch (err: any) {
-      setError(err.message || "Failed to authenticate with Keycloak.");
+      setError(err.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }

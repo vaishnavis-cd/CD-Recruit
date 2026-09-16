@@ -137,7 +137,6 @@ export class PartnerCandidatesService {
           data: {
             email: "system.partner@cd-recruit.internal",
             name: "Partner API System Service",
-            keycloakUserId: "system-partner-service-account",
             role: "ADMIN" as any,
           },
         });

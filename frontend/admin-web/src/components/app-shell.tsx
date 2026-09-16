@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
-import { getUserProfile, clearStoredToken } from "../lib/auth";
+import { getUserProfile, clearStoredToken, logout } from "../lib/auth";
 
 import dashboardDefault from "../assets/Selected=Default.svg";
 import dashboardVariant2 from "../assets/Selected=Variant2.svg";
@@ -158,9 +158,9 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
     };
   }, []);
 
-  const handleLogout = () => {
-    clearStoredToken();
+  const handleLogout = async () => {
     setShowLogoutModal(false);
+    await logout();
     window.location.replace("/login");
   };
 

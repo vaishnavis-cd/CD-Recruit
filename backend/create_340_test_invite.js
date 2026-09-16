@@ -11,10 +11,9 @@ async function main() {
   if (!staff) {
     staff = await prisma.staff.create({
       data: {
-        email: 'admin@protora.com',
+        email: 'admin@cdrecruit.com',
         name: 'Assessment Admin',
         role: 'RECRUITER',
-        keycloakUserId: 'keycloak-admin-340',
       },
     });
   }
