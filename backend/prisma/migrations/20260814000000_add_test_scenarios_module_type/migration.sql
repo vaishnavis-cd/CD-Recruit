@@ -1,5 +1,5 @@
 -- AlterEnum
-ALTER TYPE "ModuleType" ADD VALUE 'TEST_SCENARIOS';
+ALTER TYPE "ModuleType" ADD VALUE IF NOT EXISTS 'TEST_SCENARIOS';
 
 -- AlterTable
 ALTER TABLE "question" ADD COLUMN IF NOT EXISTS "target_level" TEXT;
