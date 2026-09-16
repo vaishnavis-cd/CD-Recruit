@@ -8,6 +8,44 @@ version: "3.8"
 #   redis      — BullMQ job queues + session cache
 #   minio      — S3-compatible object storage (evidence clips, artefacts)
 
+services:
+  # ── Postgres ────────────────────────────────────────────────────────────────
+  # DO NOT MODIFY — Phase 1 config; seeded data lives here.
+  postgres:
+    image: postgres:16-alpine
+    container_name: cdrecruit_postgres_dev
+    environment:
+      POSTGRES_USER: cdrecruit
+      POSTGRES_PASSWORD: cdrecruit123
+      POSTGRES_DB: cdrecruit
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdrecruit -d cdrecruit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  # Used by BullMQ (job queues) and session-state caching.
+  redis:
+    image: redis:7-alpine
+    container_name: cdrecruit_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── MinIO ───────────────────────────────────────────────────────────────────
   # S3-compatible object storage for evidence clips and general artefacts.
   # Console: http://localhost:9001  (minioadmin / minioadmin)
