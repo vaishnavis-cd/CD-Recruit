@@ -34,8 +34,8 @@ async function runSettingsSubsystemTests() {
         return null;
       },
       findFirst: async ({ where }: any) => {
+        if (where?.id) return staffDb.find((s) => s.id === where.id) || null;
         if (where?.email) return staffDb.find((s) => s.email === where.email) || null;
-        if (where?.keycloakUserId) return staffDb.find((s) => s.keycloakUserId === where.keycloakUserId) || null;
         return staffDb[0] || null;
       },
       create: async ({ data }: any) => {
@@ -144,7 +144,7 @@ async function runSettingsSubsystemTests() {
     assert.strictEqual(newStaff.email, "jane@cdrecruit.com");
     assert.strictEqual(newStaff.role, StaffRole.RECRUITER);
     assert(auditLogsDb.some((l) => l.action === "STAFF_CREATED"));
-    pass("createStaff registers new staff member with Keycloak ID and audit record");
+    pass("createStaff registers new staff member with local credentials and audit record");
 
     // 2.2 Reject Duplicate Email
     let threwDuplicate = false;

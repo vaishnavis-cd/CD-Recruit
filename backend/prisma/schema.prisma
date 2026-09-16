@@ -435,13 +435,16 @@ model Score {
 }
 
 model Staff {
-  id              String    @id @default(uuid())
-  organizationId  String?   @map("organization_id")
-  email           String    @unique
-  name            String
-  role            StaffRole @default(RECRUITER)
-  keycloakUserId  String    @unique @map("keycloak_user_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(uuid())
+  organizationId   String?   @map("organization_id")
+  email            String    @unique
+  name             String
+  role             StaffRole @default(RECRUITER)
+  passwordHash          String?   @map("password_hash")
+  refreshTokenHash      String?   @map("refresh_token_hash")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
 
   organization      Organization?    @relation(fields: [organizationId], references: [id])
   reviewerDecisions ReviewerDecision[]

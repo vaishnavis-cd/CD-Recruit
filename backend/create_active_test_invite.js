@@ -14,7 +14,6 @@ async function main() {
         email: 'admin@protora.com',
         name: 'Assessment Admin',
         role: 'RECRUITER',
-        keycloakUserId: 'keycloak-admin-test',
       },
     });
   }

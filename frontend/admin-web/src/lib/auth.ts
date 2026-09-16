@@ -1,11 +1,22 @@
-export interface KeycloakTokenResponse {
-  access_token: string;
-  expires_in: number;
-  refresh_expires_in?: number;
-  refresh_token?: string;
-  token_type: string;
-  id_token?: string;
-  scope?: string;
+export interface StaffLoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+  staff?: {
+    id: string;
+    email: string;
+    name: string;
+    role: "ADMIN" | "HR_LEAD" | "HR_ASSOCIATE" | "REVIEWER" | "RECRUITER";
+    createdAt?: string;
+  };
+}
+
+export interface StaffRefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
 }
 
 export interface UserProfile {
@@ -16,90 +27,144 @@ export interface UserProfile {
   role: "ADMIN" | "HR_LEAD" | "HR_ASSOCIATE" | "REVIEWER" | "RECRUITER";
 }
 
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:8080";
-const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM || "cd-recruit";
-const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "cd-recruit-frontend";
+const API_BASE = typeof window !== "undefined" ? "/api/v1" : ((typeof process !== "undefined" && process.env?.VITE_API_BASE_URL) || "/api/v1");
 
-export async function loginWithKeycloak(email: string, pw: string): Promise<KeycloakTokenResponse> {
-  const tokenEndpoint = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
+/**
+ * Local Staff Login: Authenticates with backend /auth/login, storing access and refresh tokens.
+ */
+export async function login(email: string, pw: string): Promise<StaffLoginResponse> {
+  const candidateUrls = [
+    `${API_BASE}/auth/login`,
+    "http://127.0.0.1:3001/api/v1/auth/login",
+    "http://localhost:3001/api/v1/auth/login",
+  ];
 
-  try {
-    const body = new URLSearchParams();
-    body.append("grant_type", "password");
-    body.append("client_id", KEYCLOAK_CLIENT_ID);
-    body.append("username", email);
-    body.append("password", pw);
+  let lastError: Error | null = null;
 
-    const res = await fetch(tokenEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: body.toString(),
-    });
+  for (const url of candidateUrls) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: pw,
+        }),
+      });
 
-    if (res.ok) {
-      const data: KeycloakTokenResponse = await res.json();
-      if (data.access_token) {
-        localStorage.setItem("admin_token", data.access_token);
-        if (data.refresh_token) {
-          localStorage.setItem("admin_refresh_token", data.refresh_token);
+      if (res.ok) {
+        const data: StaffLoginResponse = await res.json();
+        if (data.accessToken) {
+          localStorage.setItem("admin_token", data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem("admin_refresh_token", data.refreshToken);
+          }
+          window.dispatchEvent(new Event("admin_profile_updated"));
         }
+        return data;
       }
-      return data;
+
+      if (res.status === 401 || res.status === 400) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Invalid email or password.");
+      }
+    } catch (err: any) {
+      if (err.message && (err.message.includes("Invalid email") || err.message.includes("credentials"))) {
+        throw err;
+      }
+      lastError = err;
     }
-  } catch (keycloakErr) {
-    // Keycloak unreachable (e.g. INFRA_MODE=local). Fall through to dev-token endpoint below.
   }
 
-  // Fallback: request JWT token from NestJS backend dev endpoint
-  const candidateUrls = ["/api/v1", "http://127.0.0.1:3001/api/v1", "http://localhost:3001/api/v1"];
-  for (const base of candidateUrls) {
+  throw lastError || new Error("Authentication failed: Unable to reach backend server.");
+}
+
+/**
+ * Rotates the staff refresh token and updates stored credentials in localStorage.
+ */
+export async function refreshTokens(): Promise<string | null> {
+  if (typeof localStorage === "undefined") return null;
+  const refreshToken = localStorage.getItem("admin_refresh_token");
+  if (!refreshToken) return null;
+
+  const candidateUrls = [
+    `${API_BASE}/auth/refresh`,
+    "http://127.0.0.1:3001/api/v1/auth/refresh",
+    "http://localhost:3001/api/v1/auth/refresh",
+  ];
+
+  for (const url of candidateUrls) {
     try {
-      const role = email.toLowerCase().includes("recruiter") ? "RECRUITER" : "ADMIN";
-      const devRes = await fetch(`${base}/auth/dev-token?role=${role}`);
-      if (devRes.ok) {
-        const devData = await devRes.json();
-        if (devData.token) {
-          localStorage.setItem("admin_token", devData.token);
-          return {
-            access_token: devData.token,
-            expires_in: 86400,
-            token_type: "Bearer",
-          };
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (res.ok) {
+        const data: StaffRefreshResponse = await res.json();
+        if (data.accessToken) {
+          localStorage.setItem("admin_token", data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem("admin_refresh_token", data.refreshToken);
+          }
+          window.dispatchEvent(new Event("admin_profile_updated"));
+          return data.accessToken;
         }
       }
-    } catch (apiErr) {
+    } catch {
       // Try next endpoint
     }
   }
 
-  throw new Error("Authentication failed: Backend API (port 3001) is unreachable. Please ensure the backend is running.");
+  clearStoredToken();
+  return null;
 }
 
-
+/**
+ * Local Staff Logout: Invalidates the refresh token on the backend and clears local storage.
+ */
+export async function logout(): Promise<void> {
+  if (typeof localStorage !== "undefined") {
+    const refreshToken = localStorage.getItem("admin_refresh_token");
+    if (refreshToken) {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch {
+        // Proceed with local cleanup regardless of network status
+      }
+    }
+    clearStoredToken();
+  }
+}
 
 export function getStoredToken(): string | null {
   if (typeof localStorage === "undefined") return null;
   const token = localStorage.getItem("admin_token");
   if (!token) return null;
-  const payload = parseJwtPayload(token);
-  if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
-    console.warn("[Auth] Stored admin_token has expired. Clearing token.");
-    clearStoredToken();
-    return null;
-  }
   return token;
 }
 
-function setStoredToken(token: string) {
-  localStorage.setItem("admin_token", token);
+export function getStoredRefreshToken(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem("admin_refresh_token");
 }
 
 export function clearStoredToken(): void {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_refresh_token");
+    window.dispatchEvent(new Event("admin_profile_updated"));
   }
 }
 
@@ -115,7 +180,7 @@ export function parseJwtPayload(token: string): any {
         .join("")
     );
     return JSON.parse(jsonPayload);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -126,15 +191,24 @@ export function getUserProfile(): UserProfile | null {
   const payload = parseJwtPayload(token);
   if (!payload) return null;
 
-  const roles: string[] = payload.realm_access?.roles || (payload.role ? [payload.role] : []);
-  const isAdmin = roles.some((r) => r.toLowerCase() === "admin");
+  let role: UserProfile["role"] = "RECRUITER";
+  if (payload.role) {
+    role = payload.role;
+  } else if (payload.realm_access?.roles) {
+    const roles: string[] = payload.realm_access.roles.map((r: string) => r.toUpperCase());
+    if (roles.includes("ADMIN")) role = "ADMIN";
+    else if (roles.includes("HR_LEAD")) role = "HR_LEAD";
+    else if (roles.includes("HR_ASSOCIATE")) role = "HR_ASSOCIATE";
+    else if (roles.includes("REVIEWER")) role = "REVIEWER";
+    else if (roles.includes("RECRUITER")) role = "RECRUITER";
+  }
 
   return {
     sub: payload.sub || "",
     email: payload.email || payload.preferred_username || "",
-    name: payload.name || payload.given_name || payload.preferred_username || (payload.email ? payload.email.split("@")[0] : "Demo Admin"),
+    name: payload.name || payload.given_name || payload.preferred_username || (payload.email ? payload.email.split("@")[0] : "Staff Member"),
     username: payload.preferred_username || payload.email || "",
-    role: isAdmin ? "ADMIN" : "RECRUITER",
+    role,
   };
 }
 
@@ -143,5 +217,9 @@ export function isAuthenticated(): boolean {
   if (!token) return false;
   const payload = parseJwtPayload(token);
   if (!payload || !payload.exp) return false;
-  return payload.exp * 1000 > Date.now();
+  // If access token is still valid, return true
+  if (payload.exp * 1000 > Date.now()) return true;
+  // If access token expired but refresh token exists, consider authenticated (will refresh on request)
+  const refreshToken = getStoredRefreshToken();
+  return !!refreshToken;
 }

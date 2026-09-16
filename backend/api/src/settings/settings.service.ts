@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { ListAuditLogQueryDto, UpdateRolePermissionDto } from "../common/dto/settings.dto";
 import { Department, ModuleType } from "@prisma/client";
+import { hashPassword } from "../common/utils/password.util";
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 
 export interface PermissionDescriptor {
   key: Permission;
@@ -190,35 +192,16 @@ export const DEFAULT_MODULE_DURATIONS: Record<string, number> = {
   TEST_SCENARIOS: 15,
 };
 
-import { KeycloakAdminService } from "../auth/keycloak-admin.service";
-
 @Injectable()
-export class SettingsService implements OnModuleInit {
+export class SettingsService {
   private readonly configPath: string;
   private readonly logger = new Logger(SettingsService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() private readonly keycloakAdmin?: KeycloakAdminService,
   ) {
     this.configPath = path.join(__dirname, "../config/settings.json");
     this.ensureConfigExists();
-  }
-
-  async onModuleInit() {
-    this.reconcileKeycloakStaff().catch((err) => {
-      this.logger.debug(`Background Keycloak reconciliation skipped: ${err.message}`);
-    });
-  }
-
-  private async reconcileKeycloakStaff() {
-    if (!this.keycloakAdmin) return;
-    const staff = await this.prisma.staff.findMany({
-      select: { id: true, name: true, email: true, role: true, keycloakUserId: true },
-    });
-    if (staff.length > 0) {
-      await this.keycloakAdmin.syncAllStaff(staff);
-    }
   }
 
   private ensureConfigExists() {
@@ -318,7 +301,7 @@ export class SettingsService implements OnModuleInit {
         if (s) return s.id;
       }
       if (actor.sub) {
-        const s = await this.prisma.staff.findFirst({ where: { keycloakUserId: actor.sub } });
+        const s = await this.prisma.staff.findUnique({ where: { id: actor.sub } });
         if (s) return s.id;
       }
     }
@@ -329,7 +312,6 @@ export class SettingsService implements OnModuleInit {
           name: "System Admin",
           email: "admin@cdrecruit.com",
           role: "ADMIN",
-          keycloakUserId: "system-admin-default",
         },
       });
     }
@@ -366,34 +348,15 @@ export class SettingsService implements OnModuleInit {
       throw new BadRequestException("Staff member with this email already exists");
     }
 
-    let keycloakUserId = `keycloak_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    let keycloakSynced = false;
-
-    if (this.keycloakAdmin) {
-      try {
-        const kcResult = await this.keycloakAdmin.createUser({
-          email: dto.email,
-          name: dto.name,
-          role: dto.role,
-          tempPassword: dto.tempPassword || "Password@123",
-          temporary: dto.temporary !== undefined ? dto.temporary : true,
-          requirePasswordChange: dto.requirePasswordChange !== undefined ? dto.requirePasswordChange : true,
-        });
-        if (kcResult.keycloakUserId) {
-          keycloakUserId = kcResult.keycloakUserId;
-        }
-        keycloakSynced = kcResult.synced;
-      } catch (err: any) {
-        this.logger.warn(`Failed to sync staff creation with Keycloak: ${err.message}`);
-      }
-    }
+    const effectivePassword = dto.tempPassword || `Temp@${crypto.randomBytes(6).toString("hex")}!`;
+    const passwordHash = await hashPassword(effectivePassword);
 
     const staff = await this.prisma.staff.create({
       data: {
         name: dto.name,
         email: dto.email,
         role: dto.role as any,
-        keycloakUserId,
+        passwordHash,
       },
     });
 
@@ -407,17 +370,13 @@ export class SettingsService implements OnModuleInit {
           name: dto.name,
           email: dto.email,
           role: dto.role,
-          keycloakSynced,
-          keycloakUserId,
           tempPasswordAssigned: !!dto.tempPassword,
         },
       },
     });
 
-    return {
-      ...staff,
-      keycloakSynced,
-    };
+    const { passwordHash: _ph, refreshTokenHash: _rth, refreshTokenExpiresAt: _rtea, ...sanitizedStaff } = staff as any;
+    return sanitizedStaff;
   }
 
   async resetStaffPassword(
@@ -431,33 +390,19 @@ export class SettingsService implements OnModuleInit {
       throw new NotFoundException(`Staff not found with ID ${staffId}`);
     }
 
-    const targetPassword = dto.newPassword || `Temp@${Math.random().toString(36).slice(2, 8).toUpperCase()}!`;
+    const targetPassword = dto.newPassword || `Temp@${crypto.randomBytes(6).toString("hex")}!`;
     const isTemporary = dto.temporary !== false;
-    let resetSuccess = false;
+    const passwordHash = await hashPassword(targetPassword);
 
-    if (this.keycloakAdmin && staff.keycloakUserId && !staff.keycloakUserId.startsWith("keycloak_")) {
-      resetSuccess = await this.keycloakAdmin.resetPassword(
-        staff.keycloakUserId,
-        targetPassword,
-        isTemporary,
-      );
-    } else if (this.keycloakAdmin) {
-      // Try to find / create user in Keycloak if not yet synced
-      const kcUser = await this.keycloakAdmin.createUser({
-        email: staff.email,
-        name: staff.name,
-        role: staff.role,
-        tempPassword: targetPassword,
-        temporary: isTemporary,
-      });
-      if (kcUser.keycloakUserId) {
-        await this.prisma.staff.update({
-          where: { id: staffId },
-          data: { keycloakUserId: kcUser.keycloakUserId },
-        });
-        resetSuccess = true;
-      }
-    }
+    // Update passwordHash in PostgreSQL and invalidate any existing refresh tokens
+    await (this.prisma.staff as any).update({
+      where: { id: staffId },
+      data: {
+        passwordHash,
+        refreshTokenHash: null,
+        refreshTokenExpiresAt: null,
+      },
+    });
 
     await this.prisma.auditLog.create({
       data: {
@@ -468,19 +413,14 @@ export class SettingsService implements OnModuleInit {
         metadata: {
           staffEmail: staff.email,
           temporary: isTemporary,
-          keycloakSynced: resetSuccess,
         },
       },
     });
 
     return {
       success: true,
-      newPassword: targetPassword,
       temporary: isTemporary,
-      keycloakSynced: resetSuccess,
-      message: resetSuccess
-        ? "Password successfully reset in Keycloak."
-        : "Password reset generated (Keycloak offline or unlinked).",
+      message: "Password successfully reset in PostgreSQL.",
     };
   }
 
@@ -489,14 +429,6 @@ export class SettingsService implements OnModuleInit {
     const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
     if (!staff) {
       throw new NotFoundException(`Staff not found with ID ${staffId}`);
-    }
-
-    if (this.keycloakAdmin && staff.keycloakUserId && !staff.keycloakUserId.startsWith("keycloak_")) {
-      try {
-        await this.keycloakAdmin.deleteUser(staff.keycloakUserId);
-      } catch (err: any) {
-        this.logger.warn(`Failed to remove user from Keycloak: ${err.message}`);
-      }
     }
 
     await this.prisma.staff.delete({ where: { id: staffId } });
@@ -539,7 +471,8 @@ export class SettingsService implements OnModuleInit {
       },
     });
 
-    return updated;
+    const { passwordHash: _ph, refreshTokenHash: _rth, refreshTokenExpiresAt: _rtea, ...sanitized } = updated as any;
+    return sanitized;
   }
 
   async getScoringConfig() {

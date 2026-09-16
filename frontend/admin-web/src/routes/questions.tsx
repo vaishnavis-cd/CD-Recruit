@@ -1372,14 +1372,14 @@ function QuestionBankPage() {
           return (
             <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between shadow-2xs">
               <div className="flex items-center gap-2.5 text-blue-900 text-xs font-medium">
-                <Sparkles size={16} className="text-[#2563EB]" />
+                <Sparkles size={16} className="text-blue-600" />
                 <span>You are currently managing questions for an active Drive.</span>
               </div>
               <Link
                 to="/drives/$id"
                 params={{ id: driveId }}
                 search={{ tab: "questions" } as any}
-                className="px-4 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-full shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft size={14} />
                 <span>Return to Drive Questions</span>
@@ -1397,14 +1397,14 @@ function QuestionBankPage() {
                   setSelectedFolder(null);
                   setFolderQuery("");
                 }}
-                className="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-[#2563EB] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors cursor-pointer"
                 title="Back to Repositories"
               >
                 <ArrowLeft size={16} strokeWidth={2.5} />
               </button>
             )}
-            <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Question Bank</h1>
-            <span className="w-5 h-5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-2xs inline-flex items-center justify-center border border-blue-100 shadow-2xs">
+            <h1 className="text-3xl font-bold tracking-tight text-ink">Question Bank</h1>
+            <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 font-bold text-2xs inline-flex items-center justify-center border border-blue-100 shadow-2xs">
               {questions.length}
             </span>
           </div>
@@ -1421,7 +1421,7 @@ function QuestionBankPage() {
                 placeholder="Search questions or tags..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-9 pr-7 py-2 text-xs border border-[#E2E8F0] rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-[#2563EB] shadow-2xs"
+                className="w-full pl-9 pr-7 py-2 text-xs border border-slate-200 rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-600 shadow-2xs"
               />
               {query && (
                 <button
@@ -1438,7 +1438,7 @@ function QuestionBankPage() {
               <select
                 value={modFilter}
                 onChange={(e) => setModFilter(e.target.value)}
-                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer"
+                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-slate-200 rounded-full bg-white text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs cursor-pointer"
               >
                 <option value="all">All Modules</option>
                 <option value="MCQ">MCQ</option>
@@ -1458,7 +1458,7 @@ function QuestionBankPage() {
               <select
                 value={diffFilter}
                 onChange={(e) => setDiffFilter(e.target.value)}
-                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer"
+                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-slate-200 rounded-full bg-white text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs cursor-pointer"
               >
                 <option value="all">All Difficulties</option>
                 <option value="easy">Easy</option>
@@ -1473,7 +1473,7 @@ function QuestionBankPage() {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-[#E2E8F0] rounded-full bg-white text-slate-500 focus:outline-none focus:border-[#2563EB] shadow-2xs cursor-pointer"
+                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-slate-200 rounded-full bg-white text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs cursor-pointer"
               >
                 <option value="all">All Roles</option>
                 <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
@@ -1492,22 +1492,22 @@ function QuestionBankPage() {
             {/* Add Question Button */}
             <div className="relative group ml-1">
               <button
-                className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/25 transition-all"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-full flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/25 transition-all"
               >
                 <Plus size={15} strokeWidth={2.5} />
                 <span>Add Question</span>
               </button>
               <div className="absolute right-0 top-full w-48 pt-1.5 z-50 hidden group-hover:block hover:block">
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-xl py-2 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-xl py-2 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-[#2563EB] font-medium transition-colors cursor-pointer"
+                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-blue-600 font-medium transition-colors cursor-pointer"
                   >
                     Create Manually
                   </button>
                   <button
                     onClick={() => setShowImportModal(true)}
-                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-[#2563EB] font-medium transition-colors cursor-pointer"
+                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-blue-600 font-medium transition-colors cursor-pointer"
                   >
                     Bulk Import CSV
                   </button>
@@ -1522,19 +1522,19 @@ function QuestionBankPage() {
           /* Search results list */
           <div className="space-y-4 pt-2">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-sm font-semibold text-[#0F172A]">
+              <h3 className="text-sm font-semibold text-slate-900">
                 Search Results for "{query}" ({questions.length})
               </h3>
               <button
                 onClick={() => setQuery("")}
-                className="text-xs text-[#2563EB] hover:underline cursor-pointer font-medium"
+                className="text-xs text-blue-600 hover:underline cursor-pointer font-medium"
               >
                 Clear search
               </button>
             </div>
             <div className="space-y-3">
               {questions.length === 0 ? (
-                <div className="text-center py-12 bg-white border border-[#E2E8F0] rounded-2xl p-8 space-y-3 shadow-2xs">
+                <div className="text-center py-12 bg-white border border-slate-200 rounded-2xl p-8 space-y-3 shadow-2xs">
                   <p className="text-xs text-slate-400 font-mono">
                     No questions found matching "<strong className="text-slate-700">{query}</strong>".
                   </p>
@@ -1549,7 +1549,7 @@ function QuestionBankPage() {
                 questions.map((q) => (
                   <div
                     key={q.id}
-                    className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex items-start justify-between gap-4"
+                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex items-start justify-between gap-4"
                   >
                     <div className="space-y-2 flex-1 min-w-0 pr-4">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1571,7 +1571,7 @@ function QuestionBankPage() {
                           Role: {q.role || "General"}
                         </span>
                       </div>
-                      <h4 className="font-bold text-sm text-[#0F172A] leading-relaxed line-clamp-2">
+                      <h4 className="font-bold text-sm text-slate-900 leading-relaxed line-clamp-2">
                         {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                       </h4>
                       {q.tags && q.tags.length > 0 && (() => {
@@ -1588,7 +1588,7 @@ function QuestionBankPage() {
                               </span>
                             ))}
                             {hiddenDriveCount > 0 && (
-                              <span className="text-2xs text-[#2563EB] bg-blue-50 px-2.5 py-0.5 rounded-full font-semibold">
+                              <span className="text-2xs text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full font-semibold">
                                 +{hiddenDriveCount} more drives
                               </span>
                             )}
@@ -1598,11 +1598,11 @@ function QuestionBankPage() {
                     </div>
                     <div className="flex items-center gap-6 shrink-0 pt-1">
                       <div className="text-center font-mono">
-                        <div className="text-sm font-bold text-[#0F172A]">{q.usageCount}</div>
+                        <div className="text-sm font-bold text-slate-900">{q.usageCount}</div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DRIVES</div>
                       </div>
                       <div className="text-center font-mono">
-                        <div className="text-sm font-bold text-[#0F172A]">
+                        <div className="text-sm font-bold text-slate-900">
                           {q.avgScore !== null ? `${q.avgScore}%` : "-"}
                         </div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AVG SCORE</div>
@@ -1610,7 +1610,7 @@ function QuestionBankPage() {
                       <div className="flex items-center gap-1 ml-2">
                         <button
                           onClick={() => handleOpenEdit(q)}
-                          className="p-2 text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="Preview & Edit"
                         >
                           <Edit3 size={15} />
@@ -1656,13 +1656,13 @@ function QuestionBankPage() {
                         setSelectedFolder(null);
                         setFolderQuery("");
                       }}
-                      className="flex items-center gap-1 text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline cursor-pointer"
                     >
                       <ArrowLeft size={13} /> Back to Repositories
                     </button>
                     <span className="text-slate-300">/</span>
-                    <span className="text-sm font-bold text-[#0F172A] capitalize flex items-center gap-1.5">
-                      <Folder size={15} className="text-[#2563EB]" fill="#2563EB" />
+                    <span className="text-sm font-bold text-slate-900 capitalize flex items-center gap-1.5">
+                      <Folder size={15} className="text-blue-600 fill-blue-600" />
                       {displayTitle} ({allFolderQuestions.length})
                     </span>
                   </div>
@@ -1672,7 +1672,7 @@ function QuestionBankPage() {
                       value={folderQuery}
                       onChange={(e) => setFolderQuery(e.target.value)}
                       placeholder="Filter in this folder..."
-                      className="w-full pl-9 pr-8 py-2 text-xs border border-[#E2E8F0] rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-[#2563EB] shadow-2xs"
+                      className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-full bg-white text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-blue-600 shadow-2xs"
                     />
                     {folderQuery && (
                       <button
@@ -1687,13 +1687,13 @@ function QuestionBankPage() {
                 </div>
                 <div className="space-y-3">
                   {currentList.length === 0 ? (
-                    <div className="text-center py-12 bg-white border border-[#E2E8F0] rounded-2xl p-8 space-y-2 shadow-2xs">
+                    <div className="text-center py-12 bg-white border border-slate-200 rounded-2xl p-8 space-y-2 shadow-2xs">
                       <p className="text-xs text-slate-400 font-mono">
                         No questions in this folder match "{folderQuery}".
                       </p>
                       <button
                         onClick={() => setFolderQuery("")}
-                        className="text-xs text-[#2563EB] hover:underline cursor-pointer font-medium"
+                        className="text-xs text-blue-600 hover:underline cursor-pointer font-medium"
                       >
                         Clear Filter
                       </button>
@@ -1702,7 +1702,7 @@ function QuestionBankPage() {
                     currentList.map((q) => (
                       <div
                         key={q.id}
-                        className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex items-start justify-between gap-4"
+                        className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex items-start justify-between gap-4"
                       >
                         <div className="space-y-2 flex-1 min-w-0 pr-4">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1724,7 +1724,7 @@ function QuestionBankPage() {
                               Role: {q.role || "General"}
                             </span>
                           </div>
-                          <h4 className="font-bold text-sm text-[#0F172A] leading-relaxed line-clamp-2 pt-0.5">
+                          <h4 className="font-bold text-sm text-slate-900 leading-relaxed line-clamp-2 pt-0.5">
                             {q.content?.prompt || q.content?.title || "Simulation Scenario"}
                           </h4>
                           {q.tags && q.tags.length > 0 && (() => {
@@ -1741,7 +1741,7 @@ function QuestionBankPage() {
                                   </span>
                                 ))}
                                 {hiddenDriveCount > 0 && (
-                                  <span className="text-2xs text-[#2563EB] bg-blue-50 px-2.5 py-0.5 rounded-full font-semibold">
+                                  <span className="text-2xs text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full font-semibold">
                                     +{hiddenDriveCount} more drives
                                   </span>
                                 )}
@@ -1751,11 +1751,11 @@ function QuestionBankPage() {
                         </div>
                         <div className="flex items-center gap-6 shrink-0 pt-1">
                           <div className="text-center font-mono">
-                            <div className="text-sm font-bold text-[#0F172A]">{q.usageCount}</div>
+                            <div className="text-sm font-bold text-slate-900">{q.usageCount}</div>
                             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DRIVES</div>
                           </div>
                           <div className="text-center font-mono">
-                            <div className="text-sm font-bold text-[#0F172A]">
+                            <div className="text-sm font-bold text-slate-900">
                               {q.avgScore !== null ? `${q.avgScore}%` : "-"}
                             </div>
                             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AVG SCORE</div>
@@ -1763,7 +1763,7 @@ function QuestionBankPage() {
                           <div className="flex items-center gap-1 ml-2">
                             <button
                               onClick={() => handleOpenEdit(q)}
-                              className="p-2 text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                               title="Preview & Edit"
                             >
                               <Edit3 size={15} />
@@ -1790,7 +1790,7 @@ function QuestionBankPage() {
             {/* Header Bar */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-base font-bold text-[#0F172A]">Question Repositories</h3>
+                <h3 className="text-base font-bold text-slate-900">Question Repositories</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Browse questions organized by module format, seniority level, topic domains, and drive batches.
                 </p>
@@ -1808,12 +1808,12 @@ function QuestionBankPage() {
                   <div
                     key={item.tag}
                     onClick={() => setSelectedFolder(item.tag)}
-                    className={`bg-white border rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all relative flex flex-col justify-between min-h-[120px] group cursor-pointer ${isSelected ? "border-2 border-[#2563EB] shadow-md" : "border-[#E2E8F0] hover:border-slate-300"
+                    className={`bg-white border rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all relative flex flex-col justify-between min-h-[120px] group cursor-pointer ${isSelected ? "border-2 border-blue-600 shadow-md" : "border-slate-200 hover:border-slate-300"
                       }`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
-                        <Folder size={20} fill="#2563EB" className="text-[#2563EB]" />
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <Folder size={20} className="text-blue-600 fill-blue-600" />
                       </div>
                       <button
                         onClick={(e) => {
@@ -1828,7 +1828,7 @@ function QuestionBankPage() {
                     </div>
 
                     <div className="pt-3">
-                      <h5 className="font-bold text-sm text-[#0F172A] capitalize group-hover:text-[#2563EB] transition-colors">
+                    <h5 className="font-bold text-sm text-slate-900 capitalize group-hover:text-blue-600 transition-colors">
                         {item.title}
                       </h5>
                       <div className="flex items-center justify-between mt-0.5">
@@ -1836,7 +1836,7 @@ function QuestionBankPage() {
                           {item.questions.length} questions
                         </p>
                         {isSelected && (
-                          <span className="text-[#2563EB] font-semibold text-xs flex items-center gap-0.5">
+                          <span className="text-blue-600 font-semibold text-xs flex items-center gap-0.5">
                             Open <ChevronRight size={13} />
                           </span>
                         )}
@@ -1852,8 +1852,8 @@ function QuestionBankPage() {
               {/* Drive Repositories */}
               {categorizedTagGroups.drive.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
-                    <Folder size={15} className="text-[#2563EB]" fill="#2563EB" />
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Folder size={15} className="text-blue-600 fill-blue-600" />
                     <span>Drive Repositories</span>
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -1861,17 +1861,17 @@ function QuestionBankPage() {
                       <div
                         key={item.tag}
                         onClick={() => setSelectedFolder(item.tag)}
-                        className="bg-white border border-[#E2E8F0] hover:border-[#2563EB] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+                        className="bg-white border border-slate-200 hover:border-blue-600 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
                       >
                         <div>
-                          <h5 className="font-bold text-sm text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                          <h5 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">
                             {item.title}
                           </h5>
                           <p className="text-xs text-slate-400 font-normal mt-0.5">
                             {item.questions.length} questions
                           </p>
                         </div>
-                        <ChevronRight size={16} className="text-slate-300 group-hover:text-[#2563EB] transition-colors" />
+                        <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
                       </div>
                     ))}
                   </div>
@@ -1880,23 +1880,23 @@ function QuestionBankPage() {
 
               {/* Experience Levels */}
               <div className="space-y-3">
-                <h4 className="text-sm font-bold text-[#0F172A]">Experience Levels</h4>
+                <h4 className="text-sm font-bold text-slate-900">Experience Levels</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {categorizedTagGroups.level.map((item) => (
                     <div
                       key={item.tag}
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+                      className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
                     >
                       <div>
-                        <h5 className="font-bold text-sm text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                        <h5 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">
                           {item.title}
                         </h5>
                         <p className="text-xs text-slate-400 font-normal mt-0.5">
                           {item.questions.length} questions
                         </p>
                       </div>
-                      <ChevronRight size={16} className="text-slate-300 group-hover:text-[#2563EB] transition-colors" />
+                      <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
                     </div>
                   ))}
                 </div>
@@ -1904,14 +1904,14 @@ function QuestionBankPage() {
 
               {/* Topics */}
               <div className="space-y-3">
-                <h4 className="text-sm font-bold text-[#0F172A]">Topics Taxonomy</h4>
-                <div className="flex flex-wrap gap-2 p-5 bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs">
+                <h4 className="text-sm font-bold text-slate-900">Topics Taxonomy</h4>
+                <div className="flex flex-wrap gap-2 p-5 bg-white border border-slate-200 rounded-2xl shadow-2xs">
                   {categorizedTagGroups.topic.slice(0, 24).map((item) => (
                     <button
                       key={item.tag}
                       type="button"
                       onClick={() => setSelectedFolder(item.tag)}
-                      className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-50 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-200 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition-all cursor-pointer"
+                      className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 border border-slate-200 rounded-full text-xs font-medium text-slate-700 transition-all cursor-pointer"
                     >
                       <span>{item.title}</span>
                       <span className="px-2 py-0.2 text-2xs font-mono font-bold rounded-full bg-slate-200 text-slate-600">
@@ -1928,7 +1928,7 @@ function QuestionBankPage() {
 
       {/* Creation Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="modal-overlay-backdrop">
           <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <h2 className="text-md font-semibold text-ink">
@@ -2515,7 +2515,7 @@ function QuestionBankPage() {
 
       {/* Bulk Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="modal-overlay-backdrop">
           <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
             <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <h2 className="text-md font-semibold text-ink">
@@ -2539,10 +2539,10 @@ function QuestionBankPage() {
                 if (!driveName) return null;
                 return (
                   <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center gap-2.5 text-xs text-blue-950">
-                    <Folder size={18} className="text-[#2563EB] shrink-0" fill="#2563EB" />
+                    <Folder size={18} className="text-blue-600 fill-blue-600 shrink-0" />
                     <div>
                       <span className="font-bold">Target Repository Folder:</span>{" "}
-                      <strong className="text-[#2563EB] font-bold">{driveName}</strong>
+                      <strong className="text-blue-600 font-bold">{driveName}</strong>
                       <p className="text-[11px] text-blue-800 mt-0.5">
                         Imported questions will be organized into this folder and linked directly to Drive assessment #{fromDriveId ? fromDriveId.slice(0, 8) : ""}.
                       </p>
@@ -2620,7 +2620,7 @@ function QuestionBankPage() {
 
       {/* Preview & Edit Modal */}
       {editingQuestion && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="modal-overlay-backdrop">
           <div className="bg-white rounded-xl w-full max-w-[580px] shadow-2xl flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <h2 className="text-md font-semibold text-ink">
@@ -3152,7 +3152,7 @@ function QuestionBankPage() {
 
       {/* Archive Question Confirmation Modal */}
       {confirmArchiveQuestion && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="modal-overlay-backdrop">
           <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
             <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
@@ -3188,7 +3188,7 @@ function QuestionBankPage() {
 
       {/* Delete Folder Confirmation Modal */}
       {confirmDeleteFolder && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="modal-overlay-backdrop">
           <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
             <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">

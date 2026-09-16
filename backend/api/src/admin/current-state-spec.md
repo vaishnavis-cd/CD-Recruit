@@ -30,7 +30,7 @@ While the folder name `admin` implies generic administrative user and system con
   * `BulkVerifyIdentityDto`: `candidateIds: string[]` (accepts both Session UUIDs and Candidate UUIDs).
   * Multipart Form Data: Image file buffer uploaded via `FileInterceptor("file")` for ID proofs.
 * **Security & Auth Context:**
-  * `@CurrentUser() staff`: Authenticated staff account (`id`, `name`, `role`, `keycloakUserId`).
+  * `@CurrentUser() staff`: Authenticated staff account (`id`, `name`, `email`, `role`).
   * Guard chain: `JwtAuthGuard` &rarr; `RolesGuard` (`ADMIN`, `HR_LEAD`, `HR_ASSOCIATE`, `REVIEWER`, `RECRUITER`) &rarr; `PermissionsGuard` (`DECISION_SUBMIT`, `IDENTITY_VERIFICATION_APPROVE`).
 * **Environment Variables & Configuration:**
   * `INVITE_TOKEN_TTL_HOURS` (Default: `48`).
