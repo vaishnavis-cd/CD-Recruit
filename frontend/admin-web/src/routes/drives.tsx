@@ -831,79 +831,23 @@ function DrivesPage() {
 
   return (
     <AppShell hideHeader={true}>
-      <div
-        className="w-full max-w-[1269px] min-h-[944px] flex flex-col mx-auto opacity-100 rotate-0 transition-opacity"
-        style={{
-          maxWidth: "1269px",
-          minHeight: "944px",
-          opacity: 1,
-          transform: "rotate(0deg)",
-        }}
-      >
+      <div className="w-full max-w-[1269px] min-h-[944px] flex flex-col mx-auto transition-opacity">
         {/* TopBar (1269x49) */}
-        <div
-          className="w-full max-w-[1269px] h-[49px] flex items-center justify-between opacity-100 rotate-0 shrink-0"
-          style={{
-            height: "49px",
-            justifyContent: "space-between",
-            transform: "rotate(0deg)",
-            opacity: 1,
-          }}
-        >
+        <div className="w-full max-w-[1269px] h-[49px] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-[#0d1424]">Drives</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-ink">Drives</h1>
           </div>
 
           {/* Right Action Container: Search bar + Create Drive Button */}
-          <div
-            className="w-[430px] h-[36px] gap-[16px] flex items-center shrink-0 opacity-100 rotate-0"
-            style={{
-              width: "430px",
-              height: "36px",
-              gap: "16px",
-              transform: "rotate(0deg)",
-              opacity: 1,
-            }}
-          >
+          <div className="w-[430px] h-[36px] gap-4 flex items-center shrink-0">
             {/* Search Container */}
-            <div
-              className="w-[280px] h-[36px] pt-[10px] pb-[10px] px-[16px] gap-[8px] rounded-[99px] flex items-center shrink-0 opacity-100 rotate-0 shadow-xs"
-              style={{
-                width: "280px",
-                height: "36px",
-                paddingTop: "10px",
-                paddingBottom: "10px",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-                gap: "8px",
-                borderRadius: "99px",
-                border: "1px solid #D5DAEC",
-                background: "#FFFFFF",
-                transform: "rotate(0deg)",
-                opacity: 1,
-              }}
-            >
-              <Search
-                size={14}
-                className="w-[14px] h-[14px] text-[#94a3b8] shrink-0 opacity-100 rotate-0"
-                style={{
-                  width: "14px",
-                  height: "14px",
-                  transform: "rotate(0deg)",
-                  opacity: 1,
-                }}
-              />
+            <div className="w-[280px] h-[36px] px-4 gap-2 rounded-full border border-line bg-white flex items-center shrink-0 shadow-xs">
+              <Search size={14} className="w-[14px] h-[14px] text-ink-muted shrink-0" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search drives by name..."
-                className="w-[226px] h-[16px] text-xs bg-transparent border-none text-[#0d1424] placeholder:text-[#94a3b8] focus:outline-none p-0 leading-none opacity-100 rotate-0"
-                style={{
-                  width: "226px",
-                  height: "16px",
-                  transform: "rotate(0deg)",
-                  opacity: 1,
-                }}
+                className="w-full text-xs bg-transparent border-none text-ink placeholder:text-ink-muted focus:outline-none p-0 leading-none"
               />
             </div>
 
@@ -913,22 +857,7 @@ function DrivesPage() {
                 resetWizard();
                 setShowWizard(true);
               }}
-              className="w-[134px] h-[34px] pt-[9px] pb-[9px] px-[18px] gap-[7px] text-white text-xs font-semibold rounded-[24px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-none"
-              style={{
-                width: "134px",
-                height: "34px",
-                paddingTop: "9px",
-                paddingBottom: "9px",
-                paddingLeft: "18px",
-                paddingRight: "18px",
-                gap: "7px",
-                borderRadius: "24px",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                background: "linear-gradient(135deg, #3A91ED 0%, #2E5DE0 100%)",
-                boxShadow: "0px 4px 14px 0px #2E5DE0BF",
-                animationDuration: "0ms",
-              }}
+              className="btn-gradient-primary w-[134px] !h-[34px] !rounded-[24px] !gap-[7px] shrink-0 shadow-brand-glow"
             >
               <Plus size={14} className="shrink-0" />
               <span>Create Drive</span>
@@ -936,256 +865,42 @@ function DrivesPage() {
           </div>
         </div>
 
-        {/* Filters-Row (1269x65, border-bottom 1px solid #2E5DE01A) */}
-        <div
-          className="w-full max-w-[1269px] h-[65px] pt-[16px] pb-[16px] flex items-center justify-between opacity-100 rotate-0 shrink-0 relative z-30"
-          style={{
-            height: "65px",
-            paddingTop: "16px",
-            paddingBottom: "16px",
-            justifyContent: "space-between",
-            borderBottom: "1px solid #2E5DE01A",
-            borderBottomWidth: "1px",
-            transform: "rotate(0deg)",
-            opacity: 1,
-          }}
-        >
-          {/* Left Filter Buttons Container (443x33, gap 8px) */}
-          <div
-            className="w-[443px] h-[33px] gap-[8px] flex items-center shrink-0 opacity-100 rotate-0"
-            style={{
-              width: "443px",
-              height: "33px",
-              gap: "8px",
-              transform: "rotate(0deg)",
-              opacity: 1,
-            }}
-          >
-            {/* All Drives */}
-            <button
-              onClick={() => setStatusFilter("all")}
-              className="w-[91px] h-[32px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
-              style={{
-                width: "91px",
-                height: "32px",
-                paddingTop: "8px",
-                paddingBottom: "8px",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-                borderRadius: "99px",
-                borderWidth: "1px",
-                background: "#FFFFFF",
-                border: statusFilter === "all" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: "Instrument Sans, sans-serif",
-                  fontWeight: statusFilter === "all" ? 700 : 500,
-                  fontSize: "13px",
-                  lineHeight: "100%",
-                  letterSpacing: "0%",
-                  color: statusFilter === "all" ? "#2E5DE0" : "#6B7280",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                All Drives
-              </span>
-            </button>
-
-            {/* Draft */}
-            <button
-              onClick={() => setStatusFilter("DRAFT")}
-              className="w-[66px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
-              style={{
-                width: "66px",
-                height: "33px",
-                paddingTop: "8px",
-                paddingBottom: "8px",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-                borderRadius: "99px",
-                borderWidth: "1px",
-                background: "#FFFFFF",
-                border: statusFilter === "DRAFT" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: "Instrument Sans, sans-serif",
-                  fontWeight: statusFilter === "DRAFT" ? 700 : 500,
-                  fontSize: "14px",
-                  lineHeight: "100%",
-                  letterSpacing: "0%",
-                  color: statusFilter === "DRAFT" ? "#2E5DE0" : "#6B7280",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Draft
-              </span>
-            </button>
-
-            {/* Scheduled */}
-            <button
-              onClick={() => setStatusFilter("SCHEDULED")}
-              className="w-[102px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
-              style={{
-                width: "102px",
-                height: "33px",
-                paddingTop: "8px",
-                paddingBottom: "8px",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-                borderRadius: "99px",
-                borderWidth: "1px",
-                background: "#FFFFFF",
-                border: statusFilter === "SCHEDULED" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: "Instrument Sans, sans-serif",
-                  fontWeight: statusFilter === "SCHEDULED" ? 700 : 500,
-                  fontSize: "14px",
-                  lineHeight: "100%",
-                  letterSpacing: "0%",
-                  color: statusFilter === "SCHEDULED" ? "#2E5DE0" : "#6B7280",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Scheduled
-              </span>
-            </button>
-
-            {/* Active */}
-            <button
-              onClick={() => setStatusFilter("ACTIVE")}
-              className="w-[74px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
-              style={{
-                width: "74px",
-                height: "33px",
-                paddingTop: "8px",
-                paddingBottom: "8px",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-                borderRadius: "99px",
-                borderWidth: "1px",
-                background: "#FFFFFF",
-                border: statusFilter === "ACTIVE" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: "Instrument Sans, sans-serif",
-                  fontWeight: statusFilter === "ACTIVE" ? 700 : 500,
-                  fontSize: "14px",
-                  lineHeight: "100%",
-                  letterSpacing: "0%",
-                  color: statusFilter === "ACTIVE" ? "#2E5DE0" : "#6B7280",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Active
-              </span>
-            </button>
-
-            {/* Closed */}
-            <button
-              onClick={() => setStatusFilter("CLOSED")}
-              className="w-[78px] h-[33px] pt-[8px] pb-[8px] px-[16px] rounded-[99px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-all whitespace-nowrap"
-              style={{
-                width: "78px",
-                height: "33px",
-                paddingTop: "8px",
-                paddingBottom: "8px",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-                borderRadius: "99px",
-                borderWidth: "1px",
-                background: "#FFFFFF",
-                border: statusFilter === "CLOSED" ? "1px solid #2E5DE0" : "1px solid #E9EEFE",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: "Instrument Sans, sans-serif",
-                  fontWeight: statusFilter === "CLOSED" ? 700 : 500,
-                  fontSize: "14px",
-                  lineHeight: "100%",
-                  letterSpacing: "0%",
-                  color: statusFilter === "CLOSED" ? "#2E5DE0" : "#6B7280",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Closed
-              </span>
-            </button>
+        {/* Filters-Row */}
+        <div className="w-full max-w-[1269px] h-[65px] py-4 flex items-center justify-between shrink-0 relative z-30 border-b border-brand/10">
+          {/* Left Filter Buttons Container */}
+          <div className="flex items-center gap-2 shrink-0">
+            {[
+              { label: "All Drives", value: "all" },
+              { label: "Draft", value: "DRAFT" },
+              { label: "Scheduled", value: "SCHEDULED" },
+              { label: "Active", value: "ACTIVE" },
+              { label: "Closed", value: "CLOSED" },
+            ].map((tab) => {
+              const active = statusFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setStatusFilter(tab.value as any)}
+                  className={`h-[33px] px-4 rounded-full border flex items-center justify-center cursor-pointer transition-all whitespace-nowrap text-[13px] ${
+                    active
+                      ? "bg-white border-brand text-brand font-bold shadow-2xs"
+                      : "bg-white border-brand-subtle text-ink-secondary font-medium hover:border-line"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Source Container (217x32, gap 8px) */}
-          <div
-            className="w-[217px] h-[32px] gap-[8px] flex items-center justify-end shrink-0 opacity-100 rotate-0"
-            style={{
-              width: "217px",
-              height: "32px",
-              gap: "8px",
-              transform: "rotate(0deg)",
-              opacity: 1,
-            }}
-          >
-
-
-            {/* All Sources Custom Dropdown (160x32) */}
-            <div
-              className="relative w-[160px] h-[32px] shrink-0 opacity-100 rotate-0"
-              style={{
-                width: "160px",
-                height: "32px",
-                transform: "rotate(0deg)",
-                opacity: 1,
-              }}
-            >
+          {/* Source Container */}
+          <div className="flex items-center gap-2 justify-end shrink-0">
+            {/* All Sources Custom Dropdown */}
+            <div className="relative w-[160px] h-[32px] shrink-0">
               <button
                 type="button"
                 onClick={() => setSourceDropdownOpen((prev) => !prev)}
-                className="w-[160px] h-[32px] pt-[8px] pb-[8px] pl-[16px] pr-[16px] rounded-[16px] flex items-center justify-between cursor-pointer focus:outline-none transition-all select-none"
-                style={{
-                  width: "160px",
-                  height: "32px",
-                  paddingTop: "8px",
-                  paddingBottom: "8px",
-                  paddingLeft: "16px",
-                  paddingRight: "16px",
-                  borderRadius: "16px",
-                  border: "1px solid #D5DAEC",
-                  background: "#FFFFFF",
-                  fontFamily: "Instrument Sans, sans-serif",
-                  fontWeight: 500,
-                  fontSize: "13px",
-                  lineHeight: "100%",
-                  letterSpacing: "0%",
-                  color: "#6B7280",
-                }}
+                className="w-[160px] h-[32px] px-4 rounded-[16px] border border-line bg-white text-ink-secondary text-[13px] font-medium flex items-center justify-between cursor-pointer focus:outline-none transition-all select-none"
               >
                 <span className="truncate">
                   {sourceFilter === "DIRECT"
@@ -1196,28 +911,19 @@ function DrivesPage() {
                 </span>
                 <ChevronDown
                   size={12}
-                  className={`w-[12px] h-[12px] transition-transform duration-150 shrink-0 ${sourceDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  style={{
-                    width: "12px",
-                    height: "12px",
-                    color: "#6B7280",
-                  }}
+                  className={`w-3 h-3 transition-transform duration-150 shrink-0 ${
+                    sourceDropdownOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
               {sourceDropdownOpen && (
                 <>
                   <div
-                    className="fixed inset-0 z-30"
+                    className="fixed inset-0 z-40"
                     onClick={() => setSourceDropdownOpen(false)}
                   />
-                  <div
-                    className="absolute top-[36px] left-0 w-[160px] bg-white border border-[#D5DAEC] rounded-[12px] shadow-lg py-1 z-40 overflow-hidden"
-                    style={{
-                      fontFamily: "Instrument Sans, sans-serif",
-                    }}
-                  >
+                  <div className="absolute right-0 top-full mt-1 w-[160px] bg-white rounded-xl border border-line shadow-lg py-1 z-50 animate-in fade-in-50 zoom-in-95 duration-100">
                     {[
                       { label: "All Sources", value: "all" },
                       { label: "Direct", value: "DIRECT" },
@@ -1230,10 +936,11 @@ function DrivesPage() {
                           setSourceFilter(opt.value as any);
                           setSourceDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${sourceFilter === opt.value
-                          ? "bg-[#eff6ff] text-[#2E5DE0] font-semibold"
-                          : "text-[#6B7280] hover:bg-slate-50 font-medium"
-                          }`}
+                        className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                          sourceFilter === opt.value
+                            ? "bg-brand-subtle text-brand font-semibold"
+                            : "text-ink-secondary hover:bg-slate-50 font-medium"
+                        }`}
                       >
                         <span>{opt.label}</span>
                       </button>
@@ -1248,20 +955,10 @@ function DrivesPage() {
         {/* Grid of Drives */}
         {filtered.length === 0 ? (
           <div className="flex justify-center w-full py-16">
-            <p className="text-xs italic text-[#94a3b8]">To get started click on Create Drive</p>
+            <p className="text-xs italic text-ink-muted">To get started click on Create Drive</p>
           </div>
         ) : (
-          <div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px] w-full max-w-[1269px] pt-[16px] pb-[16px] opacity-100 rotate-0"
-            style={{
-              minHeight: "226px",
-              paddingTop: "16px",
-              paddingBottom: "16px",
-              gap: "24px",
-              transform: "rotate(0deg)",
-              opacity: 1,
-            }}
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-[1269px] py-4">
             {filtered.map((d) => {
               const isPartner = (d as any).originChannel === "PARTNER_API" || d.name?.startsWith("[Partner:") || d.name?.includes("(P)");
               const isOpened = openedDriveIds.has(d.id);
@@ -1276,20 +973,7 @@ function DrivesPage() {
               return (
                 <div
                   key={d.id}
-                  className="w-[407px] max-w-full h-[194px] p-[24px] rounded-[16px] bg-white flex flex-col justify-between relative transition-all opacity-100 rotate-0 shrink-0"
-                  style={{
-                    width: "407px",
-                    height: "194px",
-                    padding: "24px",
-                    gap: "20px",
-                    borderRadius: "16px",
-                    background: "#FFFFFF",
-                    border: "1px solid #E8EDF2",
-                    boxShadow: "-4px 4px 15px 0px rgba(156, 163, 175, 0.2)",
-                    animationDuration: "0ms",
-                    transform: "rotate(0deg)",
-                    opacity: 1,
-                  }}
+                  className="w-[407px] max-w-full h-[194px] p-6 rounded-2xl bg-white border border-line shadow-[-4px_4px_15px_0px_rgba(156,163,175,0.2)] flex flex-col justify-between relative transition-all shrink-0"
                 >
                   {isNewlyDetected && (
                     <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-brand to-brand-ink text-white text-2xs font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 z-10">
@@ -1298,259 +982,77 @@ function DrivesPage() {
                     </div>
                   )}
 
-                  {/* Top Content Frame (359x51, gap 12px) */}
-                  <div
-                    className="w-[359px] max-w-full h-[51px] flex flex-col justify-between opacity-100 rotate-0"
-                    style={{
-                      width: "359px",
-                      height: "51px",
-                      gap: "12px",
-                      transform: "rotate(0deg)",
-                      opacity: 1,
-                    }}
-                  >
-                    {/* Top Row: Title & Badges ("test frame" - 359x22) */}
-                    <div
-                      className="w-[359px] max-w-full h-[22px] flex items-center justify-between opacity-100 rotate-0"
-                      style={{
-                        width: "359px",
-                        height: "22px",
-                        justifyContent: "space-between",
-                        transform: "rotate(0deg)",
-                        opacity: 1,
-                      }}
-                    >
+                  {/* Top Content Frame */}
+                  <div className="w-full h-[51px] flex flex-col justify-between">
+                    {/* Top Row: Title & Badges */}
+                    <div className="w-full h-[22px] flex items-center justify-between">
                       <h3
-                        className="truncate"
+                        className="truncate max-w-[220px] text-[18px] font-bold text-ink"
                         title={d.name}
-                        style={{
-                          maxWidth: "220px",
-                          fontFamily: "Instrument Sans, sans-serif",
-                          fontWeight: 700,
-                          fontSize: "18px",
-                          lineHeight: "100%",
-                          letterSpacing: "0%",
-                          color: "#1E1B4B",
-                          transform: "rotate(0deg)",
-                          opacity: 1,
-                        }}
                       >
                         {formatDriveName(d.name)}
                       </h3>
 
-                      {/* Badges Container ("active+direct frame" - 112x18, gap 6px) */}
-                      <div
-                        className="h-[18px] flex items-center opacity-100 rotate-0"
-                        style={{
-                          gap: "6px",
-                          transform: "rotate(0deg)",
-                          opacity: 1,
-                        }}
-                      >
+                      {/* Badges Container */}
+                      <div className="h-[18px] flex items-center gap-1.5">
                         {/* Origin Badge */}
                         <div
-                          className="h-[18px] flex items-center justify-center opacity-100 rotate-0"
-                          style={{
-                            minWidth: isPartner ? "88px" : "53px",
-                            height: "18px",
-                            paddingTop: "3px",
-                            paddingBottom: "3px",
-                            paddingLeft: "8px",
-                            paddingRight: "8px",
-                            borderRadius: "6px",
-                            background: isPartner ? "#EDE9FE" : "#F3F4F6",
-                            transform: "rotate(0deg)",
-                            opacity: 1,
-                          }}
+                          className={
+                            isPartner ? "badge-pill-purple min-w-[68px]" : "badge-pill-neutral min-w-[53px]"
+                          }
                         >
-                          <span
-                            style={{
-                              fontFamily: "Instrument Sans, sans-serif",
-                              fontWeight: 700,
-                              fontSize: "10px",
-                              lineHeight: "100%",
-                              letterSpacing: "0%",
-                              color: isPartner ? "#8B5CF6" : "#6B7280",
-                              textTransform: "",
-                            }}
-                          >
-                            {isPartner ? "PARTNER API" : "DIRECT"}
-                          </span>
+                          {isPartner ? "PARTNER" : "DIRECT"}
                         </div>
 
                         {/* Status Badge */}
                         <div
-                          className="h-[20px] flex items-center justify-center opacity-100 rotate-0 gap-1.5"
-                          style={{
-                            minWidth: "56px",
-                            height: "20px",
-                            paddingTop: "2px",
-                            paddingBottom: "2px",
-                            paddingLeft: "8px",
-                            paddingRight: "8px",
-                            borderRadius: "6px",
-                            background:
-                              d.status === "ACTIVE"
-                                ? "#ECFDF5"
-                                : d.status === "SCHEDULED"
-                                  ? "#EFF6FF"
-                                  : d.status === "CLOSED"
-                                    ? "#F8FAFC"
-                                    : "#F1F5F9",
-                            border:
-                              d.status === "ACTIVE"
-                                ? "1px solid #A7F3D0"
-                                : d.status === "SCHEDULED"
-                                  ? "1px solid #BFDBFE"
-                                  : d.status === "CLOSED"
-                                    ? "1px solid #E2E8F0"
-                                    : "1px solid #E2E8F0",
-                            transform: "rotate(0deg)",
-                            opacity: 1,
-                          }}
+                          className={
+                            d.status === "ACTIVE"
+                              ? "badge-pill-active"
+                              : d.status === "SCHEDULED"
+                                ? "badge-pill-scheduled"
+                                : "badge-pill-closed"
+                          }
                         >
-                          {d.status === "ACTIVE" && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                          )}
-                          <span
-                            style={{
-                              fontFamily: "Instrument Sans, sans-serif",
-                              fontWeight: 700,
-                              fontSize: "10px",
-                              lineHeight: "100%",
-                              letterSpacing: "0%",
-                              color:
-                                d.status === "ACTIVE"
-                                  ? "#059669"
-                                  : d.status === "SCHEDULED"
-                                    ? "#2563EB"
-                                    : d.status === "CLOSED"
-                                      ? "#64748B"
-                                      : "#64748B",
-                            }}
-                          >
-                            {d.status}
-                          </span>
+                          {d.status === "ACTIVE"}
+                          <span>{d.status}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Subtitle / Role ("sde-text" - 359x17) */}
+                    {/* Subtitle / Role */}
                     <p
-                      className="truncate"
+                      className="truncate text-[14px] text-ink-secondary"
                       title={d.roleTemplateName || "Software Developer"}
-                      style={{
-                        width: "359px",
-                        maxWidth: "100%",
-                        height: "17px",
-                        fontFamily: "Instrument Sans, sans-serif",
-                        fontWeight: 400,
-                        fontSize: "14px",
-                        lineHeight: "100%",
-                        letterSpacing: "0%",
-                        color: "#6B7280",
-                        transform: "rotate(0deg)",
-                        opacity: 1,
-                      }}
                     >
                       {d.roleTemplateName || "Software Developer"}
                     </p>
                   </div>
 
-                  {/* Date Frame (359x15, gap 6px) */}
-                  <div
-                    className="w-[359px] max-w-full h-[15px] flex items-center opacity-100 rotate-0"
-                    style={{
-                      width: "359px",
-                      height: "15px",
-                      gap: "6px",
-                      transform: "rotate(0deg)",
-                      opacity: 1,
-                    }}
-                  >
-                    <Calendar
-                      size={14}
-                      className="w-[14px] h-[14px] text-[#9CA3AF] shrink-0"
-                      style={{
-                        width: "14px",
-                        height: "14px",
-                        color: "#9CA3AF",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontFamily: "Instrument Sans, sans-serif",
-                        fontWeight: 500,
-                        fontSize: "12px",
-                        lineHeight: "100%",
-                        letterSpacing: "0%",
-                        color: "#9CA3AF",
-                      }}
-                    >
+                  {/* Date Frame */}
+                  <div className="w-full h-[15px] flex items-center gap-1.5">
+                    <Calendar size={14} className="text-ink-muted shrink-0" />
+                    <span className="text-[12px] font-medium text-ink-muted">
                       {formatShortDate(d.scheduleStart || d.createdAt)}
                     </span>
                   </div>
 
-                  {/* Actions Row ("view drive+delete icon frame" - 359x40, gap 12px) */}
-                  <div
-                    className="w-[359px] max-w-full h-[40px] flex items-center opacity-100 rotate-0"
-                    style={{
-                      width: "359px",
-                      height: "40px",
-                      gap: "12px",
-                      transform: "rotate(0deg)",
-                      opacity: 1,
-                    }}
-                  >
+                  {/* Actions Row */}
+                  <div className="w-full h-10 flex items-center gap-3">
                     <Link
                       to="/drives/$id"
                       params={{ id: d.id }}
                       onClick={() => markDriveOpened(d.id)}
-                      className="w-[307px] flex-1 h-[37px] rounded-[19px] flex items-center justify-center cursor-pointer transition-all hover:bg-blue-50/40"
-                      style={{
-                        width: "307px",
-                        height: "37px",
-                        paddingTop: "10px",
-                        paddingBottom: "10px",
-                        borderRadius: "19px",
-                        borderWidth: "1px",
-                        border: "1px solid #E9EEFE",
-                        background: "#FFFFFF",
-                        transform: "rotate(0deg)",
-                        opacity: 1,
-                        animationDuration: "0ms",
-                      }}
+                      className="flex-1 h-[37px] rounded-full border border-brand-subtle bg-white hover:bg-blue-50/40 flex items-center justify-center text-[14px] font-semibold text-brand transition-all cursor-pointer"
                     >
-                      <span
-                        style={{
-                          fontFamily: "Instrument Sans, sans-serif",
-                          fontWeight: 600,
-                          fontSize: "14px",
-                          lineHeight: "100%",
-                          letterSpacing: "0%",
-                          color: "#2E5DE0",
-                        }}
-                      >
-                        View Drive
-                      </span>
+                      View Drive
                     </Link>
                     <button
                       onClick={() => setConfirmDeleteDrive(d)}
-                      className="w-[40px] h-[40px] rounded-[20px] flex items-center justify-center cursor-pointer transition-all hover:border-rose-200 hover:bg-rose-50 group shrink-0"
-                      style={{
-                        width: "40px",
-                        height: "40px",
-                        padding: "10px",
-                        borderRadius: "20px",
-                        borderWidth: "1px",
-                        border: "1px solid #E9EEFE",
-                        background: "#FFFFFF",
-                        transform: "rotate(0deg)",
-                        opacity: 1,
-                      }}
+                      className="w-10 h-10 rounded-full border border-brand-subtle bg-white flex items-center justify-center cursor-pointer transition-all hover:border-rose-200 hover:bg-rose-50 group shrink-0"
                       title="Delete Drive"
                     >
-                      <Trash2 size={16} className="w-[16px] h-[16px] text-[#9CA3AF] group-hover:text-rose-600 transition-colors" />
+                      <Trash2 size={16} className="text-ink-muted group-hover:text-rose-600 transition-colors" />
                     </button>
                   </div>
                 </div>
@@ -1564,12 +1066,10 @@ function DrivesPage() {
       {showWizard && (
         <div
           data-overlay="CreateNewDriveModal"
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-none"
-          style={{ animationDuration: "0ms", transitionDuration: "0ms" }}
+          className="modal-overlay-backdrop"
         >
           <div
-            className="bg-white rounded-xl w-full max-w-[560px] shadow-2xl flex flex-col max-h-[90vh] transition-none"
-            style={{ animationDuration: "0ms", transitionDuration: "0ms" }}
+            className="modal-shell-card"
           >
             <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <div>
@@ -1741,7 +1241,7 @@ function DrivesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-[#1E1B4B] mb-2 uppercase tracking-wider">
+                    <label className="block text-xs font-bold text-ink mb-2 uppercase tracking-wider">
                       Setup Method
                     </label>
                     <div className="grid grid-cols-2 gap-2.5">
@@ -1750,20 +1250,20 @@ function DrivesPage() {
                         onClick={() => setCustomRolePathway("MANUAL")}
                         className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                           customRolePathway === "MANUAL"
-                            ? "border-[#2563EB] bg-blue-50/50 shadow-xs"
+                            ? "border-brand bg-blue-50/50 shadow-xs"
                             : "border-line bg-white hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
                             <PenLine size={14} />
                           </div>
                           {customRolePathway === "MANUAL" && (
-                            <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
+                            <span className="w-2 h-2 rounded-full bg-brand" />
                           )}
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-[#0F172A]">Manual Wizard</h4>
+                          <h4 className="text-xs font-bold text-ink">Manual Wizard</h4>
                           <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                             Configure modules, duration, questions & roster step-by-step.
                           </p>
@@ -1775,20 +1275,20 @@ function DrivesPage() {
                         onClick={() => setCustomRolePathway("BULK_IMPORT")}
                         className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                           customRolePathway === "BULK_IMPORT"
-                            ? "border-[#2563EB] bg-blue-50/50 shadow-xs"
+                            ? "border-brand bg-blue-50/50 shadow-xs"
                             : "border-line bg-white hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
                             <UploadCloud size={14} />
                           </div>
                           {customRolePathway === "BULK_IMPORT" && (
-                            <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
+                            <span className="w-2 h-2 rounded-full bg-brand" />
                           )}
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-[#0F172A]">Bulk Import (CSV)</h4>
+                          <h4 className="text-xs font-bold text-ink">Bulk Import (CSV)</h4>
                           <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                             Ingest questions via dedicated Question Bank folder.
                           </p>
@@ -1798,16 +1298,16 @@ function DrivesPage() {
                   </div>
 
                   {customRolePathway === "BULK_IMPORT" && (
-                    <div className="p-4 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] space-y-3">
+                    <div className="p-4 rounded-xl border border-line bg-canvas space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#2E5DE0] shrink-0">
-                          <FolderPlus size={20} className="text-[#2E5DE0]" />
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-brand shrink-0">
+                          <FolderPlus size={20} className="text-brand" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="text-xs font-bold text-[#1E1B4B]">
+                          <h4 className="text-xs font-bold text-ink">
                             Question Bank Dedicated Folder Workflow
                           </h4>
-                          <p className="text-[11px] text-[#64748B] leading-relaxed">
+                          <p className="text-[11px] text-ink-secondary leading-relaxed">
                             Creating this drive will initialize its record and automatically redirect you to the <strong>Question Bank</strong> with a dedicated folder created in the drive's name. The bulk upload prompt will open immediately so you can ingest questions from CSV.
                           </p>
                         </div>
@@ -1818,7 +1318,7 @@ function DrivesPage() {
                         <button
                           type="button"
                           onClick={downloadUnifiedSampleCSV}
-                          className="h-[28px] px-3 text-[11px] font-semibold text-[#475569] bg-white hover:bg-slate-100 border border-[#CBD5E1] rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                          className="h-[28px] px-3 text-[11px] font-semibold text-ink-secondary bg-white hover:bg-slate-100 border border-line rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                         >
                           <Download size={12} />
                           <span>Download Sample CSV</span>
@@ -1847,7 +1347,7 @@ function DrivesPage() {
                   type="button"
                   disabled={isCsvCreating || !driveName.trim()}
                   onClick={handleCreateDriveAndRedirectToBulkImport}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-[#3A91ED] to-[#2E5DE0] hover:opacity-95 rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                  className="btn-gradient-primary flex items-center gap-1.5 px-4 py-2 text-xs !font-bold text-white rounded-md shadow-xs disabled:opacity-50"
                 >
                   {isCsvCreating ? <Loader2 size={13} className="animate-spin" /> : <FolderPlus size={13} />}
                   <span>{isCsvCreating ? "Creating Drive..." : "Create Drive & Bulk Import in Question Bank"}</span>
@@ -1913,25 +1413,26 @@ function DrivesPage() {
         </div>
       )}
 
-      {/* Close Drive Confirmation Modal */}
+      {/* Close Confirmation Modal */}
       {confirmCloseDrive && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+        <div className="modal-overlay-backdrop">
+          <div className="modal-shell-card max-w-[440px] p-6 space-y-4">
             <div className="flex items-center gap-3 border-b border-line pb-3">
-              <div className="p-2 bg-orange-50 text-orange-500 rounded-full">
-                <X size={18} />
+              <div className="p-2 bg-amber-50 text-amber-500 rounded-full">
+                <AlertTriangle size={18} />
               </div>
               <h3 className="text-base font-semibold text-ink">Close Drive Early?</h3>
             </div>
 
             <p className="text-sm-minus text-ink-secondary leading-relaxed">
-              Are you sure you want to close the assessment drive <span className="font-semibold text-ink">"{confirmCloseDrive.name}"</span> early? This will prevent any new candidates from starting the assessment and mark the drive as closed.
+              Are you sure you want to close <span className="font-semibold text-ink">"{confirmCloseDrive.name}"</span>?
+              Candidates will no longer be able to start this assessment, but existing submitted sessions will be preserved for evaluation.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmCloseDrive(null)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="btn-secondary-outline"
               >
                 Cancel
               </button>
@@ -1940,7 +1441,7 @@ function DrivesPage() {
                   closeDrive(confirmCloseDrive.id);
                   setConfirmCloseDrive(null);
                 }}
-                className="px-4 py-2 text-white bg-orange-500 hover:bg-orange-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-amber-600 hover:bg-amber-700 font-semibold cursor-pointer shadow-xs transition-colors rounded-xl text-xs"
               >
                 Close Drive
               </button>
@@ -1951,8 +1452,8 @@ function DrivesPage() {
 
       {/* Delete Confirmation Modal */}
       {confirmDeleteDrive && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-[440px] shadow-2xl p-6 space-y-4">
+        <div className="modal-overlay-backdrop">
+          <div className="modal-shell-card max-w-[440px] p-6 space-y-4">
             <div className="flex items-center gap-3 border-b border-line pb-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-full">
                 <AlertTriangle size={18} />
@@ -1968,13 +1469,13 @@ function DrivesPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteDrive(null)}
-                className="px-3.5 py-2 border border-line rounded-2xl hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="btn-secondary-outline"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteDrive}
-                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded-3xl"
+                className="px-4 py-2 text-white bg-danger hover:bg-danger-hover font-semibold cursor-pointer shadow-xs transition-colors rounded-xl text-xs"
               >
                 Delete Drive
               </button>

@@ -44,7 +44,7 @@ function SvgBarChart({ data }: { data: Array<{ band: string; count: number }> })
             <span className="text-[12px] font-bold text-slate-900 mb-1.5 font-sans">
               {item.count}
             </span>
-            <div className="w-full max-w-[56px] h-[142px] bg-[#F1F5F9] rounded-[10px] flex items-end overflow-hidden">
+            <div className="w-full max-w-[56px] h-[142px] chart-bar-track flex items-end">
               <div
                 className="w-full bg-blue-600 transition-all duration-500"
                 style={{ height: `${heightPct}%` }}
@@ -201,31 +201,32 @@ function ReportsPage() {
   }, [selectedModules]);
 
   // Compute Aggregate Metrics dynamically from filtered database records
-  const totalAssessed = filteredSessions.length > 0 ? filteredSessions.length : (allSessions.length || 7);
+  const totalAssessed = filteredSessions.length > 0 ? filteredSessions.length : allSessions.length;
 
   const avgScore = useMemo(() => {
     const list = filteredSessions.length ? filteredSessions : allSessions;
-    if (!list.length) return 49;
+    if (!list.length) return 0;
     const total = list.reduce((acc, s: any) => {
       const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
-      const scoreVal = raw <= 1.0 ? raw * 100 : raw;
+      // Normalize: if value is in 0–1 fractional range, scale to 0–100
+      const scoreVal = (typeof raw === "number" && raw > 0 && raw <= 1) ? raw * 100 : (Number(raw) || 0);
       return acc + scoreVal;
     }, 0);
-    return Math.round(total / list.length) || 49;
+    return Math.round(total / list.length) || 0;
   }, [filteredSessions, allSessions]);
 
   const passRate = useMemo(() => {
     const list = filteredSessions.length ? filteredSessions : allSessions;
-    if (!list.length) return 43;
+    if (!list.length) return 0;
     const passed = list.filter((s: any) => {
       const decVal = s.decision ?? s.reviewerDecision ?? s.status ?? "";
       const dec = (typeof decVal === "string" ? decVal : String(decVal?.name || decVal?.decision || decVal?.status || decVal || "")).toUpperCase();
       const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
       const scoreVal = typeof raw === "number" ? raw : Number(raw) || 0;
-      const val = scoreVal <= 1.0 ? scoreVal * 100 : scoreVal;
+      const val = (scoreVal > 0 && scoreVal <= 1) ? scoreVal * 100 : scoreVal;
       return dec === "PASS" || dec === "ADVANCE" || dec === "REVIEWED" || val >= 70;
     }).length;
-    return Math.round((passed / list.length) * 100) || 43;
+    return Math.round((passed / list.length) * 100) || 0;
   }, [filteredSessions, allSessions]);
 
   const avgConsistency = useMemo(() => {
@@ -234,13 +235,13 @@ function ReportsPage() {
       const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore;
       return raw !== null && raw !== undefined;
     });
-    if (!validSessions.length) return 51;
+    if (!validSessions.length) return 0;
     const total = validSessions.reduce((acc, s: any) => {
       const raw = s.sayDoConsistencyScore ?? s.sayDoScore ?? s.score?.sayDoConsistencyScore;
-      const val = raw <= 1.0 ? raw * 100 : raw;
+      const val = (raw > 0 && raw <= 1) ? raw * 100 : (Number(raw) || 0);
       return acc + val;
     }, 0);
-    return Math.round(total / validSessions.length) || 51;
+    return Math.round(total / validSessions.length) || 0;
   }, [filteredSessions, allSessions]);
 
   // Dynamic Module Performance Averages with inclusion flags
@@ -254,7 +255,7 @@ function ReportsPage() {
         const ms = s.moduleScores || s.scores || {};
         if (ms[key] !== undefined && ms[key] !== null) {
           const v = typeof ms[key] === "number" ? ms[key] : Number(ms[key]) || 0;
-          sum += v <= 1.0 ? v * 100 : v;
+          sum += (v > 0 && v <= 1) ? v * 100 : v;
           count++;
         }
       });
@@ -262,12 +263,12 @@ function ReportsPage() {
     };
 
     return [
-      { name: "Coding / DSA", icon: Code2, score: calcModuleAvg("CODING") ?? (selectedModules["CODING"] ? 71 : null) },
-      { name: "SQL Querying", icon: Database, score: calcModuleAvg("SQL") ?? (selectedModules["SQL"] ? 74 : null) },
-      { name: "MCQ Knowledge", icon: FileText, score: calcModuleAvg("MCQ") ?? (selectedModules["MCQ"] ? 79 : null) },
-      { name: "AI Prompting", icon: Terminal, score: calcModuleAvg("AI_PROMPTING") ?? (selectedModules["AI_PROMPTING"] ? 85 : null) },
-      { name: "Contextual Simulation", icon: PlayCircle, score: calcModuleAvg("SIMULATION") ?? (selectedModules["SIMULATION"] ? 0 : null) },
-      { name: "Debugging", icon: Bug, score: selectedModules["DEBUGGING"] ? calcModuleAvg("DEBUGGING") : null },
+      { name: "Coding / DSA", icon: Code2, score: calcModuleAvg("CODING") },
+      { name: "SQL Querying", icon: Database, score: calcModuleAvg("SQL") },
+      { name: "MCQ Knowledge", icon: FileText, score: calcModuleAvg("MCQ") },
+      { name: "AI Prompting", icon: Terminal, score: calcModuleAvg("AI_PROMPTING") },
+      { name: "Contextual Simulation", icon: PlayCircle, score: calcModuleAvg("SIMULATION") },
+      { name: "Debugging", icon: Bug, score: calcModuleAvg("DEBUGGING") },
     ];
   }, [filteredSessions, allSessions, selectedModules]);
 
@@ -276,17 +277,17 @@ function ReportsPage() {
     const list = filteredSessions.length ? filteredSessions : allSessions;
     if (!list.length) {
       return [
-        { band: "90-100%", count: 1 },
-        { band: "75-89%", count: 1 },
-        { band: "60-74%", count: 1 },
-        { band: "<60%", count: 4 },
+        { band: "90-100%", count: 0 },
+        { band: "75-89%", count: 0 },
+        { band: "60-74%", count: 0 },
+        { band: "<60%", count: 0 },
       ];
     }
 
     let count90 = 0, count75 = 0, count60 = 0, countLow = 0;
     list.forEach((s: any) => {
       const raw = s.compositeScore ?? s.score?.compositeScore ?? 0;
-      const val = raw <= 1.0 ? raw * 100 : raw;
+      const val = (raw > 0 && raw <= 1) ? raw * 100 : (Number(raw) || 0);
       if (val >= 90) count90++;
       else if (val >= 75) count75++;
       else if (val >= 60) count60++;
@@ -294,10 +295,10 @@ function ReportsPage() {
     });
 
     return [
-      { band: "90-100%", count: count90 || 1 },
-      { band: "75-89%", count: count75 || 1 },
-      { band: "60-74%", count: count60 || 1 },
-      { band: "<60%", count: countLow || 4 },
+      { band: "90-100%", count: count90 },
+      { band: "75-89%", count: count75 },
+      { band: "60-74%", count: count60 },
+      { band: "<60%", count: countLow },
     ];
   }, [filteredSessions, allSessions]);
 
@@ -437,21 +438,25 @@ function ReportsPage() {
   ]);
 
   return (
-    <AppShell
-      title="Reports & Assessment Analytics"
-      actions={
-        <ExportDropdown
-          data={filteredSessions}
-          filenamePrefix="proctora-assessment-analytics"
-          title="Assessment Analytics Report"
-          subtitle="Performance metrics, domain mastery, and integrity risk analysis"
-          reportType="analytics"
-          activeFilter={`Drive: ${driveFilterLabel} • ${dateRangeLabel}`}
-          analyticsPayload={analyticsPayload}
-        />
-      }
-    >
+    <AppShell hideHeader={true}>
       <div className="w-full flex flex-col gap-[14px]">
+
+        {/* Page Header */}
+        <div className="flex items-center justify-between flex-wrap gap-3 shrink-0">
+          <div>
+            <h1 className="text-[32px] sm:text-[40px] font-bold text-ink leading-none tracking-tight">Reports &amp; Assessment Analytics</h1>
+
+          </div>
+          <ExportDropdown
+            data={filteredSessions}
+            filenamePrefix="proctora-assessment-analytics"
+            title="Assessment Analytics Report"
+            subtitle="Performance metrics, domain mastery, and integrity risk analysis"
+            reportType="analytics"
+            activeFilter={`Drive: ${driveFilterLabel} • ${dateRangeLabel}`}
+            analyticsPayload={analyticsPayload}
+          />
+        </div>
 
         {/* Navigation Tabs (Pill Buttons) */}
         <div className="flex items-center gap-[8px] flex-wrap shrink-0">
@@ -495,7 +500,7 @@ function ReportsPage() {
             {/* Top 4 KPI Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[14px] shrink-0">
               {/* Card 1: Total Assessed */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[118px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     TOTAL ASSESSED
@@ -514,7 +519,7 @@ function ReportsPage() {
               </div>
 
               {/* Card 2: Avg Composite Score */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[118px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     AVG COMPOSITE SCORE
@@ -532,7 +537,7 @@ function ReportsPage() {
               </div>
 
               {/* Card 3: Say-Do Consistency */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[118px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     SAY-DO CONSISTENCY
@@ -550,7 +555,7 @@ function ReportsPage() {
               </div>
 
               {/* Card 4: Overall Pass Rate */}
-              <div className="w-full h-[118px] p-[16px] bg-white border border-[#E2E8F0] rounded-[12px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[118px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     OVERALL PASS RATE
@@ -571,7 +576,7 @@ function ReportsPage() {
             {/* Bottom Frame: Exact 278px Height, Top Padding 16px, Horizontal 20px, Bottom 20px, Rounded 18px */}
             <div className="w-full flex flex-row gap-[18px] items-stretch h-[278px] shrink-0">
               {/* Module Performance Averages Card */}
-              <div className="flex-1 h-[278px] bg-white border border-[#E2E8F0] rounded-[18px] pt-[16px] px-[20px] pb-[20px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col overflow-hidden">
+              <div className="flex-1 h-[278px] bg-white border border-slate-200 rounded-[18px] pt-[16px] px-[20px] pb-[20px] shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col overflow-hidden">
                 <div>
                   <h3 className="text-[14px] font-bold text-slate-900 leading-tight">Module Performance Averages</h3>
                   <p className="text-[11px] text-slate-400 mt-[4px]">Mean scores across candidate module completions.</p>
@@ -602,7 +607,7 @@ function ReportsPage() {
               </div>
 
               {/* Score Distribution Bands Card */}
-              <div className="w-[380px] h-[278px] bg-white border border-[#E2E8F0] rounded-[18px] pt-[16px] px-[20px] pb-[20px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col shrink-0 overflow-hidden">
+              <div className="w-[380px] h-[278px] bg-white border border-slate-200 rounded-[18px] pt-[16px] px-[20px] pb-[20px] shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col shrink-0 overflow-hidden">
                 <div>
                   <h3 className="text-[14px] font-bold text-slate-900 leading-tight">Score Distribution Bands</h3>
                   <p className="text-[11px] text-slate-400 mt-[4px]">Candidate distribution across composite score bands.</p>
@@ -622,7 +627,7 @@ function ReportsPage() {
             {/* Top 3 Risk KPI Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-[12px] shrink-0">
               {/* Low Risk */}
-              <div className="w-full h-[100px] p-[14px] px-[16px] bg-white border border-[#E2E8F0] rounded-[14px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[100px] rounded-[14px] px-[16px] py-[14px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     LOW RISK SESSIONS
@@ -640,7 +645,7 @@ function ReportsPage() {
               </div>
 
               {/* Medium Risk */}
-              <div className="w-full h-[100px] p-[14px] px-[16px] bg-white border border-[#E2E8F0] rounded-[14px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[100px] rounded-[14px] px-[16px] py-[14px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     MEDIUM RISK SESSIONS
@@ -658,7 +663,7 @@ function ReportsPage() {
               </div>
 
               {/* High Risk */}
-              <div className="w-full h-[100px] p-[14px] px-[16px] bg-white border border-[#E2E8F0] rounded-[14px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+              <div className="kpi-card-shell w-full h-[100px] rounded-[14px] px-[16px] py-[14px]">
                 <div className="flex items-center justify-between">
                   <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-[0.05em]">
                     HIGH RISK SESSIONS
@@ -677,7 +682,7 @@ function ReportsPage() {
             </div>
 
             {/* Proctoring Flag & Evidence Analytics Table Card */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[16px] p-[16px] px-[20px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col">
+            <div className="bg-white border border-slate-200 rounded-[16px] p-[16px] px-[20px] shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col">
               <h3 className="text-[12.5px] font-bold text-slate-900 leading-tight mb-[10px]">
                 Proctoring Flag &amp; Evidence Analytics
               </h3>
@@ -719,12 +724,13 @@ function ReportsPage() {
                           <div className="text-[9px] text-slate-400 mt-0.5">{item.rate}</div>
                         </div>
                         <span
-                          className={`min-w-[76px] text-center px-2.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-wider uppercase ${item.risk === "HIGH"
-                              ? "bg-[#FEF2F2] text-[#DC2626]"
+                          className={`min-w-[76px] text-center ${
+                            item.risk === "HIGH"
+                              ? "badge-risk-high"
                               : item.risk === "MEDIUM"
-                                ? "bg-[#FFFBEB] text-[#D97706]"
-                                : "bg-[#EEF4FF] text-[#2563EB]"
-                            }`}
+                                ? "badge-risk-medium"
+                                : "badge-risk-low"
+                          }`}
                         >
                           {item.risk} RISK
                         </span>
@@ -741,30 +747,17 @@ function ReportsPage() {
         {activeTab === "EXPORTS" && (
           <div className="flex flex-col gap-[18px]">
             {/* Filter Configuration Card */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[18px] p-[22px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col gap-[20px]">
-              <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-100">
-                <div>
-                  <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-blue-600 mb-1">
-                    <SlidersHorizontal size={13} className="text-blue-600" />
-                    <span>REPORT SCOPE &amp; COHORT FILTERS</span>
-                  </div>
-                  <div className="text-[13px] text-slate-500 font-normal">
-                    Select target cohort, date timeframe, and assessment modules for the generated PDF report
-                  </div>
+            <div className="bg-white border border-slate-200 rounded-[18px] p-[22px] shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col gap-[20px]">
+              <div className="pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-blue-600 mb-1">
+                  <SlidersHorizontal size={13} className="text-blue-600" />
+                  <span>REPORT SCOPE &amp; COHORT FILTERS</span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <ExportDropdown
-                    data={filteredSessions}
-                    filenamePrefix="proctora-assessment-analytics"
-                    title="Assessment Analytics Report"
-                    subtitle="Performance metrics, domain mastery, and integrity risk analysis"
-                    reportType="analytics"
-                    activeFilter={`Drive: ${driveFilterLabel} • ${dateRangeLabel}`}
-                    analyticsPayload={analyticsPayload}
-                  />
+                <div className="text-[13px] text-slate-500 font-normal">
+                  Select target cohort, date timeframe, and assessment modules for the generated PDF report
                 </div>
               </div>
+
 
               {/* 3-Column Filter Controls */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
@@ -866,7 +859,7 @@ function ReportsPage() {
             </div>
 
             {/* Field Customizer Card */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[18px] p-[24px] shadow-[0px_2px_4px_rgba(0,0,0,0.02)] flex flex-col">
+            <div className="bg-white border border-slate-200 rounded-[18px] p-[24px] shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col">
               {/* Header with Title and Segmented Switch */}
               <div className="flex items-center justify-between">
                 <div>
@@ -880,7 +873,7 @@ function ReportsPage() {
                 </div>
                 
                 {/* Segmented Control */}
-                <div className="flex p-[3px] bg-[#F1F5F9] rounded-[10px]">
+                <div className="segmented-control">
                   <button
                     type="button"
                     onClick={() => setVariant("internal")}
@@ -916,7 +909,7 @@ function ReportsPage() {
                       onClick={() => toggleField(f.label)}
                       className={`group flex items-center justify-between border rounded-[12px] px-[16px] py-[13px] transition-all cursor-pointer select-none ${
                         isSelected
-                          ? "border-[#E2E8F0] bg-white hover:border-blue-300 hover:bg-blue-50/10 shadow-xs"
+                          ? "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/10 shadow-xs"
                           : "border-slate-200/60 bg-slate-50/50 opacity-60 hover:opacity-90 hover:border-slate-300"
                       }`}
                     >
@@ -944,11 +937,11 @@ function ReportsPage() {
 
                       <div className="shrink-0 ml-3">
                         {f.sensitive ? (
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#DC2626] bg-[#FEF2F2] px-2.5 py-1 rounded-full">
+                          <div className="badge-field-sensitive">
                             <Lock size={10} strokeWidth={2.5} /> SENSITIVE
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#2563EB] bg-[#EEF4FF] px-2.5 py-1 rounded-full">
+                          <div className="badge-field-standard">
                             <Eye size={10} strokeWidth={2.5} /> STANDARD
                           </div>
                         )}
