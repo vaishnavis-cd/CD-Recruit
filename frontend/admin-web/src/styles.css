@@ -263,14 +263,14 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
-    height: 34px;
-    padding: 0 1rem;
-    font-size: 12px;
+    gap: 0.5rem;
+    height: 38px;
+    padding: 0 1.25rem;
+    font-size: 13px;
     font-weight: 700;
     color: #ffffff;
     background: linear-gradient(135deg, #3a91ed 0%, #2e5de0 100%);
-    border-radius: 12px;
+    border-radius: 9999px;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     transition: all 150ms ease;
     cursor: pointer;
@@ -296,7 +296,7 @@
     color: var(--color-ink-secondary);
     background-color: #ffffff;
     border: 1px solid var(--color-line);
-    border-radius: 12px;
+    border-radius: 9999px;
     box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.02);
     transition: all 150ms ease;
     cursor: pointer;

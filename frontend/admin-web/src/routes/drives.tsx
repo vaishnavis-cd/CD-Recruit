@@ -1337,7 +1337,7 @@ function DrivesPage() {
                   setShowWizard(false);
                   resetWizard();
                 }}
-                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-md transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-full transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1347,7 +1347,7 @@ function DrivesPage() {
                   type="button"
                   disabled={isCsvCreating || !driveName.trim()}
                   onClick={handleCreateDriveAndRedirectToBulkImport}
-                  className="btn-gradient-primary flex items-center gap-1.5 px-4 py-2 text-xs !font-bold text-white rounded-md shadow-xs disabled:opacity-50"
+                  className="btn-gradient-primary flex items-center gap-1.5 px-4 py-2 text-xs !font-bold text-white rounded-full shadow-xs disabled:opacity-50"
                 >
                   {isCsvCreating ? <Loader2 size={13} className="animate-spin" /> : <FolderPlus size={13} />}
                   <span>{isCsvCreating ? "Creating Drive..." : "Create Drive & Bulk Import in Question Bank"}</span>
@@ -1402,7 +1402,7 @@ function DrivesPage() {
                       toast.error("Failed to create drive: " + (err.message || err));
                     }
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-full transition-colors cursor-pointer shadow-sm"
                 >
                   Create &amp; Configure Drive
                   <ArrowRight size={14} />
@@ -1441,7 +1441,7 @@ function DrivesPage() {
                   closeDrive(confirmCloseDrive.id);
                   setConfirmCloseDrive(null);
                 }}
-                className="px-4 py-2 text-white bg-amber-600 hover:bg-amber-700 font-semibold cursor-pointer shadow-xs transition-colors rounded-xl text-xs"
+                className="px-4 py-2 text-white bg-amber-600 hover:bg-amber-700 font-semibold cursor-pointer shadow-xs transition-colors rounded-full text-xs"
               >
                 Close Drive
               </button>
@@ -1475,7 +1475,7 @@ function DrivesPage() {
               </button>
               <button
                 onClick={handleDeleteDrive}
-                className="px-4 py-2 text-white bg-danger hover:bg-danger-hover font-semibold cursor-pointer shadow-xs transition-colors rounded-xl text-xs"
+                className="px-4 py-2 text-white bg-danger hover:bg-danger-hover font-semibold cursor-pointer shadow-xs transition-colors rounded-full text-xs"
               >
                 Delete Drive
               </button>

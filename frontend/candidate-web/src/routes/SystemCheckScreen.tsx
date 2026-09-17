@@ -436,7 +436,7 @@ export function SystemCheckScreen({ mode, inviteToken }: SystemCheckScreenProps)
                   {(c.id === 'monitor' || c.id === 'bluetooth') && c.status === 'fail' && (
                     <button
                       onClick={c.id === 'monitor' ? runMonitorCheck : runBluetoothCheck}
-                      className="px-2.5 py-1 rounded-md border border-slate-200 bg-transparent text-slate-600 text-xs font-medium hover:bg-white/40 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded-full border border-slate-200 bg-transparent text-slate-600 text-xs font-medium hover:bg-white/40 transition-colors inline-flex items-center gap-1 cursor-pointer"
                       type="button"
                     >
                       <RotateCcw size={12} className="text-slate-500" />

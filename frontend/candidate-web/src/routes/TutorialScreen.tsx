@@ -301,7 +301,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
                       });
                     }
                   }}
-                  className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                   type="button"
                 >
                   <ArrowLeft size={16} />
@@ -310,7 +310,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
                 <button
                   onClick={handleNext}
-                  className="px-7 py-2.5 rounded-xl bg-[#2F65F6] hover:bg-[#234ac2] text-white text-sm font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-7 py-2.5 rounded-full bg-[#2F65F6] hover:bg-[#234ac2] text-white text-sm font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
                   type="button"
                 >
                   <span>Next</span>
@@ -331,7 +331,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
             <div className="flex items-center justify-between pt-2">
               <button
                 onClick={() => setStepIndex(i => Math.max(0, i - 1))}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                 type="button"
               >
                 <ArrowLeft size={16} />
@@ -340,7 +340,7 @@ export function TutorialScreen({ mode, inviteToken }: TutorialScreenProps) {
 
               <button
                 onClick={handleNext}
-                className="px-7 py-2.5 rounded-xl bg-[#2F65F6] hover:bg-[#234ac2] text-white text-sm font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                className="px-7 py-2.5 rounded-full bg-[#2F65F6] hover:bg-[#234ac2] text-white text-sm font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 type="button"
               >
                 <span>Enter Waiting Room</span>

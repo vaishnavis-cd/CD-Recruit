@@ -361,7 +361,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
                 <button
                   onClick={() => runIdentityVerification(capturedDataUrl)}
                   type="button"
-                  className="px-3 py-1 bg-amber-800/60 hover:bg-amber-700/80 text-amber-100 text-xs rounded-lg transition-colors shrink-0 cursor-pointer"
+                  className="px-3 py-1 bg-amber-800/60 hover:bg-amber-700/80 text-amber-100 text-xs rounded-full transition-colors shrink-0 cursor-pointer"
                 >
                   Retry Verification
                 </button>
@@ -384,7 +384,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
               <button
                 onClick={() => setShowFlagConfirmModal(true)}
                 type="button"
-                className="px-4 py-2.5 rounded-lg text-xs font-semibold bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-700/50 transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-full text-xs font-semibold bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-700/50 transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <ShieldAlert size={14} /> Flag & Continue
               </button>
@@ -393,7 +393,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
                 onClick={handleConfirmAndProceed}
                 disabled={isSubmitting}
                 type="button"
-                className="btn-primary text-xs font-semibold px-6 py-2.5 animate-border-ripple shadow-lg cursor-pointer flex items-center gap-1.5"
+                className="btn-primary text-xs font-semibold px-6 py-2.5 rounded-full animate-border-ripple shadow-lg cursor-pointer flex items-center gap-1.5"
               >
                 {isSubmitting && <Loader2 size={13} className="animate-spin" />}
                 {isSubmitting ? 'Saving...' : 'Confirm & Continue to Test'}
@@ -405,7 +405,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
             onClick={handleCapture}
             disabled={!hasStream}
             type="button"
-            className={`text-xs font-semibold px-6 py-2.5 rounded-lg transition-all cursor-pointer ${
+            className={`text-xs font-semibold px-6 py-2.5 rounded-full transition-all cursor-pointer ${
               hasStream
                 ? 'btn-primary animate-border-ripple shadow-lg'
                 : 'bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed border border-slate-600'
@@ -432,7 +432,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
                 onClick={() => setShowFlagConfirmModal(false)}
                 type="button"
                 disabled={flaggingInFlight}
-                className="px-4 py-2 text-xs font-medium border border-[var(--border)] rounded-lg hover:bg-[var(--muted)] text-[var(--foreground)] transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium border border-[var(--border)] rounded-full hover:bg-[var(--muted)] text-[var(--foreground)] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -440,7 +440,7 @@ export function ConsentSelfieStep({ onComplete }: ConsentSelfieStepProps) {
                 onClick={executeFlagAndContinue}
                 type="button"
                 disabled={flaggingInFlight}
-                className="px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-md"
+                className="px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-full transition-colors cursor-pointer flex items-center gap-1.5 shadow-md"
               >
                 {flaggingInFlight && <Loader2 size={13} className="animate-spin" />}
                 {flaggingInFlight ? 'Flagging...' : 'Confirm & Continue'}

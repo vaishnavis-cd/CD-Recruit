@@ -879,14 +879,14 @@ function InvitesPage() {
                   setDirectFile(null);
                   setDirectError(null);
                 }}
-                className="px-3 py-2 text-xs border border-line rounded-md hover:bg-canvas cursor-pointer text-ink-secondary"
+                className="px-3.5 py-2 text-xs border border-line rounded-full hover:bg-canvas cursor-pointer text-ink-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={submitDirectUpload}
                 disabled={!directFile || directUploading}
-                className="px-4 py-2 text-xs font-medium bg-brand hover:bg-brand-hover disabled:bg-line-strong disabled:cursor-not-allowed text-white rounded-md flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 text-xs font-medium bg-brand hover:bg-brand-hover disabled:bg-line-strong disabled:cursor-not-allowed text-white rounded-full flex items-center gap-1.5 cursor-pointer"
               >
                 {directUploading && <RefreshCw size={13} className="animate-spin" />}
                 {directUploading ? "Enrolling face..." : "Upload & Enroll"}
@@ -986,7 +986,7 @@ function InvitesPage() {
                   type="button"
                   onClick={submit}
                   disabled={!name || !email || !selectedDriveId}
-                  className={`w-full h-[42px] rounded-[8px] text-[13.5px] font-bold flex items-center justify-center gap-2 transition-all mt-6 ${!name || !email || !selectedDriveId
+                  className={`w-full h-[42px] rounded-full text-[13.5px] font-bold flex items-center justify-center gap-2 transition-all mt-6 ${!name || !email || !selectedDriveId
                     ? "bg-[#DBE4F0] text-[#64748B] cursor-not-allowed"
                     : "bg-[#2E5DE0] hover:bg-[#254ec4] text-white shadow-md cursor-pointer"
                     }`}
@@ -1006,7 +1006,7 @@ function InvitesPage() {
                   <button
                     type="button"
                     onClick={() => copy(created.link, created.id)}
-                    className="h-[36px] px-4 rounded-[8px] bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12.5px] font-semibold inline-flex items-center gap-2 cursor-pointer shadow-sm transition-colors"
+                    className="h-[36px] px-4 rounded-full bg-[#2E5DE0] hover:bg-[#254ec4] text-white text-[12.5px] font-semibold inline-flex items-center gap-2 cursor-pointer shadow-sm transition-colors"
                   >
                     {copiedId === created.id ? <Check size={14} /> : <Copy size={14} />}
                     <span>{copiedId === created.id ? "Copied to clipboard" : "Copy link"}</span>
@@ -1034,7 +1034,7 @@ function InvitesPage() {
                           type="button"
                           onClick={retryModalUpload}
                           disabled={uploadingIdProof}
-                          className="mt-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[12px] font-semibold rounded-[6px] flex items-center gap-1.5 cursor-pointer"
+                          className="mt-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[12px] font-semibold rounded-full flex items-center gap-1.5 cursor-pointer"
                         >
                           <RefreshCw size={12} className={uploadingIdProof ? "animate-spin" : ""} />
                           Retry ID Proof Upload
@@ -1055,7 +1055,7 @@ function InvitesPage() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="mt-4 w-full h-[40px] rounded-[8px] bg-slate-100 hover:bg-slate-200 text-[#1E1B4B] text-[13px] font-bold cursor-pointer transition-colors"
+                  className="mt-4 w-full h-[40px] rounded-full bg-slate-100 hover:bg-slate-200 text-[#1E1B4B] text-[13px] font-bold cursor-pointer transition-colors"
                 >
                   Done
                 </button>
@@ -1082,7 +1082,7 @@ function InvitesPage() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setConfirmRevoke(null)}
-                className="px-3 py-2 text-sm-minus border border-line rounded-md hover:bg-canvas text-ink-secondary"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded-full hover:bg-canvas text-ink-secondary cursor-pointer"
               >
                 Cancel
               </button>
@@ -1091,7 +1091,7 @@ function InvitesPage() {
                   revokeInvite(confirmRevoke);
                   setConfirmRevoke(null);
                 }}
-                className="px-3 py-2 text-sm-minus bg-danger hover:bg-danger-hover text-white rounded-md cursor-pointer"
+                className="px-4 py-2 text-sm-minus bg-danger hover:bg-danger-hover text-white rounded-full cursor-pointer transition-colors"
               >
                 Revoke invite
               </button>
@@ -1121,13 +1121,13 @@ function InvitesPage() {
             <div className="flex justify-end gap-2 text-xs">
               <button
                 onClick={() => setExtendInviteId(null)}
-                className="px-3.5 py-1.5 border border-line rounded hover:bg-canvas text-ink-secondary"
+                className="px-3.5 py-1.5 border border-line rounded-full hover:bg-canvas text-ink-secondary cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleExtend}
-                className="px-3.5 py-1.5 text-white bg-brand rounded hover:bg-brand-hover cursor-pointer transition-colors"
+                className="px-4 py-1.5 text-white bg-brand rounded-full hover:bg-brand-hover cursor-pointer transition-colors"
               >
                 Save Extensions
               </button>
@@ -1154,13 +1154,13 @@ function InvitesPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmBulkRevoke(false)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-full hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmBulkRevokeAction}
-                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded-full"
               >
                 Revoke {selectedIds.length} Invite(s)
               </button>
@@ -1189,13 +1189,13 @@ function InvitesPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteInvite(null)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-full hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteSingle}
-                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded-full"
               >
                 Delete Invite
               </button>
@@ -1223,13 +1223,13 @@ function InvitesPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmBulkDelete(false)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-full hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBulkDeleteAction}
-                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded-full"
               >
                 Delete {selectedIds.length} Invite(s)
               </button>
