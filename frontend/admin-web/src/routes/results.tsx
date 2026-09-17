@@ -60,6 +60,12 @@ function ResultsPage() {
   const [selectedVerificationItem, setSelectedVerificationItem] = useState<any>(null);
 
   useEffect(() => {
+    if (driveFilter !== "all" && Array.isArray(drives) && drives.length > 0 && !drives.some((d) => d.id === driveFilter)) {
+      setDriveFilter("all");
+    }
+  }, [drives, driveFilter]);
+
+  useEffect(() => {
     if (isExactResults) {
       fetchResults({ driveId: driveFilter !== "all" ? driveFilter : undefined });
       fetchDrives();

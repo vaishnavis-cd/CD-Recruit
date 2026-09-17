@@ -10,6 +10,7 @@ import {
   List,
   Check,
   AlertCircle,
+  ShieldAlert,
   Search,
   Plus,
   Trash2,
@@ -343,6 +344,8 @@ function SettingsPage() {
   const [editingPartner, setEditingPartner] = useState<any | null>(null);
   const [confirmRotatePartner, setConfirmRotatePartner] = useState<any | null>(null);
   const [confirmRevokePartner, setConfirmRevokePartner] = useState<any | null>(null);
+  const [partnerFilter, setPartnerFilter] = useState<"all" | "active" | "revoked">("all");
+  const [partnerActionLoading, setPartnerActionLoading] = useState(false);
 
   const loadPartnerList = async () => {
     setLoadingPartners(true);
@@ -417,10 +420,11 @@ function SettingsPage() {
 
   const handleRevokePartner = async () => {
     if (!confirmRevokePartner) return;
+    setPartnerActionLoading(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}`, {
-        method: "DELETE",
+      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}/revoke`, {
+        method: "POST",
         headers,
       });
       if (!res.ok) throw new Error("Failed to revoke partner");
@@ -429,8 +433,38 @@ function SettingsPage() {
       loadPartnerList();
     } catch (err: any) {
       toast.error(err.message || "Failed to revoke partner");
+    } finally {
+      setPartnerActionLoading(false);
     }
   };
+
+  const handleDeletePartner = async () => {
+    if (!confirmRevokePartner) return;
+    setPartnerActionLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to delete partner");
+      toast.success(`Partner "${confirmRevokePartner.name}" permanently deleted`);
+      setConfirmRevokePartner(null);
+      loadPartnerList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete partner");
+    } finally {
+      setPartnerActionLoading(false);
+    }
+  };
+
+  const filteredPartners = useMemo(() => {
+    return partners.filter((p) => {
+      if (partnerFilter === "active") return !p.isRevoked;
+      if (partnerFilter === "revoked") return p.isRevoked;
+      return true;
+    });
+  }, [partners, partnerFilter]);
 
   const handleUpdatePartner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2567,31 +2601,80 @@ function SettingsPage() {
             {/* Tab 11: Integrations */}
             {activeTab === "integrations" && (
               <div className="space-y-6">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-[16px] font-bold text-[#0F172A]">Partner API Integrations</h2>
                     <p className="text-[12px] text-[#64748B] mt-1">
                       Manage external ATS partner API credentials, rate limits, and callback configurations.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowCreatePartnerModal(true)}
-                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
-                  >
-                    <Plus size={14} strokeWidth={2.5} />
-                    <span>Register Partner</span>
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {/* Status Filter Tabs */}
+                    <div className="inline-flex items-center bg-[#F1F5F9] p-0.5 rounded-[10px] border border-[#E2E8F0]">
+                      <button
+                        type="button"
+                        onClick={() => setPartnerFilter("all")}
+                        className={`px-3 py-1 text-[11px] font-bold rounded-[8px] transition-all cursor-pointer ${
+                          partnerFilter === "all"
+                            ? "bg-white text-[#2563EB] shadow-2xs"
+                            : "text-[#64748B] hover:text-[#0F172A]"
+                        }`}
+                      >
+                        All ({partners.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPartnerFilter("active")}
+                        className={`px-3 py-1 text-[11px] font-bold rounded-[8px] transition-all cursor-pointer ${
+                          partnerFilter === "active"
+                            ? "bg-white text-[#059669] shadow-2xs"
+                            : "text-[#64748B] hover:text-[#0F172A]"
+                        }`}
+                      >
+                        Active ({partners.filter((p) => !p.isRevoked).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPartnerFilter("revoked")}
+                        className={`px-3 py-1 text-[11px] font-bold rounded-[8px] transition-all cursor-pointer ${
+                          partnerFilter === "revoked"
+                            ? "bg-white text-[#EF4444] shadow-2xs"
+                            : "text-[#64748B] hover:text-[#0F172A]"
+                        }`}
+                      >
+                        Revoked ({partners.filter((p) => p.isRevoked).length})
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => setShowCreatePartnerModal(true)}
+                      className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
+                    >
+                      <Plus size={14} strokeWidth={2.5} />
+                      <span>Register Partner</span>
+                    </button>
+                  </div>
                 </div>
 
                 {loadingPartners ? (
                   <p className="text-center font-mono text-xs text-ink-tertiary py-8">
                     Loading partner integration records…
                   </p>
-                ) : partners.length === 0 ? (
+                ) : filteredPartners.length === 0 ? (
                   <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
                     <Key className="w-8 h-8 text-[#94A3B8] mx-auto" />
-                    <p className="text-sm font-bold text-[#0F172A]">No Partner API Keys Configured</p>
-                    <p className="text-xs text-[#8C9BA5]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                    <p className="text-sm font-bold text-[#0F172A]">
+                      {partnerFilter === "revoked"
+                        ? "No Revoked Partner Keys"
+                        : partnerFilter === "active"
+                        ? "No Active Partner Keys"
+                        : "No Partner API Keys Configured"}
+                    </p>
+                    <p className="text-xs text-[#8C9BA5]">
+                      {partnerFilter === "all"
+                        ? "Register an external ATS partner to issue X-API-Key credentials."
+                        : `No partner integrations found in the ${partnerFilter} view.`}
+                    </p>
                   </div>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
@@ -2608,18 +2691,21 @@ function SettingsPage() {
                     </div>
 
                     <div className="divide-y divide-[#E2E8F0]">
-                      {partners.map((p) => (
+                      {filteredPartners.map((p) => (
                         <div
                           key={p.id}
-                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
+                          className={`grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center transition-colors ${
+                            p.isRevoked ? "bg-[#FAFAFA]/70 text-[#94A3B8]" : "bg-white hover:bg-[#F8FAFC]/60"
+                          }`}
                         >
                           <div>
-                            <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
-                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
+                            <p className={`text-[13px] font-bold ${p.isRevoked ? "text-[#64748B] line-through decoration-slate-300" : "text-[#0F172A]"}`}>
+                              {p.name}
+                            </p>
                           </div>
                           <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
                           <div className="text-[13px] font-bold text-[#2563EB]">
-                            {(p as any).apiHitCount ?? 0} hits
+                            {(p as any).apiHitCount ?? 0} {(p as any).apiHitCount === 1 ? "hit" : "hits"}
                           </div>
                           <div
                             className="text-[13px] text-[#8C9BA5] italic truncate"
@@ -2629,10 +2715,11 @@ function SettingsPage() {
                           </div>
                           <div>
                             <span
-                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${p.isRevoked
+                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
+                                p.isRevoked
                                   ? "bg-[#FEF2F2] text-[#EF4444]"
                                   : "bg-[#ECFDF5] text-[#059669]"
-                                }`}
+                              }`}
                             >
                               {p.isRevoked ? "REVOKED" : "ACTIVE"}
                             </span>
@@ -2640,17 +2727,17 @@ function SettingsPage() {
                           <div className="text-[13px] text-[#64748B]">
                             {p.createdAt
                               ? new Date(p.createdAt).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "2-digit",
-                              })
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "2-digit",
+                                })
                               : "—"}
                           </div>
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setConfirmRotatePartner(p)}
                               className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
-                              title="Rotate API Key"
+                              title={p.isRevoked ? "Re-activate / Issue New Key" : "Rotate API Key"}
                             >
                               <RefreshCw size={12} />
                             </button>
@@ -2661,15 +2748,17 @@ function SettingsPage() {
                             >
                               <Edit3 size={12} />
                             </button>
-                            {!p.isRevoked && (
-                              <button
-                                onClick={() => setConfirmRevokePartner(p)}
-                                className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer shadow-2xs"
-                                title="Revoke Partner Key"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => setConfirmRevokePartner(p)}
+                              className={`w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
+                                p.isRevoked
+                                  ? "text-rose-500 hover:text-rose-700 hover:border-rose-400"
+                                  : "text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444]"
+                              }`}
+                              title={p.isRevoked ? "Delete Partner Permanently" : "Manage / Revoke Partner"}
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -2814,31 +2903,148 @@ function SettingsPage() {
         </div>
       )}
 
-      {/* Modal: Confirm Revoke Partner */}
+      {/* Modal: Confirm Delete/Revoke Partner */}
       {confirmRevokePartner && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
-            <div className="flex items-center gap-3 text-rose-600">
-              <Lock className="w-5 h-5 shrink-0" />
-              <h3 className="text-sm font-bold text-[#0d1424]">Revoke Partner Access for {confirmRevokePartner.name}?</h3>
-            </div>
-            <p className="text-xs text-[#64748b] leading-relaxed">
-              Revoking access will immediately block all API requests from <strong>{confirmRevokePartner.name}</strong>. This action will be recorded in the Audit Log.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f5f9]">
-              <button
-                onClick={() => setConfirmRevokePartner(null)}
-                className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRevokePartner}
-                className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-full shadow-xs cursor-pointer"
-              >
-                Confirm Revoke
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-[#e2e8f0] space-y-4">
+            {confirmRevokePartner.isRevoked ? (
+              <>
+                <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+                  <div className="flex items-center gap-2.5 text-rose-600">
+                    <Trash2 className="w-5 h-5 shrink-0" />
+                    <h3 className="text-sm font-bold text-[#0d1424]">
+                      Permanently Delete Partner: {confirmRevokePartner.name}?
+                    </h3>
+                  </div>
+                  <button
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="text-[#94a3b8] hover:text-[#0d1424] cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 leading-relaxed space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5">
+                    <ShieldAlert size={14} className="shrink-0 text-rose-600" />
+                    Warning: Irreversible Deletion
+                  </p>
+                  <p>
+                    This partner is already revoked. Permanently deleting it will remove all metadata, token hashes, and webhook configurations from the database.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f5f9]">
+                  <button
+                    type="button"
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={partnerActionLoading}
+                    onClick={handleDeletePartner}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-full shadow-xs cursor-pointer flex items-center gap-1.5 transition-all"
+                  >
+                    <Trash2 size={13} />
+                    {partnerActionLoading ? "Deleting..." : "Delete Permanently"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+                  <div className="flex items-center gap-2.5 text-[#0d1424]">
+                    <ShieldAlert className="w-5 h-5 shrink-0 text-amber-500" />
+                    <h3 className="text-sm font-bold text-[#0d1424]">
+                      Manage Partner: {confirmRevokePartner.name}
+                    </h3>
+                  </div>
+                  <button
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="text-[#94a3b8] hover:text-[#0d1424] cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <p className="text-xs text-[#64748b] leading-relaxed">
+                  Choose how you want to handle access for <strong>{confirmRevokePartner.name}</strong>. Revoking is industry standard to maintain audit integrity.
+                </p>
+
+                <div className="grid grid-cols-1 gap-3 py-1">
+                  {/* Option 1: Revoke Access (Recommended) */}
+                  <div className="border border-amber-200 bg-amber-50/50 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                        <Lock size={14} className="text-amber-600" />
+                        Revoke Access
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase tracking-wider">
+                        Recommended
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748b] leading-relaxed">
+                      Immediately blocks all API requests from this partner with a 401 Unauthorized status. Partner details, hit metrics, and audit logs are preserved for compliance and can be rotated later.
+                    </p>
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={partnerActionLoading}
+                        onClick={handleRevokePartner}
+                        className="px-4 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-full shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+                      >
+                        <Lock size={12} />
+                        {partnerActionLoading ? "Revoking..." : "Revoke Access"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Delete Permanently */}
+                  <div className="border border-rose-200 bg-rose-50/40 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-900">
+                        <Trash2 size={14} className="text-rose-600" />
+                        Delete Permanently
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 uppercase tracking-wider">
+                        Destructive
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748b] leading-relaxed">
+                      Completely purges this partner record, key hash, and webhook URL from the database. This action cannot be undone.
+                    </p>
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={partnerActionLoading}
+                        onClick={handleDeletePartner}
+                        className="px-4 py-1.5 text-xs font-semibold text-rose-700 hover:text-white hover:bg-rose-600 border border-rose-300 hover:border-transparent disabled:opacity-50 rounded-full cursor-pointer transition-all flex items-center gap-1.5"
+                      >
+                        <Trash2 size={12} />
+                        {partnerActionLoading ? "Deleting..." : "Delete Permanently"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-2 border-t border-[#f1f5f9]">
+                  <button
+                    type="button"
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

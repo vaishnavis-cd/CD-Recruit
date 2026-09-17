@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { LogOut, AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken, logout } from "../lib/auth";
+import { API_BASE } from "../lib/store";
 
 import dashboardDefault from "../assets/Selected=Default.svg";
 import dashboardVariant2 from "../assets/Selected=Variant2.svg";

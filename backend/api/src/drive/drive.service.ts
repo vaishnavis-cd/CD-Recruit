@@ -1179,12 +1179,28 @@ export class DriveService {
         await tx.reviewerDecision.deleteMany({
           where: { sessionId: { in: allSessionIds } },
         });
+        // Delete coding executions
+        await tx.codingExecution.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete SQL executions
+        await tx.sQLExecution.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete proctoring events
+        await tx.proctoringEvent.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete identity captures
+        await tx.identityCapture.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
       }
 
-      // 2. Unlink sessions from invites to prevent foreign key errors
-      if (inviteIds.length > 0) {
+      // 2. Unlink sessions from any invites referencing these sessions to prevent foreign key errors
+      if (allSessionIds.length > 0) {
         await tx.invite.updateMany({
-          where: { id: { in: inviteIds } },
+          where: { sessionId: { in: allSessionIds } },
           data: { sessionId: null },
         });
       }
@@ -1197,11 +1213,14 @@ export class DriveService {
       }
 
       // 4. Delete invites
-      if (inviteIds.length > 0) {
-        await tx.invite.deleteMany({
-          where: { id: { in: inviteIds } },
-        });
-      }
+      await tx.invite.deleteMany({
+        where: {
+          OR: [
+            { driveId },
+            ...(inviteIds.length > 0 ? [{ id: { in: inviteIds } }] : []),
+          ],
+        },
+      });
 
       // 5. Delete drive questions
       await tx.driveQuestion.deleteMany({

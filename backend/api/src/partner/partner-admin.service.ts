@@ -21,6 +21,7 @@ export class PartnerAdminService {
         callbackUrl: true,
         rateLimit: true,
         isRevoked: true,
+        apiHitCount: true,
         createdAt: true,
       },
     });
@@ -60,6 +61,7 @@ export class PartnerAdminService {
       callbackUrl: partner.callbackUrl,
       rateLimit: partner.rateLimit,
       isRevoked: partner.isRevoked,
+      apiHitCount: partner.apiHitCount ?? 0,
       createdAt: partner.createdAt,
     };
   }
@@ -104,6 +106,7 @@ export class PartnerAdminService {
       callbackUrl: updated.callbackUrl,
       rateLimit: updated.rateLimit,
       isRevoked: updated.isRevoked,
+      apiHitCount: updated.apiHitCount ?? 0,
       createdAt: updated.createdAt,
     };
   }
@@ -131,6 +134,7 @@ export class PartnerAdminService {
         callbackUrl: true,
         rateLimit: true,
         isRevoked: true,
+        apiHitCount: true,
         createdAt: true,
       },
     });
@@ -166,6 +170,7 @@ export class PartnerAdminService {
         callbackUrl: true,
         rateLimit: true,
         isRevoked: true,
+        apiHitCount: true,
         createdAt: true,
       },
     });
@@ -184,5 +189,34 @@ export class PartnerAdminService {
     });
 
     return updated;
+  }
+
+  async delete(partnerId: string, actorStaffId: string) {
+    const partner = await this.prisma.partner.findUnique({
+      where: { id: partnerId },
+    });
+
+    if (!partner) {
+      throw new NotFoundException(`Partner not found with ID ${partnerId}`);
+    }
+
+    await this.prisma.partner.delete({
+      where: { id: partnerId },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        staffId: actorStaffId,
+        action: "PARTNER_DELETED",
+        entityType: "Partner",
+        entityId: partner.id,
+        metadata: {
+          partnerName: partner.name,
+          deletedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return { success: true, id: partnerId };
   }
 }
