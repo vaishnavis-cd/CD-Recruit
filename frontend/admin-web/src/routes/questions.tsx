@@ -2498,13 +2498,13 @@ function QuestionBankPage() {
             <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-3.5 py-2 text-sm-minus border border-line rounded hover:bg-white transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded-full hover:bg-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 text-sm-minus text-white bg-brand rounded hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-sm-minus text-white bg-brand rounded-full hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
               >
                 Create Question
               </button>
@@ -2566,7 +2566,7 @@ function QuestionBankPage() {
                 <button
                   type="button"
                   onClick={handleDownloadUnifiedSampleCSV}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-brand text-brand bg-white rounded hover:bg-brand hover:text-white transition-all text-xs font-medium cursor-pointer shadow-sm shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-brand text-brand bg-white rounded-full hover:bg-brand hover:text-white transition-all text-xs font-medium cursor-pointer shadow-sm shrink-0"
                 >
                   <Download size={13} />
                   Download template
@@ -2601,14 +2601,14 @@ function QuestionBankPage() {
                   setCsvFile(null);
                   setShowImportModal(false);
                 }}
-                className="px-3.5 py-2 text-xs border border-line rounded hover:bg-canvas transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs border border-line rounded-full hover:bg-canvas transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleImport}
                 disabled={!csvFile}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand rounded hover:bg-brand-hover disabled:bg-surface-inset disabled:text-ink-tertiary disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand rounded-full hover:bg-brand-hover disabled:bg-surface-inset disabled:text-ink-tertiary disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer"
               >
                 <Check size={14} />
                 Import Questions
@@ -3135,13 +3135,13 @@ function QuestionBankPage() {
             <div className="px-6 py-4 border-t border-line flex justify-end gap-2 bg-canvas rounded-b-[12px]">
               <button
                 onClick={() => setEditingQuestion(null)}
-                className="px-3.5 py-2 text-sm-minus border border-line rounded hover:bg-white transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-sm-minus border border-line rounded-full hover:bg-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdate}
-                className="px-4 py-2 text-sm-minus text-white bg-brand rounded hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 text-sm-minus text-white bg-brand rounded-full hover:bg-brand-hover transition-colors cursor-pointer shadow-sm"
               >
                 Save Changes
               </button>
@@ -3168,7 +3168,7 @@ function QuestionBankPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmArchiveQuestion(null)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-full hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -3177,7 +3177,7 @@ function QuestionBankPage() {
                   archiveQuestion(confirmArchiveQuestion.id);
                   setConfirmArchiveQuestion(null);
                 }}
-                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-500 hover:bg-red-600 font-semibold cursor-pointer shadow-sm transition-colors rounded-full"
               >
                 Archive Question
               </button>
@@ -3205,7 +3205,7 @@ function QuestionBankPage() {
             <div className="flex justify-end gap-2.5 pt-2 text-sm-minus">
               <button
                 onClick={() => setConfirmDeleteFolder(null)}
-                className="px-3.5 py-2 border border-line rounded hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
+                className="px-3.5 py-2 border border-line rounded-full hover:bg-canvas text-ink-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -3223,7 +3223,7 @@ function QuestionBankPage() {
                     toast.error("Failed deleting folder: " + (err.message || err));
                   }
                 }}
-                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded"
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 font-semibold cursor-pointer shadow-sm transition-colors rounded-full"
               >
                 Delete Folder &amp; Questions
               </button>

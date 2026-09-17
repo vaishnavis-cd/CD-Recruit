@@ -4873,7 +4873,7 @@ function DriveDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowSelectTemplateModal(false)}
-                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-md transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-full transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -4881,7 +4881,7 @@ function DriveDetailPage() {
                 type="button"
                 onClick={() => handleApplyRoleTemplate(selectedTemplateForDrive)}
                 disabled={!selectedTemplateForDrive}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-full transition-colors cursor-pointer shadow-sm disabled:opacity-50"
               >
                 <Sparkles size={14} /> Apply Template &amp; Sync Questions
               </button>
@@ -5183,7 +5183,7 @@ function DriveDetailPage() {
                     type="button"
                     disabled={deficitSelectedQuestionIds.length === 0}
                     onClick={() => handleApplyInteractiveDeficitQuestions(currentSelectedDuration)}
-                    className="btn-gradient-primary !h-[36px] px-5 !rounded-xl disabled:opacity-50"
+                    className="btn-gradient-primary !h-[36px] px-5 !rounded-full disabled:opacity-50"
                   >
                     <Plus size={14} strokeWidth={2.5} />
                     <span>Add Selected Questions (+{currentSelectedDuration}m)</span>

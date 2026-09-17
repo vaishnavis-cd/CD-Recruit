@@ -104,7 +104,7 @@ export function DoneScreen({ referenceId, auto }: DoneScreenProps) {
             aria-label={copied ? 'Copied' : 'Copy reference ID'}
             type="button"
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer shrink-0
+              flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer shrink-0
               ${copied
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
                 : 'bg-white border-[#CBD5E1] text-[#334155] hover:bg-slate-50 hover:border-slate-400 active:scale-95'
