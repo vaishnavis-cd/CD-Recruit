@@ -37,6 +37,17 @@ export class PartnerApiKeyGuard implements CanActivate {
 
     // Attach resolved partner entity to request context
     request.partner = partner;
+
+    // Increment API hit count asynchronously
+    this.prisma.partner
+      .update?.({
+        where: { id: partner.id },
+        data: { apiHitCount: { increment: 1 } },
+      })
+      ?.catch((err: any) => {
+        console.error("Failed to increment partner apiHitCount:", err);
+      });
+
     return true;
   }
 }
