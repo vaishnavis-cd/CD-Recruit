@@ -1124,7 +1124,7 @@ function SettingsPage() {
 
   return (
     <AppShell hideHeader={true}>
-      <div className="max-w-[1320px] mx-auto w-full">
+      <div className="max-w-[1320px] mx-auto w-full pb-20">
         {/* Main Header */}
         <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-8">
           Settings &amp; Administration
@@ -1132,7 +1132,7 @@ function SettingsPage() {
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Navigation Tabs Side (Sticky on desktop) */}
-          <div className="w-full lg:w-[200px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
+          <div className="w-full lg:w-[220px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -1484,10 +1484,10 @@ function SettingsPage() {
 
                 {/* Roles Overview Breakdown Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                  <div className="p-4 bg-[#FEF2F2] rounded-[10px] border border-[#FECACA]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#DC2626] tracking-wider uppercase">ADMIN</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#DC2626] border border-[#FECACA]">
+                  <div className="p-4 bg-[#FEF2F2] rounded-[10px] border border-[#FECACA]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#DC2626] tracking-wider uppercase shrink-0">ADMIN</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#DC2626] border border-[#FECACA] whitespace-nowrap shrink-0">
                         SUPERADMIN
                       </span>
                     </div>
@@ -1496,10 +1496,10 @@ function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#EFF6FF] rounded-[10px] border border-[#BFDBFE]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#2563EB] tracking-wider uppercase">HR_LEAD</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#2563EB] border border-[#BFDBFE]">
+                  <div className="p-4 bg-[#EFF6FF] rounded-[10px] border border-[#BFDBFE]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#2563EB] tracking-wider uppercase shrink-0">HR_LEAD</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#2563EB] border border-[#BFDBFE] whitespace-nowrap shrink-0">
                         LEAD RECRUITER
                       </span>
                     </div>
@@ -1508,10 +1508,10 @@ function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#FFFBEB] rounded-[10px] border border-[#FDE68A]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#D97706] tracking-wider uppercase">HR_ASSOCIATE</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#D97706] border border-[#FDE68A]">
+                  <div className="p-4 bg-[#FFFBEB] rounded-[10px] border border-[#FDE68A]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#D97706] tracking-wider uppercase shrink-0">HR_ASSOCIATE</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#D97706] border border-[#FDE68A] whitespace-nowrap shrink-0">
                         RECRUITMENT OPS
                       </span>
                     </div>
@@ -1520,10 +1520,10 @@ function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#ECFDF5] rounded-[10px] border border-[#A7F3D0]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#059669] tracking-wider uppercase">REVIEWER</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#059669] border border-[#A7F3D0]">
+                  <div className="p-4 bg-[#ECFDF5] rounded-[10px] border border-[#A7F3D0]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#059669] tracking-wider uppercase shrink-0">REVIEWER</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#059669] border border-[#A7F3D0] whitespace-nowrap shrink-0">
                         EVALUATOR
                       </span>
                     </div>

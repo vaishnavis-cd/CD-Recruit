@@ -35,6 +35,13 @@ export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get("staff")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async listStaff() {
     return this.settingsService.listStaff();
   }
@@ -74,6 +81,13 @@ export class SettingsController {
   }
 
   @Get("scoring")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async getScoringConfig() {
     return this.settingsService.getScoringConfig();
   }
@@ -92,6 +106,13 @@ export class SettingsController {
   }
 
   @Get("system")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async getSystemConfig() {
     return this.settingsService.getTimingThresholds();
   }
@@ -105,6 +126,13 @@ export class SettingsController {
   }
 
   @Get("retention")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async getRetentionConfig() {
     return this.settingsService.getRetentionConfig();
   }
@@ -121,6 +149,13 @@ export class SettingsController {
   }
 
   @Get("appeal-window")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async getAppealWindowConfig() {
     return this.settingsService.getAppealWindowConfig();
   }
@@ -137,17 +172,37 @@ export class SettingsController {
   }
 
   @Get("audit-log")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async listAuditLogs(@Query() query: ListAuditLogQueryDto) {
     return this.settingsService.listAuditLogs(query);
   }
 
   @Get("audit-logs")
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async listAuditLogsAlias(@Query() query: ListAuditLogQueryDto) {
     return this.settingsService.listAuditLogs(query);
   }
 
   @Get("modules")
-  @Roles(StaffRole.ADMIN, StaffRole.RECRUITER)
+  @Roles(
+    StaffRole.ADMIN,
+    StaffRole.HR_LEAD,
+    StaffRole.HR_ASSOCIATE,
+    StaffRole.REVIEWER,
+    StaffRole.RECRUITER,
+  )
   async getModuleSettings() {
     return this.settingsService.getModuleSettings();
   }

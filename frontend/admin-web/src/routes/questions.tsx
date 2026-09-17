@@ -1450,7 +1450,6 @@ function QuestionBankPage() {
                 <option value="SIMULATION">Context Simulation</option>
                 <option value="TEST_SCENARIOS">Test Scenarios</option>
               </select>
-              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
             {/* Difficulty Filter */}
@@ -1465,7 +1464,6 @@ function QuestionBankPage() {
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
-              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
             {/* Target Role / Department Filter */}
@@ -1486,7 +1484,6 @@ function QuestionBankPage() {
                 <option value="SECOPS">SecOps</option>
                 <option value="General">General</option>
               </select>
-              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
             {/* Add Question Button */}
