@@ -540,27 +540,12 @@ function InvitesPage() {
               )}
             </div>
 
-            {/* Create Invite Button (134x34, rounded-24px) */}
+            {/* Create Invite Button */}
             <button
               onClick={() => setOpen(true)}
-              className="w-[134px] h-[34px] pt-[9px] pb-[9px] px-[18px] gap-[7px] text-white text-xs font-semibold rounded-[24px] flex items-center justify-center cursor-pointer shrink-0 opacity-100 rotate-0 transition-none"
-              style={{
-                width: "134px",
-                height: "34px",
-                paddingTop: "9px",
-                paddingBottom: "9px",
-                paddingLeft: "18px",
-                paddingRight: "18px",
-                gap: "7px",
-                borderRadius: "24px",
-                transform: "rotate(0deg)",
-                opacity: 1,
-                background: "linear-gradient(135deg, #3A91ED 0%, #2E5DE0 100%)",
-                boxShadow: "0px 4px 14px 0px #2E5DE0BF",
-                animationDuration: "0ms",
-              }}
+              className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-md shadow-blue-500/25 transition-all h-[34px]"
             >
-              <Plus size={14} className="shrink-0" />
+              <Plus size={14} strokeWidth={2.5} className="shrink-0" />
               <span>Create Invite</span>
             </button>
           </div>

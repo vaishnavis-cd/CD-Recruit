@@ -857,9 +857,9 @@ function DrivesPage() {
                 resetWizard();
                 setShowWizard(true);
               }}
-              className="btn-gradient-primary w-[134px] !h-[34px] !rounded-[24px] !gap-[7px] shrink-0 shadow-brand-glow"
+              className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-md shadow-blue-500/25 transition-all h-[34px]"
             >
-              <Plus size={14} className="shrink-0" />
+              <Plus size={14} strokeWidth={2.5} className="shrink-0" />
               <span>Create Drive</span>
             </button>
           </div>

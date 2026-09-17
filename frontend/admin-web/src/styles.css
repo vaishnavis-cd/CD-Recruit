@@ -149,6 +149,14 @@
     border-color: var(--color-border);
   }
 
+  /* Enforce pill / capsule button shape across all buttons */
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    border-radius: 9999px !important;
+  }
+
   html,
   body {
     background-color: transparent;
@@ -269,15 +277,15 @@
     font-size: 13px;
     font-weight: 700;
     color: #ffffff;
-    background: linear-gradient(135deg, #3a91ed 0%, #2e5de0 100%);
+    background: #2563EB;
     border-radius: 9999px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px 0 rgba(37, 99, 235, 0.25);
     transition: all 150ms ease;
     cursor: pointer;
   }
   .btn-gradient-primary:hover {
-    opacity: 0.95;
-    box-shadow: 0 2px 4px 0 rgba(46, 93, 224, 0.2);
+    background: #1D4ED8;
+    box-shadow: 0 4px 14px 0 rgba(29, 78, 216, 0.35);
   }
   .btn-gradient-primary:disabled {
     opacity: 0.5;

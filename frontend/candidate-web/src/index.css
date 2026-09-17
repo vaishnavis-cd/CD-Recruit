@@ -178,6 +178,15 @@
   * {
     border-color: var(--border);
   }
+
+  /* Enforce pill / capsule button shape across all buttons */
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    border-radius: 9999px !important;
+  }
+
   html, body {
     min-height: 100%;
     color: var(--foreground);
