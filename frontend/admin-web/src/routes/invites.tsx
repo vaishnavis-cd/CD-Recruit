@@ -147,6 +147,12 @@ function InvitesPage() {
     fetchDrives();
   }, []);
 
+  useEffect(() => {
+    if (driveFilter !== "all" && Array.isArray(drives) && drives.length > 0 && !drives.some((d) => d.id === driveFilter)) {
+      setDriveFilter("all");
+    }
+  }, [drives, driveFilter]);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);

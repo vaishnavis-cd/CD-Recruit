@@ -2615,7 +2615,7 @@ function SettingsPage() {
                         >
                           <div>
                             <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
-                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
+                            
                           </div>
                           <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
                           <div className="text-[13px] font-bold text-[#2563EB]">

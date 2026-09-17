@@ -289,6 +289,12 @@ function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (selectedDrive !== "all" && Array.isArray(drives) && drives.length > 0 && !drives.some((d) => d.id === selectedDrive)) {
+      setSelectedDrive("all");
+    }
+  }, [drives, selectedDrive]);
+
+  useEffect(() => {
     fetchDashboardStats({
       driveId: selectedDrive !== "all" ? selectedDrive : undefined,
       roleTemplateId: selectedRole !== "all" ? selectedRole : undefined,
@@ -789,7 +795,7 @@ function DashboardPage() {
 
                   {/* Change / Conversion Badge */}
                   <div className="w-20 text-right">
-                    {item.tone === "positive" ? (
+                    {item.tone === "success" || (item.tone as string) === "positive" ? (
                       <span className="inline-flex items-center justify-center min-w-[48px] px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]">
                         {item.change}
                       </span>
@@ -825,7 +831,7 @@ function DashboardPage() {
                   <div key={stream.id} className="py-2.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-[#f1f5f9] text-[#64748b] text-[11px] font-bold flex items-center justify-center shrink-0">
-                        {stream.avatar}
+                        {stream.initials}
                       </div>
                       <div>
                         <div className="text-xs font-bold text-[#0d1424] leading-tight">{stream.name}</div>

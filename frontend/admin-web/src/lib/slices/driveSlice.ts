@@ -95,11 +95,46 @@
 
     deleteDrive: async (driveId: string) => {
       const headers = await getAuthHeaders();
-      await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
         method: "DELETE",
         headers,
       });
-      get().fetchDrives();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to delete drive");
+      }
+
+      // Optimistically clean up Zustand store immediately
+      set((state: any) => ({
+        drives: (state.drives || []).filter((d: any) => d.id !== driveId),
+        sessions: (state.sessions || []).filter((s: any) => s.driveId !== driveId),
+        resultsList: (state.resultsList || []).filter((r: any) => r.driveId !== driveId),
+        invites: (state.invites || []).filter((i: any) => i.driveId !== driveId),
+      }));
+
+      // Clean up localStorage for opened partner drives
+      try {
+        const saved = localStorage.getItem("cd-recruit-opened-partner-drives");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.filter((id: string) => id !== driveId);
+            localStorage.setItem("cd-recruit-opened-partner-drives", JSON.stringify(updated));
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
+      // Re-fetch all connected entities from backend to guarantee fresh synchronization
+      await Promise.allSettled([
+        get().fetchDrives?.(),
+        get().fetchSessions?.(),
+        get().fetchResults?.(),
+        get().fetchInvites?.(),
+        get().fetchDashboardStats?.(),
+        get().fetchActionQueue?.(),
+      ]);
     },
 
     saveDriveQuestions: async (driveId: string, payload: string[] | { questionIds?: string[]; questionAssignments?: Array<{ questionId: string; pointShare?: number }> }) => {

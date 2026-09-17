@@ -1432,4 +1432,21 @@ export class AdminService {
       };
     });
   }
+
+  /**
+   * Generates a secure presigned download URL for the Proctora Enterprise User Manual.
+   */
+  async getUserManualDownloadUrl(): Promise<{ downloadUrl: string; filename: string }> {
+    const objectKey = "manuals/latest/PROCTORA_ENTERPRISE_USER_MANUAL.md";
+    const bucket =
+      this.configService.get<string>("minio.bucketGeneral") ??
+      this.configService.get<string>("app.minio.bucketGeneral") ??
+      "cd-recruit-general";
+    const downloadUrl = await this.storage.getSignedUrl(bucket, objectKey, 3600);
+    return {
+      downloadUrl: downloadUrl || "",
+      filename: "PROCTORA_ENTERPRISE_USER_MANUAL.md",
+    };
+  }
 }
+

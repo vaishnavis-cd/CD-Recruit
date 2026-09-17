@@ -118,6 +118,12 @@ function ReportsPage() {
   };
 
   useEffect(() => {
+    if (selectedDrive !== "all" && Array.isArray(drives) && drives.length > 0 && !drives.some((d) => d.id === selectedDrive)) {
+      setSelectedDrive("all");
+    }
+  }, [drives, selectedDrive]);
+
+  useEffect(() => {
     try {
       fetchSessions();
       fetchRoleTemplates();
