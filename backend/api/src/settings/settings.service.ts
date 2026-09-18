@@ -431,17 +431,78 @@ export class SettingsService {
       throw new NotFoundException(`Staff not found with ID ${staffId}`);
     }
 
-    await this.prisma.staff.delete({ where: { id: staffId } });
+    // Determine safe reassignment target for foreign-key constraints (ReviewerDecision, Invite, Drive, AuditLog)
+    let targetReassignId = actorId;
+    if (!targetReassignId || targetReassignId === staffId) {
+      const otherStaff = await this.prisma.staff.findFirst({
+        where: { id: { not: staffId } },
+      });
+      if (otherStaff) {
+        targetReassignId = otherStaff.id;
+      }
+    }
 
-    await this.prisma.auditLog.create({
-      data: {
-        staffId: actorId,
-        action: "STAFF_DELETED",
-        entityType: "Staff",
-        entityId: staffId,
-        metadata: { name: staff.name, email: staff.email, role: staff.role },
-      },
-    });
+    const executeDelete = async (tx: any) => {
+      // 1. Reassign or clean up foreign-key dependencies
+      if (targetReassignId && targetReassignId !== staffId) {
+        if (tx.reviewerDecision?.updateMany) {
+          await tx.reviewerDecision.updateMany({
+            where: { staffId },
+            data: { staffId: targetReassignId },
+          });
+        }
+        if (tx.invite?.updateMany) {
+          await tx.invite.updateMany({
+            where: { createdById: staffId },
+            data: { createdById: targetReassignId },
+          });
+        }
+        if (tx.drive?.updateMany) {
+          await tx.drive.updateMany({
+            where: { createdById: staffId },
+            data: { createdById: targetReassignId },
+          });
+        }
+        if (tx.auditLog?.updateMany) {
+          await tx.auditLog.updateMany({
+            where: { staffId },
+            data: { staffId: targetReassignId },
+          });
+        }
+      } else {
+        // If no other staff exists in the system, delete dependent records to prevent FK failure
+        if (tx.reviewerDecision?.deleteMany) {
+          await tx.reviewerDecision.deleteMany({ where: { staffId } });
+        }
+        if (tx.auditLog?.deleteMany) {
+          await tx.auditLog.deleteMany({ where: { staffId } });
+        }
+      }
+
+      // 2. Delete the staff record
+      await tx.staff.delete({ where: { id: staffId } });
+
+      // 3. Create deletion audit log
+      if (tx.auditLog?.create) {
+        await tx.auditLog.create({
+          data: {
+            staffId: targetReassignId || actorId,
+            action: "STAFF_DELETED",
+            entityType: "Staff",
+            entityId: staffId,
+            metadata: { name: staff.name, email: staff.email, role: staff.role },
+          },
+        });
+      }
+    };
+
+    if (typeof this.prisma.$transaction === "function") {
+      await this.prisma.$transaction(async (tx: any) => {
+        await executeDelete(tx);
+      });
+    } else {
+      await executeDelete(this.prisma);
+    }
 
     return { success: true };
   }

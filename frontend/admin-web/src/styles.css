@@ -149,12 +149,12 @@
     border-color: var(--color-border);
   }
 
-  /* Enforce pill / capsule button shape across all buttons */
-  button,
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"] {
-    border-radius: 9999px !important;
+  /* Enforce pill / capsule button shape across standard buttons, unless an explicit radius utility is applied */
+  button:not([class*="rounded-"]),
+  input[type="button"]:not([class*="rounded-"]),
+  input[type="submit"]:not([class*="rounded-"]),
+  input[type="reset"]:not([class*="rounded-"]) {
+    border-radius: 9999px;
   }
 
   html,
