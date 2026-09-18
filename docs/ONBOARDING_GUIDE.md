@@ -27,7 +27,7 @@ Follow these steps in order for first-time environment setup:
 
 ### Step 2: Start Infrastructure Containers
 
-Launch the backing services (PostgreSQL, Redis, Keycloak, MinIO, Judge0):
+Launch the backing services (PostgreSQL, Redis, MinIO, MongoDB, Judge0 CE, and Face Verify):
 
 ```bash
 npm run infra:up
@@ -37,7 +37,13 @@ npm run infra:up
 ```bash
 docker ps
 ```
-All 6 containers should show `Up` and `Healthy`.
+The active backing containers should show `Up` and `Healthy`:
+- `cdrecruit_postgres_dev` (Port `5434:5432`)
+- `cdrecruit_redis_dev` (Port `6379:6379`)
+- `cdrecruit_minio_dev` (Ports `9000:9000`, `9001:9001`)
+- `cdrecruit_mongodb_dev` (Port `27017:27017`)
+- `cdrecruit_judge0_server` (Port `2358:2358`)
+- `cdrecruit_judge0_worker` (Internal worker)
 
 ---
 
@@ -48,7 +54,7 @@ Install dependencies from the root directory:
 ```bash
 npm install
 ```
-> **Note:** The `postinstall` hook will automatically compile `@cd-recruit/shared-types`.
+> **Note:** The `postinstall` hook will automatically compile `@cd-recruit/shared-types` and `@cd-recruit/design-tokens`.
 
 ---
 
@@ -64,7 +70,7 @@ npm run setup:all
 ```bash
 npm run build:shared  # Build TypeScript workspace packages
 npm run db:migrate    # Apply Prisma migrations to Postgres
-npm run db:seed       # Seed default staff, role templates, and questions
+npm run db:seed       # Seed default staff, role templates (32 tiers), and questions
 ```
 
 ---
@@ -99,20 +105,25 @@ npm run dev:candidate
 | :--- | :--- | :--- | :--- |
 | `cdrecruit_postgres_dev` | PostgreSQL 16 | **`5434:5432`** | User: `cdrecruit`<br>Pass: `cdrecruit123`<br>Database: `cdrecruit` |
 | `cdrecruit_redis_dev` | Redis 7 | `6379:6379` | BullMQ queues & session cache |
-| `cdrecruit_mongodb_dev` | MongoDB 6 | `27017:27017` | NoSQL challenge dataset store |
-| `cdrecruit_minio_dev` | MinIO Storage | `9000` (API)<br>`9001` (Console) | User: `minioadmin`<br>Pass: `minioadmin` |
-| `cdrecruit_judge0_server` | Judge0 CE Server | `2358:2358` | Code sandbox execution engine |
-| `cdrecruit_judge0_worker` | Judge0 Sandboxed Worker | Internal | Queue worker for Judge0 execution |
-| `cdrecruit_face_verify_dev` | Face Verify (FastAPI) | `8001:8000` | DeepFace webcam verification service |
-| `cdrecruit_grafana` | Grafana Dashboard | `3100:3000` | Observability & metrics dashboard |
+| `cdrecruit_mongodb_dev` | MongoDB 6 | `27017:27017` | User: `admin`<br>Pass: `adminpassword`<br>NoSQL challenge dataset store |
+| `cdrecruit_minio_dev` | MinIO Storage | `9000` (API)<br>`9001` (Console) | User: `minioadmin`<br>Pass: `minioadmin`<br>Buckets: `cd-recruit-general`, `cd-recruit-biometric` |
+| `cdrecruit_judge0_server` | Judge0 CE Server | `2358:2358` | Polyglot code sandbox execution engine |
+| `cdrecruit_judge0_worker` | Judge0 Sandboxed Worker | Internal | Queue worker executing code via Linux isolate sandbox |
+| `cdrecruit_face_verify_dev` | Face Verify (FastAPI) | `8001:8000` | DeepFace webcam verification microservice |
+| `cdrecruit_grafana` | Grafana Dashboard | `3100:3000` | Observability & metrics dashboard (Remapped from 3001) |
 
 ---
 
 ### Default Application Login Credentials
 
 #### Admin Dashboard (`http://localhost:5173`)
-- **Admin Role**: Username `demo-admin` (or `admin@cdrecruit.local`) \| Password `password`
-- **Recruiter Role**: Username `demo-recruiter` (or `recruiter@cdrecruit.local`) \| Password `password`
+Authentication uses native In-House Staff JWT (`crypto.scrypt` hashing & HS256 tokens). Pre-seeded staff accounts:
+
+| Role | Username / Email | Password | Access Rights |
+|---|---|---|---|
+| **Admin** | `admin@cdrecruit.local` (or `demo-admin`) | `password` | Full workspace access: drives, settings, audit logs, partner keys |
+| **Recruiter** | `recruiter@cdrecruit.local` (or `demo-recruiter`) | `password` | Drive creation, candidate review, evaluation results |
+| **Recruiter (Alt)** | `recruiter@example.com` | `password` | Drive operations & candidate reports |
 
 ---
 
@@ -121,7 +132,10 @@ npm run dev:candidate
 ### Q1: Why does `npm run db:migrate` report `Environment variable not found: DATABASE_URL`?
 
 * **Cause**: `npm run db:migrate` runs `npm --workspace=backend/api run prisma:migrate`, switching working directory to `backend/api`. Prisma CLI searches for `.env` only in `backend/api/.env` or `backend/prisma/.env`, not the root directory.
-* **Fix**: Ensure `.env` is copied to [`backend/api/.env`](file:///d:/Projects/cd-recruit/test-drive/CD-Recruit/backend/api/.env).
+* **Fix**: Ensure `.env` is copied to `backend/api/.env`:
+  ```bash
+  cp .env backend/api/.env
+  ```
 * **Warning**: Do NOT place a `.env` file in `backend/prisma/` at the same time as `backend/api/`, as Prisma CLI will report a file conflict error.
 
 ---
@@ -132,7 +146,7 @@ npm run dev:candidate
 * **Idempotent Enum Migration Guards**: All custom SQL enum creations use PL/pgSQL guards to prevent `type "X" already exists` errors during migration replays or shadow database checks:
   ```sql
   DO $$ BEGIN
-    CREATE TYPE "ModuleType" AS ENUM ('MCQ', 'SQL', 'CODING', 'AI_PROMPTING', 'SIMULATION');
+    CREATE TYPE "ModuleType" AS ENUM ('MCQ', 'SQL', 'NOSQL', 'CODING', 'DEBUGGING', 'AI_PROMPTING', 'SIMULATION', 'TEST_SCENARIOS');
   EXCEPTION WHEN duplicate_object THEN null; END $$;
   ```
 * **Database Migration Reset**: If your local development database state becomes corrupted or out of sync:
@@ -144,14 +158,28 @@ npm run dev:candidate
 
 ### Q3: Why did admin login result in a 401 error and immediate redirect to `/login`?
 
-* **Keycloak RS256 Token Validation**:
-  - Keycloak issues RS256 tokens signed with its RSA private key.
-  - NestJS API's `JwtStrategy` automatically inspects incoming JWT headers for Keycloak's `kid` field and fetches Keycloak's JWKS public key on port `8080` to verify authentic Keycloak sessions.
-  - Ensure `KEYCLOAK_URL=http://localhost:8080` is configured in `.env` and `backend/api/.env`.
+* **In-House Staff JWT Validation**:
+  - Authentication is handled directly by `AuthController` (`POST /api/v1/auth/login`) in NestJS using native `crypto.scrypt` password verification against the PostgreSQL `Staff` table.
+  - Ensure `JWT_SECRET` is defined in both `.env` and `backend/api/.env` with at least 32 characters.
+  - If staff accounts were not seeded or database was reset, run:
+    ```bash
+    npm run db:seed
+    ```
+  - Verify your credentials: Username/Email `admin@cdrecruit.local` and Password `password`.
 
 ---
 
 ### Q4: Why does `@cd-recruit/shared-types` throw `Module Not Found` on a fresh clone?
 
 * **Cause**: TypeScript workspace packages produce `dist/` build artifacts that are gitignored.
-* **Fix**: Running `npm install` automatically triggers a `"postinstall": "npm run build:shared"` hook to build `packages/shared-types`. If needed, run `npm run build:shared` manually.
+* **Fix**: Running `npm install` automatically triggers a `"postinstall": "npm run build:shared"` hook to build `packages/shared-types` and `packages/design-tokens`. If needed, run `npm run build:shared` manually.
+
+---
+
+### Q5: Can I run CD-Recruit without running Docker containers?
+
+* **Yes!** Set `INFRA_MODE=local` in your `.env` and `backend/api/.env`.
+* In `local` mode:
+  - Redis/BullMQ uses an in-memory scheduler.
+  - MinIO S3 storage uses `FakeStorageService` (simulates successful uploads).
+  - PostgreSQL is still required (either via lightweight Docker or a local PostgreSQL 16 installation pointing to `DATABASE_URL`).

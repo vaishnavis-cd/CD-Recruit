@@ -18,7 +18,7 @@ npx tsx scripts/<script-name>.ts
 ### 1. Candidate Links & Seeding
 * **`seed-candidate-dev.ts`**: Seeds dev candidate invites, recruitment drive, and role templates.
   * *Shortcut*: `npm run seed:candidate` (from `backend/api`)
-* **`create-fresh-candidate-link.ts`**: Generates a fresh candidate invite token and outputs a direct login URL (`http://localhost:3000/login?token=...`).
+* **`create-fresh-candidate-link.ts`**: Generates a fresh candidate invite token and outputs a direct login URL (`http://localhost:5174/invite/:token`).
 * **`get-token.ts`**: Fetches or signs a valid JWT token for candidate/admin API authorization headers.
 * **`get-valid-session.ts`**: Queries PostgreSQL for an active candidate session ID.
 
@@ -28,7 +28,7 @@ npx tsx scripts/<script-name>.ts
 
 ### 3. API Module Verifications
 * **`verify-simulation-api.ts`**: Tests the Contextual Simulation submission workflow and 4-part scoring evaluator.
-* **`verify-events-api.ts`**: Verifies workspace telemetry event ingestion (`POST /simulation/events`).
+* **`verify-events-api.ts`**: Verifies workspace telemetry event ingestion (`POST /simulation/events` & `/proctoring/events`).
 * **`verify-consent-api.ts`**: Verifies candidate privacy and proctoring consent recording.
 * **`verify-upload-api.ts`**: Tests proctoring clip and artifact upload endpoints.
 * **`verify-close.ts`**: Tests automated session closing and timeout mechanics.

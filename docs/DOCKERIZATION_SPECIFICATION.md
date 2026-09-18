@@ -181,11 +181,12 @@ MINIO_BUCKET_BIOMETRIC=cdrecruit-prod-biometric
 
 ---
 
-## 6. In-Flight Developer Work Coordination
+## 6. Architecture Evolution & Live Status
 
-1. **Admin Authentication (Keycloak $\rightarrow$ Native JWT):**
-   * Keycloak is being decommissioned in 2 days by another developer.
-   * Do **not** deploy Keycloak in production. The forthcoming PR will introduce `POST /api/v1/auth/login` and `POST /api/v1/auth/refresh` using `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`.
-2. **NoSQL Module & Candidate UI:**
-   * Another developer is finalizing NoSQL query validation and candidate screen refinements.
-   * Ensure MongoDB (`27017`) and candidate endpoints remain accessible for their upcoming merge.
+1. **Admin Authentication (Native In-House Staff JWT — Complete):**
+   * Keycloak has been decommissioned.
+   * Production and staging deployments use native NestJS Staff JWT authentication (`crypto.scrypt` password hashing + HS256 JWT tokens).
+   * Endpoints `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and `POST /api/v1/auth/logout` are live. Configure `JWT_SECRET` (minimum 32 characters) in production.
+2. **Interactive Assessment Modules (All 8 Active):**
+   * All 8 assessment modules (MCQ, SQL, NoSQL, Coding, Debugging, AI Prompting, Contextual Simulation, Test Scenarios) are integrated with candidate execution endpoints and automated grading.
+   * Ensure MongoDB (`27017`) and Judge0 CE (`2358`) clusters are accessible in the VPC network for candidate submissions.
