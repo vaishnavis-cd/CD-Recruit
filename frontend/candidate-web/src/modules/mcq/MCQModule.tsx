@@ -165,7 +165,7 @@ export function MCQModule({ moduleIndex }: MCQModuleProps) {
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Question Tracker & Multiple Select Badge */}
             <div className="flex items-center justify-between">
-              <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+              <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider">
                 QUESTION {currentIndex + 1} OF {questions.length}
               </span>
               {question?.allowMultiple && (

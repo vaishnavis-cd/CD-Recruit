@@ -48,6 +48,38 @@ export const CANONICAL_MODULES: Array<{ key: string; label: string; aliases: str
   { key: "TEST_SCENARIOS", label: "Test Scenarios", aliases: ["test_scenarios", "test-scenarios", "testscenarios", "scenarios", "testscenario"] },
 ];
 
+export const MODULE_FILTER_OPTIONS = [
+  { label: "All Modules", value: "all" },
+  { label: "MCQ", value: "MCQ" },
+  { label: "SQL", value: "SQL" },
+  { label: "NoSQL", value: "NOSQL" },
+  { label: "Coding", value: "CODING" },
+  { label: "Debugging", value: "DEBUGGING" },
+  { label: "AI Prompting", value: "AI_PROMPTING" },
+  { label: "Context Simulation", value: "SIMULATION" },
+  { label: "Test Scenarios", value: "TEST_SCENARIOS" },
+];
+
+export const DIFFICULTY_FILTER_OPTIONS = [
+  { label: "All Difficulties", value: "all" },
+  { label: "Easy", value: "easy" },
+  { label: "Medium", value: "medium" },
+  { label: "Hard", value: "hard" },
+];
+
+export const ROLE_FILTER_OPTIONS = [
+  { label: "All Roles", value: "all" },
+  { label: "Software Engineering", value: "SOFTWARE_ENGINEERING" },
+  { label: "Data Engineering", value: "DATA_ENGINEERING" },
+  { label: "QA", value: "QA" },
+  { label: "SRE", value: "SRE" },
+  { label: "SysOps", value: "SYSOPS" },
+  { label: "ITOps", value: "ITOPS" },
+  { label: "PMO", value: "PMO" },
+  { label: "SecOps", value: "SECOPS" },
+  { label: "General", value: "General" },
+];
+
 export const CANONICAL_LEVELS: Array<{ key: string; label: string; tier: string; aliases: string[] }> = [
   { key: "0-1", label: "Fresher (0-1 yrs)", tier: "0-1", aliases: ["fresher", "freshers", "intern", "0-1", "0-1 yrs", "entry", "01"] },
   { key: "2-5", label: "Level 1 (2-5 yrs)", tier: "2-5", aliases: ["l1", "level1", "level 1", "2-5", "2-5 yrs", "junior", "25"] },
@@ -493,6 +525,9 @@ function QuestionBankPage() {
   const [targetLevelFilter, setTargetLevelFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedTopicDomain, setSelectedTopicDomain] = useState<string>("all");
+  const [modDropdownOpen, setModDropdownOpen] = useState(false);
+  const [diffDropdownOpen, setDiffDropdownOpen] = useState(false);
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
@@ -1435,55 +1470,155 @@ function QuestionBankPage() {
 
             {/* Module Filter */}
             <div className="relative">
-              <select
-                value={modFilter}
-                onChange={(e) => setModFilter(e.target.value)}
-                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-slate-200 rounded-full bg-white text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs cursor-pointer"
+              <button
+                type="button"
+                onClick={() => {
+                  setModDropdownOpen((prev) => !prev);
+                  setDiffDropdownOpen(false);
+                  setRoleDropdownOpen(false);
+                }}
+                className="h-8 px-4 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-normal flex items-center justify-between gap-2.5 cursor-pointer focus:outline-none hover:border-slate-300 shadow-2xs transition-all select-none"
               >
-                <option value="all">All Modules</option>
-                <option value="MCQ">MCQ</option>
-                <option value="SQL">SQL</option>
-                <option value="NOSQL">NoSQL</option>
-                <option value="CODING">Coding</option>
-                <option value="DEBUGGING">Debugging</option>
-                <option value="AI_PROMPTING">AI Prompting</option>
-                <option value="SIMULATION">Context Simulation</option>
-                <option value="TEST_SCENARIOS">Test Scenarios</option>
-              </select>
+                <span className="truncate">
+                  {MODULE_FILTER_OPTIONS.find((o) => o.value === modFilter)?.label || "All Modules"}
+                </span>
+                <ChevronDown
+                  size={13}
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0 ${
+                    modDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {modDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setModDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1.5 min-w-[175px] w-max bg-white rounded-2xl border border-slate-100 shadow-xl p-1.5 z-50 animate-in fade-in-50 zoom-in-95 duration-100 max-h-72 overflow-y-auto">
+                    {MODULE_FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setModFilter(opt.value);
+                          setModDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                          modFilter === opt.value
+                            ? "bg-blue-50 text-blue-600 font-semibold"
+                            : "text-slate-700 hover:bg-slate-50 font-normal"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Difficulty Filter */}
             <div className="relative">
-              <select
-                value={diffFilter}
-                onChange={(e) => setDiffFilter(e.target.value)}
-                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-slate-200 rounded-full bg-white text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs cursor-pointer"
+              <button
+                type="button"
+                onClick={() => {
+                  setDiffDropdownOpen((prev) => !prev);
+                  setModDropdownOpen(false);
+                  setRoleDropdownOpen(false);
+                }}
+                className="h-8 px-4 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-normal flex items-center justify-between gap-2.5 cursor-pointer focus:outline-none hover:border-slate-300 shadow-2xs transition-all select-none"
               >
-                <option value="all">All Difficulties</option>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
+                <span className="truncate">
+                  {DIFFICULTY_FILTER_OPTIONS.find((o) => o.value === diffFilter)?.label || "All Difficulties"}
+                </span>
+                <ChevronDown
+                  size={13}
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0 ${
+                    diffDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {diffDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setDiffDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1.5 min-w-[150px] w-max bg-white rounded-2xl border border-slate-100 shadow-xl p-1.5 z-50 animate-in fade-in-50 zoom-in-95 duration-100 max-h-72 overflow-y-auto">
+                    {DIFFICULTY_FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setDiffFilter(opt.value);
+                          setDiffDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                          diffFilter === opt.value
+                            ? "bg-blue-50 text-blue-600 font-semibold"
+                            : "text-slate-700 hover:bg-slate-50 font-normal"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Target Role / Department Filter */}
             <div className="relative">
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="appearance-none pl-4 pr-9 py-2 text-xs font-normal border border-slate-200 rounded-full bg-white text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs cursor-pointer"
+              <button
+                type="button"
+                onClick={() => {
+                  setRoleDropdownOpen((prev) => !prev);
+                  setModDropdownOpen(false);
+                  setDiffDropdownOpen(false);
+                }}
+                className="h-8 px-4 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-normal flex items-center justify-between gap-2.5 cursor-pointer focus:outline-none hover:border-slate-300 shadow-2xs transition-all select-none"
               >
-                <option value="all">All Roles</option>
-                <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
-                <option value="DATA_ENGINEERING">Data Engineering</option>
-                <option value="QA">QA</option>
-                <option value="SRE">SRE</option>
-                <option value="SYSOPS">SysOps</option>
-                <option value="ITOPS">ITOps</option>
-                <option value="PMO">PMO</option>
-                <option value="SECOPS">SecOps</option>
-                <option value="General">General</option>
-              </select>
+                <span className="truncate">
+                  {ROLE_FILTER_OPTIONS.find((o) => o.value === roleFilter)?.label || "All Roles"}
+                </span>
+                <ChevronDown
+                  size={13}
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0 ${
+                    roleDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {roleDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setRoleDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1.5 min-w-[175px] w-max bg-white rounded-2xl border border-slate-100 shadow-xl p-1.5 z-50 animate-in fade-in-50 zoom-in-95 duration-100 max-h-72 overflow-y-auto">
+                    {ROLE_FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setRoleFilter(opt.value);
+                          setRoleDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                          roleFilter === opt.value
+                            ? "bg-blue-50 text-blue-600 font-semibold"
+                            : "text-slate-700 hover:bg-slate-50 font-normal"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Add Question Button */}

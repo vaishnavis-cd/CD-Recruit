@@ -1245,17 +1245,28 @@ function DrivesPage() {
                       Setup Method
                     </label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setCustomRolePathway("MANUAL")}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setCustomRolePathway("MANUAL");
+                          }
+                        }}
+                        style={{ borderRadius: "8px" }}
+                        className={`p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
                           customRolePathway === "MANUAL"
                             ? "border-brand bg-blue-50/50 shadow-xs"
                             : "border-line bg-white hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <div
+                            style={{ borderRadius: "6px" }}
+                            className={`w-7 h-7 flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+                          >
                             <PenLine size={14} />
                           </div>
                           {customRolePathway === "MANUAL" && (
@@ -1268,19 +1279,30 @@ function DrivesPage() {
                             Configure modules, duration, questions & roster step-by-step.
                           </p>
                         </div>
-                      </button>
+                      </div>
 
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setCustomRolePathway("BULK_IMPORT")}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setCustomRolePathway("BULK_IMPORT");
+                          }
+                        }}
+                        style={{ borderRadius: "8px" }}
+                        className={`p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
                           customRolePathway === "BULK_IMPORT"
                             ? "border-brand bg-blue-50/50 shadow-xs"
                             : "border-line bg-white hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <div
+                            style={{ borderRadius: "6px" }}
+                            className={`w-7 h-7 flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+                          >
                             <UploadCloud size={14} />
                           </div>
                           {customRolePathway === "BULK_IMPORT" && (
@@ -1293,7 +1315,7 @@ function DrivesPage() {
                             Ingest questions via dedicated Question Bank folder.
                           </p>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   </div>
 

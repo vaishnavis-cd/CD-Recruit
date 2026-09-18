@@ -5,7 +5,7 @@ import { ModuleShell } from '../../components/ModuleShell'
 import { useTheme } from '../../theme/ThemeProvider'
 import { useModuleNavigation } from '../../hooks/useModuleNavigation'
 import apiClient from '../../api/client'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 
 interface QueryResult {
   result: any;
@@ -413,7 +413,7 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
           className="w-full lg:w-auto h-full border-r border-[var(--border)] flex flex-col overflow-y-auto bg-[var(--surface)] p-6 space-y-6 shrink-0 select-text"
         >
           <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-[var(--accent)] font-bold">
+            <span className="text-xs uppercase tracking-wider text-[var(--accent)] font-bold">
               Query {currentIndex + 1} of {questions.length}
             </span>
             <h2 className="text-base font-bold text-[var(--text-primary)] mt-1">{question.title}</h2>
@@ -430,7 +430,7 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
 
           {/* Database Preview */}
           <div className="space-y-4 pt-2">
-            <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-secondary)] font-bold">
+            <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-bold">
               Database Seed Collections
             </div>
 
@@ -509,62 +509,67 @@ export function NOSQLModule({ moduleIndex }: NOSQLModuleProps) {
           </div>
 
           {/* Standardized Pinned Bottom Navigation Bar */}
-          <footer className="h-14 border-t border-border bg-surface px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
+          <footer className="h-14 border-t border-line dark:border-slate-800 bg-white dark:bg-[#111827] px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
             <div className="flex items-center gap-3">
               <button
-                onClick={handleRun}
-                disabled={running || !editorQuery.trim()}
-                className="px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
-              >
-                {running ? 'Running…' : '▶ Run Query'}
-              </button>
-
-              <button
-                onClick={handleReset}
-                className="px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-background text-xs font-bold transition-all cursor-pointer shadow-xs bg-surface"
-              >
-                Reset DB State
-              </button>
-
-              <button
-                onClick={handleSubmitQuery}
-                disabled={submitting || !editorQuery.trim()}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
-              >
-                {submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Save Answer'}
-              </button>
-
-              {evalResult && (
-                <div className={`px-2.5 py-1 rounded-full text-xs-plus font-mono font-medium flex items-center gap-1.5 ${
-                  evalResult.passed 
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
-                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-                }`}>
-                  <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
-                </div>
-              )}
-            </div>
-
-            <span className="text-xs font-mono font-medium text-muted-foreground hidden sm:inline">
-              NoSQL Task {currentIndex + 1} of {questions.length}
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
+                type="button"
                 onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 aria-label="Previous question"
               >
                 <ChevronLeft size={14} className="shrink-0" />
                 <span>Previous</span>
               </button>
+
               <button
+                type="button"
                 onClick={() => handleNext(() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1)))}
-                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <span>{nextButtonLabel}</span>
                 <ChevronRight size={14} className="shrink-0" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {evalResult && (
+                <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap ${
+                  evalResult.passed 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' 
+                    : 'bg-red-50 dark:bg-red-950/40 text-critical border border-red-200 dark:border-red-900'
+                }`}>
+                  <span>{evalResult.passed ? '✓ PASSED' : '✕ QUERY ERROR'}</span>
+                  {evalResult.executionTime && <span className="text-2xs opacity-75">({evalResult.executionTime}ms)</span>}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg border border-line dark:border-slate-700 bg-white dark:bg-[#111827] text-ink-secondary dark:text-slate-300 hover:text-ink dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all cursor-pointer shadow-xs"
+                title="Reset database to initial seed collections"
+              >
+                <RotateCcw size={13} className="shrink-0" />
+                <span>Reset DB State</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRun}
+                disabled={running || !editorQuery.trim()}
+                className="flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
+              >
+                <span>{running ? 'Running…' : '▶ Run Query'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmitQuery}
+                disabled={submitting || !editorQuery.trim()}
+                className="flex items-center gap-1.5 whitespace-nowrap px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+              >
+                <span>{submitting ? 'Saving…' : submitSuccess ? '✓ Answer Saved' : 'Save Answer'}</span>
               </button>
             </div>
           </footer>

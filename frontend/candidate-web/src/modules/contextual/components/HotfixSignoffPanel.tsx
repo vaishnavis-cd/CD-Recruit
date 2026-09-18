@@ -104,10 +104,18 @@ export function HotfixSignoffPanel({ onSubmit, onCancel }: HotfixSignoffPanelPro
             Deployment Release Authorization <span className="text-rose-500">*</span>
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setDeploymentDecision('DEPLOY_TODAY')}
-              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setDeploymentDecision('DEPLOY_TODAY');
+                }
+              }}
+              style={{ borderRadius: '12px' }}
+              className={`p-3.5 border text-left transition-all cursor-pointer flex items-center gap-3 select-none ${
                 deploymentDecision === 'DEPLOY_TODAY'
                   ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500 font-bold shadow-xs'
                   : 'bg-[var(--background)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'
@@ -118,12 +126,20 @@ export function HotfixSignoffPanel({ onSubmit, onCancel }: HotfixSignoffPanelPro
                 <div className="text-xs font-bold">Authorize Hotfix Release</div>
                 <div className="text-2xs opacity-80 leading-tight mt-0.5">Deploy patch immediately to staging &amp; production.</div>
               </div>
-            </button>
+            </div>
 
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setDeploymentDecision('DELAY_DEPLOYMENT')}
-              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setDeploymentDecision('DELAY_DEPLOYMENT');
+                }
+              }}
+              style={{ borderRadius: '12px' }}
+              className={`p-3.5 border text-left transition-all cursor-pointer flex items-center gap-3 select-none ${
                 deploymentDecision === 'DELAY_DEPLOYMENT'
                   ? 'bg-amber-500/10 border-amber-500 text-amber-500 font-bold shadow-xs'
                   : 'bg-[var(--background)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'
@@ -134,7 +150,7 @@ export function HotfixSignoffPanel({ onSubmit, onCancel }: HotfixSignoffPanelPro
                 <div className="text-xs font-bold">Request Peer Review</div>
                 <div className="text-2xs opacity-80 leading-tight mt-0.5">Hold release for secondary engineering review.</div>
               </div>
-            </button>
+            </div>
           </div>
         </div>
 

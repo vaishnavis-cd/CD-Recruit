@@ -2531,13 +2531,13 @@ function SettingsPage() {
                       Manage external ATS partner API credentials, rate limits, and callback configurations.
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 shrink-0">
                     {/* Status Filter Tabs */}
-                    <div className="inline-flex items-center bg-[#F1F5F9] p-0.5 rounded-[10px] border border-[#E2E8F0]">
+                    <div className="inline-flex items-center bg-[#F1F5F9] p-0.5 rounded-[10px] border border-[#E2E8F0] shrink-0">
                       <button
                         type="button"
                         onClick={() => setPartnerFilter("all")}
-                        className={`px-3 py-1 text-[11px] font-bold rounded-[8px] transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 text-[11px] font-bold rounded-[8px] whitespace-nowrap transition-all cursor-pointer ${
                           partnerFilter === "all"
                             ? "bg-white text-[#2563EB] shadow-2xs"
                             : "text-[#64748B] hover:text-[#0F172A]"
@@ -2548,7 +2548,7 @@ function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => setPartnerFilter("active")}
-                        className={`px-3 py-1 text-[11px] font-bold rounded-[8px] transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 text-[11px] font-bold rounded-[8px] whitespace-nowrap transition-all cursor-pointer ${
                           partnerFilter === "active"
                             ? "bg-white text-[#059669] shadow-2xs"
                             : "text-[#64748B] hover:text-[#0F172A]"
@@ -2559,7 +2559,7 @@ function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => setPartnerFilter("revoked")}
-                        className={`px-3 py-1 text-[11px] font-bold rounded-[8px] transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 text-[11px] font-bold rounded-[8px] whitespace-nowrap transition-all cursor-pointer ${
                           partnerFilter === "revoked"
                             ? "bg-white text-[#EF4444] shadow-2xs"
                             : "text-[#64748B] hover:text-[#0F172A]"

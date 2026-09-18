@@ -233,10 +233,10 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
           <div className="p-6 space-y-5">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+                <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider">
                   CHALLENGE {currentIndex + 1} OF {codingQuestions.length || 1}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-mono border border-emerald-200 dark:border-emerald-800">
+                <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
                   {workspaceQuestion.content.difficulty}
                 </span>
               </div>
@@ -252,7 +252,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
             {/* Constraints */}
             {workspaceQuestion.content.constraints && workspaceQuestion.content.constraints.length > 0 && (
               <div className="space-y-2 pt-3 border-t border-line dark:border-slate-800">
-                <h4 className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+                <h4 className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider">
                   CONSTRAINTS
                 </h4>
                 <ul className="list-disc list-inside text-xs text-ink-secondary dark:text-slate-300 space-y-1.5 font-mono">
@@ -266,7 +266,7 @@ export function CodingModule({ moduleIndex }: CodingModuleProps) {
             {/* Sample Test Cases (DB-backed - strictly 2 visible) */}
             {testCasesList.length > 0 && (
               <div className="pt-4 border-t border-line dark:border-slate-800 space-y-3">
-                <h4 className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+                <h4 className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider">
                   SAMPLE TEST CASES (2 VISIBLE)
                 </h4>
                 <div className="space-y-3">

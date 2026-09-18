@@ -47,16 +47,24 @@ export function QuestionPalette({ questions, currentQuestionIndex, onNavigate }:
           }
 
           return (
-            <button
+            <div
               key={q.id}
-              role="listitem"
+              role="button"
+              tabIndex={0}
               onClick={() => onNavigate(index)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onNavigate(index)
+                }
+              }}
               aria-label={`Question ${index + 1} — ${status}${isCurrent ? ', currently viewing' : ''}`}
               aria-current={isCurrent ? 'true' : undefined}
-              className={`w-9 h-9 rounded-lg text-sm font-mono font-bold border transition-all cursor-pointer flex items-center justify-center ${statusClass}`}
+              style={{ borderRadius: '6px' }}
+              className={`w-9 h-9 text-sm font-bold border transition-all cursor-pointer flex items-center justify-center select-none ${statusClass}`}
             >
               {index + 1}
-            </button>
+            </div>
           )
         })}
       </div>
