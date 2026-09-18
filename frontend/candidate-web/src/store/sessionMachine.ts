@@ -38,7 +38,7 @@ const LEGAL_TRANSITIONS: Set<TransitionKey> = new Set([
   'system-check->system-check',
   'system-check->expired', // drive closed during check
   'consent->system-check', // Back button from terms step
-  'consent->consent', // step advancement within consent flow (terms→biometric→id-proof→liveness→selfie)
+  'consent->consent', // step advancement within consent flow (terms→biometric→liveness→id-proof→selfie→audio)
   'consent->tutorial',
   'consent->expired', // drive closed during consent
   'tutorial->consent', // Back button from tutorial interface overview

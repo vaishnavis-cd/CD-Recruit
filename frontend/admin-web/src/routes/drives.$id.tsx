@@ -2351,13 +2351,18 @@ function DriveDetailPage() {
       await generateDriveLinks(driveId);
       toast.success("All candidate links generated and drive activated!");
       setConfirmGenerateLinks(false);
-      loadData();
+      await loadData();
     } catch (err: any) {
       toast.error("Failed generating drive links: " + (err.message || err));
     } finally {
       setGenerating(false);
     }
   };
+
+  const isAllLinksGenerated = useMemo(() => {
+    const roster = drive?.roster || [];
+    return roster.length > 0 && roster.every((c) => Boolean(c.isGenerated || (c.inviteLink && !c.inviteLink.includes("draft_"))));
+  }, [drive]);
 
   const isAiPromptingDynamic = useMemo(() => {
     const aiConf = moduleConfig["AI_PROMPTING"] as any;
@@ -2590,6 +2595,10 @@ function DriveDetailPage() {
             {/* Right: Schedule & Generate Links Button */}
             <button
               onClick={() => {
+                if (isAllLinksGenerated) {
+                  setConfirmGenerateLinks(true);
+                  return;
+                }
                 if (isScheduleUnlocked) {
                   setConfirmGenerateLinks(true);
                 } else {
@@ -2609,10 +2618,28 @@ function DriveDetailPage() {
                 }
               }}
               disabled={generating}
-              className="btn-gradient-primary w-auto sm:w-[222px] !h-[34px] !rounded-[24px] !gap-[7px] shadow-brand-glow text-[13px] shrink-0"
+              className={
+                isAllLinksGenerated
+                  ? "w-auto sm:min-w-[170px] !h-[34px] !rounded-[24px] !gap-[7px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs text-[13px] shrink-0 font-bold inline-flex items-center justify-center transition-all cursor-pointer"
+                  : "btn-gradient-primary w-auto sm:w-[222px] !h-[34px] !rounded-[24px] !gap-[7px] shadow-brand-glow text-[13px] shrink-0"
+              }
             >
-              <Link2 size={13} className="shrink-0 text-white" />
-              <span className="text-white font-bold text-[13px] leading-none whitespace-nowrap">Schedule &amp; Generate Links</span>
+              {generating ? (
+                <>
+                  <Loader2 size={13} className="shrink-0 text-white animate-spin" />
+                  <span className="text-white font-bold text-[13px] leading-none whitespace-nowrap">Generating Links...</span>
+                </>
+              ) : isAllLinksGenerated ? (
+                <>
+                  <Check size={14} className="shrink-0 text-white stroke-[2.5]" />
+                  <span className="text-white font-bold text-[13px] leading-none whitespace-nowrap">Links Generated</span>
+                </>
+              ) : (
+                <>
+                  <Link2 size={13} className="shrink-0 text-white" />
+                  <span className="text-white font-bold text-[13px] leading-none whitespace-nowrap">Schedule &amp; Generate Links</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -4152,17 +4179,17 @@ function DriveDetailPage() {
                           ) : (
                             <span
                               className={`h-[22px] px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.5px] inline-flex items-center justify-center leading-none whitespace-nowrap ${
-                                c.isGenerated
+                                Boolean(c.isGenerated || (c.inviteLink && !c.inviteLink.includes("draft_")))
                                   ? "bg-blue-50 text-brand"
                                   : "bg-amber-50 text-amber-700"
                               }`}
                             >
-                              {c.isGenerated ? c.inviteStatus : "DRAFT"}
+                              {Boolean(c.isGenerated || (c.inviteLink && !c.inviteLink.includes("draft_"))) ? (c.inviteStatus || "PENDING") : "DRAFT"}
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                          {c.isGenerated && c.inviteLink ? (
+                          {Boolean(c.isGenerated || (c.inviteLink && !c.inviteLink.includes("draft_"))) && c.inviteLink ? (
                             <button
                               type="button"
                               onClick={() => copyCandidateLink(c.inviteLink, c.candidateId)}
@@ -4488,9 +4515,13 @@ function DriveDetailPage() {
         {confirmGenerateLinks && (
           <div className="modal-overlay-backdrop">
             <div className="modal-shell-card !max-w-[460px] p-6 sm:p-7 space-y-4">
-              <h3 className="text-[17px] font-bold text-ink">Confirm Drive Schedule &amp; Link Generation</h3>
+              <h3 className="text-[17px] font-bold text-ink">
+                {isAllLinksGenerated ? "Regenerate Candidate Assessment Links" : "Confirm Drive Schedule & Link Generation"}
+              </h3>
               <p className="text-[13.5px] text-ink-secondary leading-relaxed">
-                Generate unique assessment links for all {drive.roster.length} candidate(s) in the roster?
+                {isAllLinksGenerated
+                  ? `Unique links have already been generated for this drive. Do you want to regenerate links for all ${drive.roster.length} candidate(s)? Existing links will be refreshed.`
+                  : `Generate unique assessment links for all ${drive.roster.length} candidate(s) in the roster?`}
               </p>
               <div className="flex justify-end gap-2.5 pt-3 border-t border-line">
                 <button
@@ -4504,9 +4535,18 @@ function DriveDetailPage() {
                   type="button"
                   onClick={handleGenerateLinks}
                   disabled={generating}
-                  className="h-[36px] px-5 rounded-full text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  className="h-[36px] px-5 rounded-full text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-2"
                 >
-                  {generating ? "Generating..." : "Generate Links"}
+                  {generating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Generating...</span>
+                    </>
+                  ) : isAllLinksGenerated ? (
+                    "Regenerate Links"
+                  ) : (
+                    "Generate Links"
+                  )}
                 </button>
               </div>
             </div>

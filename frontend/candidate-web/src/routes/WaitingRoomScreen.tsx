@@ -175,14 +175,14 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </div>
 
-                <button
+                {/* <button
                   onClick={handleStartNow}
                   className="figma-btn-primary shadow-xs hover:brightness-105 transition-all text-sm inline-flex items-center gap-2 px-5 py-2.5 cursor-pointer"
                   type="button"
                 >
                   <span>Start Assessment Now</span>
                   <ArrowRight size={14} />
-                </button>
+                </button> */}
               </div>
 
               {/* Caption */}

@@ -70,28 +70,35 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
       });
 
       // 2. Start global ProctoringModule pipeline (webcam, rolling buffer, vision models)
-      console.log(`[AssessmentScreen] Starting ProctoringModule for session ${activeSessionId}...`);
-      ProctoringModule.getInstance()
-        .start(activeSessionId)
-        .then((started) => {
-          console.log(`[AssessmentScreen] ProctoringModule.start() returned: ${started}`);
-        })
-        .catch((err) => {
-          console.error('[AssessmentScreen] ProctoringModule.start() error:', err);
-        });
+      // Defer heavy CV model initialization by 1s so the assessment UI mounts and becomes interactive immediately without freezing
+      const proctorTimer = setTimeout(() => {
+        console.log(`[AssessmentScreen] Starting ProctoringModule for session ${activeSessionId}...`);
+        ProctoringModule.getInstance()
+          .start(activeSessionId)
+          .then((started) => {
+            console.log(`[AssessmentScreen] ProctoringModule.start() returned: ${started}`);
+          })
+          .catch((err) => {
+            console.error('[AssessmentScreen] ProctoringModule.start() error:', err);
+          });
 
-      // 3. Start duration-proportional IdentityCaptureScheduler
-      const durationMinutes = assessment?.totalSeconds
-        ? Math.max(1, Math.round(assessment.totalSeconds / 60))
-        : session?.durationMinutes || 15;
-      const startedAt = session?.startedAt || null;
+        // 3. Start duration-proportional IdentityCaptureScheduler
+        const durationMinutes = assessment?.totalSeconds
+          ? Math.max(1, Math.round(assessment.totalSeconds / 60))
+          : session?.durationMinutes || 15;
+        const startedAt = session?.startedAt || null;
 
-      console.log(`[AssessmentScreen] Initializing IdentityCaptureScheduler for session ${activeSessionId} (${durationMinutes} mins)...`);
-      IdentityCaptureScheduler.getInstance().start(
-        activeSessionId,
-        durationMinutes,
-        startedAt,
-      );
+        console.log(`[AssessmentScreen] Initializing IdentityCaptureScheduler for session ${activeSessionId} (${durationMinutes} mins)...`);
+        IdentityCaptureScheduler.getInstance().start(
+          activeSessionId,
+          durationMinutes,
+          startedAt,
+        );
+      }, 1000);
+
+      return () => {
+        clearTimeout(proctorTimer);
+      };
     }
   }, [sessionId, assessment?.sessionId, session?.id]);
 

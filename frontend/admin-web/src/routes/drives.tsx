@@ -1405,7 +1405,7 @@ function DrivesPage() {
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-full transition-colors cursor-pointer shadow-sm"
                 >
                   Create &amp; Configure Drive
-                  <ArrowRight size={14} />
+                  
                 </button>
               )}
             </div>
