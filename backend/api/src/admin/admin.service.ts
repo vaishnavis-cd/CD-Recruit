@@ -20,6 +20,7 @@ import {
 import { ListSessionsQueryDto } from "../common/dto/admin.dto";
 import { AppException } from "../common/filters/app-exception";
 import { HttpStatus } from "@nestjs/common";
+import { ONNX_ARCFACE_THRESHOLD } from "../integrations/face-verify-onnx/threshold";
 
 @Injectable()
 export class AdminService {
@@ -41,7 +42,7 @@ export class AdminService {
       "app.minio.bucketBiometric",
     ) ?? "";
     this.faceThreshold =
-      this.configService.get<number>("app.biometrics.faceThreshold") ?? 0.60;
+      this.configService.get<number>("app.biometrics.faceThreshold") ?? ONNX_ARCFACE_THRESHOLD;
     this.nameThreshold =
       this.configService.get<number>("app.biometrics.nameThreshold") ?? 0.75;
   }
@@ -691,7 +692,10 @@ export class AdminService {
       (session.candidate as any)?.baselineSelfieRef ||
       session.baselineSelfieRef ||
       null;
-    const idProofRef = session.candidate?.idProofRef || null;
+    const idProofRef =
+      session.candidate?.idProofRef ||
+      session.idProofRef ||
+      null;
 
     let baselineSelfieUrl: string | null = null;
     if (baselineSelfieRef) {
@@ -1117,16 +1121,18 @@ export class AdminService {
         const idProofRef = session?.idProofRef || candidate.idProofRef;
         const selfieRef = session?.baselineSelfieRef || candidate.baselineSelfieRef;
 
-        if (!idProofEmb && idProofRef) {
+        if (idProofRef) {
           try {
             const buf = await this.storage.getObject(this.bucketBiometric, idProofRef);
             if (buf) {
               const res = await this.faceVerifyOnnxService.enroll(buf, idProofRef);
-              idProofEmb = res.embedding;
-              if (session) {
-                await this.prisma.session.update({ where: { id: session.id }, data: { idProofEmbedding: idProofEmb as any } });
+              if (res.embedding && res.embedding.length > 0) {
+                idProofEmb = res.embedding;
+                if (session) {
+                  await this.prisma.session.update({ where: { id: session.id }, data: { idProofEmbedding: idProofEmb as any } });
+                }
+                await this.prisma.candidate.update({ where: { id: candidate.id }, data: { idProofEmbedding: idProofEmb as any } });
               }
-              await this.prisma.candidate.update({ where: { id: candidate.id }, data: { idProofEmbedding: idProofEmb as any } });
             }
           } catch (e: any) {
             this.logger.warn(`MinIO download failed for idProofRef ${idProofRef}: ${e.message}`);
@@ -1134,16 +1140,18 @@ export class AdminService {
           }
         }
 
-        if (!selfieEmb && selfieRef) {
+        if (selfieRef) {
           try {
             const buf = await this.storage.getObject(this.bucketBiometric, selfieRef);
             if (buf) {
               const res = await this.faceVerifyOnnxService.enroll(buf, selfieRef);
-              selfieEmb = res.embedding;
-              if (session) {
-                await this.prisma.session.update({ where: { id: session.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
+              if (res.embedding && res.embedding.length > 0) {
+                selfieEmb = res.embedding;
+                if (session) {
+                  await this.prisma.session.update({ where: { id: session.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
+                }
+                await this.prisma.candidate.update({ where: { id: candidate.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
               }
-              await this.prisma.candidate.update({ where: { id: candidate.id }, data: { baselineSelfieEmbedding: selfieEmb as any } });
             }
           } catch (e: any) {
             this.logger.warn(`MinIO download failed for selfieRef ${selfieRef}: ${e.message}`);
@@ -1188,7 +1196,9 @@ export class AdminService {
           }
         }
 
-        const registeredName = session?.invite?.candidateName || candidate.name;
+        const candidateNames = Array.from(
+          new Set([candidate.name, session?.invite?.candidateName, (session as any)?.candidateName].filter(Boolean))
+        );
 
         let overallMatched = false;
         let faceRes = { matched: false, distance: 0.0, threshold: this.faceThreshold };
@@ -1197,7 +1207,7 @@ export class AdminService {
           similarity: 0.0,
           threshold: this.nameThreshold,
           extractedName: extractedName || null,
-          registeredName,
+          registeredName: candidate.name || session?.invite?.candidateName || "N/A",
         };
 
         if (idProofEmb && selfieEmb) {
@@ -1209,7 +1219,12 @@ export class AdminService {
         }
 
         if (extractedName) {
-          nameRes = this.nameMatchService.compareNames(registeredName, extractedName, this.nameThreshold);
+          for (const cName of candidateNames) {
+            const comp = this.nameMatchService.compareNames(cName as string, extractedName, this.nameThreshold);
+            if (comp.similarity >= nameRes.similarity) {
+              nameRes = comp;
+            }
+          }
         }
 
         overallMatched = faceRes.matched && nameRes.matched;

@@ -16,6 +16,10 @@
     "infra:up": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml down",
     "infra:logs": "docker compose -f docker/docker-compose.dev.yml -f docker/docker-compose.judge0.yml logs -f",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
     "setup:all": "npm run build:shared && npm run db:migrate && npm run db:seed",
     "dev:candidate": "npm run build:shared && npm --workspace=frontend/candidate-web run dev",
     "dev:admin": "npm run build:shared && npm --workspace=frontend/admin-web run dev",
@@ -36,7 +40,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
-    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/platform-express": "^11.2.1",
     "@nestjs/swagger": "^11.4.5",
     "@nestjs/testing": "^11.1.28",
     "esbuild": "^0.28.1",
@@ -69,8 +73,7 @@
   },
   "packageManager": "npm@10.0.0",
   "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.62.2"
+    "@prisma/client": "^5.22.0"
   },
   "allowScripts": {
     "@nestjs/core@11.1.28": true,

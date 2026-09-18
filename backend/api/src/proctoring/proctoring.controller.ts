@@ -183,7 +183,20 @@ export class ProctoringController {
       if (!stream) {
         return res.status(HttpStatus.NOT_FOUND).send("Evidence video clip not found");
       }
-      res.setHeader("Content-Type", "video/webm");
+      let contentType = "application/octet-stream";
+      const lowerKey = objectKey.toLowerCase();
+      if (lowerKey.endsWith(".jpg") || lowerKey.endsWith(".jpeg")) {
+        contentType = "image/jpeg";
+      } else if (lowerKey.endsWith(".png")) {
+        contentType = "image/png";
+      } else if (lowerKey.endsWith(".webp")) {
+        contentType = "image/webp";
+      } else if (lowerKey.endsWith(".webm")) {
+        contentType = "video/webm";
+      } else if (lowerKey.endsWith(".mp4")) {
+        contentType = "video/mp4";
+      }
+      res.setHeader("Content-Type", contentType);
       res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Cache-Control", "public, max-age=3600");
 

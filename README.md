@@ -25,7 +25,9 @@ The platform operates as a unified monorepo designed to run locally with zero or
 
 ---
 
-## 🛠️ Prerequisites
+## 🛠️ Prerequisites & Setup
+
+For a complete step-by-step onboarding walkthrough covering all 9 containerized services, please refer to the **[Team Setup Guide (SETUP_GUIDE.md)](SETUP_GUIDE.md)**.
 
 - **Node.js**: `≥ 20.0.0`
 - **npm**: `≥ 10.0.0`

@@ -1,0 +1,239 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CD-Recruit — Root Docker Compose Specification
+#
+# Run full stack:
+#   docker compose -f docker/docker-compose.yml up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Postgres 16 ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cdrecruit_postgres_dev
+    environment:
+      POSTGRES_USER: cdrecruit
+      POSTGRES_PASSWORD: cdrecruit123
+      POSTGRES_DB: cdrecruit
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdrecruit -d cdrecruit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis 7 ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cdrecruit_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MongoDB 6.0 ─────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:6.0
+    container_name: cdrecruit_mongodb_dev
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: adminpassword
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MinIO Object Storage ────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: cdrecruit_minio_dev
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Judge0 Code Sandbox Tier ────────────────────────────────────────────────
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: cdrecruit_judge0_server
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /sys/fs/cgroup/cpuacct /sys/fs/cgroup/memory /sys/fs/cgroup/cpu /sys/fs/cgroup/cpuset /sys/fs/cgroup/pids && exec /api/docker-entrypoint.sh /api/scripts/server"]
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "2358:2358"
+    environment:
+      - JUDGE0_KEY=
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - POSTGRES_PASSWORD=cdrecruit123
+      - POSTGRES_DB=cdrecruit_judge0
+      - CPU_TIME_LIMIT=5.0
+      - MAX_CPU_TIME_LIMIT=10.0
+      - MEMORY_LIMIT=262144
+      - MAX_MEMORY_LIMIT=524288
+      - MAX_PROCESSES_AND_OR_THREADS=64
+      - MAX_OUTPUT_SIZE=1024
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+    tmpfs:
+      - /tmp:exec,mode=777
+      - /sys/fs/cgroup:exec,mode=777
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: cdrecruit_judge0_worker
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /sys/fs/cgroup/cpuacct /sys/fs/cgroup/memory /sys/fs/cgroup/cpu /sys/fs/cgroup/cpuset /sys/fs/cgroup/pids && exec /api/docker-entrypoint.sh ./scripts/workers"]
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=cdrecruit
+      - POSTGRES_PASSWORD=cdrecruit123
+      - POSTGRES_DB=cdrecruit_judge0
+      - CPU_TIME_LIMIT=5.0
+      - MAX_CPU_TIME_LIMIT=10.0
+      - MEMORY_LIMIT=262144
+      - MAX_MEMORY_LIMIT=524288
+      - MAX_PROCESSES_AND_OR_THREADS=64
+      - MAX_OUTPUT_SIZE=1024
+      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
+      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+    tmpfs:
+      - /tmp:exec,mode=777
+      - /sys/fs/cgroup:exec,mode=777
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  # ── Backend NestJS API Monolith ─────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: cdrecruit_api
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - API_PORT=3001
+      - DATABASE_URL=postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit
+      - SANDBOX_DB_URL=postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit_judge0
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_GENERAL=cd-recruit-general
+      - MINIO_BUCKET_BIOMETRIC=cd-recruit-biometric
+      - JUDGE0_API_URL=http://judge0-server:2358
+      - JUDGE0_CALLBACK_URL_BASE=http://api:3001
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5174,http://localhost:5173
+      - JWT_SECRET=super-secret-jwt-key-for-staff-dev-2026-min32chars!
+      - CANDIDATE_JWT_SECRET=candidate-session-secret-key-32chars-min!
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      judge0-server:
+        condition: service_started
+    restart: always
+
+  # ── Candidate Web Client (Vite 6 SPA / Nginx) ──────────────────────────────
+  candidate-web:
+    build:
+      context: ..
+      dockerfile: docker/candidate-web.Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:3001/api/v1
+        - VITE_WS_URL=ws://localhost:3001
+    container_name: cdrecruit_candidate_web
+    ports:
+      - "5174:80"
+    depends_on:
+      api:
+        condition: service_started
+    restart: always
+
+  # ── Admin Web Dashboard (TanStack Start / Nitro SSR) ────────────────────────
+  admin-web:
+    build:
+      context: ..
+      dockerfile: docker/admin-web.Dockerfile
+    container_name: cdrecruit_admin_web
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - HOST=0.0.0.0
+      - API_PROXY_TARGET=http://api:3001
+      - VITE_API_BASE_URL=http://localhost:3001/api/v1
+    depends_on:
+      api:
+        condition: service_started
+    restart: always
+
+volumes:
+  postgres_data:
+    name: docker_postgres_data
+    external: true
+  redis_data:
+    name: docker_redis_data
+    external: true
+  minio_data:
+    name: docker_minio_data
+    external: true
+  mongodb_data:
+    name: docker_mongodb_data
+    external: true

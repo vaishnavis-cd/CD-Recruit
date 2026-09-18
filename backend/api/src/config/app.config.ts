@@ -33,6 +33,9 @@ export default registerAs("app", () => {
     port: parseInt(process.env.API_PORT || "3001", 10),
     databaseUrl: process.env.DATABASE_URL,
     sandboxDatabaseUrl: sandboxDbUrl,
+    mongodbUrl:
+      process.env.MONGODB_URL ||
+      "mongodb://admin:adminpassword@mongodb:27017/admin",
     jwtSecret: process.env.JWT_SECRET,
     minio: {
       endpoint: process.env.MINIO_ENDPOINT || "localhost",

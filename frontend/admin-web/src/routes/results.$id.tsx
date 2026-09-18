@@ -90,7 +90,7 @@ function resolveClipUrl(rawUrl: string | null | undefined): { proxyUrl: string; 
     try {
       const u = new URL(rawUrl);
       const parts = u.pathname.split("/").filter(Boolean);
-      if (parts[0] === "cd-recruit-biometric") {
+      if (parts[0] === "cd-recruit-biometric" || parts[0] === "cd-recruit-general") {
         cleanKey = parts.slice(1).join("/");
       } else {
         cleanKey = parts.join("/");
@@ -100,8 +100,13 @@ function resolveClipUrl(rawUrl: string | null | undefined): { proxyUrl: string; 
     }
   }
 
-  cleanKey = cleanKey.split("?")[0];
-  const proxyUrl = `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+  cleanKey = cleanKey.split("?")[0].replace(/^\//, "");
+  let proxyUrl = "";
+  if (cleanKey.startsWith("api/v1/proctoring/stream/") || cleanKey.startsWith("/api/v1/proctoring/stream/")) {
+    proxyUrl = cleanKey.startsWith("/") ? cleanKey : `/${cleanKey}`;
+  } else {
+    proxyUrl = `${API_BASE}/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+  }
   const directUrl = rawUrl.startsWith("http") ? rawUrl : proxyUrl;
   return { proxyUrl, directUrl };
 }
