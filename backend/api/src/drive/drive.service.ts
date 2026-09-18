@@ -731,8 +731,9 @@ export class DriveService {
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
-      const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:5173";
-      const inviteLink = `${candidateAppBase}/invite/${invite.token}`;
+      const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:5174";
+      const isGenerated = Boolean(invite.isGenerated || (invite.token && !invite.token.startsWith("draft_")));
+      const inviteLink = isGenerated ? `${candidateAppBase}/invite/${invite.token}` : "";
       const session = invite.session;
 
       return {
@@ -746,7 +747,7 @@ export class DriveService {
         sessionStatus: session?.status || null,
         compositeScore: session?.score?.compositeScore ?? null,
         submittedAt: session?.submittedAt ? session.submittedAt.toISOString() : null,
-        isGenerated: invite.isGenerated,
+        isGenerated,
         category: invite.category,
         experienceTier: invite.experienceTier,
         level: invite.experienceTier || (invite.category === "EXPERIENCED" ? "2-5" : "0-1"),
@@ -1179,12 +1180,28 @@ export class DriveService {
         await tx.reviewerDecision.deleteMany({
           where: { sessionId: { in: allSessionIds } },
         });
+        // Delete coding executions
+        await tx.codingExecution.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete SQL executions
+        await tx.sQLExecution.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete proctoring events
+        await tx.proctoringEvent.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
+        // Delete identity captures
+        await tx.identityCapture.deleteMany({
+          where: { sessionId: { in: allSessionIds } },
+        });
       }
 
-      // 2. Unlink sessions from invites to prevent foreign key errors
-      if (inviteIds.length > 0) {
+      // 2. Unlink sessions from any invites referencing these sessions to prevent foreign key errors
+      if (allSessionIds.length > 0) {
         await tx.invite.updateMany({
-          where: { id: { in: inviteIds } },
+          where: { sessionId: { in: allSessionIds } },
           data: { sessionId: null },
         });
       }
@@ -1197,11 +1214,14 @@ export class DriveService {
       }
 
       // 4. Delete invites
-      if (inviteIds.length > 0) {
-        await tx.invite.deleteMany({
-          where: { id: { in: inviteIds } },
-        });
-      }
+      await tx.invite.deleteMany({
+        where: {
+          OR: [
+            { driveId },
+            ...(inviteIds.length > 0 ? [{ id: { in: inviteIds } }] : []),
+          ],
+        },
+      });
 
       // 5. Delete drive questions
       await tx.driveQuestion.deleteMany({
@@ -1465,25 +1485,6 @@ export class DriveService {
     const ttlHours = parseInt(process.env.INVITE_TOKEN_TTL_HOURS || "48", 10);
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + ttlHours);
-
-    const updates = ungeneratedInvites.map((invite) => {
-      const token = this.authService.generateInviteToken(
-        invite.id,
-        invite.candidateEmail,
-        invite.candidateName,
-        drive.roleTemplateId,
-      );
-
-      return this.prisma.invite.update({
-        where: { id: invite.id },
-        data: {
-          token,
-          expiresAt,
-          isGenerated: true,
-        },
-      });
-    });
-
     const nextStatus = computeDriveStatus(
       {
         status: drive.status,
@@ -1497,8 +1498,24 @@ export class DriveService {
     );
 
     await this.prisma.$transaction(async (tx) => {
-      // Execute all updates
-      await Promise.all(updates);
+      // Execute all invite updates inside transaction
+      for (const invite of ungeneratedInvites) {
+        const token = this.authService.generateInviteToken(
+          invite.id,
+          invite.candidateEmail,
+          invite.candidateName,
+          drive.roleTemplateId,
+        );
+
+        await tx.invite.update({
+          where: { id: invite.id },
+          data: {
+            token,
+            expiresAt,
+            isGenerated: true,
+          },
+        });
+      }
 
       // Shift drive status automatically based on scheduled window (SCHEDULED or ACTIVE)
       await tx.drive.update({

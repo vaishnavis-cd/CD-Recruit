@@ -230,7 +230,7 @@ function Header() {
 
           <a
             href="mailto:hello@proctora.com?subject=Demo%20request"
-            className="landing-demo-btn inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-semibold text-white rounded-lg no-underline transition-all hover:bg-[#2349B8] hover:shadow-md active:scale-98 whitespace-nowrap"
+            className="landing-demo-btn inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-semibold text-white rounded-full no-underline transition-all hover:bg-[#2349B8] hover:shadow-md active:scale-98 whitespace-nowrap"
           >
             Book Demo <ArrowRight size={14} />
           </a>
@@ -303,7 +303,7 @@ function InviteWidget() {
         <button
           onClick={handleStart}
           disabled={loading}
-          className="landing-start-btn flex items-center justify-center gap-1.5 rounded-[10px] text-[14px] font-semibold text-white transition-all hover:bg-[#2349B8] active:scale-[0.98] cursor-pointer flex-shrink-0 whitespace-nowrap"
+          className="landing-start-btn flex items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold text-white transition-all hover:bg-[#2349B8] active:scale-[0.98] cursor-pointer flex-shrink-0 whitespace-nowrap"
         >
           {loading ? (
             <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none">
@@ -311,7 +311,7 @@ function InviteWidget() {
             </svg>
           ) : (
             <>
-              Start Session <ArrowRight size={14} />
+              Start Session
             </>
           )}
         </button>
@@ -793,7 +793,7 @@ function CtaBanner() {
             <a
               href="mailto:hello@proctora.com?subject=Demo%20request"
               aria-label="Request a demo"
-              className="absolute left-[3.5%] bottom-[16%] w-[22%] h-[20%] min-w-[140px] max-w-[220px] rounded-2xl cursor-pointer hover:bg-white/10 active:bg-white/20 transition-all"
+              className="absolute left-[3.5%] bottom-[16%] w-[22%] h-[20%] min-w-[140px] max-w-[220px] rounded-full cursor-pointer hover:bg-white/10 active:bg-white/20 transition-all"
             />
           </div>
         </Reveal>

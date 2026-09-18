@@ -1625,7 +1625,7 @@ function IndividualResultPage() {
                       ))}
                       {totalCount > 0 && (
                         <div className="text-emerald-600 font-semibold pt-2 border-t border-line mt-1 text-xs-plus flex items-center gap-1.5">
-                          <span>✓ Total Recorded Work Events:</span>
+                          <span>Total Recorded Work Events:</span>
                           <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-2xs">{totalCount}</span>
                         </div>
                       )}
@@ -1996,14 +1996,14 @@ function IndividualResultPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   onClick={() => setShowDecisionModal(null)}
-                  className="px-3.5 py-2 text-xs font-medium border border-line rounded hover:bg-canvas text-ink-secondary"
+                  className="px-3.5 py-2 text-xs font-medium border border-line rounded-full hover:bg-canvas text-ink-secondary cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDecisionSubmit}
                   disabled={submittingDecision}
-                  className={`px-4 py-2 text-xs font-semibold text-white rounded shadow-sm transition-colors ${showDecisionModal === "PASS" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-rose-700 hover:bg-rose-800"
+                  className={`px-4 py-2 text-xs font-semibold text-white rounded-full shadow-sm transition-colors cursor-pointer ${showDecisionModal === "PASS" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-rose-700 hover:bg-rose-800"
                     }`}
                 >
                   {submittingDecision ? "Saving..." : "Confirm Decision"}
@@ -2061,7 +2061,7 @@ function IndividualResultPage() {
                   <button
                     type="button"
                     onClick={() => setActiveClipUrl(null)}
-                    className="px-3.5 py-1.5 text-xs font-semibold bg-canvas border border-line rounded-md hover:bg-line/20 text-ink cursor-pointer"
+                    className="px-3.5 py-1.5 text-xs font-semibold bg-canvas border border-line rounded-full hover:bg-line/20 text-ink cursor-pointer"
                   >
                     Close Viewer
                   </button>

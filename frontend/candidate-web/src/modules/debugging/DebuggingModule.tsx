@@ -331,10 +331,10 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
         >
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider font-mono">
+              <span className="text-2xs font-bold text-ink-dim dark:text-slate-400 uppercase tracking-wider">
                 DEBUG CHALLENGE {currentIndex + 1} OF {debuggingQuestions.length || 1}
               </span>
-              <div className="flex items-center gap-1.5 text-2xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+              <div className="flex items-center gap-1.5 text-2xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                 <Bug className="w-3.5 h-3.5" />
                 <span>LOGIC DEFECT</span>
               </div>
@@ -350,7 +350,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
 
           {/* Failing Stack Trace Box */}
           <div className="space-y-2 pt-2">
-            <div className="text-2xs font-bold uppercase tracking-wider font-mono text-ink-dim dark:text-slate-400">
+            <div className="text-2xs font-bold uppercase tracking-wider text-ink-dim dark:text-slate-400">
               Failing Stack Trace / Exception
             </div>
             <div className="p-4 rounded-xl bg-red-50/70 dark:bg-red-950/20 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-rose-300 font-mono text-xs leading-relaxed overflow-x-auto shadow-xs">
@@ -373,13 +373,13 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           {/* Top Bar */}
           <div className="px-5 py-2.5 border-b border-line dark:border-slate-800 bg-white dark:bg-[#111827] flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 font-mono text-xs font-bold text-ink dark:text-white">
+              <div className="flex items-center gap-2 text-xs font-bold text-ink dark:text-white">
                 <TerminalIcon className="w-4 h-4 text-brand" />
                 <span>Interactive Fix Editor</span>
               </div>
 
               {/* Target Language Badge */}
-              <div className="px-2.5 py-0.5 rounded-full text-2xs font-mono font-bold bg-brand-subtle dark:bg-blue-950/50 text-brand dark:text-blue-300 border border-brand-border dark:border-blue-900">
+              <div className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-brand-subtle dark:bg-blue-950/50 text-brand dark:text-blue-300 border border-brand-border dark:border-blue-900">
                 {activeLang.toUpperCase()}
               </div>
             </div>

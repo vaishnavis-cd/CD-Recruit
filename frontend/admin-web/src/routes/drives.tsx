@@ -857,9 +857,9 @@ function DrivesPage() {
                 resetWizard();
                 setShowWizard(true);
               }}
-              className="btn-gradient-primary w-[134px] !h-[34px] !rounded-[24px] !gap-[7px] shrink-0 shadow-brand-glow"
+              className="px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-full flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-md shadow-blue-500/25 transition-all h-[34px]"
             >
-              <Plus size={14} className="shrink-0" />
+              <Plus size={14} strokeWidth={2.5} className="shrink-0" />
               <span>Create Drive</span>
             </button>
           </div>
@@ -1245,17 +1245,28 @@ function DrivesPage() {
                       Setup Method
                     </label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setCustomRolePathway("MANUAL")}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setCustomRolePathway("MANUAL");
+                          }
+                        }}
+                        style={{ borderRadius: "8px" }}
+                        className={`p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
                           customRolePathway === "MANUAL"
                             ? "border-brand bg-blue-50/50 shadow-xs"
                             : "border-line bg-white hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <div
+                            style={{ borderRadius: "6px" }}
+                            className={`w-7 h-7 flex items-center justify-center ${customRolePathway === "MANUAL" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+                          >
                             <PenLine size={14} />
                           </div>
                           {customRolePathway === "MANUAL" && (
@@ -1268,19 +1279,30 @@ function DrivesPage() {
                             Configure modules, duration, questions & roster step-by-step.
                           </p>
                         </div>
-                      </button>
+                      </div>
 
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setCustomRolePathway("BULK_IMPORT")}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setCustomRolePathway("BULK_IMPORT");
+                          }
+                        }}
+                        style={{ borderRadius: "8px" }}
+                        className={`p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
                           customRolePathway === "BULK_IMPORT"
                             ? "border-brand bg-blue-50/50 shadow-xs"
                             : "border-line bg-white hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <div
+                            style={{ borderRadius: "6px" }}
+                            className={`w-7 h-7 flex items-center justify-center ${customRolePathway === "BULK_IMPORT" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+                          >
                             <UploadCloud size={14} />
                           </div>
                           {customRolePathway === "BULK_IMPORT" && (
@@ -1293,7 +1315,7 @@ function DrivesPage() {
                             Ingest questions via dedicated Question Bank folder.
                           </p>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1337,7 +1359,7 @@ function DrivesPage() {
                   setShowWizard(false);
                   resetWizard();
                 }}
-                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-md transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-line rounded-full transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1347,7 +1369,7 @@ function DrivesPage() {
                   type="button"
                   disabled={isCsvCreating || !driveName.trim()}
                   onClick={handleCreateDriveAndRedirectToBulkImport}
-                  className="btn-gradient-primary flex items-center gap-1.5 px-4 py-2 text-xs !font-bold text-white rounded-md shadow-xs disabled:opacity-50"
+                  className="btn-gradient-primary flex items-center gap-1.5 px-4 py-2 text-xs !font-bold text-white rounded-full shadow-xs disabled:opacity-50"
                 >
                   {isCsvCreating ? <Loader2 size={13} className="animate-spin" /> : <FolderPlus size={13} />}
                   <span>{isCsvCreating ? "Creating Drive..." : "Create Drive & Bulk Import in Question Bank"}</span>
@@ -1402,10 +1424,10 @@ function DrivesPage() {
                       toast.error("Failed to create drive: " + (err.message || err));
                     }
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-md transition-colors cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-hover rounded-full transition-colors cursor-pointer shadow-sm"
                 >
                   Create &amp; Configure Drive
-                  <ArrowRight size={14} />
+                  
                 </button>
               )}
             </div>
@@ -1441,7 +1463,7 @@ function DrivesPage() {
                   closeDrive(confirmCloseDrive.id);
                   setConfirmCloseDrive(null);
                 }}
-                className="px-4 py-2 text-white bg-amber-600 hover:bg-amber-700 font-semibold cursor-pointer shadow-xs transition-colors rounded-xl text-xs"
+                className="px-4 py-2 text-white bg-amber-600 hover:bg-amber-700 font-semibold cursor-pointer shadow-xs transition-colors rounded-full text-xs"
               >
                 Close Drive
               </button>
@@ -1475,7 +1497,7 @@ function DrivesPage() {
               </button>
               <button
                 onClick={handleDeleteDrive}
-                className="px-4 py-2 text-white bg-danger hover:bg-danger-hover font-semibold cursor-pointer shadow-xs transition-colors rounded-xl text-xs"
+                className="px-4 py-2 text-white bg-danger hover:bg-danger-hover font-semibold cursor-pointer shadow-xs transition-colors rounded-full text-xs"
               >
                 Delete Drive
               </button>

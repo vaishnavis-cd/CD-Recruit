@@ -1,22 +1,67 @@
-# CD-Recruit NestJS DTOs
+# CD-Recruit NestJS DTOs & Validation Schema Reference
 
-> These DTO classes live in `backend/api/src/common/dto/`.  
+> These DTO classes live in `backend/api/src/common/dto/` and specific feature modules.  
 > All use `class-validator` decorators for request validation and `class-transformer` for serialization.  
-> Import shared types from `@cd-recruit/shared-types` — do NOT re-declare the interfaces.
-
-## Files
-
-| File              | Contents                                        |
-| ----------------- | ----------------------------------------------- |
-| `session.dto.ts`  | StartSession, Resume, Heartbeat, Progress DTOs  |
-| `question.dto.ts` | GetQuestion response DTO                        |
-| `response.dto.ts` | SaveDraft, SubmitResponse DTOs + payload unions |
-| `event.dto.ts`    | LogEvent DTO                                    |
-| `admin.dto.ts`    | Admin list/detail/decision DTOs                 |
+> Shared types and enums are imported from `@cd-recruit/shared-types` — do NOT re-declare the interfaces.
 
 ---
 
-## session.dto.ts
+## 1. DTO Directory & Module Map
+
+| File / Location | Domain | Contents / Exported DTOs |
+| :--- | :--- | :--- |
+| `common/dto/auth.dto.ts` | Authentication | `LoginDto`, `RefreshTokenDto`, `ChangePasswordDto` |
+| `common/dto/session.dto.ts` | Session Lifecycle | `StartSessionDto`, `ResumeSessionDto`, `HeartbeatDto` |
+| `common/dto/question.dto.ts` | Question Bank | `CreateQuestionDto`, `UpdateQuestionDto`, `QuestionQueryDto` |
+| `common/dto/response.dto.ts` | Candidate Submissions | `SaveDraftDto`, `SubmitResponseDto` + polymorphic payload unions |
+| `common/dto/event.dto.ts` | Proctoring Telemetry | `LogEventDto` |
+| `common/dto/drive.dto.ts` | Drive Management | `CreateDriveDto`, `UpdateDriveDto`, `AddCandidatesDto` |
+| `common/dto/settings.dto.ts` | Platform Configuration | `UpdateSettingsDto`, `TimeMatrixDto`, `ProctoringThresholdsDto` |
+| `common/dto/admin.dto.ts` | Recruiter Review | `ListSessionsQueryDto`, `RecordDecisionDto` |
+| `modules/nosql/dto/nosql.dto.ts` | NoSQL Sandbox | `StartNosqlDto`, `RunNosqlDto`, `ResetNosqlDto`, `SubmitNosqlDto` |
+| `test-scenarios/dto/test-scenarios.dto.ts` | QA Test Scenarios | `SubmitTestScenarioDto`, `TestCaseEntryDto` |
+| `role-template/dto/role-template.dto.ts` | Role Templates | `CreateRoleTemplateDto`, `UpdateRoleTemplateDto` |
+| `partner/dto/partner-admin.dto.ts` | Partner Integration | `CreatePartnerDto`, `UpdatePartnerDto`, `PartnerKeyResponseDto` |
+
+---
+
+## 2. Common Authentication DTOs (`auth.dto.ts`)
+
+```typescript
+import { IsString, IsNotEmpty, MinLength } from "class-validator";
+
+export class LoginDto {
+  @IsString()
+  @IsNotEmpty()
+  identifier: string; // Email or Username
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string;
+}
+
+export class RefreshTokenDto {
+  @IsString()
+  @IsNotEmpty()
+  refreshToken: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  oldPassword: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  newPassword: string;
+}
+```
+
+---
+
+## 3. Session Lifecycle DTOs (`session.dto.ts`)
 
 ```typescript
 import { IsString, IsNotEmpty, IsUUID } from "class-validator";
@@ -48,7 +93,7 @@ export class HeartbeatDto {
 
 ---
 
-## response.dto.ts
+## 4. Assessment Response & Payload DTOs (`response.dto.ts`)
 
 ```typescript
 import {
@@ -62,11 +107,12 @@ import {
   ValidateNested,
   IsInt,
   IsOptional,
+  IsObject,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ModuleType } from "@cd-recruit/shared-types";
 
-// ── Payload shapes ──────────────────────────────────────────────────────────
+// ── Polymorphic Module Response Payload Shapes ───────────────────────────────
 
 export class McqResponsePayloadDto {
   @IsEnum(ModuleType) moduleType: ModuleType.MCQ;
@@ -78,9 +124,24 @@ export class SqlResponsePayloadDto {
   @IsString() @IsNotEmpty() query: string;
 }
 
+export class NosqlResponsePayloadDto {
+  @IsEnum(ModuleType) moduleType: ModuleType.NOSQL;
+  @IsObject() @IsNotEmpty() operation: {
+    collection: string;
+    operator: string;
+    payload: Record<string, unknown>;
+  };
+}
+
 export class CodingResponsePayloadDto {
   @IsEnum(ModuleType) moduleType: ModuleType.CODING;
   @IsString() @IsNotEmpty() code: string;
+  @IsString() @IsNotEmpty() language: string;
+}
+
+export class DebuggingResponsePayloadDto {
+  @IsEnum(ModuleType) moduleType: ModuleType.DEBUGGING;
+  @IsString() @IsNotEmpty() patchedCode: string;
   @IsString() @IsNotEmpty() language: string;
 }
 
@@ -103,7 +164,23 @@ export class SimulationResponsePayloadDto {
   actionLog: ActionLogEntryDto[];
 }
 
-// ── Request DTOs ─────────────────────────────────────────────────────────────
+export class TestCaseEntryDto {
+  @IsString() @IsNotEmpty() title: string;
+  @IsString() @IsNotEmpty() preConditions: string;
+  @IsArray() steps: string[];
+  @IsString() @IsNotEmpty() expectedResult: string;
+  @IsString() severity: string;
+}
+
+export class TestScenariosResponsePayloadDto {
+  @IsEnum(ModuleType) moduleType: ModuleType.TEST_SCENARIOS;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TestCaseEntryDto)
+  testCases: TestCaseEntryDto[];
+}
+
+// ── Top-Level Candidate Submissions ──────────────────────────────────────────
 
 export class SaveDraftDto {
   @IsUUID() sessionId: string;
@@ -123,7 +200,7 @@ export class SubmitResponseDto {
 
 ---
 
-## event.dto.ts
+## 5. Telemetry & Proctoring Event DTOs (`event.dto.ts`)
 
 ```typescript
 import { IsString, IsNotEmpty, IsObject, IsISO8601 } from "class-validator";
@@ -131,7 +208,7 @@ import { IsString, IsNotEmpty, IsObject, IsISO8601 } from "class-validator";
 export class LogEventDto {
   @IsString()
   @IsNotEmpty()
-  eventType: string;
+  eventType: string; // "TAB_SWITCH" | "BLUR" | "PASTE" | "FULLSCREEN_EXIT" | "HEARTBEAT"
 
   @IsObject()
   payload: Record<string, unknown>;
@@ -143,7 +220,7 @@ export class LogEventDto {
 
 ---
 
-## admin.dto.ts
+## 6. Admin & Review DTOs (`admin.dto.ts`)
 
 ```typescript
 import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from "class-validator";
@@ -175,21 +252,24 @@ export class ListSessionsQueryDto {
 
 export class RecordDecisionDto {
   @IsEnum(ReviewDecision)
-  decision: ReviewDecision;
+  decision: ReviewDecision; // "ACCEPTED" | "REJECTED" | "NEEDS_FURTHER_REVIEW"
+
+  @IsOptional()
+  notes?: string;
 }
 ```
 
 ---
 
-## Validation pipe setup (main.ts or AppModule)
+## 7. Global Validation Pipe Setup
 
 ```typescript
-// backend/api/src/main.ts — add to bootstrap():
+// backend/api/src/main.ts
 app.useGlobalPipes(
   new ValidationPipe({
-    whitelist: true, // strip unknown properties
-    forbidNonWhitelisted: true,
-    transform: true, // auto-transform query params to correct types
+    whitelist: true, // Strips non-whitelisted payload properties
+    forbidNonWhitelisted: true, // Throws 400 Bad Request if extra fields sent
+    transform: true, // Automatically transforms primitives based on DTO types
   }),
 );
 ```

@@ -1,12 +1,12 @@
 # CD-Recruit — Technical Hiring & Assessment Platform
 
-**CD-Recruit** is an enterprise-grade, multi-module technical assessment and evaluation platform. Candidates complete timed, multi-stage assessments (MCQ, SQL, NoSQL, Coding in isolated sandboxes, Contextual Simulation, AI Prompting, and Webcam Proctoring) which are automatically evaluated, scored, and synthesized into comprehensive hiring analytics.
+**CD-Recruit** is an enterprise-grade, multi-module technical assessment, evaluation, and integrity governance platform. Candidates complete timed, multi-stage assessments across **8 specialized evaluation modules** (Multiple Choice Questions, SQL sandboxes, NoSQL/MongoDB queries, Polyglot Coding in isolated environments, Codebase Debugging, AI Prompt Engineering, Contextual Workplace Simulations, and QA Test Scenario designs) which are automatically evaluated, scored, and synthesized into comprehensive hiring analytics backed by non-intrusive webcam proctoring and biometric verification.
 
 ---
 
 ## 🚀 Architecture & Port Topology
 
-The platform operates as a cohesive monorepo designed to run locally for development and deploy seamlessly across cloud environments (AWS RDS, AWS S3, and scaled Judge0 worker sandboxes).
+The platform operates as a unified monorepo designed to run locally with zero or full container dependencies, and deploy seamlessly across cloud environments (AWS RDS, AWS S3, and horizontally scaled Judge0 sandboxes).
 
 ### Local Port Allocation Table
 
@@ -29,7 +29,7 @@ The platform operates as a cohesive monorepo designed to run locally for develop
 
 - **Node.js**: `≥ 20.0.0`
 - **npm**: `≥ 10.0.0`
-- **Docker Desktop**: `≥ 24.0` (Required for containerized backing services)
+- **Docker Desktop**: `≥ 24.0` (Required for full containerized backing services)
 - **Git**: `≥ 2.40`
 
 ---
@@ -38,14 +38,15 @@ The platform operates as a cohesive monorepo designed to run locally for develop
 
 ### 1. Environment Configuration
 
-Copy `.env.example` to create your local `.env`:
+Copy `.env.example` to create your local `.env` files:
 
 ```bash
 cp .env.example .env
+cp .env backend/api/.env
 ```
 
-* **`INFRA_MODE=local`**: Runs without local container dependencies using mock in-memory storage (ideal for rapid UI development).
-* **`INFRA_MODE=full`**: Connects to real local containers or cloud services (Postgres/RDS, MinIO/S3, Redis, MongoDB, Judge0).
+* **`INFRA_MODE=local`**: Runs without local container dependencies using mock in-memory storage and schedulers (ideal for rapid UI development).
+* **`INFRA_MODE=full`**: Connects to real local containers or cloud services (PostgreSQL, Redis, MinIO/S3, MongoDB, Judge0, Face Verify).
 
 ### 2. Launch Local Backing Containers
 
@@ -55,7 +56,7 @@ To spin up the container suite:
 npm run infra:up
 ```
 
-*Running containers:* PostgreSQL (`5434:5432`), Redis (`6379`), MinIO (`9000`/`9001`), MongoDB (`27017`), Face Verify (`8001`), and Judge0 (`2358`).
+*Running containers:* PostgreSQL (`5434:5432`), Redis (`6379`), MinIO (`9000`/`9001`), MongoDB (`27017`), Face Verify (`8001`), and Judge0 Server & Worker (`2358`).
 
 ### 3. Initialize & Seed Database
 
@@ -79,6 +80,20 @@ npm run dev:admin
 # Terminal 3: Candidate Assessment Shell (Port 5174)
 npm run dev:candidate
 ```
+
+---
+
+## 📚 Essential Developer Documentation
+
+| Document | Description |
+|---|---|
+| 📖 [**Master Developer Guide**](docs/DEVELOPER_GUIDE.md) | Exhaustive guide to platform architecture, the 8 assessment modules, In-House JWT auth, database workflows, proctoring pipeline, and extension recipes. |
+| 🚀 [**Developer Onboarding Guide**](docs/ONBOARDING_GUIDE.md) | Step-by-step local workstation setup, port matrix, default seed credentials, and common troubleshooting. |
+| 🔌 [**Complete API Endpoints Catalog**](docs/contracts/COMPLETE_API_ENDPOINTS_CATALOG.md) | Authoritative reference for all 23 controllers, routes, guards, request DTOs, and response structures. |
+| 🏗️ [**Infrastructure Modes (INFRA_MODE)**](docs/architecture/INFRA_MODE.md) | Details on zero-dependency `local` mock mode vs containerized `full` mode. |
+| 🐳 [**Dockerization Specification**](docs/DOCKERIZATION_SPECIFICATION.md) | Containerization blueprint for DevOps and platform engineering teams. |
+| 🚢 [**Deployment Readiness Walkthrough**](docs/DEPLOYMENT_READINESS_WALKTHROUGH.md) | Load testing procedures (k6), Judge0 horizontal scaling, AWS RDS and S3 cutover runbook. |
+| 🏛️ [**Architectural Decisions (ADRs)**](docs/architecture/DECISIONS.md) | Formal records of foundational architectural decisions (ADRs 1 through 8). |
 
 ---
 
@@ -106,6 +121,9 @@ codebase/
 ├── packages/
 │   ├── shared-types/          # Canonical TypeScript interfaces & DTO contracts
 │   └── design-tokens/         # Shared CSS tokens & styling variables
+├── services/
+│   └── face-verify/           # Python FastAPI + DeepFace biometric verification microservice
 ├── docker/                    # Docker Compose development and monitoring stacks
+├── k6/                        # k6 load testing suites (Judge0, API throughput)
 └── docs/                      # Authoritative specifications, deployment guides, and contracts
 ```

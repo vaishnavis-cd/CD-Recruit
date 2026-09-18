@@ -590,28 +590,46 @@ export function CodingWorkspace({
       >
         <div className="flex items-center justify-between px-6 border-b border-line dark:border-slate-800 bg-white dark:bg-[#111827]">
           <div className="flex gap-6">
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => { setTerminalOpen(true); setActiveTab("testCases"); }}
-              className={`py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setTerminalOpen(true);
+                  setActiveTab("testCases");
+                }
+              }}
+              style={{ borderRadius: 0 }}
+              className={`py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer select-none -mb-[1px] ${
                 activeTab === "testCases" && terminalOpen
-                  ? "text-brand border-b-2 border-brand"
-                  : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white"
+                  ? "text-brand border-b-2 border-brand font-bold"
+                  : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white border-b-2 border-transparent"
               }`}
             >
               Test Cases
-            </button>
-            <button
-              type="button"
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => { setTerminalOpen(true); setActiveTab("console"); }}
-              className={`py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setTerminalOpen(true);
+                  setActiveTab("console");
+                }
+              }}
+              style={{ borderRadius: 0 }}
+              className={`py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer select-none -mb-[1px] ${
                 activeTab === "console" && terminalOpen
-                  ? "text-brand border-b-2 border-brand"
-                  : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white"
+                  ? "text-brand border-b-2 border-brand font-bold"
+                  : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-white border-b-2 border-transparent"
               }`}
             >
               Compiler Output
-            </button>
+            </div>
           </div>
 
           <button

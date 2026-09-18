@@ -149,6 +149,14 @@
     border-color: var(--color-border);
   }
 
+  /* Enforce pill / capsule button shape across all buttons */
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    border-radius: 9999px !important;
+  }
+
   html,
   body {
     background-color: transparent;
@@ -249,10 +257,15 @@
 
 /* Compositor-accelerated smooth scrolling */
 .overflow-y-auto,
-.overflow-x-auto,
 .overflow-auto {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+}
+
+/* Horizontal scroll containers (e.g. tables, candidate roster) must never trap vertical page scrolling */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto !important;
 }
 
 @layer components {
@@ -263,21 +276,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
-    height: 34px;
-    padding: 0 1rem;
-    font-size: 12px;
+    gap: 0.5rem;
+    height: 38px;
+    padding: 0 1.25rem;
+    font-size: 13px;
     font-weight: 700;
     color: #ffffff;
-    background: linear-gradient(135deg, #3a91ed 0%, #2e5de0 100%);
-    border-radius: 12px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    background: #2563EB;
+    border-radius: 9999px;
+    box-shadow: 0 4px 12px 0 rgba(37, 99, 235, 0.25);
     transition: all 150ms ease;
     cursor: pointer;
   }
   .btn-gradient-primary:hover {
-    opacity: 0.95;
-    box-shadow: 0 2px 4px 0 rgba(46, 93, 224, 0.2);
+    background: #1D4ED8;
+    box-shadow: 0 4px 14px 0 rgba(29, 78, 216, 0.35);
   }
   .btn-gradient-primary:disabled {
     opacity: 0.5;
@@ -296,7 +309,7 @@
     color: var(--color-ink-secondary);
     background-color: #ffffff;
     border: 1px solid var(--color-line);
-    border-radius: 12px;
+    border-radius: 9999px;
     box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.02);
     transition: all 150ms ease;
     cursor: pointer;

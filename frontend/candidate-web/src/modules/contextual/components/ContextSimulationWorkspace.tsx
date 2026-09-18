@@ -735,9 +735,18 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
             {/* Terminal Tab Bar */}
             <div className="h-9 border-b border-[#E2E8F0] dark:border-[#1E293B] px-4 flex items-center justify-between text-xs bg-[#F8FAFC] dark:bg-[#111827]">
               <div className="flex items-center gap-5">
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setBottomTab('diagnostics')}
-                  className={`flex items-center gap-1.5 py-1.5 font-semibold transition-colors border-b-2 cursor-pointer ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setBottomTab('diagnostics');
+                    }
+                  }}
+                  style={{ borderRadius: 0 }}
+                  className={`flex items-center gap-1.5 py-1.5 font-semibold transition-colors border-b-2 cursor-pointer select-none -mb-[1px] ${
                     bottomTab === 'diagnostics'
                       ? 'border-[#2563EB] text-[#2563EB] dark:text-[#60A5FA]'
                       : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
@@ -745,11 +754,20 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
                 >
                   <Terminal className="w-3.5 h-3.5" />
                   <span>Diagnostics</span>
-                </button>
+                </div>
 
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setBottomTab('terminal')}
-                  className={`flex items-center gap-1.5 py-1.5 font-semibold transition-colors border-b-2 cursor-pointer ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setBottomTab('terminal');
+                    }
+                  }}
+                  style={{ borderRadius: 0 }}
+                  className={`flex items-center gap-1.5 py-1.5 font-semibold transition-colors border-b-2 cursor-pointer select-none -mb-[1px] ${
                     bottomTab === 'terminal'
                       ? 'border-[#2563EB] text-[#2563EB] dark:text-[#60A5FA]'
                       : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
@@ -757,7 +775,7 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Terminal Logs</span>
-                </button>
+                </div>
               </div>
 
               <span className="text-[11px] text-[#64748B] font-mono font-medium hidden sm:inline">
@@ -1059,10 +1077,18 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
                 Deployment Strategy &amp; Confidence Sign-Off
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setDeploymentDecision('PEER_REVIEW')}
-                  className={`p-3 rounded-xl border text-left transition-all space-y-1 cursor-pointer ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setDeploymentDecision('PEER_REVIEW');
+                    }
+                  }}
+                  style={{ borderRadius: '12px' }}
+                  className={`p-3 border text-left transition-all space-y-1 cursor-pointer select-none ${
                     deploymentDecision === 'PEER_REVIEW'
                       ? 'bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 border-[#2563EB] text-[#0F172A] dark:text-white ring-1 ring-[#2563EB]'
                       : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] hover:text-[#0F172A]'
@@ -1075,12 +1101,20 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
                   <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] leading-snug">
                     Request Tech Lead review before production rollout.
                   </p>
-                </button>
+                </div>
 
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setDeploymentDecision('DIRECT_PROD')}
-                  className={`p-3 rounded-xl border text-left transition-all space-y-1 cursor-pointer ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setDeploymentDecision('DIRECT_PROD');
+                    }
+                  }}
+                  style={{ borderRadius: '12px' }}
+                  className={`p-3 border text-left transition-all space-y-1 cursor-pointer select-none ${
                     deploymentDecision === 'DIRECT_PROD'
                       ? 'bg-[#ECFDF5] dark:bg-[#064E3B]/30 border-emerald-500 text-[#0F172A] dark:text-white ring-1 ring-emerald-500'
                       : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] hover:text-[#0F172A]'
@@ -1093,7 +1127,7 @@ def is_alphanumeric_or_underscore(s: str) -> bool:
                   <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] leading-snug">
                     Deploy patch directly to production immediately.
                   </p>
-                </button>
+                </div>
               </div>
             </div>
 

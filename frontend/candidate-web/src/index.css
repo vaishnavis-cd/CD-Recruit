@@ -178,6 +178,15 @@
   * {
     border-color: var(--border);
   }
+
+  /* Enforce pill / capsule button shape across all buttons */
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    border-radius: 9999px !important;
+  }
+
   html, body {
     min-height: 100%;
     color: var(--foreground);
@@ -553,7 +562,7 @@
   height: 2.625rem;          /* 42px — exact Figma height */
   padding-left: 1.75rem;     /* 28px L/R */
   padding-right: 1.75rem;
-  border-radius: 0.5rem;     /* 8px */
+  border-radius: 9999px;     /* Pill-rounded shape */
   background-color: var(--figma-brand);
   color: #ffffff;
   font-family: var(--font-inter);   /* Inter 600 15px — all Figma button labels */
@@ -586,7 +595,7 @@
 .figma-btn-secondary {
   height: 2.625rem;          /* 42px — matches outline-btn in all consent screens */
   padding: 0.75rem 1.5rem;   /* 12px T/B 24px L/R */
-  border-radius: 0.5rem;
+  border-radius: 9999px;
   border: 1px solid var(--figma-border);
   background-color: transparent !important;
   background: transparent !important;
@@ -612,7 +621,7 @@
 .figma-btn-recheck {
   height: 2.3125rem;         /* 37px — exact Figma system-check recheck button */
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 9999px;
   border: 1px solid var(--figma-border);
   background-color: transparent !important;
   background: transparent !important;
@@ -667,7 +676,7 @@
 .figma-btn-outline {
   height: 2.625rem;          /* 42px */
   padding: 0.75rem 1.5rem;   /* 12px T/B 24px L/R */
-  border-radius: 0.5rem;
+  border-radius: 9999px;
   border: 1px solid var(--figma-border);
   background-color: transparent;
   color: var(--figma-text-primary);
@@ -837,7 +846,7 @@
 @utility btn-primary {
   background-color: var(--figma-brand);
   color: #ffffff;
-  border-radius: var(--radius-md);
+  border-radius: 9999px;
   padding: 0.625rem 1.125rem;
   font-weight: 600;
   font-size: 0.9375rem;
@@ -851,7 +860,7 @@
   background-color: transparent;
   color: var(--foreground);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 9999px;
   padding: 0.625rem 1.125rem;
   font-weight: 500;
   font-size: 0.9375rem;

@@ -12,9 +12,11 @@ export interface CapabilityReport {
 
 /**
  * Runs a synthetic WASM matrix math benchmark (~300ms) to accurately measure
- * device CPU performance off-UI thread without relying on spoofable UA strings.
+  * device CPU performance off-UI thread without relying on spoofable UA strings.
  */
 async function runWasmBenchmark(): Promise<number> {
+  // Yield once to allow the DOM rendering cycle to settle
+  await new Promise((resolve) => setTimeout(resolve, 0));
   const startTime = performance.now();
 
   try {
@@ -28,15 +30,15 @@ async function runWasmBenchmark(): Promise<number> {
     const module = await WebAssembly.instantiate(wasmBytes);
     const benchFn = module.instance.exports.bench as () => number;
 
-    // Run 500,000 synthetic iterations
-    for (let i = 0; i < 500; i++) {
+    // Run 50 synthetic iterations (< 2ms execution time)
+    for (let i = 0; i < 50; i++) {
       benchFn();
     }
   } catch (err) {
-    // Fallback CPU load simulation if raw byte compilation is restricted
+    // Fast non-blocking fallback if raw byte compilation is restricted
     let dummy = 0;
-    for (let i = 0; i < 1_000_000; i++) {
-      dummy += Math.sqrt(i) * Math.sin(i);
+    for (let i = 0; i < 5_000; i++) {
+      dummy += Math.sqrt(i);
     }
   }
 

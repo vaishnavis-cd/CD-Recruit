@@ -764,7 +764,7 @@ export function RoleTemplatesPage() {
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="px-4 py-2 bg-canvas hover:bg-surface-inset text-ink text-xs font-semibold rounded-lg cursor-pointer transition-colors"
+                className="px-4 py-2 bg-canvas hover:bg-surface-inset text-ink text-xs font-semibold rounded-full cursor-pointer transition-colors"
               >
                 Reset Filters
               </button>
@@ -791,7 +791,7 @@ export function RoleTemplatesPage() {
                       </h3>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[#3B82F6] font-bold text-2xs bg-blue-50/80 px-1.5 py-0.5 rounded">
+                        <span className="text-blue-600 font-bold text-2xs bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
                           v{tpl.version || 1}
                         </span>
                         <button
@@ -836,7 +836,7 @@ export function RoleTemplatesPage() {
                         e.stopPropagation();
                         handlePublishNewVersion(tpl.id);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] rounded-full transition-colors cursor-pointer disabled:opacity-50"
                     >
                       <Cloud size={13} />
                       <span>{publishingId === tpl.id ? "Publishing..." : "Publish new version"}</span>
@@ -1190,11 +1190,11 @@ export function RoleTemplatesPage() {
 
                           <div className="shrink-0 pl-2">
                             {isSelected ? (
-                              <span className="px-3.5 py-1 bg-[#2563EB] text-white text-xs font-semibold rounded-md shadow-xs select-none inline-block">
+                              <span className="px-3.5 py-1 bg-[#2563EB] text-white text-xs font-semibold rounded-full shadow-xs select-none inline-block">
                                 Attached
                               </span>
                             ) : (
-                              <span className="px-3.5 py-1 bg-white border border-[#D5DAEC] text-[#475569] hover:text-[#2563EB] hover:border-[#2563EB] hover:bg-[#EFF6FF] text-xs font-semibold rounded-md transition-all shadow-2xs select-none inline-block">
+                              <span className="px-3.5 py-1 bg-white border border-[#D5DAEC] text-[#475569] hover:text-[#2563EB] hover:border-[#2563EB] hover:bg-[#EFF6FF] text-xs font-semibold rounded-full transition-all shadow-2xs select-none inline-block">
                                 Attach
                               </span>
                             )}
@@ -1220,7 +1220,7 @@ export function RoleTemplatesPage() {
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={saving}
-                  className="px-4 py-2 text-xs font-semibold text-ink-secondary hover:bg-slate-200/70 rounded-lg transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-ink-secondary hover:bg-slate-200/70 rounded-full transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1228,7 +1228,7 @@ export function RoleTemplatesPage() {
                   type="button"
                   onClick={handleSaveTemplate}
                   disabled={saving}
-                  className="px-5 py-2 text-xs font-semibold bg-brand hover:bg-brand-hover text-white rounded-lg shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 text-xs font-semibold bg-brand hover:bg-brand-hover text-white rounded-full shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {saving ? (
                     <>

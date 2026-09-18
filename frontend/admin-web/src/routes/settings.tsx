@@ -10,6 +10,7 @@ import {
   List,
   Check,
   AlertCircle,
+  ShieldAlert,
   Search,
   Plus,
   Trash2,
@@ -27,6 +28,15 @@ import {
   Plug,
   Cpu,
   GitFork,
+  IdCard,
+  UsersRound,
+  LayoutGrid,
+  Gauge,
+  ScanFace,
+  BrainCircuit,
+  Database,
+  ClipboardList,
+  PlugZap,
 } from "lucide-react";
 
 import { AppShell } from "../components/app-shell";
@@ -343,6 +353,8 @@ function SettingsPage() {
   const [editingPartner, setEditingPartner] = useState<any | null>(null);
   const [confirmRotatePartner, setConfirmRotatePartner] = useState<any | null>(null);
   const [confirmRevokePartner, setConfirmRevokePartner] = useState<any | null>(null);
+  const [partnerFilter, setPartnerFilter] = useState<"all" | "active" | "revoked">("all");
+  const [partnerActionLoading, setPartnerActionLoading] = useState(false);
 
   const loadPartnerList = async () => {
     setLoadingPartners(true);
@@ -417,10 +429,11 @@ function SettingsPage() {
 
   const handleRevokePartner = async () => {
     if (!confirmRevokePartner) return;
+    setPartnerActionLoading(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}`, {
-        method: "DELETE",
+      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}/revoke`, {
+        method: "POST",
         headers,
       });
       if (!res.ok) throw new Error("Failed to revoke partner");
@@ -429,8 +442,38 @@ function SettingsPage() {
       loadPartnerList();
     } catch (err: any) {
       toast.error(err.message || "Failed to revoke partner");
+    } finally {
+      setPartnerActionLoading(false);
     }
   };
+
+  const handleDeletePartner = async () => {
+    if (!confirmRevokePartner) return;
+    setPartnerActionLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/partners/${confirmRevokePartner.id}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to delete partner");
+      toast.success(`Partner "${confirmRevokePartner.name}" permanently deleted`);
+      setConfirmRevokePartner(null);
+      loadPartnerList();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete partner");
+    } finally {
+      setPartnerActionLoading(false);
+    }
+  };
+
+  const filteredPartners = useMemo(() => {
+    return partners.filter((p) => {
+      if (partnerFilter === "active") return !p.isRevoked;
+      if (partnerFilter === "revoked") return p.isRevoked;
+      return true;
+    });
+  }, [partners, partnerFilter]);
 
   const handleUpdatePartner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1065,109 +1108,23 @@ function SettingsPage() {
     }
   };
 
-  function AdminProfileIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="282 156 16 14" fill="none" className={className}>
-        <path d="M292.667 161.667H294.001M292.667 164.334H294.001M286.113 165C286.251 164.609 286.506 164.271 286.844 164.032C287.182 163.792 287.586 163.664 288 163.664C288.414 163.664 288.818 163.792 289.156 164.032C289.494 164.271 289.749 164.609 289.887 165M289.333 162.333C289.333 163.07 288.736 163.667 288 163.667C287.264 163.667 286.667 163.07 286.667 162.333C286.667 161.597 287.264 161 288 161C288.736 161 289.333 161.597 289.333 162.333ZM284.666 158.333H295.334C296.07 158.333 296.667 158.93 296.667 159.666V166.334C296.667 167.07 296.07 167.667 295.334 167.667H284.666C283.93 167.667 283.333 167.07 283.333 166.334V159.666C283.333 158.93 283.93 158.333 284.666 158.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  function StaffRolesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="282 198 16 14" fill="none" className={className}>
-        <path d="M292.667 211V209.667C292.667 208.959 292.386 208.281 291.886 207.781C291.386 207.281 290.708 207 290 207H286C285.293 207 284.614 207.281 284.114 207.781C283.614 208.281 283.333 208.959 283.333 209.667V211M292.667 199.085C293.239 199.234 293.745 199.567 294.107 200.035C294.469 200.502 294.665 201.076 294.665 201.667C294.665 202.257 294.469 202.831 294.107 203.299C293.745 203.766 293.239 204.1 292.667 204.248M296.667 211V209.667C296.667 209.076 296.47 208.502 296.108 208.035C295.746 207.568 295.239 207.234 294.667 207.087M290.667 201.667C290.667 203.139 289.473 204.333 288 204.333C286.527 204.333 285.333 203.139 285.333 201.667C285.333 200.194 286.527 199 288 199C289.473 199 290.667 200.194 290.667 201.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  function RolesPermissionsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    );
-  }
-
-  function AssessmentModulesIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      </svg>
-    );
-  }
-
-  function AIScoringIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="282 239 16 16" fill="none" className={className}>
-        <path d="M290 252.334V253.667M290 240.333V241.666M293.334 252.334V253.667M293.334 240.333V241.666M283.333 247H284.666M283.333 250.334H284.666M283.333 243.667H284.666M295.334 247H296.667M295.334 250.334H296.667M295.334 243.667H296.667M286.667 252.334V253.667M286.667 240.333V241.666M286 241.666H294.001C294.737 241.666 295.334 242.263 295.334 243V251.001C295.334 251.737 294.737 252.334 294.001 252.334H286C285.263 252.334 284.666 251.737 284.666 251.001V243C284.666 242.263 285.263 241.666 286 241.666ZM288 244.333H292C292.369 244.333 292.667 244.632 292.667 245V249C292.667 249.369 292.369 249.667 292 249.667H288C287.632 249.667 287.333 249.369 287.333 249V245C287.333 244.632 287.632 244.333 288 244.333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  function SystemTimingIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="282 281 16 16" fill="none" className={className}>
-        <path d="M290 287V289.667L291.334 291M285.333 283L283.333 285M296.667 285L294.667 283M286.253 293.467L284.666 295M293.76 293.447L295.334 295M295.334 289.667C295.334 292.612 292.946 295 290 295C287.054 295 284.666 292.612 284.666 289.667C284.666 286.721 287.054 284.333 290 284.333C292.946 284.333 295.334 286.721 295.334 289.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  function RetentionPolicyIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="282 323 16 16" fill="none" className={className}>
-        <path d="M288 331L289.333 332.333L292 329.667M295.333 331.667C295.333 335 292.999 336.667 290.226 337.634C290.081 337.683 289.923 337.681 289.78 337.627C287 336.667 284.667 335 284.667 331.667V327C284.667 326.823 284.737 326.654 284.862 326.529C284.987 326.404 285.157 326.333 285.334 326.333C286.667 326.333 288.333 325.533 289.493 324.52C289.634 324.399 289.814 324.333 290 324.333C290.186 324.333 290.365 324.399 290.506 324.52C291.673 325.54 293.333 326.333 294.666 326.333C294.843 326.333 295.012 326.404 295.137 326.529C295.262 326.654 295.333 326.823 295.333 327V331.667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  function AuditLogsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="383 3869 14 12" fill="none" className={className}>
-        <path
-          d="M384 3870.33H384.667M384 3875H384.667M384 3879.67H384.667M387.333 3870.33H388M387.333 3875H388M387.333 3879.67H388M390.667 3870.33H396M390.667 3875H396M390.667 3879.67H396"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-
-  function IntegrationsIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-    return (
-      <svg width={size} height={size} viewBox="383 3909 15 15" fill="none" className={className}>
-        <path
-          d="M390.74 3914.11L391.927 3915.89M391.441 3917.53L389.225 3918.47M395.333 3911.67L391.293 3912.68M384 3911V3921.67C384 3922.02 384.14 3922.36 384.391 3922.61C384.641 3922.86 384.98 3923 385.333 3923H396M391.333 3913C391.333 3913.74 390.736 3914.33 390 3914.33C389.264 3914.33 388.667 3913.74 388.667 3913C388.667 3912.26 389.264 3911.67 390 3911.67C390.736 3911.67 391.333 3912.26 391.333 3913ZM394 3917C394 3917.74 393.403 3918.33 392.667 3918.33C391.93 3918.33 391.333 3917.74 391.333 3917C391.333 3916.26 391.93 3915.67 392.667 3915.67C393.403 3915.67 394 3916.26 394 3917ZM389.333 3919C389.333 3919.74 388.736 3920.33 388 3920.33C387.264 3920.33 386.667 3919.74 386.667 3919C386.667 3918.26 387.264 3917.67 388 3917.67C388.736 3917.67 389.333 3918.26 389.333 3919Z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-
   const TABS = [
-    { id: "profile", label: "Admin Profile", icon: AdminProfileIcon },
-    { id: "users", label: "Staff & Roles", icon: StaffRolesIcon },
-    { id: "permissions", label: "Roles & Permissions", icon: RolesPermissionsIcon },
-    { id: "modules", label: "Assessment Modules", icon: AssessmentModulesIcon },
-    { id: "calibration", label: "Time & Difficulty", icon: Cpu },
-    { id: "proctoring", label: "Proctoring & Biometrics", icon: ShieldCheck },
-    { id: "scoring", label: "AI & Scoring", icon: AIScoringIcon },
-    { id: "system", label: "System Timing", icon: SystemTimingIcon },
-    { id: "retention", label: "Data Retention", icon: RetentionPolicyIcon },
-    { id: "audit", label: "Audit Logs", icon: AuditLogsIcon },
-    { id: "integrations", label: "Integrations", icon: IntegrationsIcon },
+    { id: "profile", label: "Admin Profile", icon: IdCard },
+    { id: "users", label: "Staff & Roles", icon: UsersRound },
+    { id: "permissions", label: "Roles & Permissions", icon: ShieldCheck },
+    { id: "modules", label: "Assessment Modules", icon: LayoutGrid },
+    { id: "calibration", label: "Time & Difficulty", icon: Gauge },
+    { id: "proctoring", label: "Proctoring & Biometrics", icon: ScanFace },
+    { id: "scoring", label: "AI & Scoring", icon: BrainCircuit },
+    { id: "system", label: "System Timing", icon: AlarmClock },
+    { id: "retention", label: "Data Retention", icon: Database },
+    { id: "audit", label: "Audit Logs", icon: ClipboardList },
+    { id: "integrations", label: "Integrations", icon: PlugZap },
   ] as const;
 
   return (
     <AppShell hideHeader={true}>
-      <div className="max-w-[1320px] mx-auto w-full">
+      <div className="max-w-[1320px] mx-auto w-full pb-20">
         {/* Main Header */}
         <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-8">
           Settings &amp; Administration
@@ -1175,7 +1132,7 @@ function SettingsPage() {
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Navigation Tabs Side (Sticky on desktop) */}
-          <div className="w-full lg:w-[200px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
+          <div className="w-full lg:w-[220px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -1527,10 +1484,10 @@ function SettingsPage() {
 
                 {/* Roles Overview Breakdown Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                  <div className="p-4 bg-[#FEF2F2] rounded-[10px] border border-[#FECACA]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#DC2626] tracking-wider uppercase">ADMIN</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#DC2626] border border-[#FECACA]">
+                  <div className="p-4 bg-[#FEF2F2] rounded-[10px] border border-[#FECACA]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#DC2626] tracking-wider uppercase shrink-0">ADMIN</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#DC2626] border border-[#FECACA] whitespace-nowrap shrink-0">
                         SUPERADMIN
                       </span>
                     </div>
@@ -1539,10 +1496,10 @@ function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#EFF6FF] rounded-[10px] border border-[#BFDBFE]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#2563EB] tracking-wider uppercase">HR_LEAD</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#2563EB] border border-[#BFDBFE]">
+                  <div className="p-4 bg-[#EFF6FF] rounded-[10px] border border-[#BFDBFE]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#2563EB] tracking-wider uppercase shrink-0">HR_LEAD</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#2563EB] border border-[#BFDBFE] whitespace-nowrap shrink-0">
                         LEAD RECRUITER
                       </span>
                     </div>
@@ -1551,10 +1508,10 @@ function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#FFFBEB] rounded-[10px] border border-[#FDE68A]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#D97706] tracking-wider uppercase">HR_ASSOCIATE</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#D97706] border border-[#FDE68A]">
+                  <div className="p-4 bg-[#FFFBEB] rounded-[10px] border border-[#FDE68A]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#D97706] tracking-wider uppercase shrink-0">HR_ASSOCIATE</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#D97706] border border-[#FDE68A] whitespace-nowrap shrink-0">
                         RECRUITMENT OPS
                       </span>
                     </div>
@@ -1563,10 +1520,10 @@ function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#ECFDF5] rounded-[10px] border border-[#A7F3D0]/60">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#059669] tracking-wider uppercase">REVIEWER</span>
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-white text-[#059669] border border-[#A7F3D0]">
+                  <div className="p-4 bg-[#ECFDF5] rounded-[10px] border border-[#A7F3D0]/60 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+                      <span className="text-[11px] font-bold text-[#059669] tracking-wider uppercase shrink-0">REVIEWER</span>
+                      <span className="px-2 py-0.5 text-[8.5px] font-bold rounded-full bg-white text-[#059669] border border-[#A7F3D0] whitespace-nowrap shrink-0">
                         EVALUATOR
                       </span>
                     </div>
@@ -2567,31 +2524,80 @@ function SettingsPage() {
             {/* Tab 11: Integrations */}
             {activeTab === "integrations" && (
               <div className="space-y-6">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-[16px] font-bold text-[#0F172A]">Partner API Integrations</h2>
                     <p className="text-[12px] text-[#64748B] mt-1">
                       Manage external ATS partner API credentials, rate limits, and callback configurations.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowCreatePartnerModal(true)}
-                    className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
-                  >
-                    <Plus size={14} strokeWidth={2.5} />
-                    <span>Register Partner</span>
-                  </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {/* Status Filter Tabs */}
+                    <div className="inline-flex items-center bg-[#F1F5F9] p-0.5 rounded-[10px] border border-[#E2E8F0] shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setPartnerFilter("all")}
+                        className={`px-3 py-1.5 text-[11px] font-bold rounded-[8px] whitespace-nowrap transition-all cursor-pointer ${
+                          partnerFilter === "all"
+                            ? "bg-white text-[#2563EB] shadow-2xs"
+                            : "text-[#64748B] hover:text-[#0F172A]"
+                        }`}
+                      >
+                        All ({partners.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPartnerFilter("active")}
+                        className={`px-3 py-1.5 text-[11px] font-bold rounded-[8px] whitespace-nowrap transition-all cursor-pointer ${
+                          partnerFilter === "active"
+                            ? "bg-white text-[#059669] shadow-2xs"
+                            : "text-[#64748B] hover:text-[#0F172A]"
+                        }`}
+                      >
+                        Active ({partners.filter((p) => !p.isRevoked).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPartnerFilter("revoked")}
+                        className={`px-3 py-1.5 text-[11px] font-bold rounded-[8px] whitespace-nowrap transition-all cursor-pointer ${
+                          partnerFilter === "revoked"
+                            ? "bg-white text-[#EF4444] shadow-2xs"
+                            : "text-[#64748B] hover:text-[#0F172A]"
+                        }`}
+                      >
+                        Revoked ({partners.filter((p) => p.isRevoked).length})
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => setShowCreatePartnerModal(true)}
+                      className="flex items-center gap-1.5 px-4 h-[32px] text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0"
+                    >
+                      <Plus size={14} strokeWidth={2.5} />
+                      <span>Register Partner</span>
+                    </button>
+                  </div>
                 </div>
 
                 {loadingPartners ? (
                   <p className="text-center font-mono text-xs text-ink-tertiary py-8">
                     Loading partner integration records…
                   </p>
-                ) : partners.length === 0 ? (
+                ) : filteredPartners.length === 0 ? (
                   <div className="p-12 text-center border border-dashed border-[#E2E8F0] rounded-xl space-y-2 bg-white">
                     <Key className="w-8 h-8 text-[#94A3B8] mx-auto" />
-                    <p className="text-sm font-bold text-[#0F172A]">No Partner API Keys Configured</p>
-                    <p className="text-xs text-[#8C9BA5]">Register an external ATS partner to issue X-API-Key credentials.</p>
+                    <p className="text-sm font-bold text-[#0F172A]">
+                      {partnerFilter === "revoked"
+                        ? "No Revoked Partner Keys"
+                        : partnerFilter === "active"
+                        ? "No Active Partner Keys"
+                        : "No Partner API Keys Configured"}
+                    </p>
+                    <p className="text-xs text-[#8C9BA5]">
+                      {partnerFilter === "all"
+                        ? "Register an external ATS partner to issue X-API-Key credentials."
+                        : `No partner integrations found in the ${partnerFilter} view.`}
+                    </p>
                   </div>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-[12px] overflow-hidden bg-white shadow-xs">
@@ -2608,18 +2614,21 @@ function SettingsPage() {
                     </div>
 
                     <div className="divide-y divide-[#E2E8F0]">
-                      {partners.map((p) => (
+                      {filteredPartners.map((p) => (
                         <div
                           key={p.id}
-                          className="grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center bg-white hover:bg-[#F8FAFC]/60 transition-colors"
+                          className={`grid grid-cols-[2fr_1.2fr_1fr_1.2fr_1fr_1.2fr_0.9fr] gap-4 px-6 py-4 items-center transition-colors ${
+                            p.isRevoked ? "bg-[#FAFAFA]/70 text-[#94A3B8]" : "bg-white hover:bg-[#F8FAFC]/60"
+                          }`}
                         >
                           <div>
-                            <p className="text-[13px] font-bold text-[#0F172A]">{p.name}</p>
-                            <p className="text-[11px] font-mono text-[#94A3B8] truncate">{p.id}</p>
+                            <p className={`text-[13px] font-bold ${p.isRevoked ? "text-[#64748B] line-through decoration-slate-300" : "text-[#0F172A]"}`}>
+                              {p.name}
+                            </p>
                           </div>
                           <div className="text-[13px] text-[#64748B]">{p.rateLimit} req/min</div>
                           <div className="text-[13px] font-bold text-[#2563EB]">
-                            {(p as any).apiHitCount ?? 0} hits
+                            {(p as any).apiHitCount ?? 0} {(p as any).apiHitCount === 1 ? "hit" : "hits"}
                           </div>
                           <div
                             className="text-[13px] text-[#8C9BA5] italic truncate"
@@ -2629,10 +2638,11 @@ function SettingsPage() {
                           </div>
                           <div>
                             <span
-                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${p.isRevoked
+                              className={`px-2.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
+                                p.isRevoked
                                   ? "bg-[#FEF2F2] text-[#EF4444]"
                                   : "bg-[#ECFDF5] text-[#059669]"
-                                }`}
+                              }`}
                             >
                               {p.isRevoked ? "REVOKED" : "ACTIVE"}
                             </span>
@@ -2640,17 +2650,17 @@ function SettingsPage() {
                           <div className="text-[13px] text-[#64748B]">
                             {p.createdAt
                               ? new Date(p.createdAt).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "2-digit",
-                              })
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "2-digit",
+                                })
                               : "—"}
                           </div>
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setConfirmRotatePartner(p)}
                               className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors cursor-pointer shadow-2xs"
-                              title="Rotate API Key"
+                              title={p.isRevoked ? "Re-activate / Issue New Key" : "Rotate API Key"}
                             >
                               <RefreshCw size={12} />
                             </button>
@@ -2661,15 +2671,17 @@ function SettingsPage() {
                             >
                               <Edit3 size={12} />
                             </button>
-                            {!p.isRevoked && (
-                              <button
-                                onClick={() => setConfirmRevokePartner(p)}
-                                className="w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444] transition-colors cursor-pointer shadow-2xs"
-                                title="Revoke Partner Key"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => setConfirmRevokePartner(p)}
+                              className={`w-[28px] h-[28px] rounded-[6px] border border-[#E2E8F0] bg-white flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
+                                p.isRevoked
+                                  ? "text-rose-500 hover:text-rose-700 hover:border-rose-400"
+                                  : "text-[#64748B] hover:text-[#EF4444] hover:border-[#EF4444]"
+                              }`}
+                              title={p.isRevoked ? "Delete Partner Permanently" : "Manage / Revoke Partner"}
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -2814,31 +2826,148 @@ function SettingsPage() {
         </div>
       )}
 
-      {/* Modal: Confirm Revoke Partner */}
+      {/* Modal: Confirm Delete/Revoke Partner */}
       {confirmRevokePartner && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#e2e8f0] space-y-4">
-            <div className="flex items-center gap-3 text-rose-600">
-              <Lock className="w-5 h-5 shrink-0" />
-              <h3 className="text-sm font-bold text-[#0d1424]">Revoke Partner Access for {confirmRevokePartner.name}?</h3>
-            </div>
-            <p className="text-xs text-[#64748b] leading-relaxed">
-              Revoking access will immediately block all API requests from <strong>{confirmRevokePartner.name}</strong>. This action will be recorded in the Audit Log.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f5f9]">
-              <button
-                onClick={() => setConfirmRevokePartner(null)}
-                className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRevokePartner}
-                className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-full shadow-xs cursor-pointer"
-              >
-                Confirm Revoke
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-[#e2e8f0] space-y-4">
+            {confirmRevokePartner.isRevoked ? (
+              <>
+                <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+                  <div className="flex items-center gap-2.5 text-rose-600">
+                    <Trash2 className="w-5 h-5 shrink-0" />
+                    <h3 className="text-sm font-bold text-[#0d1424]">
+                      Permanently Delete Partner: {confirmRevokePartner.name}?
+                    </h3>
+                  </div>
+                  <button
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="text-[#94a3b8] hover:text-[#0d1424] cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 leading-relaxed space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5">
+                    <ShieldAlert size={14} className="shrink-0 text-rose-600" />
+                    Warning: Irreversible Deletion
+                  </p>
+                  <p>
+                    This partner is already revoked. Permanently deleting it will remove all metadata, token hashes, and webhook configurations from the database.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f5f9]">
+                  <button
+                    type="button"
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={partnerActionLoading}
+                    onClick={handleDeletePartner}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-full shadow-xs cursor-pointer flex items-center gap-1.5 transition-all"
+                  >
+                    <Trash2 size={13} />
+                    {partnerActionLoading ? "Deleting..." : "Delete Permanently"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between border-b border-[#f1f5f9] pb-3">
+                  <div className="flex items-center gap-2.5 text-[#0d1424]">
+                    <ShieldAlert className="w-5 h-5 shrink-0 text-amber-500" />
+                    <h3 className="text-sm font-bold text-[#0d1424]">
+                      Manage Partner: {confirmRevokePartner.name}
+                    </h3>
+                  </div>
+                  <button
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="text-[#94a3b8] hover:text-[#0d1424] cursor-pointer p-1 rounded-lg hover:bg-[#f1f5f9]"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <p className="text-xs text-[#64748b] leading-relaxed">
+                  Choose how you want to handle access for <strong>{confirmRevokePartner.name}</strong>. Revoking is industry standard to maintain audit integrity.
+                </p>
+
+                <div className="grid grid-cols-1 gap-3 py-1">
+                  {/* Option 1: Revoke Access (Recommended) */}
+                  <div className="border border-amber-200 bg-amber-50/50 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                        <Lock size={14} className="text-amber-600" />
+                        Revoke Access
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase tracking-wider">
+                        Recommended
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748b] leading-relaxed">
+                      Immediately blocks all API requests from this partner with a 401 Unauthorized status. Partner details, hit metrics, and audit logs are preserved for compliance and can be rotated later.
+                    </p>
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={partnerActionLoading}
+                        onClick={handleRevokePartner}
+                        className="px-4 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-full shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+                      >
+                        <Lock size={12} />
+                        {partnerActionLoading ? "Revoking..." : "Revoke Access"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Delete Permanently */}
+                  <div className="border border-rose-200 bg-rose-50/40 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-900">
+                        <Trash2 size={14} className="text-rose-600" />
+                        Delete Permanently
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 uppercase tracking-wider">
+                        Destructive
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748b] leading-relaxed">
+                      Completely purges this partner record, key hash, and webhook URL from the database. This action cannot be undone.
+                    </p>
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={partnerActionLoading}
+                        onClick={handleDeletePartner}
+                        className="px-4 py-1.5 text-xs font-semibold text-rose-700 hover:text-white hover:bg-rose-600 border border-rose-300 hover:border-transparent disabled:opacity-50 rounded-full cursor-pointer transition-all flex items-center gap-1.5"
+                      >
+                        <Trash2 size={12} />
+                        {partnerActionLoading ? "Deleting..." : "Delete Permanently"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-2 border-t border-[#f1f5f9]">
+                  <button
+                    type="button"
+                    disabled={partnerActionLoading}
+                    onClick={() => setConfirmRevokePartner(null)}
+                    className="px-4 py-2 text-xs font-semibold text-[#64748b] hover:text-[#0d1424] rounded-full hover:bg-[#f1f5f9] cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

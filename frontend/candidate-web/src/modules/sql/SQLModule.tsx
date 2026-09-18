@@ -245,7 +245,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
           setResponse(questionId, savedQuery);
         }
       } else {
-        setQuery('-- Write your SQL query here:\nSELECT * FROM employees;');
+        setQuery('-- Write your SQL query here');
       }
       setResults(null);
       setEvalResult(null);
@@ -451,7 +451,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
         >
           <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
             <div>
-              <span className="text-xs font-mono uppercase tracking-wider text-[var(--accent)] font-bold">
+              <span className="text-xs uppercase tracking-wider text-[var(--accent)] font-bold">
                 Query {currentIndex + 1} of {questions.length}
               </span>
               <h2 className="text-base font-bold text-[var(--text-primary)] mt-1">SQL Assessment Problem</h2>
@@ -459,11 +459,11 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
 
             {/* Language/Dialect Dropdown */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-secondary)] font-mono">Dialect:</span>
+              <span className="text-xs text-[var(--text-secondary)] font-medium">Dialect:</span>
               <select
                 value={dialect}
                 onChange={(e) => setDialect(e.target.value as any)}
-                className="bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-primary)] rounded-lg px-2.5 py-1 font-mono focus:outline-none"
+                className="bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-primary)] rounded-lg px-2.5 py-1 focus:outline-none"
               >
                 <option value="PostgreSQL">PostgreSQL</option>
                 <option value="MySQL">MySQL</option>
@@ -483,7 +483,7 @@ export function SQLModule({ moduleIndex }: SQLModuleProps) {
 
           {/* Visual Table Renderer (Schema & Seed Data Tables) */}
           <div className="space-y-4 pt-2">
-            <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-secondary)] font-bold">
+            <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-bold">
               Database Schema & Table Data Preview
             </div>
 

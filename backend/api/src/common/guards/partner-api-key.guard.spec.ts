@@ -17,13 +17,18 @@ async function runPartnerApiKeyGuardTests() {
     createdAt: new Date(),
   };
 
+  let updateCalledWith: any = null;
   const mockPrisma: any = {
     partner: {
       findFirst: async ({ where }: any) => {
-        if (where?.hashedApiKey === hashedKey) {
+        if (where?.hashedApiKey === hashedKey && where?.isRevoked === false) {
           return mockPartner;
         }
         return null;
+      },
+      update: async (args: any) => {
+        updateCalledWith = args;
+        return { ...mockPartner, apiHitCount: 1 };
       },
     },
   };
@@ -64,13 +69,17 @@ async function runPartnerApiKeyGuardTests() {
   assert.strictEqual(invalidKeyError, true, "Should throw UnauthorizedException on invalid API key");
   console.log("  ✔ Throws UnauthorizedException on invalid X-API-Key");
 
-  // Test 3: Validates key, attaches partner to request, and returns true when key is valid
+  // Test 3: Validates key, attaches partner to request, returns true, and increments apiHitCount
   const validCtx = createMockContext({ "x-api-key": rawKey });
   const result = await guard.canActivate(validCtx as any);
   assert.strictEqual(result, true);
   assert.strictEqual(validCtx.req.partner.id, "partner-uuid-1");
   assert.strictEqual(validCtx.req.partner.name, "Acme ATS Partner");
-  console.log("  ✔ Validates key, attaches partner to request, and returns true for valid key");
+  assert.deepStrictEqual(updateCalledWith, {
+    where: { id: "partner-uuid-1" },
+    data: { apiHitCount: { increment: 1 } },
+  });
+  console.log("  ✔ Validates key, attaches partner to request, and increments apiHitCount");
 
   console.log("✅ All PartnerApiKeyGuard characterization tests passed successfully!");
 }

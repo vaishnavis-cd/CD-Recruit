@@ -50,11 +50,19 @@ export class PartnerAdminController {
     return this.partnerAdminService.update(id, dto, actor?.id || actor?.sub || "system");
   }
 
-  @Delete(":id")
+  @Post(":id/revoke")
   async revoke(
     @Param("id", ParseUUIDPipe) id: string,
     @CurrentUser() actor: any,
   ) {
     return this.partnerAdminService.revoke(id, actor?.id || actor?.sub || "system");
+  }
+
+  @Delete(":id")
+  async delete(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() actor: any,
+  ) {
+    return this.partnerAdminService.delete(id, actor?.id || actor?.sub || "system");
   }
 }

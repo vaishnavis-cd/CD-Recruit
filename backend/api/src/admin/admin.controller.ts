@@ -249,4 +249,10 @@ export class AdminController {
   async exportDrive(@Param("driveId", ParseUUIDPipe) driveId: string) {
     return this.adminService.bulkExportByDrive(driveId);
   }
+
+  @Get("manual/download-url")
+  async getManualDownloadUrl() {
+    return this.adminService.getUserManualDownloadUrl();
+  }
 }
+

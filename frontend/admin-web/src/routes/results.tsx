@@ -60,6 +60,12 @@ function ResultsPage() {
   const [selectedVerificationItem, setSelectedVerificationItem] = useState<any>(null);
 
   useEffect(() => {
+    if (driveFilter !== "all" && Array.isArray(drives) && drives.length > 0 && !drives.some((d) => d.id === driveFilter)) {
+      setDriveFilter("all");
+    }
+  }, [drives, driveFilter]);
+
+  useEffect(() => {
     if (isExactResults) {
       fetchResults({ driveId: driveFilter !== "all" ? driveFilter : undefined });
       fetchDrives();
@@ -197,14 +203,7 @@ function ResultsPage() {
                 )}
               </button>
             )}
-            <button
-              onClick={handleExportCsv}
-              className="flex items-center gap-1.5 h-[34px] px-3.5 text-[12px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-[8px] hover:bg-[#F8FAFC] transition-colors cursor-pointer shadow-xs"
-              title="Download full candidate evaluation CSV dataset from server"
-            >
-              <Download size={13} />
-              <span>Export CSV</span>
-            </button>
+            
             <ExportDropdown
               data={filtered}
               filenamePrefix="proctora-candidate-results"
