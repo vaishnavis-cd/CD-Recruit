@@ -1617,39 +1617,90 @@ function DriveDetailPage() {
   const templateModulesSummary = useMemo(() => {
     if (!isTemplateGoverned) return null;
 
-    const assignedObjs = (assignedQuestions || []).map((id) =>
-      questionsBank.find((q) => q.id === id) || { id, moduleType: "MCQ", difficulty: "MEDIUM" }
-    );
+    const roleTemplate =
+      (drive as any)?.roleTemplate ||
+      (roleTemplates || []).find((r: any) => r.id === (drive as any)?.roleTemplateId);
+
+    const templateQuestions: any[] = roleTemplate?.questions || [];
+
+    // Map each assigned question ID or template question to its full object with true difficulty
+    const assignedObjs =
+      assignedQuestions && assignedQuestions.length > 0
+        ? assignedQuestions.map((id) => {
+            const fromBank = questionsBank.find((q) => q.id === id);
+            if (fromBank) return fromBank;
+            const fromTpl = templateQuestions.find(
+              (tq: any) => tq.questionId === id || tq.id === id || tq.question?.id === id
+            );
+            if (fromTpl) {
+              return {
+                id,
+                moduleType: fromTpl.moduleType || fromTpl.question?.moduleType || "MCQ",
+                difficulty: fromTpl.question?.difficulty || fromTpl.difficulty || "MEDIUM",
+                durationMinutes: fromTpl.question?.durationMinutes || fromTpl.durationMinutes || 5,
+                points: fromTpl.question?.points || fromTpl.points || 1,
+              };
+            }
+            return { id, moduleType: "MCQ", difficulty: "MEDIUM" };
+          })
+        : templateQuestions.map((tq: any) => ({
+            id: tq.questionId || tq.id,
+            moduleType: tq.moduleType || tq.question?.moduleType || "MCQ",
+            difficulty: tq.question?.difficulty || tq.difficulty || "MEDIUM",
+            durationMinutes: tq.question?.durationMinutes || tq.durationMinutes || 5,
+            points: tq.question?.points || tq.points || 1,
+          }));
 
     const modulesPresent = Array.from(
       new Set(
         assignedObjs.map((q) => {
-          const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
+          const isDebug =
+            q.moduleType === "DEBUGGING" ||
+            (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
           return isDebug ? "DEBUGGING" : q.moduleType;
         })
       )
     ).filter(Boolean);
 
-    const activeModules = modulesPresent.length > 0
-      ? modulesPresent
-      : ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"].filter((k) => moduleConfig[k]?.enabled);
+    const activeModules =
+      modulesPresent.length > 0
+        ? modulesPresent
+        : ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"].filter(
+            (k) => moduleConfig[k]?.enabled
+          );
 
-    const preset = ((drive as any)?.roleTemplate?.weightingPreset as Record<string, number>) || {};
+    const preset =
+      ((drive as any)?.roleTemplate?.weightingPreset as Record<string, number>) ||
+      (roleTemplate?.weightingPreset as Record<string, number>) ||
+      {};
 
     const summaryData = activeModules.map((modId) => {
       const modQuestions = assignedObjs.filter((q) => {
-        const isDebug = q.moduleType === "DEBUGGING" || (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
+        const isDebug =
+          q.moduleType === "DEBUGGING" ||
+          (Array.isArray((q as any).tags) && (q as any).tags.includes("debugging"));
         const m = isDebug ? "DEBUGGING" : q.moduleType;
         return m === modId;
       });
 
-      const count = modQuestions.length || ((moduleConfig[modId] as any)?.requiredCount || 1);
-      const easyCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "EASY").length;
-      const mediumCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "MEDIUM").length;
-      const hardCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "HARD").length;
+      const count = modQuestions.length || ((moduleConfig[modId] as any)?.requiredCount || 0);
+      let easyCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "EASY").length;
+      let mediumCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "MEDIUM").length;
+      let hardCount = modQuestions.filter((q) => (q.difficulty || "").toUpperCase() === "HARD").length;
+
+      // Ensure that all questions in the module are categorized accurately so easy + medium + hard === count
+      const totalCategorized = easyCount + mediumCount + hardCount;
+      if (totalCategorized < count) {
+        mediumCount += count - totalCategorized;
+      }
 
       let rawWeight = preset[modId] !== undefined ? preset[modId] : (moduleConfig[modId]?.weight || 0);
-      let weight = rawWeight > 100 ? Math.round(rawWeight / 100) : (rawWeight <= 1 && rawWeight > 0 ? Math.round(rawWeight * 100) : Math.round(rawWeight));
+      let weight =
+        rawWeight > 100
+          ? Math.round(rawWeight / 100)
+          : rawWeight <= 1 && rawWeight > 0
+          ? Math.round(rawWeight * 100)
+          : Math.round(rawWeight);
       if (weight === 0 && activeModules.length > 0) {
         weight = Math.round(100 / activeModules.length);
       }
@@ -1663,9 +1714,9 @@ function DriveDetailPage() {
         marks: weight,
         count,
         dist: {
-          easy: easyCount || (count === 1 ? 1 : Math.ceil(count / 2)),
-          medium: mediumCount || (count > 1 ? Math.floor(count / 2) : 0),
-          hard: hardCount || 0,
+          easy: easyCount,
+          medium: mediumCount,
+          hard: hardCount,
         },
         estTime: duration,
       };
@@ -1697,19 +1748,21 @@ function DriveDetailPage() {
 
     const totalMarks = 100;
     const totalQuestions = summaryData.reduce((sum, m) => sum + m.count, 0);
+    const templateDuration = roleTemplate?.durationMinutes || (drive as any)?.roleTemplate?.durationMinutes || 90;
+    const totalEstTime = summaryData.reduce((sum, m) => sum + m.estTime, 0) || templateDuration;
 
     return {
       summaryData,
-      totalDuration: 90,
+      totalDuration: templateDuration,
       totalWeight: 100,
       totalMarks: 100,
       totalQuestions,
-      totalEstTime: 90,
+      totalEstTime,
       isOverTime: false,
       overflowMinutes: 0,
       resolvedTag: "standard",
     };
-  }, [isTemplateGoverned, assignedQuestions, questionsBank, moduleConfig, drive]);
+  }, [isTemplateGoverned, assignedQuestions, questionsBank, moduleConfig, drive, roleTemplates]);
 
   const driveEvaluationSummary = useMemo(() => {
     if (isTemplateGoverned && templateModulesSummary) {
@@ -3381,7 +3434,7 @@ function DriveDetailPage() {
                   {isTemplateGoverned ? (
                     <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-[12px] text-xs text-emerald-800 font-medium">
                       <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                      <span>✓ Assessment configuration fits within the configured 90-minute limit ({totalEstTime} min estimated).</span>
+                      <span>Assessment configuration fits within the configured 90-minute limit ({totalEstTime} min estimated).</span>
                     </div>
                   ) : isOverTime ? (
                     <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-rose-50 border border-rose-200 rounded-[12px] text-xs text-rose-900">
@@ -3408,7 +3461,7 @@ function DriveDetailPage() {
                   ) : (
                     <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-[12px] text-xs text-emerald-800 font-medium">
                       <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                      <span>✓ Assessment configuration fits within the configured {totalDuration}-minute limit ({totalEstTime} min estimated).</span>
+                      <span>Assessment configuration fits within the configured {totalDuration}-minute limit ({totalEstTime} min estimated).</span>
                     </div>
                   )}
                 </div>
