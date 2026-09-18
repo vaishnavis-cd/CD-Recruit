@@ -5,6 +5,9 @@ import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { HelpCircle, Check, ArrowRight } from 'lucide-react';
 import apiClient from '../api/client';
+import { FaceDetectionService } from '../proctoring/face-detection.service';
+import { PoseDetectionService } from '../proctoring/pose-detection.service';
+import { ObjectDetectionService } from '../proctoring/object-detection.service';
 
 const SUPPORT_EMAIL = 'mailto:support@proctora.com';
 
@@ -46,6 +49,21 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
 
   useEffect(() => {
     return services.time.subscribe(setNowMs);
+  }, []);
+
+  // Pre-warm MediaPipe vision models during the waiting room idle countdown
+  // This ensures models are already compiled in memory before entering the assessment, eliminating post-waiting-room freeze.
+  useEffect(() => {
+    const preheatTimer = setTimeout(() => {
+      console.log('[WaitingRoom] Pre-warming proctoring vision models during idle countdown...');
+      FaceDetectionService.getInstance().loadModel().catch((e) => {
+        console.warn('[WaitingRoom] Background face model preheat notice:', e?.message || e);
+      });
+      PoseDetectionService.getInstance().loadModel().catch(() => {});
+      ObjectDetectionService.getInstance().loadModel().catch(() => {});
+    }, 1200);
+
+    return () => clearTimeout(preheatTimer);
   }, []);
 
   const allocatedMinutes = useMemo(() => {
@@ -175,14 +193,14 @@ export function WaitingRoomScreen({ scheduledTimeMs, inviteToken }: WaitingRoomS
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </div>
 
-                <button
+                {/* <button
                   onClick={handleStartNow}
                   className="figma-btn-primary shadow-xs hover:brightness-105 transition-all text-sm inline-flex items-center gap-2 px-5 py-2.5 cursor-pointer"
                   type="button"
                 >
                   <span>Start Assessment Now</span>
                   <ArrowRight size={14} />
-                </button>
+                </button> */}
               </div>
 
               {/* Caption */}

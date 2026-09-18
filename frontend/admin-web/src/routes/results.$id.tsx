@@ -1625,7 +1625,7 @@ function IndividualResultPage() {
                       ))}
                       {totalCount > 0 && (
                         <div className="text-emerald-600 font-semibold pt-2 border-t border-line mt-1 text-xs-plus flex items-center gap-1.5">
-                          <span>✓ Total Recorded Work Events:</span>
+                          <span>Total Recorded Work Events:</span>
                           <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold text-2xs">{totalCount}</span>
                         </div>
                       )}

@@ -25,10 +25,8 @@ export class ObjectDetectionService {
 
     this.isLoading = true;
     try {
-      console.log("[ObjectDetection] OBJECT_MODEL_LOADING: Loading MediaPipe Object Detector resolver...");
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
-      );
+      console.log("[ObjectDetection] OBJECT_MODEL_LOADING: Loading MediaPipe Object Detector resolver from /mediapipe...");
+      const vision = await FilesetResolver.forVisionTasks("/mediapipe");
 
       const modelUrls = [
         "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite",

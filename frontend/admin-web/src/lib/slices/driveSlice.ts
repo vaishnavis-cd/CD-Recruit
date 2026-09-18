@@ -166,10 +166,15 @@
 
     generateDriveLinks: async (driveId: string) => {
       const headers = await getAuthHeaders();
-      await fetch(`${API_BASE}/admin/drives/${driveId}/generate-links`, {
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}/generate-links`, {
         method: "POST",
         headers,
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to generate drive links");
+      }
+      get().fetchDrives?.(undefined, true);
     },
 
     removeCandidateFromDrive: async (driveId: string, candidateId: string) => {

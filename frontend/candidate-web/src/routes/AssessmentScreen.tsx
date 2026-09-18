@@ -63,35 +63,44 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
     }
 
     const activeSessionId = assessment?.sessionId || sessionId || session?.id;
-    if (activeSessionId && !activeSessionId.startsWith('sess_')) {
+    if (activeSessionId) {
       // 1. Transition backend session to IN_PROGRESS if not already started
-      apiClient.post(`/sessions/${activeSessionId}/begin`).catch((err) => {
-        console.warn('[AssessmentScreen] /begin call warning:', err?.message);
-      });
+      if (!activeSessionId.startsWith('sess_')) {
+        apiClient.post(`/sessions/${activeSessionId}/begin`).catch((err) => {
+          console.warn('[AssessmentScreen] /begin call warning:', err?.message);
+        });
+      }
 
       // 2. Start global ProctoringModule pipeline (webcam, rolling buffer, vision models)
-      console.log(`[AssessmentScreen] Starting ProctoringModule for session ${activeSessionId}...`);
-      ProctoringModule.getInstance()
-        .start(activeSessionId)
-        .then((started) => {
-          console.log(`[AssessmentScreen] ProctoringModule.start() returned: ${started}`);
-        })
-        .catch((err) => {
-          console.error('[AssessmentScreen] ProctoringModule.start() error:', err);
-        });
+      // Defer heavy CV model initialization by 1s so the assessment UI mounts and becomes interactive immediately without freezing
+      const proctorTimer = setTimeout(() => {
+        console.log(`[AssessmentScreen] Starting ProctoringModule for session ${activeSessionId}...`);
+        ProctoringModule.getInstance()
+          .start(activeSessionId)
+          .then((started) => {
+            console.log(`[AssessmentScreen] ProctoringModule.start() returned: ${started}`);
+          })
+          .catch((err) => {
+            console.error('[AssessmentScreen] ProctoringModule.start() error:', err);
+          });
 
-      // 3. Start duration-proportional IdentityCaptureScheduler
-      const durationMinutes = assessment?.totalSeconds
-        ? Math.max(1, Math.round(assessment.totalSeconds / 60))
-        : session?.durationMinutes || 15;
-      const startedAt = session?.startedAt || null;
+        // 3. Start duration-proportional IdentityCaptureScheduler
+        const durationMinutes = assessment?.totalSeconds
+          ? Math.max(1, Math.round(assessment.totalSeconds / 60))
+          : session?.durationMinutes || 15;
+        const startedAt = session?.startedAt || null;
 
-      console.log(`[AssessmentScreen] Initializing IdentityCaptureScheduler for session ${activeSessionId} (${durationMinutes} mins)...`);
-      IdentityCaptureScheduler.getInstance().start(
-        activeSessionId,
-        durationMinutes,
-        startedAt,
-      );
+        console.log(`[AssessmentScreen] Initializing IdentityCaptureScheduler for session ${activeSessionId} (${durationMinutes} mins)...`);
+        IdentityCaptureScheduler.getInstance().start(
+          activeSessionId,
+          durationMinutes,
+          startedAt,
+        );
+      }, 1000);
+
+      return () => {
+        clearTimeout(proctorTimer);
+      };
     }
   }, [sessionId, assessment?.sessionId, session?.id]);
 

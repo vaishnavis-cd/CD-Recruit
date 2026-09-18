@@ -12,7 +12,7 @@ This document provides a comprehensive guide to the **Candidate Page Workflow** 
 * **Proctoring & Scoring:** FaceDetectionService (Web Workers / OpenCV WASM), Web Audio API, Judge0 CE execution engine, Correlation Engine (AI evaluation).
 * **API Base URL:** `http://localhost:3001/api/v1`
 * **Swagger UI Documentation:** `http://localhost:3001/api-docs` (Served via `@nestjs/swagger` in `backend/api/src/main.ts`)
-* **Authentication:** Candidate endpoints require a Bearer JWT (Keycloak-issued or derived from candidate invite token). Admin endpoints require `recruiter` or `admin` roles.
+* **Authentication:** Candidate endpoints require a candidate session token (`SessionOwnerGuard`) issued upon invite validation (`POST /api/v1/sessions/start`). Admin endpoints require Staff JWT (`JwtAuthGuard` + `RolesGuard`) with `RECRUITER` or `ADMIN` roles.
 * **Content-Type:** `application/json` for all request/response bodies unless streaming media.
 
 ---

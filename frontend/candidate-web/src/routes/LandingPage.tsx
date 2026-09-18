@@ -311,7 +311,7 @@ function InviteWidget() {
             </svg>
           ) : (
             <>
-              Start Session <ArrowRight size={14} />
+              Start Session
             </>
           )}
         </button>

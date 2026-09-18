@@ -7,7 +7,6 @@ import { services } from '../services';
 import { MODULES } from '../fixtures/questions';
 import { getEffectiveModuleType } from '../utils/moduleType';
 import { useTheme } from '../theme/ThemeProvider';
-import { ProctoringModule } from '../proctoring/proctoring.module';
 import { Moon, Sun, RotateCcw } from 'lucide-react';
 
 import { WatermarkOverlay } from './common/WatermarkOverlay';
@@ -116,27 +115,7 @@ export function ModuleShell({ moduleIndex, questions, currentQuestionIndex, onNa
   const currentModule = activeModules[moduleIndex] || activeModules[0];
   const currentQuestion = questions[currentQuestionIndex];
 
-  // STEP 1: Start ProctoringModule when assessment session is active
-  useEffect(() => {
-    const sessionId = assessment?.sessionId || session?.id;
-    if (!sessionId) {
-      console.warn('[ModuleShell] STEP 1: sessionId is undefined, skipping ProctoringModule.start()');
-      return;
-    }
-
-    console.log(`[ModuleShell] STEP 1: Active assessment session detected: ${sessionId}. Starting ProctoringModule...`);
-    ProctoringModule.getInstance()
-      .start(sessionId)
-      .then((started) => {
-        console.log(`[ModuleShell] STEP 1: ProctoringModule.start() returned: ${started}`);
-      })
-      .catch((err) => {
-        console.error('[ModuleShell] STEP 1: Exception thrown in ProctoringModule.start():', err);
-      });
-
-    // ProctoringModule is a global singleton for the assessment session.
-    // Switching question tabs within the same session must NOT tear down the camera/proctoring pipeline.
-  }, [assessment?.sessionId, session?.id]);
+  // Proctoring lifecycle is centrally managed in AssessmentScreen.tsx with deferred idle scheduling
 
   // Silent integrity signals — no UI reaction per spec
   useEffect(() => {

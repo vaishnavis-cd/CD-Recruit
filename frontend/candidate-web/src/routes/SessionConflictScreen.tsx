@@ -60,7 +60,7 @@ export function SessionConflictScreen() {
           className="btn-primary w-full inline-flex items-center justify-center gap-2 text-xs cursor-pointer"
         >
           <span>Continue Session in This Tab</span>
-          <ArrowRight size={14} />
+          
         </button>
       </div>
     </div>

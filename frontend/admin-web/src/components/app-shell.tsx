@@ -109,7 +109,7 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
   });
 
   const [hasUnreadResults, setHasUnreadResults] = useState(false);
-  const [isSupportActive, setIsSupportActive] = useState(false);
+  const [isHelpActive, setIsHelpActive] = useState(false);
 
   useEffect(() => {
     try {
@@ -252,82 +252,58 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
         {/* Bottom Card: Remaining Nav Items + HELP & Promo + User Profile extending to bottom (bend along right side only, straight on left) */}
         <div className="bg-white rounded-tr-[24px] rounded-tl-none rounded-b-none shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4.5 space-y-3 flex-1 flex flex-col justify-between">
-          <div className="space-y-3">
-            {/* Bottom Nav items before HELP */}
-            {bottomItems.length > 0 && (
-              <nav className="space-y-1 pb-1">
-                {bottomItems.map((item) => {
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
-                    >
-                      <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
-                        <img
-                          src={item.defaultIcon}
-                          alt={item.label}
-                          className="w-[19px] h-[19px] object-contain shrink-0"
-                          draggable={false}
+          <div className="space-y-1">
+            {/* Bottom Nav items */}
+            {bottomItems.length > 0 &&
+              bottomItems.map((item) => {
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
+                  >
+                    <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
+                      <img
+                        src={item.defaultIcon}
+                        alt={item.label}
+                        className="w-[19px] h-[19px] object-contain shrink-0"
+                        draggable={false}
+                      />
+                      {item.to === "/results" && hasUnreadResults && (
+                        <span
+                          className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
+                          title="New candidate results pending review"
                         />
-                        {item.to === "/results" && hasUnreadResults && (
-                          <span
-                            className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
-                            title="New candidate results pending review"
-                          />
-                        )}
-                      </div>
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
+                      )}
+                    </div>
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
 
-            {/* HELP header */}
-            <div className="px-3 text-[10px] font-bold text-[#94a3b8] tracking-wider uppercase pt-1">
-              HELP
-            </div>
-
-            {/* Support with IcoSupport (default) and Vector (Stroke) (active/clicked) */}
-            <button
-              onClick={() => {
-                setIsSupportActive(true);
-                window.open("mailto:support@proctora.com", "_blank");
-              }}
-              onMouseEnter={() => setIsSupportActive(true)}
-              onMouseLeave={() => setIsSupportActive(false)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all cursor-pointer text-left ${
-                isSupportActive
+            {/* Help link with Support icon & active/hover swap - opens in new blank tab */}
+            <a
+              href="/help"
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={() => setIsHelpActive(true)}
+              onMouseLeave={() => setIsHelpActive(false)}
+              className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all cursor-pointer text-left ${
+                isHelpActive
                   ? "text-[#2f68ff] bg-blue-50/60 font-semibold"
                   : "text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc]"
               }`}
             >
               <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
                 <img
-                  src={isSupportActive ? vectorStroke : icoSupport}
-                  alt="Support"
+                  src={isHelpActive ? vectorStroke : icoSupport}
+                  alt="Help"
                   className="w-[19px] h-[19px] object-contain shrink-0"
                   draggable={false}
                 />
               </div>
-              <span>Support</span>
-            </button>
-
-            {/* New Assessment Drive Promo Card */}
-            <div className="p-3.5 bg-gradient-to-br from-[#2f68ff] to-[#1e54ea] rounded-2xl text-white shadow-md shadow-blue-500/10 space-y-2 mt-1">
-              <div className="text-[13px] font-bold leading-tight">New Assessment Drive</div>
-              <p className="text-[10px] text-blue-100/90 leading-snug">
-                Launch Q3 hiring drive and invite candidates instantly.
-              </p>
-              <Link
-                to="/drives"
-                search={{ create: "true" } as any}
-                className="block w-full text-center py-2 px-3 bg-white text-[#2f68ff] hover:bg-blue-50 font-bold text-[11px] rounded-full transition-all shadow-xs cursor-pointer"
-              >
-                Create Drive
-              </Link>
-            </div>
+              <span>Help</span>
+            </a>
           </div>
 
           {/* User Profile Footer inside bottom card */}

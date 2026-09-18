@@ -28,10 +28,8 @@ export class PoseDetectionService {
 
     this.isLoading = true;
     try {
-      console.log("[PoseDetection] POSE_MODEL_LOADING: Loading MediaPipe Pose Landmarker wasm resolver...");
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm",
-      );
+      console.log("[PoseDetection] POSE_MODEL_LOADING: Loading MediaPipe Pose Landmarker wasm resolver from /mediapipe...");
+      const vision = await FilesetResolver.forVisionTasks("/mediapipe");
 
       const modelUrls = [
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",

@@ -257,10 +257,15 @@
 
 /* Compositor-accelerated smooth scrolling */
 .overflow-y-auto,
-.overflow-x-auto,
 .overflow-auto {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+}
+
+/* Horizontal scroll containers (e.g. tables, candidate roster) must never trap vertical page scrolling */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto !important;
 }
 
 @layer components {

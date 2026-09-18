@@ -1,37 +1,49 @@
-# CD-Recruit — Complete API Endpoints Catalog
+# CD-Recruit — Complete API Endpoints Catalog (Partner & Contracts)
 
-This document serves as the authoritative technical catalog of **all API endpoints** implemented in the CD-Recruit proctoring and assessment backend (`codebase/backend/api`).
+> **Authoritative Reference:** This catalog is mirrored from [`docs/contracts/COMPLETE_API_ENDPOINTS_CATALOG.md`](../contracts/COMPLETE_API_ENDPOINTS_CATALOG.md).  
+> For ATS-specific integration requirements, webhooks, and sample payloads, also see [`CD-Recruit_Partner_API_Integration_Requirements.md`](CD-Recruit_Partner_API_Integration_Requirements.md).
 
 ---
 
 ## 1. System Architecture & Base Specs
 
-* **Backend Engine:** NestJS 10 (Node.js + TypeScript)
+* **Backend Engine:** NestJS 11 (Node.js 20 LTS + TypeScript)
 * **API Base URL:** `http://localhost:3001/api/v1`
 * **Swagger UI Endpoint:** `http://localhost:3001/api-docs`
-* **Database & ORM:** PostgreSQL + Prisma ORM
-* **Storage Engine:** MinIO S3 Object Storage (`clips` bucket for proctoring video clips)
-* **Code Execution Engine:** Judge0 CE API (Sandboxed execution in Linux `cgroups` & `namespaces`)
+* **Database & ORM:** PostgreSQL 16 + Prisma ORM
+* **NoSQL Database:** MongoDB 6.0
+* **Storage Engine:** MinIO S3-Compatible Object Storage (`cd-recruit-general` and `cd-recruit-biometric` buckets)
+* **Code Execution Engine:** Judge0 CE (Sandboxed execution in Linux `isolate` cgroups)
+* **Authentication Schemes:**
+  - **Staff API:** Native In-House Staff JWT (`crypto.scrypt` password hashing + HS256 tokens) with refresh token rotation.
+  - **Candidate API:** Isolated candidate session token validated via `SessionOwnerGuard`.
+  - **Partner ATS API:** API key header `x-partner-api-key` validated via `PartnerApiKeyGuard`.
 
 ---
 
 ## 2. Table of Contents
 
 1. [Health & Infrastructure (`/health`)](#1-health--infrastructure-health)
-2. [Authentication & Dev Utilities (`/auth`)](#2-authentication--dev-utilities-auth)
+2. [Staff Authentication (`/auth`)](#2-staff-authentication-auth)
 3. [Candidate Session Lifecycle (`/sessions`)](#3-candidate-session-lifecycle-sessions)
-4. [Proctoring Telemetry & Evidence Streaming (`/proctoring`)](#4-proctoring-telemetry--evidence-streaming-proctoring)
+4. [Proctoring Telemetry & Biometrics (`/proctoring`)](#4-proctoring-telemetry--biometrics-proctoring)
 5. [Coding Challenges (`/coding`)](#5-coding-challenges-coding)
 6. [SQL Assessment (`/sql`)](#6-sql-assessment-sql)
-7. [Multiple Choice Questions (`/mcq`)](#7-multiple-choice-questions-mcq)
-8. [AI Prompt Engineering (`/ai-prompting`)](#8-ai-prompt-engineering-ai-prompting)
-9. [Contextual Simulation Engine (`/sessions/:id/simulation/...`)](#9-contextual-simulation-engine-sessionsidsimulation)
-10. [Admin & Session Review (`/admin`)](#10-admin--session-review-admin)
-11. [Hiring Drive Management (`/admin/drives`)](#11-hiring-drive-management-admindrives)
-12. [Sample CSV Template Downloads (`/admin/drives/sample-csv`)](#12-sample-csv-template-downloads-admindrivessample-csv)
-13. [Question Bank Management (`/admin/questions`)](#13-question-bank-management-adminquestions)
-14. [Platform Settings & Audit Logs (`/admin/settings`)](#14-platform-settings--audit-logs-adminsettings)
-15. [Partner ATS Integration (`/partner`)](#15-partner-ats-integration-partner)
+7. [NoSQL Assessment (`/nosql`)](#7-nosql-assessment-nosql)
+8. [Multiple Choice Questions (`/mcq`)](#8-multiple-choice-questions-mcq)
+9. [AI Prompt Engineering (`/ai-prompting`)](#9-ai-prompt-engineering-ai-prompting)
+10. [Contextual Simulation Engine (`/sessions/:id/simulation/...`)](#10-contextual-simulation-engine-sessionsidsimulation)
+11. [QA Test Scenarios (`/test-scenarios`)](#11-qa-test-scenarios-test-scenarios)
+12. [Recruiter Admin & Session Review (`/admin`)](#12-recruiter-admin--session-review-admin)
+13. [Hiring Drive Operations (`/admin/drives`)](#13-hiring-drive-operations-admindrives)
+14. [Sample CSV Template Downloads (`/admin/drives/sample-csv`)](#14-sample-csv-template-downloads-admindrivessample-csv)
+15. [Question Bank Management (`/admin/questions`)](#15-question-bank-management-adminquestions)
+16. [Role Templates & Seniority Presets (`/admin/role-templates`)](#16-role-templates--seniority-presets-adminrole-templates)
+17. [Platform Settings & Governance (`/admin/settings`)](#17-platform-settings--governance-adminsettings)
+18. [Public Platform Settings (`/settings`)](#18-public-platform-settings-settings)
+19. [Partner ATS Administration (`/admin/partners`)](#19-partner-ats-administration-adminpartners)
+20. [Partner ATS Integration (`/partner/requisitions`, `/partner/candidates`)](#20-partner-ats-integration-partner)
+21. [Judge0 Execution Webhooks (`/webhooks/judge0`)](#21-judge0-execution-webhooks-webhooksjudge0)
 
 ---
 
@@ -42,216 +54,246 @@ Implemented in `backend/api/src/health/health.controller.ts`.
 
 | Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
 |---|---|---|---|---|
-| `GET` | `/api/v1/health` | Public | Docker / K8s probes | **Health Check:** Asserts database connection (`SELECT 1`) and MinIO health. Returns HTTP 200 `{ status: "ok" }` or 533 Service Unavailable if unhealthy. |
+| `GET` | `/api/v1/health` | Public | Docker / K8s probes | **Liveness Probe:** Executes `SELECT 1` on PostgreSQL and verifies MinIO client connectivity. Returns `{ status: "ok" }` (HTTP 200) or 503 if unhealthy. |
 | `GET` | `/api/v1/health/ready` | Public | Readiness probes | **Readiness Probe:** Asserts backend readiness before accepting live traffic. |
 
 ---
 
-### 2. Authentication & Dev Utilities (`/auth`)
+### 2. Staff Authentication (`/auth`)
 Implemented in `backend/api/src/auth/auth.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `GET` | `/api/v1/auth/dev-token` | Dev Guard | Dev panel, Postman, Swagger | **Issue Dev JWT Token:** Generates signed JWT for testing (`RECRUITER` or `ADMIN`). **Disabled in production** (`NODE_ENV=production` returns 403). |
+| `POST` | `/api/v1/auth/login` | Public | `LoginDto` (`identifier`, `password`) | **Staff Login:** Verifies password using `crypto.scrypt` against the `Staff` table. Issues HS256 access token + 80-char refresh token (hashed with SHA-256 in DB). |
+| `POST` | `/api/v1/auth/refresh` | Public | `RefreshTokenDto` (`refreshToken`) | **Refresh Token Rotation:** Hashes incoming refresh token with SHA-256, matches active record, asserts `expiresAt > NOW()`, issues new token pair, and rotates DB hash. |
+| `POST` | `/api/v1/auth/logout` | Public | `RefreshTokenDto` (`refreshToken`) | **Staff Logout:** Clears `refreshTokenHash` and `refreshTokenExpiresAt` in PostgreSQL. |
+| `GET` | `/api/v1/auth/me` | `JwtAuthGuard` | None | **Staff Profile:** Returns currently authenticated staff member details and permissions. |
+| `GET` | `/api/v1/auth/dev-token` | `DevOnlyGuard` | None | **Dev Token Generator:** Issues a development JWT for testing. Strictly blocked in production (`NODE_ENV=production`). |
 
 ---
 
 ### 3. Candidate Session Lifecycle (`/sessions`)
 Implemented in `backend/api/src/session/session.controller.ts` & `candidate.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/sessions/start` | `InviteTokenRateLimitGuard` | `candidate-web` (`InviteResolver.tsx`) | **Start Assessment Session:** Redeems candidate invite token, transitions session (`NOT_STARTED` $\rightarrow$ `IN_PROGRESS`), sets `startedAt` & `deadlineAt`, and returns question list. |
-| `POST` | `/api/v1/sessions/:sessionId/begin` | `SessionOwnerGuard` | `candidate-web` (`TutorialScreen.tsx`) | **Begin Assessment Timer:** Called after tutorial completion to start candidate timer. |
-| `POST` | `/api/v1/sessions/:sessionId/selfie` | `SessionOwnerGuard` | `candidate-web` (`ConsentScreen.tsx` step 4) | **Upload Baseline Selfie:** Stores candidate setup JPEG selfie for facial verification. |
-| `POST` | `/api/v1/sessions/:sessionId/consent` | `SessionOwnerGuard` | `candidate-web` (`ConsentScreen.tsx`) | **Record DPDP Consent:** Writes consent record (`TERMS`, `BIOMETRIC`, `SELFIE`, `AUDIO`) with IP address to comply with DPDP Act §6. |
-| `POST` | `/api/v1/sessions/:sessionId/heartbeat` | `SessionOwnerGuard` | `candidate-web` (`ModuleShell.tsx` hook, 15s) | **Tab Heartbeat & Single-Tab Guard:** Sent every 15s. Returns `409 SECOND_TAB_DETECTED` if a second tab is active. |
-| `POST` | `/api/v1/sessions/:sessionId/resume` | `SessionOwnerGuard` | `candidate-web` (`SessionRouter.tsx`) | **Resume Disconnected Session:** Reconnects candidate if disconnect window is $< 5\text{ min}$ and `disconnectCount < 3`. |
-| `GET` | `/api/v1/sessions/:sessionId/questions/:questionId` | `SessionOwnerGuard` | `candidate-web` (All Modules) | **Fetch Question Details:** Serves question content. Sanitizes hidden test cases, correct MCQ options, and rubrics. |
-| `GET` | `/api/v1/sessions/:sessionId/progress` | `SessionOwnerGuard` | `candidate-web` (`QuestionPalette.tsx`) | **Get Session Progress:** Returns completion status for all assigned questions to color-code question grid. |
-| `POST` | `/api/v1/sessions/:sessionId/close` | `SessionOwnerGuard` | `candidate-web` (`PreSubmitReview.tsx` / `SyncingScreen.tsx`) | **Close Assessment Session:** Marks session `SUBMITTED`, sets `submittedAt = now()`, and queues session for scoring. |
+| `POST` | `/api/v1/sessions/start` | Public | `StartSessionDto` (`inviteToken`) | **Start Assessment:** Validates candidate invite token, initializes assessment session, transitions status to `IN_PROGRESS`, and returns candidate JWT session token. |
+| `POST` | `/api/v1/sessions/resume` | `SessionOwnerGuard` | `ResumeSessionDto` (`sessionId`, `tabId`) | **Resume Session:** Re-attaches to active session after reload, locks active `tabId`, and checks for multi-tab conflicts. |
+| `POST` | `/api/v1/sessions/heartbeat` | `SessionOwnerGuard` | `HeartbeatDto` (`sessionId`, `tabId`) | **Session Heartbeat:** Updates `lastHeartbeatAt` timestamp and resets disconnect grace-window timers. |
+| `POST` | `/api/v1/sessions/progress` | `SessionOwnerGuard` | `ProgressDto` | **Module Progress Sync:** Persists module progression status and remaining time budgets. |
+| `GET` | `/api/v1/sessions/:id/questions` | `SessionOwnerGuard` | None | **Fetch Questions:** Returns sanitized assessment questions assigned to the candidate's drive. |
+| `POST` | `/api/v1/sessions/:id/draft` | `SessionOwnerGuard` | `SaveDraftDto` | **Save Draft:** Stores intermediate unsubmitted draft responses without triggering grading. |
+| `POST` | `/api/v1/sessions/:id/submit-response` | `SessionOwnerGuard` | `SubmitResponseDto` | **Submit Question Response:** Validates response payload, persists module response, and triggers synchronous or async evaluation. |
+| `POST` | `/api/v1/sessions/:id/consent` | `SessionOwnerGuard` | `ConsentDto` | **Record Privacy & Biometric Consent:** Logs candidate agreement to proctoring rules before entering assessment. |
+| `POST` | `/api/v1/sessions/:id/feedback` | `SessionOwnerGuard` | `FeedbackDto` | **Candidate Feedback:** Captures post-assessment candidate ratings and experience survey. |
+| `POST` | `/api/v1/sessions/close` | `SessionOwnerGuard` | None | **Complete Assessment:** Transitions session status to `SUBMITTED`, finalizes correlation engine evaluation, and schedules scoring synthesis. |
+| `GET` | `/api/v1/sessions/:id/summary` | `SessionOwnerGuard` | None | **Candidate Completion Summary:** Returns high-level confirmation receipt for completed candidate. |
 
 ---
 
-### 4. Proctoring Telemetry & Evidence Streaming (`/proctoring`)
+### 4. Proctoring Telemetry & Biometrics (`/proctoring`)
 Implemented in `backend/api/src/proctoring/proctoring.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/proctoring/events` | `SessionOwnerGuard` | `candidate-web` (`ProctoringModule.ts`) | **Report Proctoring Telemetry:** Ingests integrity events (`TAB_SWITCH`, `PASTE`, `GAZE_DEVIATION`, `MULTIPLE_FACES`, `FACE_NOT_VISIBLE`). |
-| `POST` | `/api/v1/proctoring/session/:sessionId/upload-evidence` | Multipart | `candidate-web` (`ProctoringModule.ts`) | **Upload Evidence Video Clip:** Multipart upload sending WebM video clips to MinIO (`clips` bucket) and linking to `ProctoringEvent`. |
-| `GET` | `/api/v1/proctoring/session/:sessionId` | Recruiter Auth | `admin-web` (`SessionDetail.tsx`) | **Get Session Proctoring Events:** Fetches all proctoring logs for a candidate with presigned GET video URLs. |
-| `GET` | `/api/v1/proctoring/session/:sessionId/summary` | Internal API | Correlation Engine | **Get Event Count Summary:** Aggregates event counts per violation category for AI scoring. |
-| `GET` | `/api/v1/proctoring/stream/:bucket/*` | Recruiter Auth | `admin-web` Video Player | **Stream Video Evidence:** Streams evidence WebM video clips from MinIO with range requests support. |
+| `POST` | `/api/v1/proctoring/consent` | `SessionOwnerGuard` | `ConsentDto` | **Proctoring Agreement:** Records candidate timestamped consent for webcam and audio telemetry. |
+| `POST` | `/api/v1/proctoring/events` | `SessionOwnerGuard` | `LogEventDto` | **Telemetry Ingestion:** Batches and logs security events (`TAB_SWITCH`, `BLUR`, `PASTE`, `FULLSCREEN_EXIT`). Increments integrity anomaly counters. |
+| `POST` | `/api/v1/proctoring/upload-url` | `SessionOwnerGuard` | `UploadUrlDto` | **Presigned S3 URL:** Generates presigned PUT URL for uploading evidence video clips or webcam snapshots to MinIO/S3 `cd-recruit-biometric` bucket. |
+| `POST` | `/api/v1/proctoring/verify-face` | `SessionOwnerGuard` | `VerifyFaceDto` | **Biometric KYC:** Forwards candidate selfie and ID document to Python DeepFace microservice (`8001`) for facial verification. |
 
 ---
 
 ### 5. Coding Challenges (`/coding`)
 Implemented in `backend/api/src/coding/coding.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/coding/run` | `SessionOwnerGuard` | `candidate-web` (`CodingWorkspace.tsx`) | **Run Code:** Submits candidate code to Judge0 API against visible test cases. Returns stdout, stderr, compile output, and pass/fail state. |
-| `GET` | `/api/v1/coding/execution/:id` | `SessionOwnerGuard` | `candidate-web` polling hook | **Poll Execution Result:** Polled if code execution takes $> 8\text{ s}$ (returns `PENDING` initially). |
-| `POST` | `/api/v1/coding/submit` | `SessionOwnerGuard` | `candidate-web` | **Submit Code Solution:** Saves final submission (`isDraft = false`) and executes code against visible + hidden test cases via Judge0. |
-| `POST` | `/api/v1/coding/draft` | `SessionOwnerGuard` | `candidate-web` (autosave) | **Save Code Draft:** Debounced autosave (10-15s) updating candidate draft code without running tests. |
+| `POST` | `/api/v1/coding/run` | `SessionOwnerGuard` | `RunCodeDto` (`code`, `language`, `stdin`) | **Run Code:** Submits code to Judge0 CE sandbox (`2358`), executes against candidate custom input, and returns stdout/stderr/execution time. |
+| `POST` | `/api/v1/coding/submit` | `SessionOwnerGuard` | `SubmitCodeDto` (`code`, `language`, `questionId`) | **Submit Code Solution:** Executes code against all visible and hidden test cases in Judge0, computes pass ratio, memory, and runtime metrics. |
+| `GET` | `/api/v1/coding/languages` | Public | None | **Supported Languages:** Returns supported languages, compilers, and Judge0 language IDs. |
 
 ---
 
 ### 6. SQL Assessment (`/sql`)
 Implemented in `backend/api/src/sql/sql.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/sql/run` | `SessionOwnerGuard` | `candidate-web` (`SQLModule.tsx`) | **Run SQL Query:** Validates SQL syntax against question schema and seed data. |
-| `POST` | `/api/v1/sql/submit` | `SessionOwnerGuard` | `candidate-web` | **Submit SQL Answer:** Saves final SQL query for backend execution scoring. |
-| `POST` | `/api/v1/sql/draft` | `SessionOwnerGuard` | `candidate-web` | **Draft SQL Query:** Autosaves SQL query text. |
+| `POST` | `/api/v1/sql/execute` | `SessionOwnerGuard` | `ExecuteSqlDto` (`query`, `questionId`) | **Test SQL Query:** Executes query against isolated PostgreSQL sandbox schema (`SANDBOX_DB_URL`) with read-only guards and returns tabular rows. |
+| `POST` | `/api/v1/sql/submit` | `SessionOwnerGuard` | `SubmitSqlDto` (`query`, `questionId`) | **Submit SQL Solution:** Compares query output against canonical expected output using `ResultComparatorService`. |
 
 ---
 
-### 7. Multiple Choice Questions (`/mcq`)
+### 7. NoSQL Assessment (`/nosql`)
+Implemented in `backend/api/src/modules/nosql/nosql.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
+|---|---|---|---|---|
+| `POST` | `/api/v1/nosql/start` | `SessionOwnerGuard` | `StartNosqlDto` (`sessionId`, `questionId`) | **Initialize NoSQL Sandbox:** Creates ephemeral MongoDB database on port 27017, seeds initial collections, and returns collection schema previews. |
+| `POST` | `/api/v1/nosql/run` | `SessionOwnerGuard` | `RunNosqlDto` (`operation`, `questionId`) | **Run MongoDB Query:** Executes candidate aggregation pipeline or filter against sandbox MongoDB and returns query results. |
+| `POST` | `/api/v1/nosql/reset` | `SessionOwnerGuard` | `ResetNosqlDto` (`questionId`) | **Reset NoSQL Sandbox:** Re-seeds the MongoDB sandbox collection to clean initial state. |
+| `POST` | `/api/v1/nosql/submit` | `SessionOwnerGuard` | `SubmitNosqlDto` (`operation`, `questionId`) | **Submit NoSQL Solution:** Validates operator against blocklist/whitelist, executes against test assertions, and records score. |
+
+---
+
+### 8. Multiple Choice Questions (`/mcq`)
 Implemented in `backend/api/src/mcq/mcq.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/mcq/submit` | `SessionOwnerGuard` | `candidate-web` (`MCQModule.tsx`) | **Submit MCQ Option:** Submits chosen option IDs for single-choice or multi-select questions. |
-| `POST` | `/api/v1/mcq/draft` | `SessionOwnerGuard` | `candidate-web` | **Autosave MCQ Option:** Instantly saves option choice on candidate selection. |
+| `GET` | `/api/v1/mcq/questions` | `SessionOwnerGuard` | Query: `sessionId` | **Fetch MCQ Batch:** Returns randomized MCQs with answer choices randomized to prevent positional memorization. |
+| `POST` | `/api/v1/mcq/submit` | `SessionOwnerGuard` | `SubmitMcqDto` (`questionId`, `selectedIndex`) | **Submit MCQ Answer:** Validates candidate selection against correct option index and records points. |
 
 ---
 
-### 8. AI Prompt Engineering (`/ai-prompting`)
+### 9. AI Prompt Engineering (`/ai-prompting`)
 Implemented in `backend/api/src/ai-prompting/ai-prompting.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/ai-prompting/run` | `SessionOwnerGuard` | `candidate-web` (`PromptingModule.tsx`) | **Test AI Prompt:** Sends candidate prompt to backend AI model. Returns response and flags verbatim overlap if $\ge 65\%$ match with generic template. |
-| `POST` | `/api/v1/ai-prompting/submit` | `SessionOwnerGuard` | `candidate-web` | **Submit AI Prompt:** Saves final candidate prompt and output for rubric scoring. |
+| `POST` | `/api/v1/ai-prompting/execute` | `SessionOwnerGuard` | `ExecutePromptDto` (`prompt`, `context`) | **Test AI Prompt:** Submits candidate prompt to target LLM (Claude/Groq) with task context and streams response back to candidate. |
+| `POST` | `/api/v1/ai-prompting/submit` | `SessionOwnerGuard` | `SubmitPromptDto` (`prompt`, `questionId`) | **Submit Prompt Solution:** Correlation Engine evaluates prompt efficiency, hallucination avoidance, and rubric score. |
 
 ---
 
-### 9. Contextual Simulation Engine (`/sessions/:id/simulation/...`)
+### 10. Contextual Simulation Engine (`/sessions/:id/simulation/...`)
 Implemented in `backend/api/src/simulation/simulation.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `GET` | `/api/v1/sessions/:id/simulation/scenario` | Public / Candidate | `candidate-web` (`ContextualModule.tsx`) | **Get Simulation Config:** Returns scenario metadata, role profile, and triggers. |
-| `POST` | `/api/v1/sessions/:id/simulation/initial-say` | `SessionOwnerGuard` | `candidate-web` | **Save Initial Say:** Stores candidate strategy declaration before scenario triggers fire. |
-| `POST` | `/api/v1/sessions/:id/simulation/telemetry` | `SessionOwnerGuard` | `candidate-web` | **Record Simulation Action:** Logs candidate file edits, inspect clicks, and workspace interactions. |
-| `POST` | `/api/v1/sessions/:id/simulation/run-code` | `SessionOwnerGuard` | In-fiction terminal | **Execute Simulation Script:** Runs candidate script inside simulation environment. |
-| `GET` | `/api/v1/sessions/:id/simulation/inbox` | `SessionOwnerGuard` | `candidate-web` (`InFictionInbox.tsx`) | **Get Simulation Messages:** Serves incoming emails/Slack messages in scenario. |
-| `POST` | `/api/v1/sessions/:id/simulation/inbox/read` | `SessionOwnerGuard` | `candidate-web` | **Mark Message Read:** Updates message read status. |
-| `POST` | `/api/v1/sessions/:id/simulation/email-reply` | `SessionOwnerGuard` | `candidate-web` (`InFictionThread.tsx`) | **Send Email Reply:** Saves candidate's email response to scenario stakeholder. |
-| `GET` | `/api/v1/sessions/:sessionId/simulation/triggered-messages` | Orchestrator | `candidate-web` | **Poll Triggered Messages:** Returns real-time messages spawned by candidate decisions. |
-| `POST` | `/api/v1/sessions/:id/simulation/start` | `SessionOwnerGuard` | `candidate-web` | **Start Scenario:** Initializes scenario timeline and message dispatch queue. |
-| `GET` | `/api/v1/sessions/:id/simulation/current` | `SessionOwnerGuard` | `candidate-web` | **Get Active Stage:** Returns current simulation stage. |
-| `POST` | `/api/v1/sessions/:id/simulation/state` | `SessionOwnerGuard` | `candidate-web` | **Log Stage State:** Records stage transitions. |
-| `POST` | `/api/v1/sessions/:id/simulation/submit` | `SessionOwnerGuard` | `candidate-web` | **Submit Scenario:** Completes simulation module. |
-| `POST` | `/api/v1/sessions/:id/simulation/execute` | `SessionOwnerGuard` | In-fiction CLI | **Terminal Execution:** Runs CLI commands (`git log`, `pytest`, `npm test`). |
-| `POST` | `/api/v1/sessions/:id/simulation/skip` | `SessionOwnerGuard` | `candidate-web` | **Skip Stage:** Advances scenario on soft timeouts. |
-| `GET` | `/api/v1/sessions/:id/simulation/summary` | `SessionOwnerGuard` | Correlation Engine | **Get Scenario Summary:** Aggregates action logs and Say-Do consistency scores. |
-| `GET` | `/api/v1/sessions/:id/simulation/timeline` | `JwtAuthGuard`, `RolesGuard` | `admin-web` (`CandidateReview.tsx`) | **Recruiter Timeline View:** Returns chronological action timeline during scenario. |
-| `GET` | `/api/v1/sessions/:id/simulation/logs` | `JwtAuthGuard`, `RolesGuard` | `admin-web` | **Get Session Logs:** Provides full audit trail of simulation actions. |
+| `GET` | `/api/v1/sessions/:id/simulation/state` | `SessionOwnerGuard` | None | **Simulation State Machine:** Returns current simulation stage, scenario injects, and communication channel history. |
+| `POST` | `/api/v1/sessions/:id/simulation/action` | `SessionOwnerGuard` | `SimulationActionDto` | **Simulation Decision/Action:** Logs candidate action (email reply, architecture adjustment, PR review) and advances scenario state. |
+| `POST` | `/api/v1/sessions/:id/simulation/submit` | `SessionOwnerGuard` | `SubmitSimulationDto` | **Finalize Simulation:** Runs 4-part scoring rubric (Decision Quality, Technical Rigor, Communication, Time Efficiency). |
 
 ---
 
-### 10. Admin & Session Review (`/admin`)
+### 11. QA Test Scenarios (`/test-scenarios`)
+Implemented in `backend/api/src/test-scenarios/test-scenarios.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
+|---|---|---|---|---|
+| `POST` | `/api/v1/test-scenarios/submit` | `SessionOwnerGuard` | `SubmitTestScenarioDto` (`testCases`) | **Submit QA Test Suite:** Evaluates candidate-authored test cases (edge cases, preconditions, steps, severity) against requirement specifications. |
+
+---
+
+### 12. Recruiter Admin & Session Review (`/admin`)
 Implemented in `backend/api/src/admin/admin.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `GET` | `/api/v1/admin/dashboard/stats` | Recruiter / Admin | `admin-web` Dashboard | **Get Dashboard Stats:** Computes drive progress, pass rates, active sessions, and proctoring summaries. |
-| `GET` | `/api/v1/admin/dashboard/action-queue` | Recruiter / Admin | `admin-web` Dashboard | **Review Action Queue:** Lists completed candidate sessions requiring human review. |
-| `GET` | `/api/v1/admin/dashboard/export` | Recruiter / Admin | `admin-web` | **Export Dashboard Metrics:** Exports dashboard KPI summaries. |
-| `GET` | `/api/v1/admin/sessions` (and `/results`) | Recruiter / Admin | `admin-web` Candidates Table | **List Candidate Sessions:** Paginated list/filter of candidate sessions. |
-| `GET` | `/api/v1/admin/sessions/:sessionId` | Recruiter / Admin | `admin-web` Candidate Review | **Get Session Detail:** Returns full candidate dossier (answers, scores, proctoring video links, AI confidence). |
-| `POST` | `/api/v1/admin/sessions/:sessionId/decision` | Recruiter / Admin | `admin-web` Review Header | **Record Hiring Decision:** Saves `ADVANCE` or `REJECT` decision with reviewer notes. |
-| `GET` | `/api/v1/admin/sessions/:sessionId/events` | Recruiter / Admin | `admin-web` Timeline Tab | **Get Session Events:** Chronological proctoring event log. |
-| `GET` | `/api/v1/admin/sessions/:sessionId/integrity-flags` | Recruiter / Admin | `admin-web` Integrity Tab | **Get Integrity Flags:** Categorized proctoring flags with evidence video clip links. |
-| `GET` | `/api/v1/admin/role-templates` | Recruiter / Admin | `admin-web` Create Drive | **List Role Templates:** Serves configured job role templates and module configurations. |
-| `POST` | `/api/v1/admin/invites` | Recruiter / Admin | `admin-web` Invites Page | **Create Candidate Invite:** Generates assessment invite token for candidate email. |
-| `GET` | `/api/v1/admin/invites` | Recruiter / Admin | `admin-web` Invites Table | **List Invites:** Returns status of sent invites (`PENDING`, `STARTED`, `EXPIRED`, `REVOKED`). |
-| `POST` | `/api/v1/admin/invites/:inviteId/revoke` | Recruiter / Admin | `admin-web` | **Revoke Invite:** Immediately invalidates an unredeemed invite link. |
-| `POST` | `/api/v1/admin/invites/:inviteId/extend` | Recruiter / Admin | `admin-web` | **Extend Invite Expiry:** Updates `expiresAt` timestamp. |
-| `POST` | `/api/v1/admin/invites/:inviteId/regenerate` | Recruiter / Admin | `admin-web` | **Regenerate Token:** Re-issues invite JWT link for delivery issues. |
-| `POST` | `/api/v1/admin/invites/bulk-revoke` | Recruiter / Admin | `admin-web` | **Bulk Revoke:** Revokes array of invite IDs. |
-| `POST` | `/api/v1/admin/invites/bulk-resend` | Recruiter / Admin | `admin-web` | **Bulk Resend:** Re-queues invite email notifications. |
-| `DELETE` | `/api/v1/admin/invites/:inviteId` | Recruiter / Admin | `admin-web` | **Delete Invite:** Deletes invite record from database. |
-| `POST` | `/api/v1/admin/invites/bulk-delete` | Recruiter / Admin | `admin-web` | **Bulk Delete:** Deletes multiple invite records. |
-| `POST` | `/api/v1/admin/sessions/compare` | Recruiter / Admin | `admin-web` Compare Drawer | **Compare Candidates:** Returns side-by-side score & say-do comparison matrix for selected sessions. |
-| `GET` | `/api/v1/admin/drives/:driveId/export` | Recruiter / Admin | `admin-web` Drive List | **Export Drive Results:** Downloads Excel/CSV report of candidate scores and proctoring metrics. |
+| `GET` | `/api/v1/admin/sessions` | `JwtAuthGuard` + `RolesGuard` | Query: `page`, `pageSize`, `status` | **List Assessment Sessions:** Returns paginated candidate sessions with scores, flags, and completion status. |
+| `GET` | `/api/v1/admin/sessions/:id` | `JwtAuthGuard` + `RolesGuard` | None | **Session Deep Dive:** Full audit view of candidate assessment, module breakdowns, code submissions, telemetry events, and proctoring video clips. |
+| `POST` | `/api/v1/admin/sessions/:id/decision` | `JwtAuthGuard` + `RolesGuard` | `RecordDecisionDto` (`decision`, `notes`) | **Record Hiring Decision:** Records recruiter final evaluation (`ACCEPTED`, `REJECTED`, `NEEDS_FURTHER_REVIEW`). |
+| `GET` | `/api/v1/admin/stats` | `JwtAuthGuard` + `RolesGuard` | None | **Dashboard Metrics:** Aggregate platform analytics (total candidates, pass rate, active drives, average completion time). |
+| `GET` | `/api/v1/admin/audit-logs` | `JwtAuthGuard` + `RolesGuard` | Query: filters | **Compliance Audit Log:** Immutable event log of recruiter actions, key revocations, and configuration changes. |
 
 ---
 
-### 11. Hiring Drive Management (`/admin/drives`)
+### 13. Hiring Drive Operations (`/admin/drives`)
 Implemented in `backend/api/src/drive/drive.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/admin/drives` | Recruiter / Admin | `admin-web` (`CreateDriveModal.tsx`) | **Create Recruitment Drive:** Configures recruitment drive with start/end date, role template, and questions. |
-| `GET` | `/api/v1/admin/drives` | Recruiter / Admin | `admin-web` Drives List | **List Recruitment Drives:** Paginated list of drives with candidate completion progress counters. |
-| `GET` | `/api/v1/admin/drives/:driveId` | Recruiter / Admin | `admin-web` Drive Detail | **Get Drive Detail:** Serves drive metadata, assigned questions, and candidate list. |
-| `PATCH` | `/api/v1/admin/drives/:driveId` | Recruiter / Admin | `admin-web` Edit Drive | **Update Drive:** Edits title, schedule, or duration. |
-| `POST` | `/api/v1/admin/drives/:driveId/duplicate` | Recruiter / Admin | `admin-web` | **Duplicate Drive:** Clones drive structure and questions for a new batch. |
-| `POST` | `/api/v1/admin/drives/:driveId/close` | Recruiter / Admin | `admin-web` | **Close Drive Early:** Force-closes drive, setting non-started candidates to `EXPIRED`. |
-| `DELETE` | `/api/v1/admin/drives/:driveId` | Recruiter / Admin | `admin-web` | **Delete Drive:** Deletes recruitment drive record. |
-| `PATCH` / `PUT` | `/api/v1/admin/drives/:driveId/questions` | Recruiter / Admin | `admin-web` Question Selector | **Save Drive Questions:** Assigns questions from question bank to the drive. |
-| `POST` | `/api/v1/admin/drives/:driveId/candidates/bulk` | Recruiter / Admin | `admin-web` CSV Import | **Bulk Add Candidates:** Import candidate list from CSV and link to drive. |
-| `POST` | `/api/v1/admin/drives/:driveId/generate-links` | Recruiter / Admin | `admin-web` | **Generate Assessment Links:** Creates JWT invite tokens for imported candidates in batch. |
-| `DELETE` | `/api/v1/admin/drives/:driveId/candidates/:candidateId` | Recruiter / Admin | `admin-web` | **Remove Candidate:** Unlinks candidate from drive. |
+| `GET` | `/api/v1/admin/drives` | `JwtAuthGuard` + `RolesGuard` | Query: `status`, `department` | **List Drives:** Returns all recruitment drives with candidate counts and schedules. |
+| `POST` | `/api/v1/admin/drives` | `JwtAuthGuard` + `RolesGuard` | `CreateDriveDto` | **Create Drive:** Initializes drive with role templates, target modules, time budgets, and candidate rosters. |
+| `GET` | `/api/v1/admin/drives/:id` | `JwtAuthGuard` + `RolesGuard` | None | **Get Drive Detail:** Returns drive configuration, candidate invites, and aggregated performance stats. |
+| `PATCH` | `/api/v1/admin/drives/:id` | `JwtAuthGuard` + `RolesGuard` | `UpdateDriveDto` | **Update Drive:** Modifies drive schedule, title, or status (`ACTIVE`, `PAUSED`, `COMPLETED`). |
+| `DELETE` | `/api/v1/admin/drives/:id` | `JwtAuthGuard` + `RolesGuard` | None | **Cascade Delete Drive:** Completely removes drive and associated candidates, invites, reports, and response records. |
+| `POST` | `/api/v1/admin/drives/:id/candidates` | `JwtAuthGuard` + `RolesGuard` | `AddCandidatesDto` | **Add Candidates:** Adds candidates to drive and generates unique cryptographic invite tokens. |
+| `POST` | `/api/v1/admin/drives/:id/import-csv` | `JwtAuthGuard` + `RolesGuard` | Multipart CSV File | **Bulk Import Candidates:** Parses candidate CSV roster and bulk-inserts invites. |
 
 ---
 
-### 12. Sample CSV Template Downloads (`/admin/drives/sample-csv`)
+### 14. Sample CSV Template Downloads (`/admin/drives/sample-csv`)
 Implemented in `backend/api/src/drive/sample-csv.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
-|---|---|---|---|---|
-| `GET` | `/api/v1/admin/drives/sample-csv/questions` | Recruiter / Admin | `admin-web` Bulk Question Modal | **Download Question CSV Template:** Returns pre-formatted CSV template file (`sample_questions.csv`). |
-| `GET` | `/api/v1/admin/drives/sample-csv/candidates` | Recruiter / Admin | `admin-web` Bulk Candidate Modal | **Download Candidate CSV Template:** Returns pre-formatted CSV template file (`sample_candidates.csv`). |
+| Method | Full Endpoint Path | Guard / Auth | Purpose & Business Logic |
+|---|---|---|---|
+| `GET` | `/api/v1/admin/drives/sample-csv/candidates` | `JwtAuthGuard` | **Download Candidate CSV:** Streams canonical CSV template with required headers (`firstName,lastName,email,department,tier`). |
+| `GET` | `/api/v1/admin/drives/sample-csv/questions` | `JwtAuthGuard` | **Download Questions CSV:** Streams question import template with module types, difficulties, and schema fields. |
 
 ---
 
-### 13. Question Bank Operations (`/admin/questions`)
+### 15. Question Bank Management (`/admin/questions`)
 Implemented in `backend/api/src/question/question.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `GET` | `/api/v1/admin/questions` | Recruiter / Admin | `admin-web` Question Bank | **List Question Bank:** Filters questions by `moduleType`, `difficulty`, `language`, or tags. |
-| `POST` | `/api/v1/admin/questions` | Recruiter / Admin | `admin-web` Question Creator | **Create Question:** Creates question definition (MCQ options, SQL schema, Coding test cases). |
-| `GET` | `/api/v1/admin/questions/:questionId` | Recruiter / Admin | `admin-web` Question Detail | **Get Question:** Returns full question details including hidden test cases. |
-| `PATCH` | `/api/v1/admin/questions/:questionId` | Recruiter / Admin | `admin-web` Question Editor | **Update Question:** Updates prompt, starter code, or test cases. |
-| `DELETE` | `/api/v1/admin/questions/:questionId` | Recruiter / Admin | `admin-web` Question Bank | **Delete Question:** Deletes question from question bank. |
-| `POST` | `/api/v1/admin/questions/bulk` | Recruiter / Admin | `admin-web` CSV Import | **Bulk Upload Questions:** Ingests array of parsed CSV questions into DB. |
-| `GET` | `/api/v1/admin/questions/:questionId/stats` | Recruiter / Admin | `admin-web` Question Analytics | **Question Analytics:** Returns historic candidate pass rates and discrimination metrics. |
+| `GET` | `/api/v1/admin/questions` | `JwtAuthGuard` + `RolesGuard` | Query filters | **List Questions:** Paginated search by module type, difficulty, department, and tags. |
+| `POST` | `/api/v1/admin/questions` | `JwtAuthGuard` + `RolesGuard` | `CreateQuestionDto` | **Create Question:** Inserts new question with validator definitions and test suites. |
+| `GET` | `/api/v1/admin/questions/:id` | `JwtAuthGuard` + `RolesGuard` | None | **Get Question:** Retrieves full question specification including hidden test suites. |
+| `PATCH` | `/api/v1/admin/questions/:id` | `JwtAuthGuard` + `RolesGuard` | `UpdateQuestionDto` | **Update Question:** Modifies title, content, scoring rubrics, or test cases. |
+| `DELETE` | `/api/v1/admin/questions/:id` | `JwtAuthGuard` + `RolesGuard` | None | **Delete Question:** Removes question from bank (guarded against active drives). |
 
 ---
 
-### 14. Platform Settings & Security Audit Logs (`/admin/settings`)
-Implemented in `backend/api/src/settings/settings.controller.ts`. **Restricted to `ADMIN` role only.**
+### 16. Role Templates & Seniority Presets (`/admin/role-templates`)
+Implemented in `backend/api/src/role-template/role-template.controller.ts`.
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+| Method | Full Endpoint Path | Guard / Auth | Purpose & Business Logic |
+|---|---|---|---|
+| `GET` | `/api/v1/admin/role-templates` | `JwtAuthGuard` | **List Templates:** Filter by department, level, category, or active status. |
+| `GET` | `/api/v1/admin/role-templates/active` | `JwtAuthGuard` | **Active Template:** Finds active template matching department and experience tier. |
+| `GET` | `/api/v1/admin/role-templates/by-department/:department` | `JwtAuthGuard` | **Department Presets:** Returns all 4 seniority tiers for a given department. |
+| `GET` | `/api/v1/admin/role-templates/:id` | `JwtAuthGuard` | **Template Detail:** Returns module configuration, question distributions, and time limits. |
+| `POST` | `/api/v1/admin/role-templates` | `JwtAuthGuard` + `ROLE_TEMPLATE_EDIT` | **Create Template:** Defines new role preset with module weights and time budgets. |
+| `PUT` / `PATCH` | `/api/v1/admin/role-templates/:id` | `JwtAuthGuard` + `ROLE_TEMPLATE_EDIT` | **Update Template:** Edits module parameters and difficulty distributions. |
+| `POST` | `/api/v1/admin/role-templates/:id/publish-version` | `JwtAuthGuard` + `ROLE_TEMPLATE_EDIT` | **Publish Version:** Increments template version number without breaking existing drives. |
+| `POST` | `/api/v1/admin/role-templates/:id/activate` | `JwtAuthGuard` + `ROLE_TEMPLATE_EDIT` | **Activate Template:** Sets template as active default for its tier. |
+| `DELETE` | `/api/v1/admin/role-templates/:id` | `JwtAuthGuard` + `ROLE_TEMPLATE_EDIT` | **Delete Template:** Soft-deletes template preset. |
+
+---
+
+### 17. Platform Settings & Governance (`/admin/settings`)
+Implemented in `backend/api/src/settings/settings.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `GET` | `/api/v1/admin/settings/staff` | Admin Guard | `admin-web` Team Management | **List Staff:** Lists all recruiter and admin staff accounts. |
-| `POST` | `/api/v1/admin/settings/staff` | Admin Guard | `admin-web` Add Staff | **Add Staff Member:** Creates staff profile with `RECRUITER` or `ADMIN` role. |
-| `DELETE` | `/api/v1/admin/settings/staff/:staffId` | Admin Guard | `admin-web` Staff List | **Delete Staff Member:** Removes staff access. |
-| `PATCH` | `/api/v1/admin/settings/staff/:staffId/role` | Admin Guard | `admin-web` Staff List | **Update Staff Role:** Changes role between `RECRUITER` and `ADMIN`. |
-| `GET` | `/api/v1/admin/settings/scoring` | Admin Guard | `admin-web` Scoring Config | **Get Scoring Config:** Returns thresholds for AI confidence, auto-pass criteria, and AI intensity. |
-| `PATCH` | `/api/v1/admin/settings/scoring` | Admin Guard | `admin-web` | **Update Scoring Config:** Adjusts composite scoring weights and threshold boundaries. |
-| `GET` | `/api/v1/admin/settings/system` | Admin Guard | `admin-web` System Config | **Get System Thresholds:** Returns disconnect timeout, heartbeat interval, and grace window settings. |
-| `PATCH` | `/api/v1/admin/settings/system` | Admin Guard | `admin-web` | **Update System Thresholds:** Modifies system timing limits (e.g. 5-min disconnect window). |
-| `GET` | `/api/v1/admin/settings/retention` | Admin Guard | `admin-web` Compliance | **Get Data Retention Policy:** Returns data retention window (e.g. 90 days for biometric selfie data per DPDP Act). |
-| `PATCH` | `/api/v1/admin/settings/retention` | Admin Guard | `admin-web` | **Update Data Retention Policy:** Configures automatic data purging schedules. |
-| `GET` | `/api/v1/admin/settings/appeal-window` | Admin Guard | `admin-web` Compliance | **Get Candidate Appeal Window:** Returns timeframe allowed for candidate grade appeals. |
-| `PATCH` | `/api/v1/admin/settings/appeal-window` | Admin Guard | `admin-web` | **Update Appeal Window:** Updates allowed appeal days. |
-### 15. Partner ATS Integration (`/partner`)
-Implemented in `backend/api/src/partner/partner-candidates.controller.ts`, `partner-requisitions.controller.ts`, and `partner-admin.controller.ts`.
+| `GET` | `/api/v1/admin/settings` | `JwtAuthGuard` + `RolesGuard` | None | **Get System Settings:** Returns global proctoring thresholds, AI grading keys, and timing rules. |
+| `PATCH` | `/api/v1/admin/settings` | `JwtAuthGuard` + `RolesGuard` | `UpdateSettingsDto` | **Update System Settings:** Modifies global retention policies, anomaly score weights, and module settings. |
 
-| Method | Full Endpoint Path | Guard / Auth | Where Used | Purpose & Business Logic |
+---
+
+### 18. Public Platform Settings (`/settings`)
+Implemented in `backend/api/src/settings/public-settings.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Purpose & Business Logic |
+|---|---|---|---|
+| `GET` | `/api/v1/settings/public-proctoring` | Public | **Public Proctoring Config:** Returns candidate-safe telemetry thresholds and KYC requirements. |
+| `GET` | `/api/v1/settings/time-matrix` | Public | **Time Matrix Config:** Returns standard module time allocations per seniority tier. |
+| `GET` | `/api/v1/settings/seniority-ratios` | Public | **Seniority Ratios:** Returns module balance ratios across Fresher, L1, L2, and L3. |
+
+---
+
+### 19. Partner ATS Administration (`/admin/partners`)
+Implemented in `backend/api/src/partner/partner-admin.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
 |---|---|---|---|---|
-| `POST` | `/api/v1/partner/candidates` | `PartnerApiKeyGuard`, `IdempotencyInterceptor` | Partner ATS Ingestion | **High-Throughput Candidate Ingestion:** Ingests up to 1,000 candidates in <2–5s. Automatically parses raw resume experience strings (`"7+ experience"`, `"3.5 yrs"`), maps them to calibrated role templates (`0-1`, `2-5`, `6-10`, `11-15`), upserts the Drive for the requisition, and issues 48h rolling assessment invites. |
-| `GET` | `/api/v1/partner/requisitions/:ref/status` | `PartnerApiKeyGuard` | Partner ATS Polling | **Poll Requisition & Candidate Status:** Returns session status, progress, composite score, score band (`HIGH`, `MEDIUM`, `LOW`), and assessment link for all candidates in the requisition. |
-| `GET` | `/api/v1/admin/partners` | Admin Guard | `admin-web` Settings | **List Partners:** Lists all registered partner ATS integrations. |
-| `POST` | `/api/v1/admin/partners` | Admin Guard | `admin-web` Settings | **Create Partner:** Registers new partner ATS and issues raw `pk_live_...` API key. |
-| `POST` | `/api/v1/admin/partners/:id/rotate-key` | Admin Guard | `admin-web` Settings | **Rotate Partner API Key:** Issues new `pk_live_...` key with 24h grace period. |
-| `DELETE` | `/api/v1/admin/partners/:id` | Admin Guard | `admin-web` Settings | **Revoke Partner Access:** Immediately invalidates partner API key. |
+| `GET` | `/api/v1/admin/partners` | `JwtAuthGuard` + `RolesGuard` | None | **List Partners:** Returns integrated ATS partner accounts, active API key status, and webhook URLs. |
+| `POST` | `/api/v1/admin/partners` | `JwtAuthGuard` + `RolesGuard` | `CreatePartnerDto` | **Register Partner:** Creates partner account and generates initial cryptographic API key. |
+| `POST` | `/api/v1/admin/partners/:id/rotate-key` | `JwtAuthGuard` + `RolesGuard` | None | **Rotate API Key:** Revokes existing key, issues new key, and updates secret hash. |
+| `PATCH` | `/api/v1/admin/partners/:id` | `JwtAuthGuard` + `RolesGuard` | `UpdatePartnerDto` | **Update Partner:** Updates callback URL, rate limits, or partner status. |
+| `POST` | `/api/v1/admin/partners/:id/revoke` | `JwtAuthGuard` + `RolesGuard` | None | **Revoke Partner Access:** Immediately invalidates active API keys without deleting history. |
+| `DELETE` | `/api/v1/admin/partners/:id` | `JwtAuthGuard` + `RolesGuard` | None | **Delete Partner:** Removes partner record and associated API keys. |
 
+---
+
+### 20. Partner ATS Integration (`/partner`)
+Implemented in `partner-requisitions.controller.ts` & `partner-candidates.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Request Body | Purpose & Business Logic |
+|---|---|---|---|---|
+| `POST` | `/api/v1/partner/requisitions` | `PartnerApiKeyGuard` | `CreateRequisitionDto` | **Sync ATS Requisition:** Maps external ATS job opening to CD-Recruit drive and role template. |
+| `GET` | `/api/v1/partner/requisitions/:id` | `PartnerApiKeyGuard` | None | **Requisition Status:** Returns candidate volume, completed assessments, and drive status. |
+| `POST` | `/api/v1/partner/candidates` | `PartnerApiKeyGuard` | `CreateCandidateDto` | **Invite ATS Candidate:** Adds candidate from ATS pipeline and dispatches assessment invite. |
+| `GET` | `/api/v1/partner/candidates/:id/status` | `PartnerApiKeyGuard` | None | **Candidate Assessment Status:** Returns current stage, completion score, and proctoring verdict. |
+
+---
+
+### 21. Judge0 Execution Webhooks (`/webhooks/judge0`)
+Implemented in `backend/api/src/integrations/judge0/judge0-webhook.controller.ts`.
+
+| Method | Full Endpoint Path | Guard / Auth | Purpose & Business Logic |
+|---|---|---|---|
+| `ALL` | `/api/v1/webhooks/judge0` | `Judge0WebhookGuard` | **Async Execution Callback:** Receives execution completion callback from Judge0 workers. Uses atomic Lua script (`JUDGE0_ACCUMULATE_AND_LOCK_LUA`) in Redis to accumulate test case outputs and notify awaiting candidate promises. |

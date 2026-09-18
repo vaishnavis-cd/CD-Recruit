@@ -16,6 +16,7 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QuestionsRouteImport } from './routes/questions'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvitesRouteImport } from './routes/invites'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as DrivesRouteImport } from './routes/drives'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
@@ -57,6 +58,11 @@ const InvitesRoute = InvitesRouteImport.update({
   path: '/invites',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DrivesRoute = DrivesRouteImport.update({
   id: '/drives',
   path: '/drives',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/drives': typeof DrivesRouteWithChildren
+  '/help': typeof HelpRoute
   '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
   '/questions': typeof QuestionsRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/drives': typeof DrivesRouteWithChildren
+  '/help': typeof HelpRoute
   '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
   '/questions': typeof QuestionsRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/drives': typeof DrivesRouteWithChildren
+  '/help': typeof HelpRoute
   '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
   '/questions': typeof QuestionsRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/drives'
+    | '/help'
     | '/invites'
     | '/login'
     | '/questions'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/drives'
+    | '/help'
     | '/invites'
     | '/login'
     | '/questions'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/drives'
+    | '/help'
     | '/invites'
     | '/login'
     | '/questions'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   DrivesRoute: typeof DrivesRouteWithChildren
+  HelpRoute: typeof HelpRoute
   InvitesRoute: typeof InvitesRoute
   LoginRoute: typeof LoginRoute
   QuestionsRoute: typeof QuestionsRoute
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/invites'
       fullPath: '/invites'
       preLoaderRoute: typeof InvitesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/drives': {
@@ -299,6 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   DrivesRoute: DrivesRouteWithChildren,
+  HelpRoute: HelpRoute,
   InvitesRoute: InvitesRoute,
   LoginRoute: LoginRoute,
   QuestionsRoute: QuestionsRoute,
