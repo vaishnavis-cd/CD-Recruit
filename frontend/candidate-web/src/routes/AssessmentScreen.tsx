@@ -63,11 +63,13 @@ export function AssessmentScreen({ moduleIndex, sessionId }: AssessmentScreenPro
     }
 
     const activeSessionId = assessment?.sessionId || sessionId || session?.id;
-    if (activeSessionId && !activeSessionId.startsWith('sess_')) {
+    if (activeSessionId) {
       // 1. Transition backend session to IN_PROGRESS if not already started
-      apiClient.post(`/sessions/${activeSessionId}/begin`).catch((err) => {
-        console.warn('[AssessmentScreen] /begin call warning:', err?.message);
-      });
+      if (!activeSessionId.startsWith('sess_')) {
+        apiClient.post(`/sessions/${activeSessionId}/begin`).catch((err) => {
+          console.warn('[AssessmentScreen] /begin call warning:', err?.message);
+        });
+      }
 
       // 2. Start global ProctoringModule pipeline (webcam, rolling buffer, vision models)
       // Defer heavy CV model initialization by 1s so the assessment UI mounts and becomes interactive immediately without freezing
