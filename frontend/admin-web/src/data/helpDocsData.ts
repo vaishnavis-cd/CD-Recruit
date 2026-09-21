@@ -235,6 +235,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Settings > Team Members tab displaying user rows with role tags (Super Admin, Recruiter, Reviewer) and the "Invite Member" button.',
           caption: 'Role badges clarify staff permissions across drive operations and candidate evaluations.',
           calloutBadge: 'Settings > Team',
+          imageUrl: '/help-screenshots/ss-user-roles.png',
         },
         steps: [
           {
@@ -283,6 +284,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the open "Create Drive" modal at Step 2 showing the module weight sliders (MCQ, SQL, Coding, AI Prompting, Simulation) totaling 100%.',
           caption: 'Configure assessment modules and balance weights to reflect technical role priorities.',
           calloutBadge: 'Drive Wizard',
+          imageUrl: '/help-screenshots/ss-create-drive-modal.png',
         },
         steps: [
           {
@@ -347,6 +349,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture Step 1 of Create Drive with the Start Date & End Date schedule inputs and time-zone indicator visible.',
           caption: 'Define start and cutoff dates for the drive window. Candidates can only enter within this active range.',
           calloutBadge: 'Schedule Picker',
+          imageUrl: '/help-screenshots/ss-schedule-window.png',
         },
         steps: [
           {
@@ -395,6 +398,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Assessment Composition Summary table on the Drive Details screen showing module question counts, difficulty distribution (Easy, Medium, Hard), and duration totals.',
           caption: 'The composition table guarantees that the question mix and allotted times match your job requirements perfectly.',
           calloutBadge: 'Drive Summary',
+          imageUrl: '/help-screenshots/ss-composition-summary.png',
         },
         steps: [
           {
@@ -461,6 +465,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the "Upload Candidates" modal after dropping a CSV file, showing the parsed candidate rows with Name and Email columns.',
           caption: 'Import dozens or hundreds of candidates in a single action using standard CSV format.',
           calloutBadge: 'CSV Import Modal',
+          imageUrl: '/help-screenshots/ss-csv-upload.png',
         },
         steps: [
           {
@@ -513,6 +518,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Invites table focusing on the "Copy Link" button and the candidate\'s unique single-use access link state.',
           caption: 'Each candidate receives a dedicated, non-transferable assessment link tied to their email.',
           calloutBadge: 'Roster Table',
+          imageUrl: '/help-screenshots/ss-managing-links.png',
         },
         steps: [
           {
@@ -561,6 +567,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the candidate roster table with active status badges (e.g. IN_PROGRESS in blue, COMPLETED in green).',
           caption: 'Monitor attendance and submission progress live as candidates complete their assessments.',
           calloutBadge: 'Live Pipeline',
+          imageUrl: '/help-screenshots/ss-live-roster.png',
         },
         steps: [
           {
@@ -614,6 +621,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the candidate scorecard detail page showing the overall score percentage, Say-Do consistency score, and individual module breakdown bars.',
           caption: 'Review granular candidate performance across technical modules and integrity signals.',
           calloutBadge: 'Scorecard Detail',
+          imageUrl: '/help-screenshots/ss-candidate-scorecard.png',
         },
         steps: [
           {
@@ -671,6 +679,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Coding Module review panel displaying the candidate\'s submitted TypeScript/Python code alongside test case execution logs.',
           caption: 'Inspect candidate code indentation, algorithmic efficiency, and passed/failed test case assertions.',
           calloutBadge: 'Code Inspector',
+          imageUrl: '/help-screenshots/ss-code-viewer.png',
         },
         steps: [
           {
@@ -716,6 +725,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the evaluation action bar at the bottom of the candidate result page with decision buttons and remarks field.',
           caption: 'Record formal hiring decisions that sync instantly with your recruitment pipeline and audit trail.',
           calloutBadge: 'Decision Bar',
+          imageUrl: '/help-screenshots/ss-decision-bar.png',
         },
         steps: [
           {
@@ -764,6 +774,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Proctoring Verification panel showing the candidate\'s periodic webcam feed with timestamped event clips.',
           caption: 'Review periodic 10-second video check-ins to verify candidate identity and absence of unauthorized assistance.',
           calloutBadge: 'Proctoring Player',
+          imageUrl: '/help-screenshots/ss-proctoring-player.png',
         },
         steps: [
           {
@@ -833,6 +844,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the integrity flag list for a candidate showing a flagged event (e.g. "Tab Switch" or "Multiple Faces") with recruiter resolution controls.',
           caption: 'Human recruiters always hold final authority to dismiss false alarms or confirm integrity issues.',
           calloutBadge: 'Flag Review',
+          imageUrl: '/help-screenshots/ss-flag-resolution.png',
         },
         steps: [
           {
@@ -876,6 +888,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Question Bank list showing question search, module type filter pills, and question preview cards with difficulty tags.',
           caption: 'Search, filter, or create custom questions with automated evaluation rubrics and test suites.',
           calloutBadge: 'Question Bank',
+          imageUrl: '/help-screenshots/ss-question-bank.png',
         },
         steps: [
           {
@@ -929,6 +942,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the Templates library page showing pre-built templates (e.g. Senior Frontend Engineer, Data Analyst) with their question mixes.',
           caption: 'Select battle-tested role templates with pre-calibrated question difficulty balances.',
           calloutBadge: 'Templates Catalog',
+          imageUrl: '/help-screenshots/ss-role-templates.png',
         },
       },
     ],
@@ -959,6 +973,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the modal dialog for inviting a new teammate to Proctora with role options explained.',
           caption: 'Add colleagues to your workspace with role-based access tailored to their hiring responsibilities.',
           calloutBadge: 'Invite Modal',
+          imageUrl: '/help-screenshots/ss-team-management.png',
         },
         steps: [
           {
@@ -1004,6 +1019,7 @@ export const HELP_GUIDES: HelpGuide[] = [
           description: 'Capture the top action bar on the Results page with the Export Dropdown expanded, showing CSV and summary export choices.',
           caption: 'Download formatted evaluation spreadsheets and executive summaries for ATS integration or hiring debriefs.',
           calloutBadge: 'Export Dropdown',
+          imageUrl: '/help-screenshots/ss-export-reports.png',
         },
         steps: [
           {

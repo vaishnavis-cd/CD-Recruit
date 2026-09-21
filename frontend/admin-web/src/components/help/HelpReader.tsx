@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BookOpen,
   Clock,
@@ -60,6 +60,12 @@ export function HelpReader({
   const [copiedLink, setCopiedLink] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<"yes" | "no" | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Reset interactive feedback and FAQ state whenever the user navigates to a new guide
+  useEffect(() => {
+    setFeedbackGiven(null);
+    setOpenFaqIndex(0);
+  }, [guide.slug]);
 
   const handleShare = () => {
     const url = new URL(window.location.href);
@@ -618,7 +624,6 @@ function InteractiveUIMockup({
       {type === "drive-builder" && <DriveBuilderMockup />}
       {type === "roster-table" && <RosterTableMockup />}
       {type === "scorecard" && <ScorecardMockup />}
-      {type === "proctoring-clip" && <ProctoringClipMockup />}
       {type === "composition-summary" && <CompositionSummaryMockup />}
       {type === "question-filter" && <QuestionFilterMockup />}
     </div>
@@ -965,89 +970,6 @@ function ScorecardMockup() {
   );
 }
 
-// 4. Mockup: Proctoring Clip
-function ProctoringClipMockup() {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [statusAction, setStatusAction] = useState<string | null>(null);
-
-  return (
-    <div className="bg-slate-900 !rounded-xl p-4 text-white text-xs space-y-3">
-      <div className="flex items-center justify-between text-slate-400">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-          <span className="font-semibold text-slate-200">
-            Automated Clip Review &bull; Event #3 at 00:24:18
-          </span>
-        </div>
-        <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 !rounded text-[10px] font-bold">
-          Multiple Faces Detected
-        </span>
-      </div>
-
-      {/* Simulated Video Player Viewport */}
-      <div className="relative aspect-video bg-slate-950 !rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center group">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-
-        {/* Video Overlay Grid */}
-        <div className="absolute top-3 left-3 text-[11px] text-slate-400 font-mono bg-black/60 px-2 py-1 !rounded">
-          CAM 01 &bull; 1080p &bull; 30 FPS
-        </div>
-
-        {/* Detection Bounding Box */}
-        <div className="absolute right-12 top-8 border-2 border-dashed border-rose-500/80 bg-rose-500/10 !rounded p-1 text-[10px] font-mono text-rose-300">
-          Secondary Face (88% conf)
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsPlaying(!isPlaying)}
-          className="relative z-10 w-12 h-12 !rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-white transition cursor-pointer"
-        >
-          {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
-        </button>
-
-        {/* Bottom Timeline Controls */}
-        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300">
-          <span>{isPlaying ? "00:07 / 00:10" : "00:00 / 00:10"}</span>
-          <div className="w-48 h-1.5 !rounded-full bg-slate-700 overflow-hidden mx-2 flex-1">
-            <div
-              className={`h-full bg-rose-500 !rounded-full transition-all duration-500 ${
-                isPlaying ? "w-2/3" : "w-1/4"
-              }`}
-            />
-          </div>
-          <span className="font-mono text-slate-400">10-sec clip</span>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <span className="text-slate-400 text-[11px]">
-          Recruiter Decision:{" "}
-          <strong className="text-white font-semibold">
-            {statusAction || "Pending Evaluation"}
-          </strong>
-        </span>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setStatusAction("False Positive (Dismissed)")}
-            className="px-2.5 py-1 !rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition cursor-pointer"
-          >
-            Dismiss (False Alarm)
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusAction("Confirmed Integrity Breach")}
-            className="px-2.5 py-1 !rounded bg-rose-600 hover:bg-rose-500 text-white font-bold transition cursor-pointer"
-          >
-            Confirm Flag
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // 5. Mockup: Assessment Composition Summary
 function CompositionSummaryMockup() {

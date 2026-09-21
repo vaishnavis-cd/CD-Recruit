@@ -67,6 +67,8 @@ function HelpPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  const catalogScrollRef = useRef<HTMLDivElement>(null);
 
   // Synchronize browser history / URL query param
   useEffect(() => {
@@ -79,8 +81,22 @@ function HelpPage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  // Reset scroll position to top whenever the active guide changes
+  useEffect(() => {
+    if (contentScrollRef.current) {
+      contentScrollRef.current.scrollTo({ top: 0, behavior: "instant" });
+    }
+    if (catalogScrollRef.current) {
+      catalogScrollRef.current.scrollTo({ top: 0, behavior: "instant" });
+    }
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [activeGuideSlug]);
+
   const selectGuide = (slug: string | null) => {
     setActiveGuideSlug(slug);
+    if (contentScrollRef.current) {
+      contentScrollRef.current.scrollTop = 0;
+    }
     const url = new URL(window.location.href);
     if (slug) {
       url.searchParams.set("guide", slug);
@@ -351,7 +367,10 @@ function HelpPage() {
             </aside>
 
             {/* Right Main Content Area: Dedicated Scroll Container */}
-            <div className="flex-1 h-full overflow-y-auto min-h-0 bg-white flex flex-col">
+            <div
+              ref={contentScrollRef}
+              className="flex-1 h-full overflow-y-auto min-h-0 bg-white flex flex-col"
+            >
               {/* Sticky Breadcrumb Navigation Bar (Always visible while scrolling) */}
               <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-6 sm:px-10 py-3.5 border-b border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-2 flex-wrap text-xs font-medium text-slate-500">
@@ -401,7 +420,10 @@ function HelpPage() {
           </div>
         ) : (
           /* Catalog Mode: Scrollable Catalog Grid with Pinned Top Nav */
-          <div className="flex-1 h-full overflow-y-auto min-h-0 bg-[#f8fafc] flex flex-col justify-between">
+          <div
+            ref={catalogScrollRef}
+            className="flex-1 h-full overflow-y-auto min-h-0 bg-[#f8fafc] flex flex-col justify-between"
+          >
             <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 space-y-10">
               {/* Hero Section */}
               <div className="text-center max-w-2xl mx-auto space-y-3 pt-4 pb-2">
