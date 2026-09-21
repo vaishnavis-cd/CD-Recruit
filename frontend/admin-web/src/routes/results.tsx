@@ -490,6 +490,32 @@ function ResultsPage() {
 );
 }
 
+function resolveImageUrl(rawUrl: string | null | undefined): string | null {
+  if (!rawUrl) return null;
+  if (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")) return rawUrl;
+
+  let cleanKey = rawUrl;
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+    try {
+      const u = new URL(rawUrl);
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts[0] === "cd-recruit-biometric" || parts[0] === "cd-recruit-general") {
+        cleanKey = parts.slice(1).join("/");
+      } else {
+        cleanKey = parts.join("/");
+      }
+    } catch {
+      cleanKey = rawUrl;
+    }
+  }
+
+  cleanKey = cleanKey.split("?")[0].replace(/^\//, "");
+  if (cleanKey.startsWith("api/v1/proctoring/stream/") || cleanKey.startsWith("/api/v1/proctoring/stream/")) {
+    return cleanKey.startsWith("/") ? cleanKey : `/${cleanKey}`;
+  }
+  return `/api/v1/proctoring/stream/cd-recruit-biometric/${cleanKey}`;
+}
+
 function VerificationSidePanel({
   item,
   onClose,
@@ -569,8 +595,8 @@ function VerificationSidePanel({
   const isMismatch = idVerifyResult?.matched === false || (idVerifyResult?.inTestCaptures?.mismatched > 0);
 
   // 1. Identity Verification URLs
-  const idCardUrl = candidateData?.idProofUrl || candidateData?.idProofRef || null;
-  const selfieUrl = candidateData?.baselineSelfieUrl || candidateData?.baselineSelfieRef || null;
+  const idCardUrl = resolveImageUrl(candidateData?.idProofUrl || candidateData?.idProofRef || detail?.idProofUrl || detail?.idProofRef);
+  const selfieUrl = resolveImageUrl(candidateData?.baselineSelfieUrl || candidateData?.baselineSelfieRef || detail?.baselineSelfieUrl || detail?.baselineSelfieRef);
   const idMatch = idVerifyResult?.face?.matched ?? (isMatched ? true : isMismatch ? false : null);
 
   // 2. Random Capture Verification Windows
@@ -603,11 +629,20 @@ function VerificationSidePanel({
     candidateData?.idProofExtractedName ||
     "").trim() || null;
   const ocrName = extractedName || "Not extracted";
+
+  const isExactOrFuzzyMatch =
+    extractedName &&
+    (
+      regName.toLowerCase().trim() === extractedName.toLowerCase().trim() ||
+      (item?.candidateName && item.candidateName.toLowerCase().trim() === extractedName.toLowerCase().trim()) ||
+      (candidateData?.name && candidateData.name.toLowerCase().trim() === extractedName.toLowerCase().trim())
+    );
+
   const ocrMatched: boolean | null =
     typeof idVerifyResult?.name?.matched === "boolean"
-      ? idVerifyResult.name.matched
+      ? (idVerifyResult.name.matched || isExactOrFuzzyMatch || false)
       : extractedName
-        ? regName.toLowerCase().trim() === extractedName.toLowerCase().trim()
+        ? (isExactOrFuzzyMatch || false)
         : idVerifyResult
           ? false
           : null;
@@ -792,7 +827,7 @@ function VerificationSidePanel({
                           <div className="w-full h-28 rounded-lg border border-line bg-canvas overflow-hidden flex items-center justify-center relative">
                             {w.imageUrl ? (
                               <img
-                                src={w.imageUrl}
+                                src={resolveImageUrl(w.imageUrl) || w.imageUrl}
                                 alt={`Window ${w.windowIndex}`}
                                 className="w-full h-full object-cover"
                               />

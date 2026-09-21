@@ -135,31 +135,12 @@ export class MinioService implements OnModuleInit {
   async getSignedUrl(
     bucketName: string,
     objectKey: string,
-    ttlSeconds?: number,
+    _ttlSeconds?: number,
   ): Promise<string | null> {
-    if (!this.minioClient) {
-      this.logger.warn("MinIO client is not initialized. Returning null url.");
-      return null;
-    }
-
-    try {
-      const ttl =
-        ttlSeconds ??
-        this.configService.get<number>("evidenceClipUrlTtlSeconds") ??
-        this.configService.get<number>("app.minio.evidenceUrlTtl") ??
-        3600;
-      const url = await this.minioClient.presignedGetObject(
-        bucketName,
-        objectKey,
-        ttl > 0 ? ttl : 3600,
-      );
-      return url;
-    } catch (error: any) {
-      this.logger.error(
-        `Error generating presigned URL for ${bucketName}/${objectKey}: ${error.message}`,
-      );
-      return null;
-    }
+    if (!objectKey) return null;
+    const cleanKey = objectKey.replace(/^\//, "");
+    const publicUrlBase = process.env.PUBLIC_MEDIA_URL_BASE || "/api/v1/proctoring/stream";
+    return `${publicUrlBase}/${bucketName}/${cleanKey}`;
   }
 
   /**
