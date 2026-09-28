@@ -68,6 +68,7 @@ async function runSessionCharacterizationTests() {
     identityCapture: {
       deleteMany: async () => ({ count: 0 }),
       createMany: async () => ({ count: 0 }),
+      create: async () => ({ id: "cap-1" }),
     },
   };
 
@@ -98,6 +99,11 @@ async function runSessionCharacterizationTests() {
   const mockLifecycle: any = {};
   const mockStateMachine: any = {};
   const mockScoring: any = {};
+  const mockSandboxOrchestrator: any = {
+    ensureWorkspace: async () => ({}),
+  };
+  const mockFaceVerifyOnnx: any = {};
+  const mockIdOcr: any = {};
 
   const service = new SessionService(
     mockPrisma,
@@ -109,6 +115,9 @@ async function runSessionCharacterizationTests() {
     mockLifecycle,
     mockStateMachine,
     mockScoring,
+    mockSandboxOrchestrator,
+    mockFaceVerifyOnnx,
+    mockIdOcr,
   );
 
   // Test 1: startSession creates session
