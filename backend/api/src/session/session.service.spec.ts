@@ -1,4 +1,4 @@
-import { SessionService } from "./session.service";
+import { SessionService, sanitiseQuestionContent } from "./session.service";
 import assert from "node:assert";
 
 async function runSessionCharacterizationTests() {
@@ -119,7 +119,40 @@ async function runSessionCharacterizationTests() {
   const beginRes = await service.beginSession("sess-1");
   assert.strictEqual(beginRes.sessionId, "sess-1");
 
-  console.log("✅ All SessionService characterization tests passed successfully!");
+  // Test 3: sanitiseQuestionContent security assertions
+  const mcqRaw = { prompt: "Q1", options: ["A", "B"], correctIndex: 1, explanation: "Secret" };
+  const mcqSanitized: any = sanitiseQuestionContent("MCQ", mcqRaw);
+  assert.strictEqual(mcqSanitized.correctIndex, undefined, "MCQ correctIndex must be stripped");
+  assert.strictEqual(mcqSanitized.explanation, undefined, "MCQ explanation must be stripped");
+  assert.deepStrictEqual(mcqSanitized.options, ["A", "B"]);
+
+  const sqlRaw = { prompt: "Select all", expectedQuery: "SELECT * FROM users", explanation: "Hidden hint" };
+  const sqlSanitized: any = sanitiseQuestionContent("SQL", sqlRaw);
+  assert.strictEqual(sqlSanitized.expectedQuery, undefined, "SQL expectedQuery must be stripped");
+  assert.strictEqual(sqlSanitized.explanation, undefined, "SQL explanation must be stripped");
+
+  const codingRaw = {
+    prompt: "Write code",
+    visibleTestCases: [{ input: "1", expectedOutput: "2" }],
+    hiddenTestCases: [{ input: "secret", expectedOutput: "leak" }],
+    testCases: [
+      { input: "1", expectedOutput: "2", isHidden: false },
+      { input: "secret", expectedOutput: "leak", isHidden: true },
+    ],
+    explanation: "Solve with DP",
+  };
+  const codingSanitized: any = sanitiseQuestionContent("CODING", codingRaw);
+  assert.strictEqual(codingSanitized.hiddenTestCases, undefined, "Coding hiddenTestCases must be stripped");
+  assert.strictEqual(codingSanitized.explanation, undefined, "Coding explanation must be stripped");
+  assert.strictEqual(codingSanitized.testCases.length, 1, "Only visible test cases must be retained");
+  assert.strictEqual(codingSanitized.testCases[0].input, "1");
+
+  const aiRaw = { prompt: "Prompt AI", rubric: { idealResponseSummary: "Secret answer" }, explanation: "Rule" };
+  const aiSanitized: any = sanitiseQuestionContent("AI_PROMPTING", aiRaw);
+  assert.strictEqual(aiSanitized.rubric, undefined, "AI Prompting rubric must be stripped");
+  assert.strictEqual(aiSanitized.explanation, undefined, "AI Prompting explanation must be stripped");
+
+  console.log("✅ All SessionService characterization & question sanitization tests passed successfully!");
 }
 
 runSessionCharacterizationTests().catch((err) => {
