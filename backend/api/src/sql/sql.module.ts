@@ -6,9 +6,10 @@ import { ResultComparatorService } from "./result-comparator.service";
 import { SqlValidatorService } from "./sql-validator.service";
 import { SqlCleanupService } from "./sql-cleanup.service";
 import { PrismaModule } from "../prisma/prisma.module";
+import { SessionModule } from "../session/session.module";
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SessionModule],
   controllers: [SqlController],
   providers: [
     SqlService,

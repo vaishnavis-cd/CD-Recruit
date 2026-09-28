@@ -4,6 +4,7 @@ import { SubmitMcqDto, DraftMcqDto } from "./dto/mcq.dto";
 import { SessionStatus, ModuleType, ExecutionStatus } from "@cd-recruit/shared-types";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
+import { SessionService } from "../session/session.service";
 
 @Injectable()
 export class McqService implements AssessmentModuleEngine, OnModuleInit {
@@ -12,6 +13,7 @@ export class McqService implements AssessmentModuleEngine, OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
+    @Optional() private readonly sessionService?: SessionService,
   ) {}
 
   onModuleInit() {
@@ -145,6 +147,21 @@ export class McqService implements AssessmentModuleEngine, OnModuleInit {
       } else {
         throw new NotFoundException(`Session not found with ID ${sessionId}`);
       }
+    }
+
+    if (session && session.status === SessionStatus.NOT_STARTED) {
+      if (this.sessionService) {
+        await this.sessionService.beginSession(session.id);
+      } else {
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: {
+            status: SessionStatus.IN_PROGRESS,
+            startedAt: new Date(),
+          },
+        });
+      }
+      session.status = SessionStatus.IN_PROGRESS;
     }
 
     if (

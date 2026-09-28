@@ -459,21 +459,25 @@ CREATE UNIQUE INDEX uq_pool_queue_order ON credit_pool (billing_account_id, queu
   WHERE status IN ('QUEUED','ACTIVE') AND drive_id IS NULL;
 
 -- ── 3. Append-Only Immutability Enforcement ───────────────────────────
-REVOKE UPDATE, DELETE, TRUNCATE ON credit_ledger_entry, billing_audit_event, session_billing_evidence FROM proctora_app;
+-- ── 3. Append-Only Immutability Enforcement ───────────────────────────
+REVOKE UPDATE, DELETE, TRUNCATE ON billing.credit_ledger_entry, billing.billing_audit_event, billing.session_billing_evidence FROM proctora_app;
 
-CREATE OR REPLACE FUNCTION forbid_mutation() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION billing.forbid_mutation() RETURNS trigger AS $$
 BEGIN
-  RAISE EXCEPTION '% on % is strictly forbidden (financial ledger is append-only)', TG_OP, TG_TABLE_NAME;
+  SET LOCAL search_path = pg_catalog, billing, platform, public;
+  RAISE EXCEPTION '% on %.% is strictly forbidden (financial ledger is append-only)', TG_OP, TG_TABLE_SCHEMA, TG_TABLE_NAME;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_ledger_append_only   BEFORE UPDATE OR DELETE ON credit_ledger_entry      FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
-CREATE TRIGGER trg_audit_append_only    BEFORE UPDATE OR DELETE ON billing_audit_event      FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
-CREATE TRIGGER trg_evidence_append_only BEFORE UPDATE OR DELETE ON session_billing_evidence FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
+CREATE TRIGGER trg_ledger_append_only   BEFORE UPDATE OR DELETE ON billing.credit_ledger_entry      FOR EACH ROW EXECUTE FUNCTION billing.forbid_mutation();
+CREATE TRIGGER trg_audit_append_only    BEFORE UPDATE OR DELETE ON billing.billing_audit_event      FOR EACH ROW EXECUTE FUNCTION billing.forbid_mutation();
+CREATE TRIGGER trg_evidence_append_only BEFORE UPDATE OR DELETE ON billing.session_billing_evidence FOR EACH ROW EXECUTE FUNCTION billing.forbid_mutation();
 
 -- ── 4. CreditPool Immutability & Audit Trigger ────────────────────────
-CREATE OR REPLACE FUNCTION guard_credit_pool_mutation() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION billing.guard_credit_pool_mutation() RETURNS trigger AS $$
 BEGIN
+  SET LOCAL search_path = pg_catalog, billing, platform, public;
+
   -- Immutable columns once created:
   IF OLD.total_credits <> NEW.total_credits OR
      OLD.drive_id IS DISTINCT FROM NEW.drive_id OR
@@ -494,8 +498,8 @@ BEGIN
 
   -- Automatic Audit Trail: Write audit event on status/date changes
   IF OLD.status <> NEW.status OR OLD.expires_at IS DISTINCT FROM NEW.expires_at OR
-     OLD.clock_started_at IS DISTINCT FROM NEW.clock_started_at OR OLD.activatedAt IS DISTINCT FROM NEW.activatedAt THEN
-    INSERT INTO billing_audit_event (
+     OLD.clock_started_at IS DISTINCT FROM NEW.clock_started_at OR OLD.activated_at IS DISTINCT FROM NEW.activated_at THEN
+    INSERT INTO billing.billing_audit_event (
       id, billing_account_id, subject_type, subject_id, action, before, after, request_id, created_at
     ) VALUES (
       gen_random_uuid(), OLD.billing_account_id, 'POOL', OLD.id, 'POOL_UPDATE',
@@ -510,24 +514,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_guard_credit_pool BEFORE UPDATE ON credit_pool
-  FOR EACH ROW EXECUTE FUNCTION guard_credit_pool_mutation();
+CREATE TRIGGER trg_guard_credit_pool BEFORE UPDATE ON billing.credit_pool
+  FOR EACH ROW EXECUTE FUNCTION billing.guard_credit_pool_mutation();
 
 -- ── 5. Session-Start Gateway Trigger ──────────────────────────────────
--- Closes the side-door gap: Nothing may transition Session to IN_PROGRESS except via billing_begin()
-CREATE OR REPLACE FUNCTION guard_session_start() RETURNS trigger AS $$
+-- Closes the side-door gap: Nothing may transition Session to IN_PROGRESS except via billing.billing_begin()
+CREATE OR REPLACE FUNCTION public.guard_session_start() RETURNS trigger AS $$
 BEGIN
+  SET LOCAL search_path = pg_catalog, billing, platform, public;
+
   IF OLD.status = 'NOT_STARTED' AND NEW.status = 'IN_PROGRESS'
      AND COALESCE(current_setting('proctora.begin_ok', true), 'off') <> 'on'
      AND COALESCE(current_setting('proctora.allow_direct_start', true), 'off') <> 'on' THEN
-    RAISE EXCEPTION 'Session % must start strictly via billing_begin()', NEW.id;
+    RAISE EXCEPTION 'Session % must start strictly via billing.billing_begin()', NEW.id;
   END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_guard_session_start BEFORE UPDATE OF status ON session
-  FOR EACH ROW EXECUTE FUNCTION guard_session_start();
+CREATE TRIGGER trg_guard_session_start BEFORE UPDATE OF status ON public.session
+  FOR EACH ROW EXECUTE FUNCTION public.guard_session_start();
 ```
 
 ---
@@ -560,7 +566,7 @@ flowchart TD
 Implemented as a database function called via Prisma `$queryRaw`:
 
 ```sql
-CREATE OR REPLACE FUNCTION billing_begin(
+CREATE OR REPLACE FUNCTION billing.billing_begin(
   p_session_id uuid,
   p_mode text -- 'off', 'shadow', 'enforce'
 )
@@ -571,12 +577,14 @@ DECLARE
   v_pool_id uuid;
   v_rem int;
 BEGIN
+  -- Prevent Search Path Hijacking & enforce bounded statement execution
+  SET LOCAL search_path = pg_catalog, billing, platform, public;
   SET LOCAL lock_timeout = '2s';
   SET LOCAL statement_timeout = '5s';
   SET LOCAL proctora.begin_ok = 'on';
 
   -- Step 1: Claim Session Transition (Guards double-click, 2 tabs, retries)
-  UPDATE session
+  UPDATE public.session
      SET status = 'IN_PROGRESS'
    WHERE id = p_session_id AND status = 'NOT_STARTED'
   RETURNING kind, drive_id, organization_id INTO v_session;
@@ -587,17 +595,17 @@ BEGIN
   END IF;
 
   IF v_session.kind <> 'LIVE' OR p_mode = 'off' THEN
-    UPDATE session SET started_at = clock_timestamp() WHERE id = p_session_id;
+    UPDATE public.session SET started_at = clock_timestamp() WHERE id = p_session_id;
     RETURN QUERY SELECT 'STARTED'::text, NULL::uuid, 0;
     RETURN;
   END IF;
 
   -- Resolve Billing Account
-  SELECT billing_account_id INTO v_acct_id FROM organization WHERE id = v_session.organization_id;
+  SELECT billing_account_id INTO v_acct_id FROM public.organization WHERE id = v_session.organization_id;
 
   -- Step 2: Claim 1 Credit. (Drive Pass first, then single ACTIVE general pool)
   WITH eligible_pool AS (
-    SELECT p.id FROM credit_pool p
+    SELECT p.id FROM billing.credit_pool p
      WHERE p.billing_account_id = v_acct_id
        AND p.status = 'ACTIVE'
        AND p.cached_remaining >= 1
@@ -605,14 +613,14 @@ BEGIN
        AND (
          p.drive_id = v_session.drive_id
          OR (p.drive_id IS NULL AND (
-           EXISTS (SELECT 1 FROM drive d WHERE d.id = v_session.drive_id AND d.fallthrough = 'ALLOW')
-           OR NOT EXISTS (SELECT 1 FROM credit_pool dp WHERE dp.drive_id = v_session.drive_id AND dp.status = 'ACTIVE')
+           EXISTS (SELECT 1 FROM public.drive d WHERE d.id = v_session.drive_id AND d.fallthrough = 'ALLOW')
+           OR NOT EXISTS (SELECT 1 FROM billing.credit_pool dp WHERE dp.drive_id = v_session.drive_id AND dp.status = 'ACTIVE')
          ))
        )
      ORDER BY (p.drive_id IS NULL), p.queue_order, p.created_at
      LIMIT 1
   )
-  UPDATE credit_pool p
+  UPDATE billing.credit_pool p
      SET cached_remaining = p.cached_remaining - 1
     FROM eligible_pool
    WHERE p.id = eligible_pool.id
@@ -625,17 +633,17 @@ BEGIN
 
   -- Step 3: Insert Immutable Ledger Entry
   IF p_mode = 'shadow' THEN
-    INSERT INTO credit_ledger_entry (
+    INSERT INTO billing.credit_ledger_entry (
       id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after,
-      session_id, drive_id, idempotency_key, actorId, reason, shadow, created_at
+      session_id, drive_id, idempotency_key, actor_id, reason, shadow, created_at
     ) VALUES (
       gen_random_uuid(), v_acct_id, v_session.organization_id, v_pool_id, 'CONSUME', -1, v_rem,
       p_session_id, v_session.drive_id, 'shadow:acquire:' || p_session_id, 'system', 'ATTEMPT_START', true, clock_timestamp()
     );
   ELSE
-    INSERT INTO credit_ledger_entry (
+    INSERT INTO billing.credit_ledger_entry (
       id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after,
-      session_id, drive_id, idempotency_key, actorId, reason, shadow, created_at
+      session_id, drive_id, idempotency_key, actor_id, reason, shadow, created_at
     ) VALUES (
       gen_random_uuid(), v_acct_id, v_session.organization_id, v_pool_id, 'CONSUME', -1, v_rem,
       p_session_id, v_session.drive_id, 'acquire:' || p_session_id, 'system', 'ATTEMPT_START', false, clock_timestamp()
@@ -643,7 +651,7 @@ BEGIN
   END IF;
 
   -- Step 4: Candidate Clock Starts After Lock is Released (R3)
-  UPDATE session SET started_at = clock_timestamp() WHERE id = p_session_id;
+  UPDATE public.session SET started_at = clock_timestamp() WHERE id = p_session_id;
 
   RETURN QUERY SELECT 'STARTED'::text, v_pool_id, v_rem;
 END;
@@ -744,16 +752,15 @@ Organizations consume from their active pool first. When exhausted or expired, t
 * An unattended browser tab left open in an empty room **is never auto-started or billed**. The test stays in waiting-room status with a *"Click to Start"* prompt.
 
 ### 7.2 Strict 100% Pre-Paid Policy & 1-Click JIT Top-Up
-* **No Uncollateralized Debt:** `overdraftLimit` is `0` by default. Unsecured post-paid lending is eliminated across all standard accounts to prevent bad debt and billing disputes.
+* **No Uncollateralized Debt (ADR-004):** `overdraftLimit` is permanently fixed to `0` across all accounts. Overdraft has been completely eliminated to prevent uncollateralized debt, negative balances, and billing disputes.
 * **Handling Extra Candidates (Capacity Reached):**
   1. If `drive.fallthrough = 'ALLOW'` and an active Talent Reserve has credits: The test is immediately funded via Talent Reserve (`CONSUME`), zero interruption.
   2. If `drive.fallthrough = 'HOLD'` or no reserve balance exists: Candidate enters `HOLD` state (§7.3).
   3. Immediate push/SMS alert to `BILLING_ADMIN` / Drive Creator: *"Drive {name} reached capacity. Extra candidates waiting to enter. [1-Click Top-Up]"*.
   4. Recruiter taps 1-click top-up: charges saved corporate card or pre-funded wallet, increments `credit_pool.cached_remaining` on the **ongoing drive**, and releases waiting candidates FIFO.
-* *(Enterprise Exception)*: Pre-negotiated Master Service Agreements (MSAs) with security deposits may configure `overdraftLimit > 0` via maker-checker approval.
 
 ### 7.3 The HELD Lifecycle (Candidate #501 Beyond Capacity)
-If capacity and overdraft are completely exhausted:
+If capacity is completely exhausted:
 * `session.status` remains `NOT_STARTED`; `session.heldAt = clock_timestamp()`, `session.holdReason = 'CAPACITY'`.
 * Candidate sees honest, reassuring UI:
   > *"There is a brief delay starting your assessment session. Your recruiter has been notified. Your timer has not started and you will not lose any time."*
@@ -775,7 +782,7 @@ If Proctora infrastructure fails, the platform automatically returns the credit:
 | **T2** | Session started, but `firstContentRenderedAt` is null and session closed/expired | Automated `REVERSAL` ledger entry |
 | **T3** | Session started inside an active, declared incident window and was not submitted | Automated `REVERSAL` ledger entry |
 
-* **Destination:** Returned to the original pool if still `ACTIVE`; else to current `ACTIVE` general pool; else to a new 90-day `GOODWILL` pool. If reversing an overdraft, decrements `overdraft_used`.
+* **Destination:** Returned to the original pool if still `ACTIVE`; else to current `ACTIVE` general pool; else to a new 90-day `GOODWILL` pool.
 
 ---
 
@@ -787,7 +794,8 @@ If Proctora infrastructure fails, the platform automatically returns the credit:
 * **Cash Refunds:** Cash refunds only cover **unconsumed credits** ($\text{unused} \times \text{unit_price_minor}$). Consumed credits are never cash-refunded.
 
 ### 8.2 Regional Pricing & Arbitrage Protection
-* Pricing catalog is segmented by `billingCountry` and currency (e.g. India INR ₹60 vs US USD $2).
+* Pricing catalog is segmented by `billingCountry` and currency.
+* **Seed Baseline:** ₹50 / credit (5000 paise in `billing.price_book_entry`), versioned for future revision by decision makers without migrations.
 * `billingCountry` is determined by verified **Legal Entity Name + Tax ID (GSTIN/EIN)**, never browser IP or VPN address. Changing country requires maker-checker approval.
 
 ### 8.3 Variable Cost Token Ceilings
@@ -810,16 +818,23 @@ To guarantee profitability on flat 1-credit pricing:
 ### 9.2 Nightly Automated 7-Point Reconciliation
 A nightly background job replays the ledger and alerts on any discrepancy:
 1. **Pool Integrity:** For every pool, `cached_remaining == total_credits + SUM(amount)` for non-shadow entries.
-2. **Overdraft Integrity:** `account.overdraft_used == -SUM(OVERDRAFT) + SUM(OVERDRAFT_SETTLE) - SUM(REVERSAL where pool is null)`.
-3. **Session Acquisition 1:1:** Every `IN_PROGRESS` live session has exactly one acquisition entry (`CONSUME`, `OVERDRAFT`, `WAIVE`), and every acquisition entry has corresponding session billing evidence.
+2. **Overdraft Integrity:** Replay verifies `overdraft_used == 0` (zero debt enforced per ADR-004).
+3. **Session Acquisition 1:1:** Every `IN_PROGRESS` live session has exactly one acquisition entry (`CONSUME`, `WAIVE`), and every acquisition entry has corresponding session billing evidence.
 4. **Expiry Sweeper:** No pool is `ACTIVE` with `expires_at < clock_timestamp() - INTERVAL '5 minutes'`.
 5. **Topology Invariant:** At most one `ACTIVE` general pool per account; at most one `ACTIVE` pass per drive.
 6. **Payment Proof:** Every `PURCHASE` grant has a captured `Payment` record with matching credit quantity.
 7. **WORM Backup Verification:** Nightly export hash matches live ledger export checksum.
 
-### 9.3 Data Durability & WORM Export
-* Continuous Write-Ahead Log (WAL) archiving with Point-in-Time Recovery (PITR).
-* Nightly export of credit ledger and billing evidence to an S3/MinIO bucket with **Object Lock in Compliance Mode** (retention mandated by tax/audit counsel).
+### 9.3 Data Durability, Retention & WORM Export
+* **Biometric & Evidence Retention (ADR-008):**
+  - Base retention: **30 days** biometric clips and embeddings.
+  - Candidate appeal window: **14 days**.
+  - Total default retention: **44 days**.
+  - Per-tenant override: `organization.appeal_window_days_override` bounded $[14, 90]$ days (up to 365 days for banking/gov with `SUPER_ADMIN` approval + compliance ticket).
+  - Nightly BullMQ cron purges MinIO clips and face embeddings upon expiration while preserving immutable ledger entries.
+* **Financial Ledger Durability:**
+  - Continuous Write-Ahead Log (WAL) archiving with Point-in-Time Recovery (PITR).
+  - Nightly export of credit ledger and billing evidence to an S3/MinIO bucket with **Object Lock in Compliance Mode** (retention mandated by tax/audit counsel).
 
 ### 9.4 Candidate API Contract Test
 A CI automated test asserts:
@@ -836,10 +851,14 @@ A CI automated test asserts:
 │      PHASE 0      │     │      PHASE 1      │     │      PHASE 2      │     │      PHASE 3      │
 │ Codebase Audit &  │ ──► │  Schema Migration │ ──► │ Shadow Validation │ ──► │ Full Live Cutover │
 │ Side-Door Cleanup │     │  & Invariants     │     │ (Zero Risk)       │     │ & Enforcement     │
+│   [COMPLETED]     │     │                   │     │                   │     │                   │
 └───────────────────┘     └───────────────────┘     └───────────────────┘     └───────────────────┘
 ```
 
-### Phase 0: Discovery & Codebase Audit (Current State)
+### Phase 0: Discovery & Codebase Audit (COMPLETED)
+- **Side-Door Remediation:** Refactored direct `session.status = IN_PROGRESS` transitions across `sql.service.ts`, `coding.service.ts`, `proctoring.service.ts`, and `mcq.service.ts` to route strictly through `SessionService.beginSession()`.
+- **Characterization Testing:** All 17 SQL, 19 Coding, 9 Proctoring, and 8 MCQ unit tests pass with zero regressions.
+- **Build Verified:** Full TypeScript nest build compiles cleanly with zero type errors. Ready for Phase 1 DB migrations.
 * Identify and refactor all existing side-door transitions to `SessionStatus.IN_PROGRESS`.
   * **Audit Finding:** In `proctoring.service.ts` line 228 and `sql.service.ts` line 114, sessions auto-transition to `IN_PROGRESS` outside of `beginSession`. These must be channeled through `beginSession` before the Postgres trigger is deployed.
 * Map all session creation and deletion flows to ensure retention scripts do not collide with ledger snapshots.

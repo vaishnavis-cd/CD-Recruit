@@ -8,6 +8,7 @@ import { SqlQuestionContentJson } from "./sql.types";
 import { SubmissionType, SqlExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
+import { SessionService } from "../session/session.service";
 
 @Injectable()
 export class SqlService implements AssessmentModuleEngine, OnModuleInit {
@@ -20,6 +21,7 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
     private readonly comparatorService: ResultComparatorService,
     private readonly validatorService: SqlValidatorService,
     @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
+    @Optional() private readonly sessionService?: SessionService,
   ) {}
 
   onModuleInit() {
@@ -107,12 +109,16 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
     if (!session) {
       throw new NotFoundException("Session not found");
     }
-    if (session.status === SessionStatus.NOT_STARTED || session.status === SessionStatus.AUTO_SUBMITTED) {
-      const now = new Date();
-      await this.prisma.session.update({
-        where: { id: dto.sessionId },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
-      });
+    if (session.status === SessionStatus.NOT_STARTED) {
+      if (this.sessionService) {
+        await this.sessionService.beginSession(dto.sessionId);
+      } else {
+        const now = new Date();
+        await this.prisma.session.update({
+          where: { id: dto.sessionId },
+          data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
+        });
+      }
       session.status = SessionStatus.IN_PROGRESS;
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
@@ -241,11 +247,15 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
       throw new NotFoundException("Session not found");
     }
     if (session.status === SessionStatus.NOT_STARTED) {
-      const now = new Date();
-      await this.prisma.session.update({
-        where: { id: dto.sessionId },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
-      });
+      if (this.sessionService) {
+        await this.sessionService.beginSession(dto.sessionId);
+      } else {
+        const now = new Date();
+        await this.prisma.session.update({
+          where: { id: dto.sessionId },
+          data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
+        });
+      }
       session.status = SessionStatus.IN_PROGRESS;
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {

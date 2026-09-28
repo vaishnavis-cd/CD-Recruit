@@ -12,6 +12,7 @@ import { AssessmentEngineRegistry } from "../assessment/assessment-engine-regist
 
 import { QueueProviderPort } from "../queue/queue-provider.port";
 import { RedisService } from "../common/redis/redis.service";
+import { SessionService } from "../session/session.service";
 
 @Injectable()
 export class CodingService implements AssessmentModuleEngine, OnModuleInit {
@@ -22,9 +23,10 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly judge0Service: Judge0Service,
     private readonly qaAutomationSandboxService: QaAutomationSandboxService,
-    private readonly queueProvider: QueueProviderPort,
-    private readonly redisService: RedisService,
+    @Optional() private readonly queueProvider?: QueueProviderPort,
+    @Optional() private readonly redisService?: RedisService,
     @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
+    @Optional() private readonly sessionService?: SessionService,
   ) {}
 
   onModuleInit() {
@@ -132,11 +134,15 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
       throw new BadRequestException(`Session is already ${session.status.toLowerCase()} and cannot accept new code runs.`);
     }
     if (session.status === SessionStatus.NOT_STARTED) {
-      const now = new Date();
-      await this.prisma.session.update({
-        where: { id: dto.sessionId },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
-      });
+      if (this.sessionService) {
+        await this.sessionService.beginSession(dto.sessionId);
+      } else {
+        const now = new Date();
+        await this.prisma.session.update({
+          where: { id: dto.sessionId },
+          data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
+        });
+      }
       session.status = SessionStatus.IN_PROGRESS;
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
@@ -171,20 +177,22 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
     });
 
     // 4. Pre-seed Redis read-cache for sub-millisecond polling
-    await this.redisService.set(
-      `execution:${execution.id}`,
-      JSON.stringify({
-        executionId: execution.id,
-        status: ExecutionStatus.PENDING,
-        passedTests: 0,
-        totalTests: isAutomation ? 1 : visibleTests.length,
-        executionTime: null,
-        memoryUsage: null,
-        stdout: "",
-        results: [],
-      }),
-      300,
-    );
+    if (this.redisService) {
+      await this.redisService.set(
+        `execution:${execution.id}`,
+        JSON.stringify({
+          executionId: execution.id,
+          status: ExecutionStatus.PENDING,
+          passedTests: 0,
+          totalTests: isAutomation ? 1 : visibleTests.length,
+          executionTime: null,
+          memoryUsage: null,
+          stdout: "",
+          results: [],
+        }),
+        300,
+      );
+    }
 
     // 5. Enqueue to Inbound Execution Queue
     if (isAutomation) {
@@ -209,11 +217,55 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
           },
         });
       });
-    } else {
+    } else if (this.queueProvider) {
       await this.queueProvider.enqueue("execution-inbound", "run", {
         executionId: execution.id,
         type: "run",
       });
+    } else {
+      // Synchronous fallback for test harnesses without Redis/BullMQ queue provider
+      try {
+        const results = await this.judge0Service.runTests(
+          code,
+          languageId,
+          dto.questionId,
+          visibleTests,
+        );
+        await this.prisma.codingExecution.update({
+          where: { id: execution.id },
+          data: {
+            status: results.status as any,
+            stdout: results.stdout,
+            stderr: results.stderr,
+            compileOutput: results.compileOutput || "",
+            executionTime: results.executionTime,
+            memoryUsage: results.memoryUsage,
+            passedTests: results.passedTests,
+            totalTests: results.totalTests,
+            completedAt: new Date(),
+          },
+        });
+        return {
+          executionId: execution.id,
+          status: results.status,
+          passedTests: results.passedTests,
+          totalTests: results.totalTests,
+          executionTime: results.executionTime,
+          memoryUsage: results.memoryUsage,
+          stdout: results.stdout,
+          results: results.results,
+        };
+      } catch (err: any) {
+        await this.prisma.codingExecution.update({
+          where: { id: execution.id },
+          data: {
+            status: ExecutionStatus.FAILED,
+            stderr: err?.message || "Execution error",
+            completedAt: new Date(),
+          },
+        });
+        throw err;
+      }
     }
 
     // 6. Return instant 200 OK PENDING acknowledgment (<25ms)
@@ -234,12 +286,14 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
    */
   async getExecution(id: string) {
     // 1. Check Redis read-cache first (sub-millisecond)
-    const cached = await this.redisService.get(`execution:${id}`);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        // Fallback to DB if JSON parse fails
+    if (this.redisService) {
+      const cached = await this.redisService.get(`execution:${id}`);
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch {
+          // Fallback to DB if JSON parse fails
+        }
       }
     }
 
@@ -263,7 +317,7 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
       results: [],
     };
 
-    if (execution.status !== ExecutionStatus.PENDING) {
+    if (this.redisService && execution.status !== ExecutionStatus.PENDING) {
       await this.redisService.set(`execution:${id}`, JSON.stringify(payload), 300);
     }
 
@@ -372,6 +426,14 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
     });
     if (!session) {
       throw new NotFoundException("Session not found");
+    }
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.CLOSED ||
+      session.status === SessionStatus.ABANDONED
+    ) {
+      throw new BadRequestException(`Session is already ${session.status.toLowerCase()} and cannot accept new submissions.`);
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
@@ -534,20 +596,22 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
     });
 
     // 3. Pre-seed Redis cache
-    await this.redisService.set(
-      `execution:${execution.id}`,
-      JSON.stringify({
-        executionId: execution.id,
-        status: ExecutionStatus.PENDING,
-        passedTests: 0,
-        totalTests: isAutomation ? 1 : allTests.length,
-        executionTime: null,
-        memoryUsage: null,
-        stdout: "",
-        results: [],
-      }),
-      300,
-    );
+    if (this.redisService) {
+      await this.redisService.set(
+        `execution:${execution.id}`,
+        JSON.stringify({
+          executionId: execution.id,
+          status: ExecutionStatus.PENDING,
+          passedTests: 0,
+          totalTests: isAutomation ? 1 : allTests.length,
+          executionTime: null,
+          memoryUsage: null,
+          stdout: "",
+          results: [],
+        }),
+        300,
+      );
+    }
 
     // 4. Enqueue to Inbound Execution Queue (or background QA for automation)
     if (isAutomation) {
@@ -556,11 +620,59 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
           this.logger.error(`Background automation grading error: ${err}`),
         );
       });
-    } else {
+    } else if (this.queueProvider) {
       await this.queueProvider.enqueue("execution-inbound", "submit", {
         executionId: execution.id,
         type: "submit",
       });
+    } else {
+      // Synchronous fallback for test harnesses without Redis/BullMQ queue provider
+      const results = await this.judge0Service.runTests(
+        code,
+        languageId,
+        dto.questionId,
+        allTests,
+      );
+      await this.prisma.codingExecution.update({
+        where: { id: execution.id },
+        data: {
+          status: results.status as any,
+          stdout: results.stdout,
+          stderr: results.stderr,
+          compileOutput: results.compileOutput || "",
+          executionTime: results.executionTime,
+          memoryUsage: results.memoryUsage,
+          passedTests: results.passedTests,
+          totalTests: results.totalTests,
+          completedAt: new Date(),
+        },
+      });
+      const maskedResults = (results.results || []).map((r: any, idx: number) => {
+        const tc = allTests[idx];
+        if (tc?.isHidden) {
+          return {
+            passed: r.passed,
+            status: r.status,
+            isHidden: true,
+            label: tc.label || `Hidden Test Case ${idx + 1}`,
+          };
+        }
+        return {
+          ...r,
+          isHidden: false,
+          label: tc?.label || `Test Case ${idx + 1}`,
+        };
+      });
+      return {
+        executionId: execution.id,
+        status: results.status,
+        passedTests: results.passedTests,
+        totalTests: results.totalTests,
+        executionTime: results.executionTime,
+        memoryUsage: results.memoryUsage,
+        stdout: results.stdout,
+        results: maskedResults,
+      };
     }
 
     // 5. Return instant submission acknowledgment with PENDING status for polling
