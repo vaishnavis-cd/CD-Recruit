@@ -4,12 +4,14 @@
 // Table names mapped via @@map to snake_case as well.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "billing", "platform"]
 }
 
 // ---------- Enums ----------
@@ -23,6 +25,8 @@ enum ModuleType {
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
+
+  @@schema("public")
 }
 
 enum SessionStatus {
@@ -33,11 +37,15 @@ enum SessionStatus {
   SUBMITTED
   CLOSED
   ABANDONED
+
+  @@schema("public")
 }
 
 enum CvMode {
   FULL
   REDUCED
+
+  @@schema("public")
 }
 
 enum StaffRole {
@@ -46,16 +54,22 @@ enum StaffRole {
   HR_ASSOCIATE
   REVIEWER
   RECRUITER
+
+  @@schema("public")
 }
 
 enum DecisionType {
   ADVANCE
   REJECT
+
+  @@schema("public")
 }
 
 enum OriginChannel {
   DIRECT
   PARTNER_API
+
+  @@schema("public")
 }
 
 enum InviteStatus {
@@ -63,6 +77,8 @@ enum InviteStatus {
   REDEEMED
   EXPIRED
   REVOKED
+
+  @@schema("public")
 }
 
 enum DriveStatus {
@@ -70,17 +86,23 @@ enum DriveStatus {
   SCHEDULED
   ACTIVE
   CLOSED
+
+  @@schema("public")
 }
 
 enum QuestionStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+
+  @@schema("public")
 }
 
 enum SubmissionType {
   RUN
   SUBMIT
+
+  @@schema("public")
 }
 
 enum ExecutionStatus {
@@ -92,6 +114,8 @@ enum ExecutionStatus {
   TIMEOUT
   MEMORY_LIMIT
   FAILED
+
+  @@schema("public")
 }
 
 enum SqlExecutionStatus {
@@ -101,6 +125,8 @@ enum SqlExecutionStatus {
   QUERY_ERROR
   TIMEOUT
   FAILED
+
+  @@schema("public")
 }
 
 enum ConsentType {
@@ -108,6 +134,8 @@ enum ConsentType {
   BIOMETRIC
   SELFIE
   AUDIO
+
+  @@schema("public")
 }
 
 enum Department {
@@ -119,16 +147,22 @@ enum Department {
   ITOPS
   SECOPS
   SRE
+
+  @@schema("public")
 }
 
 enum CandidateCategory {
   FRESHER
   EXPERIENCED
+
+  @@schema("public")
 }
 
 enum ExperienceLevel {
   FRESHER
   EXPERIENCED
+
+  @@schema("public")
 }
 
 model RoleTemplate {
@@ -150,6 +184,7 @@ model RoleTemplate {
 
   @@unique([department, category, experienceTier, version])
   @@map("role_template")
+  @@schema("public")
 }
 
 model Drive {
@@ -177,6 +212,7 @@ model Drive {
   questions      DriveQuestion[]
 
   @@map("drive")
+  @@schema("public")
 }
 
 model DriveQuestion {
@@ -192,6 +228,7 @@ model DriveQuestion {
 
   @@unique([driveId, questionId])
   @@map("drive_question")
+  @@schema("public")
 }
 
 model RoleTemplateQuestion {
@@ -208,6 +245,7 @@ model RoleTemplateQuestion {
 
   @@unique([roleTemplateId, questionId])
   @@map("role_template_question")
+  @@schema("public")
 }
 
 model Question {
@@ -230,6 +268,7 @@ model Question {
   sqlExecutions         SQLExecution[]
 
   @@map("question")
+  @@schema("public")
 }
 
 model Organization {
@@ -244,6 +283,7 @@ model Organization {
   sessions   Session[]
 
   @@map("organization")
+  @@schema("public")
 }
 
 model Candidate {
@@ -268,6 +308,7 @@ model Candidate {
   consentRecords ConsentRecord[]
 
   @@map("candidate")
+  @@schema("public")
 }
 
 model ConsentRecord {
@@ -281,6 +322,7 @@ model ConsentRecord {
   candidate Candidate @relation(fields: [candidateId], references: [id])
 
   @@map("consent_record")
+  @@schema("public")
 }
 
 model Session {
@@ -338,6 +380,7 @@ model Session {
   @@index([deadlineAt])
   @@index([lastHeartbeatAt])
   @@map("session")
+  @@schema("public")
 }
 
 model ModuleResponse {
@@ -359,6 +402,7 @@ model ModuleResponse {
   @@index([sessionId])
   @@index([questionId])
   @@map("module_response")
+  @@schema("public")
 }
 
 model EventLog {
@@ -377,6 +421,7 @@ model EventLog {
   @@index([sessionId])
   @@index([eventType])
   @@map("event_log")
+  @@schema("public")
 }
 
 model IntegrityFlag {
@@ -398,6 +443,7 @@ model IntegrityFlag {
   @@index([category])
   @@index([severity])
   @@map("integrity_flag")
+  @@schema("public")
 }
 
 model EvidenceClip {
@@ -409,6 +455,7 @@ model EvidenceClip {
   flag IntegrityFlag @relation(fields: [flagId], references: [id])
 
   @@map("evidence_clip")
+  @@schema("public")
 }
 
 model Score {
@@ -432,6 +479,7 @@ model Score {
   @@index([compositeScore])
   @@index([aiConfidence])
   @@map("score")
+  @@schema("public")
 }
 
 model Staff {
@@ -453,6 +501,7 @@ model Staff {
   auditLogs         AuditLog[]
 
   @@map("staff")
+  @@schema("public")
 }
 
 model ReviewerDecision {
@@ -468,6 +517,7 @@ model ReviewerDecision {
   staff   Staff   @relation(fields: [staffId], references: [id])
 
   @@map("reviewer_decision")
+  @@schema("public")
 }
 
 model Invite {
@@ -503,6 +553,7 @@ model Invite {
   @@index([candidateEmail])
   @@index([status])
   @@map("invite")
+  @@schema("public")
 }
 
 model AuditLog {
@@ -517,6 +568,7 @@ model AuditLog {
   staff Staff @relation(fields: [staffId], references: [id])
 
   @@map("audit_log")
+  @@schema("public")
 }
 
 model CodingExecution {
@@ -547,6 +599,7 @@ model CodingExecution {
   @@index([status])
   @@index([createdAt])
   @@map("coding_execution")
+  @@schema("public")
 }
 
 model SQLExecution {
@@ -566,6 +619,7 @@ model SQLExecution {
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("sql_execution")
+  @@schema("public")
 }
 
 enum ProctoringEventType {
@@ -583,12 +637,16 @@ enum ProctoringEventType {
   TAB_SWITCH
   PASTE
   FULLSCREEN_EXIT
+
+  @@schema("public")
 }
 
 enum ProctoringUploadStatus {
   PENDING
   UPLOADED
   FAILED
+
+  @@schema("public")
 }
 
 model ProctoringEvent {
@@ -606,6 +664,7 @@ model ProctoringEvent {
 
   @@index([sessionId])
   @@map("proctoring_event")
+  @@schema("public")
 }
 
 model Partner {
@@ -619,6 +678,7 @@ model Partner {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("partner")
+  @@schema("public")
 }
 
 model ModuleSetting {
@@ -629,6 +689,7 @@ model ModuleSetting {
 
   @@unique([department, moduleType])
   @@map("module_setting")
+  @@schema("public")
 }
 
 model IdentityCapture {
@@ -650,4 +711,5 @@ model IdentityCapture {
   @@index([sessionId])
   @@index([status])
   @@map("identity_capture")
+  @@schema("public")
 }
