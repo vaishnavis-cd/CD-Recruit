@@ -4,13 +4,7 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   Shield,
   ArrowRight,
-  Link2,
   Check,
-  LayoutGrid,
-  Database,
-  Code2,
-  Sparkles,
-  Cpu,
   Briefcase,
   Video,
   User,
@@ -20,6 +14,12 @@ import ribbon3dRight from '../assets/3D Image - 40 right.svg'
 import takehomes3d from '../assets/icon-takehomes-3d.png'
 import liveinterviews3d from '../assets/icon-liveinterviews-3d.png'
 import resumescreens3d from '../assets/icon-resumescreens-3d.png'
+import iconGrid from '../assets/IconGrid.svg'
+import iconDatabase from '../assets/IconDatabase.svg'
+import iconCode from '../assets/IconCode.svg'
+import iconBrain from '../assets/IconBrain.svg'
+import iconCpu from '../assets/IconCpu.svg'
+import { CountUp } from '../components/common/CountUp'
 
 // ─── Token Extraction Helper ──────────────────────────────────────────────────
 function extractInviteId(raw: string): string | null {
@@ -73,16 +73,8 @@ function FloatingRibbonLeft() {
     <motion.div
       aria-hidden="true"
       initial={{ opacity: 0 }}
-      animate={{
-        opacity: 1,
-        y: [0, -10, 0],
-        rotate: [-1, 1.5, -1],
-      }}
-      transition={{
-        opacity: { duration: 0.6 },
-        y: { duration: 6, repeat: Infinity, ease: 'easeInOut' },
-        rotate: { duration: 8, repeat: Infinity, ease: 'easeInOut' },
-      }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
       className="absolute left-0 top-[170px] sm:top-[190px] md:top-[200px] w-[160px] sm:w-[190px] md:w-[220px] lg:w-[240px] pointer-events-none select-none z-0 filter drop-shadow-[0_20px_35px_rgba(147,197,253,0.3)]"
     >
       <img
@@ -99,16 +91,8 @@ function FloatingRibbonRight() {
     <motion.div
       aria-hidden="true"
       initial={{ opacity: 0 }}
-      animate={{
-        opacity: 1,
-        y: [0, 10, 0],
-        rotate: [1, -1.5, 1],
-      }}
-      transition={{
-        opacity: { duration: 0.6 },
-        y: { duration: 7, repeat: Infinity, ease: 'easeInOut' },
-        rotate: { duration: 9, repeat: Infinity, ease: 'easeInOut' },
-      }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
       className="absolute right-0 top-[430px] sm:top-[450px] md:top-[470px] w-[180px] sm:w-[210px] md:w-[240px] lg:w-[260px] pointer-events-none select-none z-0 filter drop-shadow-[0_20px_35px_rgba(244,114,182,0.3)]"
     >
       <img
@@ -120,69 +104,7 @@ function FloatingRibbonRight() {
   )
 }
 
-// ─── 3D Card Isometric Graphics ──────────────────────────────────────────────
-function TakeHomesIllustration() {
-  return (
-    <svg viewBox="0 0 200 130" fill="none" className="w-full h-28 mx-auto mt-2">
-      <defs>
-        <linearGradient id="thGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#2563EB" stopOpacity="0.9" />
-        </linearGradient>
-        <linearGradient id="thGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.8" />
-        </linearGradient>
-      </defs>
-      <path d="M60 40 L130 15 L160 70 L90 95 Z" fill="url(#thGrad1)" opacity="0.6" />
-      <path d="M50 50 L120 25 L150 80 L80 105 Z" fill="url(#thGrad2)" opacity="0.85" />
-      <path d="M40 60 L110 35 L140 90 L70 115 Z" fill="#FFFFFF" opacity="0.9" />
-      <path d="M55 55 L95 40 M55 67 L105 50 M55 79 L85 68" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" opacity="0.8" />
-    </svg>
-  )
-}
 
-function LiveInterviewsIllustration() {
-  return (
-    <svg viewBox="0 0 200 130" fill="none" className="w-full h-28 mx-auto mt-2">
-      <defs>
-        <linearGradient id="camGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#93C5FD" />
-          <stop offset="100%" stopColor="#1D4ED8" />
-        </linearGradient>
-        <linearGradient id="lensGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#DBEAFE" />
-          <stop offset="100%" stopColor="#1E40AF" />
-        </linearGradient>
-      </defs>
-      <rect x="40" y="45" width="75" height="55" rx="14" fill="url(#camGrad1)" />
-      <rect x="44" y="49" width="67" height="47" rx="10" fill="#2563EB" opacity="0.9" />
-      <circle cx="77" cy="72" r="18" fill="url(#lensGrad)" />
-      <circle cx="77" cy="72" r="11" fill="#0F172A" />
-      <circle cx="73" cy="68" r="4" fill="#60A5FA" opacity="0.9" />
-      <path d="M115 58 L160 38 L160 106 L115 86 Z" fill="url(#camGrad1)" opacity="0.85" />
-      <path d="M120 63 L152 48 L152 96 L120 81 Z" fill="#93C5FD" opacity="0.5" />
-    </svg>
-  )
-}
-
-function ResumeScreensIllustration() {
-  return (
-    <svg viewBox="0 0 200 130" fill="none" className="w-full h-28 mx-auto mt-2">
-      <defs>
-        <linearGradient id="megaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#93C5FD" />
-          <stop offset="100%" stopColor="#1D4ED8" />
-        </linearGradient>
-      </defs>
-      <path d="M60 55 L130 30 L130 100 L60 75 Z" fill="url(#megaGrad)" />
-      <ellipse cx="130" cy="65" rx="8" ry="35" fill="#DBEAFE" />
-      <ellipse cx="60" cy="65" rx="5" ry="10" fill="#1E40AF" />
-      <rect x="40" y="60" width="22" height="10" rx="3" fill="#60A5FA" />
-      <path d="M50 70 L50 98 L62 98 L62 70 Z" fill="#1D4ED8" />
-    </svg>
-  )
-}
 
 // ─── 1. Header / Navbar (Figma Spec Node 7:435) ────────────────────────────────
 function Header() {
@@ -269,19 +191,17 @@ function InviteWidget() {
     <div id="start" className="w-full">
       {/* Separated Live Input Box & Submit Button — exact Figma specs (25:177 → 560×97) */}
       <div className="flex items-center gap-2.5 w-full">
-        {/* Input Box — Figma id 25:178: 399×49, bg #FFFFFF1A, transparent w/ black border */}
+        {/* Input Box — Figma id 25:178: 399×49, bg #ff00001a, transparent w/ black border */}
         <div
           className="flex items-center gap-2.5 flex-1 min-w-0 bg-transparent border border-[#0F0F1A] rounded-[10px] px-4 py-[14px] transition-all focus-within:border-[#0F0F1A]"
         >
-          {/* IconLink — Figma id 25:180: 16×16, two 8×9 chain vectors */}
-          <svg
-            width="16" height="16" viewBox="0 0 16 16" fill="none"
-            className="flex-shrink-0 opacity-50"
+          {/* IconLink — from candidate-web-icons */}
+          <img
+            src="/assets/candidate-web-icons/link.svg"
+            alt=""
+            className="w-4 h-4 flex-shrink-0 opacity-50 select-none pointer-events-none"
             aria-hidden="true"
-          >
-            <path d="M6.667 8.667a3.333 3.333 0 005 .04l2-2a3.333 3.333 0 00-4.714-4.714l-1.147 1.14" stroke="#0F0F1A" strokeWidth="1.333" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M9.333 7.333a3.333 3.333 0 00-5-.04l-2 2a3.333 3.333 0 004.714 4.714l1.14-1.147" stroke="#0F0F1A" strokeWidth="1.333" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          />
           <input
             ref={inputRef}
             type="text"
@@ -340,9 +260,9 @@ function InviteWidget() {
 // ─── 3. Dark Workspace Preview Mockup ─────────────────────────────────────────
 function BrowserMockup() {
   return (
-    <Reveal delay={0.35} className="mt-14 max-w-[960px] mx-auto">
+    <Reveal delay={0.25} className="mt-12 max-w-[960px] mx-auto">
       <div
-        className="rounded-2xl border border-[#1E293B]/80 overflow-hidden text-left bg-[#12131A] shadow-2xl landing-browser-shadow"
+        className="rounded-2xl border border-[#1E293B]/80 overflow-hidden text-left bg-[#12131A] shadow-2xl shadow-[0_25px_60px_-15px_rgba(15,15,26,0.6)]"
       >
         {/* Window Chrome Header Bar */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#1E293B] bg-[#0E0F15]">
@@ -352,7 +272,7 @@ function BrowserMockup() {
             <span className="w-3 h-3 rounded-full bg-[#10B981]" />
           </div>
           <div className="text-[12px] font-mono text-[#64748B] bg-[#181924] border border-[#1E293B] rounded-md py-1 px-4 tracking-wide">
-            assess.proctora.com/workspace/●●●●●●
+            assess.proctora.com/workspace/S2R3XQ29
           </div>
           <div className="w-12" />
         </div>
@@ -364,7 +284,7 @@ function BrowserMockup() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0 landing-avatar-gradient"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0 bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8]"
                 >
                   P
                 </div>
@@ -376,7 +296,7 @@ function BrowserMockup() {
 
               {/* Message Box */}
               <div
-                className="rounded-xl p-4 border border-[#2563EB]/30 landing-msg-bubble"
+                className="rounded-xl p-4 border border-[#2563EB]/30 bg-[#181924]"
               >
                 <p className="text-[13px] text-[#E2E8F0] leading-relaxed italic m-0">
                   "Good catch — I'll make sure to add payload validation before this ships to prod."
@@ -428,6 +348,8 @@ function BrowserMockup() {
     </Reveal>
   )
 }
+
+
 
 // ─── 4. Problem & The Full Picture / Security Section ─────────────────────────
 function ProblemSection() {
@@ -566,53 +488,27 @@ const CORE_MODULES = [
   {
     id: 'mcq',
     label: 'MCQ',
-    icon: (
-      <svg width="34" height="34" viewBox="0 0 36 36" fill="none" className="text-[#0F0F1A]">
-        <rect x="2" y="2" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="21" y="2" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="2" y="21" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="2.5" />
-        <rect x="21" y="21" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="2.5" />
-      </svg>
-    ),
+    icon: <img src={iconGrid} alt="MCQ" className="w-9 h-9 object-contain select-none" />,
   },
   {
     id: 'sql',
     label: 'SQL',
-    icon: (
-      <svg width="34" height="36" viewBox="0 0 36 38" fill="none" className="text-[#0F0F1A]">
-        <ellipse cx="18" cy="6.5" rx="15" ry="5" stroke="currentColor" strokeWidth="2.5" />
-        <path d="M3 6.5V17.5C3 20.5 9.7 23 18 23C26.3 23 33 20.5 33 17.5V6.5" stroke="currentColor" strokeWidth="2.5" />
-        <path d="M3 17.5V28.5C3 31.5 9.7 34 18 34C26.3 34 33 31.5 33 28.5V17.5" stroke="currentColor" strokeWidth="2.5" />
-      </svg>
-    ),
+    icon: <img src={iconDatabase} alt="SQL" className="w-9 h-9 object-contain select-none" />,
   },
   {
     id: 'coding',
     label: 'Coding\n& DSA',
-    icon: (
-      <svg width="38" height="34" viewBox="0 0 40 36" fill="none" className="text-[#0F0F1A]">
-        <path d="M11 9L2 16.5L11 24M29 9L38 16.5L29 24M22.5 4.5L17.5 28.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    icon: <img src={iconCode} alt="Coding & DSA" className="w-9 h-9 object-contain select-none" />,
   },
   {
     id: 'ai',
     label: 'AI\nPrompting',
-    icon: (
-      <svg width="34" height="36" viewBox="0 0 36 38" fill="none" className="text-[#0F0F1A]">
-        <path d="M18 2C15.35 2 12.8 3.05 10.93 4.93C9.05 6.8 8 9.35 8 12V13.25C5.9 13.55 3.98 14.6 2.6 16.2C1.23 17.8 0.48 19.86 0.5 22C0.5 24.32 1.42 26.55 3.06 28.19C4.7 29.83 6.93 30.75 9.25 30.75H18H26.75C29.07 30.75 31.3 29.83 32.94 28.19C34.58 26.55 35.5 24.32 35.5 22C35.52 19.88 34.77 17.82 33.39 16.22C32.01 14.61 30.1 13.55 28 13.25V12C28 9.35 26.95 6.8 25.07 4.93C23.2 3.05 20.65 2 18 2ZM18 2V36" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <img src={iconBrain} alt="AI Prompting" className="w-9 h-9 object-contain select-none" />,
   },
   {
     id: 'sim',
     label: 'Contextual\nSimulation',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 38 38" fill="none" className="text-[#0F0F1A]">
-        <rect x="8" y="8" width="22" height="22" rx="3" stroke="currentColor" strokeWidth="2.5" />
-        <path d="M14 8V3M24 8V3M14 35V30M24 35V30M8 14H3M8 24H3M35 14H30M35 24H30" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <img src={iconCpu} alt="Contextual Simulation" className="w-9 h-9 object-contain select-none" />,
   },
 ]
 
@@ -727,29 +623,38 @@ function SayDoSection() {
             <div className="rounded-3xl p-8 bg-white border border-[#E5E7EB] shadow-lg">
               {/* Score Header */}
               <div className="mb-6">
-                <div className="text-6xl sm:text-7xl font-extrabold text-[#2E5DE0] tracking-tight leading-none mb-1">
-                  94%
+                <div className="text-6xl sm:text-7xl font-extrabold text-[#2E5DE0] tracking-tight leading-none mb-1 flex items-baseline">
+                  <CountUp to={94} duration={2} delay={0.4} className="inline-block" />
+                  <span>%</span>
                 </div>
                 <div className="text-[12px] font-bold uppercase tracking-wider text-[#6B6B88]">
                   SAY-DO SYNC SCORE
                 </div>
               </div>
 
-              {/* Progress Bar Tracker */}
+              {/* Progress Bar Tracker with Left-to-Right Animation */}
               <div className="pb-6 border-b border-[#F1F5F9] mb-6">
                 <div className="flex justify-between text-[13px] font-medium mb-2.5">
                   <span className="text-[#6B6B88]">Responses Flagged</span>
                   <span className="text-[#EF4444] font-semibold">1 of 14</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-[#F0F1F7] overflow-hidden">
-                  <div className="h-full rounded-full bg-[#2E5DE0] w-[94%]" />
+                  <motion.div
+                    initial={{ width: '0%' }}
+                    whileInView={{ width: '94%' }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+                    className="h-full rounded-full bg-[#2E5DE0]"
+                  />
                 </div>
               </div>
 
               {/* 4-Box Stat Grid (Figma Spec #EFF3FF) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-2xl bg-[#EFF3FF] border border-[#2E5DE0]/10">
-                  <div className="text-[22px] font-extrabold text-[#0F0F1A] leading-none mb-1">14</div>
+                  <div className="text-[22px] font-extrabold text-[#0F0F1A] leading-none mb-1">
+                    <CountUp to={14} duration={1.6} delay={0.3} />
+                  </div>
                   <div className="text-[12px] font-medium text-[#6B6B88]">Code Reviewed</div>
                 </div>
 
@@ -759,7 +664,9 @@ function SayDoSection() {
                 </div>
 
                 <div className="p-4 rounded-2xl bg-[#EFF3FF] border border-[#2E5DE0]/10">
-                  <div className="text-[22px] font-extrabold text-[#0F0F1A] leading-none mb-1">94%</div>
+                  <div className="text-[22px] font-extrabold text-[#0F0F1A] leading-none mb-1">
+                    <CountUp to={94} duration={2} delay={0.3} />%
+                  </div>
                   <div className="text-[12px] font-medium text-[#6B6B88]">Sync Accuracy</div>
                 </div>
 
@@ -776,25 +683,48 @@ function SayDoSection() {
   )
 }
 
-// ─── 7. Wide Call-To-Action Banner (Crisp Vector SVG from Figma) ───────────────
+// ─── 7. Wide Call-To-Action Banner (Coded Responsive UI) ─────────────────────
 function CtaBanner() {
   return (
-    <section className="py-20 bg-[#FFFFFF]">
+    <section className="py-16 sm:py-24 bg-[#FFFFFF]">
       <div className="max-w-[1470px] mx-auto px-4 sm:px-6">
         <Reveal>
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl group border border-[#2E5DE0]/20 bg-[#5282FF]">
-            {/* Vector SVG Exported directly from Figma */}
-            <img
-              src="/cta_banner.svg"
-              alt="See what your current process is missing"
-              className="w-full h-auto block object-contain"
-            />
-            {/* Clickable Overlay Link over Request a Demo Button */}
-            <a
-              href="mailto:hello@proctora.com?subject=Demo%20request"
-              aria-label="Request a demo"
-              className="absolute left-[3.5%] bottom-[16%] w-[22%] h-[20%] min-w-[140px] max-w-[220px] rounded-full cursor-pointer hover:bg-white/10 active:bg-white/20 transition-all"
-            />
+          <div className="relative rounded-[28px] sm:rounded-3xl overflow-hidden shadow-2xl border border-[#2E5DE0]/30 bg-[#5282FF] text-white">
+            {/* Ambient Background Decorative Effects */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/[0.08] blur-2xl" />
+              <div className="absolute -bottom-28 left-1/4 w-[500px] h-[500px] rounded-full bg-[#3B6FF6] blur-3xl opacity-60" />
+              <div className="absolute top-1/2 right-1/4 w-80 h-80 rounded-full bg-white/[0.06] blur-xl" />
+            </div>
+
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 items-center min-h-[360px] sm:min-h-[394px]">
+              {/* Left Column: Heading, Subtitle & Interactive CTA Button */}
+              <div className="lg:col-span-6 xl:col-span-6 px-6 py-10 sm:px-12 sm:py-14 lg:py-16 lg:pl-14 lg:pr-6 flex flex-col justify-center items-start">
+                <h2 className="text-[28px] sm:text-[38px] lg:text-[44px] xl:text-[48px] font-extrabold text-white leading-[1.12] tracking-tight max-w-[560px]">
+                  See what your current process is missing.
+                </h2>
+                <p className="text-[15px] sm:text-[17px] text-white/90 leading-relaxed font-normal mt-4 sm:mt-5 mb-8 sm:mb-9 max-w-[480px]">
+                  Walk through a real session and see the Say-Do Score applied to an actual candidate response.
+                </p>
+                <a
+                  href="mailto:hello@proctora.com?subject=Demo%20request"
+                  aria-label="Request a demo"
+                  className="inline-flex items-center justify-center px-8 py-3.5 bg-white text-[#0F0F1A] font-bold text-[15px] rounded-full shadow-lg hover:bg-[#F4F7FF] hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 no-underline"
+                >
+                  Request a demo
+                </a>
+              </div>
+
+              {/* Right Column: Visual Artwork of Layered Perspective Cards */}
+              <div className="lg:col-span-6 xl:col-span-6 relative h-[260px] sm:h-[320px] lg:h-full min-h-[320px] lg:min-h-[394px] w-full overflow-hidden flex items-center justify-end">
+                <img
+                  src="/cta_cards.svg"
+                  alt="Proctora Dashboard Overview"
+                  className="w-full h-full object-cover lg:object-contain object-left lg:object-right select-none pointer-events-none"
+                  loading="lazy"
+                />
+              </div>
+            </div>
           </div>
         </Reveal>
       </div>
@@ -916,21 +846,28 @@ export function LandingPage() {
         <FloatingRibbonLeft />
         <FloatingRibbonRight />
 
-        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-[1240px] mx-auto px-4 sm:px-6 relative z-10">
           <Reveal delay={0.1}>
-            <div className="relative mx-auto max-w-[1240px] group">
-              {/* Figma Container (4).svg Vector Image */}
-              <img
-                src="/hero_container.svg"
-                alt="They can say the right thing. But do they actually build it?"
-                className="w-full h-auto block object-contain select-none"
-              />
+            <div className="max-w-[1020px] mx-auto text-center">
+              {/* Main Headline */}
+              <h1 className="text-[36px] sm:text-[48px] md:text-[58px] lg:text-[66px] font-extrabold tracking-tight leading-[1.08] mb-5">
+                <span className="text-[#2E5DE0] block">They can say the right thing.</span>
+                <span className="text-[#0F0F1A] block mt-1">But do they actually build it?</span>
+              </h1>
 
-              {/* Positioned Live Input Box & Submit Button — exact SVG position y=408/867 = 47% */}
-              <div className="absolute left-1/2 -translate-x-1/2 top-[47%] w-[90%] max-w-[560px] z-20">
+              {/* Sub-headline Paragraph */}
+              <p className="text-[15px] sm:text-[17px] md:text-[19px] text-[#4B5563] leading-relaxed max-w-[760px] mx-auto mb-9">
+                Proctora runs candidates through real code, real tickets, and real conversations to see if their code matches their promises. The signal resume screens and live interviews miss.
+              </p>
+
+              {/* Live Assessment Invite Input Widget */}
+              <div className="max-w-[560px] mx-auto mb-6">
                 <InviteWidget />
               </div>
             </div>
+
+            {/* Dark Workspace Code & Conversation Split Mockup */}
+            <BrowserMockup />
           </Reveal>
         </div>
       </section>
