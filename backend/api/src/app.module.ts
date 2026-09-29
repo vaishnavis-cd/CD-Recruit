@@ -31,6 +31,7 @@ import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 import { FaceVerifyModule } from "./integrations/face-verify/face-verify.module";
 import { FaceVerifyOnnxModule } from "./integrations/face-verify-onnx/face-verify-onnx.module";
 import { AssessmentModule } from "./assessment/assessment.module";
+import { PlatformAuthModule } from "./platform/auth/platform-auth.module";
 
 import { APP_GUARD } from "@nestjs/core";
 import { CandidateThrottlerGuard } from "./common/guards/candidate-throttler.guard";
@@ -106,6 +107,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     TestScenariosModule,
     FaceVerifyOnnxModule,
     AssessmentModule,
+    PlatformAuthModule,
   ],
   providers: [
     {
