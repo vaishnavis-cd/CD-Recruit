@@ -34,6 +34,7 @@ import { AssessmentModule } from "./assessment/assessment.module";
 import { PlatformAuthModule } from "./platform/auth/platform-auth.module";
 import { PlatformAuditModule } from "./platform/audit/platform-audit.module";
 import { LedgerModule } from "./billing/ledger/ledger.module";
+import { BillingAccountModule } from "./billing/account/billing-account.module";
 
 import { APP_GUARD } from "@nestjs/core";
 import { CandidateThrottlerGuard } from "./common/guards/candidate-throttler.guard";
@@ -112,6 +113,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     PlatformAuthModule,
     PlatformAuditModule,
     LedgerModule,
+    BillingAccountModule,
   ],
   providers: [
     {
