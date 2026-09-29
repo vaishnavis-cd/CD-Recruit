@@ -31,6 +31,7 @@ import { TestScenariosModule } from "./test-scenarios/test-scenarios.module";
 import { FaceVerifyModule } from "./integrations/face-verify/face-verify.module";
 import { FaceVerifyOnnxModule } from "./integrations/face-verify-onnx/face-verify-onnx.module";
 import { AssessmentModule } from "./assessment/assessment.module";
+import { PlatformModule } from "./modules/platform/platform.module";
 import { PlatformAuthModule } from "./platform/auth/platform-auth.module";
 import { PlatformAuditModule } from "./platform/audit/platform-audit.module";
 
@@ -108,6 +109,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     TestScenariosModule,
     FaceVerifyOnnxModule,
     AssessmentModule,
+    PlatformModule,
     PlatformAuthModule,
     PlatformAuditModule,
   ],
