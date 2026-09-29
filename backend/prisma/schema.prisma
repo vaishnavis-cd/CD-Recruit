@@ -276,11 +276,11 @@ model Organization {
   id                       String   @id @default(uuid())
   name                     String
   slug                     String   @unique
-  billingAccountId         String   @unique @map("billing_account_id")
+  billingAccountId         String?  @unique @map("billing_account_id")
   appealWindowDaysOverride Int?     @map("appeal_window_days_override")
   createdAt                DateTime @default(now()) @map("created_at")
 
-  billingAccount BillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  billingAccount BillingAccount? @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
   candidates     Candidate[]
   drives         Drive[]
   staff          Staff[]
