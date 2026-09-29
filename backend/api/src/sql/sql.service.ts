@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit, Inject, forwardRef } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SqlSandboxService } from "./sql-sandbox.service";
 import { ResultComparatorService } from "./result-comparator.service";
@@ -21,7 +21,7 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
     private readonly comparatorService: ResultComparatorService,
     private readonly validatorService: SqlValidatorService,
     @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
-    @Optional() private readonly sessionService?: SessionService,
+    @Optional() @Inject(forwardRef(() => SessionService)) private readonly sessionService?: SessionService,
   ) {}
 
   onModuleInit() {
