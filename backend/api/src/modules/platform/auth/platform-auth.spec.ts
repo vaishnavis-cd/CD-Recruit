@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { UnauthorizedException, ForbiddenException, ExecutionContext } from '@nestjs/common';
-import { PlatformStaffRole, PlatformStaffStatus } from '@prisma/client';
+import { PlatformStaffRole } from '@cd-recruit/shared-types';
 
 import { PlatformAuthService } from './platform-auth.service';
 import { PlatformAuthGuard } from './guards/platform-auth.guard';
@@ -62,9 +62,11 @@ describe('Phase 1: Platform Foundation & Auth Specification Tests', () => {
     const mockStaff = {
       id: 'staff-uuid-1',
       email: 'owner@proctora.local',
+      name: 'Ragul Arumugam',
       fullName: 'Ragul Arumugam',
-      role: PlatformStaffRole.OWNER,
-      status: PlatformStaffStatus.ACTIVE,
+      role: 'OWNER',
+      isActive: true,
+      status: 'ACTIVE',
       passwordHash: PlatformAuthService.hashPassword('SecretPassword123'),
       totpSecret: TotpUtil.generateSecret(),
       mfaEnabled: false,
@@ -194,9 +196,11 @@ describe('Phase 1: Platform Foundation & Auth Specification Tests', () => {
       prisma.platformStaff.findUnique.mockResolvedValue({
         id: 'staff-1',
         email: 'support@proctora.local',
+        name: 'Support Staff',
         fullName: 'Support Staff',
-        role: PlatformStaffRole.SUPPORT,
-        status: PlatformStaffStatus.ACTIVE,
+        role: 'SUPPORT',
+        isActive: true,
+        status: 'ACTIVE',
         mfaEnabled: false,
       });
 

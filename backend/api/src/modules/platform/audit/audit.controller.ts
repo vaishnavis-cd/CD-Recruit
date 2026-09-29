@@ -4,7 +4,7 @@ import { QueryAuditLogDto } from './dto/record-audit-event.dto';
 import { PlatformAuthGuard } from '../auth/guards/platform-auth.guard';
 import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
 import { Roles } from '../auth/decorators/platform-roles.decorator';
-import { PlatformStaffRole } from '@prisma/client';
+import { PlatformStaffRole } from '@cd-recruit/shared-types';
 
 @Controller('api/v1/platform/audit')
 @UseGuards(PlatformAuthGuard, PlatformRolesGuard)

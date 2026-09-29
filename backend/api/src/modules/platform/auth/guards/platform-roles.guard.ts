@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PlatformStaffRole } from '@prisma/client';
+import { PlatformStaffRole } from '@cd-recruit/shared-types';
 import { PLATFORM_ROLES_KEY } from '../decorators/platform-roles.decorator';
 import { AuthenticatedPlatformStaff } from '../interfaces/platform-auth-payload.interface';
 

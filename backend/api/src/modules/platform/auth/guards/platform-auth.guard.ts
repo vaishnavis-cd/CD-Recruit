@@ -64,7 +64,7 @@ export class PlatformAuthGuard implements CanActivate {
       where: { id: payload.sub },
     });
 
-    if (!staff || staff.status !== 'ACTIVE') {
+    if (!staff || (staff as any).isActive === false || (staff as any).status === 'DISABLED') {
       throw new UnauthorizedException({
         statusCode: 401,
         errorCode: 'STAFF_ACCOUNT_DISABLED',
@@ -89,8 +89,8 @@ export class PlatformAuthGuard implements CanActivate {
     const authUser: AuthenticatedPlatformStaff = {
       id: staff.id,
       email: staff.email,
-      fullName: staff.fullName,
-      role: staff.role,
+      fullName: (staff as any).name || (staff as any).fullName || 'Platform Staff',
+      role: staff.role as any,
       mfaEnabled: staff.mfaEnabled,
       mfaVerified: payload.mfaVerified || false,
     };

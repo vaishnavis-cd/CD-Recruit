@@ -71,7 +71,7 @@ export class PlatformAuthService {
       where: { email: dto.email.toLowerCase().trim() },
     });
 
-    if (!staff || staff.status !== 'ACTIVE') {
+    if (!staff || (staff as any).isActive === false || (staff as any).status === 'DISABLED' || !staff.passwordHash) {
       this.logger.warn(`Failed login attempt for email: ${dto.email} from IP: ${clientIp}`);
       throw new UnauthorizedException({
         statusCode: 401,
@@ -113,17 +113,11 @@ export class PlatformAuthService {
         staff: {
           id: staff.id,
           email: staff.email,
-          fullName: staff.fullName,
-          role: staff.role,
+          fullName: (staff as any).name || (staff as any).fullName || 'Platform Staff',
+          role: staff.role as any,
         },
       };
     }
-
-    // Direct access if MFA is not yet enforced on this account
-    await this.prisma.platformStaff.update({
-      where: { id: staff.id },
-      data: { lastLoginAt: new Date() },
-    });
 
     const accessToken = this.generateAccessToken(staff, false);
 
@@ -134,8 +128,8 @@ export class PlatformAuthService {
       staff: {
         id: staff.id,
         email: staff.email,
-        fullName: staff.fullName,
-        role: staff.role,
+        fullName: (staff as any).name || (staff as any).fullName || 'Platform Staff',
+        role: staff.role as any,
       },
     };
   }
@@ -170,7 +164,8 @@ export class PlatformAuthService {
       where: { id: payload.sub },
     });
 
-    if (!staff || staff.status !== 'ACTIVE' || !staff.totpSecret) {
+    const totpSecret = staff.totpSecretEncrypted;
+    if (!staff || !staff.isActive || !totpSecret) {
       throw new UnauthorizedException({
         statusCode: 401,
         errorCode: 'STAFF_NOT_FOUND',
@@ -178,7 +173,7 @@ export class PlatformAuthService {
       });
     }
 
-    const isValidOtp = TotpUtil.verifyCode(staff.totpSecret, dto.totpCode);
+    const isValidOtp = TotpUtil.verifyCode(totpSecret, dto.totpCode);
     if (!isValidOtp) {
       this.logger.warn(`Invalid TOTP code supplied for staff: ${staff.id} from IP: ${clientIp}`);
       throw new UnauthorizedException({
@@ -188,11 +183,6 @@ export class PlatformAuthService {
       });
     }
 
-    await this.prisma.platformStaff.update({
-      where: { id: staff.id },
-      data: { lastLoginAt: new Date() },
-    });
-
     const accessToken = this.generateAccessToken(staff, true);
 
     return {
@@ -201,8 +191,8 @@ export class PlatformAuthService {
       staff: {
         id: staff.id,
         email: staff.email,
-        fullName: staff.fullName,
-        role: staff.role,
+        fullName: (staff as any).name || (staff as any).fullName || 'Platform Staff',
+        role: staff.role as any,
         mfaEnabled: true,
       },
     };
@@ -226,7 +216,7 @@ export class PlatformAuthService {
     // Save secret in pending state
     await this.prisma.platformStaff.update({
       where: { id: staffId },
-      data: { totpSecret: secret },
+      data: { totpSecretEncrypted: secret },
     });
 
     return {
@@ -244,11 +234,12 @@ export class PlatformAuthService {
       where: { id: staffId },
     });
 
-    if (!staff || !staff.totpSecret) {
+    const totpSecret = staff?.totpSecretEncrypted;
+    if (!staff || !totpSecret) {
       throw new BadRequestException('MFA setup has not been initiated for this account');
     }
 
-    const isValid = TotpUtil.verifyCode(staff.totpSecret, dto.totpCode);
+    const isValid = TotpUtil.verifyCode(totpSecret, dto.totpCode);
     if (!isValid) {
       throw new BadRequestException({
         statusCode: 400,

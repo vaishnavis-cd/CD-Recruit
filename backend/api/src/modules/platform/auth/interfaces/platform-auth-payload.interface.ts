@@ -1,4 +1,4 @@
-import { PlatformStaffRole } from '@prisma/client';
+import { PlatformStaffRole } from '@cd-recruit/shared-types';
 
 export interface PlatformJwtPayload {
   sub: string;             // PlatformStaff UUID

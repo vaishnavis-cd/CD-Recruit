@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { SqlController } from "./sql.controller";
 import { SqlService } from "./sql.service";
 import { SqlSandboxService } from "./sql-sandbox.service";
@@ -9,7 +9,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { SessionModule } from "../session/session.module";
 
 @Module({
-  imports: [PrismaModule, SessionModule],
+  imports: [PrismaModule, forwardRef(() => SessionModule)],
   controllers: [SqlController],
   providers: [
     SqlService,

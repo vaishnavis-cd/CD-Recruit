@@ -147,6 +147,17 @@ export enum StaffRole {
   RECRUITER = "RECRUITER", // Legacy alias
 }
 
+/**
+ * Dedicated roles for Platform Operations / Super Admin staff.
+ * Governed by ADR-002: Scope & Split Segregated Model.
+ * Stored in platform.platform_staff. Isolated from recruiter StaffRole.
+ */
+export enum PlatformStaffRole {
+  SUPPORT = "SUPPORT",
+  FINANCE = "FINANCE",
+  OWNER = "OWNER",
+}
+
 export enum Permission {
   // Drive Logistics
   DRIVE_CREATE = "DRIVE_CREATE",
