@@ -39,6 +39,10 @@ Financial and commercial business logic lives strictly in domain services, never
   - `settleOverdraft(billingAccountId: string, poolId: string, amount: number): Promise<void>`
   - `expirePoolCredits(poolId: string): Promise<number>`
   - `executeManualAdjustment(requestId: string, params: AdjustParams): Promise<CreditLedgerEntry>`
+  - `getLedgerEntries(filter: LedgerQueryFilter): Promise<CreditLedgerEntry[]>`
+  - `exportLedgerCsv(filter: LedgerQueryFilter): Promise<string>`
+  - `listIncidentWindows(): Promise<IncidentWindow[]>`
+  - `declareIncidentWindow(actor: LedgerActor, dto: DeclareIncidentWindowDto): Promise<IncidentWindowResultDto>`
 
 ---
 
@@ -67,6 +71,8 @@ Financial and commercial business logic lives strictly in domain services, never
 - **Forbidden Responsibilities:** Cannot alter candidate rosters or drive schedules.
 - **Public Methods:**
   - `createForOrganization(orgId: string, country: string, currency?: string): Promise<BillingAccount>`
+  - `listAccounts(options: ListBillingAccountsOptions): Promise<PaginatedBillingAccountsResultDto>`
+  - `getAccountById(id: string): Promise<BillingAccount | null>`
   - `getAccountSummary(id: string): Promise<BillingAccountSummaryDto>`
   - `updateOverdraftLimit(id: string, newLimit: number, requestId: string): Promise<BillingAccount>`
   - `updateStatus(id: string, status: BillingAccountStatus, requestId: string): Promise<BillingAccount>`

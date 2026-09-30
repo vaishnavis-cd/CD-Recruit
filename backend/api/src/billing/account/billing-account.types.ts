@@ -129,3 +129,45 @@ export interface BillingAccountContext {
   ticketRef?: string;
   reason?: string;
 }
+
+/**
+ * Filter options for listing billing accounts (API-H2-01)
+ */
+export interface ListBillingAccountsOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: BillingAccountStatus | string;
+  country?: string;
+}
+
+/**
+ * Item in the paginated billing accounts list
+ */
+export interface BillingAccountListItemDto {
+  id: string;
+  name: string;
+  legalEntityName: string | null;
+  billingCountry: string;
+  currency: string;
+  status: BillingAccountStatus;
+  totalRemainingCredits: number;
+  overdraftUsed: number;
+  overdraftLimit: number;
+  hasPaidPurchase: boolean;
+  activePoolsCount: number;
+  createdAt: Date;
+}
+
+/**
+ * Paginated result matching Artifact 04 §2.1
+ */
+export interface PaginatedBillingAccountsResultDto {
+  data: BillingAccountListItemDto[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}

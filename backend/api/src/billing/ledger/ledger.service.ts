@@ -21,6 +21,8 @@ import {
   ExpirePoolCreditsParams,
   BeginSessionOutcome,
   LedgerQueryFilter,
+  DeclareIncidentWindowDto,
+  IncidentWindowResultDto,
 } from "./ledger.types";
 import { sanitizeAuditData } from "../../platform/audit/platform-audit.util";
 
@@ -948,6 +950,17 @@ export class LedgerService {
     if (filter.sessionId) where.sessionId = filter.sessionId;
     if (filter.driveId) where.driveId = filter.driveId;
     if (filter.entryType) where.entryType = filter.entryType;
+    if (filter.reason) where.reason = filter.reason;
+
+    if (filter.includeShadow !== true) {
+      where.shadow = false;
+    }
+
+    if (filter.startDate || filter.endDate) {
+      where.createdAt = {};
+      if (filter.startDate) where.createdAt.gte = new Date(filter.startDate);
+      if (filter.endDate) where.createdAt.lte = new Date(filter.endDate);
+    }
 
     const entries = await this.prisma.creditLedgerEntry.findMany({
       where,
@@ -960,6 +973,67 @@ export class LedgerService {
     });
 
     return entries;
+  }
+
+  /**
+   * Generates a pseudonymous CSV export string matching Artifact 05 API-H2-07.
+   * Strictly UUIDs and financial identifiers — zero candidate PII.
+   */
+  async exportLedgerCsv(filter: LedgerQueryFilter = {}): Promise<string> {
+    const entries = await this.getLedgerEntries({
+      ...filter,
+      limit: 10000,
+      offset: 0,
+    });
+
+    const headers = [
+      "id",
+      "createdAt",
+      "entryType",
+      "amount",
+      "balanceAfter",
+      "billingAccountId",
+      "creditPoolId",
+      "sessionId",
+      "driveId",
+      "reason",
+      "actorId",
+      "idempotencyKey",
+      "shadow",
+    ];
+
+    const rows = entries.map((e) => [
+      e.id,
+      e.createdAt.toISOString(),
+      e.entryType,
+      e.amount,
+      e.balanceAfter !== null ? e.balanceAfter : "",
+      e.billingAccountId,
+      e.creditPoolId || "",
+      e.sessionId || "",
+      e.driveId || "",
+      e.reason,
+      e.actorId,
+      e.idempotencyKey,
+      e.shadow ? "true" : "false",
+    ]);
+
+    const csvLines = [headers.join(",")];
+    for (const row of rows) {
+      csvLines.push(
+        row
+          .map((val) => {
+            const str = String(val);
+            if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+              return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+          })
+          .join(","),
+      );
+    }
+
+    return csvLines.join("\n");
   }
 
   /**
@@ -979,5 +1053,175 @@ export class LedgerService {
     }
 
     return entry;
+  }
+
+  /**
+   * List declared incident windows (API-H2-23).
+   */
+  async listIncidentWindows() {
+    return this.prisma.incidentWindow.findMany({
+      orderBy: { startedAt: "desc" },
+    });
+  }
+
+  /**
+   * Declares an incident window and triggers automated T3 session credit reversals (API-H2-24).
+   *
+   * Invariants enforced (Artifact 02 §9.3, Artifact 05 API-H2-24, Artifact 06 §3.2):
+   * - Platform staff authentication: FINANCE or OWNER role required.
+   * - Validated non-PII title and reason (min 10 chars).
+   * - Mandatory ticket reference.
+   * - Identifies candidate sessions running during [startedAt, endedAt] with infrastructure fault.
+   * - Reverses eligible CONSUME credit ledger entries with reason INCIDENT_WINDOW.
+   * - Audited in billing.billing_audit_event.
+   */
+  async declareIncidentWindow(
+    actor: LedgerActor,
+    dto: DeclareIncidentWindowDto,
+  ): Promise<IncidentWindowResultDto> {
+    const actorInfo = this.extractActorInfo(actor);
+    if (
+      actorInfo.actorRole !== PlatformStaffRole.FINANCE &&
+      actorInfo.actorRole !== PlatformStaffRole.OWNER
+    ) {
+      throw new ForbiddenException(
+        `UNAUTHORIZED_ROLE_FOR_INCIDENT: Only FINANCE or OWNER can declare incident windows (received '${actorInfo.actorRole}')`,
+      );
+    }
+
+    if (!dto || typeof dto !== "object") {
+      throw new BadRequestException("INVALID_DTO: Incident payload is required");
+    }
+
+    if (!dto.title || typeof dto.title !== "string" || dto.title.trim().length < 3) {
+      throw new BadRequestException("INVALID_TITLE: A title of at least 3 characters is required");
+    }
+
+    if (!dto.ticketRef || typeof dto.ticketRef !== "string" || dto.ticketRef.trim().length < 3) {
+      throw new BadRequestException("INVALID_TICKET_REF: A valid ticket reference is mandatory");
+    }
+
+    if (!dto.reason || typeof dto.reason !== "string" || dto.reason.trim().length < 10) {
+      throw new BadRequestException("INVALID_REASON: A descriptive reason of at least 10 characters is mandatory");
+    }
+
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
+    if (emailRegex.test(dto.title) || emailRegex.test(dto.reason)) {
+      throw new BadRequestException("CANDIDATE_PII_PROHIBITED: Candidate PII is strictly prohibited in incident declarations");
+    }
+
+    const startedAt = new Date(dto.startedAt);
+    if (isNaN(startedAt.getTime())) {
+      throw new BadRequestException("INVALID_START_DATE: startedAt must be a valid date");
+    }
+
+    let endedAt: Date | null = null;
+    if (dto.endedAt) {
+      endedAt = new Date(dto.endedAt);
+      if (isNaN(endedAt.getTime()) || endedAt <= startedAt) {
+        throw new BadRequestException("INVALID_END_DATE: endedAt must be after startedAt");
+      }
+    }
+
+    const affectedDrives = Array.isArray(dto.affectedDrives) ? dto.affectedDrives : [];
+
+    // 1. Create incident window record
+    const incident = await this.prisma.incidentWindow.create({
+      data: {
+        title: dto.title.trim(),
+        reason: dto.reason.trim(),
+        ticketRef: dto.ticketRef.trim(),
+        startedAt,
+        endedAt,
+        affectedDrives,
+        reversalStatus: "PENDING",
+        createdBy: actorInfo.actorId,
+      },
+    });
+
+    // 2. Identify candidate sessions running in the window
+    const sessionEvidenceWhere: any = {
+      startedAt: { gte: startedAt },
+    };
+    if (endedAt) {
+      sessionEvidenceWhere.startedAt.lte = endedAt;
+    }
+    if (affectedDrives.length > 0) {
+      sessionEvidenceWhere.driveId = { in: affectedDrives };
+    }
+
+    const eligibleEvidence = await this.prisma.sessionBillingEvidence.findMany({
+      where: sessionEvidenceWhere,
+      select: { sessionId: true },
+    });
+
+    const sessionIds = eligibleEvidence.map((e) => e.sessionId);
+
+    // 3. Find unreversed CONSUME ledger entries for these sessions
+    let reversalsTriggered = 0;
+    if (sessionIds.length > 0) {
+      const consumeEntries = await this.prisma.creditLedgerEntry.findMany({
+        where: {
+          sessionId: { in: sessionIds },
+          entryType: LedgerEntryType.CONSUME,
+          shadow: false,
+          reversedBy: { none: {} },
+        },
+      });
+
+      for (const entry of consumeEntries) {
+        try {
+          await this.reverseCredit({
+            relatedEntryId: entry.id,
+            reason: LedgerReason.INCIDENT_WINDOW,
+            reasonNote: `Automated reversal for incident: ${incident.title}`,
+            ticketRef: incident.ticketRef,
+            idempotencyKey: `incident:${incident.id}:reversal:${entry.id}`,
+            actor,
+          });
+          reversalsTriggered++;
+        } catch (err) {
+          this.logger.warn(
+            `[LedgerService] Failed to reverse entry ${entry.id} during incident ${incident.id}: ${(err as Error).message}`,
+          );
+        }
+      }
+    }
+
+    // 4. Mark incident window as EXECUTED
+    const updatedIncident = await this.prisma.incidentWindow.update({
+      where: { id: incident.id },
+      data: { reversalStatus: "EXECUTED" },
+    });
+
+    await this.recordBillingAudit(this.prisma, {
+      actorId: actorInfo.actorId,
+      actorRole: actorInfo.actorRole,
+      subjectType: "INCIDENT",
+      subjectId: incident.id,
+      action: "INCIDENT_WINDOW_DECLARED",
+      after: {
+        title: updatedIncident.title,
+        startedAt: updatedIncident.startedAt,
+        endedAt: updatedIncident.endedAt,
+        reversalsTriggered,
+      },
+      reason: dto.reason.trim(),
+      ticketRef: dto.ticketRef.trim(),
+    });
+
+    return {
+      id: updatedIncident.id,
+      title: updatedIncident.title,
+      reason: updatedIncident.reason,
+      ticketRef: updatedIncident.ticketRef,
+      startedAt: updatedIncident.startedAt,
+      endedAt: updatedIncident.endedAt,
+      affectedDrives: updatedIncident.affectedDrives,
+      reversalStatus: updatedIncident.reversalStatus,
+      reversalsTriggered,
+      createdBy: updatedIncident.createdBy,
+      createdAt: updatedIncident.createdAt,
+    };
   }
 }

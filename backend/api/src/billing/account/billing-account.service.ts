@@ -15,6 +15,8 @@ import {
   BillingAccountContext,
   BillingAccountStatus,
   deriveCurrencyForCountry,
+  ListBillingAccountsOptions,
+  PaginatedBillingAccountsResultDto,
 } from "./billing-account.types";
 import { sanitizeAuditData } from "../../platform/audit/platform-audit.util";
 
@@ -434,5 +436,88 @@ export class BillingAccountService {
 
       return updated;
     });
+  }
+
+  /**
+   * Paginated listing of billing accounts matching Artifact 04 §2.1 and API-H2-01.
+   */
+  async listAccounts(options: ListBillingAccountsOptions = {}): Promise<PaginatedBillingAccountsResultDto> {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(100, Math.max(1, options.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (options.status) {
+      where.status = options.status;
+    }
+    if (options.country) {
+      where.billingCountry = options.country.trim().toUpperCase();
+    }
+    if (options.search && options.search.trim() !== "") {
+      const search = options.search.trim();
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { legalEntityName: { contains: search, mode: "insensitive" } },
+        { taxId: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [total, accounts] = await Promise.all([
+      this.prisma.billingAccount.count({ where }),
+      this.prisma.billingAccount.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          creditPools: {
+            where: {
+              status: "ACTIVE",
+            },
+            select: {
+              id: true,
+              cachedRemaining: true,
+              expiresAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const now = new Date();
+    const data = accounts.map((acc) => {
+      const activeNonExpired = acc.creditPools.filter(
+        (p) => !p.expiresAt || p.expiresAt > now,
+      );
+      const totalRemainingCredits = activeNonExpired.reduce(
+        (sum, p) => sum + p.cachedRemaining,
+        0,
+      );
+
+      return {
+        id: acc.id,
+        name: acc.name,
+        legalEntityName: acc.legalEntityName,
+        billingCountry: acc.billingCountry,
+        currency: acc.currency,
+        status: acc.status as BillingAccountStatus,
+        totalRemainingCredits,
+        overdraftUsed: acc.overdraftUsed,
+        overdraftLimit: acc.overdraftLimit,
+        hasPaidPurchase: acc.hasPaidPurchase,
+        activePoolsCount: activeNonExpired.length,
+        createdAt: acc.createdAt,
+      };
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
   }
 }

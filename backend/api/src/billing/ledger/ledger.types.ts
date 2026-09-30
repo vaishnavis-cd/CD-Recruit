@@ -143,6 +143,33 @@ export interface LedgerQueryFilter {
   sessionId?: string;
   driveId?: string;
   entryType?: string;
+  reason?: string;
+  startDate?: string | Date;
+  endDate?: string | Date;
+  includeShadow?: boolean;
   limit?: number;
   offset?: number;
+}
+
+export interface DeclareIncidentWindowDto {
+  title: string;
+  reason: string;
+  ticketRef: string;
+  startedAt: string | Date;
+  endedAt?: string | Date | null;
+  affectedDrives?: string[];
+}
+
+export interface IncidentWindowResultDto {
+  id: string;
+  title: string;
+  reason: string;
+  ticketRef: string;
+  startedAt: Date;
+  endedAt: Date | null;
+  affectedDrives: string[];
+  reversalStatus: string;
+  reversalsTriggered: number;
+  createdBy: string;
+  createdAt: Date;
 }
