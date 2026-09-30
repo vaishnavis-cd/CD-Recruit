@@ -42,6 +42,7 @@ import { PriceBookModule } from "./billing/price/price-book.module";
 import { PaymentModule } from "./billing/payment/payment.module";
 import { PaymentWebhookModule } from "./billing/webhook/payment-webhook.module";
 import { ReconciliationModule } from "./billing/reconciliation/reconciliation.module";
+import { FinanceMetricsModule } from "./billing/metrics/finance-metrics.module";
 
 import { APP_GUARD } from "@nestjs/core";
 import { CandidateThrottlerGuard } from "./common/guards/candidate-throttler.guard";
@@ -128,6 +129,7 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     PaymentModule,
     PaymentWebhookModule,
     ReconciliationModule,
+    FinanceMetricsModule,
   ],
   providers: [
     {
