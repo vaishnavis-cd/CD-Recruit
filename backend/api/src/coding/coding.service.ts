@@ -132,12 +132,7 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
       throw new BadRequestException(`Session is already ${session.status.toLowerCase()} and cannot accept new code runs.`);
     }
     if (session.status === SessionStatus.NOT_STARTED) {
-      const now = new Date();
-      await this.prisma.session.update({
-        where: { id: dto.sessionId },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
-      });
-      session.status = SessionStatus.IN_PROGRESS;
+      throw new BadRequestException("Assessment session has not begun. Call beginSession first.");
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);

@@ -142,6 +142,20 @@ async function main(): Promise<void> {
       });
       console.log(`  ✔ Upserted Admin Staff "System Administrator" (id: ${adminStaff.id})`);
 
+      await tx.staff.upsert({
+        where: { email: "admin@proctora.com" },
+        update: {
+          passwordHash: defaultPasswordHash,
+          role: "ADMIN",
+        },
+        create: {
+          email: "admin@proctora.com",
+          name: "Lead Proctor Admin",
+          role: "ADMIN",
+          passwordHash: defaultPasswordHash,
+        },
+      });
+
       const recruiterStaff = await tx.staff.upsert({
         where: { email: "recruiter@cdrecruit.local" },
         update: {

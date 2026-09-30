@@ -46,6 +46,126 @@ enum StaffRole {
   HR_ASSOCIATE
   REVIEWER
   RECRUITER
+  BILLING_ADMIN
+}
+
+enum LedgerEntryType {
+  GRANT              // +n   credits added (PURCHASE, TRIAL, PROMO, MIGRATION, etc.)
+  CONSUME            // -1   LIVE attempt started, drawn from an active pool
+  OVERDRAFT          // -1   LIVE attempt started beyond capacity; debt on BillingAccount (pool is null)
+  OVERDRAFT_SETTLE   // -n   deducted from a newly granted pool; nets down overdraft debt
+  WAIVE              //  0   recruiter-approved courtesy reattempt (capped at 5%, audited)
+  REVERSAL           // +1   returns an acquired credit (platform fault / approved dispute)
+  REFUND             // -n   unused credits removed because cash was refunded to customer
+  EXPIRE             // -n   remaining unconsumed credits expired at deadline
+  ADJUST             // +-n  manual correction (strictly maker-checker)
+}
+
+enum GrantSource {
+  PURCHASE
+  CONTRACT
+  TRIAL
+  PROMO
+  GOODWILL
+  MIGRATION
+  ROLLOVER
+}
+
+enum LedgerReason {
+  ATTEMPT_START
+  OVERDRAFT_USED
+  HARDWARE_CAMERA_FAILURE
+  HARDWARE_OTHER
+  PLATFORM_FAULT
+  INCIDENT_WINDOW
+  DISPUTE_RESOLVED
+  PAYMENT_CAPTURED
+  PAYMENT_REFUNDED
+  CHARGEBACK
+  POOL_EXPIRED
+  ROLLOVER
+  TRIAL
+  PROMO
+  GOODWILL
+  MIGRATION_SEED
+  MANUAL_CORRECTION
+}
+
+enum PoolType {
+  DRIVE_PASS
+  TALENT_RESERVE
+  ENTERPRISE
+}
+
+enum PoolStatus {
+  QUEUED             // Purchased, waiting in line
+  ACTIVE             // Currently accepting candidate start claims
+  SUSPENDED          // Frozen due to payment dispute/chargeback
+  EXHAUSTED          // 0 cached_remaining credits
+  EXPIRED            // Validity deadline reached
+  CANCELLED          // Refunded or administratively closed
+}
+
+enum SessionKind {
+  LIVE               // Real candidate attempt (BILLABLE)
+  PREVIEW            // Recruiter previewing questions (FREE, watermarked, no grading)
+  SANDBOX            // Automated QA, k6 load scripts, dev runs (FREE, rejected in prod)
+}
+
+enum BillingAccountStatus {
+  ACTIVE
+  RESTRICTED         // Overdraft aged > 14 days; cannot schedule drives or invite
+  SUSPENDED          // Payment dispute / fraud lock
+}
+
+enum DrivePoolFallthrough {
+  ALLOW              // Exhausted Drive Pass falls through to Talent Reserve
+  HOLD               // Exhausted Drive Pass puts candidate into polite HOLD screen
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  STRIPE
+  MANUAL_INVOICE
+}
+
+enum PaymentStatus {
+  CREATED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  DISPUTED
+}
+
+enum ManualRequestKind {
+  GRANT
+  ADJUST
+  REFUND
+  EXPIRY_EXTEND
+  OVERDRAFT_LIMIT
+  ACCOUNT_STATUS
+  BILLING_COUNTRY
+}
+
+enum ManualRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+  CANCELLED
+}
+
+enum SessionEndReason {
+  SUBMITTED
+  TIME_EXPIRED
+  ABANDONED
+  CANDIDATE_LEFT
+  PLATFORM_FAULT
+}
+
+enum HoldReason {
+  CAPACITY
 }
 
 enum DecisionType {
@@ -168,6 +288,8 @@ model Drive {
   slotDistribution Json?     @map("slot_distribution")
   originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
   isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
+  fallthrough    DrivePoolFallthrough @default(ALLOW)
+  expectedAttendance Int?      @map("expected_attendance")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
   roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
@@ -233,11 +355,13 @@ model Question {
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
+  id               String         @id @default(uuid())
+  billingAccountId String         @map("billing_account_id")
+  name             String
+  slug             String         @unique
+  createdAt        DateTime       @default(now()) @map("created_at")
 
+  billingAccount   BillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
   candidates Candidate[]
   drives     Drive[]
   staff      Staff[]
@@ -312,6 +436,10 @@ model Session {
   simulationSnapshot Json?    @map("simulation_snapshot")
   originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
   referenceId       String?   @unique @map("reference_id")
+  kind              SessionKind @default(LIVE)
+  heldAt            DateTime? @map("held_at")
+  holdReason        HoldReason? @map("hold_reason")
+  reattemptOfSessionId String? @map("reattempt_of_session_id")
 
   organization Organization? @relation(fields: [organizationId], references: [id])
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
@@ -651,3 +779,194 @@ model IdentityCapture {
   @@index([status])
   @@map("identity_capture")
 }
+
+/// The payer entity. 1:1 with Organization by default; decouples payer from tenant orgs.
+/// Holds overdraft balances and tax/country pricing anchor.
+model BillingAccount {
+  id               String               @id @default(uuid())
+  name             String
+  legalEntityName  String?              @map("legal_entity_name")
+  billingCountry   String               @map("billing_country") // From legal entity + tax ID, NOT IP.
+  currency         String               @default("INR")
+  taxId            String?              @map("tax_id")          // e.g. GSTIN / EIN
+  status           BillingAccountStatus @default(ACTIVE)
+  overdraftLimit   Int                  @default(0) @map("overdraft_limit") // Absolute ceiling; 0 = disabled
+  overdraftUsed    Int                  @default(0) @map("overdraft_used")  // Fast cache of debt
+  hasPaidPurchase  Boolean              @default(false) @map("has_paid_purchase")
+  trialDomain      String?              @unique @map("trial_domain")       // 1 trial per verified domain
+  trialGrantedAt   DateTime?            @map("trial_granted_at")
+  createdAt        DateTime             @default(now()) @map("created_at")
+
+  organizations    Organization[]
+  pools            CreditPool[]
+  ledgerEntries    CreditLedgerEntry[]
+  payments         Payment[]
+
+  @@map("billing_account")
+}
+
+model CreditPool {
+  id               String      @id @default(uuid())
+  billingAccountId String      @map("billing_account_id")
+  driveId          String?     @map("drive_id")         // DRIVE_PASS only. Plain UUID snapshot. Immutable.
+  poolType         PoolType    @map("pool_type")
+  name             String
+  source           GrantSource
+  totalCredits     Int         @map("total_credits")     // Initial opening credits. Immutable.
+  cachedRemaining  Int         @map("cached_remaining")  // Fast read cache; CHECK (cached_remaining >= 0)
+  validityDays     Int?        @map("validity_days")
+  maxWaitDays      Int         @default(365) @map("max_wait_days")
+  queueOrder       Int?        @map("queue_order")       // Order for promotion; assigned under account lock
+  status           PoolStatus  @default(QUEUED)
+  purchasedAt      DateTime    @default(now()) @map("purchased_at")
+  clockStartedAt   DateTime?   @map("clock_started_at")  // First draw OR purchasedAt + maxWaitDays
+  activatedAt      DateTime?   @map("activated_at")      // Promoted to ACTIVE
+  expiresAt        DateTime?   @map("expires_at")        // Hard deadline calculated at clock start
+  unitPriceMinor   Int?        @map("unit_price_minor")  // Minor currency units (paise/cents) at purchase
+  currency         String?
+  paymentId        String?     @map("payment_id")
+  termsVersion     String?     @map("terms_version")
+  termsAcceptedBy  String?     @map("terms_accepted_by")
+  termsAcceptedAt  DateTime?   @map("terms_accepted_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  billingAccount   BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  payment          Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  ledgerEntries    CreditLedgerEntry[]
+
+  @@index([billingAccountId, status])
+  @@index([driveId])
+  @@map("credit_pool")
+}
+
+model CreditLedgerEntry {
+  id               String          @id @default(uuid())
+  billingAccountId String          @map("billing_account_id")
+  organizationId   String          @map("organization_id")  // Plain UUID snapshot (R5)
+  creditPoolId     String?         @map("credit_pool_id")   // Null for OVERDRAFT, WAIVE, REVERSAL of overdraft
+  entryType        LedgerEntryType @map("entry_type")
+  amount           Int                                      // Signed: CONSUME=-1, GRANT=+n, WAIVE=0
+  balanceAfter     Int?            @map("balance_after")    // Pool balance after entry (null for overdraft)
+  sessionId        String?         @map("session_id")       // Plain UUID snapshot (R5)
+  driveId          String?         @map("drive_id")         // Plain UUID snapshot (R5)
+  relatedEntryId   String?         @map("related_entry_id") // Links REVERSAL -> original acquisition
+  grantSource      GrantSource?    @map("grant_source")     // GRANT entries only
+  reason           LedgerReason
+  reasonNote       String?         @map("reason_note")      // Max 200 chars, validated non-PII
+  paymentId        String?         @map("payment_id")
+  requestId        String?         @map("request_id")       // ManualBillingRequest ID for maker-checker
+  idempotencyKey   String          @unique @map("idempotency_key") // acquire:{sessionId}, grant:pay:{id}, etc.
+  actorId          String          @map("actor_id")         // Staff ID or 'system'
+  approvedById     String?         @map("approved_by_id")   // Approver ID for maker-checker
+  shadow           Boolean         @default(false)          // Phase 2 shadow rows; excluded from balances
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  billingAccount   BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  creditPool       CreditPool?         @relation(fields: [creditPoolId], references: [id], onDelete: Restrict)
+  payment          Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  relatedEntry     CreditLedgerEntry?  @relation("EntryRelation", fields: [relatedEntryId], references: [id], onDelete: Restrict)
+  relatedBy        CreditLedgerEntry[] @relation("EntryRelation")
+
+  @@index([billingAccountId, createdAt])
+  @@index([creditPoolId, createdAt])
+  @@index([sessionId])
+  @@index([driveId, entryType])
+  @@map("credit_ledger_entry")
+}
+
+model Payment {
+  id                 String          @id @default(uuid())
+  billingAccountId   String          @map("billing_account_id")
+  provider           PaymentProvider
+  providerPaymentId  String          @map("provider_payment_id")
+  providerOrderId    String?         @map("provider_order_id")
+  status             PaymentStatus
+  priceBookEntryId   String          @map("price_book_entry_id")
+  quantityCredits    Int             @map("quantity_credits")
+  unitPriceMinor     Int             @map("unit_price_minor")
+  amountMinor        Int             @map("amount_minor")     // Total charged including taxes
+  taxMinor           Int?            @map("tax_minor")
+  currency           String
+  invoiceNumber      String?         @map("invoice_number")
+  capturedAt         DateTime?       @map("captured_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  billingAccount     BillingAccount  @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  pools              CreditPool[]
+  ledgerEntries      CreditLedgerEntry[]
+
+  @@unique([provider, providerPaymentId])
+  @@map("payment")
+}
+
+model PriceBookEntry {
+  id             String    @id @default(uuid())
+  sku            String
+  poolType       PoolType  @map("pool_type")
+  credits        Int
+  validityDays   Int?      @map("validity_days")
+  billingCountry String    @map("billing_country")
+  currency       String
+  unitPriceMinor Int       @map("unit_price_minor")
+  version        Int
+  effectiveFrom  DateTime  @map("effective_from")
+  effectiveTo    DateTime? @map("effective_to")
+
+  @@unique([sku, billingCountry, version])
+  @@map("price_book_entry")
+}
+
+model ManualBillingRequest {
+  id               String              @id @default(uuid())
+  billingAccountId String              @map("billing_account_id")
+  kind             ManualRequestKind
+  payload          Json                // Validated JSON payload per kind (strictly non-PII)
+  reason           String
+  ticketRef        String              @map("ticket_ref")
+  requestedById    String              @map("requested_by_id")
+  approvedById     String?             @map("approved_by_id")
+  status           ManualRequestStatus @default(PENDING)
+  decidedAt        DateTime?           @map("decided_at")
+  executedAt       DateTime?           @map("executed_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  @@map("manual_billing_request")
+}
+
+model BillingAuditEvent {
+  id               String   @id @default(uuid())
+  billingAccountId String   @map("billing_account_id")
+  subjectType      String   @map("subject_type") // POOL | ACCOUNT | PRICE | REQUEST
+  subjectId        String   @map("subject_id")
+  action           String
+  before           Json?
+  after            Json?
+  actorId          String?  @map("actor_id")
+  approvedById     String?  @map("approved_by_id")
+  requestId        String?  @map("request_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([billingAccountId, createdAt])
+  @@map("billing_audit_event")
+}
+
+model SessionBillingEvidence {
+  sessionId              String            @id @map("session_id")
+  billingAccountId       String            @map("billing_account_id")
+  driveId                String?           @map("drive_id")
+  kind                   SessionKind
+  startedAt              DateTime          @map("started_at")
+  firstContentRenderedAt DateTime?         @map("first_content_rendered_at")
+  lastHeartbeatAt        DateTime?         @map("last_heartbeat_at")
+  endedAt                DateTime?         @map("ended_at")
+  endReason              SessionEndReason? @map("end_reason")
+  eventCount             Int               @map("event_count")
+  modulesReached         Int               @map("modules_reached")
+  cvMode                 String?           @map("cv_mode")
+  tutorialMode           String?           @map("tutorial_mode")
+  infraFlags             Json?             @map("infra_flags")
+  createdAt              DateTime          @default(now()) @map("created_at")
+
+  @@map("session_billing_evidence")
+}
+

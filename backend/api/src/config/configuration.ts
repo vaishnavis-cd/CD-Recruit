@@ -74,6 +74,17 @@ export const configuration = () => ({
     process.env.EVIDENCE_CLIP_URL_TTL_SECONDS ?? "300",
     10,
   ),
+
+  // ── Billing Engine ────────────────────────────────────────────────────────
+  billingMode: (() => {
+    const mode = (process.env.BILLING_MODE ?? "off").toLowerCase();
+    if (!["off", "shadow", "enforce"].includes(mode)) {
+      throw new Error(
+        `Invalid BILLING_MODE "${process.env.BILLING_MODE}". Must be one of: "off", "shadow", "enforce".`,
+      );
+    }
+    return mode as "off" | "shadow" | "enforce";
+  })(),
 });
 
 /** Inferred type — use as the generic parameter for ConfigService. */

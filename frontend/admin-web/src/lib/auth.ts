@@ -87,7 +87,10 @@ export async function login(email: string, pw: string): Promise<StaffLoginRespon
 export async function refreshTokens(): Promise<string | null> {
   if (typeof localStorage === "undefined") return null;
   const refreshToken = localStorage.getItem("admin_refresh_token");
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    clearStoredToken();
+    return null;
+  }
 
   const candidateUrls = [
     `${API_BASE}/auth/refresh`,
@@ -116,8 +119,14 @@ export async function refreshTokens(): Promise<string | null> {
           return data.accessToken;
         }
       }
+
+      // If server explicitly responded with an auth error (400, 401, 403, 500), token is invalid
+      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 500) {
+        clearStoredToken();
+        return null;
+      }
     } catch {
-      // Try next endpoint
+      // Network unreachable, try next candidate URL
     }
   }
 

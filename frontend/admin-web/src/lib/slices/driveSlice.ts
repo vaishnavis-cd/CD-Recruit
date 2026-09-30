@@ -27,6 +27,9 @@
     ) => Promise<void>;
     generateDriveLinks: (driveId: string) => Promise<void>;
     removeCandidateFromDrive: (driveId: string, candidateId: string) => Promise<void>;
+    fetchDriveCapacity: (driveId: string) => Promise<any>;
+    releaseHeldSessions: (driveId: string) => Promise<any>;
+    fetchBillingAccount: () => Promise<any>;
   }
 
   export const createDriveSlice: StateCreator<any, [], [], DriveSlice> = (set, get) => ({
@@ -195,6 +198,39 @@
       if (moduleType) url += `&moduleType=${moduleType}`;
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Failed to fetch suggested deficit questions");
+      return await res.json();
+    },
+
+    fetchDriveCapacity: async (driveId: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/billing/drive/${driveId}/capacity`, { headers });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to fetch drive credit capacity");
+      }
+      return await res.json();
+    },
+
+    releaseHeldSessions: async (driveId: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/billing/drive/${driveId}/release-held`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to release held sessions");
+      }
+      return await res.json();
+    },
+
+    fetchBillingAccount: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/billing/account`, { headers });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to fetch billing account balance");
+      }
       return await res.json();
     },
   });

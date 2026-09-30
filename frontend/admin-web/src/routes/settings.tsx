@@ -37,12 +37,14 @@ import {
   Database,
   ClipboardList,
   PlugZap,
+  Coins,
 } from "lucide-react";
 
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
 import { type AuditLog } from "../lib/types";
 import { getUserProfile } from "../lib/auth";
+import { BillingSettingsTab } from "../components/common/BillingSettingsTab";
 
 const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ADMIN: [
@@ -183,7 +185,7 @@ function SettingsPage() {
 
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
   const [activeTab, setActiveTab] = useState<
-    "profile" | "users" | "permissions" | "modules" | "calibration" | "proctoring" | "scoring" | "system" | "retention" | "audit" | "integrations"
+    "profile" | "users" | "permissions" | "modules" | "calibration" | "proctoring" | "scoring" | "system" | "retention" | "audit" | "integrations" | "billing"
   >("profile");
 
   // Dynamic Role Permissions Matrix state
@@ -201,28 +203,25 @@ function SettingsPage() {
   const [savingModule, setSavingModule] = useState<string | null>(null);
 
   // Admin Profile state - dynamic from local storage or authenticated user profile
-  const [adminName, setAdminName] = useState(() => {
+  const [adminName, setAdminName] = useState("Lead Proctor Admin");
+  const [adminEmail, setAdminEmail] = useState("admin@proctora.com");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
     try {
-      const saved = localStorage.getItem("proctora_admin_profile");
+      const saved = typeof localStorage !== "undefined" ? localStorage.getItem("proctora_admin_profile") : null;
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.name) return parsed.name;
+        if (parsed.name) setAdminName(parsed.name);
+        if (parsed.email) setAdminEmail(parsed.email);
+        return;
       }
-    } catch { }
+    } catch {}
     const p = getUserProfile();
-    return p?.name || "Lead Proctor Admin";
-  });
-  const [adminEmail, setAdminEmail] = useState(() => {
-    try {
-      const saved = localStorage.getItem("proctora_admin_profile");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.email) return parsed.email;
-      }
-    } catch { }
-    const p = getUserProfile();
-    return p?.email || "admin@proctora.com";
-  });
+    if (p?.name) setAdminName(p.name);
+    if (p?.email) setAdminEmail(p.email);
+  }, []);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -1120,6 +1119,7 @@ function SettingsPage() {
     { id: "retention", label: "Data Retention", icon: Database },
     { id: "audit", label: "Audit Logs", icon: ClipboardList },
     { id: "integrations", label: "Integrations", icon: PlugZap },
+    { id: "billing", label: "Credit & Capacity", icon: Coins },
   ] as const;
 
   return (
@@ -2690,6 +2690,9 @@ function SettingsPage() {
                 )}
               </div>
             )}
+
+            {/* Tab 12: Billing & Credit Capacity */}
+            {activeTab === "billing" && <BillingSettingsTab />}
           </div>
         </div>
       </div>

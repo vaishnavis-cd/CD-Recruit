@@ -90,57 +90,72 @@ export class AuthService {
    * Rotates and validates a staff refresh token, issuing a new access and refresh token pair.
    * Enforces 7-day maximum lifetime and single-use rotation.
    */
+  /**
+   * Rotates and validates a staff refresh token, issuing a new access and refresh token pair.
+   * Enforces 7-day maximum lifetime and single-use rotation.
+   */
   async refreshStaffToken(dto: RefreshTokenDto): Promise<StaffRefreshResponse> {
-    if (!dto.refreshToken || typeof dto.refreshToken !== "string") {
-      throw new UnauthorizedException("Invalid refresh token");
-    }
+    try {
+      if (!dto?.refreshToken || typeof dto.refreshToken !== "string" || !dto.refreshToken.trim()) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
 
-    const incomingHash = hashToken(dto.refreshToken);
-    const staff = await this.prisma.staff.findFirst({
-      where: { refreshTokenHash: incomingHash },
-    });
+      const incomingHash = hashToken(dto.refreshToken.trim());
+      if (!incomingHash) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
 
-    if (!staff || !staff.refreshTokenHash) {
-      throw new UnauthorizedException("Invalid or expired refresh token");
-    }
-
-    // Check maximum 7-day refresh token expiry
-    if ((staff as any).refreshTokenExpiresAt && (staff as any).refreshTokenExpiresAt < new Date()) {
-      await (this.prisma.staff as any).update({
-        where: { id: staff.id },
-        data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
+      const staff = await this.prisma.staff.findFirst({
+        where: { refreshTokenHash: incomingHash },
       });
+
+      if (!staff || !staff.refreshTokenHash) {
+        throw new UnauthorizedException("Invalid or expired refresh token");
+      }
+
+      // Check maximum 7-day refresh token expiry
+      if (staff.refreshTokenExpiresAt && new Date(staff.refreshTokenExpiresAt).getTime() < Date.now()) {
+        await this.prisma.staff.update({
+          where: { id: staff.id },
+          data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
+        }).catch(() => {});
+        throw new UnauthorizedException("Invalid or expired refresh token");
+      }
+
+      const newAccessToken = this.jwtService.sign(
+        {
+          sub: staff.id,
+          email: staff.email,
+          name: staff.name,
+          role: staff.role,
+        },
+        { expiresIn: "15m" },
+      );
+
+      const newRefreshToken = generateRefreshToken();
+      const newRefreshTokenHash = hashToken(newRefreshToken);
+      const newRefreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      await this.prisma.staff.update({
+        where: { id: staff.id },
+        data: {
+          refreshTokenHash: newRefreshTokenHash,
+          refreshTokenExpiresAt: newRefreshTokenExpiresAt,
+        },
+      });
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        tokenType: "Bearer",
+        expiresIn: 900,
+      };
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        throw err;
+      }
       throw new UnauthorizedException("Invalid or expired refresh token");
     }
-
-    const newAccessToken = this.jwtService.sign(
-      {
-        sub: staff.id,
-        email: staff.email,
-        name: staff.name,
-        role: staff.role,
-      },
-      { expiresIn: "15m" },
-    );
-
-    const newRefreshToken = generateRefreshToken();
-    const newRefreshTokenHash = hashToken(newRefreshToken);
-    const newRefreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    await (this.prisma.staff as any).update({
-      where: { id: staff.id },
-      data: {
-        refreshTokenHash: newRefreshTokenHash,
-        refreshTokenExpiresAt: newRefreshTokenExpiresAt,
-      },
-    });
-
-    return {
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-      tokenType: "Bearer",
-      expiresIn: 900,
-    };
   }
 
   /**

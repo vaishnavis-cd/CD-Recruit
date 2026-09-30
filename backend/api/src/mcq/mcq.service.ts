@@ -135,7 +135,7 @@ export class McqService implements AssessmentModuleEngine, OnModuleInit {
               id: sessionId,
               candidate: { connect: { id: candidate.id } },
               roleTemplate: { connect: { id: roleTemplate.id } },
-              status: SessionStatus.IN_PROGRESS as any,
+              status: SessionStatus.NOT_STARTED as any,
               cvMode: "FACE_ONLY" as any,
             },
           });

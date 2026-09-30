@@ -27,6 +27,9 @@ import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { AdminService } from "./admin.service";
 import { InviteService } from "./invite.service";
 import { DashboardService } from "./dashboard.service";
+import { CreditEnforcementService } from "../billing/credit-enforcement.service";
+import { LedgerService } from "../billing/ledger.service";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   ListSessionsQueryDto,
   RecordDecisionDto,
@@ -51,6 +54,9 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly inviteService: InviteService,
     private readonly dashboardService: DashboardService,
+    private readonly creditEnforcementService: CreditEnforcementService,
+    private readonly ledgerService: LedgerService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get("dashboard/stats")
@@ -253,6 +259,67 @@ export class AdminController {
   @Get("manual/download-url")
   async getManualDownloadUrl() {
     return this.adminService.getUserManualDownloadUrl();
+  }
+
+  @Get("billing/drive/:driveId/capacity")
+  @RequirePermission(Permission.DRIVE_MANAGE)
+  async getDriveCapacity(
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+  ) {
+    return this.creditEnforcementService.getDriveCapacityStatus(driveId);
+  }
+
+  @Post("billing/drive/:driveId/release-held")
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission(Permission.DRIVE_MANAGE)
+  async releaseHeldSessions(
+    @Param("driveId", ParseUUIDPipe) driveId: string,
+  ) {
+    return this.creditEnforcementService.releaseHeldSessions(driveId);
+  }
+
+  @Get("billing/account")
+  @RequirePermission(Permission.SETTINGS_MANAGE)
+  async getAccountBalance(@CurrentUser() actor: any) {
+    const orgId = actor?.organizationId || actor?.orgId;
+    let billingAccountId: string | null = null;
+
+    if (orgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { billingAccountId: true },
+      });
+      billingAccountId = org?.billingAccountId || null;
+    }
+
+    if (!billingAccountId) {
+      const firstOrg = await this.prisma.organization.findFirst({
+        select: { billingAccountId: true },
+      });
+      billingAccountId = firstOrg?.billingAccountId || null;
+    }
+
+    if (!billingAccountId) {
+      const firstAccount = await (this.prisma as any).billingAccount?.findFirst?.({
+        select: { id: true },
+      });
+      billingAccountId = firstAccount?.id || null;
+    }
+
+    if (!billingAccountId) {
+      return {
+        billingAccountId: null,
+        totalRemaining: 0,
+        activePoolsRemaining: 0,
+        queuedPoolsCount: 0,
+        overdraftLimit: 0,
+        overdraftUsed: 0,
+        overdraftAvailable: 0,
+        status: "ACTIVE",
+      };
+    }
+
+    return this.ledgerService.getAccountBalance(billingAccountId);
   }
 }
 

@@ -101,7 +101,7 @@ export class ProctoringService {
               roleTemplateId: roleTemplate.id,
               driveId: drive?.id ?? null,
               cvMode: "FACE_ONLY" as any,
-              status: SessionStatus.IN_PROGRESS,
+              status: SessionStatus.NOT_STARTED,
             },
             include: {
               candidate: true,
@@ -224,17 +224,6 @@ export class ProctoringService {
       SessionStatus.AUTO_SUBMITTED,
       SessionStatus.CLOSED,
     ];
-    if (session.status === SessionStatus.NOT_STARTED) {
-      this.logger.log(`[ProctoringService] Session ${session.id} was in NOT_STARTED state during evidence upload. Auto-transitioning to IN_PROGRESS.`);
-      await this.prisma.session.update({
-        where: { id: session.id },
-        data: {
-          status: SessionStatus.IN_PROGRESS,
-          startedAt: session.startedAt || new Date(),
-        },
-      });
-      session.status = SessionStatus.IN_PROGRESS;
-    }
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
         `Upload rejected: session is in ${session.status} state. Uploads only allowed for active assessments.`,
