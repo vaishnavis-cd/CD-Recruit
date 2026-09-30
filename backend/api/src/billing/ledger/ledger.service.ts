@@ -145,14 +145,14 @@ export class LedgerService {
       throw new ConflictException("IDEMPOTENCY_CONFLICT: Idempotency key already exists with different payload");
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const executeInTransaction = async (tx: any) => {
       // 1. Acquire exclusive row lock on credit_pool
-      const pools = await tx.$queryRawUnsafe<any[]>(
+      const pools = (await tx.$queryRawUnsafe(
         `SELECT id, billing_account_id, cached_remaining, status, total_credits 
            FROM "billing"."credit_pool" 
           WHERE id = $1 FOR UPDATE`,
         params.creditPoolId,
-      );
+      )) as any[];
 
       if (!pools || pools.length === 0) {
         throw new NotFoundException(`CREDIT_POOL_NOT_FOUND: Pool ${params.creditPoolId} does not exist`);
@@ -213,7 +213,13 @@ export class LedgerService {
       );
 
       return entry;
-    });
+    };
+
+    if (params.tx) {
+      return await executeInTransaction(params.tx);
+    }
+
+    return await this.prisma.$transaction(executeInTransaction);
   }
 
   /**
@@ -562,14 +568,14 @@ export class LedgerService {
       throw new ConflictException("IDEMPOTENCY_CONFLICT: Idempotency key already exists with different payload");
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const executeInTransaction = async (tx: any) => {
       // 1. Row lock target pool
-      const pools = await tx.$queryRawUnsafe<any[]>(
+      const pools = (await tx.$queryRawUnsafe(
         `SELECT id, billing_account_id, cached_remaining, status 
            FROM "billing"."credit_pool" 
           WHERE id = $1 FOR UPDATE`,
         params.creditPoolId,
-      );
+      )) as any[];
 
       if (!pools || pools.length === 0) {
         throw new NotFoundException(`CREDIT_POOL_NOT_FOUND: Pool ${params.creditPoolId} does not exist`);
@@ -633,7 +639,13 @@ export class LedgerService {
       );
 
       return entry;
-    });
+    };
+
+    if (params.tx) {
+      return await executeInTransaction(params.tx);
+    }
+
+    return await this.prisma.$transaction(executeInTransaction);
   }
 
   /**

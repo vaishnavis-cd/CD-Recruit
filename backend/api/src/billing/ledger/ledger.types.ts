@@ -64,6 +64,7 @@ export interface GrantCreditParams {
   idempotencyKey: string;
   actor: LedgerActor;
   ticketRef?: string | null;
+  tx?: any;
 }
 
 export interface ConsumeCreditParams {
@@ -102,6 +103,7 @@ export interface AdjustCreditParams {
   idempotencyKey: string;
   actor: AuthenticatedPlatformActor; // Must be FINANCE or OWNER
   ticketRef?: string | null;
+  tx?: any;
 }
 
 export interface ExpirePoolCreditsParams {

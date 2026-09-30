@@ -529,14 +529,14 @@ export class CreditPoolService {
 
     const { actorId, actorRole } = this.extractActorInfo(context?.actor);
 
-    return await this.prisma.$transaction(async (tx) => {
+    const executeInTransaction = async (tx: any) => {
       // Row lock the pool
-      const pools = await tx.$queryRawUnsafe<any[]>(
+      const pools = (await tx.$queryRawUnsafe(
         `SELECT id, expires_at, status, billing_account_id 
            FROM "billing"."credit_pool" 
           WHERE id = $1 FOR UPDATE`,
         poolId,
-      );
+      )) as any[];
 
       if (!pools || pools.length === 0) {
         throw new NotFoundException(`CREDIT_POOL_NOT_FOUND: Pool '${poolId}' does not exist`);
@@ -581,7 +581,13 @@ export class CreditPoolService {
       );
 
       return updated;
-    });
+    };
+
+    if (context?.tx) {
+      return await executeInTransaction(context.tx);
+    }
+
+    return await this.prisma.$transaction(executeInTransaction);
   }
 
   /**
