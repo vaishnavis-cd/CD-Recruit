@@ -39,6 +39,8 @@ import { CreditPoolModule } from "./billing/pool/credit-pool.module";
 import { TrialGrantModule } from "./billing/trial/trial-grant.module";
 import { ManualBillingRequestModule } from "./billing/manual-request/manual-billing-request.module";
 import { PriceBookModule } from "./billing/price/price-book.module";
+import { PaymentModule } from "./billing/payment/payment.module";
+import { PaymentWebhookModule } from "./billing/webhook/payment-webhook.module";
 
 import { APP_GUARD } from "@nestjs/core";
 import { CandidateThrottlerGuard } from "./common/guards/candidate-throttler.guard";
@@ -122,6 +124,8 @@ const infraMode = process.env.INFRA_MODE ?? "local";
     TrialGrantModule,
     ManualBillingRequestModule,
     PriceBookModule,
+    PaymentModule,
+    PaymentWebhookModule,
   ],
   providers: [
     {

@@ -106,6 +106,21 @@ export interface AdjustCreditParams {
   tx?: any;
 }
 
+export interface RefundCreditParams {
+  billingAccountId: string;
+  organizationId?: string;
+  creditPoolId: string;
+  paymentId: string;
+  amount: number; // Positive integer credits to refund
+  reason?: string;
+  reasonNote?: string | null;
+  requestId?: string | null;
+  ticketRef?: string | null;
+  idempotencyKey?: string;
+  actor: LedgerActor;
+  tx?: any;
+}
+
 export interface ExpirePoolCreditsParams {
   billingAccountId: string;
   creditPoolId: string;

@@ -74,6 +74,10 @@ export const configuration = () => ({
     process.env.EVIDENCE_CLIP_URL_TTL_SECONDS ?? "300",
     10,
   ),
+
+  // ── Payment Webhooks ──────────────────────────────────────────────────────
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
 });
 
 /** Inferred type — use as the generic parameter for ConfigService. */

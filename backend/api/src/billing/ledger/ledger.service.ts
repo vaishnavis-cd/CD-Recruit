@@ -17,6 +17,7 @@ import {
   ConsumeCreditParams,
   ReverseCreditParams,
   AdjustCreditParams,
+  RefundCreditParams,
   ExpirePoolCreditsParams,
   BeginSessionOutcome,
   LedgerQueryFilter,
@@ -636,6 +637,155 @@ export class LedgerService {
 
       this.logger.log(
         `[LedgerService] ADJUST recorded: ${params.amount > 0 ? "+" : ""}${params.amount} on pool ${params.creditPoolId} (new balance: ${balanceAfter})`,
+      );
+
+      return entry;
+    };
+
+    if (params.tx) {
+      return await executeInTransaction(params.tx);
+    }
+
+    return await this.prisma.$transaction(executeInTransaction);
+  }
+
+  /**
+   * Authoritatively refund unconsumed credits from a credit pool.
+   *
+   * Invariants enforced:
+   * - Amount must be > 0 (will be negated for REFUND entry per chk_ledger_amount_sign).
+   * - Payment ID is mandatory (chk_ledger_required_refs).
+   * - Authoritative row locking (SELECT ... FOR UPDATE) on target credit_pool.
+   * - Unconsumed balance boundary check (cached_remaining >= amount).
+   * - Never creates overdraft debt.
+   * - If pool balance reaches 0, status transitions to CANCELLED per Artifact 06 §1.4.
+   * - Emits billing audit event.
+   */
+  async refundCredits(params: RefundCreditParams) {
+    if (!params.amount || params.amount <= 0 || !Number.isInteger(params.amount)) {
+      throw new BadRequestException("INVALID_REFUND_AMOUNT: Refund amount must be a positive integer");
+    }
+
+    if (!params.paymentId || typeof params.paymentId !== "string" || params.paymentId.trim() === "") {
+      throw new BadRequestException("PAYMENT_ID_REQUIRED: A valid paymentId is mandatory for REFUND entries");
+    }
+
+    if (!params.creditPoolId || typeof params.creditPoolId !== "string" || params.creditPoolId.trim() === "") {
+      throw new BadRequestException("CREDIT_POOL_ID_REQUIRED: A valid creditPoolId is required for REFUND entries");
+    }
+
+    const { actorId, actorRole } = this.extractActorInfo(params.actor);
+    const idempotencyKey =
+      params.idempotencyKey ||
+      `refund:payment:${params.paymentId}:${params.creditPoolId}:${params.amount}:${Date.now()}`;
+
+    // Idempotency check: if entry already exists
+    const existing = await this.prisma.creditLedgerEntry.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existing) {
+      if (
+        existing.entryType === LedgerEntryType.REFUND &&
+        Math.abs(existing.amount) === params.amount &&
+        existing.creditPoolId === params.creditPoolId &&
+        existing.paymentId === params.paymentId
+      ) {
+        return existing;
+      }
+      throw new ConflictException("IDEMPOTENCY_CONFLICT: Idempotency key already exists with different payload");
+    }
+
+    const executeInTransaction = async (tx: any) => {
+      // 1. Authoritative row lock on target credit pool
+      const pools = (await tx.$queryRawUnsafe(
+        `SELECT id, billing_account_id, cached_remaining, status, total_credits 
+           FROM "billing"."credit_pool" 
+          WHERE id = $1 FOR UPDATE`,
+        params.creditPoolId,
+      )) as any[];
+
+      if (!pools || pools.length === 0) {
+        throw new NotFoundException(`CREDIT_POOL_NOT_FOUND: Pool ${params.creditPoolId} does not exist`);
+      }
+
+      const pool = pools[0];
+      if (pool.billing_account_id !== params.billingAccountId) {
+        throw new BadRequestException("POOL_ACCOUNT_MISMATCH: Pool does not belong to specified billing account");
+      }
+
+      // 2. Enforce cash refund boundary (Artifact 02 §6.3: cached_remaining >= refund_credits)
+      if (pool.cached_remaining < params.amount) {
+        throw new BadRequestException(
+          `REFUND_EXCEEDS_UNCONSUMED_BALANCE: Cannot refund ${params.amount} credits; pool only has ${pool.cached_remaining} unconsumed credits`,
+        );
+      }
+
+      const balanceAfter = pool.cached_remaining - params.amount;
+
+      // 3. Resolve organizationId
+      let orgId = params.organizationId;
+      if (!orgId) {
+        const ba = await tx.billingAccount.findUnique({
+          where: { id: params.billingAccountId },
+          include: { organization: true },
+        });
+        orgId = ba?.organization?.id || "";
+      }
+
+      // 4. Insert immutable REFUND ledger entry (amount < 0 per chk_ledger_amount_sign)
+      const entry = await tx.creditLedgerEntry.create({
+        data: {
+          billingAccountId: params.billingAccountId,
+          organizationId: orgId,
+          creditPoolId: params.creditPoolId,
+          entryType: LedgerEntryType.REFUND,
+          amount: -params.amount,
+          balanceAfter,
+          reason: params.reason || "CASH_REFUND",
+          reasonNote: params.reasonNote || null,
+          paymentId: params.paymentId,
+          requestId: params.requestId || null,
+          idempotencyKey,
+          actorId,
+          shadow: false,
+        },
+      });
+
+      // 5. Update cachedRemaining and pool status if fully unconsumed refunded
+      const poolUpdates: any = {
+        cachedRemaining: balanceAfter,
+      };
+      if (balanceAfter === 0) {
+        poolUpdates.status = "CANCELLED";
+      }
+
+      await tx.creditPool.update({
+        where: { id: params.creditPoolId },
+        data: poolUpdates,
+      });
+
+      // 6. Emit billing audit event
+      await this.recordBillingAudit(tx, {
+        actorId,
+        actorRole,
+        subjectType: "POOL",
+        subjectId: params.creditPoolId,
+        action: "CREDIT_REFUND",
+        before: { cachedRemaining: pool.cached_remaining, status: pool.status },
+        after: {
+          cachedRemaining: balanceAfter,
+          refundedCredits: params.amount,
+          status: poolUpdates.status || pool.status,
+          ledgerEntryId: entry.id,
+          paymentId: params.paymentId,
+        },
+        reason: params.reason,
+        ticketRef: params.ticketRef,
+        requestId: params.requestId,
+      });
+
+      this.logger.log(
+        `[LedgerService] REFUND recorded: -${params.amount} on pool ${params.creditPoolId} for payment ${params.paymentId} (new balance: ${balanceAfter})`,
       );
 
       return entry;
