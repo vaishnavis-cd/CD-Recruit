@@ -158,6 +158,56 @@ export enum PlatformStaffRole {
   OWNER = "OWNER",
 }
 
+/**
+ * Maker-checker manual billing request kinds.
+ * Governed by Artifact 02 §5, Artifact 03 §2.1.4, and PRICING_AND_CREDIT_POOL_SPECIFICATION.md.
+ */
+export enum ManualRequestKind {
+  GRANT = "GRANT",
+  ADJUST = "ADJUST",
+  REFUND = "REFUND",
+  EXPIRY_EXTEND = "EXPIRY_EXTEND",
+  OVERDRAFT_LIMIT = "OVERDRAFT_LIMIT",
+  ACCOUNT_STATUS = "ACCOUNT_STATUS",
+  BILLING_COUNTRY = "BILLING_COUNTRY",
+}
+
+/**
+ * Maker-checker manual billing request lifecycle states.
+ * Governed by Artifact 02 §5.3, Artifact 06 §1.3, and schema.prisma.
+ */
+export enum ManualRequestStatus {
+  PENDING = "PENDING",
+  REQUESTED = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  EXECUTED = "EXECUTED",
+  CANCELLED = "CANCELLED",
+}
+
+/**
+ * Commercial payment providers.
+ * Governed by schema.prisma line 831.
+ */
+export enum PaymentProvider {
+  MANUAL_INVOICE = "MANUAL_INVOICE",
+  RAZORPAY = "RAZORPAY",
+  STRIPE = "STRIPE",
+}
+
+/**
+ * Payment transaction lifecycle states.
+ * Governed by Artifact 06 §1.4 and schema.prisma line 834.
+ */
+export enum PaymentStatus {
+  CREATED = "CREATED",
+  CAPTURED = "CAPTURED",
+  FAILED = "FAILED",
+  REFUNDED = "REFUNDED",
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
+  DISPUTED = "DISPUTED",
+}
+
 export enum Permission {
   // Drive Logistics
   DRIVE_CREATE = "DRIVE_CREATE",

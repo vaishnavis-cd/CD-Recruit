@@ -310,18 +310,20 @@ model Organization {
   id                       String   @id @default(uuid())
   name                     String
   slug                     String   @unique
-  billingAccountId         String   @unique @map("billing_account_id")
+  billingAccountId         String?  @unique @map("billing_account_id")
   appealWindowDaysOverride Int?     @map("appeal_window_days_override")
   createdAt                DateTime @default(now()) @map("created_at")
 
-  candidates            Candidate[]
-  drives                Drive[]
-  staff                 Staff[]
-  sessions              Session[]
+
+  billingAccount BillingAccount? @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  candidates     Candidate[]
+  drives         Drive[]
+  staff          Staff[]
+  sessions       Session[]
   tenantProfile         TenantProfile?
   overrideActions       OverrideAction[]
   impersonationSessions ImpersonationSession[]
-  billingAccount BillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+ 
   @@map("organization")
   @@schema("public")
 }
